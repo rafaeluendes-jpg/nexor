@@ -9339,7 +9339,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.7.0';
+var VERSAO='V5.7.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -22829,10 +22829,11 @@ async function enviarResumoPedido(ped,online){
   var suc=ped.sucursalId||'suc_matriz';
   var c=(DB.zap||{})[suc];
   if(!c||c.ativo===false)return;
-  var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId});
-  if(!cli||!cli.tel)return;
+  var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId})||{};
+  var tel=cli.tel||(online&&online.cliente_tel)||'';
+  if(!tel){toast('Cliente sem telefone — não dá para avisar no WhatsApp.');return;}
   var cd=(DB.cardapio||{})[suc]||{};
-  var nome=(cli.nome||'').split(' ')[0];
+  var nome=((cli.nome||(online&&online.cliente_nome)||'')).split(' ')[0];
   var linhas=(ped.itens||[]).map(function(i){
     return '• '+i.qtd+'× '+i.nome+
       ((i.opcoes||[]).length?'\n   _'+i.opcoes.map(function(o){return o.nome}).join(', ')+'_':'')+
@@ -22854,9 +22855,10 @@ async function enviarResumoPedido(ped,online){
     '\n\nJá começamos a preparar. Aviso aqui quando '+
     (ped.tipo==='entrega'?'sair para entrega':'estiver pronto')+'! 🍨';
   try{
-    var r=await zapApi('/enviar','POST',{loja:suc,telefone:cli.tel,texto:texto});
+    var r=await zapApi('/enviar','POST',{loja:suc,telefone:tel,texto:texto});
     if(r&&r.ok)toast('Confirmação enviada no WhatsApp para '+nome+'.');
-  }catch(e){}
+    else if(r&&r.erro)toast('WhatsApp não enviou: '+String(r.erro).slice(0,70));
+  }catch(e){toast('Não consegui falar com o robô.');}
 }
 function formaPorNome(nome){
   baseFormas();
@@ -23181,7 +23183,10 @@ async function avisarCliente(ped,fase){
   var texto=c[campo];
   if(!texto)return;
   var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId});
-  if(!cli||!cli.tel)return;
+  if(!cli||!cli.tel){
+    if(ped.canal==='cardapio')toast('Cliente sem telefone no cadastro — não avisei no WhatsApp.');
+    return;
+  }
   var cd=(DB.cardapio||{})[suc]||{};
   texto=texto.replace(/{nome}/g,(cli.nome||'').split(' ')[0])
              .replace(/{numero}/g,ped.numero)
