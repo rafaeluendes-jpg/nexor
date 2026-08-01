@@ -8672,7 +8672,9 @@ async function baixarDaNuvem(forcar){
   DB.produtos=volta(rp,function(x){
     var g=(rv||[]).filter(function(v){return v.produto_id===x.id}).map(function(v){return mapaGr[v.grupo_id]}).filter(Boolean);
     return {id:x.ref_local||x.id,nome:x.nome,preco:Number(x.preco)||0,codigo:x.codigo,
-      detalhes:x.descricao,categoriaId:mapaCat[x.categoria_id]||'',ativo:x.ativo!==false,
+      detalhes:x.descricao,descricao:x.descricao,
+      delivery:x.disponivel_delivery!==false,
+      categoriaId:mapaCat[x.categoria_id]||'',ativo:x.ativo!==false,
       ordem:x.ordem||0,imagem:x.imagem_url,pesado:!!x.pesado,variacao:!!x.variacao,
       nomeOnline:x.nome_online,disponivel:x.disponivel||{},promocoes:x.promocoes||[],
       grupos:g,vinculaEstoque:!!x.vincula_estoque,
@@ -8780,6 +8782,7 @@ async function baixarDaNuvem(forcar){
   var scPre=await api('sucursais'+qs);
   var mapaSuc2={};scPre.forEach(function(x){mapaSuc2[x.id]=x.ref_local||x.id});
   var cd=await api('cardapio_config'+qs);
+  DB.cardapioL=cd;   /* espelho da lista, para o motor de sync */
   DB.cardapio=DB.cardapio||{};
   cd.forEach(function(x){
     var sid=mapaSuc2[x.sucursal_id]||x.sucursal_id;
@@ -9039,7 +9042,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.4.0';
+var VERSAO='V5.4.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11133,21 +11136,6 @@ function painelWhats(){
 }
 
 /* ---------- CONFIGURAÇÃO DO PDV ---------- */
-function salvarCfgPDV(){
-  var c=cfg();
-  c.tempoEntrega=parseInt($('sEnt').value)||0;
-  c.tempoRetirada=parseInt($('sRet').value)||0;
-  c.lojaAberta=$('sAb').value==='1';
-  c.caixaCego=$('sCego').checked;
-  c.layout=$('sLay').value;
-  var fs=[];
-  var cks=document.querySelectorAll('.sFase');
-  for(var i=0;i<cks.length;i++)if(cks[i].checked||cks[i].disabled)fs.push(cks[i].value);
-  if(fs.indexOf('aguardando')<0)fs.unshift('aguardando');
-  if(fs.indexOf('cancelado')<0)fs.push('cancelado');
-  c.fases=FASES_DISP.filter(function(f){return fs.indexOf(f.id)>=0}).map(function(f){return f.id});
-  salvar();toast('Configurações salvas.');
-}
 
 /* ==========================================================
    BLOCO 10 — ACERTO COM ENTREGADORES
