@@ -9339,7 +9339,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.6.0';
+var VERSAO='V5.6.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11523,9 +11523,35 @@ async function estadoZapPdv(suc){
 }
 async function conectarZapPdv(suc){
   var box=$('zapPdv');
-  if(box)box.innerHTML='<div class="carregandoP">gerando o código...</div>';
-  try{ await zapApi('/conectar/'+suc,'POST',{}); }catch(e){}
-  estadoZapPdv(suc);
+  if(box)box.innerHTML='<div class="carregandoP">gerando o código... isso leva alguns segundos</div>';
+  try{
+    var r=await zapApi('/conectar/'+suc,'POST',{});
+    if(r&&r.qr){
+      box.innerHTML='<div class="zapQr">'+
+       '<b>Leia o código com o celular da loja</b>'+
+       '<img src="'+r.qr+'" alt="QR code">'+
+       '<span class="hint">WhatsApp → Aparelhos conectados → Conectar aparelho</span>'+
+       '<div class="zapEsperando">'+sv('ref',13)+' esperando a leitura...</div></div>';
+      if(!ZP._loopPdv)ZP._loopPdv=setInterval(function(){
+        if(!document.getElementById('zapPdv')){clearInterval(ZP._loopPdv);ZP._loopPdv=null;return;}
+        estadoZapPdv(suc);
+      },3000);
+      return;
+    }
+    if(r&&r.erro){
+      box.innerHTML='<div class="zapOff">'+sv('help',22)+
+       '<b>O robô recusou a conexão</b>'+
+       '<span class="hint">'+E(String(r.erro).slice(0,180))+'</span>'+
+       '<button class="btnP2" onclick="conectarZapPdv(\''+suc+'\')">Tentar de novo</button></div>';
+      return;
+    }
+    estadoZapPdv(suc);
+  }catch(e){
+    box.innerHTML='<div class="zapOff">'+sv('help',22)+
+     '<b>Não consegui falar com o robô</b>'+
+     '<span class="hint">'+E(e.message||'')+'</span>'+
+     '<button class="btnP2" onclick="conectarZapPdv(\''+suc+'\')">Tentar de novo</button></div>';
+  }
 }
 async function desconectarZapPdv(suc){
   var ok=await confirmar({titulo:'Desconectar o WhatsApp',
@@ -22957,9 +22983,15 @@ function desenhaEstadoZap(r){
 }
 async function conectarZap(){
   var box=$('zapEstado');
-  if(box)box.innerHTML='<div class="carregandoP">gerando o QR code...</div>';
+  if(box)box.innerHTML='<div class="carregandoP">gerando o QR code... isso leva alguns segundos</div>';
   try{
     var r=await zapApi('/conectar/'+ZP.suc,'POST',{});
+    if(r&&r.erro){
+      box.innerHTML='<div class="zapOff">'+sv('help',22)+
+       '<b>O robô recusou a conexão</b><span class="hint">'+E(String(r.erro).slice(0,180))+'</span>'+
+       '<button class="btnP2" onclick="conectarZap()">Tentar de novo</button></div>';
+      return;
+    }
     desenhaEstadoZap(r);
   }catch(e){
     if(box)box.innerHTML='<div class="zapOff">'+sv('help',22)+
