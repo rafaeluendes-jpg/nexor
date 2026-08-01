@@ -2562,6 +2562,110 @@ tbody td small{font-size:10.5px}
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
 
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -2998,6 +3102,110 @@ tbody td small{font-size:10.5px}
 .cnAviso{display:flex;gap:10px;padding:12px 14px;background:var(--blue-soft);
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
+
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
 
 @media(max-width:1000px){.ivGrade{flex-direction:column}.ivAdic{width:100%}}
 
@@ -3518,6 +3726,110 @@ tbody td small{font-size:10.5px}
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
 
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -3954,6 +4266,110 @@ tbody td small{font-size:10.5px}
 .cnAviso{display:flex;gap:10px;padding:12px 14px;background:var(--blue-soft);
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
+
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
 
 @media(max-width:1000px){
   .lfPeriodo{order:3;width:100%}
@@ -5601,6 +6017,110 @@ tbody td small{font-size:10.5px}
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
 
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -6037,6 +6557,110 @@ tbody td small{font-size:10.5px}
 .cnAviso{display:flex;gap:10px;padding:12px 14px;background:var(--blue-soft);
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
+
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
 
 @media(max-width:1000px){.ivGrade{flex-direction:column}.ivAdic{width:100%}}
 
@@ -6557,6 +7181,110 @@ tbody td small{font-size:10.5px}
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
 
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -6994,6 +7722,110 @@ tbody td small{font-size:10.5px}
   border:1px solid #B8D4F0;border-radius:9px;font-size:12px;color:var(--ink-2);line-height:1.6;width:100%}
 .cnAviso svg{color:var(--blue);flex:none;margin-top:1px}
 
+/* ---------- config do cardápio ---------- */
+.linkBox{background:var(--acc-soft);border:1px solid var(--acc);border-radius:8px;padding:6px 13px}
+.linkBox span{display:block;font-size:9.5px;font-weight:700;color:var(--acc-d);
+  text-transform:uppercase;letter-spacing:.05em}
+.linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
+.rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
+  transition:.15s}
+.imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
+.imgDrop.tem{border-style:solid;padding:0}
+.imgDrop img{width:100%;height:100%;object-fit:contain}
+.imgDrop.capa img{object-fit:cover}
+.imgDrop div{text-align:center;color:var(--ink-3)}
+.imgDrop div span{display:block;font-size:11px;margin-top:5px}
+.corLinha{display:flex;align-items:center;gap:10px}
+.corLinha input[type=color]{width:52px;height:34px;border:1px solid var(--line);border-radius:7px;
+  padding:2px;cursor:pointer;background:#fff}
+.corSug{display:flex;gap:5px}
+.corSug button{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer}
+.horG{display:flex;flex-direction:column;gap:6px}
+.horL{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--line-2);
+  border-radius:8px}
+.horL.off{opacity:.55;background:var(--alt)}
+.horL b{width:80px;font-size:12.5px}
+.horIn{display:flex;align-items:center;gap:7px;margin-left:auto}
+.horIn input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12.5px}
+.horIn span{font-size:11.5px;color:var(--ink-3)}
+.fechadoTag{margin-left:auto;font-size:11px;color:var(--ink-3);font-style:italic}
+.estAgora{padding:16px;border-radius:10px;text-align:center}
+.estAgora.ok{background:var(--acc-soft);color:var(--acc-d)}
+.estAgora.no{background:var(--red-soft);color:var(--red)}
+.pt2{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block;margin-bottom:7px}
+.estAgora b{display:block;font-size:15px}
+.estAgora span{display:block;font-size:11.5px;margin-top:3px;opacity:.85}
+.miniF{width:36px;height:36px;border-radius:6px;object-fit:cover;display:block}
+.miniF.vaz{background:var(--alt);color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+/* prévia do cardápio */
+.pcW{border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.pcTopo{display:flex;align-items:center;gap:8px;padding:9px 11px;color:#fff}
+.pcTopo img{width:24px;height:24px;border-radius:5px;object-fit:cover}
+.pcLg{width:24px;height:24px;border-radius:5px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.pcTopo b{font-size:12.5px}
+.pcCapa{height:88px;background:#D9D2C4;position:relative;display:flex;align-items:center;justify-content:center}
+.pcCapa img{width:100%;height:100%;object-fit:cover}
+.pcCapa>span{font-size:10.5px;color:#8A8578}
+.pcCapaIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.35);text-align:center}
+.pcCapaIn b{font-size:15px}
+.pcCapaIn span{font-size:10px;opacity:.85}
+.pcCats{display:flex;gap:5px;padding:9px 11px}
+.pcCat{font-size:10px;padding:3px 9px;border-radius:11px;background:#fff;border:1px solid #E0DACC;color:#666}
+.pcCat.on{color:#fff;border:none}
+.pcProds{padding:0 11px 11px;display:flex;flex-direction:column;gap:6px}
+.pcP{display:flex;gap:8px;background:#fff;border:1px solid #E8E2D6;border-radius:7px;overflow:hidden}
+.pcF{width:44px;height:44px;background:#E4DFD2;flex:none}
+.pcI{padding:6px 8px}
+.pcI b{display:block;font-size:11px}
+.pcI span{font-size:11.5px;font-weight:700}
+
+/* ---------- pedidos do cardápio ---------- */
+.avisoPed{position:fixed;right:18px;top:70px;z-index:9000;display:flex;align-items:center;gap:12px;
+  background:var(--acc);color:#fff;padding:14px 16px;border-radius:11px;
+  box-shadow:0 14px 40px rgba(0,64,54,.35);animation:cfEntra .2s ease-out;max-width:400px}
+.avisoPed svg{flex:none}
+.avisoPed b{display:block;font-size:13.5px}
+.avisoPed span{display:block;font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px}
+.avisoPed button{height:30px;padding:0 13px;border:none;border-radius:7px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.avisoPed button:hover{background:rgba(255,255,255,.32)}
+.avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+.poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
+.poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  border-left:4px solid var(--acc)}
+.poH{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt);
+  border-bottom:1px solid var(--line-2)}
+.poH b{font-size:14.5px}
+.poHora{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.poCli{padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.poCli b{display:block;font-size:13.5px}
+.poCli span{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+.poCli .ref{color:var(--ink-3);font-style:italic}
+.poItens{padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.poIt{display:flex;gap:9px;padding:5px 0;font-size:12.5px;align-items:flex-start}
+.poIt>span{font-weight:700;color:var(--acc-d);min-width:22px}
+.poIt>div{flex:1}
+.poIt b{font-size:12.5px}
+.poIt small{display:block;font-size:11px;color:var(--ink-3)}
+.poIt .v{white-space:nowrap}
+.poTot{padding:10px 14px;background:var(--alt)}
+.poTot .l{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.poTot .l.f{font-size:15px;font-weight:700;color:var(--acc-d);border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px}
+.pgL{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+.poObs{font-size:11.5px;color:var(--ink-2);background:#fff;border-radius:6px;padding:7px 9px;margin-top:8px}
+.poAc{display:flex;gap:8px;padding:11px 14px}
+.poAc .btnP2{flex:1;justify-content:center}
+.secTit{padding:20px 16px 10px;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em}
+.carregandoP{padding:50px;text-align:center;color:var(--ink-3);font-size:13px}
+.badge2.bl{background:var(--blue-soft);color:var(--blue)}
+
 @media(max-width:1000px){
   .lgCard{grid-template-columns:1fr}.lgR{display:none}
   .cardWrap{grid-template-columns:1fr;overflow-y:auto}
@@ -7118,7 +7950,8 @@ function sv(n,s,w){s=s||16;return '<svg width="'+s+'" height="'+s+'" viewBox="0 
 /* ===== BLOCO 2 — MODULOS ===== */
 var MOD=[
 {id:'cardapio',n:'Gestão de Cardápio',ic:'book',it:[{id:'cfg-cardapio',n:'Configuração de Cardápio'}]},
-{id:'pdv',n:'PDV',ic:'pos',it:[{id:'pdv',n:'PDV'}]},
+{id:'pdv',n:'PDV',ic:'pos',it:[{id:'pdv',n:'PDV'},
+ {id:'pedidos-online',n:'Pedidos do Cardápio'}]},
 {id:'financeira',n:'Gestão Financeira',ic:'money',it:[
  {id:'categorias-financeiras',n:'Categorias Financeiras'},
  {id:'formas-pagamento',n:'Formas de Pagamento'},
@@ -7162,7 +7995,8 @@ var MOD=[
  {id:'cfg-dre',n:'Configuração do DRE'},
  {id:'gerar-demo',n:'Gerar Vendas de Demonstração'},
  {id:'areas-entrega',n:'Áreas de Entrega'},{id:'cfg-sucursais',n:'Configurações Sucursais de Franquia'},
- {id:'canais-integracao',n:'Canais de Venda e Integração'},{id:'cfg-loja',n:'Configuração da Loja'},
+ {id:'canais-integracao',n:'Canais de Venda e Integração'},
+ {id:'cfg-cardapio-digital',n:'Configuração do Cardápio Digital'},{id:'cfg-loja',n:'Configuração da Loja'},
  {id:'dados-loja',n:'Dados da Loja'},{id:'dados-fiscais',n:'Dados Fiscais'},
  {id:'cfg-entregador',n:'Configuração do Entregador'},{id:'modelo-impressao',n:'Modelo de Impressão'},
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},{id:'status-vendas',n:'Status de Vendas'},
@@ -7435,6 +8269,17 @@ var MAPA=[
     data:x.data||null,pedido_id:fk('pedidos',x.pedidoId),forma_id:fk('formasPag',x.formaId),
     conta_id:fk('contas',x.contaId),observacao:x.obs||null}}},
 
+ {col:'cardapioL', espelha:true, tab:'cardapio_config',
+  campos:function(x){return {sucursal_id:fk('sucursais',x.sucId),ativo:x.ativo!==false,
+    titulo:x.titulo||null,slogan:x.slogan||null,logo:x.logo||null,capa:x.capa||null,
+    cor_principal:x.corPrincipal||'#2F4A32',cor_fundo:x.corFundo||'#F7F3EA',
+    whatsapp:x.whatsapp||null,instagram:x.instagram||null,endereco:x.endereco||null,
+    pedido_minimo:n(x.pedidoMinimo),tempo_entrega:x.tempoEntrega||null,
+    tempo_retirada:x.tempoRetirada||null,aceita_entrega:x.aceitaEntrega!==false,
+    aceita_retirada:x.aceitaRetirada!==false,pede_cpf:!!x.pedeCpf,
+    formas_aceitas:x.formas||[],pix_chave:x.pixChave||null,
+    aviso:x.aviso||null,horarios:x.horarios||[]}}},
+
  {col:'areas', espelha:true, tab:'areas_entrega',
   campos:function(x){return {nome:x.nome,uf:x.uf||null,
     taxa_padrao:n(x.taxaPadrao),tempo:n(x.tempo)}},
@@ -7573,6 +8418,11 @@ async function sincronizar(){
     var l=NUVEM.loja;
     _ids={};
     /* nenhum registro sobe sem identificação própria — é ela que evita duplicar */
+    /* o cardápio é guardado por sucursal: vira lista para subir */
+    DB.cardapioL=Object.keys(DB.cardapio||{}).map(function(k){
+      var o=Object.assign({},DB.cardapio[k]);
+      o.id='cc_'+k;o.sucId=k;return o;
+    });
     MAPA.forEach(function(E3){
       var lst=DB[E3.col]||[];
       var vistosId={},vistosNome={},limpa=[];
@@ -7927,6 +8777,23 @@ async function baixarDaNuvem(forcar){
           tempo:Number(z.tempo)||0,obs:z.observacao||'',ativa:z.ativa!==false}})};
   });
 
+  var scPre=await api('sucursais'+qs);
+  var mapaSuc2={};scPre.forEach(function(x){mapaSuc2[x.id]=x.ref_local||x.id});
+  var cd=await api('cardapio_config'+qs);
+  DB.cardapio=DB.cardapio||{};
+  cd.forEach(function(x){
+    var sid=mapaSuc2[x.sucursal_id]||x.sucursal_id;
+    if(!sid)return;
+    DB.cardapio[sid]={ativo:x.ativo!==false,titulo:x.titulo||'',slogan:x.slogan||'',
+      logo:x.logo||'',capa:x.capa||'',corPrincipal:x.cor_principal||'#2F4A32',
+      corFundo:x.cor_fundo||'#F7F3EA',whatsapp:x.whatsapp||'',instagram:x.instagram||'',
+      endereco:x.endereco||'',pedidoMinimo:Number(x.pedido_minimo)||0,
+      tempoEntrega:x.tempo_entrega||'',tempoRetirada:x.tempo_retirada||'',
+      aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false,
+      pedeCpf:!!x.pede_cpf,formas:x.formas_aceitas||[],pixChave:x.pix_chave||'',
+      aviso:x.aviso||'',horarios:x.horarios||[]};
+  });
+
   var sc=await api('sucursais'+qs);
   DB.sucursais=volta(sc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     apelido:x.apelido||'',cnpj:x.cnpj||'',telefone:x.telefone||'',cidade:x.cidade||'',
@@ -8171,7 +9038,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.2.1';
+var VERSAO='V5.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -8211,6 +9078,7 @@ var m=mid?M(mid):null,it=iid?IT(m,iid):null;
 $('wTitle').innerHTML=m?('<b>'+E(it?it.n:m.n)+'</b><span>— '+E(m.n)+'</span>'):'<b>Painel</b>';
 if(mid==='cardapio'&&iid==='cfg-cardapio')return telaCardapio();
 if(mid==='pdv'&&iid==='pdv')return telaPDV();
+if(mid==='pdv'&&iid==='pedidos-online')return telaPedidosOnline();
 if(mid==='loja'&&iid==='cfg-pdv')return telaCfgPDV();
 if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
@@ -8243,6 +9111,7 @@ if(mid==='loja'&&iid==='cfg-dre')return telaCfgDRE();
 if(mid==='loja'&&iid==='cfg-sucursais')return telaSucursais();
 if(mid==='loja'&&iid==='areas-entrega')return telaAreasEntrega();
 if(mid==='loja'&&iid==='canais-integracao')return telaCanaisIntegracao();
+if(mid==='loja'&&iid==='cfg-cardapio-digital')return telaCfgCardapio();
 if(mid==='dashboard'&&iid==='canais-venda')return telaCanaisVenda();
 if(mid==='dashboard'&&iid==='faturamento')return telaFaturamento();
 if(mid==='dashboard'&&iid==='venda-data-hora')return telaVendaDataHora();
@@ -20881,10 +21750,7 @@ function cfgCanal(id){
   var k=CANAIS_LISTA.find(function(x){return x.id===id});
   avisar((k?k.n:'Canal'),(k?k.det:''),'info');
 }
-function abrirCfgCardapio(){
-  avisar('Cardápio Digital','A tela de configuração do cardápio é a próxima que vamos construir. '+
-   'Nela você define a página, as lojas que aparecem e as regras de entrega.','info');
-}
+function abrirCfgCardapio(){ abrir('loja','cfg-cardapio-digital'); }
 function salvarPixels(){
   var c=baseCanais();
   ['fbPixel','fbToken','ga4','gtm','tiktok','googleAds'].forEach(function(k){
@@ -20899,6 +21765,637 @@ function ligarCN(){
   if(b)b.oninput=function(){CN.busca=this.value;var p=this.selectionStart;telaCanaisIntegracao();
     var n=$('cnB');if(n){n.focus();n.setSelectionRange(p,p);}};
 }
+
+/* ==========================================================
+   CONFIGURAÇÃO DO CARDÁPIO DIGITAL
+   ========================================================== */
+var CD={suc:'',aba:'marca'};
+function baseCard(){
+  DB.cardapio=DB.cardapio||{};
+  baseSuc();
+  sucAtivas().forEach(function(s){
+    if(!DB.cardapio[s.id])DB.cardapio[s.id]={
+      ativo:true,titulo:'',slogan:'',logo:'',capa:'',
+      corPrincipal:'#2F4A32',corFundo:'#F7F3EA',
+      whatsapp:'',instagram:'',endereco:'',
+      pedidoMinimo:0,tempoEntrega:'40 a 60 min',tempoRetirada:'15 min',
+      aceitaEntrega:true,aceitaRetirada:true,pedeCpf:false,
+      formas:['Dinheiro','Pix','Cartão de débito','Cartão de crédito'],
+      pixChave:'',aviso:'',horarios:horariosPadrao()};
+  });
+  return DB.cardapio;
+}
+function horariosPadrao(){
+  return [0,1,2,3,4,5,6].map(function(d){
+    return {dia:d,fechado:(d===1),abre:'14:00',fecha:'22:30'};
+  });
+}
+function cardAtual(){
+  baseCard();
+  if(!CD.suc||!DB.cardapio[CD.suc])CD.suc=(sucAtivas()[0]||{}).id||'';
+  return DB.cardapio[CD.suc]||{};
+}
+function telaCfgCardapio(){
+  baseMov();baseSuc();
+  var c=cardAtual();
+  var sucs=sucAtivas();
+  var link='https://rafaeluendes-jpg.github.io/delivery/';
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Configuração do Cardápio Digital</h1>'+
+    '<p>A página que seus clientes acessam para pedir.</p></div>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2" onclick="copiarLink()">'+sv('copy',13)+' Copiar link</button>'+
+    '<a class="btnP2" href="'+link+'" target="_blank" style="text-decoration:none">'+
+     sv('eye',13)+' Ver o cardápio</a>'+
+    '<button class="btnP2 ok" onclick="salvarCardapio()">'+sv('check',13)+' Salvar</button>'+
+   '</div>'+
+   '<div class="barraF">'+
+    '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
+     '<select onchange="CD.suc=this.value;telaCfgCardapio()">'+
+     sucs.map(function(s){
+       return '<option value="'+s.id+'"'+(CD.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
+     }).join('')+'</select></div>'+
+    '<div class="bfCampo"><label>Situação</label>'+
+     '<label class="chkL" style="height:32px;margin:0"><input type="checkbox" id="cdAtivo" '+
+      (c.ativo!==false?'checked':'')+'><span>Cardápio no ar</span></label></div>'+
+    '<div style="flex:1"></div>'+
+    '<div class="linkBox"><span>Link público</span><b id="linkTxt">'+link+'</b></div>'+
+   '</div>'+
+   '<div class="abasCN">'+
+    [['marca','Marca e visual','img'],['loja','Loja e horários','store'],
+     ['entrega','Entrega e pagamento','moto'],['prods','Produtos no cardápio','book']]
+     .map(function(a){
+      return '<button class="abaCN'+(CD.aba===a[0]?' on':'')+'" onclick="CD.aba=\''+a[0]+'\';telaCfgCardapio()">'+
+      sv(a[2],14)+' '+a[1]+'</button>';}).join('')+
+   '</div>'+
+   (CD.aba==='marca'?abaMarca(c):CD.aba==='loja'?abaLoja(c):
+    CD.aba==='entrega'?abaEntrega(c):abaProdutos(c))+
+   '</div></div>';
+  ligarCardapio();
+  rodape('cardápio de '+(sucNome(CD.suc)));
+}
+/* ---------- marca ---------- */
+function abaMarca(c){
+  return '<div class="cfgDuas">'+
+   '<div class="cfgCol"><div class="colH">Identidade da loja</div>'+
+    '<div class="colB" style="padding:16px">'+
+     '<div class="row2">'+
+      '<div class="fld2" style="margin:0"><label>Nome que aparece no cardápio</label>'+
+       '<input id="cdTitulo" value="'+E(c.titulo||'')+'" placeholder="'+E(sucNome(CD.suc))+'"></div>'+
+      '<div class="fld2" style="margin:0"><label>Frase de apoio</label>'+
+       '<input id="cdSlogan" value="'+E(c.slogan||'')+'" placeholder="feito para valer a pena"></div>'+
+     '</div>'+
+     '<div class="cfgSep">Imagens</div>'+
+     '<div class="row2">'+
+      '<div><label class="rotImg">Logo</label>'+
+       '<div class="imgDrop'+(c.logo?' tem':'')+'" onclick="escolherImg(\'logo\')">'+
+        (c.logo?'<img src="'+c.logo+'">':'<div>'+sv('img',24)+'<span>enviar logo</span></div>')+
+       '</div>'+
+       (c.logo?'<button class="btnMini" onclick="limparImg(\'logo\')">remover</button>':'')+
+      '</div>'+
+      '<div><label class="rotImg">Foto de capa</label>'+
+       '<div class="imgDrop capa'+(c.capa?' tem':'')+'" onclick="escolherImg(\'capa\')">'+
+        (c.capa?'<img src="'+c.capa+'">':'<div>'+sv('img',24)+'<span>enviar capa</span></div>')+
+       '</div>'+
+       (c.capa?'<button class="btnMini" onclick="limparImg(\'capa\')">remover</button>':'')+
+      '</div>'+
+     '</div>'+
+     '<div class="cfgSep">Cores</div>'+
+     '<div class="row2">'+
+      '<div class="fld2" style="margin:0"><label>Cor principal</label>'+
+       '<div class="corLinha"><input type="color" id="cdCor1" value="'+(c.corPrincipal||'#2F4A32')+'" '+
+        'oninput="previewCard()">'+
+        '<div class="corSug">'+['#2F4A32','#1C3A5E','#8B2E3C','#B8730B','#5B3E8E','#0F5C52']
+         .map(function(k){return '<button style="background:'+k+'" onclick="setCor(1,\''+k+'\')"></button>'}).join('')+
+        '</div></div></div>'+
+      '<div class="fld2" style="margin:0"><label>Cor de fundo</label>'+
+       '<div class="corLinha"><input type="color" id="cdCor2" value="'+(c.corFundo||'#F7F3EA')+'" '+
+        'oninput="previewCard()">'+
+        '<div class="corSug">'+['#F7F3EA','#FAF7F2','#F4F6F8','#FDF6F0','#F5F4F8','#FFFFFF']
+         .map(function(k){return '<button style="background:'+k+';border:1px solid #ddd" onclick="setCor(2,\''+k+'\')"></button>'}).join('')+
+        '</div></div></div>'+
+     '</div>'+
+     '<div class="cfgSep">Contato</div>'+
+     '<div class="row3">'+
+      '<div class="fld2" style="margin:0"><label>WhatsApp</label>'+
+       '<input id="cdZap" value="'+E(c.whatsapp||'')+'" placeholder="17999999999"></div>'+
+      '<div class="fld2" style="margin:0"><label>Instagram</label>'+
+       '<input id="cdInsta" value="'+E(c.instagram||'')+'" placeholder="@sualoja"></div>'+
+      '<div class="fld2" style="margin:0"><label>Endereço</label>'+
+       '<input id="cdEnd" value="'+E(c.endereco||'')+'" placeholder="rua, número, bairro"></div>'+
+     '</div>'+
+    '</div></div>'+
+   '<div class="cfgCol estreita"><div class="colH">Como vai ficar</div>'+
+    '<div class="colB" style="padding:14px"><div id="prevCard">'+previaCardapio(c)+'</div></div>'+
+   '</div></div>';
+}
+function previaCardapio(c){
+  var t=c.titulo||sucNome(CD.suc);
+  return '<div class="pcW" style="background:'+(c.corFundo||'#F7F3EA')+'">'+
+   '<div class="pcTopo" style="background:'+(c.corPrincipal||'#2F4A32')+'">'+
+    (c.logo?'<img src="'+c.logo+'">':'<div class="pcLg">'+E(t.charAt(0))+'</div>')+
+    '<b>'+E(t)+'</b></div>'+
+   '<div class="pcCapa">'+(c.capa?'<img src="'+c.capa+'">':'<span>foto de capa</span>')+
+    '<div class="pcCapaIn" style="color:#fff"><b>'+E(t)+'</b>'+
+    '<span>'+E(c.slogan||'')+'</span></div></div>'+
+   '<div class="pcCats">'+['Tudo','Cascão','Potes'].map(function(x,k){
+     return '<span class="pcCat'+(k===0?' on':'')+'"'+
+     (k===0?' style="background:'+(c.corPrincipal||'#2F4A32')+'"':'')+'>'+x+'</span>';}).join('')+'</div>'+
+   '<div class="pcProds">'+[1,2].map(function(){
+     return '<div class="pcP"><div class="pcF"></div><div class="pcI">'+
+      '<b>Produto</b><span style="color:'+(c.corPrincipal||'#2F4A32')+'">R$ 00,00</span></div></div>';
+   }).join('')+'</div></div>';
+}
+function setCor(n,v){
+  var el=$('cdCor'+n);
+  if(el){el.value=v;previewCard();}
+}
+function previewCard(){
+  var c=cardAtual();
+  lerCardapio(true);
+  var el=$('prevCard');
+  if(el)el.innerHTML=previaCardapio(cardAtual());
+}
+function escolherImg(qual){
+  var inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';
+  inp.onchange=function(){
+    var f=this.files[0];if(!f)return;
+    var r=new FileReader();
+    r.onload=function(){
+      comprimir(r.result,qual==='logo'?400:1200,function(dataUrl){
+        var c=cardAtual();
+        c[qual]=dataUrl;
+        salvar();telaCfgCardapio();
+        toast((qual==='logo'?'Logo':'Capa')+' atualizada.');
+      });
+    };
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
+function comprimir(src,max,cb){
+  var im=new Image();
+  im.onload=function(){
+    var w=im.width,h=im.height;
+    if(w>max){h=h*max/w;w=max;}
+    var cv=document.createElement('canvas');
+    cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(im,0,0,w,h);
+    cb(cv.toDataURL('image/jpeg',0.82));
+  };
+  im.src=src;
+}
+function limparImg(qual){
+  var c=cardAtual();c[qual]='';salvar();telaCfgCardapio();
+}
+
+/* ---------- loja e horários ---------- */
+var DIAS_S=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+function abaLoja(c){
+  var h=c.horarios||horariosPadrao();
+  return '<div class="cfgDuas">'+
+   '<div class="cfgCol"><div class="colH">Horário de funcionamento</div>'+
+    '<div class="colB" style="padding:14px">'+
+     '<div class="horG">'+h.map(function(x,k){
+       return '<div class="horL'+(x.fechado?' off':'')+'">'+
+        '<label class="miniSw"><input type="checkbox" '+(x.fechado?'':'checked')+
+         ' onchange="togDia('+k+')"><i></i></label>'+
+        '<b>'+DIAS_S[x.dia]+'</b>'+
+        (x.fechado?'<span class="fechadoTag">fechado</span>'
+         :'<div class="horIn"><input type="time" value="'+(x.abre||'14:00')+'" '+
+          'onchange="setHora('+k+',\'abre\',this.value)"><span>às</span>'+
+          '<input type="time" value="'+(x.fecha||'22:30')+'" '+
+          'onchange="setHora('+k+',\'fecha\',this.value)"></div>')+
+       '</div>';
+     }).join('')+'</div>'+
+     '<div class="hint" style="margin-top:12px">Fora do horário o cardápio continua visível, '+
+     'mas avisa que a loja está fechada. O cliente pode montar o pedido e enviar depois.</div>'+
+     '<div class="cfgSep">Aviso no topo do cardápio</div>'+
+     '<div class="fld2" style="margin:0"><input id="cdAviso" value="'+E(c.aviso||'')+'" '+
+      'placeholder="ex.: hoje sem entrega no bairro X · promoção de terça"></div>'+
+    '</div></div>'+
+   '<div class="cfgCol estreita"><div class="colH">Situação agora</div>'+
+    '<div class="colB" style="padding:16px">'+
+     (function(){
+       var ag=new Date(),d=ag.getDay(),m=ag.getHours()*60+ag.getMinutes();
+       var hoje=h.find(function(x){return Number(x.dia)===d})||{};
+       var ab=false;
+       if(!hoje.fechado&&hoje.abre){
+         var a=hoje.abre.split(':'),f=(hoje.fecha||'23:59').split(':');
+         var ini=+a[0]*60+ +a[1],fim=+f[0]*60+ +f[1];
+         if(fim<ini)fim+=1440;
+         ab=(m>=ini&&m<=fim);
+       }
+       return '<div class="estAgora '+(ab?'ok':'no')+'">'+
+        '<span class="pt2"></span><b>'+(ab?'Aberto agora':'Fechado agora')+'</b>'+
+        '<span>'+DIAS_S[d]+(hoje.fechado?' — dia de folga'
+          :' · '+(hoje.abre||'')+' às '+(hoje.fecha||''))+'</span></div>';
+     })()+
+     '<div class="hint" style="margin-top:14px">O cardápio confere este horário toda vez que '+
+     'alguém abre a página.</div>'+
+    '</div></div></div>';
+}
+function togDia(k){
+  var c=cardAtual();
+  c.horarios[k].fechado=!c.horarios[k].fechado;
+  salvar();telaCfgCardapio();
+}
+function setHora(k,campo,v){
+  var c=cardAtual();
+  c.horarios[k][campo]=v;
+  salvar();
+}
+/* ---------- entrega e pagamento ---------- */
+function abaEntrega(c){
+  baseAreas();
+  var formas=['Dinheiro','Pix','Cartão de débito','Cartão de crédito','Vale refeição'];
+  return '<div class="cfgDuas">'+
+   '<div class="cfgCol"><div class="colH">Como o cliente recebe</div>'+
+    '<div class="colB" style="padding:16px">'+
+     '<div class="chkGrade">'+
+      '<label class="chkL"><input type="checkbox" id="cdEnt" '+(c.aceitaEntrega!==false?'checked':'')+'>'+
+       '<span><b>Aceita entrega</b><span>o cliente informa o endereço e paga a taxa</span></span></label>'+
+      '<label class="chkL"><input type="checkbox" id="cdRet" '+(c.aceitaRetirada!==false?'checked':'')+'>'+
+       '<span><b>Aceita retirada</b><span>o cliente busca na loja, sem taxa</span></span></label>'+
+      '<label class="chkL"><input type="checkbox" id="cdCpf" '+(c.pedeCpf?'checked':'')+'>'+
+       '<span><b>Pedir CPF</b><span>para nota fiscal; deixe desmarcado se não precisa</span></span></label>'+
+     '</div>'+
+     '<div class="row3" style="margin-top:14px">'+
+      '<div class="fld2" style="margin:0"><label>Pedido mínimo</label>'+
+       '<input id="cdMin" type="number" step="0.01" value="'+(c.pedidoMinimo||0)+'"></div>'+
+      '<div class="fld2" style="margin:0"><label>Tempo de entrega</label>'+
+       '<input id="cdTE" value="'+E(c.tempoEntrega||'')+'" placeholder="40 a 60 min"></div>'+
+      '<div class="fld2" style="margin:0"><label>Tempo de retirada</label>'+
+       '<input id="cdTR" value="'+E(c.tempoRetirada||'')+'" placeholder="15 min"></div>'+
+     '</div>'+
+     '<div class="cfgSep">Formas de pagamento aceitas no delivery</div>'+
+     '<div class="rfChips">'+formas.map(function(f){
+       var on=(c.formas||[]).indexOf(f)>=0;
+       return '<label class="chip'+(on?' on':'')+'">'+
+       '<input type="checkbox"'+(on?' checked':'')+' onchange="togFormaCard(\''+f+'\')">'+f+'</label>';
+     }).join('')+'</div>'+
+     '<div class="fld2" style="margin-top:12px"><label>Chave Pix (aparece para o cliente)</label>'+
+      '<input id="cdPix" value="'+E(c.pixChave||'')+'" placeholder="telefone, e-mail ou chave aleatória"></div>'+
+     '<div class="hint">O pagamento é feito na entrega ou na retirada — o cliente só informa '+
+     'como vai pagar.</div>'+
+    '</div></div>'+
+   '<div class="cfgCol estreita"><div class="colH">Taxas de entrega</div>'+
+    '<div class="colB">'+
+     ((DB.areas||[]).length
+      ?'<table class="etTab previaDre"><tbody>'+(DB.areas||[]).map(function(a){
+        return '<tr class="pTot"><td class="pC">'+sv('map',11)+'</td>'+
+         '<td class="pN">'+E(a.nome)+'<small class="pAuto">padrão R$ '+money(a.taxaPadrao)+'</small></td></tr>'+
+         (a.zonas||[]).filter(function(z){return z.ativa!==false}).map(function(z){
+           return '<tr><td class="pC"></td><td class="pN" style="font-weight:400">'+E(z.nome)+
+           '<small class="pIt">R$ '+money(z.taxa)+(z.tipo==='rural'?' · zona rural':'')+'</small></td></tr>';
+         }).join('');
+       }).join('')+'</tbody></table>'+
+       '<div class="hint" style="padding:12px">Estas zonas aparecem para o cliente escolher. '+
+       'Altere em <b>Áreas de Entrega</b>.</div>'
+      :'<div class="hint" style="padding:16px">Nenhuma área cadastrada. '+
+       'Vá em <b>Configuração da Loja › Áreas de Entrega</b> para o cliente conseguir pedir entrega.</div>')+
+    '</div></div></div>';
+}
+function togFormaCard(f){
+  var c=cardAtual();
+  c.formas=c.formas||[];
+  var i=c.formas.indexOf(f);
+  if(i>=0)c.formas.splice(i,1); else c.formas.push(f);
+  salvar();telaCfgCardapio();
+}
+/* ---------- produtos ---------- */
+function abaProdutos(c){
+  var cats=(DB.categorias||[]).filter(function(x){return x.ativo!==false});
+  var semFoto=(DB.produtos||[]).filter(function(p){return p.ativo!==false&&!p.imagem}).length;
+  return '<div style="padding:14px 16px">'+
+   (semFoto?'<div class="cnAviso" style="margin-bottom:12px">'+sv('help',15)+
+     '<div><b>'+semFoto+' produto(s) sem foto</b> — no cardápio eles aparecem com um desenho. '+
+     'Fotos boas aumentam muito o pedido. Adicione em Gestão de Cardápio.</div></div>':'')+
+   '<div class="etTabW plano2" style="margin:0">'+
+   '<table class="etTab"><thead><tr>'+
+    '<th style="width:54px">Foto</th><th>Produto</th><th style="width:150px">Categoria</th>'+
+    '<th style="width:110px;text-align:right">Preço</th>'+
+    '<th style="width:130px;text-align:center">No cardápio</th></tr></thead><tbody>'+
+   cats.map(function(cat){
+     var ps=(DB.produtos||[]).filter(function(p){return p.categoriaId===cat.id&&p.ativo!==false});
+     if(!ps.length)return '';
+     return '<tr class="caGrupo"><td colspan="5"><b>'+E(cat.nome)+'</b> '+
+      '<small style="color:var(--ink-3)">'+ps.length+' produto(s)</small>'+
+      '<button class="btnMini" style="float:right" onclick="togCatCard(\''+cat.id+'\')">'+
+      'marcar/desmarcar todos</button></td></tr>'+
+      ps.map(function(p){
+       return '<tr><td>'+(p.imagem?'<img src="'+p.imagem+'" class="miniF">'
+         :'<span class="miniF vaz">'+sv('img',13)+'</span>')+'</td>'+
+       '<td><b>'+E(p.nome)+'</b>'+
+        (p.detalhes?'<small style="display:block;color:var(--ink-3)">'+E(p.detalhes)+'</small>'
+         :'<small style="display:block;color:#C4A05A">sem descrição</small>')+'</td>'+
+       '<td>'+E(cat.nome)+'</td>'+
+       '<td style="text-align:right"><b>R$ '+money(p.preco)+'</b></td>'+
+       '<td style="text-align:center"><label class="miniSw"><input type="checkbox" '+
+        (p.delivery!==false?'checked':'')+' onchange="togProdCard(\''+p.id+'\')"><i></i></label></td></tr>';
+      }).join('');
+   }).join('')+
+   '</tbody></table></div></div>';
+}
+function togProdCard(id){
+  var p=(DB.produtos||[]).find(function(x){return x.id===id});
+  if(!p)return;
+  p.delivery=(p.delivery===false);
+  salvar();telaCfgCardapio();
+}
+function togCatCard(cid){
+  var ps=(DB.produtos||[]).filter(function(p){return p.categoriaId===cid});
+  var todos=ps.every(function(p){return p.delivery!==false});
+  ps.forEach(function(p){p.delivery=!todos});
+  salvar();telaCfgCardapio();
+}
+/* ---------- salvar ---------- */
+function lerCardapio(silencioso){
+  var c=cardAtual();
+  if($('cdAtivo'))c.ativo=$('cdAtivo').checked;
+  if($('cdTitulo'))c.titulo=$('cdTitulo').value.trim();
+  if($('cdSlogan'))c.slogan=$('cdSlogan').value.trim();
+  if($('cdCor1'))c.corPrincipal=$('cdCor1').value;
+  if($('cdCor2'))c.corFundo=$('cdCor2').value;
+  if($('cdZap'))c.whatsapp=$('cdZap').value.trim();
+  if($('cdInsta'))c.instagram=$('cdInsta').value.trim();
+  if($('cdEnd'))c.endereco=$('cdEnd').value.trim();
+  if($('cdAviso'))c.aviso=$('cdAviso').value.trim();
+  if($('cdEnt'))c.aceitaEntrega=$('cdEnt').checked;
+  if($('cdRet'))c.aceitaRetirada=$('cdRet').checked;
+  if($('cdCpf'))c.pedeCpf=$('cdCpf').checked;
+  if($('cdMin'))c.pedidoMinimo=parseFloat($('cdMin').value)||0;
+  if($('cdTE'))c.tempoEntrega=$('cdTE').value.trim();
+  if($('cdTR'))c.tempoRetirada=$('cdTR').value.trim();
+  if($('cdPix'))c.pixChave=$('cdPix').value.trim();
+  if(!silencioso)salvar();
+}
+function salvarCardapio(){
+  lerCardapio();
+  salvar();
+  if(NUVEM.ligada)sincronizar();
+  toast('Cardápio salvo — a página pública já está atualizada.');
+}
+function copiarLink(){
+  var l='https://rafaeluendes-jpg.github.io/delivery/';
+  try{navigator.clipboard.writeText(l);toast('Link copiado.');}
+  catch(e){prompt('Copie o link:',l);}
+}
+function ligarCardapio(){
+  ['cdTitulo','cdSlogan','cdZap','cdInsta','cdEnd','cdAviso'].forEach(function(id){
+    var el=$(id);
+    if(el)el.oninput=function(){if(id==='cdTitulo'||id==='cdSlogan')previewCard()};
+  });
+}
+
+/* ==========================================================
+   PEDIDOS DO CARDÁPIO CHEGANDO NO PDV
+   ========================================================== */
+var PO={vistos:{},tocando:false};
+async function buscarPedidosOnline(){
+  if(!NUVEM.ligada)return;
+  try{
+    var r=await api('pedidos_online?situacao=eq.novo&order=criado_em.desc&limit=30');
+    if(!r||!r.length)return;
+    var novos=r.filter(function(p){return !PO.vistos[p.id]});
+    if(!novos.length)return;
+    novos.forEach(function(p){PO.vistos[p.id]=true});
+    avisarPedidoNovo(novos);
+  }catch(e){}
+}
+function avisarPedidoNovo(lista){
+  tocarSino();
+  var n=lista.length;
+  var el=document.getElementById('avisoPed');
+  if(el)el.remove();
+  var d=document.createElement('div');
+  d.id='avisoPed';d.className='avisoPed';
+  d.innerHTML=sv('cart',20)+
+   '<div><b>'+n+' pedido'+(n>1?'s':'')+' do cardápio digital</b>'+
+   '<span>'+lista.slice(0,2).map(function(p){
+     return E(p.cliente_nome)+' · R$ '+money(p.total)}).join(' · ')+
+   (n>2?' e mais '+(n-2):'')+'</span></div>'+
+   '<button onclick="verPedidosOnline()">Ver</button>'+
+   '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+  document.body.appendChild(d);
+  setTimeout(function(){var a=document.getElementById('avisoPed');if(a)a.remove();},25000);
+}
+function tocarSino(){
+  try{
+    var ac=new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.18,0.36].forEach(function(t){
+      var o=ac.createOscillator(),g=ac.createGain();
+      o.connect(g);g.connect(ac.destination);
+      o.frequency.value=t===0.36?1046:784;
+      o.type='sine';
+      g.gain.setValueAtTime(0,ac.currentTime+t);
+      g.gain.linearRampToValueAtTime(.25,ac.currentTime+t+.02);
+      g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+t+.35);
+      o.start(ac.currentTime+t);o.stop(ac.currentTime+t+.4);
+    });
+  }catch(e){}
+}
+/* ---------- tela dos pedidos online ---------- */
+var PON={lista:[],carregando:false};
+async function verPedidosOnline(){
+  var a=document.getElementById('avisoPed');if(a)a.remove();
+  abrir('pdv','pedidos-online');
+}
+async function telaPedidosOnline(){
+  baseMov();baseSuc();
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Pedidos do Cardápio Digital</h1>'+
+    '<p>Pedidos que chegaram pela página pública, esperando você aceitar.</p></div>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2" onclick="telaPedidosOnline()">'+sv('ref',13)+' Atualizar</button>'+
+   '</div>'+
+   '<div id="poBody"><div class="carregandoP">buscando pedidos...</div></div>'+
+   '</div></div>';
+  rodape();
+  if(!NUVEM.ligada){
+    $('poBody').innerHTML='<div class="mvVazio">'+sv('cloud',26)+
+     '<b>Nuvem desligada</b><span>Ligue a nuvem para receber os pedidos do cardápio.</span></div>';
+    return;
+  }
+  try{
+    var r=await api('pedidos_online?order=criado_em.desc&limit=80');
+    PON.lista=r||[];
+    desenhaPedidosOnline();
+  }catch(e){
+    $('poBody').innerHTML='<div class="mvVazio">'+sv('help',26)+
+     '<b>Não consegui buscar agora</b><span>'+E(e.message||'')+'</span></div>';
+  }
+}
+function desenhaPedidosOnline(){
+  var novos=PON.lista.filter(function(p){return p.situacao==='novo'});
+  var resto=PON.lista.filter(function(p){return p.situacao!=='novo'});
+  $('poBody').innerHTML=
+   '<div class="relKpis">'+
+    '<div class="rk dest"><span>Aguardando você</span><b>'+novos.length+'</b></div>'+
+    '<div class="rk"><span>Aceitos hoje</span><b>'+
+     resto.filter(function(p){return String(p.criado_em||'').slice(0,10)===hojeISO()}).length+'</b></div>'+
+    '<div class="rk"><span>Valor aguardando</span><b>R$ '+
+     money(novos.reduce(function(a,p){return a+(Number(p.total)||0)},0))+'</b></div>'+
+   '</div>'+
+   (novos.length?'<div class="poGrade">'+novos.map(cardPedidoOnline).join('')+'</div>'
+    :'<div class="mvVazio">'+sv('cart',26)+'<b>Nenhum pedido novo</b>'+
+     '<span>Quando alguém pedir pelo cardápio, aparece aqui e o sistema avisa.</span></div>')+
+   (resto.length?'<div class="secTit">Já processados</div>'+
+    '<div class="etTabW plano2"><table class="etTab"><thead><tr>'+
+    '<th style="width:90px">Nº</th><th style="width:130px">Quando</th><th>Cliente</th>'+
+    '<th style="width:120px">Tipo</th><th style="width:120px;text-align:right">Total</th>'+
+    '<th style="width:120px;text-align:center">Situação</th></tr></thead><tbody>'+
+    resto.slice(0,40).map(function(p){
+      return '<tr><td><b>#'+E(p.numero)+'</b></td>'+
+      '<td>'+E(String(p.criado_em||'').slice(8,10)+'/'+String(p.criado_em||'').slice(5,7)+' '+
+        String(p.criado_em||'').slice(11,16))+'</td>'+
+      '<td>'+E(p.cliente_nome)+'<small style="display:block;color:var(--ink-3)">'+E(p.cliente_tel)+'</small></td>'+
+      '<td>'+(p.tipo==='entrega'?'Entrega':'Retirada')+'</td>'+
+      '<td style="text-align:right"><b>R$ '+money(p.total)+'</b></td>'+
+      '<td style="text-align:center"><span class="badge2'+(p.situacao==='recusado'?' rd':'')+'">'+
+       (p.situacao==='aceito'?'aceito':p.situacao==='recusado'?'recusado':E(p.situacao))+'</span></td></tr>';
+    }).join('')+'</tbody></table></div>':'');
+}
+function cardPedidoOnline(p){
+  var itens=p.itens||[];
+  var quando=String(p.criado_em||'');
+  var end=p.endereco||{};
+  return '<div class="poCard">'+
+   '<div class="poH"><b>#'+E(p.numero)+'</b>'+
+    '<span class="poHora">'+quando.slice(11,16)+'</span>'+
+    '<span class="badge2'+(p.tipo==='entrega'?'':' bl')+'">'+
+     (p.tipo==='entrega'?'Entrega':'Retirada')+'</span></div>'+
+   '<div class="poCli"><b>'+E(p.cliente_nome)+'</b>'+
+    '<span>'+E(p.cliente_tel)+'</span>'+
+    (p.tipo==='entrega'?'<span>'+E(end.rua||'')+', '+E(end.numero||'')+
+      ' — '+E(p.zona||'')+'</span>'+
+      (end.referencia?'<span class="ref">'+E(end.referencia)+'</span>':''):'')+
+   '</div>'+
+   '<div class="poItens">'+itens.map(function(i){
+     return '<div class="poIt"><span>'+i.qtd+'×</span>'+
+     '<div><b>'+E(i.nome)+'</b>'+
+      ((i.opcoes||[]).length?'<small>'+i.opcoes.map(function(o){return E(o.nome)}).join(' · ')+'</small>':'')+
+      (i.obs?'<small>obs: '+E(i.obs)+'</small>':'')+'</div>'+
+     '<b class="v">R$ '+money(i.total)+'</b></div>';
+   }).join('')+'</div>'+
+   '<div class="poTot">'+
+    '<div class="l"><span>Itens</span><b>R$ '+money(p.subtotal)+'</b></div>'+
+    (Number(p.taxa)?'<div class="l"><span>Taxa</span><b>R$ '+money(p.taxa)+'</b></div>':'')+
+    '<div class="l f"><span>Total</span><b>R$ '+money(p.total)+'</b></div>'+
+    '<div class="pgL">'+sv('cash',12)+' '+E(p.forma_pagamento||'')+
+     (Number(p.troco_para)?' · troco para R$ '+money(p.troco_para):'')+'</div>'+
+    (p.observacao?'<div class="poObs">'+E(p.observacao)+'</div>':'')+
+   '</div>'+
+   '<div class="poAc">'+
+    '<button class="btnP2 rdB" onclick="recusarPedidoOnline(\''+p.id+'\')">Recusar</button>'+
+    '<button class="btnP2 ok" onclick="aceitarPedidoOnline(\''+p.id+'\')">'+
+     sv('check',13)+' Aceitar e lançar no PDV</button>'+
+   '</div></div>';
+}
+
+/* ---------- aceitar: vira pedido do PDV e cadastra o cliente ---------- */
+async function aceitarPedidoOnline(id){
+  var p=PON.lista.find(function(x){return x.id===id});
+  if(!p)return;
+  var ok=await confirmar({
+    titulo:'Aceitar o pedido #'+p.numero,
+    texto:E(p.cliente_nome)+' · '+(p.tipo==='entrega'?'entrega':'retirada'),
+    linhas:[['Itens',String((p.itens||[]).length),''],
+            ['Total','R$ '+money(p.total),''],
+            ['Pagamento',String(p.forma_pagamento||'—'),'']],
+    aviso:'O pedido entra no PDV, o cliente é cadastrado e o estoque é baixado.',
+    ok:'Aceitar',tipo:'check'});
+  if(!ok)return;
+
+  baseMov();baseSuc();
+  /* 1) cliente */
+  var tel=String(p.cliente_tel||'').replace(/\D/g,'');
+  var cli=(DB.clientes||[]).find(function(c){
+    return String(c.tel||'').replace(/\D/g,'')===tel&&tel;});
+  var end=p.endereco||{};
+  if(!cli){
+    cli={id:uid('cli'),nome:p.cliente_nome,tel:p.cliente_tel,
+      rua:end.rua||'',numero:end.numero||'',ref:end.referencia||'',
+      cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
+      compras:0,gasto:0,origem:'cardapio'};
+    DB.clientes.push(cli);
+  }else{
+    if(end.rua)cli.rua=end.rua;
+    if(end.numero)cli.numero=end.numero;
+    if(end.referencia)cli.ref=end.referencia;
+    if(p.zona_id){cli.zonaId=p.zona_id;cli.zona=p.zona;}
+    if(p.cidade)cli.cidade=p.cidade;
+  }
+  /* 2) itens, casando com os produtos cadastrados */
+  var itens=(p.itens||[]).map(function(i){
+    var pr=(DB.produtos||[]).find(function(x){return x.id===i.id})||
+           (DB.produtos||[]).find(function(x){return x.nome===i.nome});
+    return {produtoId:pr?pr.id:'',nome:i.nome,qtd:Number(i.qtd)||1,
+      unitario:Number(i.unitario)||0,total:Number(i.total)||0,
+      obs:i.obs||'',opcoes:(i.opcoes||[]).map(function(o){
+        return {nome:o.nome,preco:Number(o.preco)||0}})};
+  });
+  /* 3) o pedido no PDV — já na fase inicial do fluxo de entrega */
+  var fs=(cfg().fases||['aguardando','preparo','saiu','entregue']);
+  var ag=new Date();
+  var ped={id:uid('ped'),numero:(DB.pedidos.length+1),
+    tipo:(p.tipo==='entrega'?'entrega':'loja'),
+    canal:'cardapio',
+    fase:(p.tipo==='entrega'?(fs[0]||'aguardando'):(fs.indexOf('entregue')>=0?'entregue':fs[fs.length-1])),
+    itens:itens,clienteId:cli.id,clienteNome:cli.nome,
+    cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
+    sucursalId:p.sucursal_id||'suc_matriz',
+    total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
+    pagamentos:[{formaId:formaPorNome(p.forma_pagamento),valor:Number(p.total)||0}],
+    obs:p.observacao||'',trocoPara:Number(p.troco_para)||0,
+    entregadorId:(p.tipo==='entrega'&&entregadorPadrao()?entregadorPadrao().id:null),
+    data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id,
+    origemOnline:p.id};
+  DB.pedidos.push(ped);
+  /* 4) estoque e histórico do cliente */
+  try{ baixarEstoqueVenda(ped); }catch(e){}
+  cli.compras=(cli.compras||0)+1;
+  cli.gasto=(cli.gasto||0)+(Number(p.total)||0);
+  cli.ultima=ag.toLocaleDateString('pt-BR');
+  salvar();
+  /* 5) marca como aceito na nuvem */
+  try{
+    await api('pedidos_online?id=eq.'+id,'PATCH',{situacao:'aceito',pedido_id:ped.id});
+  }catch(e){}
+  if(NUVEM.ligada)sincronizar();
+  PON.lista=PON.lista.map(function(x){
+    if(x.id===id)x.situacao='aceito';return x;});
+  desenhaPedidosOnline();
+  toast('Pedido #'+p.numero+' lançado no PDV.');
+}
+function formaPorNome(nome){
+  baseFormas();
+  var n=String(nome||'').toLowerCase();
+  var f=(DB.formasPag||[]).find(function(x){
+    var y=String(x.nome||'').toLowerCase();
+    if(n.indexOf('pix')>=0)return y.indexOf('pix')>=0;
+    if(n.indexOf('crédito')>=0||n.indexOf('credito')>=0)return y.indexOf('créd')>=0||y.indexOf('cred')>=0;
+    if(n.indexOf('débito')>=0||n.indexOf('debito')>=0)return y.indexOf('déb')>=0||y.indexOf('deb')>=0;
+    if(n.indexOf('dinheiro')>=0)return y.indexOf('dinheiro')>=0;
+    return false;});
+  return f?f.id:((DB.formasPag||[])[0]||{}).id;
+}
+async function recusarPedidoOnline(id){
+  var p=PON.lista.find(function(x){return x.id===id});
+  var ok=await confirmar({titulo:'Recusar o pedido #'+(p?p.numero:''),
+    texto:'O cliente não será avisado automaticamente — ligue para ele.',
+    ok:'Recusar',tipo:'perigo'});
+  if(!ok)return;
+  try{ await api('pedidos_online?id=eq.'+id,'PATCH',{situacao:'recusado'}); }catch(e){}
+  PON.lista=PON.lista.map(function(x){if(x.id===id)x.situacao='recusado';return x;});
+  desenhaPedidosOnline();
+}
+/* verifica a cada 30 segundos */
+setInterval(buscarPedidosOnline,30000);
+setTimeout(buscarPedidosOnline,6000);
 
 /* ---------- POPUP E MODAL ---------- */
 function pop(ev,html){
