@@ -68,3 +68,19 @@ Removido: "Acompanhamento de Venda".
 - [ ] Robô do WhatsApp
 - [ ] Integração fiscal (via empresa contratada)
 - [ ] Integração iFood (após homologação como parceiro)
+
+## Totem de autoatendimento (avaliado, a construir depois)
+
+O cardápio digital já é a maior parte do que um totem precisa. A diferença:
+tela cheia, sem escolher loja, botões maiores, volta ao início sozinho.
+
+**Duas versões possíveis:**
+
+1. **Sem pagamento no totem** (recomendado para começar) — o cliente monta o
+   pedido, sai uma senha, ele paga no caixa. Elimina a fila de escolher.
+   Dá para testar num tablet de ~R$ 1.500 antes de comprar totem.
+
+2. **Com pagamento** — exige integração TEF com a adquirente e um programa
+   instalado na máquina. É a parte cara e demorada.
+
+**Ordem sugerida:** depois de usuários e permissões.
