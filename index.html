@@ -9339,7 +9339,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.6.1';
+var VERSAO='V5.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11197,6 +11197,7 @@ function moverPedido(id,fase){
   salvar();renderKanban();
   var f=FASES_DISP.find(function(x){return x.id===fase});
   toast('Pedido #'+p.numero+' → '+(f?f.n:fase));
+  if(antes!==fase)avisarCliente(p,fase);
 }
 function imprimirPedido(id){imprimirVia(DB.pedidos.find(function(x){return x.id===id}));}
 function verPedido(id){
@@ -22820,6 +22821,42 @@ async function aceitarPedidoOnline(id){
     if(x.id===id)x.situacao='aceito';return x;});
   desenhaPedidosOnline();
   toast('Pedido #'+p.numero+' lançado no PDV.');
+  enviarResumoPedido(ped,p);
+}
+/* confirmação com o resumo do que o cliente pediu */
+async function enviarResumoPedido(ped,online){
+  baseZap();
+  var suc=ped.sucursalId||'suc_matriz';
+  var c=(DB.zap||{})[suc];
+  if(!c||c.ativo===false)return;
+  var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId});
+  if(!cli||!cli.tel)return;
+  var cd=(DB.cardapio||{})[suc]||{};
+  var nome=(cli.nome||'').split(' ')[0];
+  var linhas=(ped.itens||[]).map(function(i){
+    return '• '+i.qtd+'× '+i.nome+
+      ((i.opcoes||[]).length?'\n   _'+i.opcoes.map(function(o){return o.nome}).join(', ')+'_':'')+
+      '\n   R$ '+money(i.total);
+  }).join('\n');
+  var vi=(ped.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
+  var texto='*Pedido #'+ped.numero+' confirmado!* 🎉\n\n'+
+    'Oi '+nome+', recebemos seu pedido:\n\n'+linhas+'\n\n'+
+    '────────────────\n'+
+    'Itens: R$ '+money(vi)+'\n'+
+    (Number(ped.taxa)?'Entrega: R$ '+money(ped.taxa)+'\n':'')+
+    '*Total: R$ '+money(ped.total)+'*\n\n'+
+    'Pagamento: '+((online&&online.forma_pagamento)||'combinar')+
+    (Number(ped.trocoPara)?' (troco para R$ '+money(ped.trocoPara)+')':'')+'\n'+
+    (ped.tipo==='entrega'
+      ? 'Entrega em: '+(cli.rua||'')+', '+(cli.numero||'')+' — '+(cli.zona||'')+'\n'+
+        'Previsão: '+(cd.tempoEntrega||'a combinar')
+      : 'Retirada na loja\nFica pronto em: '+(cd.tempoRetirada||'a combinar'))+
+    '\n\nJá começamos a preparar. Aviso aqui quando '+
+    (ped.tipo==='entrega'?'sair para entrega':'estiver pronto')+'! 🍨';
+  try{
+    var r=await zapApi('/enviar','POST',{loja:suc,telefone:cli.tel,texto:texto});
+    if(r&&r.ok)toast('Confirmação enviada no WhatsApp para '+nome+'.');
+  }catch(e){}
 }
 function formaPorNome(nome){
   baseFormas();
@@ -23134,8 +23171,14 @@ async function avisarCliente(ped,fase){
   var suc=ped.sucursalId||'suc_matriz';
   var c=(DB.zap||{})[suc];
   if(!c||c.ativo===false)return;
-  var mapa={aceito:'msgAceito',preparo:'msgPreparo',saiu:'msgSaiu',entregue:'msgEntregue'};
-  var texto=c[mapa[fase]];
+  var f=String(fase||'').toLowerCase();
+  var campo='';
+  if(f==='aceito'||f==='aguardando'||f==='novo'||f==='recebido')campo='msgAceito';
+  else if(/prepar|produ|cozinha/.test(f))campo='msgPreparo';
+  else if(/saiu|rota|entrega|caminho|transporte/.test(f))campo='msgSaiu';
+  else if(/entregue|conclu|finaliz/.test(f))campo='msgEntregue';
+  if(!campo)return;
+  var texto=c[campo];
   if(!texto)return;
   var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId});
   if(!cli||!cli.tel)return;
@@ -23145,8 +23188,12 @@ async function avisarCliente(ped,fase){
              .replace(/{total}/g,money(ped.total))
              .replace(/{tempo}/g,cd.tempoEntrega||'alguns minutos');
   try{
-    await zapApi('/enviar','POST',{loja:suc,telefone:cli.tel,texto:texto});
-  }catch(e){}
+    var r=await zapApi('/enviar','POST',{loja:suc,telefone:cli.tel,texto:texto});
+    if(r&&r.ok)toast('WhatsApp enviado para '+(cli.nome||'').split(' ')[0]+'.');
+    else if(r&&r.erro)toast('Não enviei o WhatsApp: '+String(r.erro).slice(0,60));
+  }catch(e){
+    toast('Não consegui falar com o robô do WhatsApp.');
+  }
 }
 
 /* ---------- POPUP E MODAL ---------- */
