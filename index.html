@@ -9039,7 +9039,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.3.1';
+var VERSAO='V5.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -15518,20 +15518,25 @@ function baseMov(){
     {id:'mv_ent',  nome:'Entrada manual',        tipo:'entrada', sistema:false,ativo:true,lojas:[]},
     {id:'mv_sai',  nome:'Saída manual',          tipo:'saida',   sistema:false,ativo:true,lojas:[]},
     {id:'mv_prod', nome:'Produzir',              tipo:'producao',sistema:false,ativo:true,lojas:[]},
-    {id:'mv_venda',nome:'Venda frente de caixa', tipo:'saida',   sistema:true, ativo:true,lojas:[]},
+    {id:'mv_venda',nome:'Venda PDV',              tipo:'saida',   sistema:true, ativo:true,lojas:[]},
     {id:'mv_perda',nome:'Perda / quebra',        tipo:'saida',   sistema:false,ativo:true,lojas:[]},
     {id:'mv_cont', nome:'Contagem de estoque',   tipo:'entrada', sistema:true, ativo:true,lojas:[]}
   ];
   DB.movEst=DB.movEst||[];
   DB.contagens=DB.contagens||[];
   DB.motivosMov=DB.motivosMov.filter(function(m){return m.id!=='mv_inv'});
-  [['mv_perdaprod','Perda de produção','saida'],
-    ['mv_ganhoprod','Ganho de produção','entrada']].forEach(function(x){
+  (function(){var v=DB.motivosMov.find(function(m){return m.id==='mv_venda'});
+    if(v&&v.nome==='Venda frente de caixa')v.nome='Venda PDV';})();
+  /* motivos que o sistema usa sozinho — precisam existir sempre,
+     mesmo quando a loja já tem motivos próprios cadastrados */
+  [['mv_venda','Venda PDV','saida'],
+   ['mv_nota','Entrada por nota fiscal','entrada'],
+   ['mv_cont','Contagem de estoque','entrada'],
+   ['mv_perdaprod','Perda de produção','saida'],
+   ['mv_ganhoprod','Ganho de produção','entrada']].forEach(function(x){
     if(!DB.motivosMov.some(function(m){return m.id===x[0]}))
       DB.motivosMov.push({id:x[0],nome:x[1],tipo:x[2],sistema:true,ativo:true,lojas:[]});
   });
-  if(!DB.motivosMov.some(function(m){return m.id==='mv_cont'}))
-    DB.motivosMov.push({id:'mv_cont',nome:'Contagem de estoque',tipo:'entrada',sistema:true,ativo:true,lojas:[]});
   lojasCad();
   DB.motivosMov.forEach(function(m){if(!m.lojas)m.lojas=[]});
   /* item de estoque que recebe a produção de gelato */
@@ -16402,7 +16407,15 @@ function baixarEstoqueVenda(ped){
       }
     }
   });
-  if(!linhas.length)return 0;
+  if(!linhas.length){
+    var semVinc=(ped.itens||[]).filter(function(it){
+      var p2=(DB.produtos||[]).find(function(x){return x.id===it.produtoId});
+      return !p2||!p2.vinculaEstoque||(!p2.fichaId&&!p2.insumoId);
+    });
+    if(semVinc.length)
+      toast(semVinc.length+' produto(s) sem ficha técnica vinculada — o estoque não baixou.');
+    return 0;
+  }
   var mov={id:uid('mv'),data:(ped.data||'').slice(0,10)||hojeISO(),hora:ped.hora||agoraHM(),
     motivoId:'mv_venda',identificacao:'Pedido #'+ped.numero,
     obs:ped.clienteNome||'',linhas:linhas,origem:'venda',pedidoId:ped.id};
@@ -18980,7 +18993,7 @@ function telaItensConsumidos(){
 function soMotivo(id){
   baseMov();
   if(!(DB.motivosMov||[]).some(function(m){return m.id===id})){
-    DB.motivosMov.push({id:'mv_venda',nome:'Venda frente de caixa',tipo:'saida',
+    DB.motivosMov.push({id:'mv_venda',nome:'Venda PDV',tipo:'saida',
       sistema:true,ativo:true,lojas:[]});
     salvar();
   }
