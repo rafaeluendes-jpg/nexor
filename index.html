@@ -8791,7 +8791,8 @@ async function baixarDaNuvem(forcar){
       tempoEntrega:x.tempo_entrega||'',tempoRetirada:x.tempo_retirada||'',
       aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false,
       pedeCpf:!!x.pede_cpf,formas:x.formas_aceitas||[],pixChave:x.pix_chave||'',
-      aviso:x.aviso||'',horarios:x.horarios||[]};
+      aviso:x.aviso||'',
+      horarios:(x.horarios&&x.horarios.length)?x.horarios:horariosPadrao()};
   });
 
   var sc=await api('sucursais'+qs);
@@ -9038,7 +9039,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.3.0';
+var VERSAO='V5.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -21793,7 +21794,10 @@ function horariosPadrao(){
 function cardAtual(){
   baseCard();
   if(!CD.suc||!DB.cardapio[CD.suc])CD.suc=(sucAtivas()[0]||{}).id||'';
-  return DB.cardapio[CD.suc]||{};
+  var c=DB.cardapio[CD.suc]||{};
+  if(!c.horarios||!c.horarios.length)c.horarios=horariosPadrao();
+  if(!c.formas||!c.formas.length)c.formas=['Dinheiro','Pix','Cartão de débito','Cartão de crédito'];
+  return c;
 }
 function telaCfgCardapio(){
   baseMov();baseSuc();
@@ -21954,7 +21958,8 @@ function limparImg(qual){
 /* ---------- loja e horários ---------- */
 var DIAS_S=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 function abaLoja(c){
-  var h=c.horarios||horariosPadrao();
+  if(!c.horarios||!c.horarios.length){c.horarios=horariosPadrao();salvar();}
+  var h=c.horarios;
   return '<div class="cfgDuas">'+
    '<div class="cfgCol"><div class="colH">Horário de funcionamento</div>'+
     '<div class="colB" style="padding:14px">'+
@@ -21995,7 +22000,24 @@ function abaLoja(c){
      })()+
      '<div class="hint" style="margin-top:14px">O cardápio confere este horário toda vez que '+
      'alguém abre a página.</div>'+
+     '<button class="btnP2 ok" style="width:100%;margin-top:12px;justify-content:center" '+
+      'onclick="abrirHojeAgora()">'+sv('check',13)+' Abrir hoje até 23:59</button>'+
+     '<div class="hint" style="margin-top:7px">Atalho para deixar a loja aberta agora — '+
+      'útil para testar ou para um dia fora do horário normal.</div>'+
     '</div></div></div>';
+}
+function abrirHojeAgora(){
+  var c=cardAtual();
+  var d=new Date().getDay();
+  var h=c.horarios.find(function(x){return Number(x.dia)===d});
+  if(!h){h={dia:d};c.horarios.push(h);}
+  h.fechado=false;
+  h.abre='00:00';h.fecha='23:59';
+  c.ativo=true;
+  salvar();
+  if(NUVEM.ligada)sincronizar();
+  telaCfgCardapio();
+  toast('Loja aberta hoje até 23:59.');
 }
 function togDia(k){
   var c=cardAtual();
