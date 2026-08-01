@@ -7366,8 +7366,9 @@ var MAPA=[
 
  {col:'produtos', espelha:true,    tab:'produtos',
   campos:function(x,i){return {nome:x.nome,preco:n(x.preco),codigo:x.codigo||null,
-    descricao:x.detalhes||null,categoria_id:fk('categorias',x.categoriaId),
+    descricao:x.detalhes||x.descricao||null,categoria_id:fk('categorias',x.categoriaId),
     ativo:x.ativo!==false,ordem:x.ordem||i,imagem_url:x.imagem||null,
+    imagem:x.imagem||null,disponivel_delivery:x.delivery!==false,
     pesado:!!x.pesado,variacao:!!x.variacao,nome_online:x.nomeOnline||null,
     disponivel:x.disponivel||{},promocoes:x.promocoes||[],vincula_estoque:!!x.vinculaEstoque,
     ficha_id:fk('fichas',x.fichaId),insumo_id:fk('insumos',x.insumoId),
@@ -8170,7 +8171,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.2.0';
+var VERSAO='V5.2.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
