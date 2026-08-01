@@ -9387,7 +9387,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.8.0';
+var VERSAO='V5.8.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -22893,7 +22893,7 @@ async function aceitarPedidoOnline(id){
 async function enviarResumoPedido(ped,online){
   baseZap();
   var suc=ped.sucursalId||'suc_matriz';
-  var c=(DB.zap||{})[suc];
+  var c=cfgZapDe(suc);
   if(!c||c.ativo===false)return;
   var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId})||{};
   var tel=cli.tel||(online&&online.cliente_tel)||'';
@@ -22921,7 +22921,8 @@ async function enviarResumoPedido(ped,online){
     '\n\nJá começamos a preparar. Aviso aqui quando '+
     (ped.tipo==='entrega'?'sair para entrega':'estiver pronto')+'! 🍨';
   try{
-    var r=await zapApi('/enviar','POST',{loja:suc,telefone:tel,texto:texto});
+    var alvo=(await lojaConectada())||suc;
+    var r=await zapApi('/enviar','POST',{loja:alvo,telefone:tel,texto:texto});
     if(r&&r.ok)toast('Confirmação enviada no WhatsApp para '+nome+'.');
     else if(r&&r.erro)toast('WhatsApp não enviou: '+String(r.erro).slice(0,70));
   }catch(e){toast('Não consegui falar com o robô.');}
@@ -23233,12 +23234,42 @@ async function salvarZap(){
   toast('Configuração do robô salva.');
 }
 /* ---------- envio automático quando o pedido muda de fase ---------- */
+/* acha a configuração da loja; se o código não bater, usa a primeira */
+var MSG_PADRAO={
+ msgAceito:'Oi {nome}! Recebemos seu pedido *#{numero}* 🎉\n\nTotal: *R$ {total}*\nPrevisão: {tempo}\n\nJá começamos a preparar!',
+ msgPreparo:'{nome}, seu pedido *#{numero}* está sendo preparado com carinho 🍨',
+ msgSaiu:'{nome}, seu pedido *#{numero}* saiu para entrega! 🛵\n\nChega em instantes.',
+ msgEntregue:'Pedido *#{numero}* entregue! 😊\n\nSe puder, responda de *1 a 5* como foi sua experiência. ⭐'
+};
+function cfgZapDe(suc){
+  baseZap();
+  var z=DB.zap||{};
+  function completar(c){
+    if(!c)return null;
+    Object.keys(MSG_PADRAO).forEach(function(k){ if(!c[k])c[k]=MSG_PADRAO[k]; });
+    return c;
+  }
+  if(z[suc])return completar(z[suc]);
+  var chaves=Object.keys(z);
+  if(chaves.length)return completar(z[chaves[0]]);
+  return completar(Object.assign({ativo:true},MSG_PADRAO));
+}
+/* acha a loja que está de fato conectada no robô */
+async function lojaConectada(){
+  try{
+    var d=await zapApi('/diagnostico');
+    var s=(d.sessoes||[]).find(function(x){return x.estado==='conectado'});
+    if(s)return s.loja;
+  }catch(e){}
+  return null;
+}
 async function avisarCliente(ped,fase){
-  if(!ped||!ped.clienteId)return;
+  if(!ped)return;
   baseZap();
   var suc=ped.sucursalId||'suc_matriz';
-  var c=(DB.zap||{})[suc];
-  if(!c||c.ativo===false)return;
+  var c=cfgZapDe(suc);
+  if(!c){toast('Robô sem configuração — não avisei no WhatsApp.');return;}
+  if(c.ativo===false)return;
   var f=String(fase||'').toLowerCase();
   var campo='';
   if(f==='aceito'||f==='aguardando'||f==='novo'||f==='recebido')campo='msgAceito';
@@ -23259,9 +23290,10 @@ async function avisarCliente(ped,fase){
              .replace(/{total}/g,money(ped.total))
              .replace(/{tempo}/g,cd.tempoEntrega||'alguns minutos');
   try{
-    var r=await zapApi('/enviar','POST',{loja:suc,telefone:cli.tel,texto:texto});
+    var alvo=(await lojaConectada())||suc;
+    var r=await zapApi('/enviar','POST',{loja:alvo,telefone:cli.tel,texto:texto});
     if(r&&r.ok)toast('WhatsApp enviado para '+(cli.nome||'').split(' ')[0]+'.');
-    else if(r&&r.erro)toast('Não enviei o WhatsApp: '+String(r.erro).slice(0,60));
+    else if(r&&r.erro)toast('Não enviei o WhatsApp: '+String(r.erro).slice(0,70));
   }catch(e){
     toast('Não consegui falar com o robô do WhatsApp.');
   }
