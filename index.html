@@ -11337,7 +11337,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.3.0';
+var VERSAO='V7.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -24218,7 +24218,26 @@ function telaCanaisIntegracao(){
   if(CN.aba==='cardapio'){telaCfgCardapio(true);return;}
   if(CN.aba==='whatsapp'){telaZap(true);return;}
   ligarCN();
+  if(CN.aba==='canais'&&ESTADO_REAL.whatsapp===undefined)conferirCanais();
   rodape();
+}
+var ESTADO_REAL={};
+async function conferirCanais(){
+  /* WhatsApp: pergunta ao robô se há sessão conectada */
+  try{
+    var d=await zapApi('/diagnostico');
+    var s=(d.sessoes||[]).find(function(x){return x.estado==='conectado'});
+    ESTADO_REAL.whatsapp=!!s;
+    ESTADO_REAL.whatsappNum=s?s.numero:'';
+  }catch(e){ ESTADO_REAL.whatsapp=false; }
+  /* cardápio: está ativo se alguma loja publicou */
+  baseCard();
+  ESTADO_REAL.cardapio=Object.keys(DB.cardapio||{}).some(function(k){
+    return (DB.cardapio[k]||{}).ativo!==false;});
+  /* aplicativo: alguém com acesso publicado */
+  baseUsr();
+  ESTADO_REAL.appgestao=(DB.usuarios||[]).some(function(u){return u.publicadoEm});
+  if(CN.aba==='canais')telaCanaisIntegracao();
 }
 function blocoCanais(c){
   var q=(CN.busca||'').toLowerCase();
@@ -24243,18 +24262,26 @@ function blocoCanais(c){
      return '<div class="cnGrupo"><div class="cnGT">'+g[1]+'</div>'+
       '<div class="cnGrade">'+l.map(function(k){
         var st=c.cfg[k.id]||{};
-        var on=st.ativo||k.fixo;
+        /* canais com estado próprio mostram a verdade, não a chavinha */
+        var auto=(ESTADO_REAL[k.id]!==undefined);
+        var on=auto?ESTADO_REAL[k.id]:(st.ativo||k.fixo);
         return '<div class="cnCard'+(on?' on':'')+(k.pronto?'':' futuro')+'">'+
          '<div class="cnTopo">'+
           '<div class="cnIc">'+sv(k.ic,18)+'</div>'+
           '<div class="cnN"><b>'+E(k.n)+'</b><span>'+E(k.d)+'</span></div>'+
           (k.fixo
             ?'<span class="badge2">sempre ativo</span>'
+            :auto
+            ?'<span class="badge2'+(on?'':' am')+'">'+
+             (on?sv('check',10)+' conectado':'desconectado')+'</span>'
             :'<label class="miniSw" title="'+(k.pronto?'ativar canal':'ainda não disponível')+'">'+
              '<input type="checkbox"'+(st.ativo?' checked':'')+(k.pronto?'':' disabled')+
              ' onchange="togCanal(\''+k.id+'\')"><i></i></label>')+
          '</div>'+
-         '<div class="cnDet">'+E(k.det)+'</div>'+
+         '<div class="cnDet">'+
+          (k.id==='whatsapp'&&ESTADO_REAL.whatsapp&&ESTADO_REAL.whatsappNum
+            ?'Conectado no número <b>'+E(ESTADO_REAL.whatsappNum)+'</b>. '
+            :'')+E(k.det)+'</div>'+
          '<div class="cnRod">'+
           (k.pronto
             ?(k.semInt?'<span class="cnTag cinza">sem integração</span>'
