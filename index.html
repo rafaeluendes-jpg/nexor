@@ -9867,7 +9867,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V6.0.0';
+var VERSAO='V6.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -23289,9 +23289,28 @@ async function telaPedidosOnline(){
      '<b>Não consegui buscar agora</b><span>'+E(e.message||'')+'</span></div>';
   }
 }
+var POF={periodo:'hoje',busca:''};
+function filtraOnline(lista){
+  var hoje=hojeISO();
+  return lista.filter(function(p){
+    var d=String(p.criado_em||'').slice(0,10);
+    if(POF.periodo==='hoje'&&d!==hoje)return false;
+    if(POF.periodo==='7'&&d<diasAtrasISO(7))return false;
+    if(POF.periodo==='30'&&d<diasAtrasISO(30))return false;
+    if(POF.busca){
+      var q=POF.busca.toLowerCase();
+      if(String(p.numero||'').indexOf(q)<0&&
+         String(p.cliente_nome||'').toLowerCase().indexOf(q)<0&&
+         String(p.cliente_tel||'').replace(/\D/g,'').indexOf(q.replace(/\D/g,''))<0)return false;
+    }
+    return true;
+  });
+}
 function desenhaPedidosOnline(){
   var novos=PON.lista.filter(function(p){return p.situacao==='novo'});
-  var resto=PON.lista.filter(function(p){return p.situacao!=='novo'});
+  var resto=filtraOnline(PON.lista.filter(function(p){return p.situacao!=='novo'}));
+  var _foco=document.activeElement&&document.activeElement.id==='pofB';
+  var _pos=_foco?document.activeElement.selectionStart:0;
   $('poBody').innerHTML=
    '<div class="relKpis">'+
     '<div class="rk dest"><span>Aguardando você</span><b>'+novos.length+'</b></div>'+
@@ -23303,8 +23322,20 @@ function desenhaPedidosOnline(){
    (novos.length?'<div class="poGrade">'+novos.map(cardPedidoOnline).join('')+'</div>'
     :'<div class="mvVazio">'+sv('cart',26)+'<b>Nenhum pedido novo</b>'+
      '<span>Quando alguém pedir pelo cardápio, aparece aqui e o sistema avisa.</span></div>')+
-   (resto.length?'<div class="secTit">Já processados</div>'+
-    '<div class="etTabW plano2"><table class="etTab"><thead><tr>'+
+   '<div class="kanBar" style="margin-top:6px">'+
+    '<div class="kanFil">'+
+     [['hoje','Hoje'],['7','7 dias'],['30','30 dias'],['tudo','Tudo']].map(function(f){
+       return '<button class="'+(POF.periodo===f[0]?'on':'')+'" '+
+       'onclick="POF.periodo=\''+f[0]+'\';desenhaPedidosOnline()">'+f[1]+'</button>';}).join('')+
+    '</div>'+
+    '<div class="kanBusca">'+sv('search',13)+
+     '<input id="pofB" value="'+E(POF.busca)+'" placeholder="número, cliente ou telefone">'+
+     (POF.busca?'<button onclick="POF.busca=\'\';desenhaPedidosOnline()">'+sv('x2',12)+'</button>':'')+
+    '</div>'+
+    '<div class="kanTot"><span><b>'+resto.length+'</b> pedido(s) no período</span>'+
+     '<span class="v"><b>R$ '+money(resto.reduce(function(a,p){return a+(Number(p.total)||0)},0))+'</b></span>'+
+    '</div></div>'+
+   (resto.length?'<div class="etTabW plano2"><table class="etTab"><thead><tr>'+
     '<th style="width:90px">Nº</th><th style="width:130px">Quando</th><th>Cliente</th>'+
     '<th style="width:120px">Tipo</th><th style="width:120px;text-align:right">Total</th>'+
     '<th style="width:120px;text-align:center">Situação</th></tr></thead><tbody>'+
@@ -23316,8 +23347,55 @@ function desenhaPedidosOnline(){
       '<td>'+(p.tipo==='entrega'?'Entrega':'Retirada')+'</td>'+
       '<td style="text-align:right"><b>R$ '+money(p.total)+'</b></td>'+
       '<td style="text-align:center"><span class="badge2'+(p.situacao==='recusado'?' rd':'')+'">'+
-       (p.situacao==='aceito'?'aceito':p.situacao==='recusado'?'recusado':E(p.situacao))+'</span></td></tr>';
-    }).join('')+'</tbody></table></div>':'');
+       (p.situacao==='aceito'?'aceito':p.situacao==='recusado'?'recusado':E(p.situacao))+'</span></td>'+
+      '<td><button class="rBtn" onclick="verPedidoOnline(\''+p.id+'\')" title="Ver o pedido">'+
+       sv('eye',12)+'</button></td></tr>';
+    }).join('')+'</tbody></table></div>'
+   :'<div class="mvVazio" style="padding:30px">'+sv('cart',22)+
+    '<b>Nenhum pedido neste período</b><span>Mude o filtro acima para ver outros dias.</span></div>');
+}
+function verPedidoOnline(id){
+  var p=PON.lista.find(function(x){return x.id===id});
+  if(!p)return;
+  var end=p.endereco||{};
+  var itens=p.itens||[];
+  var h='<div class="mdB">'+
+  '<div class="acHead"><div class="av3" style="width:42px;height:42px">'+sv('cart',18)+'</div>'+
+  '<div><b>Pedido #'+E(p.numero)+'</b>'+
+   '<span>'+dataBR(String(p.criado_em||'').slice(0,10))+' às '+
+    String(p.criado_em||'').slice(11,16)+' · '+
+    (p.tipo==='entrega'?'Entrega':'Retirada')+'</span>'+
+   '<span>'+E(p.cliente_nome)+' · '+E(p.cliente_tel)+'</span></div>'+
+  '<div style="text-align:right"><span class="hint">Total</span>'+
+   '<b style="display:block;font-size:20px;color:var(--acc-d)">R$ '+money(p.total)+'</b></div></div>'+
+  (p.tipo==='entrega'?'<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Entrega</h3>'+
+   '<div class="linha"><span>Endereço</span><b>'+E(end.rua||'')+', '+E(end.numero||'')+'</b></div>'+
+   '<div class="linha"><span>Zona</span><b>'+E(p.zona||'')+' — '+E(p.cidade||'')+'</b></div>'+
+   (end.referencia?'<div class="linha"><span>Referência</span><b>'+E(end.referencia)+'</b></div>':'')+
+   '</div>':'')+
+  '<div class="blk" style="margin:0 0 11px;max-width:none;padding:0;overflow:hidden">'+
+   '<div class="acTit">Itens</div><table class="acTab"><tbody>'+
+   itens.map(function(i){
+     return '<tr><td><b>'+i.qtd+'× '+E(i.nome)+'</b>'+
+     ((i.opcoes||[]).length?'<small style="display:block;color:var(--ink-3)">'+
+       i.opcoes.map(function(o){return E(o.nome)}).join(' · ')+'</small>':'')+
+     (i.obs?'<small style="display:block;color:var(--ink-3)">obs: '+E(i.obs)+'</small>':'')+'</td>'+
+     '<td style="text-align:right;width:110px"><b>R$ '+money(i.total)+'</b></td></tr>';
+   }).join('')+'</tbody></table></div>'+
+  '<div class="blk" style="margin:0;max-width:none"><h3>Fechamento</h3>'+
+   '<div class="linha"><span>Itens</span><b>R$ '+money(p.subtotal)+'</b></div>'+
+   (Number(p.taxa)?'<div class="linha"><span>Taxa de entrega</span><b>R$ '+money(p.taxa)+'</b></div>':'')+
+   '<div class="linha tot"><span>Total</span><span>R$ '+money(p.total)+'</span></div>'+
+   '<div class="linha"><span>Pagamento</span><b>'+E(p.forma_pagamento||'')+
+    (Number(p.troco_para)?' · troco para R$ '+money(p.troco_para):'')+'</b></div>'+
+   (p.observacao?'<div class="linha"><span>Observação</span><b>'+E(p.observacao)+'</b></div>':'')+
+  '</div></div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox lg"><div class="mdH"><b>Pedido do cardápio #'+E(p.numero)+'</b>'+
+   '<button onclick="fecharModal()">&times;</button></div>'+h+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+  document.body.appendChild(o);
+  fecharSoForaDeVerdade(o);
 }
 function cardPedidoOnline(p){
   var itens=p.itens||[];
