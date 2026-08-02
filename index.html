@@ -11177,7 +11177,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.2.0';
+var VERSAO='V7.2.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -26048,11 +26048,11 @@ async function publicarAcesso(){
     baseSuc();
     /* converte os códigos locais para os do banco */
     var mapa={};
-    var sc=await api('sucursais?loja_id=eq.'+NUVEM.lojaId);
+    var sc=await api('sucursais?loja_id=eq.'+NUVEM.loja);
     (sc||[]).forEach(function(x){ mapa[x.ref_local||x.id]=x.id; });
     var sucs=(u.sucursais||[]).map(function(id){return mapa[id]||id});
     await api('app_usuarios?on_conflict=login','POST',[{
-      loja_id:NUVEM.lojaId,
+      loja_id:NUVEM.loja,
       nome:u.nome,login:u.login,senha:u.senha,
       ativo:u.ativo!==false,mestre:!!u.mestre,tudo:!!u.tudo,
       sucursais:sucs,permissoes:u.permissoes||{},
@@ -26062,7 +26062,11 @@ async function publicarAcesso(){
     salvar();telaUsuarios();
     toast('Acesso publicado — '+u.nome+' já pode entrar no aplicativo.');
   }catch(e){
-    toast('Não consegui publicar: '+String(e.message||'').slice(0,60));
+    var det=String((e&&(e.message||e.hint||e.details))||e||'').slice(0,140);
+    await confirmar({titulo:'Não consegui publicar o acesso',
+      texto:'O login de '+E(u.nome)+' não foi liberado no aplicativo.',
+      aviso:det?'Detalhe: '+E(det):'Verifique se a nuvem está ligada.',
+      ok:'Entendi',cancelar:null,tipo:'perigo'});
   }
 }
 function abaLojasUsr(u,sucs){
