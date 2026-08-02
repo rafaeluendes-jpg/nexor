@@ -2746,6 +2746,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
 
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -3366,6 +3389,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
+
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
 
 @media(max-width:1000px){.ivGrade{flex-direction:column}.ivAdic{width:100%}}
 
@@ -4070,6 +4116,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
 
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -4690,6 +4759,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
+
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
 
 @media(max-width:1000px){
   .lfPeriodo{order:3;width:100%}
@@ -6521,6 +6613,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
 
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -7141,6 +7256,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
+
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
 
 @media(max-width:1000px){.ivGrade{flex-direction:column}.ivAdic{width:100%}}
 
@@ -7845,6 +7983,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
 
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
+
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
 /* ---------- caixa de confirmação ---------- */
@@ -8465,6 +8626,29 @@ tbody td small{font-size:10.5px}
 .pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
 .pvProds.pv-linha .pvInfo{padding:0;flex:1}
 .mL i.q{height:100%;aspect-ratio:1/1}
+
+/* ---------- barra de filtro do kanban ---------- */
+.kanBar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.kanFil{display:flex;gap:4px}
+.kanFil button{height:30px;padding:0 13px;border:1px solid var(--line);border-radius:15px;
+  background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);font-weight:500}
+.kanFil button:hover{border-color:var(--acc)}
+.kanFil button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.kanData{display:flex;align-items:center;gap:7px}
+.kanData input{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px}
+.kanData span{font-size:11.5px;color:var(--ink-3)}
+.kanBusca{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:0 11px;height:30px;min-width:230px}
+.kanBusca svg{color:var(--ink-3);flex:none}
+.kanBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.kanBusca button{border:none;background:none;cursor:pointer;color:var(--ink-3);padding:0}
+.kanTot{margin-left:auto;display:flex;gap:16px;align-items:center}
+.kanTot span{font-size:11.5px;color:var(--ink-3)}
+.kanTot b{color:var(--ink);font-size:13px}
+.kanTot .v b{color:var(--acc-d);font-size:15px}
+.ped{cursor:grab}
+@media(max-width:900px){.kanTot{width:100%;margin-left:0}.kanBusca{min-width:0;flex:1}}
 
 @media(max-width:1000px){
   .lgCard{grid-template-columns:1fr}.lgR{display:none}
@@ -9683,7 +9867,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.9.1';
+var VERSAO='V6.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -10814,7 +10998,7 @@ function telaPDV(){
 
   conferirZapPdv();
   if(PDV.aba==='venda')renderVenda();
-  if(PDV.aba==='pedidos')renderKanban();
+  if(PDV.aba==='pedidos'){renderKanban();ligarBuscaKanban();}
   rodape(DB.pedidos.length+' pedidos · '+DB.clientes.length+' clientes');
 }
 /* leva os tempos do PDV para o cardápio digital e para o robô */
@@ -10851,6 +11035,42 @@ async function conferirZapPdv(){
     pt.className='zapPt '+(r.estado==='conectado'?'on':'off');
     pt.title=(r.estado==='conectado'?'conectado: '+(r.numero||''):'não conectado');
   }catch(e){ pt.className='zapPt off'; }
+}
+function ligarBuscaKanban(){
+  var b=$('kanB');
+  if(!b)return;
+  b.oninput=function(){
+    KAN.busca=this.value;
+    var p=this.selectionStart;
+    renderKanban();ligarBuscaKanban();
+    var n=$('kanB');
+    if(n){n.focus();n.setSelectionRange(p,p);}
+  };
+}
+function barraKanban(peds,abertos){
+  var val=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
+  return '<div class="kanBar">'+
+   '<div class="kanFil">'+
+    [['hoje','Hoje'],['ontem','Ontem'],['7','7 dias'],['30','30 dias'],['data','Escolher data']]
+     .map(function(f){
+       return '<button class="'+(KAN.periodo===f[0]?'on':'')+'" '+
+       'onclick="KAN.periodo=\''+f[0]+'\';renderKanban()">'+f[1]+'</button>';}).join('')+
+   '</div>'+
+   (KAN.periodo==='data'
+    ?'<div class="kanData">'+
+      '<input type="date" value="'+(KAN.de||hojeISO())+'" onchange="KAN.de=this.value;renderKanban()">'+
+      '<span>até</span>'+
+      '<input type="date" value="'+(KAN.ate||hojeISO())+'" onchange="KAN.ate=this.value;renderKanban()">'+
+     '</div>':'')+
+   '<div class="kanBusca">'+sv('search',13)+
+    '<input id="kanB" value="'+E(KAN.busca)+'" placeholder="número do pedido ou cliente">'+
+    (KAN.busca?'<button onclick="KAN.busca=\'\';renderKanban()">'+sv('x2',12)+'</button>':'')+
+   '</div>'+
+   '<div class="kanTot">'+
+    '<span><b>'+peds.length+'</b> pedido(s)</span>'+
+    '<span><b>'+abertos.length+'</b> em aberto</span>'+
+    '<span class="v"><b>R$ '+money(val)+'</b></span>'+
+   '</div></div>';
 }
 function abaPDV(a){PDV.aba=a;telaPDV();}
 function sairPdvCheio(){document.body.classList.remove('pdvFull');toast('Menu do sistema liberado.');}
@@ -11485,22 +11705,50 @@ function imprimirVia(ped){
 }
 
 /* ---------- ABA: PEDIDOS (kanban) ---------- */
+var KAN={periodo:'hoje',de:'',ate:'',busca:''};
+function pedidosDoPeriodo(){
+  var hoje=hojeISO();
+  return (DB.pedidos||[]).filter(function(p){
+    var d=String(p.data||'').slice(0,10);
+    if(KAN.periodo==='hoje'&&d!==hoje)return false;
+    if(KAN.periodo==='ontem'&&d!==diasAtrasISO(1))return false;
+    if(KAN.periodo==='7'&&d<diasAtrasISO(7))return false;
+    if(KAN.periodo==='30'&&d<diasAtrasISO(30))return false;
+    if(KAN.periodo==='data'){
+      if(KAN.de&&d<KAN.de)return false;
+      if(KAN.ate&&d>KAN.ate)return false;
+    }
+    if(KAN.busca){
+      var q=KAN.busca.toLowerCase();
+      var achou=String(p.numero).indexOf(q)>=0||
+        String(p.clienteNome||'').toLowerCase().indexOf(q)>=0;
+      if(!achou)return false;
+    }
+    return true;
+  });
+}
 function renderKanban(){
   var fases=fasesAtivas();
-  var h='<div class="kanban">';
+  var peds=pedidosDoPeriodo();
+  var abertos=peds.filter(function(p){return p.fase!=='entregue'&&p.fase!=='cancelado'});
+  var h=barraKanban(peds,abertos)+'<div class="kanban">';
   fases.forEach(function(f){
-    var lista=DB.pedidos.filter(function(p){return p.fase===f.id});
+    var lista=peds.filter(function(p){return p.fase===f.id});
     var soma=lista.reduce(function(a,p){return a+p.total},0);
     h+='<div class="kanCol"><div class="kanH"><b>'+f.n+'</b><span class="n">'+lista.length+'</span></div>'+
     '<div class="kanB" data-fase="'+f.id+'">'+
     (lista.length?lista.map(function(p){
-      return '<div class="ped" draggable="true" data-id="'+p.id+'">'+
+      return '<div class="ped" draggable="true" data-id="'+p.id+'" '+
+      'ondblclick="verPedido(\''+p.id+'\')" title="clique duplo para ver o pedido">'+
       '<div class="t1"><b>#'+p.numero+'</b><span class="tp'+(p.tipo==='entrega'?' dv':'')+'">'+
       (p.tipo==='entrega'?'Entrega':'Loja')+'</span></div>'+
       '<div class="cli2">'+E(p.clienteNome)+'</div>'+(p.entregadorId?'<div class="cli2" style="color:var(--acc-d);font-weight:600">'+sv('moto',12)+' '+E((ent(p.entregadorId)||{}).nome||'')+'</div>':'')+'<div class="vl2">R$ '+money(p.total)+'</div>'+
-      '<div class="hr">'+p.hora+' · '+p.itens.length+' itens</div>'+
+      '<div class="hr">'+
+       (String(p.data||'').slice(0,10)!==hojeISO()
+         ? dataBR(String(p.data).slice(0,10))+' · ' : '')+
+       p.hora+' · '+p.itens.length+' itens</div>'+
       '<div class="acts2">'+
-      '<button class="btn sm" onclick="verPedido(\''+p.id+'\')">Ver</button>'+
+      '<button class="btn sm" onclick="verPedido(\''+p.id+'\')" title="Ver o pedido">'+sv('eye',12)+'</button>'+
       '<button class="btn sm" onclick="imprimirPedido(\''+p.id+'\')">'+sv('print2',12)+'</button>'+(p.tipo==='entrega'?'<button class="btn sm" onclick="atribuirEntregador(\''+p.id+'\')" title="Entregador">'+sv('moto',12)+'</button>':'')+
       (f.id!=='cancelado'?'<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\'cancelado\')">Cancelar</button>':
        '<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+(cfg().fases[0]||'aguardando')+'\')">Voltar</button>')+
