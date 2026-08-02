@@ -2491,21 +2491,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -2708,6 +2694,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
@@ -3075,21 +3112,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -3292,6 +3315,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){.ivGrade{flex-direction:column}.ivAdic{width:100%}}
 
@@ -3741,21 +3815,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -3958,6 +4018,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
@@ -4325,21 +4436,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -4542,6 +4639,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){
   .lfPeriodo{order:3;width:100%}
@@ -6118,21 +6266,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -6335,6 +6469,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
@@ -6702,21 +6887,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -6919,6 +7090,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){.ivGrade{flex-direction:column}.ivAdic{width:100%}}
 
@@ -7368,21 +7590,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -7585,6 +7793,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){.vpGrade{flex-direction:column}.vpPizza{width:100%}}
 
@@ -7952,21 +8211,7 @@ tbody td small{font-size:10.5px}
 
 /* ---------- layouts do PDV ---------- */
 .prodGrid{grid-template-columns:repeat(var(--pcols,4),1fr)}
-.prodGrid.lay-compacto .prodBox{display:flex;align-items:center;gap:9px;padding:7px}
-.prodGrid.lay-compacto .ph2{width:44px;height:44px;flex:none;border-radius:7px}
-.prodGrid.lay-compacto .inf{padding:0;flex:1;min-width:0}
-.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:4px}
-.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:9px 14px}
-.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:12px;width:100%}
-.prodGrid.lay-lista .inf b{flex:1;font-size:13.5px}
-.prodGrid.lay-lista .inf span{font-size:14px;font-weight:700}
-.prodGrid.lay-grade .prodBox{position:relative;overflow:hidden}
-.prodGrid.lay-grade .barraCat{height:6px}
-.prodGrid.lay-grade .inf{padding:12px 12px 13px}
-.prodGrid.lay-grade .inf b{font-size:13.5px}
-.prodGrid.gr .inf b{font-size:15px}
-.prodGrid.gr .inf span{font-size:16px}
-.prodGrid.gr .prodBox{min-height:74px}
+
 .pDesc{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .fTag2{display:inline-block;background:var(--amber);color:#fff;font-size:9px;font-weight:800;
   width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;vertical-align:middle}
@@ -8169,6 +8414,57 @@ tbody td small{font-size:10.5px}
   background:var(--red);color:#fff;font-size:10px;font-weight:800;display:flex;
   align-items:center;justify-content:center;padding:0 4px;animation:pulsa 1.6s infinite}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;background:#F2F5F8}
+.prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
+
+/* 1) LISTA — sem foto, denso */
+.prodGrid.lay-lista{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-lista .prodBox{display:flex;align-items:center;padding:11px 16px;min-height:0}
+.prodGrid.lay-lista .inf{padding:0;display:flex;align-items:baseline;gap:14px;width:100%}
+.prodGrid.lay-lista .inf b{flex:1;font-size:14px}
+.prodGrid.lay-lista .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+.prodGrid.lay-lista .pDesc{flex-basis:100%;order:3;margin-top:2px}
+
+/* 2) QUADRO — foto inteira num quadrado */
+.prodGrid.lay-quadro{grid-template-columns:repeat(var(--pcols,4),1fr);gap:10px}
+.prodGrid.lay-quadro .prodBox{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.prodGrid.lay-quadro .ph2{width:100%;aspect-ratio:1/1;border-radius:0;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.prodGrid.lay-quadro .ph2 img{padding:6px}
+.prodGrid.lay-quadro .inf{padding:10px 12px 12px;text-align:center;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.prodGrid.lay-quadro .inf b{font-size:13px;line-height:1.35;margin-bottom:4px}
+.prodGrid.lay-quadro .inf span{font-size:15px;font-weight:700;color:var(--acc-d)}
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+.prodGrid.lay-linha{grid-template-columns:1fr!important;gap:5px}
+.prodGrid.lay-linha .prodBox{display:flex;align-items:center;gap:12px;padding:8px 12px}
+.prodGrid.lay-linha .ph2{width:52px;height:52px;flex:none;border-radius:8px;background:#F2F5F8;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.prodGrid.lay-linha .ph2 img{padding:3px}
+.prodGrid.lay-linha .inf{padding:0;flex:1;display:flex;align-items:center;gap:14px}
+.prodGrid.lay-linha .inf b{flex:1;font-size:13.5px}
+.prodGrid.lay-linha .inf span{font-size:15px;font-weight:700;white-space:nowrap}
+
+/* botões grandes */
+.prodGrid.gr.lay-lista .prodBox{padding:15px 18px}
+.prodGrid.gr.lay-lista .inf b{font-size:16px}
+.prodGrid.gr.lay-linha .ph2{width:64px;height:64px}
+.prodGrid.gr.lay-linha .inf b{font-size:15px}
+.prodGrid.gr.lay-quadro .inf b{font-size:14.5px}
+.prodGrid.gr .inf span{font-size:17px}
+
+/* prévia da configuração */
+.pvProds.pv-quadro{grid-template-columns:repeat(var(--cols),1fr)}
+.pvProds.pv-quadro .pvP{display:flex;flex-direction:column}
+.pvProds.pv-quadro .pvFoto{width:100%;aspect-ratio:1/1;height:auto}
+.pvProds.pv-quadro .pvInfo{text-align:center}
+.pvProds.pv-linha{grid-template-columns:1fr!important;gap:4px}
+.pvProds.pv-linha .pvP{display:flex;align-items:center;gap:8px;padding:5px}
+.pvProds.pv-linha .pvInfo{padding:0;flex:1}
+.mL i.q{height:100%;aspect-ratio:1/1}
 
 @media(max-width:1000px){
   .lgCard{grid-template-columns:1fr}.lgR{display:none}
@@ -9387,7 +9683,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V5.9.0';
+var VERSAO='V5.9.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -10613,12 +10909,11 @@ function renderVenda(){
      (prods.length?prods.map(function(p){
        var forc=(p.grupos||[]).some(function(g){var G=DB.grupos.find(function(x){return x.id===g});return G&&G.forcado});
        var pv=precoVigente(p),base=Number(p.preco)||0;
-       var catP=(DB.categorias||[]).find(function(c){return c.id===p.categoriaId})||{};
-       var semFoto=(C.layout==='lista'||C.layout==='grade');
+       var semFoto=(C.layout==='lista');
        return '<div class="prodBox" onclick="addItem(\''+p.id+'\')">'+
-       (C.layout==='grade'?'<div class="barraCat" style="background:'+(catP.cor||'#00A08B')+'"></div>':'')+
-       (semFoto?'':'<div class="ph2">'+(p.imagem?'<img src="'+p.imagem+'">':sv('img',22))+
-        (forc?'<span class="fTag">!</span>':'')+'</div>')+
+       (semFoto?'':'<div class="ph2">'+
+         (p.imagem?'<img src="'+p.imagem+'" alt="">':'<span class="semImg">'+sv('img',22)+'</span>')+
+         (forc?'<span class="fTag">!</span>':'')+'</div>')+
        '<div class="inf"><b>'+E(p.nome)+
         (semFoto&&forc?' <span class="fTag2">!</span>':'')+'</b>'+
        (C.mostraDesc&&p.descricao?'<small class="pDesc">'+E(p.descricao)+'</small>':'')+
@@ -21552,14 +21847,16 @@ function explicaDataHora(){
    CONFIGURAÇÃO DO PDV — com prévia ao lado
    ========================================================== */
 var LAYOUTS_PDV=[
- {id:'foto',   n:'Cartões com foto',   d:'imagem grande, ideal para tablet e cardápio visual'},
- {id:'compacto',n:'Cartões compactos', d:'foto pequena ao lado do nome, cabe mais produto na tela'},
- {id:'lista',  n:'Lista sem foto',     d:'linhas densas, o mais rápido para quem já sabe o cardápio'},
- {id:'grade',  n:'Grade colorida',     d:'blocos com a cor da categoria, sem foto'}
+ {id:'lista',  n:'Lista sem foto',
+  d:'linhas densas com nome e preço — o mais rápido para quem já conhece o cardápio'},
+ {id:'quadro', n:'Quadrados com foto',
+  d:'a foto inteira num quadrado, sem cortar nada'},
+ {id:'linha',  n:'Linha com miniatura',
+  d:'foto pequena ao lado do nome, cabe muito produto na tela'}
 ];
 function cfgPDV(){
   var c=cfg();
-  if(!c.layout)c.layout='foto';
+  if(!c.layout||['foto','compacto','grade'].indexOf(c.layout)>=0)c.layout='quadro';
   if(c.colunas===undefined)c.colunas=4;
   if(c.mostraPreco===undefined)c.mostraPreco=true;
   if(c.mostraDesc===undefined)c.mostraDesc=false;
@@ -21611,10 +21908,9 @@ function telaCfgPDV(){
   rodape('layout: '+(LAYOUTS_PDV.find(function(l){return l.id===c.layout})||{}).n);
 }
 function miniLayout(id){
-  if(id==='foto')return '<div class="mL g2"><i class="b"></i><i class="b"></i><i class="b"></i><i class="b"></i></div>';
-  if(id==='compacto')return '<div class="mL g2"><i class="c"></i><i class="c"></i><i class="c"></i><i class="c"></i></div>';
   if(id==='lista')return '<div class="mL g1"><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i></div>';
-  return '<div class="mL g3"><i class="q"></i><i class="q"></i><i class="q"></i><i class="q"></i><i class="q"></i><i class="q"></i></div>';
+  if(id==='quadro')return '<div class="mL g2"><i class="q"></i><i class="q"></i><i class="q"></i><i class="q"></i></div>';
+  return '<div class="mL g1"><i class="c"></i><i class="c"></i><i class="c"></i></div>';
 }
 function trocaLayout(id){
   var c=cfgPDV();c.layout=id;telaCfgPDV();
@@ -21648,9 +21944,8 @@ function previaPDV(c){
    prods.map(function(p,k){
      var cor=cats[k%cats.length].cor||'#00A08B';
      return '<div class="pvP">'+
-      (c.layout==='foto'?'<div class="pvFoto">'+sv('img',20)+'</div>':'')+
-      (c.layout==='compacto'?'<div class="pvFotoP">'+sv('img',14)+'</div>':'')+
-      (c.layout==='grade'?'<div class="pvCor" style="background:'+cor+'"></div>':'')+
+      (c.layout==='quadro'?'<div class="pvFoto">'+sv('img',20)+'</div>':'')+
+      (c.layout==='linha'?'<div class="pvFotoP">'+sv('img',14)+'</div>':'')+
       '<div class="pvInfo"><b>'+E(p.nome)+'</b>'+
        (c.mostraDesc&&p.desc?'<small>'+E(p.desc)+'</small>':'')+
        (c.mostraPreco?'<span class="pvPreco">R$ '+money(p.preco)+'</span>':'')+
