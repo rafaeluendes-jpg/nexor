@@ -10169,7 +10169,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V6.4.0';
+var VERSAO='V6.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -12246,26 +12246,58 @@ function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
   toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
 function abrirCaixa(){
   if(caixaAberto()){toast('Já existe um caixa aberto. Feche-o antes de abrir outro.');return;}
+  baseOper();
+  var ops=operAtivos();
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
-  '<div class="fld2"><label>Valor inicial (fundo de troco)</label><div class="cur"><span>R$</span><input id="cxIni" type="number" step="0.01" value="0"></div></div>'+
-  '<div class="fld2" style="margin:0"><label>Operador *</label>'+
-  (operAtivos().length>1
-   ?'<select id="cxOp">'+operAtivos().map(function(o){
-      return '<option value="'+E(o.nome)+'">'+E(o.nome)+' — '+E(nomeFuncao(o.funcao))+'</option>';
+  '<div class="fld2"><label>Quem está abrindo o caixa *</label>'+
+   (ops.length>1
+    ?'<select id="cxOp" onchange="pedeSenhaCaixa(\'cx\')">'+
+     '<option value="">Selecione o operador</option>'+
+     ops.map(function(o){
+       return '<option value="'+E(o.id)+'">'+E(o.nome)+' — '+E(nomeFuncao(o.funcao))+'</option>';
      }).join('')+'</select>'
-   :'<input id="cxOp" value="'+E((operAtivos()[0]||{}).nome||'Administrador')+'">'+
-    '<div class="hint">Cadastre a equipe em Configuração da Loja › Operadores.</div>')+
-  '</div></div></div>';
+    :'<select id="cxOp" onchange="pedeSenhaCaixa(\'cx\')">'+
+     ops.map(function(o){return '<option value="'+E(o.id)+'">'+E(o.nome)+'</option>'}).join('')+
+     '</select><div class="hint">Cadastre a equipe em Configuração da Loja › Operadores.</div>')+
+  '</div>'+
+  '<div class="fld2" id="boxSenhaCx" style="display:none"><label>Senha do operador *</label>'+
+   '<input id="cxSenha" type="password" inputmode="numeric" placeholder="senha cadastrada" autocomplete="off">'+
+   '<div class="hint">A senha confirma quem está assumindo o caixa.</div></div>'+
+  '<div class="fld2" style="margin:0"><label>Valor inicial (fundo de troco)</label>'+
+   '<div class="cur"><span>R$</span><input id="cxIni" type="number" step="0.01" value="0"></div></div>'+
+  '</div></div>';
   modal('Abrir frente de caixa',h,'Abrir caixa',function(){
+    var opId=$('cxOp').value;
+    if(!opId){toast('Selecione quem está abrindo o caixa.');return false;}
+    var op=(DB.operadores||[]).find(function(o){return o.id===opId});
+    if(!op){toast('Operador não encontrado.');return false;}
+    if(op.senha){
+      var s1=($('cxSenha')||{}).value||'';
+      if(s1!==op.senha){toast('Senha incorreta.');return false;}
+    }
     DB.caixas=DB.caixas||[];
     var ag=new Date();
-    var novoCx={id:uid('cx'),inicial:parseFloat($('cxIni').value)||0,operador:$('cxOp').value,
+    var novoCx={id:uid('cx'),inicial:parseFloat($('cxIni').value)||0,
+      operador:op.nome,operadorId:op.id,funcao:op.funcao,
       movimentos:[],aberto:ag.toLocaleDateString('pt-BR')+' '+agoraHM()};
     DB.caixas.push(novoCx);
-    salvar();telaPDV();toast('Caixa aberto.');
+    salvar();telaPDV();toast('Caixa aberto por '+op.nome+'.');
     avisarGerente(lojaAtualId(),'abertura',msgAbertura(novoCx));
     return true;
   });
+  setTimeout(function(){pedeSenhaCaixa('cx')},80);
+}
+/* mostra o campo de senha só quando o operador tem senha */
+function pedeSenhaCaixa(pref){
+  var sel=$(pref+'Op');
+  var box=$('boxSenha'+(pref==='cx'?'Cx':'Fc'));
+  if(!sel||!box)return;
+  var op=(DB.operadores||[]).find(function(o){return o.id===sel.value});
+  box.style.display=(op&&op.senha)?'':'none';
+  if(op&&op.senha){
+    var i=$(pref+'Senha');
+    if(i){i.value='';i.focus();}
+  }
 }
 function fecharCaixa(){
   var cx=caixaAberto();if(!cx){toast('Nenhum caixa aberto.');return;}
@@ -12313,10 +12345,33 @@ function fecharCaixa(){
   '</div>'+
 
   '<div class="blk" style="margin:0;max-width:none">'+
-  '<div class="fld2" style="margin:0"><label>Observação do fechamento</label>'+
+  '<h3>Quem está fechando</h3>'+
+  '<div class="hint" style="margin-bottom:10px">O caixa foi aberto por <b>'+E(cx.operador||'')+
+   '</b>. Se quem fecha é outra pessoa, selecione abaixo.</div>'+
+  '<div class="row2">'+
+   '<div class="fld2" style="margin:0"><label>Operador que fecha *</label>'+
+    '<select id="fcOp" onchange="pedeSenhaCaixa(\'fc\')">'+
+    '<option value="">Selecione</option>'+
+    operAtivos().map(function(o){
+      return '<option value="'+E(o.id)+'"'+(o.id===cx.operadorId?' selected':'')+'>'+
+      E(o.nome)+' — '+E(nomeFuncao(o.funcao))+'</option>';
+    }).join('')+'</select></div>'+
+   '<div class="fld2" style="margin:0" id="boxSenhaFc"><label>Senha *</label>'+
+    '<input id="fcSenha" type="password" inputmode="numeric" autocomplete="off" '+
+    'placeholder="senha do operador"></div>'+
+  '</div>'+
+  '<div class="fld2" style="margin:12px 0 0"><label>Observação do fechamento</label>'+
   '<input id="cxObs" placeholder="ex: faltou R$ 2 de troco / maquininha ficou offline às 19h"></div></div></div>';
 
   modal('Fechamento de caixa',h,'Confirmar fechamento',function(){
+    var fcId=($('fcOp')||{}).value||'';
+    if(!fcId){toast('Selecione quem está fechando o caixa.');return false;}
+    var opF=(DB.operadores||[]).find(function(o){return o.id===fcId});
+    if(!opF){toast('Operador não encontrado.');return false;}
+    if(opF.senha){
+      var sf=($('fcSenha')||{}).value||'';
+      if(sf!==opF.senha){toast('Senha incorreta.');return false;}
+    }
     var conf={},algum=false,totInf=0;
     var ins=document.querySelectorAll('.cfV');
     for(var i=0;i<ins.length;i++){
@@ -12334,16 +12389,18 @@ function fecharCaixa(){
     cx.totalInformado=totInf;
     cx.qtd=mov.qtd;cx.vendas=mov.total;cx.obs=$('cxObs').value;
     cx.fechadoEm=ag.toLocaleDateString('pt-BR')+' '+agoraHM();
-    cx.fechadoPor=cx.operador||'Administrador';
+    cx.fechadoPor=opF.nome;
+    cx.fechadoPorId=opF.id;
     (DB.caixas||[]).forEach(function(c){ if(!c.fechadoEm&&c.id!==cx.id)c.fechadoEm=cx.fechadoEm; });
     var nLanc=lancarFechamento(cx,mov);
     salvar();
     var dif=(conf.dinheiro||0)-esperadoGaveta;
     telaPDV();
-    toast('Caixa fechado. Diferença no dinheiro: R$ '+money(dif));
+    toast('Caixa fechado por '+opF.nome+'. Diferença no dinheiro: R$ '+money(dif));
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));
     return true;
   },'lg');
+  setTimeout(function(){pedeSenhaCaixa('fc')},80);
 
   /* calcula as diferenças enquanto digita */
   function recalcConf(){
