@@ -9915,7 +9915,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V6.1.0';
+var VERSAO='V6.1.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11773,7 +11773,7 @@ function renderKanban(){
   var fases=fasesAtivas();
   var peds=pedidosDoPeriodo();
   var abertos=peds.filter(function(p){return p.fase!=='entregue'&&p.fase!=='cancelado'});
-  var h=barraKanban(peds,abertos)+'<div class="kanban">';
+  var h='<div class="kanban">';
   fases.forEach(function(f){
     var lista=peds.filter(function(p){return p.fase===f.id});
     var soma=lista.reduce(function(a,p){return a+p.total},0);
