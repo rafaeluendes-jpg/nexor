@@ -10165,7 +10165,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V6.3.0';
+var VERSAO='V6.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -24145,12 +24145,16 @@ async function salvarZap(){
     if($('zp_'+k))c[k]=$('zp_'+k).value;
   });
   salvar();
-  /* manda para o banco, que o robô lê */
+  /* manda para o banco, que o robô lê — inclusive para a loja conectada */
   if(NUVEM.ligada){
     try{
       var cd=(DB.cardapio||{})[ZP.suc]||{};
+      var alvos=[ZP.suc];
+      var conectada=await lojaConectada();
+      if(conectada&&alvos.indexOf(conectada)<0)alvos.push(conectada);
+      for(var ai=0;ai<alvos.length;ai++)
       await api('whatsapp_config?on_conflict=sucursal_id','POST',[{
-        sucursal_id:ZP.suc,
+        sucursal_id:alvos[ai],
         robo_ativo:c.ativo!==false,
         nome_loja:cd.titulo||sucNome(ZP.suc),
         link_cardapio:'https://rafaeluendes-jpg.github.io/delivery/',
@@ -24161,11 +24165,16 @@ async function salvarZap(){
         msg_aceito:c.msgAceito||null,msg_preparo:c.msgPreparo||null,
         msg_saiu:c.msgSaiu||null,msg_entregue:c.msgEntregue||null,
         pede_avaliacao:c.pedeAvaliacao!==false,
-        ref_local:'wz_'+ZP.suc
+        ref_local:'wz_'+alvos[ai]
       }],{'Prefer':'resolution=merge-duplicates'});
-    }catch(e){}
+      toast('Configuração salva — o robô já está usando.');
+      return;
+    }catch(e){
+      toast('Salvo aqui, mas não subiu para o robô: '+String(e.message||'').slice(0,50));
+      return;
+    }
   }
-  toast('Configuração do robô salva.');
+  toast('Configuração salva neste aparelho. Ligue a nuvem para o robô usar.');
 }
 /* ---------- envio automático quando o pedido muda de fase ---------- */
 /* acha a configuração da loja; se o código não bater, usa a primeira */
