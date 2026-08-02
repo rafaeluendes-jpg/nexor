@@ -9109,21 +9109,25 @@ var MOD=[
  {id:'venda-data-hora',n:'Venda por Data e Hora'},
  {id:'comparativo-anual',n:'Comparativo Anual e Mensal'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
+ {id:'cfg-loja',n:'Dados da Loja'},
+ {id:'cfg-sucursais',n:'Sucursais da Franquia'},
+ {id:'cfg-operadores',n:'Operadores'},
  {id:'cfg-pdv',n:'Configuração do PDV'},
- {id:'cfg-movimentacao',n:'Configuração de Movimentação de Estoque'},
- {id:'reset-sistema',n:'Dados de Teste e Reinício'},
- {id:'cfg-dre',n:'Configuração do DRE'},
- {id:'gerar-demo',n:'Gerar Vendas de Demonstração'},
- {id:'areas-entrega',n:'Áreas de Entrega'},{id:'cfg-sucursais',n:'Configurações Sucursais de Franquia'},
+ {id:'cfg-movimentacao',n:'Movimentação de Estoque'},
+ {id:'areas-entrega',n:'Áreas de Entrega'},
  {id:'canais-integracao',n:'Canais de Venda e Integração'},
- {id:'cfg-cardapio-digital',n:'Configuração do Cardápio Digital'},
- {id:'cfg-whatsapp',n:'Robô do WhatsApp'},
  {id:'cfg-gerente',n:'Avisos ao Gerente'},
- {id:'cfg-operadores',n:'Operadores'},{id:'cfg-loja',n:'Configuração da Loja'},
- {id:'dados-loja',n:'Dados da Loja'},{id:'dados-fiscais',n:'Dados Fiscais'},
- {id:'cfg-entregador',n:'Configuração do Entregador'},{id:'modelo-impressao',n:'Modelo de Impressão'},
- {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},{id:'status-vendas',n:'Status de Vendas'},
- {id:'turnos',n:'Turnos'},{id:'usuarios-permissoes',n:'Usuários e Permissões'}]}
+ {id:'cfg-dre',n:'Configuração do DRE'},
+ {id:'dados-fiscais',n:'Dados Fiscais'},
+ {id:'cfg-entregador',n:'Configuração do Entregador'},
+ {id:'modelo-impressao',n:'Modelo de Impressão'},
+ {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
+ {id:'status-vendas',n:'Status de Vendas'},
+ {id:'turnos',n:'Turnos'},
+ {id:'usuarios-permissoes',n:'Usuários e Permissões'}]},
+{id:'teste',n:'Testes',ic:'flask',it:[
+ {id:'gerar-demo',n:'Gerar Vendas de Demonstração'},
+ {id:'reset-sistema',n:'Dados de Teste e Reinício'}]}
 ];
 
 /* ===== BLOCO 3 — ARMAZENAMENTO ===== */
@@ -10165,7 +10169,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V6.3.1';
+var VERSAO='V6.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -10214,7 +10218,8 @@ if(mid==='estoque'&&iid==='contagem-estoque')return telaContagem();
 if(mid==='estoque'&&iid==='historico-posicao')return telaHistPosicao();
 if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
 if(mid==='loja'&&iid==='reset-sistema')return telaReset();
-if(mid==='loja'&&iid==='gerar-demo')return telaGerarDemo();
+if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
+if(mid==='teste'&&iid==='reset-sistema')return telaReset();
 if(mid==='financeira'&&iid==='acerto-entregadores')return telaAcertos();
 if(mid==='financeira'&&iid==='categorias-financeiras')return telaCatFin();
 if(mid==='financeira'&&iid==='contas-bancarias')return telaContas();
@@ -10238,8 +10243,6 @@ if(mid==='loja'&&iid==='cfg-dre')return telaCfgDRE();
 if(mid==='loja'&&iid==='cfg-sucursais')return telaSucursais();
 if(mid==='loja'&&iid==='areas-entrega')return telaAreasEntrega();
 if(mid==='loja'&&iid==='canais-integracao')return telaCanaisIntegracao();
-if(mid==='loja'&&iid==='cfg-cardapio-digital')return telaCfgCardapio();
-if(mid==='loja'&&iid==='cfg-whatsapp')return telaZap();
 if(mid==='loja'&&iid==='cfg-gerente')return telaGerente();
 if(mid==='loja'&&iid==='cfg-operadores')return telaOperadores();
 if(mid==='dashboard'&&iid==='canais-venda')return telaCanaisVenda();
@@ -12331,6 +12334,7 @@ function fecharCaixa(){
     cx.totalInformado=totInf;
     cx.qtd=mov.qtd;cx.vendas=mov.total;cx.obs=$('cxObs').value;
     cx.fechadoEm=ag.toLocaleDateString('pt-BR')+' '+agoraHM();
+    cx.fechadoPor=cx.operador||'Administrador';
     (DB.caixas||[]).forEach(function(c){ if(!c.fechadoEm&&c.id!==cx.id)c.fechadoEm=cx.fechadoEm; });
     var nLanc=lancarFechamento(cx,mov);
     salvar();
@@ -12379,7 +12383,7 @@ function painelWhats(){
    '<button onclick="fecharModal()">&times;</button></div>'+
    '<div class="mdB"><div id="zapPdv"><div class="carregandoP">verificando a conexão...</div></div></div>'+
    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
-   '<button class="btnP2" onclick="fecharModal();abrir(\'loja\',\'cfg-whatsapp\')">'+
+   '<button class="btnP2" onclick="fecharModal();CN.aba=\'whatsapp\';abrir(\'loja\',\'canais-integracao\')">'+
     sv('gear2',13)+' Configurar mensagens</button></div></div>';
   document.body.appendChild(ov);
   fecharSoForaDeVerdade(ov);
@@ -22925,8 +22929,8 @@ var CANAIS_LISTA=[
   d:'sua página de pedidos, com link próprio', pronto:true,
   det:'O cliente escolhe a loja, monta o pedido e ele cai direto no seu PDV.'},
  {id:'whatsapp', n:'WhatsApp',         g:'proprio', ic:'chat',
-  d:'atendimento e pedidos pelo WhatsApp', pronto:false,
-  det:'Precisa de um servidor ligado o tempo todo. Vamos configurar na próxima etapa.'},
+  d:'robô que atende e avisa cada etapa do pedido', pronto:true,
+  det:'Conecte o número da loja lendo um QR code. O robô responde os clientes e avisa quando o pedido sai para entrega.'},
  {id:'balcao',   n:'Frente de Caixa',  g:'proprio', ic:'store',
   d:'vendas no salão e balcão', pronto:true, fixo:true,
   det:'Sempre ativo — é o PDV que você já usa.'},
@@ -22957,13 +22961,19 @@ function telaCanaisIntegracao(){
    '</div>'+
    '<div class="abasCN">'+
     [['canais','Canais de venda','store'],
+     ['cardapio','Cardápio Digital','book'],
+     ['whatsapp','Robô do WhatsApp','chat'],
      ['dados','API de dados','chart'],
      ['tef','Integração TEF','cash']].map(function(a){
       return '<button class="abaCN'+(CN.aba===a[0]?' on':'')+'" onclick="CN.aba=\''+a[0]+'\';telaCanaisIntegracao()">'+
       sv(a[2],14)+' '+a[1]+'</button>';}).join('')+
    '</div>'+
-   (CN.aba==='canais'?blocoCanais(c):CN.aba==='dados'?blocoDados(c):blocoTEF(c))+
+   (CN.aba==='canais'?blocoCanais(c):
+    CN.aba==='dados'?blocoDados(c):
+    CN.aba==='tef'?blocoTEF(c):'<div id="subCfg"></div>')+
    '</div></div>';
+  if(CN.aba==='cardapio'){telaCfgCardapio(true);return;}
+  if(CN.aba==='whatsapp'){telaZap(true);return;}
   ligarCN();
   rodape();
 }
@@ -23007,8 +23017,12 @@ function blocoCanais(c){
             ?(k.semInt?'<span class="cnTag cinza">sem integração</span>'
                :'<span class="cnTag verde">'+sv('check',10)+' com integração</span>')
             :'<span class="cnTag amarelo">a construir</span>')+
-          (k.id==='cardapio'&&st.ativo
-            ?'<button class="btnP2" onclick="abrirCfgCardapio()">'+sv('gear2',12)+' Configurar</button>'
+          (k.id==='cardapio'
+            ?'<button class="btnP2" onclick="CN.aba=\'cardapio\';telaCanaisIntegracao()">'+
+             sv('gear2',12)+' Configurar</button>'
+            :k.id==='whatsapp'
+            ?'<button class="btnP2" onclick="CN.aba=\'whatsapp\';telaCanaisIntegracao()">'+
+             sv('gear2',12)+' Configurar</button>'
             :k.pronto&&!k.semInt&&!k.fixo
               ?'<button class="btnP2" onclick="cfgCanal(\''+k.id+'\')">'+sv('gear2',12)+' Configurar</button>':'')+
          '</div></div>';
@@ -23084,7 +23098,7 @@ function cfgCanal(id){
   var k=CANAIS_LISTA.find(function(x){return x.id===id});
   avisar((k?k.n:'Canal'),(k?k.det:''),'info');
 }
-function abrirCfgCardapio(){ abrir('loja','cfg-cardapio-digital'); }
+function abrirCfgCardapio(){ CN.aba='cardapio'; abrir('loja','canais-integracao'); }
 function salvarPixels(){
   var c=baseCanais();
   ['fbPixel','fbToken','ga4','gtm','tiktok','googleAds'].forEach(function(k){
@@ -23132,13 +23146,15 @@ function cardAtual(){
   if(!c.formas||!c.formas.length)c.formas=['Dinheiro','Pix','Cartão de débito','Cartão de crédito'];
   return c;
 }
-function telaCfgCardapio(){
+function telaCfgCardapio(dentro){
   baseMov();baseSuc();
   var c=cardAtual();
   var sucs=sucAtivas();
   var link='https://rafaeluendes-jpg.github.io/delivery/';
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
+    (dentro?'<button class="btnP2" onclick="CN.aba=\'canais\';telaCanaisIntegracao()">'+
+      sv('cr2',13)+' Canais</button>':'')+
     '<div><h1>Configuração do Cardápio Digital</h1>'+
     '<p>A página que seus clientes acessam para pedir.</p></div>'+
     '<div style="flex:1"></div>'+
@@ -23925,11 +23941,13 @@ async function zapApi(caminho,metodo,corpo){
   var t=await r.text();
   try{ return JSON.parse(t); }catch(e){ return {erro:t}; }
 }
-function telaZap(){
+function telaZap(dentro){
   baseMov();baseSuc();baseZap();
   var c=zapAtual();
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
+    (dentro?'<button class="btnP2" onclick="CN.aba=\'canais\';telaCanaisIntegracao()">'+
+      sv('cr2',13)+' Canais</button>':'')+
     '<div><h1>Robô do WhatsApp</h1>'+
     '<p>Atende os clientes sozinho e avisa cada etapa do pedido.</p></div>'+
     '<div style="flex:1"></div>'+
@@ -24298,7 +24316,8 @@ function msgFechamento(cx,resumo){
     E(nomeLojaAtual())+'\n'+linha+
     'Abertura: '+E(cx.aberto||'')+'\n'+
     'Fechamento: '+E(cx.fechadoEm||agoraBR())+'\n'+
-    'Operador: '+E(cx.operador||'não informado')+'\n'+linha+
+    'Abriu: '+E(cx.operador||'não informado')+'\n'+
+    'Fechou: '+E(cx.fechadoPor||cx.operador||'não informado')+'\n'+linha+
 
     '*VENDAS*\n'+
     'Pedidos: '+resumo.qtd+'\n'+
