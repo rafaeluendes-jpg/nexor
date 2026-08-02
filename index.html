@@ -9945,13 +9945,31 @@ async function baixarDaNuvem(forcar){
 
   /* ---------- OPERAÇÃO ---------- */
   var cx=await api('caixas'+q+'&select=*,caixa_movimentos(*)&order=aberto_em.desc&limit=400');
-  DB.caixas=volta(cx,function(x){return {id:x.ref_local||x.id,aberto:x.aberto_txt,
-    fechadoEm:x.fechado_txt,operador:x.operador,inicial:Number(x.valor_inicial)||0,
+  var fechadosAqui={};
+  (DB.caixas||[]).forEach(function(c){ if(c.fechadoEm)fechadosAqui[c.id]=c.fechadoEm; });
+  DB.caixas=volta(cx,function(x){
+    var ref=x.ref_local||x.id;
+    return {id:ref,aberto:x.aberto_txt,
+    /* se aqui já estava fechado, mantém — fechamento nunca é desfeito */
+    fechadoEm:x.fechado_txt||fechadosAqui[ref]||null,
+    operador:x.operador,inicial:Number(x.valor_inicial)||0,
     vendas:Number(x.vendas)||0,esperado:Number(x.esperado)||0,contado:Number(x.contado)||0,
     totalInformado:Number(x.total_informado)||0,qtd:x.qtd_pedidos||0,
     conferencia:x.conferencia||{},obs:x.observacao||'',
     movimentos:(x.caixa_movimentos||[]).map(function(m2){return {tipo:m2.tipo,
-      valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,quando:m2.criado_em}})}});
+      valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,quando:m2.criado_em}})};
+  });
+  /* segurança: só pode haver um caixa aberto */
+  (function(){
+    var abertos=(DB.caixas||[]).filter(function(c){return !c.fechadoEm});
+    if(abertos.length>1){
+      abertos.sort(function(a,b){return String(b.aberto||'').localeCompare(String(a.aberto||''))});
+      abertos.slice(1).forEach(function(c){
+        c.fechadoEm=c.aberto||'fechado automaticamente';
+        c.obs=(c.obs||'')+' [fechado automaticamente: outro caixa foi aberto]';
+      });
+    }
+  })();
 
   var mapaCx={};cx.forEach(function(x){mapaCx[x.id]=x.ref_local||x.id});
   var mapaCli={};cl.forEach(function(x){mapaCli[x.id]=x.ref_local||x.id});
@@ -10169,7 +10187,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V6.5.0';
+var VERSAO='V6.5.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -12282,6 +12300,7 @@ function abrirCaixa(){
       movimentos:[],aberto:ag.toLocaleDateString('pt-BR')+' '+agoraHM()};
     DB.caixas.push(novoCx);
     salvar();telaPDV();toast('Caixa aberto por '+op.nome+'.');
+    if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'abertura',msgAbertura(novoCx));
     return true;
   });
@@ -12397,6 +12416,7 @@ function fecharCaixa(){
     var dif=(conf.dinheiro||0)-esperadoGaveta;
     telaPDV();
     toast('Caixa fechado por '+opF.nome+'. Diferença no dinheiro: R$ '+money(dif));
+    if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));
     return true;
   },'lg');
