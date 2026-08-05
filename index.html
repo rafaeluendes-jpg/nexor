@@ -10634,6 +10634,10 @@ function restaurarRespaldo(){
   }catch(e){ alert('A cópia está ilegível: '+(e.message||'')); }
 }
 function salvar(){
+  /* a marca de "tem coisa para enviar" vai junto com os dados: se o navegador
+     fechar antes do envio, no proximo boot o sistema ainda sabe que deve subir
+     antes de baixar qualquer coisa. Antes ela so existia na memoria. */
+  if(NUVEM.ligada)DB._sujo=true;
   gravarLocal();                     /* sempre grava no aparelho (rede caindo nao perde dado) */
   if(NUVEM.ligada){NUVEM.sujo=true;logNuvem('mudança salva aqui — envio agendado');agendarSync();}
   else logNuvem('mudança salva aqui (nuvem desligada)');
@@ -10692,6 +10696,7 @@ async function religarNuvem(){
     if(rp.error||!rp.data){NUVEM.cli=null;return false;}
     NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
     NUVEM.token=ses.access_token;
+    if(DB._sujo)NUVEM.sujo=true;     /* ficou algo por enviar da sessao anterior */
     statusNuvem('ok');rodape();
     setTimeout(ligarTempoReal,400);
     /* traz o que mudou enquanto o sistema estava fechado —
@@ -11127,10 +11132,14 @@ async function sincronizar(){
         logNuvem(E2.tab+': '+linhas.length+' enviado(s), '+(salvos||[]).length+' confirmado(s)',faltou!==0);
         if(faltou>0)toast('Atenção: '+faltou+' registro(s) de '+E2.tab+' não foram aceitos pela nuvem.');
         salvos.forEach(function(r){if(r.ref_local)_ids[r.ref_local]=r.id});
+        /* lista do que a nuvem realmente aceitou — e ela que diz, depois,
+           quais registros daqui a nuvem ja conhece e quais ainda nao */
+        DB._enviados=DB._enviados||{};
+        DB._enviados[E2.col]=(salvos||[]).map(function(r){return r.ref_local}).filter(Boolean);
       }
       /* roda mesmo com a lista vazia — senão apagar o último item nunca chega na nuvem */
       if(E2.espelha)await apagarRemovidos(E2.tab,E2.col,lista.map(function(x){return x.id}));
-      if(!lista.length)continue;
+      if(!lista.length){DB._enviados=DB._enviados||{};DB._enviados[E2.col]=[];continue;}
 
       /* filhos (opções, itens, parcelas...) */
       if(E2.filhos)for(var f=0;f<E2.filhos.length;f++){
@@ -11213,6 +11222,7 @@ async function sincronizar(){
 
     NUVEM.ultima=new Date();
     NUVEM.sujo=false;
+    DB._sujo=false;
     DB._snapOk=true;
     gravarLocal();
     statusNuvem('ok');
@@ -11224,6 +11234,10 @@ async function sincronizar(){
     statusNuvem('erro',etapa+': '+((e&&e.message)||'falha'));
     console.error('SINCRONIZACAO falhou em',etapa,e);
     logNuvem('ERRO em '+etapa+': '+((e&&e.message)||'falha'),true);
+    /* o envio parou no meio: a partir daqui NADA pode ser baixado por cima,
+       senao o que ficou de fora e apagado do aparelho. */
+    NUVEM.sujo=true;DB._sujo=true;
+    try{gravarLocal()}catch(e2){}
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
@@ -11615,6 +11629,35 @@ async function baixarDaNuvem(forcar){
       'Se isso se repetir, avise antes de continuar lançando.');
   }
 
+  /* ---- rede de proteção 2: o que foi criado aqui e a nuvem ainda NÃO confirmou ----
+     Este é o caso do motivo de baixa que sumia: o cadastro nascia no aparelho, o
+     envio não chegava a acontecer (ou falhava numa tabela anterior), e o download
+     seguinte trocava a lista inteira pela da nuvem — que não tinha o registro novo.
+     Agora, quem a nuvem nunca confirmou volta para a lista e sobe no envio seguinte. */
+  var _mantidos=[];
+  Object.keys(_antesDB).forEach(function(k){
+    var tinha=_antesDB[k], veio=DB[k];
+    if(!tinha||!tinha.length)return;
+    if(!Array.isArray(veio)||veio===tinha)return;   /* coleção que o download nem toca */
+    var conf=(DB._enviados&&DB._enviados[k])||[];
+    var naNuvem={};
+    veio.forEach(function(x){ if(x&&x.id)naNuvem[x.id]=true; });
+    var novos=tinha.filter(function(x){
+      /* sumiu na volta E a nuvem nunca disse que recebeu: é novo, não é apagado */
+      return x&&x.id&&!naNuvem[x.id]&&conf.indexOf(x.id)<0;
+    });
+    if(novos.length){
+      DB[k]=veio.concat(novos);
+      _mantidos.push(k+': '+novos.length);
+    }
+  });
+  if(_mantidos.length){
+    logNuvem('mantidos aqui por ainda não estarem na nuvem ('+_mantidos.join(' · ')+
+      ') — vão subir no próximo envio');
+    NUVEM.sujo=true;DB._sujo=true;
+    agendarSync();
+  }
+
   NUVEM.baixou=true;   /* daqui em diante este aparelho pode espelhar exclusões */
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   logNuvem('download concluído — itens de categorias: '+antesCat+' -> '+depoisCat,
@@ -11928,7 +11971,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.4.2';
+var VERSAO='V10.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

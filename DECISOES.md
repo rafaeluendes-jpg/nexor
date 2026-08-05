@@ -160,6 +160,33 @@ Rafael achou que o cadastro estava dentro da movimentação. Era só o nome.
 - O atalho na baixa manual diz "(cadastrar em Configuração da Loja)"
 - Cadastrar, renomear ou inativar ali reflete na baixa na hora seguinte — mesma lista
 
+## Cadastro novo sumia depois de atualizar (V10.5.0)
+
+A V10.3.0 fechou o caso "nuvem responde vazio". Faltava o irmão dele, que foi o que
+apagou o motivo "Venda para franqueado":
+
+1. O cadastro nasce no aparelho e fica marcado para enviar
+2. O envio não chega a acontecer — ou falha numa tabela **anterior** na fila
+3. `NUVEM.sujo` só existia na memória e nascia `false` a cada boot, então o download
+   não era bloqueado
+4. O download troca a lista inteira pela da nuvem, que ainda não tem o registro novo.
+   Ele some, e some em silêncio
+
+Correções:
+
+- **`DB._enviados`** guarda, por coleção, o que a nuvem **confirmou** ter recebido.
+  No download, todo registro local ausente da resposta e ausente dessa lista é
+  devolvido: é novo, não é apagado. Quem já foi confirmado e sumiu da nuvem continua
+  sendo exclusão de verdade, feita em outro aparelho
+- **`DB._sujo`** grava a pendência de envio junto com os dados, então ela sobrevive a
+  um F5 e o boot seguinte sabe que precisa subir antes de baixar
+- **Envio que falha marca a pendência**, bloqueando o download por cima
+- O que for segurado agenda o envio sozinho e fica registrado no log da nuvem
+
+Na primeira sincronização depois desta versão, `_enviados` está vazio — de propósito.
+Isso faz o sistema tratar tudo que está no aparelho como ainda-não-confirmado e
+reenviar, em vez de deixar a nuvem apagar.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
