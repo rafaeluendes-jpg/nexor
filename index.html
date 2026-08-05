@@ -35,9 +35,13 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .lgHd{display:flex;align-items:center;gap:9px;margin-bottom:18px}
 .lgMk{width:30px;height:30px;border-radius:8px;background:linear-gradient(140deg,var(--acc-l),var(--acc-d));
   color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
-.lgHd b{font-size:14px;letter-spacing:.22em;font-weight:600}
-.lgL h1{font-size:15px;font-weight:600;margin:0}
-.lgL .sb{color:var(--ink-3);font-size:11.5px;margin:2px 0 16px}
+.lgHd{align-items:center;margin-bottom:20px}
+.lgMk{width:34px;height:34px;border-radius:9px}
+.lgTt b{display:block;font-size:15px;letter-spacing:.2em;font-weight:600;line-height:1.1}
+.lgTt em{display:block;font-style:normal;font-size:10px;color:var(--ink-3);
+  letter-spacing:.02em;margin-top:2px}
+.lgL .sb{color:var(--ink-3);font-size:11.5px;margin:0 0 14px;
+  padding-bottom:12px;border-bottom:1px solid var(--line-2)}
 .f{margin-bottom:9px}
 .f label{display:block;font-size:10.5px;font-weight:600;color:var(--ink-3);margin-bottom:3px;
   text-transform:uppercase;letter-spacing:.05em}
@@ -10195,15 +10199,19 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 <section id="login">
   <div class="lgCard" id="lgCard">
     <div class="lgL">
-      <div class="lgHd"><div class="lgMk">N</div><b>NEXOR</b></div>
-      <h1>Entrar</h1>
+      <div class="lgHd">
+        <div class="lgMk"><svg viewBox="0 0 32 32" width="20" height="20" fill="none"
+          stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 25V7l18 18V7"/></svg></div>
+        <div class="lgTt"><b>NEXOR</b><em>gestão simples, lucro visível</em></div>
+      </div>
       <div class="sb">Informe cliente, usuário e senha</div>
       <div class="f"><label>Cliente</label><div class="w"><input id="lgC" value="" autocomplete="off" placeholder="nome da rede"></div></div>
       <div class="f"><label>Usuário</label><div class="w"><input id="lgU" value="" autocomplete="off" placeholder="seu acesso"></div></div>
       <div class="f"><label>Senha</label><div class="w"><input id="lgP" type="password" value="" autocomplete="off" placeholder="sua senha"><button class="eye" id="tg"></button></div></div>
       <div class="lgErr" id="lgE"></div>
       <button class="lgBtn" id="lgB">Entrar</button>
-      <div class="lgNote">gestão simples, lucro visível</div>
+      <div class="lgNote">Acesso restrito &middot; fale com o administrador da sua rede</div>
     </div>
   </div>
 </section>
@@ -27975,20 +27983,12 @@ function telaUsuarios(){
      '<div class="usrRol">'+
      (function(){
        /* lista simples: matriz em cima, unidades embaixo, uma sob a outra */
-       function escurece(hex){
-         hex=String(hex||'#00A08B').replace('#','');
-         if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-         var n=parseInt(hex,16);
-         var r=Math.max(0,((n>>16)&255)*0.62|0),
-             g=Math.max(0,((n>>8)&255)*0.62|0),
-             b=Math.max(0,(n&255)*0.62|0);
-         return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
-       }
+       /* a bolinha usa a MESMA cor cadastrada na sucursal */
        function corDe(u){
          if(u.mestre||u.tudo)return '#12263F';
          var sid=(u.sucursais||[])[0];
          var sc=(DB.sucursais||[]).find(function(x){return x.id===sid});
-         return escurece(sc&&sc.cor?sc.cor:'#00A08B');
+         return (sc&&sc.cor)?sc.cor:'#00A08B';
        }
        function ondeFica(u){
          if(u.mestre||u.tudo)return 'matriz';
