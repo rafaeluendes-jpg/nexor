@@ -249,6 +249,40 @@ Correções:
 `cardapio_config`, `clientes_nexor`, `compras_sem_vinculo`, `ordens_producao`,
 `sucursais`, `usuarios_sistema`
 
+## Virada de chave da sincronização (V11.0.0)
+
+Três defeitos estruturais, não três sintomas:
+
+### 1. O envio mandava o banco inteiro a cada mudança
+
+Qualquer `salvar()` reenviava todas as 41 tabelas, todas as linhas, e — nas tabelas com
+filhos — **uma chamada de rede por pai**. Com milhares de pedidos e movimentações, o
+envio demorava, competia consigo mesmo e era interrompido por qualquer F5.
+
+**Agora é incremental.** Cada registro tem uma impressão (`DB._hash`) que inclui os
+filhos. Só sobe o que mudou desde o último envio confirmado; o resto é pulado, inclusive
+o laço dos filhos e dos vínculos. O identificador que a nuvem deu a cada registro fica
+guardado em `DB._uuid`, então pular não quebra o vínculo pai-filho. O que falha não
+tem a impressão gravada e é reenviado na tentativa seguinte.
+
+### 2. A trava de exclusão existia mas nunca era conferida
+
+`NUVEM.baixou` era definida com o comentário "daqui em diante este aparelho pode
+espelhar exclusões" — e **nunca lida em lugar nenhum**. Um aparelho recém-aberto, com
+cópia velha, podia apagar na nuvem o que o outro tinha acabado de criar.
+Agora `apagarRemovidos` recusa enquanto o aparelho não tiver baixado na sessão.
+
+### 3. A propagação dependia só do websocket
+
+Ver V10.7.0. Agora há três camadas: aviso instantâneo, **contador de versão a cada 6s**
+e conferência completa a cada 45s.
+
+### Contador de versão (no banco)
+
+Tabela `loja_versao` com uma linha por loja e 41 gatilhos que incrementam o número a
+cada gravação. O aparelho lê **uma linha** de 6 em 6 segundos; só baixa o banco quando
+o número mudou. Custo desprezível, convergência em segundos.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

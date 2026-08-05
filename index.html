@@ -11062,6 +11062,13 @@ async function api(caminho,metodo,corpo,extra,_repetiu){
   }
   return d;
 }
+/* impressao curta de um registro — e ela que diz se algo mudou desde o ultimo envio */
+function hashTexto(t){
+  var h=2166136261;
+  t=String(t||'');
+  for(var i=0;i<t.length;i++){h^=t.charCodeAt(i);h=(h*16777619)>>>0;}
+  return h.toString(36);
+}
 /* grava (insere ou atualiza) pelo ref_local e devolve os ids */
 async function enviar(tab,linhas){
   if(!linhas.length)return [];
@@ -11085,6 +11092,14 @@ function autorizarEsvaziar(){NUVEM.podeEsvaziar=Date.now()+120000;}
 function podeEsvaziarAgora(){return !!(NUVEM.podeEsvaziar&&Date.now()<NUVEM.podeEsvaziar)}
 async function apagarRemovidos(tab,chave,idsAgora){
   try{
+    /* Um aparelho que ainda nao baixou nesta sessao tem uma copia possivelmente
+       velha. Deixar ele espelhar exclusoes e como deixar quem chegou atrasado
+       decidir o que os outros fizeram. A trava existia no codigo mas nunca era
+       conferida — agora e. */
+    if(!NUVEM.baixou){
+      logNuvem('exclusões de '+tab+' não espelhadas: este aparelho ainda não baixou da nuvem');
+      return;
+    }
     DB._snap=DB._snap||{};
     var antes=DB._snap[chave]||null;
     if(!antes){DB._snap[chave]=idsAgora.slice();return;}   /* primeira vez: nada a comparar */
@@ -11152,6 +11167,13 @@ async function sincronizar(){
   try{
     var l=NUVEM.loja;
     _ids={};
+    /* o identificador que a nuvem deu a cada registro fica guardado: assim da para
+       PULAR o que nao mudou sem perder o vinculo dos filhos com o pai */
+    DB._uuid=DB._uuid||{};DB._hash=DB._hash||{};DB._enviados=DB._enviados||{};
+    Object.keys(DB._uuid).forEach(function(c9){
+      var mp=DB._uuid[c9]||{};
+      Object.keys(mp).forEach(function(r9){ _ids[r9]=mp[r9]; });
+    });
     /* nenhum registro sobe sem identificação própria — é ela que evita duplicar */
     /* o cardápio é guardado por sucursal: vira lista para subir */
     DB.cardapioL=Object.keys(DB.cardapio||{}).map(function(k){
@@ -11207,22 +11229,49 @@ async function sincronizar(){
       etapa=E2.tab;
       var lista=DB[E2.col]||[];
 
+      /* ---- ENVIO INCREMENTAL ----
+         Antes, cada mudanca reenviava o banco inteiro: milhares de linhas e, nas
+         tabelas com filhos, UMA chamada por pai. Isso demorava, travava e volta e
+         meia era interrompido no meio. Agora sobe so o que mudou desde o ultimo
+         envio confirmado — o resto e pulado, inclusive os filhos. */
+      var hAnt=DB._hash[E2.col]||{}, hNovo={}, mudou={}, hSalvar={};
+      DB._uuid[E2.col]=DB._uuid[E2.col]||{};
       if(lista.length){
         var linhas=lista.map(function(x,i){
           var o=E2.campos(x,i);
           o.loja_id=l;
           o.ref_local=x.id;
+          /* a impressao inclui os filhos: mexer num item da ficha tambem conta */
+          var extra='';
+          (E2.filhos||[]).forEach(function(F9){extra+=JSON.stringify(x[F9.lista]||[])});
+          if(E2.vinculo)extra+=JSON.stringify(x[E2.vinculo.lista]||[]);
+          hNovo[x.id]=hashTexto(JSON.stringify(o)+extra);
+          if(hAnt[x.id]!==hNovo[x.id]||!DB._uuid[E2.col][x.id])mudou[x.id]=true;
           return o;
         });
-        var salvos=await enviar(E2.tab,linhas);
-        var faltou=linhas.length-((salvos||[]).length);
-        logNuvem(E2.tab+': '+linhas.length+' enviado(s), '+(salvos||[]).length+' confirmado(s)',faltou!==0);
-        if(faltou>0)toast('Atenção: '+faltou+' registro(s) de '+E2.tab+' não foram aceitos pela nuvem.');
-        salvos.forEach(function(r){if(r.ref_local)_ids[r.ref_local]=r.id});
-        /* lista do que a nuvem realmente aceitou — e ela que diz, depois,
-           quais registros daqui a nuvem ja conhece e quais ainda nao */
-        DB._enviados=DB._enviados||{};
-        DB._enviados[E2.col]=(salvos||[]).map(function(r){return r.ref_local}).filter(Boolean);
+        var envio=linhas.filter(function(o){return mudou[o.ref_local]});
+        var salvos=[];
+        if(envio.length){
+          salvos=await enviar(E2.tab,envio);
+          var faltou=envio.length-((salvos||[]).length);
+          logNuvem(E2.tab+': '+envio.length+' de '+linhas.length+' mudaram, '+
+            (salvos||[]).length+' confirmado(s)',faltou!==0);
+          if(faltou>0)toast('Atenção: '+faltou+' registro(s) de '+E2.tab+' não foram aceitos pela nuvem.');
+        }
+        salvos.forEach(function(r){
+          if(!r.ref_local)return;
+          _ids[r.ref_local]=r.id;DB._uuid[E2.col][r.ref_local]=r.id;
+        });
+        /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
+        var confirmados={};
+        salvos.forEach(function(r){if(r.ref_local)confirmados[r.ref_local]=true});
+        Object.keys(hNovo).forEach(function(ref){
+          if(!mudou[ref]||confirmados[ref])hSalvar[ref]=hNovo[ref];
+          else if(hAnt[ref]!==undefined)hSalvar[ref]=hAnt[ref];
+        });
+        DB._hash[E2.col]=hSalvar;
+        DB._enviados[E2.col]=lista.map(function(x){return x.id})
+          .filter(function(id){return !!DB._uuid[E2.col][id]});
       }
       /* roda mesmo com a lista vazia — senão apagar o último item nunca chega na nuvem */
       if(E2.espelha)await apagarRemovidos(E2.tab,E2.col,lista.map(function(x){return x.id}));
@@ -11233,6 +11282,7 @@ async function sincronizar(){
         var F=E2.filhos[f];
         etapa=F.tab;
         for(var k=0;k<lista.length;k++){
+          if(!mudou[lista[k].id])continue;      /* pai igual: filhos tambem estao */
           var paiId=_ids[lista[k].id];
           if(!paiId)continue;
           var filhos=lista[k][F.lista]||[];
@@ -11263,6 +11313,7 @@ async function sincronizar(){
         var V=E2.vinculo;
         etapa=V.tab;
         for(var v=0;v<lista.length;v++){
+          if(!mudou[lista[v].id])continue;      /* vinculo igual: nao mexe */
           var pid=_ids[lista[v].id];
           if(!pid)continue;
           await apagar(V.tab,V.pai,pid);
@@ -11316,6 +11367,7 @@ async function sincronizar(){
     gravarLocal();
     statusNuvem('ok');
     logNuvem('tudo enviado com sucesso');
+    marcarVersaoAtual();
     backupDoDia();                 /* uma cópia por dia, sem travar nada */
     pausaTempoReal(2500);
   }catch(e){
@@ -11747,6 +11799,8 @@ async function baixarDaNuvem(forcar){
     agendarSync();
   }
 
+  /* o que veio da nuvem ja esta na nuvem: registra a impressao para nao reenviar tudo */
+  DB._hash={};
   NUVEM.baixou=true;   /* daqui em diante este aparelho pode espelhar exclusões */
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   logNuvem('download concluído — itens de categorias: '+antesCat+' -> '+depoisCat,
@@ -12062,7 +12116,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.7.0';
+var VERSAO='V11.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -12984,6 +13038,46 @@ async function conferirNuvemAgora(){
   else if(S.mod&&S.it){ abrir(S.mod,S.it); marcaNovidade(false); }
 }
 setInterval(conferirNuvemAgora,45000);
+
+/* ==========================================================
+   CONFERÊNCIA RÁPIDA — a cada 6 segundos
+   O banco guarda um contador por loja que muda a cada gravação.
+   Consultar esse número é uma linha só: custa quase nada e pode
+   ser feito de 6 em 6 segundos. O banco inteiro só é baixado
+   quando o número muda de verdade.
+   ========================================================== */
+var _versaoLoja=null,_verOcupado=false;
+async function conferirVersaoLoja(){
+  if(!NUVEM.ligada||_verOcupado||NUVEM.sincronizando||RT.pausa)return;
+  if(document.hidden)return;
+  _verOcupado=true;
+  try{
+    var r=await api('loja_versao?loja_id=eq.'+NUVEM.loja+'&select=versao');
+    var v=(r&&r[0])?Number(r[0].versao):null;
+    if(v===null){_verOcupado=false;return;}
+    if(_versaoLoja===null){_versaoLoja=v;_verOcupado=false;return;}
+    if(v===_versaoLoja){_verOcupado=false;return;}
+    _versaoLoja=v;
+    if(NUVEM.sujo||ocupado()){         /* guarda para quando der */
+      RT.pendenteTela=true;marcaNovidade(true);_verOcupado=false;return;
+    }
+    var antes=retratoDB();
+    await baixarDaNuvem();
+    if(retratoDB()!==antes){
+      logNuvem('novidade de outro aparelho — tela atualizada');
+      if(ocupado()){RT.pendenteTela=true;marcaNovidade(true);}
+      else if(S.mod&&S.it){abrir(S.mod,S.it);marcaNovidade(false);}
+    }
+  }catch(e){}
+  _verOcupado=false;
+}
+setInterval(conferirVersaoLoja,6000);
+/* depois de eu mesmo enviar, acompanho o contador para não baixar à toa */
+function marcarVersaoAtual(){
+  api('loja_versao?loja_id=eq.'+NUVEM.loja+'&select=versao')
+    .then(function(r){ if(r&&r[0])_versaoLoja=Number(r[0].versao); })
+    .catch(function(){});
+}
 function avisoEnvioPreso(){
   try{
     if(document.getElementById('avisoEnvio'))return;
