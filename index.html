@@ -1644,7 +1644,10 @@ tbody td small{font-size:10.5px}
   background:var(--alt);border:1px solid var(--line);font-size:12.5px;font-weight:600;
   color:var(--ink-2);white-space:nowrap}
 .opFixa svg{flex:none;color:var(--red,#C94141)}
-.avisoGrav{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;display:flex;
+#barraAvisos{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#barraAvisos>*{pointer-events:auto}
+.avisoGrav{display:flex;
   align-items:center;gap:12px;padding:12px 14px;border-radius:9px;
   background:#7A1D1D;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.3);font-size:12.5px}
 .avisoGrav.sinc{background:#8A5A0B}
@@ -6292,7 +6295,10 @@ tbody td small{font-size:10.5px}
   background:var(--alt);border:1px solid var(--line);font-size:12.5px;font-weight:600;
   color:var(--ink-2);white-space:nowrap}
 .opFixa svg{flex:none;color:var(--red,#C94141)}
-.avisoGrav{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;display:flex;
+#barraAvisos{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#barraAvisos>*{pointer-events:auto}
+.avisoGrav{display:flex;
   align-items:center;gap:12px;padding:12px 14px;border-radius:9px;
   background:#7A1D1D;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.3);font-size:12.5px}
 .avisoGrav.sinc{background:#8A5A0B}
@@ -10627,6 +10633,38 @@ function gravarLocal(){
     return false;
   }
 }
+/* uma barra so, no rodape, com todos os avisos empilhados */
+function barraAvisos(){
+  var b=document.getElementById('barraAvisos');
+  if(!b){
+    b=document.createElement('div');b.id='barraAvisos';
+    document.body.appendChild(b);
+  }
+  return b;
+}
+/* ----------------------------------------------------------
+   AVISO DE APARELHO FORA DA NUVEM
+   Rodar em modo local numa loja e perigoso: o que se lanca fica
+   preso naquele computador e ninguem da rede enxerga. Antes isso
+   so aparecia como um texto pequeno no rodape e passava batido.
+   ---------------------------------------------------------- */
+function conferirNuvem(){
+  try{
+    var el=document.getElementById('avisoNuvem');
+    if(NUVEM.ligada){ if(el)el.remove(); return; }
+    var lg=document.getElementById('login');
+    if(lg&&!lg.classList.contains('hide'))return;    /* ainda na tela de entrada */
+    if(el)return;
+    el=document.createElement('div');
+    el.id='avisoNuvem';el.className='avisoGrav';
+    el.innerHTML='<div><b>Este aparelho não está ligado na nuvem</b>'+
+      '<span>O que for lançado aqui fica só neste computador: ninguém da rede enxerga '+
+      'e nada vai para o banco de dados. Ligue antes de continuar lançando.</span></div>'+
+      '<button onclick="painelNuvem()">Ligar agora</button>';
+    barraAvisos().appendChild(el);
+  }catch(e){}
+}
+setInterval(conferirNuvem,20000);
 /* aviso fixo na tela: some so quando a gravacao voltar a funcionar */
 function alertaGravacao(msg){
   try{
@@ -10634,7 +10672,7 @@ function alertaGravacao(msg){
     if(!el){
       el=document.createElement('div');
       el.id='avisoGrav';el.className='avisoGrav';
-      document.body.appendChild(el);
+      barraAvisos().appendChild(el);
     }
     el.innerHTML='<div><b>Atenção: o sistema não está conseguindo salvar</b>'+
       '<span>'+E(msg)+'</span></div>'+
@@ -10717,13 +10755,14 @@ async function conectarNuvem(email,senha){
   NUVEM.token=r.data.session?r.data.session.access_token:null;
   setTimeout(ligarTempoReal,600);
   setModo('nuvem');
+  conferirNuvem();
   return true;
 }
 function desconectarNuvem(){
   try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){}
   desligarTempoReal();
   NUVEM.ligada=false;NUVEM.cli=null;NUVEM.token=null;NUVEM.perfil=null;NUVEM.loja=null;
-  setModo('local');rodape();
+  setModo('local');rodape();conferirNuvem();
 }
 /* ao abrir o sistema, volta a ligar a nuvem sem pedir senha de novo */
 function temDadosLocais(){
@@ -11724,7 +11763,7 @@ function avisoSinc(msg){
     el.innerHTML='<div><b>Aviso da sincronização</b><span>'+E(msg)+'</span></div>'+
       '<button onclick="restaurarRespaldo()">Voltar a cópia local</button>'+
       '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
-    document.body.appendChild(el);
+    barraAvisos().appendChild(el);
   }catch(e){}
 }
 
@@ -11772,6 +11811,8 @@ function abrirSessao(){
   boot();
   /* volta a ligar a nuvem sozinho, se já estava ligada antes */
   setTimeout(function(){ try{religarNuvem();}catch(e){console.error('religar',e);} },500);
+  /* e confere: aparelho fora da nuvem numa loja tem de gritar, nao sussurrar */
+  setTimeout(conferirNuvem,4000);
 }
 function chaveCliente(t){
   return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
@@ -12019,7 +12060,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.5.1';
+var VERSAO='V10.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

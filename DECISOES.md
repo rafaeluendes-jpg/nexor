@@ -187,6 +187,38 @@ Na primeira sincronização depois desta versão, `_enviados` está vazio — de
 Isso faz o sistema tratar tudo que está no aparelho como ainda-não-confirmado e
 reenviar, em vez de deixar a nuvem apagar.
 
+## Duas entradas diferentes: a do sistema e a da nuvem (V10.6.0)
+
+Entrar no sistema como "franqueador" **não liga o aparelho na nuvem**. São duas coisas:
+
+| Entrada | O que faz | Onde |
+|---|---|---|
+| Login do sistema | diz quem é você e o que pode ver | tela de entrada |
+| Conexão da nuvem | liga o aparelho no banco de dados | ícone de nuvem › Banco de dados |
+
+Sem a segunda, o aparelho grava só no navegador dele. Nada sobe, nada desce, e ninguém
+da rede enxerga. Foi o que aconteceu com o sócio do Rafael: ele cadastrava motivos que
+ficavam presos na máquina dele.
+
+Isso aparecia apenas como "Salvo neste aparelho" em letra pequena no rodapé.
+
+- Agora um **aviso vermelho fixo** ocupa o rodapé enquanto o aparelho estiver fora da
+  nuvem, com botão "Ligar agora"
+- Os três avisos (gravação, sincronização, nuvem) passaram a morar numa barra única e
+  empilham, em vez de um cobrir o outro
+
+### Verificado no banco (05/08)
+
+- `motivos_movimentacao` **está** publicada para tempo real — a propagação funciona
+- Existe **uma única loja** e **um único usuário de nuvem** (`rafael@nexor.app`)
+- A RLS exige sessão autenticada (`minha_loja()` lê de `auth.uid()`), então sem a
+  conexão da nuvem nenhuma tabela responde
+
+### Pendente de decisão
+
+Cada pessoa da rede precisa da própria conta de nuvem, ou o login do sistema deve
+conectar sozinho usando uma credencial da rede. Hoje só existe a conta do Rafael.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
