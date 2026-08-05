@@ -11427,7 +11427,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.8.0';
+var VERSAO='V7.8.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -15572,12 +15572,15 @@ function telaBackup(){
   var l=BK.lista||[];
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo"><h1>Backup e Restauração</h1>'+
-    '<p>Uma fotografia completa dos seus dados é guardada na nuvem <b>uma vez por dia</b>, '+
-    'automaticamente. Aqui você vê as cópias, faz uma na hora, baixa um arquivo para guardar '+
-    'fora do sistema, ou volta o sistema para como estava em um dia anterior.</p></div>'+
+    '<p>O backup é <b>automático</b>: uma vez por dia o sistema guarda sozinho uma cópia completa '+
+    'na nuvem, sem ninguém apertar nada. Você não precisa baixar nada para estar protegido. '+
+    'Para restaurar, escolha a data na lista abaixo.</p>'+
+    '<p style="font-size:12px">O botão de baixar arquivo é <b>opcional</b> — serve para ter uma cópia '+
+    'fora do Supabase, já que no plano gratuito os backups moram todos lá dentro. '+
+    'Detalhes em Central Técnica › Mapa do Sistema › Backup.</p></div>'+
    '<div class="bkBotoes">'+
     '<button class="btnP2 ok" onclick="backupAgora()">'+sv('cloud',13)+' Fazer backup agora</button>'+
-    '<button class="btnP2" onclick="baixarBackupArquivo()">'+sv('file2',13)+' Baixar arquivo (cópia externa)</button>'+
+    '<button class="btnP2" onclick="baixarBackupArquivo()">'+sv('file2',13)+' Baixar cópia externa (opcional)</button>'+
     '<button class="btnP2" onclick="carregarBackups()">'+sv('ref',13)+' Atualizar a lista</button>'+
    '</div>'+
    (!NUVEM.ligada
@@ -15614,10 +15617,12 @@ function telaBackup(){
    '<div class="ctGrade" style="margin-top:14px">'+
     ctCard('Quantas camadas você tem','proteção em três níveis',
      ctLinha('1. O aparelho','os dados ficam no computador da loja, funcionando sem internet')+
-     ctLinha('2. A nuvem','o banco Supabase, com backup automático do próprio serviço')+
-     ctLinha('3. Estas cópias','fotografias diárias que você pode restaurar sozinho')+
-     '<div class="ctNota ctOk">Perder tudo exigiria as três falharem ao mesmo tempo. '+
-     'Baixe o arquivo de vez em quando e guarde fora da loja — aí viram quatro.</div>')+
+     ctLinha('2. A nuvem','o banco Supabase — hoje no plano gratuito, <b>sem backup do serviço</b>')+
+     ctLinha('3. Estas cópias','fotografias diárias automáticas, feitas pelo Nexor')+
+     '<div class="ctNota ctAt">Atenção: no <b>plano gratuito</b>, o Supabase não guarda cópia nenhuma. '+
+     'Hoje a camada 3 é a sua única rede de proteção real. No plano Pro (~US$ 25/mês) o próprio '+
+     'serviço passa a fazer backup diário e permite voltar o banco a qualquer minuto dos últimos dias. '+
+     'É o item número um a contratar antes de escalar a rede.</div>')+
     ctCard('O que uma cópia guarda','tudo que é seu',
      ctLinha('Cadastros','ingredientes, fichas, produtos, fornecedores, clientes')+
      ctLinha('Operação','estoque, movimentações, notas, produção, contagens')+
@@ -15648,6 +15653,7 @@ function telaCentralTecnica(){
   var abas=[['pecas','As 4 peças','o que é cada parte e o que para se ela cair'],
             ['contas','Contas e acessos','onde mora cada coisa'],
             ['dados','Banco de dados','como os dados são guardados'],
+            ['backup','Backup','onde fica e como resgatar'],
             ['socorro','Quando dá problema','o que olhar primeiro']];
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo">'+
@@ -15662,7 +15668,7 @@ function telaCentralTecnica(){
    }).join('')+'</div>'+
    '<div class="ctCorpo">'+
     (CT.aba==='pecas'?ctPecas():CT.aba==='contas'?ctContas():
-     CT.aba==='dados'?ctDados():ctSocorro())+
+     CT.aba==='dados'?ctDados():CT.aba==='backup'?ctBackupDoc():ctSocorro())+
    '</div></div>';
   rodape('Central Técnica · versão do sistema '+VERSAO);
 }
@@ -15717,13 +15723,17 @@ function ctContas(){
    'e use esta lista como o índice do que existe.</p>'+
   '<div class="ctGrade">'+
    ctCard('Banco de dados','Supabase',
-    ctLinha('Serviço','Supabase (banco PostgreSQL + login de usuários)')+
-    ctLinha('Projeto','cevghkndzpzvnzwifhnm')+
-    ctLinha('Painel','supabase.com → entrar → projeto Nexor')+
+    ctLinha('Serviço','Supabase — PostgreSQL 17 + autenticação')+
+    ctLinha('Identificador do projeto','cevghkndzpzvnzwifhnm')+
+    ctLinha('Endereço do banco','db.cevghkndzpzvnzwifhnm.supabase.co')+
+    ctLinha('Endereço da API','https://cevghkndzpzvnzwifhnm.supabase.co')+
+    ctLinha('Região','us-east-2 (Ohio, EUA)')+
+    ctLinha('Plano','gratuito — <b>sem backup do serviço</b>')+
+    ctLinha('Painel','supabase.com/dashboard → projeto do Nexor')+
+    ctLinha('Onde ficam as chaves','painel → Project Settings → API')+
     ctLinha('O que guarda','absolutamente todos os dados da rede')+
-    ctLinha('Quem acessa','o sistema, o cardápio, o robô e o app')+
     '<div class="ctNota ctAt">É a peça mais crítica. Perder o acesso a esta conta é o pior cenário. '+
-    'Mantenha o e-mail de recuperação atualizado.</div>')+
+    'Mantenha o e-mail de recuperação atualizado e ative verificação em duas etapas.</div>')+
 
    ctCard('Código-fonte','GitHub',
     ctLinha('Conta','rafaeluendes-jpg')+
@@ -15800,6 +15810,63 @@ function ctDados(){
     'Está na fila.</div>'+
     '<div class="ctNota ctOk"><b>Escrita já bloqueada.</b> Testado: ninguém de fora consegue '+
     'gravar, alterar ou apagar dados sem login.</div>')+
+  '</div>';
+}
+
+function ctBackupDoc(){
+  return '<p class="ctIntro">Como o backup do Nexor funciona, <b>onde os dados ficam guardados</b> '+
+   'e o passo a passo para resgatar. Escrito para quem nunca viu o sistema.</p>'+
+  '<div class="ctGrade">'+
+   ctCard('Como funciona','automático, sem ninguém apertar nada',
+    ctLinha('Quando roda','sozinho, na primeira sincronização de cada dia')+
+    ctLinha('O que guarda','uma fotografia completa de todos os dados da loja')+
+    ctLinha('Quantas guarda','as 30 mais recentes; as antigas saem sozinhas')+
+    ctLinha('Também roda','antes de qualquer restauração, para poder voltar atrás')+
+    '<div class="ctNota ctOk">Ninguém precisa lembrar de fazer backup. '+
+    'Se o sistema abriu e sincronizou naquele dia, a cópia existe.</div>')+
+
+   ctCard('Onde os dados ficam','o endereço exato',
+    ctLinha('Serviço','Supabase — projeto cevghkndzpzvnzwifhnm')+
+    ctLinha('Tabela','backups')+
+    ctLinha('Como ver por fora','painel do Supabase → Table Editor → tabela backups')+
+    ctLinha('Colunas úteis','criado_em · origem · feito_por · tamanho_kb · resumo · dados')+
+    ctLinha('Onde a cópia inteira mora','coluna <b>dados</b>, em formato JSON')+
+    ctLinha('Separação','cada linha tem loja_id — uma loja nunca vê o backup da outra')+
+    '<div class="ctNota ctOk">Só quem está logado enxerga. Testado: com a chave pública do sistema, '+
+    'de fora, não se lê nem se apaga backup nenhum.</div>')+
+
+   ctCard('Como resgatar','pelo sistema, em 4 passos',
+    '<div class="ctPasso"><b>1.</b> Central Técnica → Backup e Restauração</div>'+
+    '<div class="ctPasso"><b>2.</b> Ache a data desejada na lista e clique em Restaurar</div>'+
+    '<div class="ctPasso"><b>3.</b> Confirme — o sistema guarda antes uma cópia do estado atual, '+
+    'marcada em vermelho como "antes de restaurar"</div>'+
+    '<div class="ctPasso"><b>4.</b> A página recarrega. Confira estoque e financeiro antes de operar</div>'+
+    '<div class="ctNota ctAt">Tudo que aconteceu <b>depois</b> da data restaurada se perde. '+
+    'Restaurar é para acidente grave, não para corrigir um lançamento errado.</div>')+
+
+   ctCard('Como resgatar sem o sistema','se o Nexor não abrir',
+    '<div class="ctPasso"><b>1.</b> Entre em supabase.com/dashboard com a conta da franqueadora</div>'+
+    '<div class="ctPasso"><b>2.</b> Table Editor → tabela <b>backups</b> → ordene por criado_em</div>'+
+    '<div class="ctPasso"><b>3.</b> Copie o conteúdo da coluna <b>dados</b> da linha desejada</div>'+
+    '<div class="ctPasso"><b>4.</b> É um JSON com todas as coleções — qualquer programador '+
+    'recoloca no sistema a partir dali</div>'+
+    '<div class="ctNota ctOk">Ou seja: os dados não ficam presos ao Nexor. '+
+    'Estão num banco padrão de mercado, legíveis por qualquer ferramenta.</div>')+
+
+   ctCard('O que falta para ficar profissional','honestidade',
+    ctLinha('Hoje','cópia diária feita pelo próprio sistema — funciona, mas depende do sistema abrir')+
+    ctLinha('Falta 1','plano Supabase Pro: backup do banco inteiro, feito pelo servidor')+
+    ctLinha('Falta 2','Point-in-Time Recovery: voltar o banco a qualquer minuto dos últimos dias')+
+    ctLinha('Falta 3','cópia guardada fora do Supabase, em outro provedor')+
+    '<div class="ctNota ctAt">Enquanto o plano for gratuito, se a conta do Supabase for perdida '+
+    'ou suspensa, <b>os backups vão junto</b> — porque moram lá dentro. É a fragilidade real de hoje '+
+    'e o motivo do botão "Baixar arquivo": ele tira uma cópia para fora, na sua mão.</div>')+
+
+   ctCard('O que o backup NÃO guarda','para não haver surpresa',
+    ctLinha('Sessão do WhatsApp','fica na tabela whatsapp_sessoes; se perder, lê o QR de novo')+
+    ctLinha('Chaves de IA e do banco','ficam no painel do Render, como variáveis de ambiente')+
+    ctLinha('Código do sistema','fica no GitHub, com histórico de todas as versões')+
+    ctLinha('Arquivos de imagem','fotos de produto seguem o mesmo caminho dos dados'))+
   '</div>';
 }
 
