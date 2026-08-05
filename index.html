@@ -10318,7 +10318,7 @@ var MOD=[
  {id:'turnos',n:'Turnos'},
  {id:'usuarios-permissoes',n:'Usuários e Permissões'}]},
 
-{id:'tecnico',n:'Central Técnica',ic:'gear2',it:[
+{id:'tecnico',n:'Administração',ic:'gear2',it:[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'backup',n:'Backup e Restauração'},
  {id:'instalacao',n:'Assistente de Instalação'},
@@ -10326,8 +10326,18 @@ var MOD=[
  {id:'reset-sistema',n:'Dados de Teste e Reinício'}]}
 ];
 /* telas exclusivas da franqueadora — franquia nao ve nem por permissao */
-var SO_FRANQUEADORA=['tecnico/central-tecnica','tecnico/carga-inicial',
-  'tecnico/instalacao','tecnico/backup','tecnico/reset-sistema'];
+/* ----------------------------------------------------------
+   DOIS PAPEIS DIFERENTES
+
+   PLATAFORMA  — o dono do Nexor. Cuida do produto: infraestrutura,
+                 contas, servidores. NAO opera dados de cliente.
+   FRANQUEADORA— o cliente que contratou. Manda na propria rede:
+                 unidades, usuarios, dados, backup e importacao.
+   ---------------------------------------------------------- */
+var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao'];
+var SO_FRANQUEADORA=['tecnico/carga-inicial','tecnico/backup','tecnico/reset-sistema'];
+function ehPlataforma(u){u=u||usuarioLogado();return !!(u&&u.plataforma)}
+function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||u.plataforma))}
 
 /* ===== BLOCO 3 — ARMAZENAMENTO ===== */
 var CANAIS=[
@@ -11435,7 +11445,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.2.0';
+var VERSAO='V8.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -15623,9 +15633,9 @@ function telaInstalacao(){
   var mz=(DB.sucursais||[]).find(function(x){return x.matriz})||{};
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo"><h1>Assistente de Instalação</h1>'+
-    '<p>O Nexor não vem com empresa nenhuma dentro. Informe aqui a rede que vai usar o sistema — '+
-    'as unidades e os acessos são criados a partir do que você digitar. '+
-    'A mesma instalação serve para qualquer rede.</p></div>'+
+    '<p>O Nexor não vem com empresa nenhuma dentro. Informe aqui a rede <b>cliente</b> que vai usar '+
+    'o sistema — unidades e acessos são criados a partir do que você digitar, e a franqueadora dela '+
+    'passa a mandar na própria rede. A mesma instalação serve para qualquer cliente.</p></div>'+
    '<div class="blk" style="max-width:760px">'+
     '<div class="acTit">A rede</div>'+
     '<div class="row3">'+
@@ -15700,7 +15710,7 @@ async function criarRede(){
     var lf='franqueadora@'+dom;
     if(!DB.usuarios.some(function(u){return (u.login||'').toLowerCase()===lf}))
       DB.usuarios.push({id:uid('usr'),nome:rede+' — Franqueadora',login:lf,senha:'123',
-        mestre:false,ativo:true,tudo:true,sucursais:[],permissoes:{},
+        mestre:false,plataforma:false,ativo:true,tudo:true,sucursais:[],permissoes:{},
         criadoEm:new Date().toISOString()});
   }
   salvar();INS.linhas=[];
@@ -16010,7 +16020,8 @@ function telaCentralTecnica(){
     '<h1>Mapa do Sistema</h1>'+
     '<p>Esta tela é a planta baixa do Nexor. Foi escrita para você entender sem saber programar '+
     'e para quem assumir o desenvolvimento encontrar tudo sem depender de ninguém. '+
-    '<b>Só a franqueadora enxerga esta tela</b> — nenhuma franquia tem acesso.</p>'+
+    '<b>Esta tela é do dono do Nexor</b> — nenhum cliente, nem a franqueadora dele, tem acesso: '+
+    'aqui estão as contas de infraestrutura do produto.</p>'+
    '</div>'+
    '<div class="ctAbas">'+abas.map(function(a){
      return '<button class="ctAba'+(CT.aba===a[0]?' on':'')+'" onclick="ctAba(\''+a[0]+'\')">'+
@@ -27387,7 +27398,7 @@ function baseUsr(){
   /* administrador mestre do Nexor: existe em qualquer instalacao, enxerga tudo */
   if(!DB.usuarios.some(function(u){return (u.login||'').toLowerCase()===ADM_MESTRE})){
     DB.usuarios.unshift({id:'usr_mestre',nome:'Administrador do Nexor',login:ADM_MESTRE,
-      senha:'123',mestre:true,ativo:true,sucursais:[],permissoes:{},tudo:true,
+      senha:'123',mestre:true,plataforma:true,ativo:true,sucursais:[],permissoes:{},tudo:true,
       criadoEm:new Date().toISOString()});
   }
   return DB.usuarios;
@@ -27401,9 +27412,10 @@ var SESSAO={usuarioId:null};
 /* pode ver este item do menu? */
 function podeVer(mid,iid){
   var u=usuarioLogado();
-  /* trava dura: so quem tem acesso total (franqueadora) enxerga */
-  if(iid&&SO_FRANQUEADORA.indexOf(mid+'/'+iid)>=0)
-    return !!(u&&(u.tudo||u.mestre));
+  /* telas do produto: so o dono do Nexor */
+  if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
+  /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
+  if(iid&&SO_FRANQUEADORA.indexOf(mid+'/'+iid)>=0)return ehFranqueadora(u);
   if(!u)return true;
   if(u.tudo||u.mestre)return true;
   if(!iid)return (MOD.find(function(m){return m.id===mid})||{it:[]}).it
