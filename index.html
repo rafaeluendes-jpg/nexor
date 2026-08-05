@@ -11598,7 +11598,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.3.2';
+var VERSAO='V9.3.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27864,6 +27864,23 @@ function baseUsr(){
     else porLogin[lg]=true;
   });
   DB.usuarios=DB.usuarios.filter(function(u){return !u._apagar});
+  /* acesso apontando para uma unidade que nao existe mais: religa pelo nome */
+  try{
+    var scs=DB.sucursais||[];
+    function chv(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase().replace(/[^a-z0-9]/g,'');}
+    DB.usuarios.forEach(function(u){
+      if(u.tudo||u.mestre)return;
+      var val=(u.sucursais||[]).filter(function(id){
+        return scs.some(function(x){return x.id===id});});
+      if(val.length){u.sucursais=val;return;}
+      var alvo=chv(String(u.login||'').split('@')[0]);
+      if(!alvo)return;
+      var sc=scs.filter(function(x){return !x.matriz}).find(function(x){
+        var n=chv(x.nome);return n.indexOf(alvo)>=0||alvo.indexOf(chv(x.apelido||x.nome))>=0;});
+      if(sc)u.sucursais=[sc.id];
+    });
+  }catch(e){}
   /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
   DB.usuarios.forEach(function(u){
     if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
@@ -27976,9 +27993,9 @@ function telaUsuarios(){
          '</button>';
        }
        var h='',usados={};
-       var gerais=lista.filter(function(u){return u.mestre||u.tudo||!(u.sucursais||[]).length});
+       var gerais=lista.filter(function(u){return u.mestre||u.tudo});
        if(gerais.length){
-         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('users',12)+' Rede inteira'+
+         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('users',12)+' Matriz'+
             '<em>'+gerais.length+'</em></div>'+gerais.map(function(u){usados[u.id]=1;return cartao(u)}).join('')+'</div>';
        }
        sucsVisiveis.forEach(function(sc){
@@ -27993,7 +28010,7 @@ function telaUsuarios(){
        });
        var soltos=lista.filter(function(u){return !usados[u.id]});
        if(soltos.length)
-         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('help',12)+' Sem unidade definida'+
+         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('help',12)+' Sem unidade'+
             '<em>'+soltos.length+'</em></div>'+soltos.map(cartao).join('')+'</div>';
        return h;
      })()+
