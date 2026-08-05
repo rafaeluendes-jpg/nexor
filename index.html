@@ -10657,7 +10657,8 @@ var MAPA=[
  {col:'sucursais', espelha:true, tab:'sucursais',
   campos:function(x){return {nome:x.nome,apelido:x.apelido||null,cnpj:x.cnpj||null,
     telefone:x.telefone||null,cidade:x.cidade||null,uf:x.uf||null,
-    matriz:!!x.matriz,ativa:x.ativa!==false}}},
+    matriz:!!x.matriz,ativa:x.ativa!==false,
+    rede_id:x.redeId||null,rede_nome:x.redeNome||null}}},
 
  {col:'ordensProd',  tab:'ordens_producao',
   campos:function(x){return {numero:x.numero||null,data:x.data||null,hora:x.hora||null,
@@ -11185,7 +11186,8 @@ async function baixarDaNuvem(forcar){
   var sc=await api('sucursais'+qs);
   DB.sucursais=volta(sc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     apelido:x.apelido||'',cnpj:x.cnpj||'',telefone:x.telefone||'',cidade:x.cidade||'',
-    uf:x.uf||'',matriz:!!x.matriz,ativa:x.ativa!==false,cor:x.cor||'#00A08B'}});
+    uf:x.uf||'',matriz:!!x.matriz,ativa:x.ativa!==false,cor:x.cor||'#00A08B',
+    redeId:x.rede_id||'',redeNome:x.rede_nome||''}});
 
   var op=await api('ordens_producao'+qs+'&order=data.desc&limit=1000');
   DB.ordensProd=volta(op,function(x){return {id:x.ref_local||x.id,numero:x.numero,
@@ -11497,7 +11499,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.6.0';
+var VERSAO='V8.6.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -15840,6 +15842,14 @@ function baseRedes(){
   return DB.redes;
 }
 function unidadesDaRede(id){
+  /* unidade que perdeu o vinculo (sincronizacao antiga) volta para a primeira rede */
+  if(DB.redes&&DB.redes.length&&DB.redes[0].id===id){
+    var mudou=false;
+    (DB.sucursais||[]).forEach(function(x){
+      if(!x.matriz&&!x.redeId){x.redeId=id;x.redeNome=DB.redes[0].nome;mudou=true;}
+    });
+    if(mudou)gravarLocal();
+  }
   return (DB.sucursais||[]).filter(function(x){return x.redeId===id&&!x.matriz});
 }
 function soDom(t){ t=String(t||'').trim(); if(t.indexOf('@')>=0)t=t.split('@').pop(); return t.replace(/^\.+|\.+$/g,''); }
@@ -15972,11 +15982,11 @@ function salvarUnidade(redeId,sucId){
   if(!x){
     x={id:'suc_'+apelidoLogin(nome).slice(0,14)+'_'+Date.now().toString(36).slice(-4),
        nome:nome,apelido:nome,cnpj:'',telefone:'',cidade:'',uf:'',matriz:false,ativa:true,
-       redeId:redeId,cor:CORES_SUC[(DB.sucursais.length)%CORES_SUC.length]};
+       redeId:redeId,redeNome:r.nome,cor:CORES_SUC[(DB.sucursais.length)%CORES_SUC.length]};
     DB.sucursais.push(x);
   }
   x.nome=nome;x.apelido=nome;x.cidade=$('unC').value.trim();x.uf=$('unU').value.trim().toUpperCase();
-  x.redeId=redeId;
+  x.redeId=redeId;x.redeNome=r.nome;
   var lg=($('unL').value.trim()||(r.dominio?apelidoLogin(nome)+'@'+r.dominio:'')).toLowerCase();
   var sn=$('unS').value.trim()||'123';
   if(lg){
