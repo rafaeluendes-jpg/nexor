@@ -10145,6 +10145,7 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .ctFluxoL{margin:9px 0 4px;font-size:13.5px}
 .ctFluxo span{font-size:11.5px;color:var(--ink-3,#7a7a86)}
 .bkBotoes{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.cnMods{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px;margin-top:6px}
 @media(max-width:760px){.hp2Seta{display:none}.hp2K{min-width:46%}}
 </style>
 </head>
@@ -10336,6 +10337,28 @@ var MOD=[
                  unidades, usuarios, dados, backup e importacao.
    ---------------------------------------------------------- */
 var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/clientes-nexor'];
+/* ----------------------------------------------------------
+   MODULOS CONTRATADOS
+   A lista vem do banco (tabela clientes_nexor) e e regravada a
+   cada sincronizacao. O cliente le, nunca escreve: no Supabase
+   so quem tem perfil 'plataforma' consegue alterar o contrato.
+   Modulo fora do contrato nao aparece para ninguem da rede,
+   nem para a franqueadora.
+   ---------------------------------------------------------- */
+var MODULOS_BASE=['cardapio','pdv','clientes','estoque','financeira','relatorios',
+                  'dashboard','loja','tecnico'];
+function contratoDaRede(){
+  var c=DB._contrato;
+  if(!c||!c.modulos||!c.modulos.length)return null;   /* sem contrato: nada e bloqueado */
+  return c;
+}
+function moduloContratado(mid){
+  if(ehPlataforma())return true;            /* o dono do produto ve tudo */
+  var c=contratoDaRede();
+  if(!c)return true;
+  if(MODULOS_BASE.indexOf(mid)<0)return true;
+  return c.modulos.indexOf(mid)>=0;
+}
 var SO_FRANQUEADORA=['tecnico/carga-inicial','tecnico/backup','tecnico/reset-sistema'];
 function ehPlataforma(u){u=u||usuarioLogado();return !!(u&&u.plataforma)}
 function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||u.plataforma))}
@@ -10646,6 +10669,7 @@ var MAPA=[
   campos:function(x){return {rede:x.rede,responsavel:x.responsavel||null,email:x.email||null,
     telefone:x.telefone||null,documento:x.documento||null,cidade:x.cidade||null,uf:x.uf||null,
     unidades:parseInt(x.unidades)||1,plano:x.plano||null,mensalidade:n(x.mensalidade),
+    loja_id:x.lojaId||null,modulos:x.modulos||[],
     dia_vencimento:parseInt(x.diaVenc)||10,situacao:x.situacao||'ativo',
     inicio:x.inicio||null,observacao:x.obs||null,cobrancas:x.cobrancas||[]}}},
 
@@ -11165,13 +11189,18 @@ async function baixarDaNuvem(forcar){
     diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}});
 
   try{
+    var meu=await api('clientes_nexor?select=rede,modulos,situacao,plano&loja_id=eq.'+NUVEM.loja+'&limit=1');
+    DB._contrato=(meu&&meu[0])?{rede:meu[0].rede,modulos:meu[0].modulos||[],
+      situacao:meu[0].situacao,plano:meu[0].plano}:null;
+  }catch(e){}
+  try{
     var cnx=await api('clientes_nexor?select=*&order=rede.asc&limit=500');
     DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
       responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
       documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',unidades:x.unidades||1,
       plano:x.plano||'',mensalidade:Number(x.mensalidade)||0,diaVenc:x.dia_vencimento||10,
       situacao:x.situacao||'ativo',inicio:x.inicio||'',obs:x.observacao||'',
-      cobrancas:x.cobrancas||[]}});
+      lojaId:x.loja_id||'',modulos:x.modulos||[],cobrancas:x.cobrancas||[]}});
   }catch(e){}
   var csvw=await api('compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
   DB.comprasSemVinc=volta(csvw,function(x){return {id:x.ref_local||x.id,
@@ -11462,7 +11491,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.4.0';
+var VERSAO='V8.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -15698,7 +15727,7 @@ function telaClientesNexor(){
       '<td>'+E(c.responsavel||'—')+'</td>'+
       '<td><small>'+E(c.telefone||c.email||'—')+'</small></td>'+
       '<td style="text-align:right">'+(c.unidades||0)+'</td>'+
-      '<td>'+E(c.plano||'—')+'</td>'+
+      '<td>'+E(c.plano||'—')+'<small>'+((c.modulos||[]).length?(c.modulos.length+' módulos'):'tudo liberado')+'</small></td>'+
       '<td style="text-align:right"><b>R$ '+money(c.mensalidade)+'</b></td>'+
       '<td style="text-align:center">dia '+(c.diaVenc||10)+'</td>'+
       '<td><span class="pill '+(c.situacao==='ativo'?'ok':(c.situacao==='atraso'?'rd':''))+'">'+cnSit(c.situacao)+'</span></td>'+
@@ -15733,6 +15762,18 @@ function modalCN(id){
      SITUACOES.map(function(x){return '<option value="'+x.id+'"'+(c&&c.situacao===x.id?' selected':'')+'>'+x.n+'</option>'}).join('')+'</select></div>'+
     '<div class="fld2"><label>Cliente desde</label><input id="cnIni" type="date" value="'+(c&&c.inicio?c.inicio:hojeISO())+'"></div></div>'+
    '<div class="fld2"><label>Observações</label><textarea id="cnObs" rows="2">'+E(c?c.obs:'')+'</textarea></div>'+
+   '<div class="acTit" style="margin-top:12px">Módulos contratados</div>'+
+   '<div class="hint">O que não for marcado <b>não aparece</b> para ninguém da rede — nem para a '+
+    'franqueadora dela. Deixar tudo desmarcado libera tudo (cliente sem contrato definido).</div>'+
+   '<div class="cnMods">'+MOD.filter(function(m){return MODULOS_BASE.indexOf(m.id)>=0&&m.id!=='tecnico'})
+     .map(function(m){
+       var on=c&&(c.modulos||[]).indexOf(m.id)>=0;
+       return '<label class="chkL"><input type="checkbox" class="cnMod" value="'+m.id+'"'+
+        (on?' checked':'')+'><span>'+E(m.n)+'</span></label>';
+     }).join('')+'</div>'+
+   '<div class="fld2" style="margin-top:8px"><label>Identificador da loja no banco (loja_id)</label>'+
+    '<input id="cnLoja" value="'+E(c?c.lojaId||'':'')+'" placeholder="cole aqui o id da loja do cliente">'+
+    '<div class="hint">É o que liga o contrato à instalação do cliente. Sem ele, o bloqueio não chega lá.</div></div>'+
    (c&&(c.cobrancas||[]).length?'<div class="acTit" style="margin-top:10px">Pagamentos registrados</div>'+
      '<div class="hint">'+c.cobrancas.filter(function(b){return b.pago}).map(function(b){
        return b.mes+' — R$ '+money(b.valor)}).join(' · ')+'</div>':'')+
@@ -15752,7 +15793,10 @@ function salvarCN(id){
     telefone:$('cnTel').value.trim(),email:$('cnMail').value.trim(),documento:$('cnDoc').value.trim(),
     cidade:$('cnCid').value.trim(),uf:$('cnUf').value.trim().toUpperCase(),plano:$('cnPl').value,
     mensalidade:parseFloat($('cnVal').value)||0,diaVenc:parseInt($('cnDia').value)||10,
-    situacao:$('cnSit').value,inicio:$('cnIni').value,obs:$('cnObs').value.trim()};
+    situacao:$('cnSit').value,inicio:$('cnIni').value,obs:$('cnObs').value.trim(),
+    lojaId:($('cnLoja')?$('cnLoja').value.trim():''),
+    modulos:Array.prototype.slice.call(document.querySelectorAll('.cnMod:checked'))
+      .map(function(x){return x.value})};
   var a=id?DB.clientesNexor.find(function(x){return x.id===id}):null;
   if(a)Object.assign(a,o);
   else DB.clientesNexor.push(Object.assign({id:uid('cnx'),cobrancas:[]},o));
@@ -27567,6 +27611,7 @@ var SESSAO={usuarioId:null};
 /* pode ver este item do menu? */
 function podeVer(mid,iid){
   var u=usuarioLogado();
+  if(!moduloContratado(mid))return false;   /* fora do contrato: some para todos */
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
   /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
