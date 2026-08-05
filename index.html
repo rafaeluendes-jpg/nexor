@@ -35,11 +35,19 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .lgHd{display:flex;align-items:center;gap:9px;margin-bottom:18px}
 .lgMk{width:30px;height:30px;border-radius:8px;background:linear-gradient(140deg,var(--acc-l),var(--acc-d));
   color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
-.lgHd{align-items:center;margin-bottom:20px}
-.lgMk{width:34px;height:34px;border-radius:9px}
-.lgTt b{display:block;font-size:15px;letter-spacing:.2em;font-weight:600;line-height:1.1}
+.lgHd{align-items:center;gap:13px;margin-bottom:20px}
+.lgEmb{width:58px;height:58px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center;position:relative;
+  background:radial-gradient(circle at 34% 26%,#4FD8C0,var(--acc,#00A08B) 46%,#04413A 100%);
+  box-shadow:0 8px 20px rgba(0,90,80,.38),inset 0 -6px 14px rgba(0,0,0,.3),
+             inset 0 3px 8px rgba(255,255,255,.35)}
+.lgEmb::after{content:'';position:absolute;top:5px;left:11px;width:34px;height:17px;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0));pointer-events:none}
+.lgEmb svg{position:relative;z-index:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+.lgTt b{display:block;font-size:27px;font-weight:300;letter-spacing:.09em;line-height:1;
+  color:var(--deep,#12263F)}
 .lgTt em{display:block;font-style:normal;font-size:10px;color:var(--ink-3);
-  letter-spacing:.02em;margin-top:2px}
+  letter-spacing:.03em;margin-top:5px}
 .lgL .sb{color:var(--ink-3);font-size:11.5px;margin:0 0 14px;
   padding-bottom:12px;border-bottom:1px solid var(--line-2)}
 .f{margin-bottom:9px}
@@ -10200,10 +10208,12 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   <div class="lgCard" id="lgCard">
     <div class="lgL">
       <div class="lgHd">
-        <div class="lgMk"><svg viewBox="0 0 32 32" width="20" height="20" fill="none"
-          stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M7 25V7l18 18V7"/></svg></div>
-        <div class="lgTt"><b>NEXOR</b><em>gestão simples, lucro visível</em></div>
+        <div class="lgEmb">
+          <svg viewBox="0 0 64 64" width="34" height="34" fill="none" stroke="#fff"
+            stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 46V18l26 28V18"/></svg>
+        </div>
+        <div class="lgTt"><b>nexor</b><em>gestão simples, lucro visível</em></div>
       </div>
       <div class="sb">Informe cliente, usuário e senha</div>
       <div class="f"><label>Cliente</label><div class="w"><input id="lgC" value="" autocomplete="off" placeholder="nome da rede"></div></div>
