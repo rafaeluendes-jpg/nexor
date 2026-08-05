@@ -11664,7 +11664,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.9.0';
+var VERSAO='V9.9.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -17425,26 +17425,30 @@ function exportarConc(){
 function baseForn(){DB.fornec=DB.fornec||[];}
 var FB={busca:''};
 function fornecedor(id){return (DB.fornec||[]).find(function(x){return x.id===id})||null}
-function telaFornecedores(){
-  baseForn();
-  var q=(FB.busca||'').toLowerCase();
-  var lista=(DB.fornec||[]).filter(function(f){
-    if(!q)return true;
-    return (f.empresa||'').toLowerCase().indexOf(q)>=0||(f.nome||'').toLowerCase().indexOf(q)>=0||
-      (f.cnpj||'').toLowerCase().indexOf(q)>=0||soDigitos(f.whats||'').indexOf(soDigitos(q))>=0;
+function filtraFornec(){
+  var q=(FB.busca||'').trim().toLowerCase();
+  return (DB.fornec||[]).filter(function(f){
+    if(q.length<3)return true;          /* a partir da terceira letra e que filtra */
+    var d=soDigitos(q);
+    return (f.empresa||'').toLowerCase().indexOf(q)>=0||
+           (f.nome||'').toLowerCase().indexOf(q)>=0||
+           (f.email||'').toLowerCase().indexOf(q)>=0||
+           (f.cnpj||'').toLowerCase().indexOf(q)>=0||
+           (d&&soDigitos(f.whats||'').indexOf(d)>=0)||
+           (d&&soDigitos(f.tel||'').indexOf(d)>=0);
   }).sort(function(a,b){return (a.empresa||'').localeCompare(b.empresa||'')});
-  $('content').innerHTML='<div class="finWrap">'+
-  '<div class="finTop"><div><h1>Fornecedores</h1>'+
-  '<p>Cadastro usado nos lançamentos financeiros e nas notas de entrada.</p></div>'+
-  '<div class="finActs"><button class="btnP2 ok" onclick="modalForn()">'+sv('plus',14)+' Cadastrar fornecedor</button></div></div>'+
-  '<div style="margin:0 0 12px;position:relative;max-width:360px">'+
-   '<input id="fbB" value="'+E(FB.busca)+'" placeholder="buscar por empresa, contato, CNPJ ou WhatsApp" '+
-   'style="width:100%;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 11px" '+
-   'oninput="FB.busca=this.value;clearTimeout(window._tfb);window._tfb=setTimeout(function(){'+
-   'telaFornecedores();var e=document.getElementById(\'fbB\');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},280)"></div>'+
-  '<div class="pnl2"><div class="pnl2H">Fornecedores <span class="cnt2">'+lista.length+'</span></div>'+
-  '<div class="pnl2B" style="padding:0">'+
-  (lista.length?'<table class="pTable finTab"><thead><tr>'+
+}
+/* repinta so a tabela: o campo de busca nunca e recriado, entao nao perde letra */
+function pintaFornec(){
+  var l=filtraFornec();
+  var alvo=document.querySelector('.pnl2B');
+  if(alvo)alvo.innerHTML=tabelaFornec(l);
+  var c=document.querySelector('.pnl2H .cnt2');
+  if(c)c.textContent=l.length;
+  rodape(l.length+' fornecedores');
+}
+function tabelaFornec(lista){
+  return lista.length?'<table class="pTable finTab"><thead><tr>'+
    '<th>Empresa</th><th style="width:200px">Contato</th><th style="width:160px">Telefone</th>'+
    '<th style="width:160px">WhatsApp</th><th style="width:170px">CNPJ</th><th style="width:150px"></th></tr></thead><tbody>'+
    lista.map(function(f){
@@ -17459,8 +17463,25 @@ function telaFornecedores(){
       '<button class="rBtn rd" onclick="excluirForn(\''+f.id+'\')">'+sv('trash',13)+'</button>'+
      '</div></td></tr>';
    }).join('')+'</tbody></table>'
-  :'<div class="entVazio"><b>Nenhum fornecedor cadastrado</b>'+
-   '<span>Cadastre para escolher rapidamente nos lançamentos financeiros.</span></div>')+
+  :'<div class="entVazio"><b>Nenhum fornecedor encontrado</b>'+
+   '<span>Ajuste a busca ou cadastre um novo fornecedor.</span></div>';
+}
+function telaFornecedores(){
+  baseForn();
+  var q=(FB.busca||'').toLowerCase();
+  var lista=filtraFornec();
+  $('content').innerHTML='<div class="finWrap">'+
+  '<div class="finTop"><div><h1>Fornecedores</h1>'+
+  '<p>Cadastro usado nos lançamentos financeiros e nas notas de entrada.</p></div>'+
+  '<div class="finActs"><button class="btnP2 ok" onclick="modalForn()">'+sv('plus',14)+' Cadastrar fornecedor</button></div></div>'+
+  '<div style="margin:0 0 12px;position:relative;max-width:360px">'+
+   '<input id="fbB" value="'+E(FB.busca)+'" placeholder="buscar por empresa, contato, CNPJ ou WhatsApp" '+
+   'style="width:100%;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 11px" '+
+   'oninput="FB.busca=this.value;pintaFornec()"></div>'+
+  '<div class="pnl2"><div class="pnl2H">Fornecedores <span class="cnt2">'+lista.length+'</span></div>'+
+  '<div class="pnl2B" style="padding:0">'+
+  tabelaFornec(lista)+
+
   '</div></div></div>';
   rodape(lista.length+' fornecedores');
 }
@@ -20647,6 +20668,15 @@ function ehFicha(x){return !!(x&&x.itens!==undefined&&x.rendimento!==undefined)}
 function valorItem(i){return (Number(i.estoqueAtual)||0)*custoDoItem(i)}
 
 /* ---------- ESTOQUE TOTAL ---------- */
+/* olhinho do estoque: abre o cadastro do item, seja insumo ou ficha */
+function abrirCadastroItem(id){
+  var f=(DB.fichas||[]).find(function(x){return x.id===id});
+  if(f){abrir('estoque','ficha-tecnica');setTimeout(function(){
+    try{abrirFicha(f.id)}catch(e){toast('Abra a ficha "'+f.nome+'" na lista.')}},350);return;}
+  var i=insumo(id);
+  if(i){modalInsumo(i.id);return;}
+  toast('Item não encontrado.');
+}
 function telaEstoqueTotal(){
   baseMov();
   var lista=itensEstoque().filter(function(i){
@@ -20719,8 +20749,11 @@ function telaEstoqueTotal(){
       var g=eFicha?catFicha(i.categoriaId):grupoIng(i.grupoId);
       var q=Number(i.estoqueAtual)||0;
       var baixo=q<=Number(i.estoqueMin||0);
+      var eF=(i.itens!==undefined&&i.rendimento!==undefined);
       return '<tr class="'+(q<0?'neg':baixo?'baixo':'')+'">'+
-      '<td>'+E(i.codigo)+'</td>'+
+      '<td>'+E(i.codigo)+
+       '<button class="rBtn" style="margin-left:4px" title="ver o cadastro deste item" '+
+       'onclick="abrirCadastroItem(\''+i.id+'\')">'+sv('eye',12)+'</button></td>'+
       '<td><b>'+E(i.nome)+'</b>'+
        (i.itens!==undefined&&i.rendimento!==undefined?'<span class="tagFicha">ficha</span>':'')+
        (i.gelatoVenda?'<span class="cidTag" style="margin-left:6px">produção</span>':'')+'</td>'+
