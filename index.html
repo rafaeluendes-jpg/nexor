@@ -10321,6 +10321,7 @@ var MOD=[
 {id:'tecnico',n:'Administração',ic:'gear2',it:[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'backup',n:'Backup e Restauração'},
+ {id:'clientes-nexor',n:'Clientes Nexor'},
  {id:'instalacao',n:'Assistente de Instalação'},
  {id:'carga-inicial',n:'Importar Dados'},
  {id:'reset-sistema',n:'Dados de Teste e Reinício'}]}
@@ -10334,7 +10335,7 @@ var MOD=[
    FRANQUEADORA— o cliente que contratou. Manda na propria rede:
                  unidades, usuarios, dados, backup e importacao.
    ---------------------------------------------------------- */
-var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao'];
+var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/clientes-nexor'];
 var SO_FRANQUEADORA=['tecnico/carga-inicial','tecnico/backup','tecnico/reset-sistema'];
 function ehPlataforma(u){u=u||usuarioLogado();return !!(u&&u.plataforma)}
 function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||u.plataforma))}
@@ -10640,6 +10641,13 @@ var MAPA=[
     fornecedor_nome:x.fornecedorNome||null,data:x.data||null,hora:x.hora||null,
     valor_mercadorias:n(x.valorMercadorias),valor_total:n(x.valorTotal),
     recebida:x.receber!==false,pagamento:x.pagamento||{},itens:x.itens||[]}}},
+
+ {col:'clientesNexor',tab:'clientes_nexor',espelha:true,
+  campos:function(x){return {rede:x.rede,responsavel:x.responsavel||null,email:x.email||null,
+    telefone:x.telefone||null,documento:x.documento||null,cidade:x.cidade||null,uf:x.uf||null,
+    unidades:parseInt(x.unidades)||1,plano:x.plano||null,mensalidade:n(x.mensalidade),
+    dia_vencimento:parseInt(x.diaVenc)||10,situacao:x.situacao||'ativo',
+    inicio:x.inicio||null,observacao:x.obs||null,cobrancas:x.cobrancas||[]}}},
 
  {col:'comprasSemVinc',tab:'compras_sem_vinculo',espelha:true,
   campos:function(x){return {nota_id:x.notaId||null,nota_numero:x.notaNumero||null,
@@ -11156,6 +11164,15 @@ async function baixarDaNuvem(forcar){
     previsto:Number(x.previsto)||0,real:Number(x.real_produzido)||0,
     diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}});
 
+  try{
+    var cnx=await api('clientes_nexor?select=*&order=rede.asc&limit=500');
+    DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
+      responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
+      documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',unidades:x.unidades||1,
+      plano:x.plano||'',mensalidade:Number(x.mensalidade)||0,diaVenc:x.dia_vencimento||10,
+      situacao:x.situacao||'ativo',inicio:x.inicio||'',obs:x.observacao||'',
+      cobrancas:x.cobrancas||[]}});
+  }catch(e){}
   var csvw=await api('compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
   DB.comprasSemVinc=volta(csvw,function(x){return {id:x.ref_local||x.id,
     notaId:x.nota_id||'',notaNumero:x.nota_numero||'',fornecedor:x.fornecedor_nome||'',
@@ -11445,7 +11462,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.3.0';
+var VERSAO='V8.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11510,6 +11527,7 @@ if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
 if(mid==='loja'&&iid==='reset-sistema')return telaReset();
 if(mid==='tecnico'&&iid==='central-tecnica')return telaCentralTecnica();
 if(mid==='tecnico'&&iid==='backup')return telaBackup();
+if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
 if(mid==='tecnico'&&iid==='carga-inicial')return telaCarga();
 if(mid==='tecnico'&&iid==='reset-sistema')return telaReset();
@@ -15617,6 +15635,143 @@ function exportarCMV(){
   setTimeout(function(){a.remove()},400);toast('CMV exportado.');
 }
 
+
+
+/* ==========================================================
+   CLIENTES NEXOR
+   Carteira de quem paga pelo sistema. Isto e do dono do
+   produto — nenhum cliente ve esta tela.
+   ========================================================== */
+var CN={situacao:'',busca:''};
+var PLANOS=['Mensal','Anual','Implantação','Cortesia'];
+var SITUACOES=[{id:'ativo',n:'Ativo'},{id:'teste',n:'Em teste'},
+  {id:'atraso',n:'Em atraso'},{id:'pausado',n:'Pausado'},{id:'cancelado',n:'Cancelado'}];
+function baseCN(){DB.clientesNexor=DB.clientesNexor||[];return DB.clientesNexor}
+function cnSit(id){var x=SITUACOES.find(function(s){return s.id===id});return x?x.n:'—'}
+function cnPago(c,ano,mes){
+  return (c.cobrancas||[]).some(function(b){return b.mes===(ano+'-'+String(mes+1).padStart(2,'0'))&&b.pago});
+}
+function telaClientesNexor(){
+  baseCN();
+  var L=DB.clientesNexor.slice();
+  if(CN.situacao)L=L.filter(function(c){return c.situacao===CN.situacao});
+  if(CN.busca){var q=CN.busca.toLowerCase();
+    L=L.filter(function(c){return (c.rede||'').toLowerCase().indexOf(q)>=0||
+      (c.responsavel||'').toLowerCase().indexOf(q)>=0});}
+  L.sort(function(a,b){return (a.rede||'').localeCompare(b.rede||'')});
+  var d=new Date(),ano=d.getFullYear(),mes=d.getMonth();
+  var ativos=DB.clientesNexor.filter(function(c){return c.situacao==='ativo'});
+  var mrr=ativos.reduce(function(a,c){return a+(Number(c.mensalidade)||0)},0);
+  var unid=DB.clientesNexor.reduce(function(a,c){return a+(Number(c.unidades)||0)},0);
+  var receb=ativos.filter(function(c){return cnPago(c,ano,mes)});
+  var aRec=mrr-receb.reduce(function(a,c){return a+(Number(c.mensalidade)||0)},0);
+  $('content').innerHTML='<div class="ctWrap" style="max-width:none">'+
+   '<div class="ctTopo"><h1>Clientes Nexor</h1>'+
+    '<p>As redes que contrataram o sistema, o que cada uma paga e o que já entrou no mês. '+
+    'Esta tela é sua — nenhum cliente tem acesso a ela.</p></div>'+
+   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px">'+
+    '<div class="hpN"><span>Clientes ativos</span><b>'+ativos.length+'</b></div>'+
+    '<div class="hpN"><span>Unidades na base</span><b>'+unid+'</b></div>'+
+    '<div class="hpN dest4"><span>Receita recorrente</span><b>R$ '+money(mrr)+'</b></div>'+
+    '<div class="hpN"><span>Recebido no mês</span><b class="vg">R$ '+money(mrr-aRec)+'</b></div>'+
+    '<div class="hpN"><span>A receber</span><b class="'+(aRec>0?'vr':'')+'">R$ '+money(aRec)+'</b></div>'+
+   '</div>'+
+   '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'+
+    '<div class="f2" style="max-width:240px"><label>Buscar</label>'+
+     '<input id="cnB" value="'+E(CN.busca)+'" placeholder="rede ou responsável" '+
+     'oninput="CN.busca=this.value;clearTimeout(window._tcn);window._tcn=setTimeout(telaClientesNexor,300)"></div>'+
+    '<div class="f2"><label>Situação</label><select onchange="CN.situacao=this.value;telaClientesNexor()">'+
+     '<option value="">todas</option>'+SITUACOES.map(function(x){
+       return '<option value="'+x.id+'"'+(CN.situacao===x.id?' selected':'')+'>'+x.n+'</option>'}).join('')+
+    '</select></div><div style="flex:1"></div>'+
+    '<button class="btnP2 ok" style="height:30px" onclick="modalCN()">'+sv('plus',12)+' Novo cliente</button>'+
+   '</div>'+
+   '<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
+    '<table class="fmTab"><thead><tr><th>Rede</th><th style="width:170px">Responsável</th>'+
+     '<th style="width:150px">Contato</th><th style="width:70px;text-align:right">Un.</th>'+
+     '<th style="width:110px">Plano</th><th style="width:110px;text-align:right">Mensalidade</th>'+
+     '<th style="width:70px;text-align:center">Venc.</th><th style="width:110px">Situação</th>'+
+     '<th style="width:110px">Mês atual</th><th style="width:90px"></th></tr></thead><tbody>'+
+    (L.length?L.map(function(c){
+      var pg=cnPago(c,ano,mes);
+      return '<tr><td><b>'+E(c.rede)+'</b>'+(c.cidade?'<small>'+E(c.cidade)+(c.uf?'/'+E(c.uf):'')+'</small>':'')+'</td>'+
+      '<td>'+E(c.responsavel||'—')+'</td>'+
+      '<td><small>'+E(c.telefone||c.email||'—')+'</small></td>'+
+      '<td style="text-align:right">'+(c.unidades||0)+'</td>'+
+      '<td>'+E(c.plano||'—')+'</td>'+
+      '<td style="text-align:right"><b>R$ '+money(c.mensalidade)+'</b></td>'+
+      '<td style="text-align:center">dia '+(c.diaVenc||10)+'</td>'+
+      '<td><span class="pill '+(c.situacao==='ativo'?'ok':(c.situacao==='atraso'?'rd':''))+'">'+cnSit(c.situacao)+'</span></td>'+
+      '<td>'+(c.situacao!=='ativo'?'—':(pg?'<b class="vg">pago</b>':
+        '<button class="btnMini" onclick="marcarPago(\''+c.id+'\')">marcar pago</button>'))+'</td>'+
+      '<td><button class="rBtn" onclick="modalCN(\''+c.id+'\')">'+sv('edit',12)+'</button>'+
+       '<button class="rBtn rd" onclick="excluirCN(\''+c.id+'\')">'+sv('trash',12)+'</button></td></tr>';
+    }).join('')
+    :'<tr><td colspan="10" class="fmVazio">Nenhum cliente cadastrado. Comece pelo botão Novo cliente.</td></tr>')+
+   '</tbody></table></div></div>';
+  rodape(L.length+' cliente(s) · recorrente R$ '+money(mrr));
+}
+function modalCN(id){
+  baseCN();
+  var c=id?DB.clientesNexor.find(function(x){return x.id===id}):null;
+  var h='<div class="mdB">'+
+   '<div class="row3"><div class="fld2" style="flex:2"><label>Nome da rede</label>'+
+    '<input id="cnRede" value="'+E(c?c.rede:'')+'" placeholder="ex.: Jolô Gelato"></div>'+
+    '<div class="fld2"><label>Unidades</label><input id="cnUn" type="number" value="'+(c?c.unidades||1:1)+'"></div></div>'+
+   '<div class="row3"><div class="fld2"><label>Responsável</label><input id="cnResp" value="'+E(c?c.responsavel:'')+'"></div>'+
+    '<div class="fld2"><label>Telefone</label><input id="cnTel" value="'+E(c?c.telefone:'')+'"></div>'+
+    '<div class="fld2"><label>E-mail</label><input id="cnMail" value="'+E(c?c.email:'')+'"></div></div>'+
+   '<div class="row3"><div class="fld2"><label>CNPJ / CPF</label><input id="cnDoc" value="'+E(c?c.documento:'')+'"></div>'+
+    '<div class="fld2"><label>Cidade</label><input id="cnCid" value="'+E(c?c.cidade:'')+'"></div>'+
+    '<div class="fld2"><label>UF</label><input id="cnUf" maxlength="2" value="'+E(c?c.uf:'')+'"></div></div>'+
+   '<div class="row3"><div class="fld2"><label>Plano</label><select id="cnPl">'+
+     PLANOS.map(function(x){return '<option'+(c&&c.plano===x?' selected':'')+'>'+x+'</option>'}).join('')+'</select></div>'+
+    '<div class="fld2"><label>Mensalidade</label><div class="cur"><span>R$</span>'+
+     '<input id="cnVal" type="number" step="0.01" value="'+(c?c.mensalidade||0:0)+'"></div></div>'+
+    '<div class="fld2"><label>Dia do vencimento</label><input id="cnDia" type="number" min="1" max="28" value="'+(c?c.diaVenc||10:10)+'"></div></div>'+
+   '<div class="row3"><div class="fld2"><label>Situação</label><select id="cnSit">'+
+     SITUACOES.map(function(x){return '<option value="'+x.id+'"'+(c&&c.situacao===x.id?' selected':'')+'>'+x.n+'</option>'}).join('')+'</select></div>'+
+    '<div class="fld2"><label>Cliente desde</label><input id="cnIni" type="date" value="'+(c&&c.inicio?c.inicio:hojeISO())+'"></div></div>'+
+   '<div class="fld2"><label>Observações</label><textarea id="cnObs" rows="2">'+E(c?c.obs:'')+'</textarea></div>'+
+   (c&&(c.cobrancas||[]).length?'<div class="acTit" style="margin-top:10px">Pagamentos registrados</div>'+
+     '<div class="hint">'+c.cobrancas.filter(function(b){return b.pago}).map(function(b){
+       return b.mes+' — R$ '+money(b.valor)}).join(' · ')+'</div>':'')+
+  '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox xl"><div class="mdH"><b>'+(c?'Cliente':'Novo cliente')+'</b>'+
+   '<button class="mdX" onclick="fecharModal()">&times;</button></div>'+h+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Cancelar</button>'+
+   '<button class="btnP2 ok" onclick="salvarCN('+(c?"'"+c.id+"'":'null')+')">Salvar</button></div></div>';
+  document.body.appendChild(o);
+}
+function salvarCN(id){
+  baseCN();
+  var rede=$('cnRede').value.trim();
+  if(!rede){toast('Informe o nome da rede.');return;}
+  var o={rede:rede,unidades:parseInt($('cnUn').value)||1,responsavel:$('cnResp').value.trim(),
+    telefone:$('cnTel').value.trim(),email:$('cnMail').value.trim(),documento:$('cnDoc').value.trim(),
+    cidade:$('cnCid').value.trim(),uf:$('cnUf').value.trim().toUpperCase(),plano:$('cnPl').value,
+    mensalidade:parseFloat($('cnVal').value)||0,diaVenc:parseInt($('cnDia').value)||10,
+    situacao:$('cnSit').value,inicio:$('cnIni').value,obs:$('cnObs').value.trim()};
+  var a=id?DB.clientesNexor.find(function(x){return x.id===id}):null;
+  if(a)Object.assign(a,o);
+  else DB.clientesNexor.push(Object.assign({id:uid('cnx'),cobrancas:[]},o));
+  salvar();fecharModal();telaClientesNexor();toast('Cliente salvo.');
+}
+function marcarPago(id){
+  var c=DB.clientesNexor.find(function(x){return x.id===id});if(!c)return;
+  var d=new Date(),m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  c.cobrancas=c.cobrancas||[];
+  if(c.cobrancas.some(function(b){return b.mes===m&&b.pago})){toast('Este mês já está pago.');return;}
+  c.cobrancas.push({mes:m,valor:Number(c.mensalidade)||0,pago:true,quando:new Date().toISOString()});
+  salvar();telaClientesNexor();toast('Pagamento de '+c.rede+' registrado.');
+}
+async function excluirCN(id){
+  var c=DB.clientesNexor.find(function(x){return x.id===id});if(!c)return;
+  if(!confirm('Excluir o cliente "'+c.rede+'" da sua carteira?\n\nIsto não apaga o sistema nem os dados dele.'))return;
+  DB.clientesNexor=DB.clientesNexor.filter(function(x){return x.id!==id});
+  salvar();telaClientesNexor();toast('Cliente removido da carteira.');
+}
 
 /* ==========================================================
    ASSISTENTE DE INSTALACAO
