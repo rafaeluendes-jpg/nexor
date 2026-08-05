@@ -10553,6 +10553,11 @@ var MAPA=[
   filhos:[{lista:'itens',tab:'subcategorias_financeiras',pai:'categoria_id',
     campos:function(o,k){return {nome:o.nome,ordem:k}}}]},
 
+ {col:'usuarios', espelha:false,    tab:'usuarios_sistema',
+  campos:function(x){return {nome:x.nome||null,login:x.login||null,senha:x.senha||null,
+    ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
+    sucursais:x.sucursais||[],permissoes:x.permissoes||{}}}},
+
  {col:'fornec', espelha:false,      tab:'fornecedores',
   campos:function(x){return {empresa:x.empresa,contato:x.nome||null,cnpj:x.cnpj||null,
     email:x.email||null,telefone:x.tel||null,whatsapp:x.whats||null}}},
@@ -11258,6 +11263,22 @@ async function baixarDaNuvem(forcar){
     diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}});
 
   try{
+    var us=await api('usuarios_sistema?select=*&order=nome.asc&limit=500');
+    if(us&&us.length){
+      var locais=DB.usuarios||[];
+      (us||[]).forEach(function(x){
+        var lg=String(x.login||'').toLowerCase();
+        if(!lg)return;
+        var ja=locais.find(function(u){return String(u.login||'').toLowerCase()===lg});
+        var obj={id:x.ref_local||('usr_'+lg.replace(/[^a-z0-9]/g,'').slice(0,12)),
+          nome:x.nome||'',login:x.login||'',senha:x.senha||'',ativo:x.ativo!==false,
+          tudo:!!x.tudo,mestre:!!x.mestre,sucursais:x.sucursais||[],permissoes:x.permissoes||{}};
+        if(ja)Object.assign(ja,obj); else locais.push(obj);
+      });
+      DB.usuarios=locais;
+    }
+  }catch(e){}
+  try{
     var meu=await api('clientes_nexor?select=rede,modulos,situacao,plano&loja_id=eq.'+NUVEM.loja+'&limit=1');
     DB._contrato=(meu&&meu[0])?{rede:meu[0].rede,modulos:meu[0].modulos||[],
       situacao:meu[0].situacao,plano:meu[0].plano}:null;
@@ -11613,7 +11634,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.6.1';
+var VERSAO='V9.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
