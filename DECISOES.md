@@ -93,6 +93,37 @@ Regras que passam a valer:
 - A **exportação passou a seguir o filtro e a ordem da tela**, e traz no fim as duas
   linhas de total (do filtro e do estoque inteiro)
 
+## Perda de dados na sincronização — causa e correção (V10.3.0)
+
+Rafael relatou que a cada atualização "some tudo". Foram encontradas quatro falhas
+somadas, todas capazes de apagar dados sozinhas:
+
+1. **A rede de proteção do download nunca foi ligada.** A função `volta(linhas,fn,atual)`
+   tinha o terceiro parâmetro justamente para manter os dados locais quando a nuvem
+   respondesse vazio — e nas 30 chamadas ninguém o passava. Nuvem vazia = coleção local
+   zerada. **Correção:** a proteção agora é aplicada uma vez, no fim do download,
+   comparando cada coleção com o estado anterior. Não depende mais de lembrar do argumento
+2. **O download não era atômico.** `api()` lança erro; se a 12ª tabela falhasse, as 11
+   primeiras já tinham sido substituídas. **Correção:** o download inteiro virou
+   tudo-ou-nada. Se qualquer tabela falhar, todas as coleções voltam ao estado anterior
+3. **O envio apagava na nuvem o que sumia no aparelho.** Depois de um download que zerou
+   uma coleção, o próximo envio deletava essas linhas da nuvem — perda definitiva.
+   **Correção:** travas em `apagarRemovidos` — nunca esvazia uma tabela inteira, nunca
+   apaga mais de 60% de uma vez, e o `_snap` só é atualizado depois de apagar de verdade.
+   Os botões de reinício chamam `autorizarEsvaziar()` para poder limpar de propósito
+4. **Falha ao gravar no aparelho passava como um toast.** Memória do navegador cheia =
+   gravação recusada em silêncio e o próximo F5 voltava ao estado antigo.
+   **Correção:** aviso fixo e vermelho na tela, que só some quando a gravação volta
+
+Além disso: **cópia local automática** antes de cada download (`nexor_respaldo`), com
+botão de restaurar em Backup e Restauração.
+
+## Atualização de versão
+
+- `location.reload(true)` não força nada nos navegadores atuais — o arquivo antigo vinha
+  do cache. Agora recarrega com endereço novo (`?v=timestamp`), que realmente troca
+- Checagem a cada 45s (era 180s), na abertura e ao voltar para a aba
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

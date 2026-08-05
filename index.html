@@ -1640,6 +1640,17 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.avisoGrav{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;display:flex;
+  align-items:center;gap:12px;padding:12px 14px;border-radius:9px;
+  background:#7A1D1D;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.3);font-size:12.5px}
+.avisoGrav.sinc{background:#8A5A0B}
+.avisoGrav div{flex:1;min-width:0}
+.avisoGrav b{display:block;font-size:13px}
+.avisoGrav span{display:block;opacity:.92;margin-top:2px;line-height:1.45}
+.avisoGrav button{flex:none;border:1px solid rgba(255,255,255,.5);background:transparent;
+  color:#fff;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px}
+.avisoGrav button:hover{background:rgba(255,255,255,.14)}
+.avisoGrav button.x{padding:5px 9px;font-size:16px;line-height:1}
 .etResumo{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin:0 0 11px}
 .etResumo .erBox{min-width:180px;padding:10px 13px;border:1px solid var(--line);border-radius:8px;
   background:#fff}
@@ -6249,6 +6260,17 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.avisoGrav{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;display:flex;
+  align-items:center;gap:12px;padding:12px 14px;border-radius:9px;
+  background:#7A1D1D;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.3);font-size:12.5px}
+.avisoGrav.sinc{background:#8A5A0B}
+.avisoGrav div{flex:1;min-width:0}
+.avisoGrav b{display:block;font-size:13px}
+.avisoGrav span{display:block;opacity:.92;margin-top:2px;line-height:1.45}
+.avisoGrav button{flex:none;border:1px solid rgba(255,255,255,.5);background:transparent;
+  color:#fff;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px}
+.avisoGrav button:hover{background:rgba(255,255,255,.14)}
+.avisoGrav button.x{padding:5px 9px;font-size:16px;line-height:1}
 .etResumo{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin:0 0 11px}
 .etResumo .erBox{min-width:180px;padding:10px 13px;border:1px solid var(--line);border-radius:8px;
   background:#fff}
@@ -10529,9 +10551,79 @@ function carregar(){
   DB.categorias=DB.categorias||[];DB.produtos=DB.produtos||[];
   DB.grupos=DB.grupos||[];DB.fichas=DB.fichas||[];
 }
+var _ultimoTamanho=0;
 function gravarLocal(){
-  try{localStorage.setItem('nexor_dados',JSON.stringify(DB));}
-  catch(e){toast('Não foi possível salvar neste aparelho.');}
+  var txt;
+  try{ txt=JSON.stringify(DB); }
+  catch(e){ alertaGravacao('Não consegui preparar os dados para salvar.'); return false; }
+  try{
+    localStorage.setItem('nexor_dados',txt);
+    _ultimoTamanho=txt.length;
+    limparAlertaGravacao();
+    return true;
+  }catch(e){
+    /* memoria do navegador cheia: a gravacao falha e o proximo F5 volta ao estado antigo.
+       Isso NAO pode passar como um toast que some em tres segundos. */
+    alertaGravacao('O navegador recusou a gravação — provavelmente memória cheia ('+
+      Math.round(txt.length/1024)+' KB). Nada do que você lançar agora será guardado '+
+      'neste aparelho até resolver.');
+    logNuvem('FALHA AO GRAVAR NO APARELHO — '+Math.round(txt.length/1024)+' KB',true);
+    return false;
+  }
+}
+/* aviso fixo na tela: some so quando a gravacao voltar a funcionar */
+function alertaGravacao(msg){
+  try{
+    var el=document.getElementById('avisoGrav');
+    if(!el){
+      el=document.createElement('div');
+      el.id='avisoGrav';el.className='avisoGrav';
+      document.body.appendChild(el);
+    }
+    el.innerHTML='<div><b>Atenção: o sistema não está conseguindo salvar</b>'+
+      '<span>'+E(msg)+'</span></div>'+
+      '<button onclick="abrir(\'tecnico\',\'backup\')">Abrir backup</button>';
+  }catch(e){}
+}
+function limparAlertaGravacao(){
+  var el=document.getElementById('avisoGrav');if(el)el.remove();
+}
+/* copia de seguranca do aparelho, guardada antes de qualquer download da nuvem */
+function respaldoLocal(motivo){
+  try{
+    var raw=localStorage.getItem('nexor_dados');
+    if(!raw||raw.length<200)return false;
+    localStorage.setItem('nexor_respaldo',raw);
+    localStorage.setItem('nexor_respaldo_info',JSON.stringify({
+      quando:new Date().toISOString(),motivo:motivo||'',tam:raw.length}));
+    return true;
+  }catch(e){
+    /* sem espaco para a copia: nao e fatal, mas registra */
+    logNuvem('não coube a cópia de segurança local',true);
+    return false;
+  }
+}
+function infoRespaldo(){
+  try{ return JSON.parse(localStorage.getItem('nexor_respaldo_info')||'null'); }
+  catch(e){ return null; }
+}
+/* volta o aparelho para a ultima copia boa, antes do ultimo download */
+function restaurarRespaldo(){
+  var raw=null;
+  try{ raw=localStorage.getItem('nexor_respaldo'); }catch(e){}
+  if(!raw){alert('Não há cópia local guardada neste aparelho.');return;}
+  var i=infoRespaldo()||{};
+  if(!confirm('Voltar este aparelho para a cópia de '+
+    (i.quando?new Date(i.quando).toLocaleString('pt-BR'):'antes do último download')+'?\n\n'+
+    'O que estiver na tela agora será substituído por essa cópia.\n'+
+    'A nuvem não é tocada até você conferir e salvar.'))return;
+  try{
+    DB=JSON.parse(raw);
+    localStorage.setItem('nexor_dados',raw);
+    NUVEM.sujo=false;
+    alert('Cópia restaurada. Confira os dados antes de sincronizar.');
+    location.reload();
+  }catch(e){ alert('A cópia está ilegível: '+(e.message||'')); }
 }
 function salvar(){
   gravarLocal();                     /* sempre grava no aparelho (rede caindo nao perde dado) */
@@ -10887,17 +10979,45 @@ async function enviar(tab,linhas){
    Compara com a foto do último envio bem-sucedido: o que estava lá e sumiu daqui
    foi excluído por você. O que nunca esteve na foto foi criado em outro
    aparelho — e esse nunca é tocado. */
+/* O reinício e a limpeza de dados são as ÚNICAS situações em que esvaziar
+   uma tabela inteira é intenção, e não falha. Fora delas, a trava segura. */
+function autorizarEsvaziar(){NUVEM.podeEsvaziar=Date.now()+120000;}
+function podeEsvaziarAgora(){return !!(NUVEM.podeEsvaziar&&Date.now()<NUVEM.podeEsvaziar)}
 async function apagarRemovidos(tab,chave,idsAgora){
   try{
     DB._snap=DB._snap||{};
     var antes=DB._snap[chave]||null;
-    DB._snap[chave]=idsAgora.slice();
-    if(!antes)return;                       /* primeira vez: nada a comparar */
+    if(!antes){DB._snap[chave]=idsAgora.slice();return;}   /* primeira vez: nada a comparar */
     var sumiram=antes.filter(function(id){return idsAgora.indexOf(id)<0});
-    if(!sumiram.length)return;
-    if(sumiram.length>200)return;           /* segurança */
+    if(!sumiram.length){DB._snap[chave]=idsAgora.slice();return;}
+
+    /* ---- TRAVAS: apagar tudo de uma vez quase nunca é intenção ----
+       Sem elas, um download que veio vazio virava exclusão definitiva na nuvem.
+       O _snap NÃO é atualizado quando a trava age: assim o estado anterior
+       continua valendo e nada é dado como aceito. */
+    if(!idsAgora.length&&!podeEsvaziarAgora()){
+      logNuvem('BLOQUEADO: '+tab+' ficaria vazio na nuvem ('+antes.length+
+        ' registro(s)). Nada foi apagado.',true);
+      avisoSinc('O sistema evitou apagar '+antes.length+' registro(s) de '+tab+
+        ' na nuvem, porque este aparelho ficou sem nenhum. '+
+        'Se você não apagou de propósito, não continue lançando antes de conferir.');
+      return;
+    }
+    if(sumiram.length>200&&!podeEsvaziarAgora()){
+      logNuvem('BLOQUEADO: '+tab+' — '+sumiram.length+' exclusões de uma vez',true);
+      return;
+    }
+    if(antes.length>=10&&sumiram.length>antes.length*0.6&&!podeEsvaziarAgora()){
+      logNuvem('BLOQUEADO: '+tab+' — '+sumiram.length+' de '+antes.length+
+        ' seriam apagados de uma vez',true);
+      avisoSinc('O sistema evitou apagar '+sumiram.length+' de '+antes.length+
+        ' registro(s) de '+tab+' na nuvem. Confira antes de continuar.');
+      return;
+    }
+
     await api(tab+'?ref_local=in.('+sumiram.map(function(r){
       return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')','DELETE');
+    DB._snap[chave]=idsAgora.slice();      /* só depois de apagar de verdade */
     logNuvem(tab+': '+sumiram.length+' excluído(s) por você');
   }catch(e){console.error('apagarRemovidos',tab,e);logNuvem('aviso ao excluir em '+tab,true);}
 }
@@ -11113,6 +11233,12 @@ async function baixarDaNuvem(forcar){
   }
   var antesCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   logNuvem('baixando da nuvem...');
+  respaldoLocal('antes do download');
+  /* guarda as listas de agora. Como o download SUBSTITUI DB[col] por um array novo,
+     estas referencias continuam apontando para os dados originais. */
+  var _antesDB={};
+  Object.keys(DB).forEach(function(k){ if(Array.isArray(DB[k]))_antesDB[k]=DB[k]; });
+  var _falhou=null;
   await tokenAtual();
   var l=NUVEM.loja;
   var q='?loja_id=eq.'+l;          /* sem select: cada consulta define o dela */
@@ -11131,6 +11257,7 @@ async function baixarDaNuvem(forcar){
     if(!r.length&&atual&&atual.length)return atual;
     return r;
   }
+  try{
   var cont=await api('contas_capital'+qs);
   DB.contas=volta(cont,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
     agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}});
@@ -11450,12 +11577,56 @@ async function baixarDaNuvem(forcar){
     tipo:x.tipo,valor:Number(x.valor)||0,data:x.data,formaId:mapaFP[x.forma_id]||'',
     contaId:mapaConta[x.conta_id]||'',obs:x.observacao||'',pedidoId:mapaPed[x.pedido_id]||''}});
 
+  }catch(e){ _falhou=e; }
+
+  /* ---- o download parou no meio: desfaz tudo e mantém o aparelho como estava ---- */
+  if(_falhou){
+    Object.keys(_antesDB).forEach(function(k){ DB[k]=_antesDB[k]; });
+    logNuvem('download interrompido ('+((_falhou&&_falhou.message)||'erro')+
+      ') — nada foi alterado neste aparelho',true);
+    statusNuvem('erro','download incompleto — seus dados locais foram preservados');
+    avisoSinc('O sistema não conseguiu terminar de baixar da nuvem. '+
+      'Nada foi apagado aqui — o que você lançou continua neste aparelho. '+
+      'Tente de novo quando a internet estabilizar.');
+    return false;
+  }
+
+  /* ---- rede de proteção: nuvem vazia NUNCA apaga o que existe no aparelho ---- */
+  var _repostos=[];
+  Object.keys(_antesDB).forEach(function(k){
+    var tinha=_antesDB[k], veio=DB[k];
+    if(!tinha||!tinha.length)return;
+    if(Array.isArray(veio)&&veio.length)return;
+    DB[k]=tinha;                                  /* devolve o que era daqui */
+    _repostos.push(k+' ('+tinha.length+')');
+  });
+  if(_repostos.length){
+    logNuvem('a nuvem respondeu vazio — mantidos daqui: '+_repostos.join(', '),true);
+    avisoSinc('A nuvem respondeu sem alguns cadastros ('+_repostos.join(', ')+'). '+
+      'O sistema manteve os deste aparelho e não apagou nada. '+
+      'Se isso se repetir, avise antes de continuar lançando.');
+  }
+
   NUVEM.baixou=true;   /* daqui em diante este aparelho pode espelhar exclusões */
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   logNuvem('download concluído — itens de categorias: '+antesCat+' -> '+depoisCat,
     depoisCat<antesCat);
 
   gravarLocal();
+  return true;
+}
+/* aviso grande e fixo quando a sincronização faz algo que você precisa saber */
+function avisoSinc(msg){
+  try{
+    var el=document.getElementById('avisoSinc');
+    if(el)el.remove();
+    el=document.createElement('div');
+    el.id='avisoSinc';el.className='avisoGrav sinc';
+    el.innerHTML='<div><b>Aviso da sincronização</b><span>'+E(msg)+'</span></div>'+
+      '<button onclick="restaurarRespaldo()">Voltar a cópia local</button>'+
+      '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+    document.body.appendChild(el);
+  }catch(e){}
 }
 
 function ehUuid(v){return typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)}
@@ -11732,11 +11903,21 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.2.0';
+var VERSAO='V10.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
+/* location.reload(true) não força mais nada nos navegadores atuais:
+   o arquivo antigo continua vindo do cache. Recarregar com um endereço
+   novo é o que realmente traz a versão publicada. */
+function aplicarAtualizacao(){
+  try{ gravarLocal(); }catch(e){}
+  location.replace(location.pathname+'?v='+Date.now());
+}
+var _checando=false;
 async function checarVersao(){
+  if(_checando)return;
+  _checando=true;
   try{
-    var r=await fetch('index.html?v='+Date.now(),{cache:'no-store'});
+    var r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'});
     var t=await r.text();
     var m=t.match(/var VERSAO='(V[0-9.]+)'/);
     if(!m)return;
@@ -11746,15 +11927,21 @@ async function checarVersao(){
       var d=document.createElement('div');
       d.id='avisoVer';d.className='avisoVer';
       d.innerHTML=sv('ref',15)+'<div><b>Versão nova disponível ('+m[1]+')</b>'+
-        '<span>você está na '+VERSAO+'</span></div>'+
-        '<button onclick="location.reload(true)">Atualizar agora</button>'+
+        '<span>você está na '+VERSAO+' — seus dados não se perdem ao atualizar</span></div>'+
+        '<button onclick="aplicarAtualizacao()">Atualizar agora</button>'+
         '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
       document.body.appendChild(d);
     }
   }catch(e){}
+  finally{ _checando=false; }
 }
-setTimeout(checarVersao,4000);
-setInterval(checarVersao,180000);
+setTimeout(checarVersao,1500);
+setInterval(checarVersao,45000);
+/* voltar para a aba já confere: quem deixa o sistema aberto o dia todo vê na hora */
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden)checarVersao();
+});
+window.addEventListener('focus',checarVersao);
 function rodape(extra){
 $('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada?'Sincronizado com a nuvem':'Salvo neste aparelho')+'</span><span>|</span>'+
 '<span class="soPC">Loja: <b>'+E(nomeLojaAtual())+'</b></span><span class="soPC">|</span>'+
@@ -16534,6 +16721,17 @@ function telaBackup(){
     '<button class="btnP2" onclick="baixarBackupArquivo()">'+sv('file2',13)+' Baixar cópia externa (opcional)</button>'+
     '<button class="btnP2" onclick="carregarBackups()">'+sv('ref',13)+' Atualizar a lista</button>'+
    '</div>'+
+   (function(){
+     var i=infoRespaldo();
+     if(!i)return '<div class="ctNota" style="max-width:820px">Ainda não há cópia local neste '+
+       'aparelho. Ela é gravada sozinha antes de cada download da nuvem.</div>';
+     return '<div class="ctNota ctAt" style="max-width:820px">'+
+      '<b>Cópia local deste aparelho</b> — guardada em '+
+      new Date(i.quando).toLocaleString('pt-BR')+' ('+Math.round((i.tam||0)/1024)+' KB), '+
+      'antes do último download da nuvem. Use se algo sumir depois de sincronizar.<br>'+
+      '<button class="btnP2" style="margin-top:8px" onclick="restaurarRespaldo()">'+
+      sv('ref',13)+' Restaurar a cópia local</button></div>';
+   })()+
    (!NUVEM.ligada
     ?'<div class="ctNota ctAt" style="max-width:820px">A nuvem está desligada, então não dá para '+
      'guardar nem listar cópias. Ligue no ícone de nuvem. <b>O botão de baixar arquivo continua '+
@@ -21853,6 +22051,7 @@ async function zerarEstoqueTudo(){
   DB.insumos=[];DB.fichas=[];DB.gruposIng=[];DB.fichaCats=[];DB.fornec=[];
   DB.movEst=[];DB.contagens=[];DB.notas=[];DB.ordensProd=[];DB.comprasSemVinc=[];
   DB._demo=false;DB._cargaFeita='';
+  autorizarEsvaziar();
   salvar();telaReset();
   toast('Estoque zerado. O cardápio continua intacto.');
 }
@@ -21866,12 +22065,14 @@ function limparDemo(){
     return !(m.linhas||[]).some(function(l){return idsI.indexOf(l.insumoId)>=0||idsF.indexOf(l.fichaId)>=0});
   });
   DB._demo=false;
+  autorizarEsvaziar();
   salvar();telaReset();toast('Dados de demonstração apagados.');
 }
 function zerarMovimento(){
   if(!confirm('Apagar todo o movimento?\n\nPedidos, caixas, movimentações de estoque, contagens e lançamentos financeiros serão removidos.\nOs cadastros continuam.'))return;
   DB.pedidos=[];DB.caixas=[];DB.movEst=[];DB.contagens=[];DB.lancFin=[];
   DB.fiadoMov=[];DB.cupomUsos=[];DB.acertos=[];
+  autorizarEsvaziar();
   (DB.insumos||[]).forEach(function(i){i.estoqueAtual=0});
   (DB.clientes||[]).forEach(function(c){c.compras=0;c.gasto=0;c.saldoFiado=0;c.ultima='';});
   salvar();telaReset();toast('Movimento zerado.');
