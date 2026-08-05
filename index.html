@@ -11543,7 +11543,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.0.0';
+var VERSAO='V9.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -21347,6 +21347,15 @@ function telaReset(){
       'Apagar a demonstração','só os itens de exemplo que o sistema criou',
       '<div class="rsNota">Preserva tudo que você cadastrou. É o passo natural depois de testar o sistema.</div>',
       'Apagar demonstração','limparDemo()')+
+    opcao(['var(--acc-soft,#E0F5F1)','var(--acc,#00806F)'],'box',
+      'Zerar o estoque inteiro','apaga tudo de estoque e mantém só o cardápio',
+      '<div class="rsNota"><b class="vr">Apaga:</b> ingredientes, grupos, fichas técnicas, '+
+      'fornecedores, movimentações, contagens, notas de entrada e ordens de produção.<br>'+
+      '<b class="vg">Mantém:</b> cardápio, produtos do PDV, pedidos, financeiro, clientes, '+
+      'sucursais e usuários.</div>'+
+      '<div class="rsNota" style="margin-top:6px;font-size:11.5px;color:var(--ink-3)">'+
+      'É o passo certo antes de importar os dados de um sistema anterior.</div>',
+      'Zerar estoque e fichas','zerarEstoqueTudo()')+
     opcao(['#FFF4E0','#7A4C05'],'ref',
       'Zerar o movimento','apaga o que aconteceu, mantém o que é cadastro',
       '<div class="rsNota"><b class="vr">Apaga:</b> pedidos, caixas, movimentações, contagens, '+
@@ -21362,6 +21371,24 @@ function telaReset(){
       'Reiniciar tudo','resetTotal()',true)+
    '</div></div>';
   rodape('reinício do sistema');
+}
+async function zerarEstoqueTudo(){
+  var ok=await confirmar({titulo:'Zerar todo o estoque',
+    texto:'Ingredientes, fichas técnicas, grupos, fornecedores e todo o movimento de estoque serão apagados.',
+    linhas:[['Ingredientes',String((DB.insumos||[]).length),''],
+            ['Fichas técnicas',String((DB.fichas||[]).length),''],
+            ['Grupos',String((DB.gruposIng||[]).length),''],
+            ['Fornecedores',String((DB.fornec||[]).length),''],
+            ['Movimentações',String((DB.movEst||[]).length),'']],
+    aviso:'O <b>cardápio</b>, os pedidos, o financeiro, os clientes, as sucursais e os usuários '+
+      '<b>não são tocados</b>.<br>Esta ação não pode ser desfeita.',
+    ok:'Zerar estoque',tipo:'perigo'});
+  if(!ok)return;
+  DB.insumos=[];DB.fichas=[];DB.gruposIng=[];DB.fichaCats=[];DB.fornec=[];
+  DB.movEst=[];DB.contagens=[];DB.notas=[];DB.ordensProd=[];DB.comprasSemVinc=[];
+  DB._demo=false;DB._cargaFeita='';
+  salvar();telaReset();
+  toast('Estoque zerado. O cardápio continua intacto.');
 }
 function limparDemo(){
   if(!confirm('Apagar os ingredientes e sabores de demonstração?'))return;
