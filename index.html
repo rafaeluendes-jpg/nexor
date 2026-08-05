@@ -11928,7 +11928,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.4.1';
+var VERSAO='V10.4.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20727,9 +20727,7 @@ function desenhaMovimento(){
      '<input type="date" id="mvD" value="'+(_movData||hojeISO())+'"></div>'+
     '<div class="f2" style="max-width:110px"><label>Hora</label>'+
      '<input type="time" id="mvH" value="'+(_movHora||agoraHM())+'"></div>'+
-    '<div class="f2"><label>Motivo da baixa * '+
-     '<a class="incNovo" onclick="cadastrarMotivoBaixa()" '+
-     'title="Configuração da Loja › Motivos de Baixa de Estoque">(cadastrar em Configuração da Loja)</a></label>'+
+    '<div class="f2"><label>Motivo da baixa *</label>'+
      '<select id="mvM" onchange="mudouMotivo(this)">'+
      motivosBaixa().map(function(m){
        return '<option value="'+m.id+'"'+(_movMotivo===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
