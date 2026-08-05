@@ -26,36 +26,35 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .hide{display:none!important}
 
 /* ---------- LOGIN ---------- */
-#login{height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
-  background:radial-gradient(1100px 620px at 14% 10%,#1D4A70,transparent 60%),
-             radial-gradient(900px 520px at 88% 90%,#0A6558,transparent 60%),var(--deep)}
-.lgCard{width:740px;max-width:96vw;display:grid;grid-template-columns:1fr 300px;
-  background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(5,16,28,.55)}
-.lgL{padding:38px 36px}
-.lgHd{display:flex;align-items:center;gap:10px;margin-bottom:26px}
-.lgMk{width:36px;height:36px;border-radius:10px;background:linear-gradient(140deg,var(--acc-l),var(--acc-d));
-  color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
-.lgHd b{font-size:17px;letter-spacing:.2em;font-weight:600}
-.lgL h1{font-size:19px;font-weight:600}
-.lgL .sb{color:var(--ink-2);font-size:13px;margin:4px 0 24px}
-.f{margin-bottom:13px}
-.f label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+#login{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:radial-gradient(900px 520px at 12% 8%,#1D4A70,transparent 62%),
+             radial-gradient(760px 440px at 92% 94%,#0A6558,transparent 62%),var(--deep)}
+.lgCard{width:340px;max-width:94vw;background:#fff;border-radius:12px;padding:26px 24px 20px;
+  box-shadow:0 24px 60px rgba(5,16,28,.5)}
+.lgL{padding:0}
+.lgHd{display:flex;align-items:center;gap:9px;margin-bottom:18px}
+.lgMk{width:30px;height:30px;border-radius:8px;background:linear-gradient(140deg,var(--acc-l),var(--acc-d));
+  color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.lgHd b{font-size:14px;letter-spacing:.22em;font-weight:600}
+.lgL h1{font-size:15px;font-weight:600;margin:0}
+.lgL .sb{color:var(--ink-3);font-size:11.5px;margin:2px 0 16px}
+.f{margin-bottom:9px}
+.f label{display:block;font-size:10.5px;font-weight:600;color:var(--ink-3);margin-bottom:3px;
+  text-transform:uppercase;letter-spacing:.05em}
 .f .w{position:relative}
-.f input{width:100%;height:40px;border:1px solid var(--line);border-radius:9px;padding:0 38px 0 12px;outline:none}
-.f input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
-.eye{position:absolute;right:5px;top:5px;width:30px;height:30px;border:none;background:none;cursor:pointer;
+.f input{width:100%;height:36px;border:1px solid var(--line);border-radius:8px;padding:0 34px 0 11px;
+  outline:none;font-size:13.5px;background:var(--alt,#F7F8FA)}
+.f input:focus{border-color:var(--acc);background:#fff;box-shadow:0 0 0 3px var(--acc-soft)}
+.eye{position:absolute;right:4px;top:4px;width:28px;height:28px;border:none;background:none;cursor:pointer;
   color:var(--ink-3);display:flex;align-items:center;justify-content:center;border-radius:6px}
-.lgErr{min-height:19px;font-size:12.5px;color:var(--red);font-weight:500;margin-bottom:6px}
-.lgBtn{width:100%;height:42px;background:var(--acc);border:none;border-radius:9px;color:#fff;font-weight:600;font-size:14px;cursor:pointer}
+.lgErr{min-height:0;font-size:11.5px;color:var(--red);font-weight:500;line-height:1.4}
+.lgErr:not(:empty){min-height:16px;margin:2px 0 6px}
+.lgBtn{width:100%;height:38px;background:var(--acc);border:none;border-radius:8px;color:#fff;
+  font-weight:600;font-size:13.5px;cursor:pointer;margin-top:8px;transition:background .15s}
 .lgBtn:hover{background:var(--acc-d)}
-.lgNote{margin-top:22px;padding-top:16px;border-top:1px solid var(--line-2);font-size:11.5px;color:var(--ink-3);text-align:center}
-.lgR{background:linear-gradient(155deg,var(--deep),#0C5F55);color:#fff;padding:32px 24px;display:flex;
-  flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
-.lgOrb{width:76px;height:76px;border-radius:50%;background:linear-gradient(140deg,var(--acc-l),var(--acc-d));
-  display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;margin-bottom:16px;
-  box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 -6px 18px rgba(0,0,0,.2)}
-.lgR h2{font-size:27px;font-weight:300;letter-spacing:2px}
-.lgR p{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:6px}
+.lgNote{margin-top:14px;padding-top:11px;border-top:1px solid var(--line-2);
+  font-size:10.5px;color:var(--ink-3);text-align:center;line-height:1.5}
+.lgR{display:none}
 .shake{animation:sk .34s}
 @keyframes sk{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 
@@ -10072,7 +10071,6 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .areaIA:focus{border-color:var(--acc)}
 
 @media(max-width:1000px){
-  .lgCard{grid-template-columns:1fr}.lgR{display:none}
   .cardWrap{grid-template-columns:1fr;overflow-y:auto}
   .card{max-height:none}
   .row2,.row3{grid-template-columns:1fr}
@@ -10198,19 +10196,14 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   <div class="lgCard" id="lgCard">
     <div class="lgL">
       <div class="lgHd"><div class="lgMk">N</div><b>NEXOR</b></div>
-      <h1>Entrar na sua conta</h1>
-      <div class="sb">Informe as credenciais de acesso</div>
+      <h1>Entrar</h1>
+      <div class="sb">Informe cliente, usuário e senha</div>
       <div class="f"><label>Cliente</label><div class="w"><input id="lgC" value="" autocomplete="off" placeholder="nome da rede"></div></div>
       <div class="f"><label>Usuário</label><div class="w"><input id="lgU" value="" autocomplete="off" placeholder="seu acesso"></div></div>
       <div class="f"><label>Senha</label><div class="w"><input id="lgP" type="password" value="" autocomplete="off" placeholder="sua senha"><button class="eye" id="tg"></button></div></div>
       <div class="lgErr" id="lgE"></div>
       <button class="lgBtn" id="lgB">Entrar</button>
-      <div class="lgNote">Versão em desenvolvimento &middot; acesso <b>admin</b> / <b>admin</b><br>Os dados ficam salvos neste aparelho até publicarmos na nuvem.</div>
-    </div>
-    <div class="lgR">
-      <div class="lgOrb">N</div>
-      <h2>nexor</h2>
-      <p>gestão simples, lucro visível</p>
+      <div class="lgNote">gestão simples, lucro visível</div>
     </div>
   </div>
 </section>
@@ -11598,7 +11591,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.4.0';
+var VERSAO='V9.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
