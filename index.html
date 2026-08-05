@@ -11598,7 +11598,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.3.1';
+var VERSAO='V9.3.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27831,8 +27831,14 @@ async function confirmarCancelamento(id){
    ========================================================== */
 function baseUsr(){
   DB.usuarios=DB.usuarios||[];
-  /* acesso sem login nao serve para nada e vinha se multiplicando: some */
-  DB.usuarios=DB.usuarios.filter(function(u){return String(u.login||'').trim()!==''});
+  /* faxina dos acessos defeituosos deixados por versoes anteriores */
+  DB.usuarios=DB.usuarios.filter(function(u){
+    var lg=String(u.login||'').trim().toLowerCase();
+    if(!lg)return false;                                  /* sem login */
+    if(lg.indexOf('.duplicado')>=0)return false;          /* marcado como duplicado */
+    if((lg.match(/@/g)||[]).length>1)return false;        /* dois arrobas: dominio errado */
+    return true;
+  });
   /* garante um unico dono do Nexor */
   var donos=DB.usuarios.filter(function(u){return String(u.login||'').toLowerCase()===ADM_MESTRE});
   if(donos.length>1){
@@ -27854,9 +27860,10 @@ function baseUsr(){
   DB.usuarios.forEach(function(u){
     var lg=String(u.login||'').toLowerCase();
     if(!lg)return;
-    if(porLogin[lg]){u.ativo=false;u.login=lg+'.duplicado';}
+    if(porLogin[lg]){u._apagar=true;}
     else porLogin[lg]=true;
   });
+  DB.usuarios=DB.usuarios.filter(function(u){return !u._apagar});
   /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
   DB.usuarios.forEach(function(u){
     if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
@@ -27924,7 +27931,8 @@ function telaUsuarios(){
   var eu=usuarioLogado();
   var minhaRede=ehPlataforma(eu)?null:redeDoUsuario(eu);
   var lista=DB.usuarios.filter(function(u){
-    if(String(u.login||'').toLowerCase()===ADM_MESTRE&&!ehPlataforma(eu))return false;
+    if(String(u.login||'').toLowerCase().indexOf(ADM_MESTRE)===0&&!ehPlataforma(eu))return false;
+    if(u.plataforma&&!ehPlataforma(eu))return false;
     /* franqueadora ve so os acessos da propria rede */
     if(minhaRede){
       var r=redeDoUsuario(u);
