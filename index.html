@@ -11373,9 +11373,10 @@ function entrar(){
   }
   if(u){
     SESSAO.usuarioId=u.id;
+    SESSAO.login=String(u.login||'').toLowerCase();
     u.ultimoAcesso=new Date().toISOString();
     salvar();
-    try{localStorage.setItem('nexor_sessao',u.id)}catch(e){}
+    try{localStorage.setItem('nexor_sessao',SESSAO.login)}catch(e){}
     abrirSessao();
     return;
   }
@@ -11399,7 +11400,7 @@ document.addEventListener('keydown',function(e){
 function sair(){
   if(!confirm('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
   try{localStorage.removeItem('nexor_sessao')}catch(e){}
-  SESSAO.usuarioId=null;
+  SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');
   $('lgE').textContent='';
 }
@@ -11411,8 +11412,10 @@ try{
     baseUsr();
     if(_ses==='1'){try{localStorage.removeItem('nexor_sessao')}catch(e){}}
     else{
-      var _u=(DB.usuarios||[]).find(function(x){return x.id===_ses});
-      if(_u&&_u.ativo!==false){SESSAO.usuarioId=_u.id;abrirSessao();}
+      var _k=String(_ses).toLowerCase();
+      var _u=(DB.usuarios||[]).find(function(x){return String(x.login||'').toLowerCase()===_k})
+          ||(DB.usuarios||[]).find(function(x){return x.id===_ses});
+      if(_u&&_u.ativo!==false){SESSAO.usuarioId=_u.id;SESSAO.login=String(_u.login||'').toLowerCase();abrirSessao();}
     }
   }
 }catch(e){}
@@ -11516,7 +11519,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.8.1';
+var VERSAO='V8.9.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27702,6 +27705,23 @@ async function confirmarCancelamento(id){
    ========================================================== */
 function baseUsr(){
   DB.usuarios=DB.usuarios||[];
+  /* identificador repetido entre dois acessos faz um virar o outro: separa */
+  var vistos={};
+  DB.usuarios.forEach(function(u,k){
+    var lg=String(u.login||'').toLowerCase();
+    if(!u.id||vistos[u.id]!==undefined){
+      u.id='usr_'+(lg.replace(/[^a-z0-9]/g,'').slice(0,12)||'x')+'_'+k;
+    }
+    vistos[u.id]=k;
+  });
+  /* login repetido: mantem o primeiro e desativa o duplicado */
+  var porLogin={};
+  DB.usuarios.forEach(function(u){
+    var lg=String(u.login||'').toLowerCase();
+    if(!lg)return;
+    if(porLogin[lg]){u.ativo=false;u.login=lg+'.duplicado';}
+    else porLogin[lg]=true;
+  });
   /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
   DB.usuarios.forEach(function(u){
     if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
@@ -27720,12 +27740,17 @@ function baseUsr(){
 }
 function usuarioLogado(){
   baseUsr();
-  /* sem sessao identificada NAO se assume o mestre — era isso que dava
-     acesso de dono a quem entrasse por um caminho antigo de sessao */
+  /* resolve primeiro pelo LOGIN: dois cadastros podem repetir identificador,
+     mas nunca o login. Sem sessao, nao ha usuario — e nao se assume o mestre. */
+  if(SESSAO.login){
+    var porLogin=DB.usuarios.find(function(u){
+      return String(u.login||'').toLowerCase()===SESSAO.login;});
+    if(porLogin)return porLogin;
+  }
   if(!SESSAO.usuarioId)return null;
   return DB.usuarios.find(function(u){return u.id===SESSAO.usuarioId})||null;
 }
-var SESSAO={usuarioId:null};
+var SESSAO={usuarioId:null,login:null};
 /* pode ver este item do menu? */
 function podeVer(mid,iid){
   var u=usuarioLogado();
