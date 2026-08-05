@@ -10153,6 +10153,15 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .rdCard{cursor:pointer;transition:border-color .12s}
 .rdCard:hover{border-color:var(--acc,#00806F)}
 .rdNova{border-style:dashed;color:var(--ink-3)}
+.usrGrp{margin-bottom:10px}
+.usrGrpH{display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:3px;
+  background:var(--alt,#f2f3f7);border-radius:7px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--ink-3,#7a7a86)}
+.usrGrpH em{font-style:normal;margin-left:auto;font-size:12px;color:var(--ink-2,#4a4a55)}
+.usrAdd{border:1px solid var(--line,#dcdce3);background:#fff;border-radius:6px;width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--acc,#00806F);margin-left:6px}
+.usrAdd:hover{background:var(--acc-soft,#E0F5F1)}
+.usrVaz{padding:8px 12px;font-size:11.5px;color:var(--ink-3,#9a9aa4)}
 .rsGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:16px}
 .rsBloco{background:#fff;border:1px solid var(--line,#dcdce3);border-radius:8px;overflow:hidden}
 .rsBlocoH{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;
@@ -11589,7 +11598,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.2.0';
+var VERSAO='V9.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27918,18 +27927,40 @@ function telaUsuarios(){
      '<div class="usrBusca">'+sv('search',13)+
       '<input id="usB" value="'+E(US.busca)+'" placeholder="buscar por nome ou login"></div>'+
      '<div class="usrRol">'+
-     lista.map(function(u){
-       var nS=(u.mestre||u.tudo)?'todas':((u.sucursais||[]).length||'todas');
-       var nP=(u.mestre||u.tudo)?'acesso total':contaPerm(u)+' telas';
-       return '<button class="usrIt'+(US.sel===u.id?' on':'')+(u.ativo===false?' off':'')+'" '+
-        'onclick="US.sel=\''+u.id+'\';telaUsuarios()">'+
-        '<div class="usrAv'+(u.mestre?' m':'')+'">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
-        '<div class="usrN"><b>'+E(u.nome)+'</b>'+
-         '<span>'+E(u.login)+' · '+nP+'</span>'+
-         '<span class="usrS">'+sv('store',10)+' '+nS+' loja(s)</span></div>'+
-        (u.ativo===false?'<span class="badge2 rd">inativo</span>':'')+
-       '</button>';
-     }).join('')+
+     (function(){
+       /* agrupa por sucursal: cada loja com os acessos dela */
+       function cartao(u){
+         var nP=(u.mestre||u.tudo)?'acesso total':contaPerm(u)+' telas';
+         return '<button class="usrIt'+(US.sel===u.id?' on':'')+(u.ativo===false?' off':'')+'" '+
+          'onclick="US.sel=\''+u.id+'\';telaUsuarios()">'+
+          '<div class="usrAv'+(u.mestre?' m':'')+'">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
+          '<div class="usrN"><b>'+E(u.nome)+'</b>'+
+           '<span>'+E(u.login)+' · '+nP+'</span></div>'+
+          (u.ativo===false?'<span class="badge2 rd">inativo</span>':'')+
+         '</button>';
+       }
+       var h='',usados={};
+       var gerais=lista.filter(function(u){return u.mestre||u.tudo||!(u.sucursais||[]).length});
+       if(gerais.length){
+         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('users',12)+' Rede inteira'+
+            '<em>'+gerais.length+'</em></div>'+gerais.map(function(u){usados[u.id]=1;return cartao(u)}).join('')+'</div>';
+       }
+       (DB.sucursais||[]).forEach(function(sc){
+         var doLocal=lista.filter(function(u){
+           return !usados[u.id]&&(u.sucursais||[]).indexOf(sc.id)>=0;});
+         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('store',12)+' '+E(sc.nome)+
+            '<em>'+doLocal.length+'</em>'+
+            '<button class="usrAdd" onclick="event.stopPropagation();novoUsuarioNa(\''+sc.id+'\')" '+
+            'title="Criar acesso nesta unidade">'+sv('plus',12)+'</button></div>'+
+            (doLocal.length?doLocal.map(function(u){usados[u.id]=1;return cartao(u)}).join('')
+             :'<div class="usrVaz">nenhum acesso nesta unidade</div>')+'</div>';
+       });
+       var soltos=lista.filter(function(u){return !usados[u.id]});
+       if(soltos.length)
+         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('help',12)+' Sem unidade definida'+
+            '<em>'+soltos.length+'</em></div>'+soltos.map(cartao).join('')+'</div>';
+       return h;
+     })()+
      '</div></div>'+
     '<div class="usrDet">'+(US.sel?detalheUsuario():
       '<div class="usrVazio">'+sv('users',30)+
@@ -28178,7 +28209,11 @@ function togAtivoUsr(){
   u.ativo=(u.ativo===false);
   salvar();telaUsuarios();
 }
-function novoUsuario(){formUsuario();}
+function novoUsuario(){US.novaSuc=null;formUsuario();}
+function novoUsuarioNa(sucId){
+  US.novaSuc=sucId;          /* o formulario ja abre com esta unidade marcada */
+  formUsuario();
+}
 function editarUsuario(){formUsuario(US.sel);}
 function formUsuario(id){
   baseUsr();
@@ -28214,7 +28249,8 @@ function formUsuario(id){
     if(senha)dados.senha=senha;
     if(u)Object.assign(u,dados);
     else{
-      var novo=Object.assign({id:uid('usr'),ativo:true,sucursais:[],permissoes:{},
+      var novo=Object.assign({id:uid('usr'),ativo:true,
+        sucursais:(US.novaSuc?[US.novaSuc]:[]),permissoes:{},
         criadoEm:new Date().toISOString()},dados);
       DB.usuarios.push(novo);
       US.sel=novo.id;
