@@ -10114,7 +10114,7 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .hpFxQ small{display:block;font-size:10px;color:var(--ink-3,#7a7a86)}
 .hpFxV{width:100px;text-align:right;color:var(--ink-2,#4a4a55)}
 /* Central Tecnica */
-.ctWrap{padding:16px;max-width:1180px}
+.ctWrap{padding:16px;max-width:1180px;flex:1;overflow-y:auto;overflow-x:hidden;min-height:0}
 .ctTopo h1{margin:0 0 6px;font-size:20px}
 .ctTopo p{margin:0 0 14px;font-size:13px;color:var(--ink-2,#4a4a55);line-height:1.55;max-width:820px}
 .ctAbas{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
@@ -10158,8 +10158,8 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
       <div class="lgHd"><div class="lgMk">N</div><b>NEXOR</b></div>
       <h1>Entrar na sua conta</h1>
       <div class="sb">Informe as credenciais de acesso</div>
-      <div class="f"><label>Usuário</label><div class="w"><input id="lgU" value="admin" autocomplete="username"></div></div>
-      <div class="f"><label>Senha</label><div class="w"><input id="lgP" type="password" value="admin" autocomplete="current-password"><button class="eye" id="tg"></button></div></div>
+      <div class="f"><label>Usuário</label><div class="w"><input id="lgU" value="" autocomplete="off" placeholder="seu acesso"></div></div>
+      <div class="f"><label>Senha</label><div class="w"><input id="lgP" type="password" value="" autocomplete="off" placeholder="sua senha"><button class="eye" id="tg"></button></div></div>
       <div class="lgErr" id="lgE"></div>
       <button class="lgBtn" id="lgB">Entrar</button>
       <div class="lgNote">Versão em desenvolvimento &middot; acesso <b>admin</b> / <b>admin</b><br>Os dados ficam salvos neste aparelho até publicarmos na nuvem.</div>
@@ -11492,7 +11492,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.5.1';
+var VERSAO='V8.5.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27595,6 +27595,10 @@ async function confirmarCancelamento(id){
 var ADM_MESTRE='rafael@uendes.com';
 function baseUsr(){
   DB.usuarios=DB.usuarios||[];
+  /* o acesso generico admin/admin das primeiras versoes nao vale mais */
+  DB.usuarios=DB.usuarios.filter(function(u){
+    return !((u.login||'').toLowerCase()==='admin'&&u.senha==='admin');
+  });
   /* administrador mestre do Nexor: existe em qualquer instalacao, enxerga tudo */
   if(!DB.usuarios.some(function(u){return (u.login||'').toLowerCase()===ADM_MESTRE})){
     DB.usuarios.unshift({id:'usr_mestre',nome:'Administrador do Nexor',login:ADM_MESTRE,
