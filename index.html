@@ -10366,7 +10366,13 @@ function moduloContratado(mid){
 }
 var SO_FRANQUEADORA=['loja/carga-inicial','loja/backup','loja/reset-sistema'];
 var MOD_PLATAFORMA=['tecnico'];   /* modulo inteiro: so o dono do Nexor */
-function ehPlataforma(u){u=u||usuarioLogado();return !!(u&&u.plataforma)}
+var ADM_MESTRE='rafael@uendes.com';
+/* quem e a plataforma nao depende de marcacao guardada: e o login, e so ele.
+   Assim ninguem vira dono do Nexor copiando um usuario ou editando um cadastro. */
+function ehPlataforma(u){
+  u=u||usuarioLogado();
+  return !!(u&&String(u.login||'').toLowerCase()===ADM_MESTRE);
+}
 function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||u.plataforma))}
 
 /* ===== BLOCO 3 — ARMAZENAMENTO ===== */
@@ -11501,7 +11507,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.7.2';
+var VERSAO='V8.7.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27684,9 +27690,12 @@ async function confirmarCancelamento(id){
 /* ==========================================================
    USUÁRIOS E PERMISSÕES
    ========================================================== */
-var ADM_MESTRE='rafael@uendes.com';
 function baseUsr(){
   DB.usuarios=DB.usuarios||[];
+  /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
+  DB.usuarios.forEach(function(u){
+    if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
+  });
   /* o acesso generico admin/admin das primeiras versoes nao vale mais */
   DB.usuarios=DB.usuarios.filter(function(u){
     return !((u.login||'').toLowerCase()==='admin'&&u.senha==='admin');
