@@ -11455,7 +11455,24 @@ function redeDoUsuario(u){
   }catch(e){}
   return null;
 }
-function entrar(){
+/* busca o acesso direto na nuvem — funciona em aparelho recem-aberto,
+   sem ninguem precisar da credencial do banco */
+async function buscarAcessoNaNuvem(lg,sn){
+  try{
+    if(!NUVEM.url||!NUVEM.chave)return null;
+    var r=await fetch(NUVEM.url+'/rest/v1/rpc/login_nexor',{method:'POST',
+      headers:{'apikey':NUVEM.chave,'Content-Type':'application/json'},
+      body:JSON.stringify({p_login:lg,p_senha:sn})});
+    if(!r.ok)return null;
+    var d=await r.json();
+    if(!d||!d.length)return null;
+    var x=d[0];
+    return {id:x.ref_local||('usr_'+String(x.login||'').replace(/[^a-z0-9]/gi,'').slice(0,12)),
+      nome:x.nome||'',login:x.login||'',senha:sn,ativo:x.ativo!==false,
+      tudo:!!x.tudo,mestre:!!x.mestre,sucursais:x.sucursais||[],permissoes:x.permissoes||{}};
+  }catch(e){return null}
+}
+async function entrar(){
   try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
   baseUsr();
   var cli=chaveCliente(($('lgC')||{}).value||'');
@@ -11463,6 +11480,19 @@ function entrar(){
   var sn=$('lgP').value;
   var u=(DB.usuarios||[]).find(function(x){
     return String(x.login||'').toLowerCase()===lg&&x.senha===sn;});
+  /* nao existe neste aparelho? procura na nuvem antes de recusar */
+  if(!u&&lg&&sn){
+    $('lgE').textContent='conferindo o acesso...';
+    var nu=await buscarAcessoNaNuvem(lg,sn);
+    if(nu){
+      var ja=(DB.usuarios||[]).find(function(x){
+        return String(x.login||'').toLowerCase()===String(nu.login||'').toLowerCase();});
+      if(ja){Object.assign(ja,nu);u=ja;}
+      else{DB.usuarios.push(nu);u=nu;}
+      salvar();
+    }
+    $('lgE').textContent='';
+  }
   /* o dono do Nexor entra sem cliente; os demais precisam informar a rede certa */
   if(u&&String(u.login||'').toLowerCase()!==ADM_MESTRE){
     var r=redeDoUsuario(u);
@@ -11634,7 +11664,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.7.0';
+var VERSAO='V9.8.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
