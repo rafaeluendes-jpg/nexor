@@ -10146,6 +10146,8 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .ctFluxo span{font-size:11.5px;color:var(--ink-3,#7a7a86)}
 .bkBotoes{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 .cnMods{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px;margin-top:6px}
+/* o detalhe embaixo do texto principal precisa de linha propria */
+.fmTab td small{display:block;font-size:10.5px;color:var(--ink-3,#7a7a86);line-height:1.35;margin-top:1px}
 @media(max-width:760px){.hp2Seta{display:none}.hp2K{min-width:46%}}
 </style>
 </head>
@@ -11492,7 +11494,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.5.2';
+var VERSAO='V8.5.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
