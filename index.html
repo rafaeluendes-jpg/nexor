@@ -10308,6 +10308,9 @@ var MOD=[
  {id:'comparativo-anual',n:'Comparativo Anual e Mensal'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
  {id:'cfg-loja',n:'Dados da Loja'},
+ {id:'backup',n:'Backup e Restauração'},
+ {id:'carga-inicial',n:'Importar Dados'},
+ {id:'reset-sistema',n:'Dados de Teste e Reinício'},
  {id:'cfg-sucursais',n:'Sucursais da Franquia'},
  {id:'cfg-operadores',n:'Operadores'},
  {id:'cfg-pdv',n:'Configuração do PDV'},
@@ -10326,11 +10329,8 @@ var MOD=[
 
 {id:'tecnico',n:'Administração',ic:'gear2',it:[
  {id:'central-tecnica',n:'Mapa do Sistema'},
- {id:'backup',n:'Backup e Restauração'},
  {id:'clientes-nexor',n:'Clientes Nexor'},
- {id:'instalacao',n:'Assistente de Instalação'},
- {id:'carga-inicial',n:'Importar Dados'},
- {id:'reset-sistema',n:'Dados de Teste e Reinício'}]}
+ {id:'instalacao',n:'Assistente de Instalação'}]}
 ];
 /* telas exclusivas da franqueadora — franquia nao ve nem por permissao */
 /* ----------------------------------------------------------
@@ -10364,7 +10364,8 @@ function moduloContratado(mid){
   if(MODULOS_BASE.indexOf(mid)<0)return true;
   return c.modulos.indexOf(mid)>=0;
 }
-var SO_FRANQUEADORA=['tecnico/carga-inicial','tecnico/backup','tecnico/reset-sistema'];
+var SO_FRANQUEADORA=['loja/carga-inicial','loja/backup','loja/reset-sistema'];
+var MOD_PLATAFORMA=['tecnico'];   /* modulo inteiro: so o dono do Nexor */
 function ehPlataforma(u){u=u||usuarioLogado();return !!(u&&u.plataforma)}
 function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||u.plataforma))}
 
@@ -11499,7 +11500,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.7.0';
+var VERSAO='V8.7.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27706,6 +27707,7 @@ var SESSAO={usuarioId:null};
 /* pode ver este item do menu? */
 function podeVer(mid,iid){
   var u=usuarioLogado();
+  if(MOD_PLATAFORMA.indexOf(mid)>=0&&!ehPlataforma(u))return false;
   if(!moduloContratado(mid))return false;   /* fora do contrato: some para todos */
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
