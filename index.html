@@ -10553,7 +10553,7 @@ var MAPA=[
   filhos:[{lista:'itens',tab:'subcategorias_financeiras',pai:'categoria_id',
     campos:function(o,k){return {nome:o.nome,ordem:k}}}]},
 
- {col:'fornec', espelha:true,      tab:'fornecedores',
+ {col:'fornec', espelha:false,      tab:'fornecedores',
   campos:function(x){return {empresa:x.empresa,contato:x.nome||null,cnpj:x.cnpj||null,
     email:x.email||null,telefone:x.tel||null,whatsapp:x.whats||null}}},
 
@@ -10565,11 +10565,11 @@ var MAPA=[
  {col:'unidExtra', espelha:true,   tab:'unidades_medida',
   campos:function(x){return {nome:x.n,sigla:x.ab,base:x.base,fator:n(x.f)}}},
 
- {col:'gruposIng', espelha:true,   tab:'grupos_ingredientes',
+ {col:'gruposIng', espelha:false,   tab:'grupos_ingredientes',
   campos:function(x){return {nome:x.nome,compoe_cmv:x.compoeCMV!==false,
     categoria:x.categoria||null}}},
 
- {col:'insumos', espelha:true,     tab:'insumos',
+ {col:'insumos', espelha:false,     tab:'insumos',
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,unidade:x.unidade||'un',
     grupo_id:fk('gruposIng',x.grupoId),
     subcategoria_id:fkSub(x.catFinId),controla_estoque:x.controlaEstoque!==false,
@@ -10581,11 +10581,11 @@ var MAPA=[
     fornecedor_id:fk('fornec',x.fornecedorId),descricao:x.descricao||null,
     gelato_venda:!!x.gelatoVenda}}},
 
- {col:'fichaCats', espelha:true,   tab:'ficha_grupos',
+ {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
   campos:function(x){return {nome:x.nome,
     destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||undefined}}},
 
- {col:'fichas', espelha:true,      tab:'fichas_tecnicas',
+ {col:'fichas', espelha:false,      tab:'fichas_tecnicas',
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,grupo_id:fk('fichaCats',x.categoriaId),
     subcategoria_id:fkSub(x.contaId),unidade:x.unidade||'un',estocavel:x.estocavel!==false,
     disponivel_venda:!!x.disponivelVenda,rendimento:n(x.rendimento)||1,rend_unidade:x.rendUnidade||null,
@@ -11613,7 +11613,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.6.0';
+var VERSAO='V9.6.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
