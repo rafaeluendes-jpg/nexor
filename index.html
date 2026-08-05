@@ -11499,7 +11499,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.6.1';
+var VERSAO='V8.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11563,11 +11563,11 @@ if(mid==='estoque'&&iid==='historico-posicao'){
 if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
 if(mid==='loja'&&iid==='reset-sistema')return telaReset();
 if(mid==='tecnico'&&iid==='central-tecnica')return telaCentralTecnica();
-if(mid==='tecnico'&&iid==='backup')return telaBackup();
+if(mid==='loja'&&iid==='backup')return telaBackup();
 if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
-if(mid==='tecnico'&&iid==='carga-inicial')return telaCarga();
-if(mid==='tecnico'&&iid==='reset-sistema')return telaReset();
+if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
+if(mid==='loja'&&iid==='reset-sistema')return telaReset();
 if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
 if(mid==='teste'&&iid==='reset-sistema')return telaReset();
 if(mid==='financeira'&&iid==='acerto-entregadores')return telaAcertos();
