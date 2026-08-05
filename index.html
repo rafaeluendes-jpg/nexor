@@ -10574,6 +10574,8 @@ var MAPA=[
     grupo_id:fk('gruposIng',x.grupoId),
     subcategoria_id:fkSub(x.catFinId),controla_estoque:x.controlaEstoque!==false,
     compoe_cmv:x.compoeCMV!==false,estoque_min:n(x.estoqueMin),estoque_max:n(x.estoqueMax),
+    validade:x.validade||null,ean13:x.ean13||null,
+    permite_venda:!!x.permiteVenda,embalagem:x.unidadeVenda||null,
     estoque_atual:n(x.estoqueAtual),
     fator:n(x.fator)||1,custo:n(x.custo),custo_ultima:n(x.custoUltima),modo_custo:normModo(x.modoCusto),
     fornecedor_id:fk('fornec',x.fornecedorId),descricao:x.descricao||null,
@@ -11149,6 +11151,8 @@ async function baixarDaNuvem(forcar){
     catFinId:mapaSub[x.subcategoria_id]||'',controlaEstoque:x.controla_estoque!==false,
     compoeCMV:x.compoe_cmv!==false,estoqueMin:Number(x.estoque_min)||0,
     estoqueMax:Number(x.estoque_max)||0,
+    validade:x.validade||'',ean13:x.ean13||'',
+    permiteVenda:!!x.permite_venda,unidadeVenda:x.embalagem||'',
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',fator:Number(x.fator)||1,
     fornecedorId:mapaFo[x.fornecedor_id]||'',descricao:x.descricao||'',
@@ -18271,6 +18275,9 @@ function baseEstoque(){
     if(i.compoeCMV===undefined)i.compoeCMV=true;
     if(i.estoqueMin===undefined)i.estoqueMin=0;
     if(i.estoqueMax===undefined)i.estoqueMax=0;
+    if(i.validade===undefined)i.validade='';
+    if(i.unidadeVenda===undefined)i.unidadeVenda='';
+    if(i.permiteVenda===undefined)i.permiteVenda=false;
     if(i.estoqueAtual===undefined)i.estoqueAtual=0;
     if(i.fator===undefined)i.fator=1;
     if(i.compras===undefined)i.compras=[];
@@ -18478,6 +18485,16 @@ function modalInsumo(id,copia){
     '<div class="hint">Abaixo disso o item é sinalizado.</div></div>'+
    '<div class="fld2"><label>Estoque máximo</label><input id="isMx" type="number" step="0.001" value="'+(i?(i.estoqueMax||0):0)+'">'+
     '<div class="hint">Quanto vale a pena manter em casa.</div></div>'+
+   '<div class="fld2"><label>Validade</label><input id="isVal" type="date" value="'+E(i&&i.validade?String(i.validade).slice(0,10):'')+'">'+
+    '<div class="hint">Do lote em estoque.</div></div>'+
+   '<div class="fld2"><label>Unidade de venda</label><select id="isUV">'+
+    '<option value="">igual à de estoque</option>'+
+    unidades().map(function(u){return '<option value="'+u.id+'"'+
+      ((i&&i.unidadeVenda)===u.id?' selected':'')+'>'+E(u.n)+'</option>'}).join('')+
+    '</select></div>'+
+   '<div class="fld2" style="justify-content:flex-end"><label>&nbsp;</label>'+
+    '<label class="chkL"><input type="checkbox" id="isPV"'+((i&&i.permiteVenda)?' checked':'')+'>'+
+    '<span>Item vendável</span></label></div>'+
    '<div class="fld2"><label>Estoque atual</label>'+
     '<input id="isAt" type="number" step="0.001" readonly style="background:var(--alt)" '+
      'value="'+(i&&!copia?(i.estoqueAtual||0):0)+'">'+
@@ -18602,6 +18619,9 @@ function salvarInsumo(id,copia){
     controlaEstoque:$('isCe').checked,compoeCMV:$('isCm').checked,
     estoqueMin:parseFloat($('isMi').value)||0,
     estoqueMax:parseFloat(($('isMx')||{}).value)||0,
+    validade:(($('isVal')||{}).value||''),
+    unidadeVenda:(($('isUV')||{}).value||''),
+    permiteVenda:!!($('isPV')&&$('isPV').checked),
     /* estoque nao entra pelo cadastro: so nota, movimentacao com motivo ou contagem */
     estoqueAtual:(alvoPrev?Number(alvoPrev.estoqueAtual)||0:0),
     fator:parseFloat($('isFa').value)||1,
