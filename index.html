@@ -10191,6 +10191,7 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
       <div class="lgHd"><div class="lgMk">N</div><b>NEXOR</b></div>
       <h1>Entrar na sua conta</h1>
       <div class="sb">Informe as credenciais de acesso</div>
+      <div class="f"><label>Cliente</label><div class="w"><input id="lgC" value="" autocomplete="off" placeholder="nome da rede"></div></div>
       <div class="f"><label>Usuário</label><div class="w"><input id="lgU" value="" autocomplete="off" placeholder="seu acesso"></div></div>
       <div class="f"><label>Senha</label><div class="w"><input id="lgP" type="password" value="" autocomplete="off" placeholder="sua senha"><button class="eye" id="tg"></button></div></div>
       <div class="lgErr" id="lgE"></div>
@@ -11389,13 +11390,45 @@ function abrirSessao(){
   /* volta a ligar a nuvem sozinho, se já estava ligada antes */
   setTimeout(function(){ try{religarNuvem();}catch(e){console.error('religar',e);} },500);
 }
+function chaveCliente(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+/* a que rede este acesso pertence */
+function redeDoUsuario(u){
+  if(!u)return null;
+  try{
+    baseRedes();
+    if(u.redeId)return (DB.redes||[]).find(function(r){return r.id===u.redeId})||null;
+    var sid=(u.sucursais||[])[0];
+    if(sid){
+      var sc=(DB.sucursais||[]).find(function(x){return x.id===sid});
+      if(sc&&sc.redeId)return (DB.redes||[]).find(function(r){return r.id===sc.redeId})||null;
+    }
+    var dom=String(u.login||'').split('@')[1]||'';
+    if(dom)return (DB.redes||[]).find(function(r){return chaveCliente(r.dominio)===chaveCliente(dom)})||null;
+  }catch(e){}
+  return null;
+}
 function entrar(){
   try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
   baseUsr();
+  var cli=chaveCliente(($('lgC')||{}).value||'');
   var lg=$('lgU').value.trim().toLowerCase();
   var sn=$('lgP').value;
   var u=(DB.usuarios||[]).find(function(x){
     return String(x.login||'').toLowerCase()===lg&&x.senha===sn;});
+  /* o dono do Nexor entra sem cliente; os demais precisam informar a rede certa */
+  if(u&&String(u.login||'').toLowerCase()!==ADM_MESTRE){
+    var r=redeDoUsuario(u);
+    var ok=!cli?false:(r?(chaveCliente(r.nome).indexOf(cli)>=0||cli.indexOf(chaveCliente(r.nome))>=0||
+        chaveCliente(r.dominio).indexOf(cli)>=0):true);
+    if(!ok){
+      $('lgE').innerHTML=cli?'Este acesso não pertence ao cliente informado.'
+        :'Informe o <b>cliente</b> (o nome da rede).';
+      sacode();return;
+    }
+  }
   if(u&&u.ativo===false){
     $('lgE').textContent='Este acesso está desativado. Fale com o administrador.';
     sacode();return;
@@ -11556,7 +11589,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.1.2';
+var VERSAO='V9.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
