@@ -10665,7 +10665,7 @@ var MAPA=[
     valor_mercadorias:n(x.valorMercadorias),valor_total:n(x.valorTotal),
     recebida:x.receber!==false,pagamento:x.pagamento||{},itens:x.itens||[]}}},
 
- {col:'clientesNexor',tab:'clientes_nexor',espelha:true,
+ {col:'clientesNexor',tab:'clientes_nexor',espelha:false,
   campos:function(x){return {rede:x.rede,responsavel:x.responsavel||null,email:x.email||null,
     telefone:x.telefone||null,documento:x.documento||null,cidade:x.cidade||null,uf:x.uf||null,
     unidades:parseInt(x.unidades)||1,plano:x.plano||null,mensalidade:n(x.mensalidade),
@@ -11195,6 +11195,7 @@ async function baixarDaNuvem(forcar){
   }catch(e){}
   try{
     var cnx=await api('clientes_nexor?select=*&order=rede.asc&limit=500');
+    if(cnx&&cnx.length)  /* so substitui a carteira se a nuvem realmente devolveu algo */
     DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
       responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
       documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',unidades:x.unidades||1,
@@ -11491,7 +11492,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.5.0';
+var VERSAO='V8.5.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
