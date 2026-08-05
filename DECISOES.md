@@ -148,6 +148,18 @@ aparecia e sumia sozinho — daí a impressão de precisar clicar duas ou três 
   nota e ordem de produção preenchem ela sozinhas
 - Na configuração, a coluna Saída passou a dizer que é ela que alimenta a baixa manual
 
+## Onde se cadastra o motivo de baixa (V10.4.1)
+
+O cadastro sempre esteve em **Configuração da Loja**, mas o item do menu se chamava
+"Movimentação de Estoque" — o mesmo nome da tela de operação, no módulo Estoque.
+Rafael achou que o cadastro estava dentro da movimentação. Era só o nome.
+
+- O item passou a se chamar **Motivos de Baixa de Estoque**
+- A coluna **Saída** vem primeiro e diz "estes são os seus"; Entrada e Produzir
+  explicam que o sistema usa sozinho
+- O atalho na baixa manual diz "(cadastrar em Configuração da Loja)"
+- Cadastrar, renomear ou inativar ali reflete na baixa na hora seguinte — mesma lista
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

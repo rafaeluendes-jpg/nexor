@@ -10459,7 +10459,7 @@ var MOD=[
  {id:'cfg-sucursais',n:'Sucursais da Franquia'},
  {id:'cfg-operadores',n:'Operadores'},
  {id:'cfg-pdv',n:'Configuração do PDV'},
- {id:'cfg-movimentacao',n:'Movimentação de Estoque'},
+ {id:'cfg-movimentacao',n:'Motivos de Baixa de Estoque'},
  {id:'areas-entrega',n:'Áreas de Entrega'},
  {id:'canais-integracao',n:'Canais de Venda e Integração'},
  {id:'cfg-gerente',n:'Avisos ao Gerente'},
@@ -11928,7 +11928,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.4.0';
+var VERSAO='V10.4.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20728,7 +20728,8 @@ function desenhaMovimento(){
     '<div class="f2" style="max-width:110px"><label>Hora</label>'+
      '<input type="time" id="mvH" value="'+(_movHora||agoraHM())+'"></div>'+
     '<div class="f2"><label>Motivo da baixa * '+
-     '<a class="incNovo" onclick="cadastrarMotivoBaixa()">(cadastrar novo)</a></label>'+
+     '<a class="incNovo" onclick="cadastrarMotivoBaixa()" '+
+     'title="Configuração da Loja › Motivos de Baixa de Estoque">(cadastrar em Configuração da Loja)</a></label>'+
      '<select id="mvM" onchange="mudouMotivo(this)">'+
      motivosBaixa().map(function(m){
        return '<option value="'+m.id+'"'+(_movMotivo===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
@@ -26370,16 +26371,19 @@ function telaCfgMovimentacao(){
   var por={entrada:[],saida:[],producao:[]};
   (DB.motivosMov||[]).forEach(function(m){ (por[m.tipo]||por.saida).push(m); });
   var TIPOS=[
-   {id:'entrada', n:'Entrada',  ic:'up2',  cor:'#0E8A46', d:'soma no estoque'},
-   {id:'saida',   n:'Saída',    ic:'dn4',  cor:'#C94141', d:'os motivos que aparecem na baixa manual'},
-   {id:'producao',n:'Produzir', ic:'box',  cor:'#00A08B', d:'baixa a receita e gera o produto acabado'}
+   {id:'saida',   n:'Saída',    ic:'dn4',  cor:'#C94141', seu:true,
+    d:'os motivos da baixa manual — estes são os seus'},
+   {id:'entrada', n:'Entrada',  ic:'up2',  cor:'#0E8A46',
+    d:'o sistema usa sozinho na nota de entrada e na contagem'},
+   {id:'producao',n:'Produzir', ic:'box',  cor:'#00A08B',
+    d:'o sistema usa sozinho na ordem de produção'}
   ];
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
-    '<div><h1>Motivos de Movimentação de Estoque</h1>'+
-    '<p>Cada lançamento de estoque precisa de um motivo — é ele que define o que acontece. '+
-    'Os de <b>Saída</b> são os que você escolhe na <b>baixa manual</b>; '+
-    'os de Entrada e Produzir o sistema usa sozinho, na nota de entrada e na ordem de produção.</p></div>'+
+    '<div><h1>Motivos de Baixa de Estoque</h1>'+
+    '<p>Aqui é onde você cadastra os motivos da <b>baixa manual</b> — perda, quebra, vencimento, '+
+    'consumo interno, degustação. O que você cadastrar na coluna <b>Saída</b> aparece na hora '+
+    'em Estoque › Movimentação de Estoque, sem precisar salvar nada além disto.</p></div>'+
     '<button class="infoBt" onclick="explicaMotivos()">'+sv('help',15)+'</button>'+
     '<div style="flex:1"></div>'+
     '<button class="btnP2 ok" onclick="formMotivo()">'+sv('plus',14)+' Cadastrar motivo</button>'+
@@ -26388,7 +26392,8 @@ function telaCfgMovimentacao(){
    TIPOS.map(function(t){
      var l=por[t.id]||[];
      return '<div class="motCol" style="--mc:'+t.cor+'">'+
-      '<div class="motH">'+sv(t.ic,15)+'<div><b>'+t.n+'</b><span>'+t.d+'</span></div>'+
+      '<div class="motH">'+sv(t.ic,15)+'<div><b>'+t.n+(t.seu?' — baixa manual':'')+'</b>'+
+      '<span>'+t.d+'</span></div>'+
       '<span class="cnt2">'+l.length+'</span></div>'+
       '<div class="motB">'+
       (l.length?l.map(function(m){
