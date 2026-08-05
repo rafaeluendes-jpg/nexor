@@ -11405,7 +11405,7 @@ try{
   if(_ses){
     try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
     baseUsr();
-    if(_ses==='1'){SESSAO.usuarioId=null;abrirSessao();}
+    if(_ses==='1'){try{localStorage.removeItem('nexor_sessao')}catch(e){}}
     else{
       var _u=(DB.usuarios||[]).find(function(x){return x.id===_ses});
       if(_u&&_u.ativo!==false){SESSAO.usuarioId=_u.id;abrirSessao();}
@@ -11507,7 +11507,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.7.4';
+var VERSAO='V8.8.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27693,11 +27693,6 @@ async function confirmarCancelamento(id){
    ========================================================== */
 function baseUsr(){
   DB.usuarios=DB.usuarios||[];
-  /* o acesso mestre embutido e sempre o do dono, mesmo vindo de versoes antigas */
-  var mst=DB.usuarios.find(function(u){return u.id==='usr_mestre'});
-  if(mst&&String(mst.login||'').toLowerCase()!==ADM_MESTRE){
-    mst.login=ADM_MESTRE;mst.nome='Administrador do Nexor';mst.plataforma=true;mst.tudo=true;
-  }
   /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
   DB.usuarios.forEach(function(u){
     if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
@@ -27716,7 +27711,9 @@ function baseUsr(){
 }
 function usuarioLogado(){
   baseUsr();
-  if(!SESSAO.usuarioId)return DB.usuarios.find(function(u){return u.mestre})||null;
+  /* sem sessao identificada NAO se assume o mestre — era isso que dava
+     acesso de dono a quem entrasse por um caminho antigo de sessao */
+  if(!SESSAO.usuarioId)return null;
   return DB.usuarios.find(function(u){return u.id===SESSAO.usuarioId})||null;
 }
 var SESSAO={usuarioId:null};
@@ -27724,12 +27721,12 @@ var SESSAO={usuarioId:null};
 function podeVer(mid,iid){
   var u=usuarioLogado();
   if(MOD_PLATAFORMA.indexOf(mid)>=0&&!ehPlataforma(u))return false;
+  if(!u)return false;                       /* ninguem logado: nao mostra nada */
   if(!moduloContratado(mid))return false;   /* fora do contrato: some para todos */
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
   /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
   if(iid&&SO_FRANQUEADORA.indexOf(mid+'/'+iid)>=0)return ehFranqueadora(u);
-  if(!u)return true;
   if(u.tudo||u.mestre)return true;
   if(!iid)return (MOD.find(function(m){return m.id===mid})||{it:[]}).it
     .some(function(i){return podeVer(mid,i.id)});
