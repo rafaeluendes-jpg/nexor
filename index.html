@@ -11353,7 +11353,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.4.0';
+var VERSAO='V7.4.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -16903,11 +16903,11 @@ function custoAtual(i){
   if(!v)v=Number(i.custo)||Number(i.custoUltima)||0;
   return v;
 }
-/* um item so pode ter custo digitado enquanto nunca teve compra */
-function custoEditavel(i){
+/* item sem compra ainda nao tem custo: quem define e a primeira nota de entrada */
+function semCompra(i){
   if(!i)return true;
   if((i.compras||[]).length)return false;
-  return !(Number(i.custoUltima)>0);
+  return !(Number(i.custoUltima)>0)&&!(Number(i.custo)>0);
 }
 
 /* ==========================================================
@@ -16982,7 +16982,8 @@ function telaInsumos(){
        '<b class="'+(baixo?'vr':'')+'">'+fmtQt(i.estoqueAtual)+' '+un(i.unidade).ab+'</b>'+
        (baixo?'<span class="atrTag">baixo</span>':''):'—')+'</td>'+
      '<td style="text-align:right"><b>R$ '+money(custoAtual(i))+'</b>'+
-      '<small>'+E(nomeModoCusto(i.modoCusto).replace('Custo ',''))+' · por '+un(i.unidade).ab+'</small></td>'+
+      '<small>'+(semCompra(i)?'sem compra ainda':E(nomeModoCusto(i.modoCusto).replace('Custo ','')))+
+      ' · por '+un(i.unidade).ab+'</small></td>'+
      '<td style="text-align:center">'+
       (i.controlaEstoque?'<span class="miniTag ok2" title="controla estoque">EST</span>':'')+
       (i.compoeCMV?'<span class="miniTag cm" title="compõe CMV">CMV</span>':'')+'</td>'+
@@ -17062,10 +17063,10 @@ function modalInsumo(id,copia){
        (normModo(i&&i.modoCusto)===m.id?' selected':'')+'>'+m.n+'</option>'}).join('')+
     '</select></div>'+
    '<div class="fld2" style="margin:0"><label id="isLbCusto">'+
-    (custoEditavel(i)?'Custo inicial':nomeModoCusto(i&&i.modoCusto))+'</label>'+
+    nomeModoCusto(i&&i.modoCusto)+'</label>'+
     '<div class="cur"><span>R$</span>'+
     '<input id="isV" type="number" step="0.0001" value="'+(i?custoPorModo(i,normModo(i.modoCusto)):'')+'"'+
-    (custoEditavel(i)?'':' readonly style="background:var(--alt)"')+'></div></div>'+
+    ' readonly style="background:var(--alt)"></div></div>'+
   '</div>'+
   '<div class="cstMini">'+
    '<span>Custo médio <b>R$ '+(i?money(custoMedioPond(i)):'0,00')+'</b></span>'+
@@ -17073,9 +17074,10 @@ function modalInsumo(id,copia){
    (i?'<span class="dest">Em estoque <b>R$ '+money((Number(i.estoqueAtual)||0)*custoAtual(i))+'</b></span>':'')+
   '</div>'+
   '<div class="hint" style="margin-top:8px">'+
-   (custoEditavel(i)
-    ?'Este item ainda não teve compra. O valor digitado aqui é o <b>custo inicial</b>; a partir da primeira nota de entrada o custo médio passa a ser calculado sozinho.'
-    :'O custo médio é recalculado a cada nota de entrada — <b>(estoque × custo médio + compra × valor da compra) ÷ (estoque + compra)</b>. Não é editável à mão.')+'</div>'+
+   (semCompra(i)
+    ?'Este item ainda não tem custo. Ele entra com o valor da <b>primeira nota de entrada</b> e, das próximas em diante, passa a ser a média ponderada.'
+    :'Custo médio = <b>(estoque × custo médio + quantidade comprada × valor da compra) ÷ (estoque + quantidade comprada)</b>. '+
+     'É recalculado a cada nota de entrada e não se digita à mão.')+'</div>'+
   '</div>'+
   '<div class="blk" style="margin:0;max-width:none"><h3>Complemento</h3>'+
   '<div class="row2">'+
@@ -17149,12 +17151,11 @@ function escolheCatIns(id){
 function mudaModoCusto(){
   var modo=normModo($('isModo').value);
   var i=_insEditando;
-  var edit=custoEditavel(i);
-  $('isLbCusto').textContent=edit?'Custo inicial':nomeModoCusto(modo);
+  $('isLbCusto').textContent=nomeModoCusto(modo);
   var inp=$('isV');
-  if(!edit)inp.value=i?custoPorModo(i,modo):0;
-  inp.readOnly=!edit;
-  inp.style.background=edit?'':'var(--alt)';
+  inp.value=i?custoPorModo(i,modo):0;
+  inp.readOnly=true;
+  inp.style.background='var(--alt)';
 }
 var _insEditando=null;
 function salvarInsumo(id,copia){
@@ -17164,16 +17165,15 @@ function salvarInsumo(id,copia){
   var nome=$('isN').value.trim();
   if(!nome){toast('Informe a descrição.');return;}
   if(!$('isG').value){toast('Selecione o grupo.');return;}
-  var v=parseFloat($('isV').value);
-  if(isNaN(v))v=0;
   var o={nome:nome,codigo:$('isC').value.trim()||proxCodInsumo(),unidade:$('isU').value,
     grupoId:$('isG').value,catFinId:$('isCf').value,
     controlaEstoque:$('isCe').checked,compoeCMV:$('isCm').checked,
     estoqueMin:parseFloat($('isMi').value)||0,estoqueAtual:parseFloat($('isAt').value)||0,
     fator:parseFloat($('isFa').value)||1,
     modoCusto:normModo($('isModo').value),
-    custo:(custoEditavel(alvoPrev)?v:(Number(alvoPrev.custo)||0)),
-    custoUltima:(alvoUlt!==undefined?alvoUlt:v),
+    /* custo e custo da ultima compra vem das notas de entrada, nunca da tela */
+    custo:(alvoPrev?Number(alvoPrev.custo)||0:0),
+    custoUltima:(alvoUlt!==undefined?alvoUlt:0),
     fornecedorId:$('isF').value,descricao:$('isD').value.trim()};
   var alvo=alvoPrev;
   if(alvo)Object.assign(alvo,o);
