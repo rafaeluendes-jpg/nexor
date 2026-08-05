@@ -136,6 +136,18 @@ aparecia e sumia sozinho — daí a impressão de precisar clicar duas ou três 
 - Na troca, o menu aparece na hora, sem esperar o próximo quadro e sem escada de animação
 - A escada de animação na abertura caiu de até 416ms para no máximo 150ms
 
+## Baixa manual: sem escolher operação, sem identificação (V10.4.0)
+
+- A tela inteira é baixa manual, então isso virou um **rótulo fixo**, não um campo.
+  Não se escolhe mais "Saída manual" numa lista
+- **Motivo da baixa** fica ao lado, alimentado pelos motivos do tipo Saída cadastrados
+  em Configuração da Loja › Movimentação de Estoque. Já vem com o primeiro escolhido —
+  o "Selecione uma opção" saiu
+- Link **(cadastrar novo)** ao lado do motivo leva direto para a configuração
+- O campo **Identificação** saiu da baixa. A coluna continua no relatório, porque venda,
+  nota e ordem de produção preenchem ela sozinhas
+- Na configuração, a coluna Saída passou a dizer que é ela que alimenta a baixa manual
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

@@ -1640,6 +1640,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.opFixa{display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;border-radius:5px;
+  background:var(--alt);border:1px solid var(--line);font-size:12.5px;font-weight:600;
+  color:var(--ink-2);white-space:nowrap}
+.opFixa svg{flex:none;color:var(--red,#C94141)}
 .avisoGrav{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;display:flex;
   align-items:center;gap:12px;padding:12px 14px;border-radius:9px;
   background:#7A1D1D;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.3);font-size:12.5px}
@@ -6260,6 +6264,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.opFixa{display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;border-radius:5px;
+  background:var(--alt);border:1px solid var(--line);font-size:12.5px;font-weight:600;
+  color:var(--ink-2);white-space:nowrap}
+.opFixa svg{flex:none;color:var(--red,#C94141)}
 .avisoGrav{position:fixed;left:14px;right:14px;bottom:14px;z-index:9999;display:flex;
   align-items:center;gap:12px;padding:12px 14px;border-radius:9px;
   background:#7A1D1D;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.3);font-size:12.5px}
@@ -11920,7 +11928,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.3.1';
+var VERSAO='V10.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20691,7 +20699,10 @@ function modalMovimento(){
     return;
   }
   _movItens=[{tipo:'',refId:'',unidade:'',qtd:0,custo:0,obs:''}];
-  _movMotivo='';_movIdent='';_movObs='';_movData=hojeISO();_movHora=agoraHM();
+  /* a tela inteira e baixa manual — nao ha o que escolher.
+     O motivo ja vem no primeiro cadastrado, e trocar e um clique. */
+  _movMotivo=(motivosBaixa()[0]||{}).id||'';
+  _movIdent='';_movObs='';_movData=hojeISO();_movHora=agoraHM();
   desenhaMovimento();
 }
 function desenhaMovimento(){
@@ -20710,15 +20721,18 @@ function desenhaMovimento(){
     'produção pela ordem de produção, acerto pela contagem</span></div>'+
     '<button onclick="fecharMov()">&times;</button></div>'+
    '<div class="mvCab">'+
-    '<div class="f2"><label>Data de movimentação</label><input type="date" id="mvD" value="'+(_movData||hojeISO())+'"></div>'+
-    '<div class="f2" style="max-width:110px"><label>Hora</label><input type="time" id="mvH" value="'+(_movHora||agoraHM())+'"></div>'+
-    '<div class="f2"><label>Motivo da baixa *</label><select id="mvM" onchange="mudouMotivo(this)">'+
-     '<option value="">Selecione uma opção</option>'+
+    '<div class="f2" style="max-width:160px"><label>Operação</label>'+
+     '<div class="opFixa">'+sv('dn4',13)+' Baixa manual</div></div>'+
+    '<div class="f2" style="max-width:160px"><label>Data de movimentação</label>'+
+     '<input type="date" id="mvD" value="'+(_movData||hojeISO())+'"></div>'+
+    '<div class="f2" style="max-width:110px"><label>Hora</label>'+
+     '<input type="time" id="mvH" value="'+(_movHora||agoraHM())+'"></div>'+
+    '<div class="f2"><label>Motivo da baixa * '+
+     '<a class="incNovo" onclick="cadastrarMotivoBaixa()">(cadastrar novo)</a></label>'+
+     '<select id="mvM" onchange="mudouMotivo(this)">'+
      motivosBaixa().map(function(m){
        return '<option value="'+m.id+'"'+(_movMotivo===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
     '</select></div>'+
-    '<div class="f2" style="max-width:190px"><label>Identificação</label>'+
-     '<input id="mvI" value="'+E(_movIdent)+'" placeholder="lote, nota"></div>'+
    '</div>'+
    '<div class="mvItens">'+
     '<table class="mvItTab"><thead><tr>'+
@@ -20766,6 +20780,11 @@ function desenhaMovimento(){
   ligarLinhasMov();
 }
 var _movMotivo='',_movIdent='',_movObs='',_movData='',_movHora='';
+/* sair da baixa e ir direto cadastrar um motivo novo */
+function cadastrarMotivoBaixa(){
+  fecharMov();
+  abrir('loja','cfg-movimentacao');
+}
 function guardarCabMov(){
   if($('mvM'))_movMotivo=$('mvM').value;
   if($('mvI'))_movIdent=$('mvI').value;
@@ -26352,13 +26371,15 @@ function telaCfgMovimentacao(){
   (DB.motivosMov||[]).forEach(function(m){ (por[m.tipo]||por.saida).push(m); });
   var TIPOS=[
    {id:'entrada', n:'Entrada',  ic:'up2',  cor:'#0E8A46', d:'soma no estoque'},
-   {id:'saida',   n:'Saída',    ic:'dn4',  cor:'#C94141', d:'subtrai do estoque'},
+   {id:'saida',   n:'Saída',    ic:'dn4',  cor:'#C94141', d:'os motivos que aparecem na baixa manual'},
    {id:'producao',n:'Produzir', ic:'box',  cor:'#00A08B', d:'baixa a receita e gera o produto acabado'}
   ];
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Motivos de Movimentação de Estoque</h1>'+
-    '<p>Cada lançamento de estoque precisa de um motivo — é ele que define o que acontece.</p></div>'+
+    '<p>Cada lançamento de estoque precisa de um motivo — é ele que define o que acontece. '+
+    'Os de <b>Saída</b> são os que você escolhe na <b>baixa manual</b>; '+
+    'os de Entrada e Produzir o sistema usa sozinho, na nota de entrada e na ordem de produção.</p></div>'+
     '<button class="infoBt" onclick="explicaMotivos()">'+sv('help',15)+'</button>'+
     '<div style="flex:1"></div>'+
     '<button class="btnP2 ok" onclick="formMotivo()">'+sv('plus',14)+' Cadastrar motivo</button>'+
@@ -26384,7 +26405,8 @@ function telaCfgMovimentacao(){
          '</div></div>';
       }).join('')
       :'<div class="motVazio">nenhum motivo deste tipo</div>')+
-      '<button class="motAdd" onclick="formMotivo(null,\''+t.id+'\')">'+sv('plus',12)+' novo motivo de '+t.n.toLowerCase()+'</button>'+
+      '<button class="motAdd" onclick="formMotivo(null,\''+t.id+'\')">'+sv('plus',12)+
+       (t.id==='saida'?' novo motivo de baixa':' novo motivo de '+t.n.toLowerCase())+'</button>'+
       '</div></div>';
    }).join('')+
    '</div></div></div>';
