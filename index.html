@@ -11507,7 +11507,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.7.3';
+var VERSAO='V8.7.4';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11533,7 +11533,8 @@ setInterval(checarVersao,180000);
 function rodape(extra){
 $('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada?'Sincronizado com a nuvem':'Salvo neste aparelho')+'</span><span>|</span>'+
 '<span class="soPC">Loja: <b>'+E(nomeLojaAtual())+'</b></span><span class="soPC">|</span>'+
-'<span class="soPC">Usuário: <b>Administrador</b></span>'+
+'<span class="soPC">Usuário: <b>'+E((usuarioLogado()||{}).login||(usuarioLogado()||{}).nome||'—')+'</b>'+
+  (ehPlataforma()?' <em style="color:var(--acc)">(dono do Nexor)</em>':'')+'</span>'+
 (extra?'<span class="soPC">|</span><span class="soPC">'+extra+'</span>':'')+
 '<span class="gw"></span><span class="logo soPC"><em>N</em>NEXOR</span>'+
 '<span class="verTag" onclick="location.reload(true)" title="clique para buscar a versão mais nova">'+VERSAO+'</span>';
@@ -27692,6 +27693,11 @@ async function confirmarCancelamento(id){
    ========================================================== */
 function baseUsr(){
   DB.usuarios=DB.usuarios||[];
+  /* o acesso mestre embutido e sempre o do dono, mesmo vindo de versoes antigas */
+  var mst=DB.usuarios.find(function(u){return u.id==='usr_mestre'});
+  if(mst&&String(mst.login||'').toLowerCase()!==ADM_MESTRE){
+    mst.login=ADM_MESTRE;mst.nome='Administrador do Nexor';mst.plataforma=true;mst.tudo=true;
+  }
   /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
   DB.usuarios.forEach(function(u){
     if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
