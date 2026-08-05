@@ -10293,6 +10293,7 @@ var MOD=[
  {id:'vendas-forma-pagamento',n:'Vendas por Forma de Pagamento'},
  {id:'vendas-periodo',n:'Vendas por Período'},
  {id:'dre',n:'DRE'},
+ {id:'cmv-mercadoria',n:'CMV por Mercadoria'},
  {id:'cupons',n:'Cupons'}]},
 {id:'dashboard',n:'Gestão e Dashboard',ic:'chart',it:[
  {id:'canais-venda',n:'Canais de Venda'},
@@ -11433,7 +11434,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.0.0';
+var VERSAO='V8.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11508,6 +11509,7 @@ if(mid==='financeira'&&iid==='contas-bancarias')return telaContas();
 if(mid==='financeira'&&iid==='formas-pagamento')return telaFormasPag();
 if(mid==='financeira'&&iid==='lancamentos-financeiros')return telaLancamentos();
 if(mid==='financeira'&&iid==='compras-sem-vinculo')return telaSemVinculo();
+if(mid==='relatorios'&&iid==='cmv-mercadoria')return telaCMV();
 if(mid==='financeira'&&iid==='fluxo-caixa')return telaFluxo();
 if(mid==='financeira'&&iid==='conciliacao-bancaria')return telaConciliacao();
 if(mid==='financeira'&&iid==='fornecedores')return telaFornecedores();
@@ -15465,6 +15467,143 @@ function relancarSemVinc(id){
   toast('Boleto relançado no financeiro.');
 }
 
+
+
+/* ==========================================================
+   CMV POR MERCADORIA
+   Confronto de inventario, item a item:
+   saldo inicial + entradas + producao + ajustes - baixas - saidas = saldo final
+   ========================================================== */
+var CV={de:'',ate:'',grupo:'',so:''};
+function cmvCalcular(de,ate){
+  baseMov();baseEstoque();
+  var M={};
+  function reg(id){
+    var i=itemEstoque(id);if(!i)return null;
+    if(!M[i.id])M[i.id]={ins:i,qIni:0,vIni:0,qEnt:0,vEnt:0,qPro:0,vPro:0,
+      qAju:0,vAju:0,qBai:0,vBai:0,qSai:0,vSai:0};
+    return M[i.id];
+  }
+  (DB.insumos||[]).forEach(function(i){if(i.controlaEstoque!==false)reg(i.id)});
+  (DB.fichas||[]).forEach(function(f){if(f.estocavel!==false)reg(f.id)});
+  /* varre as movimentacoes uma vez so */
+  (DB.movEst||[]).forEach(function(m){
+    var tipo=tipoMotivo(m.motivoId),org=String(m.origem||''),nome=nomeMotivo(m.motivoId);
+    (m.linhas||[]).forEach(function(l){
+      var r=reg(l.insumoId);if(!r)return;
+      var q=convUnid(l.qtd,l.unidade,r.ins.unidade); if(q===null)q=Number(l.qtd)||0;
+      var v=Math.abs(q*(Number(l.custo)||0));
+      var ent=(l.direcao==='entrada');
+      if(m.data<de){ r.qIni+=ent?q:-q; r.vIni+=ent?v:-v; return; }
+      if(m.data>ate) return;
+      if(org==='venda'){ r.qSai+=q; r.vSai+=v; }
+      else if(org.indexOf('producao')>=0||tipo==='producao'||String(l.origem||'').indexOf('producao')>=0){
+        if(ent){r.qPro+=q;r.vPro+=v;} else {r.qSai+=q;r.vSai+=v;}
+      }
+      else if(org==='nota'||tipo==='entrada'){ r.qEnt+=q;r.vEnt+=v; }
+      else if(/contagem|ajuste|invent/i.test(nome)||org==='contagem'){
+        r.qAju+=ent?q:-q; r.vAju+=ent?v:-v;
+      }
+      else { r.qBai+=q; r.vBai+=v; }
+    });
+  });
+  var L=[];
+  Object.keys(M).forEach(function(k){
+    var r=M[k];
+    r.qFim=r.qIni+r.qEnt+r.qPro+r.qAju-r.qBai-r.qSai;
+    r.vFim=r.vIni+r.vEnt+r.vPro+r.vAju-r.vBai-r.vSai;
+    r.cmv=r.vSai;
+    r.grupo=(grupoIng(r.ins.grupoId)||{}).nome||'—';
+    r.movimentou=(r.qEnt||r.qPro||r.qAju||r.qBai||r.qSai||r.qIni);
+    L.push(r);
+  });
+  return L;
+}
+function telaCMV(){
+  if(!CV.de){var d=new Date();CV.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);CV.ate=hojeISO();}
+  var L=cmvCalcular(CV.de,CV.ate);
+  if(CV.grupo)L=L.filter(function(r){return r.ins.grupoId===CV.grupo});
+  if(CV.so==='mov')L=L.filter(function(r){return r.movimentou});
+  if(CV.so==='perda')L=L.filter(function(r){return r.vBai>0});
+  L.sort(function(a,b){return b.cmv-a.cmv});
+  var T=function(c){return L.reduce(function(a,r){return a+r[c]},0)};
+  var cmv=T('cmv');
+  $('content').innerHTML='<div class="ctWrap" style="max-width:none">'+
+   '<div class="ctTopo"><h1>CMV por Mercadoria</h1>'+
+    '<p>Custo da Mercadoria Vendida por confronto de estoque, item a item: '+
+    '<b>saldo inicial + entradas + produção + ajustes − baixas − saídas = saldo final</b>. '+
+    'É a conta que mostra para onde o dinheiro do estoque foi.</p></div>'+
+   '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'+
+    '<div class="f2" style="max-width:150px"><label>De</label><input type="date" id="cvDe" value="'+CV.de+'"></div>'+
+    '<div class="f2" style="max-width:150px"><label>Até</label><input type="date" id="cvAte" value="'+CV.ate+'"></div>'+
+    '<div class="f2"><label>Grupo</label><select onchange="CV.grupo=this.value;telaCMV()">'+
+     '<option value="">todos</option>'+(DB.gruposIng||[]).map(function(g){
+       return '<option value="'+g.id+'"'+(CV.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
+    '</select></div>'+
+    '<div class="f2"><label>Mostrar</label><select onchange="CV.so=this.value;telaCMV()">'+
+     '<option value="">todos os itens</option>'+
+     '<option value="mov"'+(CV.so==='mov'?' selected':'')+'>só quem movimentou</option>'+
+     '<option value="perda"'+(CV.so==='perda'?' selected':'')+'>só quem teve perda</option>'+
+    '</select></div>'+
+    '<button class="btnP2" style="height:30px" onclick="CV.de=$(\'cvDe\').value;CV.ate=$(\'cvAte\').value;telaCMV()">Aplicar</button>'+
+    '<button class="btnP2" style="height:30px" onclick="exportarCMV()">'+sv('file2',12)+' Exportar</button>'+
+   '</div>'+
+   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px">'+
+    '<div class="hpN"><span>Estoque inicial</span><b>R$ '+money(T('vIni'))+'</b></div>'+
+    '<div class="hpN"><span>Entradas</span><b class="vg">+ '+money(T('vEnt'))+'</b></div>'+
+    '<div class="hpN"><span>Produção</span><b class="vg">+ '+money(T('vPro'))+'</b></div>'+
+    '<div class="hpN"><span>Ajustes</span><b>'+(T('vAju')<0?'− ':'+ ')+money(Math.abs(T('vAju')))+'</b></div>'+
+    '<div class="hpN"><span>Perdas e baixas</span><b class="vr">− '+money(T('vBai'))+'</b></div>'+
+    '<div class="hpN dest4"><span>CMV (saídas por venda)</span><b class="vr">− '+money(cmv)+'</b></div>'+
+    '<div class="hpN"><span>Estoque final</span><b>R$ '+money(T('vFim'))+'</b></div>'+
+   '</div>'+
+   '<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
+    '<table class="fmTab"><thead><tr>'+
+     '<th style="width:70px">Código</th><th>Mercadoria</th><th style="width:150px">Grupo</th>'+
+     '<th style="width:50px">Un.</th>'+
+     '<th style="width:88px;text-align:right">Qtd ini.</th><th style="width:96px;text-align:right">R$ ini.</th>'+
+     '<th style="width:88px;text-align:right">Entradas</th><th style="width:88px;text-align:right">Produção</th>'+
+     '<th style="width:88px;text-align:right">Ajustes</th><th style="width:96px;text-align:right">Perdas</th>'+
+     '<th style="width:104px;text-align:right">CMV</th>'+
+     '<th style="width:88px;text-align:right">Qtd fim</th><th style="width:96px;text-align:right">R$ fim</th>'+
+     '<th style="width:70px;text-align:right">% CMV</th></tr></thead><tbody>'+
+    (L.length?L.map(function(r){
+      var ab=un(r.ins.unidade).ab;
+      return '<tr'+(r.qFim<-0.001?' style="background:#FFF4E0"':'')+'>'+
+      '<td>'+E(r.ins.codigo||'—')+'</td><td><b>'+E(r.ins.nome)+'</b></td>'+
+      '<td><small>'+E(r.grupo)+'</small></td><td>'+ab+'</td>'+
+      '<td style="text-align:right">'+fmtQt(r.qIni)+'</td>'+
+      '<td style="text-align:right">'+money(r.vIni)+'</td>'+
+      '<td style="text-align:right" class="vg">'+(r.vEnt?money(r.vEnt):'—')+'</td>'+
+      '<td style="text-align:right" class="vg">'+(r.vPro?money(r.vPro):'—')+'</td>'+
+      '<td style="text-align:right">'+(r.vAju?money(r.vAju):'—')+'</td>'+
+      '<td style="text-align:right" class="vr">'+(r.vBai?money(r.vBai):'—')+'</td>'+
+      '<td style="text-align:right"><b class="vr">'+(r.cmv?money(r.cmv):'—')+'</b></td>'+
+      '<td style="text-align:right">'+fmtQt(r.qFim)+(r.qFim<-0.001?' ⚠':'')+'</td>'+
+      '<td style="text-align:right">'+money(r.vFim)+'</td>'+
+      '<td style="text-align:right">'+(cmv?((r.cmv/cmv*100).toFixed(1)+'%'):'—')+'</td></tr>';
+    }).join('')
+    :'<tr><td colspan="14" class="fmVazio">Nenhum item no período.</td></tr>')+
+   '</tbody></table></div>'+
+   '<div class="ctNota ctAt" style="max-width:900px;margin-top:12px">Linhas destacadas terminaram o '+
+   'período com <b>saldo negativo</b> — sinal de baixa sem estoque no passado. A trava de estoque '+
+   'da V7.4 impede que isso volte a acontecer.</div>'+
+  '</div>';
+  rodape(L.length+' mercadorias · CMV R$ '+money(cmv));
+}
+function exportarCMV(){
+  var L=cmvCalcular(CV.de,CV.ate);
+  var l=[['Codigo','Mercadoria','Grupo','Un','QtdIni','CustoIni','QtdEnt','CustoEnt','QtdProd','CustoProd',
+          'QtdAjuste','CustoAjuste','QtdBaixa','CustoBaixa','QtdSaida','CMV','QtdFim','CustoFim']];
+  L.forEach(function(r){l.push([r.ins.codigo||'',r.ins.nome,r.grupo,un(r.ins.unidade).ab,
+    r.qIni,r.vIni,r.qEnt,r.vEnt,r.qPro,r.vPro,r.qAju,r.vAju,r.qBai,r.vBai,r.qSai,r.cmv,r.qFim,r.vFim]
+    .map(function(c){return typeof c==='number'?String(+c.toFixed(4)).replace('.',','):c}))});
+  var csv=l.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
+  var b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='nexor-cmv-'+CV.de+'-a-'+CV.ate+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(function(){a.remove()},400);toast('CMV exportado.');
+}
 
 /* ==========================================================
    CARGA INICIAL — dados vindos das planilhas da Jolo Santa Fe
