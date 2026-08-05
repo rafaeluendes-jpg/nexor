@@ -10308,9 +10308,7 @@ var MOD=[
  {id:'comparativo-anual',n:'Comparativo Anual e Mensal'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
  {id:'cfg-loja',n:'Dados da Loja'},
- {id:'backup',n:'Backup e Restauração'},
  {id:'carga-inicial',n:'Importar Dados'},
- {id:'reset-sistema',n:'Dados de Teste e Reinício'},
  {id:'cfg-sucursais',n:'Sucursais da Franquia'},
  {id:'cfg-operadores',n:'Operadores'},
  {id:'cfg-pdv',n:'Configuração do PDV'},
@@ -10330,7 +10328,9 @@ var MOD=[
 {id:'tecnico',n:'Administração',ic:'gear2',it:[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'clientes-nexor',n:'Clientes Nexor'},
- {id:'instalacao',n:'Assistente de Instalação'}]}
+ {id:'instalacao',n:'Assistente de Instalação'},
+ {id:'backup',n:'Backup e Restauração'},
+ {id:'reset-sistema',n:'Dados de Teste e Reinício'}]}
 ];
 /* telas exclusivas da franqueadora — franquia nao ve nem por permissao */
 /* ----------------------------------------------------------
@@ -10341,7 +10341,8 @@ var MOD=[
    FRANQUEADORA— o cliente que contratou. Manda na propria rede:
                  unidades, usuarios, dados, backup e importacao.
    ---------------------------------------------------------- */
-var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/clientes-nexor'];
+var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/clientes-nexor',
+  'tecnico/backup','tecnico/reset-sistema'];
 /* ----------------------------------------------------------
    MODULOS CONTRATADOS
    A lista vem do banco (tabela clientes_nexor) e e regravada a
@@ -10364,7 +10365,7 @@ function moduloContratado(mid){
   if(MODULOS_BASE.indexOf(mid)<0)return true;
   return c.modulos.indexOf(mid)>=0;
 }
-var SO_FRANQUEADORA=['loja/carga-inicial','loja/backup','loja/reset-sistema'];
+var SO_FRANQUEADORA=['loja/carga-inicial'];
 var MOD_PLATAFORMA=['tecnico'];   /* modulo inteiro: so o dono do Nexor */
 var ADM_MESTRE='rafael@uendes.com';
 /* quem e a plataforma nao depende de marcacao guardada: e o login, e so ele.
@@ -11519,7 +11520,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.9.1';
+var VERSAO='V8.9.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11582,13 +11583,12 @@ if(mid==='estoque'&&iid==='historico-posicao'){
   return telaHistPosicao();
 }
 if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
-if(mid==='loja'&&iid==='reset-sistema')return telaReset();
+if(mid==='tecnico'&&iid==='reset-sistema')return telaReset();
 if(mid==='tecnico'&&iid==='central-tecnica')return telaCentralTecnica();
-if(mid==='loja'&&iid==='backup')return telaBackup();
+if(mid==='tecnico'&&iid==='backup')return telaBackup();
 if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
 if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
-if(mid==='loja'&&iid==='reset-sistema')return telaReset();
 if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
 if(mid==='teste'&&iid==='reset-sistema')return telaReset();
 if(mid==='financeira'&&iid==='acerto-entregadores')return telaAcertos();
