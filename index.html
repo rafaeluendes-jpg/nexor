@@ -11379,7 +11379,11 @@ function entrar(){
     abrirSessao();
     return;
   }
-  $('lgE').textContent='Usuário ou senha inválidos.';
+  var lst=(DB.usuarios||[]).filter(function(x){return x.ativo!==false})
+    .map(function(x){return x.login}).filter(Boolean);
+  $('lgE').innerHTML='Usuário ou senha inválidos.'+
+    (lst.length?'<br><small style="opacity:.85">acessos deste aparelho: '+
+      lst.map(function(x){return E(x)}).join(' · ')+'</small>':'');
   sacode();
 }
 function sacode(){
@@ -11393,7 +11397,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){var p=$('pal');if(p)p.remove();var m=$('mdOv');if(m)m.remove();fecharPops();fecharDrop();fecharSuc();}
 });
 function sair(){
-  if(!confirm('Encerrar a sessão?'))return;
+  if(!confirm('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
   try{localStorage.removeItem('nexor_sessao')}catch(e){}
   SESSAO.usuarioId=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');
@@ -11423,7 +11427,12 @@ $('hdr').innerHTML='<div class="hMk">N</div><div class="hNm">NEXOR</div><div cla
 '<button class="hIc" onclick="toast(\'Nenhuma notificação no momento.\')">'+sv('bell',18)+'<span class="hBadge">0</span></button>'+
 '<span class="rtTag" id="rtTag"><i></i>tempo real</span>'+
 '<button class="hIc" id="btnNuvem" onclick="painelNuvem()" title="Banco de dados">'+sv('cloud',18)+'</button>'+'<button class="hIc" onclick="dev()">'+sv('help',18)+'</button>'+
-'<div class="hUsr"><div class="hAv">A</div><div><b>Administrador</b><span>acesso total</span></div>'+
+(function(){var u=usuarioLogado()||{};
+  var nm=u.login||u.nome||'sem sessão';
+  var pp=ehPlataforma()?'dono do Nexor':(u.tudo||u.mestre?'franqueadora — acesso total':
+    (u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
+  return '<div class="hUsr"><div class="hAv">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
+   '<div><b>'+E(nm)+'</b><span>'+pp+'</span></div>';})()+
 '<button class="hPwr" onclick="sair()" title="Sair">'+sv('out',14)+'</button></div>';
 }
 function faixa(){
@@ -11507,7 +11516,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.8.0';
+var VERSAO='V8.8.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
