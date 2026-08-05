@@ -10148,6 +10148,29 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .rdCard{cursor:pointer;transition:border-color .12s}
 .rdCard:hover{border-color:var(--acc,#00806F)}
 .rdNova{border-style:dashed;color:var(--ink-3)}
+.rsGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:16px}
+.rsBloco{background:#fff;border:1px solid var(--line,#dcdce3);border-radius:8px;overflow:hidden}
+.rsBlocoH{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;
+  background:var(--alt,#f5f5f8);border-bottom:1px solid var(--line,#dcdce3);
+  font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-3,#7a7a86)}
+.rsBlocoH em{font-style:normal;font-weight:700;font-size:13px;color:var(--ink,#1c1c22)}
+.rsL{display:flex;justify-content:space-between;gap:10px;padding:6px 12px;font-size:12.5px;
+  border-bottom:1px solid var(--line-2,#eef0f3)}
+.rsL:last-child{border-bottom:0}
+.rsL b{font-variant-numeric:tabular-nums}
+.rsZero{color:var(--ink-3,#9a9aa4)}
+.rsOpcoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.rsCard{background:#fff;border:1px solid var(--line,#dcdce3);border-radius:8px;overflow:hidden;
+  display:flex;flex-direction:column}
+.rsPerigo{border-color:var(--red,#C94141)}
+.rsH{display:flex;gap:10px;align-items:center;padding:11px 13px;border-bottom:1px solid var(--line,#dcdce3)}
+.rsIc{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none}
+.rsH b{display:block;font-size:13.5px}
+.rsH span{font-size:11px;color:var(--ink-3,#7a7a86)}
+.rsB{padding:11px 13px;display:flex;flex-direction:column;flex:1}
+.rsNota{font-size:12px;line-height:1.55;color:var(--ink-2,#4a4a55);flex:1}
+.rsAviso{display:flex;gap:7px;align-items:flex-start;margin-top:9px;padding:8px 10px;border-radius:7px;
+  background:var(--red-soft,#FBE9E9);color:var(--red,#C94141);font-size:11.5px;line-height:1.45}
 .cnMods{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px;margin-top:6px}
 /* o detalhe embaixo do texto principal precisa de linha propria */
 .fmTab td small{display:block;font-size:10.5px;color:var(--ink-3,#7a7a86);line-height:1.35;margin-top:1px}
@@ -11520,7 +11543,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.9.2';
+var VERSAO='V9.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -21284,40 +21307,61 @@ function exportarHist(){
    ========================================================== */
 function telaReset(){
   baseMov();
-  var cont={
-    'Fichas técnicas':(DB.fichas||[]).length,
-    'Ingredientes':(DB.insumos||[]).length,
-    'Movimentações':(DB.movEst||[]).length,
-    'Contagens':(DB.contagens||[]).length,
-    'Pedidos':(DB.pedidos||[]).length,
-    'Clientes':(DB.clientes||[]).length,
-    'Lançamentos financeiros':(DB.lancFin||[]).length,
-    'Caixas':(DB.caixas||[]).length
-  };
-  $('content').innerHTML='<div class="finWrap" style="max-width:860px">'+
-  '<div class="finTop"><div><h1>Dados de Teste e Reinício</h1>'+
-  '<p>Limpe os dados de demonstração ou zere o sistema para começar do zero.</p></div></div>'+
-  '<div class="pnl2"><div class="pnl2H">O que existe hoje</div><div class="pnl2B">'+
-  '<div class="syncGrid">'+Object.keys(cont).map(function(k){
-    return '<div class="syncIt'+(cont[k]?' tem':'')+'"><span>'+E(k)+'</span><b>'+cont[k]+'</b></div>';
-  }).join('')+'</div></div></div>'+
-  '<div class="cfgCard"><div class="h"><div class="ic2">'+sv('trash',16)+'</div>'+
-  '<div><b>Apagar somente os dados de demonstração</b>'+
-  '<span>Remove os ingredientes e sabores de exemplo que o sistema criou</span></div></div>'+
-  '<div class="b"><button class="btnP2" onclick="limparDemo()">'+sv('trash',13)+' Apagar demonstração</button>'+
-  '<div class="hint" style="margin-top:9px">Não mexe no que você cadastrou.</div></div></div>'+
-  '<div class="cfgCard"><div class="h"><div class="ic2" style="background:var(--amber-soft);color:var(--amber)">'+sv('ref',16)+'</div>'+
-  '<div><b>Zerar movimento</b><span>Apaga pedidos, caixas, movimentações, contagens e lançamentos</span></div></div>'+
-  '<div class="b"><button class="btnP2" onclick="zerarMovimento()">Zerar movimento</button>'+
-  '<div class="hint" style="margin-top:9px">Mantém cadastros: cardápio, fichas, ingredientes, clientes e configurações.</div></div></div>'+
-  '<div class="cfgCard" style="border-color:var(--red)"><div class="h">'+
-  '<div class="ic2" style="background:var(--red-soft);color:var(--red)">'+sv('x2',16)+'</div>'+
-  '<div><b>Reiniciar o sistema</b><span>Apaga absolutamente tudo e volta ao estado inicial</span></div></div>'+
-  '<div class="b"><div class="avisoCfg" style="background:var(--red-soft);border-color:#F0C4C4;color:var(--red)">'+
-  sv('help',15)+'<div>Esta ação não pode ser desfeita. Baixe uma cópia dos dados antes, pelo ícone de nuvem.</div></div>'+
-  '<button class="btnP2 rdB" style="margin-top:12px" onclick="resetTotal()">Reiniciar tudo</button></div></div>'+
-  '</div>';
-  rodape();
+  var grupos=[
+    {t:'Cadastros',its:[['Ingredientes',(DB.insumos||[]).length],
+      ['Fichas técnicas',(DB.fichas||[]).length],
+      ['Grupos de ingredientes',(DB.gruposIng||[]).length],
+      ['Fornecedores',(DB.fornec||[]).length]]},
+    {t:'Cardápio',its:[['Categorias',(DB.categorias||[]).length],
+      ['Produtos',(DB.produtos||[]).length]]},
+    {t:'Movimento',its:[['Movimentações de estoque',(DB.movEst||[]).length],
+      ['Contagens',(DB.contagens||[]).length],
+      ['Notas de entrada',(DB.notas||[]).length],
+      ['Ordens de produção',(DB.ordensProd||[]).length]]},
+    {t:'Venda e financeiro',its:[['Pedidos',(DB.pedidos||[]).length],
+      ['Caixas',(DB.caixas||[]).length],
+      ['Lançamentos financeiros',(DB.lancFin||[]).length],
+      ['Clientes',(DB.clientes||[]).length]]}
+  ];
+  function opcao(cor,ic,titulo,sub,corpo,botao,acao,perigo){
+    return '<div class="rsCard'+(perigo?' rsPerigo':'')+'">'+
+     '<div class="rsH"><div class="rsIc" style="background:'+cor[0]+';color:'+cor[1]+'">'+sv(ic,16)+'</div>'+
+      '<div><b>'+titulo+'</b><span>'+sub+'</span></div></div>'+
+     '<div class="rsB">'+corpo+
+      '<button class="btnP2'+(perigo?' rdB':'')+'" style="margin-top:10px" onclick="'+acao+'">'+botao+'</button>'+
+     '</div></div>';
+  }
+  $('content').innerHTML='<div class="ctWrap" style="max-width:1080px">'+
+   '<div class="ctTopo"><h1>Dados de Teste e Reinício</h1>'+
+    '<p>O que existe hoje neste aparelho, e três formas de limpar — da mais leve para a mais radical. '+
+    'Cada uma diz exatamente o que apaga e o que preserva.</p></div>'+
+   '<div class="rsGrade">'+grupos.map(function(g){
+     var tot=g.its.reduce(function(a,x){return a+x[1]},0);
+     return '<div class="rsBloco"><div class="rsBlocoH">'+g.t+
+      '<em>'+tot+'</em></div>'+g.its.map(function(x){
+        return '<div class="rsL'+(x[1]?'':' rsZero')+'"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>';
+      }).join('')+'</div>';
+   }).join('')+'</div>'+
+   '<div class="rsOpcoes">'+
+    opcao(['var(--alt,#f2f3f7)','var(--ink-2,#4a4a55)'],'trash',
+      'Apagar a demonstração','só os itens de exemplo que o sistema criou',
+      '<div class="rsNota">Preserva tudo que você cadastrou. É o passo natural depois de testar o sistema.</div>',
+      'Apagar demonstração','limparDemo()')+
+    opcao(['#FFF4E0','#7A4C05'],'ref',
+      'Zerar o movimento','apaga o que aconteceu, mantém o que é cadastro',
+      '<div class="rsNota"><b class="vr">Apaga:</b> pedidos, caixas, movimentações, contagens, '+
+      'notas de entrada e lançamentos financeiros.<br>'+
+      '<b class="vg">Mantém:</b> cardápio, fichas, ingredientes, clientes e configurações.</div>',
+      'Zerar movimento','zerarMovimento()')+
+    opcao(['var(--red-soft,#FBE9E9)','var(--red,#C94141)'],'x2',
+      'Reiniciar o sistema','volta ao estado de fábrica',
+      '<div class="rsNota"><b class="vr">Apaga absolutamente tudo</b> — cadastros, cardápio, '+
+      'movimento, financeiro e configurações.<br>Não dá para desfazer.</div>'+
+      '<div class="rsAviso">'+sv('help',14)+'<div>Faça um backup antes, em '+
+      '<b>Administração › Backup e Restauração</b>.</div></div>',
+      'Reiniciar tudo','resetTotal()',true)+
+   '</div></div>';
+  rodape('reinício do sistema');
 }
 function limparDemo(){
   if(!confirm('Apagar os ingredientes e sabores de demonstração?'))return;
