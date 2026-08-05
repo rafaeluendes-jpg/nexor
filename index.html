@@ -1640,6 +1640,18 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.avisoPg{display:flex;align-items:flex-start;gap:6px;margin-top:12px;padding:9px 11px;
+  background:var(--alt);border:1px solid var(--line);border-radius:6px;
+  font-size:11.5px;color:var(--ink-2);line-height:1.45}
+.avisoPg svg{flex:none;margin-top:2px;color:var(--acc-d)}
+.pgTopo{display:flex;align-items:center;gap:11px;padding:12px;background:var(--alt);
+  border:1px solid var(--line);border-radius:8px}
+.pgTopo .pgIc{width:38px;height:38px;flex:none;border-radius:9px;background:#fff;
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--acc-d)}
+.pgTopo .pgTx{flex:1;min-width:0}
+.pgTopo .pgTx b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgTopo .pgTx small{display:block;color:var(--ink-3);font-size:11px;margin-top:2px}
+.pgTopo .pgVal{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .mvItTab td.mvCuFix{text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums;
   background:var(--alt)}
 .mvItTab input.mvOb{text-align:left;font-size:11.5px}
@@ -6218,6 +6230,18 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.avisoPg{display:flex;align-items:flex-start;gap:6px;margin-top:12px;padding:9px 11px;
+  background:var(--alt);border:1px solid var(--line);border-radius:6px;
+  font-size:11.5px;color:var(--ink-2);line-height:1.45}
+.avisoPg svg{flex:none;margin-top:2px;color:var(--acc-d)}
+.pgTopo{display:flex;align-items:center;gap:11px;padding:12px;background:var(--alt);
+  border:1px solid var(--line);border-radius:8px}
+.pgTopo .pgIc{width:38px;height:38px;flex:none;border-radius:9px;background:#fff;
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--acc-d)}
+.pgTopo .pgTx{flex:1;min-width:0}
+.pgTopo .pgTx b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgTopo .pgTx small{display:block;color:var(--ink-3);font-size:11px;margin-top:2px}
+.pgTopo .pgVal{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .mvItTab td.mvCuFix{text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums;
   background:var(--alt)}
 .mvItTab input.mvOb{text-align:left;font-size:11.5px}
@@ -11670,7 +11694,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.0.0';
+var VERSAO='V10.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -15260,6 +15284,7 @@ function metodoNome(id){var f=formaPag(id);return f?f.nome:'—'}
 function contaNome(id){var c=(DB.contas||[]).find(function(x){return x.id===id});return c?c.nome:'—'}
 function iconeConta(id){
   var c=(DB.contas||[]).find(function(x){return x.id===id});
+  if(!id)return '<span class="ctMini" style="background:#C7D0DA" title="banco definido no pagamento">–</span>';
   if(!c)return '<span class="ctMini" style="background:#B7C4D2">?</span>';
   var b=c.fixa?null:banco(c.banco);
   var cor=c.fixa==='caixa'?'#0E8A46':c.fixa==='cofre'?'#5C6B80':(b?b.c:'#5C6B80');
@@ -15545,21 +15570,88 @@ function selTodasLF(el){
 }
 function togglePago(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
+  if(!l)return;
   if(l.conciliado){toast('Movimento conciliado. Desconcilie na Conciliação Bancária para alterar.');return;}
-  l.pago=!l.pago;
-  l.pagamento=l.pago?(l.pagamento||hojeISO()):'';
+  /* pagar pede banco e forma no meio da tela; despagar e direto */
+  if(!l.pago){modalPagamento([id]);return;}
+  l.pago=false;l.pagamento='';
   salvar();telaLancamentos();
-  toast(l.pago?'Marcado como pago.':'Marcado como não pago.');
+  toast('Marcado como não pago.');
 }
 function mudarPago(v){
   var c=document.querySelectorAll('.chkLF:checked');
   if(!c.length){toast('Selecione os lançamentos na lista.');return;}
-  for(var i=0;i<c.length;i++){
-    var l=DB.lancFin.find(function(x){return x.id===c[i].getAttribute('data-id')});
-    l.pago=v;l.pagamento=v?(l.pagamento||hojeISO()):'';
-  }
+  var ids=[];
+  for(var i=0;i<c.length;i++)ids.push(c[i].getAttribute('data-id'));
+  if(v){modalPagamento(ids);return;}
+  var n=0;
+  ids.forEach(function(id){
+    var l=DB.lancFin.find(function(x){return x.id===id});
+    if(!l||l.conciliado)return;
+    l.pago=false;l.pagamento='';n++;
+  });
   salvar();telaLancamentos();
-  toast(c.length+' lançamento(s) marcado(s) como '+(v?'pago':'não pago')+'.');
+  toast(n+' lançamento(s) marcado(s) como não pago.');
+}
+/* ---------- CONFIRMAÇÃO DE PAGAMENTO ----------
+   O banco e a forma de pagamento se escolhem aqui, na hora de dar baixa,
+   e não no cadastro do lançamento. */
+function modalPagamento(ids){
+  baseLanc();
+  var ls=(ids||[]).map(function(id){return DB.lancFin.find(function(x){return x.id===id})})
+    .filter(function(l){return !!l});
+  var travados=ls.filter(function(l){return l.conciliado}).length;
+  ls=ls.filter(function(l){return !l.conciliado});
+  if(!ls.length){
+    toast(travados?'Movimento conciliado. Desconcilie na Conciliação Bancária para alterar.'
+                  :'Nada para pagar.');
+    return;
+  }
+  var prim=ls[0];
+  var tot=ls.reduce(function(a,l){return a+(l.tipo==='despesa'?-1:1)*(Number(l.valor)||0)},0);
+  var contas=(DB.contas||[]);
+  var formas=(DB.formasPag||[]).filter(function(f){return f.ativa!==false});
+  var cSel=prim.contaId||(contas.length===1?contas[0].id:'');
+  var mSel=prim.metodoId||(formas.length===1?formas[0].id:'');
+  var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
+   '<div class="pgTopo">'+
+    '<div class="pgIc">'+sv('cash',18)+'</div>'+
+    '<div class="pgTx"><b>'+E(ls.length>1?ls.length+' lançamentos selecionados':(prim.descricao||'—'))+'</b>'+
+     (ls.length===1&&(prim.fornecedor||prim.documento)
+      ?'<small>'+E(prim.fornecedor||'')+(prim.documento?' · doc '+E(prim.documento):'')+'</small>'
+      :'<small>vencimento '+dataBR(prim.vencimento)+'</small>')+'</div>'+
+    '<div class="pgVal '+(tot<0?'vr':'vg')+'">'+(tot<0?'- ':'')+'R$ '+money(Math.abs(tot))+'</div>'+
+   '</div>'+
+   (travados?'<div class="avisoPg">'+sv('help',12)+' <span>'+travados+
+     ' movimento(s) conciliado(s) ficaram de fora.</span></div>':'')+
+   '<div class="row2" style="margin-top:14px">'+
+    '<div class="fld2"><label>Banco / conta *</label><select id="pgC">'+
+     '<option value="">Selecione uma opção</option>'+
+     contas.map(function(c){return '<option value="'+c.id+'"'+(cSel===c.id?' selected':'')+'>'+
+       E(c.nome)+'</option>'}).join('')+
+    '</select></div>'+
+    '<div class="fld2"><label>Forma de pagamento * '+
+     '<a class="incNovo" onclick="abrir(\'financeira\',\'formas-pagamento\')">(incluir nova)</a></label>'+
+     '<select id="pgM"><option value="">Selecione uma opção</option>'+
+     formas.map(function(f){return '<option value="'+f.id+'"'+(mSel===f.id?' selected':'')+'>'+
+       E(f.nome)+'</option>'}).join('')+
+    '</select></div>'+
+   '</div>'+
+   '<div class="fld2" style="max-width:220px"><label>Dia do pagamento</label>'+
+    '<input id="pgD" type="date" value="'+(prim.pagamento||hojeISO())+'"></div>'+
+   '</div></div>';
+  modal(ls.length>1?'Dar baixa em '+ls.length+' lançamentos':'Confirmar pagamento',
+    h,'Confirmar pagamento',function(){
+    var c=$('pgC').value,m=$('pgM').value;
+    if(!c){toast('Selecione o banco / conta.');return false;}
+    if(!m){toast('Selecione a forma de pagamento.');return false;}
+    var d=$('pgD').value||hojeISO();
+    ls.forEach(function(l){l.pago=true;l.contaId=c;l.metodoId=m;l.pagamento=d;});
+    salvar();telaLancamentos();
+    toast((ls.length>1?ls.length+' lançamentos pagos':'Pago')+' — '+
+      contaNome(c)+' · '+metodoNome(m)+'.');
+    return true;
+  });
 }
 function excluirLanc(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
@@ -16751,29 +16843,42 @@ function modalLanc(id,tipoNovo,pre){
   var P=_preLanc||{};
   if(l&&l.conciliado){toast('Movimento conciliado — desconcilie na Conciliação Bancária para editar.');return;}
   var tipo=l?l.tipo:(tipoNovo||'despesa');
+  /* na conciliacao nao se troca receita/despesa: o movimento ja existe no banco */
+  var escondeTipo=(!l&&P.soDespesa)||!!P.deCB;
+  /* banco e forma de pagamento pertencem ao pagamento, nao ao lancamento:
+     so aparecem depois que a conta foi paga */
+  var mostraPg=!!(l&&l.pago);
+  /* lancamento que nasceu de uma nota de entrada: mostra o que foi comprado */
+  var notaL=(l&&l.origem==='nota-entrada'&&l.ref)
+    ?((DB.notas||[]).find(function(x){return x.id===l.ref})||null):null;
   var cats=[];
   (DB.catfin||[]).forEach(function(p){(p.itens||[]).forEach(function(it){
     cats.push({id:it.id,nome:p.nome+' › '+it.nome});});});
 
   var h='<div class="mdB">'+
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
-  '<div class="tipoRad"'+((!l&&P.soDespesa)?' style="display:none"':'')+'>'+
+  '<div class="tipoRad"'+(escondeTipo?' style="display:none"':'')+'>'+
    '<label class="radL"><input type="radio" name="lnT" value="receita"'+(tipo==='receita'?' checked':'')+'> Receita</label>'+
    '<label class="radL"><input type="radio" name="lnT" value="despesa"'+(tipo==='despesa'?' checked':'')+'> Despesa</label>'+
   '</div>'+
   /* compra de mercadoria e sempre despesa: nao se escolhe o tipo */
   ((!l&&P.soDespesa)?'<div class="tipoFixo">'+sv('dn',12)+' Compra de mercadoria — lançada como <b>despesa</b></div>':'')+
-  '<div class="row2" style="margin-top:12px">'+
-   '<div class="fld2"><label>Conta *</label><select id="lnC">'+
+  (P.deCB?'<div class="tipoFixo">'+sv('nike',12)+' Movimento do extrato — '+
+    (tipo==='receita'?'<b>receita</b>':'<b>despesa</b>')+', o tipo não muda por aqui</div>':'')+
+  (mostraPg
+  ?'<div class="row2" style="margin-top:12px">'+
+   '<div class="fld2"><label>Banco / conta *</label><select id="lnC">'+
     '<option value="">Selecione uma opção</option>'+
     (DB.contas||[]).map(function(c){return '<option value="'+c.id+'"'+((l&&l.contaId===c.id)||(!l&&P.contaId===c.id)?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
    '</select></div>'+
-   '<div class="fld2"><label>Método de pagamento <a class="incNovo" onclick="abrir(\'financeira\',\'formas-pagamento\')">(incluir novo)</a></label>'+
+   '<div class="fld2"><label>Forma de pagamento <a class="incNovo" onclick="abrir(\'financeira\',\'formas-pagamento\')">(incluir novo)</a></label>'+
    '<select id="lnM"><option value="">Selecione uma opção</option>'+
     (DB.formasPag||[]).filter(function(f){return f.ativa!==false}).map(function(f){
       return '<option value="'+f.id+'"'+(l&&l.metodoId===f.id?' selected':'')+'>'+E(f.nome)+'</option>'}).join('')+
    '</select></div>'+
-  '</div>'+
+  '</div>'
+  :'<div class="avisoPg">'+sv('help',12)+' <span>Banco e forma de pagamento são escolhidos '+
+   'na hora de dar baixa, no <b>joinha</b> da lista de lançamentos.</span></div>')+
   '<div class="fld2"><label>Descrição *</label><input id="lnD" maxlength="225" value="'+E(l?l.descricao:(P.descricao||''))+'" placeholder="ex: Pagamento NF 123 — Fornecedor X"></div>'+
   '<div class="row3">'+
    '<div class="fld2"><label>Valor *</label><div class="cur"><span>R$</span>'+
@@ -16796,7 +16901,7 @@ function modalLanc(id,tipoNovo,pre){
    '<div class="fld2"><label>Nº documento / NF</label><input id="lnDoc" value="'+E(l?l.documento:(P.documento||''))+'"></div>'+
   '</div>'+
   '<label class="chkL" style="margin-top:4px"><input type="checkbox" id="lnP" '+(l&&l.pago?'checked':'')+'>'+
-  '<span>Já está pago<small style="display:block;color:var(--ink-3)">marque para lançar a data de pagamento</small></span></label>'+
+  '<span>Já está pago<small style="display:block;color:var(--ink-3)">marque para informar o dia do pagamento</small></span></label>'+
   '<div class="fld2" id="boxPg" style="'+(l&&l.pago?'':'display:none')+'"><label>Data do pagamento</label>'+
    '<input id="lnPg" type="date" value="'+(l&&l.pagamento?l.pagamento:hojeISO())+'"></div>'+
   '</div>'+
@@ -16828,13 +16933,36 @@ function modalLanc(id,tipoNovo,pre){
    '</div>'+
    '<div class="prevBox" id="prevParc"></div>'+
   '</div></div>')+
+  (notaL
+  ?'<div class="blk" style="margin:0 0 11px;max-width:none;padding:0;overflow:hidden">'+
+   '<div class="acTit">Itens comprados nesta nota'+
+    (notaL.numero?' — NF '+E(notaL.numero):'')+
+    (notaL.fornecedorNome?' · '+E(notaL.fornecedorNome):'')+
+    (notaL.data?' · '+dataBR(notaL.data):'')+'</div>'+
+   ((notaL.itens||[]).length
+    ?'<table class="acTab"><thead><tr><th>Item</th>'+
+     '<th style="width:120px;text-align:right">Quantidade</th>'+
+     '<th style="width:110px;text-align:right">Valor un.</th>'+
+     '<th style="width:110px;text-align:right">Total</th></tr></thead><tbody>'+
+     notaL.itens.map(function(it){
+       return '<tr><td><b>'+E(it.nome)+'</b>'+
+       (it.desconto?'<small style="display:block;color:var(--ink-3)">desconto R$ '+money(it.desconto)+'</small>':'')+'</td>'+
+       '<td style="text-align:right">'+fmtQt(it.qtd)+' '+un(it.unidade).ab+'</td>'+
+       '<td style="text-align:right">R$ '+money(it.valorUn)+'</td>'+
+       '<td style="text-align:right"><b>R$ '+money(it.total)+'</b></td></tr>';}).join('')+
+     '</tbody><tfoot><tr><td colspan="3"><b>'+notaL.itens.length+' item(ns)</b></td>'+
+     '<td style="text-align:right"><b>R$ '+
+      money(notaL.itens.reduce(function(a,x){return a+(Number(x.total)||0)},0))+'</b></td></tr></tfoot></table>'
+    :'<div class="hint" style="padding:12px">Esta nota não tem itens registrados.</div>')+
+   '</div>'
+  :'')+
   '<div class="blk" style="margin:0;max-width:none">'+
   '<div class="fld2" style="margin:0"><label>Observação</label><input id="lnO" value="'+E(l?l.obs:'')+'"></div></div></div>';
 
   modal((l?'Editar lançamento':(P.titulo||(tipo==='receita'?'Nova receita':'Nova despesa'))),h,(P.botao||'Salvar'),function(){
     var d=$('lnD').value.trim();
     if(!d){toast('Informe a descrição.');return false;}
-    if(!$('lnC').value){toast('Selecione a conta.');return false;}
+    if($('lnC')&&!$('lnC').value){toast('Selecione o banco / conta.');return false;}
     if(!$('lnCat').value){toast('Selecione a categoria.');return false;}
     var v=parseFloat($('lnV').value)||0;
     if(!v){toast('Informe o valor.');return false;}
@@ -16843,7 +16971,9 @@ function modalLanc(id,tipoNovo,pre){
     var fid=$('lnFid')?$('lnFid').value:'';
     var fo=(DB.fornec||[]).find(function(x){return x.id===fid});
     var forn=fo?fo.empresa:'';
-    var o={tipo:tp,contaId:$('lnC').value,metodoId:$('lnM').value,descricao:d,valor:v,
+    var o={tipo:tp,
+      contaId:($('lnC')?$('lnC').value:(l?(l.contaId||''):(P.contaId||''))),
+      metodoId:($('lnM')?$('lnM').value:(l?(l.metodoId||''):(P.metodoId||''))),descricao:d,valor:v,
       emissao:$('lnE').value||hojeISO(),vencimento:$('lnVc').value||hojeISO(),
       pagamento:pago?($('lnPg').value||hojeISO()):'',pago:pago,
       categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),obs:$('lnO').value};
@@ -16868,7 +16998,10 @@ function modalLanc(id,tipoNovo,pre){
     o.id=uid('lf');DB.lancFin.push(o);
     salvar();
     if(_preLanc&&_preLanc.apos){var cb2=_preLanc.apos;_preLanc=null;cb2([o]);return true;}
-    telaLancamentos();toast('Lançamento salvo.');
+    telaLancamentos();
+    /* nasceu ja pago e sem banco: pede o banco e a forma na hora */
+    if(o.pago&&!o.contaId){setTimeout(function(){modalPagamento([o.id])},80);return true;}
+    toast('Lançamento salvo.');
     return true;
   },'lg');
   $('lnP').onchange=function(){$('boxPg').style.display=this.checked?'':'none';};
@@ -17386,7 +17519,7 @@ function modalLancCB(id){
   var voltar=telaConciliacao;
   var antes=telaLancamentos;
   telaLancamentos=function(){voltar();telaLancamentos=antes;};
-  modalLanc(id);
+  modalLanc(id,null,{deCB:true});
 }
 function conciliarSelecionadas(){
   var n=0;

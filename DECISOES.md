@@ -66,6 +66,20 @@ Regras que passam a valer:
 - A **linha do tempo do histórico** ganhou a coluna **Custo médio** e mostra a
   observação de cada linha
 
+## Financeiro: banco e forma pertencem ao pagamento (V10.1.0)
+
+- **Dar entrada num lançamento não pede banco nem forma de pagamento.** Só o dia do
+  pagamento. Uma conta a pagar é uma obrigação; o banco só existe quando ela é paga
+- **O joinha abre a confirmação de pagamento no meio da tela**, com banco, forma de
+  pagamento e dia. Só depois de confirmar o lançamento fica pago
+- Desmarcar o pago é direto, sem janela, e o banco fica guardado para a próxima vez
+- Editar um lançamento **já pago** continua permitindo corrigir banco e forma
+- A nota de entrada continua levando a conta pré-escolhida para os seus boletos
+- Na **conciliação bancária**, editar não mostra mais receita/despesa — o tipo do
+  movimento aparece fixo, porque o dinheiro já saiu ou entrou no banco
+- Editar um lançamento que veio de **nota de entrada** mostra os **itens comprados**
+  naquela nota: quantidade, valor unitário, desconto e total
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
