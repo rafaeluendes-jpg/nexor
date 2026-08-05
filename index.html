@@ -10214,6 +10214,7 @@ var MOD=[
  {id:'contas-bancarias',n:'Contas Bancárias'},
  {id:'acerto-entregadores',n:'Acerto com Entregadores'},
  {id:'lancamentos-financeiros',n:'Lançamentos Financeiros'},
+ {id:'compras-sem-vinculo',n:'Compras sem Vínculo'},
  {id:'fluxo-caixa',n:'Fluxo de Caixa'},
  {id:'conciliacao-bancaria',n:'Conciliação Bancária'},
  {id:'fornecedores',n:'Fornecedores'},
@@ -10565,6 +10566,13 @@ var MAPA=[
     fornecedor_nome:x.fornecedorNome||null,data:x.data||null,hora:x.hora||null,
     valor_mercadorias:n(x.valorMercadorias),valor_total:n(x.valorTotal),
     recebida:x.receber!==false,pagamento:x.pagamento||{},itens:x.itens||[]}}},
+
+ {col:'comprasSemVinc',tab:'compras_sem_vinculo',espelha:true,
+  campos:function(x){return {nota_id:x.notaId||null,nota_numero:x.notaNumero||null,
+    fornecedor_nome:x.fornecedor||null,descricao:x.descricao||null,
+    documento:x.documento||null,valor:n(x.valor),vencimento:x.vencimento||null,
+    excluido_por:x.excluidoPor||null,excluido_em:x.excluidoEm||null,
+    dados:{itens:x.itens||[],lanc:x.lanc||null}}}},
 
  {col:'lancFin',     tab:'lancamentos_financeiros',
   campos:function(x){return {tipo:x.tipo,conta_id:fk('contas',x.contaId),
@@ -11072,6 +11080,12 @@ async function baixarDaNuvem(forcar){
     previsto:Number(x.previsto)||0,real:Number(x.real_produzido)||0,
     diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}});
 
+  var csvw=await api('compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
+  DB.comprasSemVinc=volta(csvw,function(x){return {id:x.ref_local||x.id,
+    notaId:x.nota_id||'',notaNumero:x.nota_numero||'',fornecedor:x.fornecedor_nome||'',
+    descricao:x.descricao||'',documento:x.documento||'',valor:Number(x.valor)||0,
+    vencimento:x.vencimento||'',excluidoPor:x.excluido_por||'',excluidoEm:x.excluido_em||'',
+    itens:(x.dados&&x.dados.itens)||[],lanc:(x.dados&&x.dados.lanc)||null}});
   var nt=await api('notas_entrada'+qs+'&order=data.desc&limit=1000');
   DB.notas=volta(nt,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     fornecedorId:mapaFo[x.fornecedor_id]||'',fornecedorNome:x.fornecedor_nome||'',
@@ -11353,7 +11367,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.4.2';
+var VERSAO='V7.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11423,6 +11437,7 @@ if(mid==='financeira'&&iid==='categorias-financeiras')return telaCatFin();
 if(mid==='financeira'&&iid==='contas-bancarias')return telaContas();
 if(mid==='financeira'&&iid==='formas-pagamento')return telaFormasPag();
 if(mid==='financeira'&&iid==='lancamentos-financeiros')return telaLancamentos();
+if(mid==='financeira'&&iid==='compras-sem-vinculo')return telaSemVinculo();
 if(mid==='financeira'&&iid==='fluxo-caixa')return telaFluxo();
 if(mid==='financeira'&&iid==='conciliacao-bancaria')return telaConciliacao();
 if(mid==='financeira'&&iid==='fornecedores')return telaFornecedores();
@@ -15239,9 +15254,145 @@ function mudarPago(v){
 function excluirLanc(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(l.conciliado){toast('Movimento conciliado — não pode ser excluído. Desconcilie primeiro.');return;}
+  /* lancamento de nota de entrada cuja nota ainda existe:
+     nao some — vai para Compras sem Vinculo, com quem e quando */
+  var nota=(l.origem==='nota-entrada'&&l.ref)
+    ?(DB.notas||[]).find(function(x){return x.id===l.ref}):null;
+  if(nota){
+    if(!confirm('Este boleto pertence à nota '+nota.numero+' ('+nota.fornecedorNome+'), que continua lançada.\n\n'+
+      'Ele será REMOVIDO do financeiro e registrado em\n'+
+      'Gestão Financeira › Compras sem Vínculo — com data, hora e usuário.\n\n'+
+      'Para excluir a compra inteira, exclua a NOTA em Notas de Entrada.\n\nContinuar?'))return;
+    arquivarSemVinculo(l,nota);
+    DB.lancFin=DB.lancFin.filter(function(x){return x.id!==id});
+    salvar();telaLancamentos();
+    toast('Boleto movido para Compras sem Vínculo.');
+    return;
+  }
   if(!confirm('Excluir "'+(l.descricao||'lançamento')+'"?'))return;
   DB.lancFin=DB.lancFin.filter(function(x){return x.id!==id});
   salvar();telaLancamentos();toast('Lançamento excluído.');
+}
+function arquivarSemVinculo(l,nota){
+  DB.comprasSemVinc=DB.comprasSemVinc||[];
+  var u=usuarioLogado();
+  DB.comprasSemVinc.push({id:uid('csv'),
+    notaId:nota?nota.id:(l.ref||''),notaNumero:nota?nota.numero:'',
+    fornecedor:nota?nota.fornecedorNome:(l.fornecedor||''),
+    descricao:l.descricao||'',documento:l.documento||'',
+    valor:Number(l.valor)||0,vencimento:l.vencimento||'',
+    itens:nota?(nota.itens||[]).map(function(it){
+      return {nome:it.nome,qtd:it.qtd,unidade:it.unidade,total:it.total}}):[],
+    excluidoPor:u?u.nome:'—',excluidoEm:new Date().toISOString(),
+    lanc:{tipo:l.tipo,contaId:l.contaId,metodoId:l.metodoId,categoriaId:l.categoriaId,
+      pago:!!l.pago,emissao:l.emissao,pagamento:l.pagamento||null}});
+}
+
+/* ==========================================================
+   COMPRAS SEM VINCULO
+   Boletos de nota de entrada excluidos sem excluir a nota.
+   ========================================================== */
+var CSV={de:'',ate:''};
+function telaSemVinculo(){
+  DB.comprasSemVinc=DB.comprasSemVinc||[];
+  if(!CSV.de){CSV.de=diasAtrasISO(90);CSV.ate=hojeISO();}
+  var lista=(DB.comprasSemVinc||[]).filter(function(c){
+    var d=(c.excluidoEm||'').slice(0,10);
+    if(CSV.de&&d<CSV.de)return false;
+    if(CSV.ate&&d>CSV.ate)return false;
+    return true;
+  }).sort(function(a,b){return (b.excluidoEm||'').localeCompare(a.excluidoEm||'')});
+  var tot=lista.reduce(function(a,c){return a+(Number(c.valor)||0)},0);
+  $('content').innerHTML='<div class="mvWrap">'+
+   '<div class="mvTopo"><h1>Compras sem Vínculo</h1><div style="flex:1"></div></div>'+
+   '<p style="margin:2px 0 12px;color:var(--ink-3);font-size:13px">Boletos de nota de entrada que foram excluídos do financeiro '+
+    '<b>sem excluir a nota</b>. A compra existe no estoque, mas ficou sem a conta a pagar.</p>'+
+   '<div style="display:flex;gap:10px;align-items:flex-end;margin:0 0 12px;flex-wrap:wrap">'+
+    '<div class="f2" style="max-width:150px"><label>De</label>'+
+     '<input type="date" id="csvDe" value="'+CSV.de+'"></div>'+
+    '<div class="f2" style="max-width:150px"><label>Até</label>'+
+     '<input type="date" id="csvAte" value="'+CSV.ate+'"></div>'+
+    '<button class="btnP2" style="height:30px;align-self:flex-end" onclick="filtraSemVinc()">Aplicar</button>'+
+    '<div style="flex:1"></div>'+
+    '<div class="ntTot dest6" style="align-self:flex-end"><span>'+lista.length+
+     ' boleto(s) · total</span><b>R$ '+money(tot)+'</b></div>'+
+   '</div>'+
+   (lista.length
+    ?'<div class="blk" style="max-width:none;padding:0;overflow:hidden">'+
+     '<table class="fmTab"><thead><tr>'+
+      '<th style="width:130px">Excluído em</th><th style="width:150px">Por</th>'+
+      '<th style="width:90px">Nota</th><th>Fornecedor</th><th>Descrição</th>'+
+      '<th style="width:110px">Vencimento</th>'+
+      '<th style="width:120px;text-align:right">Valor</th></tr></thead><tbody>'+
+     lista.map(function(c){
+       var dt=c.excluidoEm?dataBR(c.excluidoEm.slice(0,10))+' '+c.excluidoEm.slice(11,16):'—';
+       return '<tr style="cursor:pointer" onclick="verSemVinc(\''+c.id+'\')">'+
+       '<td>'+dt+'</td><td><b>'+E(c.excluidoPor||'—')+'</b></td>'+
+       '<td>'+E(c.notaNumero||'—')+'</td><td>'+E(c.fornecedor||'—')+'</td>'+
+       '<td>'+E(c.descricao||'—')+'</td>'+
+       '<td>'+(c.vencimento?dataBR(c.vencimento):'—')+'</td>'+
+       '<td style="text-align:right"><b>R$ '+money(c.valor)+'</b></td></tr>';
+     }).join('')+'</tbody></table></div>'
+    :'<div class="mvVazio" style="padding:64px">'+sv('check',26)+
+     '<b>Nenhuma compra sem vínculo</b>'+
+     '<span>Ótimo sinal: nenhum boleto de nota foi excluído sem excluir a nota.</span></div>');
+  rodape(lista.length+' registro(s)');
+}
+function filtraSemVinc(){CSV.de=$('csvDe').value;CSV.ate=$('csvAte').value;telaSemVinculo();}
+function verSemVinc(id){
+  var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  var notaExiste=(DB.notas||[]).some(function(n){return n.id===c.notaId});
+  var h='<div class="mdB">'+
+   '<div class="cfLinhas" style="margin-bottom:10px">'+
+    '<div class="cfL"><span>Nota de entrada</span><b>'+E(c.notaNumero||'—')+
+     (notaExiste?'':' <span class="vr">(a nota também foi excluída depois)</span>')+'</b></div>'+
+    '<div class="cfL"><span>Fornecedor</span><b>'+E(c.fornecedor||'—')+'</b></div>'+
+    '<div class="cfL"><span>Boleto</span><b>'+E(c.descricao||'—')+
+     (c.documento?' · '+E(c.documento):'')+'</b></div>'+
+    '<div class="cfL"><span>Valor</span><b>R$ '+money(c.valor)+'</b></div>'+
+    '<div class="cfL"><span>Vencimento</span><b>'+(c.vencimento?dataBR(c.vencimento):'—')+'</b></div>'+
+    '<div class="cfL"><span>Excluído por</span><b class="vr">'+E(c.excluidoPor||'—')+' — '+
+     (c.excluidoEm?dataBR(c.excluidoEm.slice(0,10))+' às '+c.excluidoEm.slice(11,16):'—')+'</b></div>'+
+   '</div>'+
+   '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">'+
+    '<div class="acTit">Itens da nota de origem</div>'+
+    '<table class="acTab"><thead><tr><th>Mercadoria</th>'+
+     '<th style="width:110px;text-align:right">Qtd</th>'+
+     '<th style="width:120px;text-align:right">Total</th></tr></thead><tbody>'+
+    ((c.itens||[]).length?c.itens.map(function(it){
+      return '<tr><td>'+E(it.nome)+'</td>'+
+      '<td style="text-align:right">'+fmtQt(it.qtd)+' '+un(it.unidade).ab+'</td>'+
+      '<td style="text-align:right">R$ '+money(it.total)+'</td></tr>';
+    }).join(''):'<tr><td colspan="3" class="semIns">sem itens registrados</td></tr>')+
+    '</tbody></table></div>'+
+   '<div class="hint" style="margin-top:10px">Para repor a conta a pagar, clique em '+
+    '<b>Relançar no financeiro</b> — o boleto volta como estava.</div>'+
+  '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox xl"><div class="mdH"><b>Compra sem vínculo — nota '+E(c.notaNumero||'')+'</b>'+
+   '<button class="mdX" onclick="fecharModal()">&times;</button></div>'+h+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
+   '<button class="btnP2 ok" onclick="relancarSemVinc(\''+c.id+'\')">Relançar no financeiro</button></div></div>';
+  document.body.appendChild(o);
+}
+function relancarSemVinc(id){
+  var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  if(!confirm('Relançar o boleto de R$ '+money(c.valor)+' no financeiro?\n\n'+
+    'Ele volta como conta a pagar e sai desta lista.'))return;
+  var lc=c.lanc||{};
+  DB.lancFin=DB.lancFin||[];
+  DB.lancFin.push({id:uid('lf'),tipo:lc.tipo||'despesa',contaId:lc.contaId||'',
+    contaDestinoId:'',metodoId:lc.metodoId||'',categoriaId:lc.categoriaId||'',categoriaTxt:'',
+    fornecedorId:'',fornecedor:c.fornecedor||'',descricao:c.descricao||('NF '+c.notaNumero),
+    documento:c.documento||'',valor:Number(c.valor)||0,
+    emissao:lc.emissao||hojeISO(),vencimento:c.vencimento||hojeISO(),
+    pagamento:lc.pagamento||null,pago:!!lc.pago,conciliado:false,dataConc:null,
+    origem:'nota-entrada',ref:c.notaId,obs:'relançado de Compras sem Vínculo'});
+  DB.comprasSemVinc=DB.comprasSemVinc.filter(function(x){return x.id!==id});
+  salvar();fecharModal();telaSemVinculo();
+  toast('Boleto relançado no financeiro.');
 }
 
 /* ---------- MENU DO + ---------- */
@@ -20500,19 +20651,26 @@ async function excluirNota(id){
     texto:'Fornecedor: '+n.fornecedorNome,
     linhas:[['Valor da nota','R$ '+money(n.valorTotal),''],
             ['Itens',String((n.itens||[]).length),'']],
-    aviso:'O estoque será devolvido e os lançamentos financeiros desta nota serão removidos.',
+    aviso:'Os lançamentos financeiros desta nota serão removidos junto.'+
+     '<label class="chkL" style="margin-top:10px;display:flex">'+
+      '<input type="checkbox" id="cfAjEst" checked>'+
+      '<span><b>Ajustar o estoque</b><small style="display:block;color:var(--ink-3)">'+
+      'devolve o que esta nota tinha lançado — ex.: o 1 kg de açúcar que entrou por ela sai do saldo</small></span></label>',
     ok:'Excluir nota',tipo:'perigo'});
   if(!ok)return;
-  var mov=(DB.movEst||[]).find(function(m){return m.id===n.movId});
-  if(mov){aplicarMovimento(mov,true);DB.movEst=DB.movEst.filter(function(m){return m.id!==n.movId});}
-  (n.itens||[]).forEach(function(it){
-    var i2=insumo(it.insumoId);
-    if(i2&&i2.compras)i2.compras=i2.compras.filter(function(c){return c.notaId!==n.id});
-  });
+  var ajusta=window._cfAjEst!==false;
+  if(ajusta){
+    var mov=(DB.movEst||[]).find(function(m){return m.id===n.movId});
+    if(mov){aplicarMovimento(mov,true);DB.movEst=DB.movEst.filter(function(m){return m.id!==n.movId});}
+    (n.itens||[]).forEach(function(it){
+      var i2=insumo(it.insumoId);
+      if(i2&&i2.compras)i2.compras=i2.compras.filter(function(c){return c.notaId!==n.id});
+    });
+  }
   DB.lancFin=(DB.lancFin||[]).filter(function(l){return !(l.ref===n.id&&l.origem==='nota-entrada')});
   DB.notas=DB.notas.filter(function(x){return x.id!==id});
   salvar();fecharModal();telaNotas();
-  toast('Nota excluída, estoque devolvido e financeiro limpo.');
+  toast('Nota excluída'+(ajusta?', estoque ajustado':', estoque mantido')+' e financeiro limpo.');
 }
 function exportarNotas(){
   baseNotas();
@@ -22596,6 +22754,8 @@ function confirmar(op){
     ov.innerHTML=h;
     document.body.appendChild(ov);
     window._respConfirma=function(v){
+      var chk=document.getElementById('cfAjEst');
+      window._cfAjEst=chk?chk.checked:undefined;
       var o=document.getElementById('cfOv');if(o)o.remove();
       window._respConfirma=null;
       resolve(v);
