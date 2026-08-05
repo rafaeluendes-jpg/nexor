@@ -124,6 +124,18 @@ botão de restaurar em Backup e Restauração.
   do cache. Agora recarrega com endereço novo (`?v=timestamp`), que realmente troca
 - Checagem a cada 45s (era 180s), na abertura e ao voltar para a aba
 
+## Menu do topo: exigia dois cliques (V10.3.1)
+
+`fecharDrop()` agendava `mnuBox.innerHTML=''` para 200ms depois, para dar tempo da
+animação de saída. Como `toggleDrop()` chamava `fecharDrop()` e logo em seguida
+desenhava o menu novo, essa limpeza atrasada apagava o menu recém-aberto. O menu
+aparecia e sumia sozinho — daí a impressão de precisar clicar duas ou três vezes.
+
+- Trocar de categoria não passa mais por `fecharDrop()`: troca o conteúdo direto
+- A limpeza atrasada só executa se, passados os 200ms, nenhum outro menu tiver aberto
+- Na troca, o menu aparece na hora, sem esperar o próximo quadro e sem escada de animação
+- A escada de animação na abertura caiu de até 416ms para no máximo 150ms
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

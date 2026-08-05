@@ -11833,17 +11833,25 @@ function ajustaAlturaDrop(){
   d.style.maxHeight=livre+'px';
 }
 window.addEventListener('resize',ajustaAlturaDrop);
+var _limpaDrop=null;
 function toggleDrop(mid){
 fecharSuc();
 if(S.aberto===mid){fecharDrop();return;}
-fecharDrop();
+/* Trocar de categoria NAO passa mais por fecharDrop().
+   Ele agendava um innerHTML='' para 200ms depois; como o menu novo era desenhado
+   na hora, essa limpeza atrasada apagava justamente o menu recem-aberto — e por
+   isso era preciso clicar duas ou tres vezes para a lista aparecer. */
+clearTimeout(_limpaDrop);
+var trocando=!!S.aberto;      /* ja havia um menu aberto: e troca, e tem de ser instantanea */
 var m=M(mid);S.aberto=mid;
 var btn=document.querySelector('.mIco[data-m="'+mid+'"]');
+if(!btn){S.aberto=null;return;}
 var h='<div class="mnu" id="mnu"><div class="mh">'+E(m.n)+'</div>';
 var vis=m.it.filter(function(t){return podeVer(mid,t.id)});
 for(var i=0;i<vis.length;i++){var t=vis[i];
+var atraso=trocando?0:Math.min(i*14,150);
 h+='<button data-m="'+mid+'" data-i="'+t.id+'"'+(t.id===S.it?' class="on"':'')+
-' style="transition-delay:'+(i*26)+'ms"><span class="mp"></span><span>'+E(t.n)+'</span>'+
+' style="transition-delay:'+atraso+'ms"><span class="mp"></span><span>'+E(t.n)+'</span>'+
 '<span class="ma">'+sv('cr',12)+'</span></button>';}
 if(!vis.length)h+='<div class="mnuVazio">Sem acesso liberado neste módulo</div>';
 h+='</div>';
@@ -11852,10 +11860,14 @@ var el=$('mnu');
 var r=btn.getBoundingClientRect(),rb=document.querySelector('.bandRow').getBoundingClientRect();
 var esq=r.left-rb.left;
 el.style.left=esq+'px';
+/* na troca o menu ja esta na tela: aparece na hora, sem esperar quadro nenhum */
+if(trocando){el.classList.add('op');}
 requestAnimationFrame(function(){
-  var fora=el.getBoundingClientRect().right-window.innerWidth+12;
-  if(fora>0)el.style.left=Math.max(6,esq-fora)+'px';
-  el.classList.add('op');
+  var e2=document.getElementById('mnu');
+  if(!e2)return;
+  var fora=e2.getBoundingClientRect().right-window.innerWidth+12;
+  if(fora>0)e2.style.left=Math.max(6,esq-fora)+'px';
+  e2.classList.add('op');
   ajustaAlturaDrop();
 });
 marcaIcones(mid);
@@ -11867,7 +11879,12 @@ function fecharDrop(){
 if(!S.aberto)return;
 S.aberto=null;
 var el=$('mnu');
-if(el){el.classList.remove('op');setTimeout(function(){$('mnuBox').innerHTML=''},200);}
+if(el){
+  el.classList.remove('op');
+  clearTimeout(_limpaDrop);
+  /* so limpa se, passados os 200ms da animacao, nenhum outro menu tiver sido aberto */
+  _limpaDrop=setTimeout(function(){ if(!S.aberto)$('mnuBox').innerHTML=''; },200);
+}
 marcaIcones(S.mod);
 }
 function marcaIcones(mid){var b=$('bandRow').querySelectorAll('.mIco');
@@ -11903,7 +11920,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.3.0';
+var VERSAO='V10.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
