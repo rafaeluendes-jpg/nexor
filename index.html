@@ -10145,6 +10145,9 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .ctFluxoL{margin:9px 0 4px;font-size:13.5px}
 .ctFluxo span{font-size:11.5px;color:var(--ink-3,#7a7a86)}
 .bkBotoes{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.rdCard{cursor:pointer;transition:border-color .12s}
+.rdCard:hover{border-color:var(--acc,#00806F)}
+.rdNova{border-style:dashed;color:var(--ink-3)}
 .cnMods{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px;margin-top:6px}
 /* o detalhe embaixo do texto principal precisa de linha propria */
 .fmTab td small{display:block;font-size:10.5px;color:var(--ink-3,#7a7a86);line-height:1.35;margin-top:1px}
@@ -11494,7 +11497,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.5.3';
+var VERSAO='V8.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -15825,99 +15828,174 @@ async function excluirCN(id){
    O Nexor nasce vazio. Aqui a rede e criada a partir do que
    o cliente digita — nenhum nome de empresa vive no codigo.
    ========================================================== */
-var INS={linhas:[]};
-function telaInstalacao(){
-  if(!INS.linhas.length){
-    INS.linhas=(DB.sucursais||[]).filter(function(x){return !x.matriz})
-      .map(function(x){return {nome:x.nome,cidade:x.cidade||'',uf:x.uf||'',login:'',id:x.id}});
-    if(!INS.linhas.length)INS.linhas=[{nome:'',cidade:'',uf:'',login:'',id:''}];
+var INS={rede:null};
+function baseRedes(){
+  DB.redes=DB.redes||[];
+  /* redes antigas: adota as sucursais soltas na primeira rede */
+  if(!DB.redes.length&&(DB.sucursais||[]).some(function(x){return !x.matriz})){
+    DB.redes.push({id:'rede_1',nome:DB.nomeRede||'Minha rede',dominio:DB.dominioRede||'',
+      login:'',senha:'123'});
+    (DB.sucursais||[]).forEach(function(x){if(!x.redeId&&!x.matriz)x.redeId='rede_1'});
   }
-  var mz=(DB.sucursais||[]).find(function(x){return x.matriz})||{};
+  return DB.redes;
+}
+function unidadesDaRede(id){
+  return (DB.sucursais||[]).filter(function(x){return x.redeId===id&&!x.matriz});
+}
+function soDom(t){ t=String(t||'').trim(); if(t.indexOf('@')>=0)t=t.split('@').pop(); return t.replace(/^\.+|\.+$/g,''); }
+function semAcento(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function apelidoLogin(n){return semAcento(n).toLowerCase().replace(/[^a-z0-9]/g,'')}
+
+function telaInstalacao(){
+  baseSuc();baseUsr();baseRedes();
+  if(INS.rede)return telaRedeAberta(INS.rede);
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo"><h1>Assistente de Instalação</h1>'+
-    '<p>O Nexor não vem com empresa nenhuma dentro. Informe aqui a rede <b>cliente</b> que vai usar '+
-    'o sistema — unidades e acessos são criados a partir do que você digitar, e a franqueadora dela '+
-    'passa a mandar na própria rede. A mesma instalação serve para qualquer cliente.</p></div>'+
+    '<p>Cada rede cliente é uma pasta. Clique para abrir e ver as unidades dela, criar acessos '+
+    'e editar. O Nexor não vem com rede nenhuma dentro — tudo é criado aqui.</p></div>'+
+   '<div class="ctGrade">'+
+    DB.redes.map(function(r){
+      var u=unidadesDaRede(r.id);
+      return '<div class="ctCard rdCard" onclick="INS.rede=\''+r.id+'\';telaInstalacao()">'+
+       '<div class="ctCardH"><b>'+E(r.nome)+'</b><span>'+(r.dominio?E(r.dominio):'sem domínio')+'</span></div>'+
+       '<div class="ctCardB">'+
+        ctLinha('Unidades',String(u.length))+
+        ctLinha('Acesso da matriz',r.login?E(r.login):'<span class="vr">não criado</span>')+
+        '<div class="hint" style="margin-top:8px">clique para abrir</div>'+
+       '</div></div>';
+    }).join('')+
+    '<div class="ctCard rdCard rdNova" onclick="novaRede()"><div class="ctCardB" '+
+     'style="display:flex;align-items:center;justify-content:center;min-height:120px;gap:8px">'+
+     sv('plus',16)+'<b>Nova rede cliente</b></div></div>'+
+   '</div></div>';
+  rodape(DB.redes.length+' rede(s)');
+}
+function novaRede(){
+  var n=prompt('Nome da rede cliente:','');
+  if(!n||!n.trim())return;
+  var d=prompt('Domínio dos acessos (só o domínio, ex.: jologelato.com):','')||'';
+  baseRedes();
+  var id='rede_'+Date.now().toString(36);
+  DB.redes.push({id:id,nome:n.trim(),dominio:soDom(d),login:'',senha:'123'});
+  salvar();INS.rede=id;telaInstalacao();
+}
+function telaRedeAberta(id){
+  var r=DB.redes.find(function(x){return x.id===id});
+  if(!r){INS.rede=null;return telaInstalacao();}
+  var u=unidadesDaRede(id);
+  var sug=r.dominio?('franqueadora@'+r.dominio):'';
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo">'+
+    '<button class="btnP2" onclick="INS.rede=null;telaInstalacao()">‹ todas as redes</button>'+
+    '<h1 style="margin-top:10px">'+E(r.nome)+'</h1>'+
+    '<p>A matriz manda na rede e cria os acessos das unidades. '+
+    'Aqui você define a matriz; os franqueados podem ser criados por ela depois.</p></div>'+
    '<div class="blk" style="max-width:760px">'+
-    '<div class="acTit">A rede</div>'+
+    '<div class="acTit">A matriz</div>'+
     '<div class="row3">'+
-     '<div class="fld2" style="flex:2"><label>Nome da rede / franqueadora</label>'+
-      '<input id="inRede" value="'+E(DB.nomeRede||mz.nome||'')+'" placeholder="ex.: Minha Gelateria"></div>'+
-     '<div class="fld2"><label>Domínio dos acessos</label>'+
-      '<input id="inDom" value="'+E(DB.dominioRede||'')+'" placeholder="ex.: minhagelateria.com"></div>'+
+     '<div class="fld2" style="flex:2"><label>Nome da rede</label>'+
+      '<input id="rdN" value="'+E(r.nome)+'"></div>'+
+     '<div class="fld2"><label>Domínio</label>'+
+      '<input id="rdD" value="'+E(r.dominio)+'" placeholder="jologelato.com">'+
+      '<div class="hint">só o domínio, sem @</div></div>'+
     '</div>'+
-    '<div class="hint">Os logins das unidades ficam como <b>unidade@domínio</b>.</div>'+
+    '<div class="row3">'+
+     '<div class="fld2" style="flex:2"><label>Login da matriz</label>'+
+      '<input id="rdL" value="'+E(r.login)+'" placeholder="'+E(sug||'franqueadora@dominio')+'"></div>'+
+     '<div class="fld2"><label>Senha</label><input id="rdS" value="'+E(r.senha||'123')+'"></div>'+
+    '</div>'+
+    '<button class="btnP2 ok" style="margin-top:8px" onclick="salvarMatriz(\''+id+'\')">Salvar matriz</button>'+
    '</div>'+
-   '<div class="blk" style="max-width:760px">'+
-    '<div class="acTit">As unidades</div>'+
-    '<table class="acTab"><thead><tr><th>Nome da unidade</th>'+
-     '<th style="width:150px">Cidade</th><th style="width:60px">UF</th>'+
-     '<th style="width:130px">Login</th><th style="width:40px"></th></tr></thead><tbody>'+
-    INS.linhas.map(function(l,k){
-      return '<tr><td><input value="'+E(l.nome)+'" oninput="INS.linhas['+k+'].nome=this.value;sugLogin('+k+')"></td>'+
-      '<td><input value="'+E(l.cidade)+'" oninput="INS.linhas['+k+'].cidade=this.value"></td>'+
-      '<td><input value="'+E(l.uf)+'" maxlength="2" oninput="INS.linhas['+k+'].uf=this.value.toUpperCase()"></td>'+
-      '<td><input id="inLg'+k+'" value="'+E(l.login)+'" oninput="INS.linhas['+k+'].login=this.value" placeholder="automático"></td>'+
-      '<td><button class="rBtn rd" onclick="INS.linhas.splice('+k+',1);telaInstalacao()">'+sv('trash',12)+'</button></td></tr>';
-    }).join('')+'</tbody></table>'+
-    '<button class="btnP2" style="margin-top:8px" onclick="INS.linhas.push({nome:\'\',cidade:\'\',uf:\'\',login:\'\',id:\'\'});telaInstalacao()">'+
+   '<div class="blk" style="max-width:900px">'+
+    '<div class="acTit">Unidades ('+u.length+')</div>'+
+    (u.length?'<table class="acTab"><thead><tr><th>Unidade</th><th style="width:150px">Cidade</th>'+
+     '<th style="width:56px">UF</th><th style="width:190px">Acesso</th><th style="width:80px"></th></tr></thead><tbody>'+
+     u.map(function(x){
+       var lg=(DB.usuarios||[]).find(function(z){return (z.sucursais||[]).indexOf(x.id)>=0});
+       return '<tr><td><b>'+E(x.nome)+'</b></td><td>'+E(x.cidade||'—')+'</td><td>'+E(x.uf||'—')+'</td>'+
+       '<td><small>'+(lg?E(lg.login):'<span class="vr">sem acesso</span>')+'</small></td>'+
+       '<td><button class="rBtn" onclick="editarUnidade(\''+id+'\',\''+x.id+'\')">'+sv('edit',12)+'</button>'+
+        '<button class="rBtn rd" onclick="apagarUnidade(\''+id+'\',\''+x.id+'\')">'+sv('trash',12)+'</button></td></tr>';
+     }).join('')+'</tbody></table>'
+    :'<div class="hint" style="padding:14px">Nenhuma unidade ainda.</div>')+
+    '<button class="btnP2" style="margin-top:10px" onclick="editarUnidade(\''+id+'\')">'+
      sv('plus',12)+' Adicionar unidade</button>'+
-   '</div>'+
-   '<div class="bkBotoes"><button class="btnP2 ok" onclick="criarRede()">Criar a rede</button></div>'+
-   '<div class="ctNota ctOk" style="max-width:760px">Cada unidade nasce com o perfil de franqueado e '+
-   'senha <b>123</b>, enxergando só a própria loja. A franqueadora enxerga todas. '+
-   'Rodar de novo <b>acrescenta</b> o que faltar, sem apagar nem mexer em senha já trocada.</div>'+
-  '</div>';
-  rodape('assistente de instalação');
+   '</div></div>';
+  rodape(E(r.nome)+' · '+u.length+' unidade(s)');
 }
-function semAcento(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
-function sugLogin(k){
-  var l=INS.linhas[k];if(!l||l.login)return;
-  var d=$('inDom')?$('inDom').value.trim():'';
-  var b=semAcento(l.nome).toLowerCase().replace(/[^a-z0-9]/g,'');
-  var el=$('inLg'+k);if(el&&b&&d)el.placeholder=b+'@'+d;
-}
-async function criarRede(){
-  var rede=$('inRede').value.trim(), dom=$('inDom').value.trim().replace(/^@/,'');
-  var uni=INS.linhas.filter(function(l){return l.nome.trim()});
-  if(!rede){toast('Informe o nome da rede.');return;}
-  if(!uni.length){toast('Informe ao menos uma unidade.');return;}
-  var ok=await confirmar({titulo:'Criar a rede '+rede,
-    texto:uni.length+' unidade(s) e os acessos de cada uma.',
-    linhas:uni.map(function(l){return [l.nome,(l.cidade||'—'),'']}),
-    aviso:'Nada é apagado: o que já existe é mantido.',ok:'Criar',tipo:'check'});
-  if(!ok)return;
-  baseSuc();baseUsr();
-  DB.nomeRede=rede;DB.dominioRede=dom;
-  var mz=DB.sucursais.find(function(x){return x.matriz});
-  if(mz){mz.nome=rede;mz.apelido='Franqueadora';}
-  uni.forEach(function(l,k){
-    var id=l.id;
-    if(!id){
-      id='suc_'+semAcento(l.nome).toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,14)+'_'+k;
-      if(!DB.sucursais.some(function(x){return x.id===id}))
-        DB.sucursais.push({id:id,nome:l.nome.trim(),apelido:l.nome.trim(),cnpj:'',telefone:'',
-          cidade:l.cidade.trim(),uf:l.uf.trim(),matriz:false,ativa:true,
-          cor:CORES_SUC[(k+1)%CORES_SUC.length]});
-    }
-    var lg=(l.login||'').trim().toLowerCase();
-    if(!lg&&dom)lg=semAcento(l.nome).toLowerCase().replace(/[^a-z0-9]/g,'')+'@'+dom;
-    if(!lg)return;
-    if(DB.usuarios.some(function(u){return (u.login||'').toLowerCase()===lg}))return;
-    var perm={};(MODELOS.franqueado||[]).forEach(function(x){perm[x]=true});
-    DB.usuarios.push({id:uid('usr'),nome:l.nome.trim(),login:lg,senha:'123',mestre:false,
-      ativo:true,tudo:false,sucursais:[id],permissoes:perm,criadoEm:new Date().toISOString()});
-  });
-  if(dom){
-    var lf='franqueadora@'+dom;
-    if(!DB.usuarios.some(function(u){return (u.login||'').toLowerCase()===lf}))
-      DB.usuarios.push({id:uid('usr'),nome:rede+' — Franqueadora',login:lf,senha:'123',
+function salvarMatriz(id){
+  var r=DB.redes.find(function(x){return x.id===id});if(!r)return;
+  r.nome=$('rdN').value.trim()||r.nome;
+  r.dominio=soDom($('rdD').value);
+  r.senha=$('rdS').value.trim()||'123';
+  var lg=($('rdL').value.trim()||(r.dominio?'franqueadora@'+r.dominio:'')).toLowerCase();
+  if(lg){
+    var ant=r.login;
+    r.login=lg;
+    var u=(DB.usuarios||[]).find(function(z){return (z.login||'').toLowerCase()===(ant||'').toLowerCase()});
+    if(u){u.login=lg;u.senha=r.senha;u.nome=r.nome+' — Matriz';}
+    else if(!(DB.usuarios||[]).some(function(z){return (z.login||'').toLowerCase()===lg}))
+      DB.usuarios.push({id:uid('usr'),nome:r.nome+' — Matriz',login:lg,senha:r.senha,
         mestre:false,plataforma:false,ativo:true,tudo:true,sucursais:[],permissoes:{},
         criadoEm:new Date().toISOString()});
   }
-  salvar();INS.linhas=[];
-  toast('Rede criada. Confira em Configuração da Loja › Usuários.');
-  telaInstalacao();
+  var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
+  if(mz&&DB.redes.length===1){mz.nome=r.nome;mz.apelido='Matriz';}
+  salvar();telaInstalacao();toast('Matriz salva.');
+}
+function editarUnidade(redeId,sucId){
+  var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
+  var x=sucId?(DB.sucursais||[]).find(function(z){return z.id===sucId}):null;
+  var lg=x?(DB.usuarios||[]).find(function(z){return (z.sucursais||[]).indexOf(x.id)>=0}):null;
+  var h='<div class="mdB">'+
+   '<div class="row3"><div class="fld2" style="flex:2"><label>Nome da unidade</label>'+
+    '<input id="unN" value="'+E(x?x.nome:'')+'" placeholder="ex.: '+E(r.nome)+' Jales"></div>'+
+    '<div class="fld2"><label>Cidade</label><input id="unC" value="'+E(x?x.cidade:'')+'"></div>'+
+    '<div class="fld2"><label>UF</label><input id="unU" maxlength="2" value="'+E(x?x.uf:'')+'"></div></div>'+
+   '<div class="row3"><div class="fld2" style="flex:2"><label>Login do franqueado</label>'+
+    '<input id="unL" value="'+E(lg?lg.login:'')+'" placeholder="'+(r.dominio?'gerado a partir do nome':'defina o domínio na matriz')+'"></div>'+
+    '<div class="fld2"><label>Senha</label><input id="unS" value="'+E(lg?lg.senha:'123')+'"></div></div>'+
+   '<div class="hint">Deixe o login em branco para o sistema montar como <b>unidade@'+(E(r.dominio)||'domínio')+'</b>.</div>'+
+  '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox"><div class="mdH"><b>'+(x?'Editar unidade':'Nova unidade')+'</b>'+
+   '<button class="mdX" onclick="fecharModal()">&times;</button></div>'+h+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Cancelar</button>'+
+   '<button class="btnP2 ok" onclick="salvarUnidade(\''+redeId+'\','+(x?"'"+x.id+"'":'null')+')">Salvar</button></div></div>';
+  document.body.appendChild(o);
+}
+function salvarUnidade(redeId,sucId){
+  var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
+  var nome=$('unN').value.trim();
+  if(!nome){toast('Informe o nome da unidade.');return;}
+  var x=sucId?(DB.sucursais||[]).find(function(z){return z.id===sucId}):null;
+  if(!x){
+    x={id:'suc_'+apelidoLogin(nome).slice(0,14)+'_'+Date.now().toString(36).slice(-4),
+       nome:nome,apelido:nome,cnpj:'',telefone:'',cidade:'',uf:'',matriz:false,ativa:true,
+       redeId:redeId,cor:CORES_SUC[(DB.sucursais.length)%CORES_SUC.length]};
+    DB.sucursais.push(x);
+  }
+  x.nome=nome;x.apelido=nome;x.cidade=$('unC').value.trim();x.uf=$('unU').value.trim().toUpperCase();
+  x.redeId=redeId;
+  var lg=($('unL').value.trim()||(r.dominio?apelidoLogin(nome)+'@'+r.dominio:'')).toLowerCase();
+  var sn=$('unS').value.trim()||'123';
+  if(lg){
+    var u=(DB.usuarios||[]).find(function(z){return (z.sucursais||[]).indexOf(x.id)>=0});
+    if(u){u.login=lg;u.senha=sn;u.nome=nome;}
+    else if(!(DB.usuarios||[]).some(function(z){return (z.login||'').toLowerCase()===lg})){
+      var perm={};(MODELOS.franqueado||[]).forEach(function(k){perm[k]=true});
+      DB.usuarios.push({id:uid('usr'),nome:nome,login:lg,senha:sn,mestre:false,plataforma:false,
+        ativo:true,tudo:false,sucursais:[x.id],permissoes:perm,criadoEm:new Date().toISOString()});
+    }
+  }
+  salvar();fecharModal();telaInstalacao();toast('Unidade salva.');
+}
+function apagarUnidade(redeId,sucId){
+  var x=(DB.sucursais||[]).find(function(z){return z.id===sucId});if(!x)return;
+  if(!confirm('Excluir a unidade "'+x.nome+'" e o acesso dela?\n\nOs dados já lançados nela não são apagados.'))return;
+  DB.sucursais=DB.sucursais.filter(function(z){return z.id!==sucId});
+  DB.usuarios=(DB.usuarios||[]).filter(function(z){return (z.sucursais||[]).indexOf(sucId)<0});
+  salvar();telaInstalacao();toast('Unidade removida.');
 }
 
 /* ==========================================================
