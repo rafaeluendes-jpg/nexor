@@ -11389,7 +11389,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.5.1';
+var VERSAO='V7.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -23469,7 +23469,50 @@ function baseSuc(){
   if(!DB.sucursais.length)
     DB.sucursais.push({id:'suc_matriz',nome:'Matriz',apelido:'Matriz',cnpj:'',
       cidade:'',uf:'',telefone:'',matriz:true,ativa:true,cor:'#00A08B'});
+  semearRedeJolo();
   return DB.sucursais;
+}
+/* ----------------------------------------------------------
+   REDE JOLO — sucursais e acessos padrao
+   Idempotente: confere antes de criar, nunca duplica e nunca
+   mexe em senha de usuario que ja existe.
+   ---------------------------------------------------------- */
+function semearRedeJolo(){
+  if(DB._redeJolo==='v1')return;
+  var SUCS=[
+    {id:'suc_sfs',       nome:'Jolô Santa Fé do Sul',apelido:'Santa Fé', cidade:'Santa Fé do Sul',uf:'SP',matriz:false},
+    {id:'suc_jales',     nome:'Jolô Jales',          apelido:'Jales',    cidade:'Jales',           uf:'SP',matriz:false},
+    {id:'suc_sorocaba',  nome:'Jolô Sorocaba',       apelido:'Sorocaba', cidade:'Sorocaba',        uf:'SP',matriz:false},
+    {id:'suc_saopaulo',  nome:'Jolô São Paulo',      apelido:'São Paulo',cidade:'São Paulo',       uf:'SP',matriz:false},
+    {id:'suc_petropolis',nome:'Jolô Petrópolis',     apelido:'Petrópolis',cidade:'Petrópolis',     uf:'RJ',matriz:false}
+  ];
+  SUCS.forEach(function(m,k){
+    if(DB.sucursais.some(function(x){return x.id===m.id}))return;
+    DB.sucursais.push({id:m.id,nome:m.nome,apelido:m.apelido,cnpj:'',telefone:'',
+      cidade:m.cidade,uf:m.uf,matriz:false,ativa:true,cor:CORES_SUC[(k+1)%CORES_SUC.length]});
+  });
+  /* a matriz ganha o nome da franqueadora */
+  var mz=DB.sucursais.find(function(x){return x.matriz});
+  if(mz&&mz.nome==='Matriz'){mz.nome='Jolô Franqueadora';mz.apelido='Franqueadora';}
+
+  DB.usuarios=DB.usuarios||[];
+  function garanteUsuario(login,nome,sucId,tudo){
+    if(DB.usuarios.some(function(u){return (u.login||'').toLowerCase()===login}))return;
+    var perm={};
+    if(!tudo)(MODELOS.franqueado||[]).forEach(function(k){perm[k]=true});
+    DB.usuarios.push({id:uid('usr'),nome:nome,login:login,senha:'123',
+      mestre:false,ativo:true,tudo:!!tudo,
+      sucursais:sucId?[sucId]:[],permissoes:perm,
+      criadoEm:new Date().toISOString(),origem:'rede-jolo'});
+  }
+  garanteUsuario('santafe@jologelato.com',   'Jolô Santa Fé do Sul','suc_sfs',false);
+  garanteUsuario('jales@jologelato.com',     'Jolô Jales',          'suc_jales',false);
+  garanteUsuario('sorocaba@jologelato.com',  'Jolô Sorocaba',       'suc_sorocaba',false);
+  garanteUsuario('saopaulo@jologelato.com',  'Jolô São Paulo',      'suc_saopaulo',false);
+  garanteUsuario('petropolis@jologelato.com','Jolô Petrópolis',     'suc_petropolis',false);
+  garanteUsuario('franqueadora@jologelato.com','Jolô Franqueadora', 'suc_matriz',true);
+  DB._redeJolo='v1';
+  salvar();
 }
 function sucAtivas(){return baseSuc().filter(function(s){return s.ativa!==false})}
 function sucNome(id){var s=baseSuc().find(function(x){return x.id===id});return s?s.nome:'—'}
@@ -26814,13 +26857,16 @@ function marcarTudoUsr(marcar){
 }
 var MODELOS={
  franqueado:['pdv/pdv','pdv/pedidos-online','cardapio/cfg-cardapio',
-   'financeiro/contas-pagar','financeiro/contas-receber','financeiro/fluxo-caixa',
-   'clientes/lista-clientes','estoque/movimentacao-estoque','estoque/posicao-estoque',
-   'estoque/contagem-estoque','estoque/producao','estoque/ficha-tecnica',
+   'financeira/lancamentos-financeiros','financeira/fluxo-caixa','financeira/fornecedores',
+   'financeira/frente-caixa','financeira/formas-pagamento',
+   'clientes/cadastro-clientes','clientes/cupons-clientes',
+   'estoque/producao','estoque/ficha-tecnica','estoque/ingredientes-insumos',
+   'estoque/movimentacao-estoque','estoque/posicao-estoque','estoque/contagem-estoque',
+   'estoque/historico-posicao','estoque/notas-entrada',
    'relatorios/faturamento-dia','relatorios/itens-vendidos','relatorios/vendas-periodo',
-   'relatorios/itens-consumidos','dashboard/faturamento','dashboard/canais-venda',
-   'dashboard/venda-data-hora'],
- caixa:['pdv/pdv','pdv/pedidos-online','clientes/lista-clientes']
+   'relatorios/itens-consumidos','relatorios/vendas-area-entrega','relatorios/vendas-forma-pagamento',
+   'dashboard/faturamento','dashboard/canais-venda','dashboard/venda-data-hora'],
+ caixa:['pdv/pdv','pdv/pedidos-online','clientes/cadastro-clientes']
 };
 function aplicarModelo(qual){
   var u=usrSel();if(!u)return;
