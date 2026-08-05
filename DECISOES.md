@@ -36,6 +36,36 @@ Exemplo do tipo de texto esperado:
 - Motivo de movimentação precisa ser do **tipo Produzir** para gerar produto acabado
 - Custo do destino = média ponderada do que foi realmente produzido
 
+## Movimentação de estoque (V10.0.0 — mudança estrutural)
+
+A tela **deixou de ser genérica e virou só baixa manual**. As quatro portas do estoque
+ficaram assim, cada uma com o seu lugar:
+
+| Movimento | Onde se faz |
+|---|---|
+| Entrada | Nota de entrada |
+| Produção | Ordem de produção |
+| Acerto de saldo | Contagem de estoque |
+| **Baixa manual** | **Movimentação de estoque** |
+
+Regras que passam a valer:
+
+- O botão **+** só aceita motivo do **tipo Saída**. Motivos de Entrada e Produzir
+  continuam existindo (o sistema e a produção usam), mas não aparecem mais nessa tela
+- A **observação saiu do cabeçalho e passou para cada linha** — cada item baixado tem
+  a sua própria justificativa. Lançamentos antigos continuam mostrando a observação
+  do cabeçalho, sem quebrar
+- O **custo não é mais digitado**: é sempre o custo médio ponderado do item, em campo
+  de leitura. Trocar a unidade recalcula o custo e **não mexe na quantidade digitada**
+- Baixar uma **ficha técnica** tira do estoque da própria ficha. Só a **produção**
+  explode a ficha nos ingredientes da receita
+- O seletor de itens só oferece o que realmente guarda estoque (insumo com controle
+  ligado, ficha marcada como estocável)
+- A busca do relatório filtra **a partir de 3 letras**, por nome, código, identificação
+  ou observação da linha. Nome inteiro ou código continua travando no item exato
+- A **linha do tempo do histórico** ganhou a coluna **Custo médio** e mostra a
+  observação de cada linha
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

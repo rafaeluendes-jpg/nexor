@@ -1640,6 +1640,9 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.mvItTab td.mvCuFix{text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums;
+  background:var(--alt)}
+.mvItTab input.mvOb{text-align:left;font-size:11.5px}
 .mvItTab tfoot td{padding:10px 8px;background:var(--alt);border-top:2px solid var(--line);font-size:12.5px}
 .mvItTab tr.mvAviso td{background:var(--alt);color:var(--ink-2);font-size:11px;padding:5px 8px 8px 8px;
   border-bottom:1px solid var(--line)}
@@ -6215,6 +6218,9 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.mvItTab td.mvCuFix{text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums;
+  background:var(--alt)}
+.mvItTab input.mvOb{text-align:left;font-size:11.5px}
 .mvItTab tfoot td{padding:10px 8px;background:var(--alt);border-top:2px solid var(--line);font-size:12.5px}
 .mvItTab tr.mvAviso td{background:var(--alt);color:var(--ink-2);font-size:11px;padding:5px 8px 8px 8px;
   border-bottom:1px solid var(--line)}
@@ -11664,7 +11670,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.9.1';
+var VERSAO='V10.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -19871,8 +19877,9 @@ function modalMotivo(id){
   '<div class="fld2"><label>Tipo *</label><select id="mtT"'+(m&&m.sistema?' disabled style="background:var(--alt)"':'')+'>'+
    TIPOS_MOV.map(function(t){return '<option value="'+t.id+'"'+(m&&m.tipo===t.id?' selected':'')+'>'+
      t.n+' — '+t.d+'</option>'}).join('')+'</select>'+
-   '<div class="hint" style="margin-top:6px">Para lançar produção de ficha técnica, '+
-   'o tipo precisa ser <b>Produzir</b>. Os outros tipos apenas somam ou subtraem.</div></div>'+
+   '<div class="hint" style="margin-top:6px">Só os motivos do tipo <b>Saída</b> aparecem na '+
+   'baixa manual de estoque. <b>Entrada</b> e <b>Produzir</b> ficam reservados para a nota de '+
+   'entrada, a ordem de produção e a contagem.</div></div>'+
   '<label class="chkL"><input type="checkbox" id="mtA" '+(!m||m.ativo!==false?'checked':'')+'>'+
   '<span>Ativo<small style="display:block;color:var(--ink-3)">aparece na lista ao lançar movimentação</small></span></label>'+
   '</div>'+
@@ -19996,7 +20003,9 @@ function aplicarMovimento(mov,desfazer){
 function montarLinhas(itens,tipo){
   var linhas=[];
   itens.forEach(function(it){
-    if(it.tipo==='ficha'){
+    var _obs=String(it.obs||'').trim();
+    /* so a producao explode a ficha em ingredientes; baixa manual sai do proprio item */
+    if(it.tipo==='ficha'&&tipo==='producao'){
       var f=(DB.fichas||[]).find(function(x){return x.id===it.refId});
       if(!f)return;
       var rend=Number(f.rendimento)||1;
@@ -20010,7 +20019,7 @@ function montarLinhas(itens,tipo){
         if(perda>0&&perda<100)q=q/(1-perda/100);
         linhas.push({insumoId:ins.id,nome:ins.nome,unidade:ci.unidade,qtd:+q.toFixed(4),
           custo:custoNaUnidade(ins,ci.unidade),direcao:'saida',origem:'ficha:'+f.id,
-          fichaId:f.id,fichaNome:f.nome});
+          fichaId:f.id,fichaNome:f.nome,obs:_obs});
       });
       /* entrada do produto acabado no destino */
       if(tipo==='producao'){
@@ -20022,16 +20031,19 @@ function montarLinhas(itens,tipo){
           var custoDest=qDest?+(((Number(it.qtd)||0)*custoPorUnidade(f))/qDest).toFixed(6):0;
           linhas.push({insumoId:dest.id,nome:dest.nome,
             unidade:(modoDestino(f)==='igual'&&fat===1?it.unidade:dest.unidade),qtd:qDest,
-            custo:custoDest,direcao:'entrada',origem:'producao:'+f.id,fichaNome:f.nome});
+            custo:custoDest,direcao:'entrada',origem:'producao:'+f.id,fichaNome:f.nome,obs:_obs});
         }
       }
     }else{
-      var i2=insumo(it.refId);
+      /* baixa direta: o item sai do proprio estoque.
+         O custo NUNCA vem digitado — e sempre o custo medio ponderado do item. */
+      var i2=itemEstoque(it.refId);
       if(!i2)return;
-      linhas.push({insumoId:i2.id,nome:i2.nome,unidade:it.unidade,qtd:Number(it.qtd)||0,
-        custo:(it.custo!==''&&it.custo!==undefined&&Number(it.custo)>0)
-              ?Number(it.custo):custoNaUnidade(i2,it.unidade),
-        direcao:(tipo==='entrada'?'entrada':'saida')});
+      var _eF=(i2.itens!==undefined&&i2.rendimento!==undefined);
+      var _u=it.unidade||(_eF?(i2.rendUnidade||i2.unidade):i2.unidade);
+      linhas.push({insumoId:i2.id,nome:i2.nome,unidade:_u,qtd:Number(it.qtd)||0,
+        custo:(_eF?custoDoItem(i2):custoNaUnidade(i2,_u)),
+        direcao:(tipo==='entrada'?'entrada':'saida'),obs:_obs});
     }
   });
   return linhas;
@@ -20039,6 +20051,16 @@ function montarLinhas(itens,tipo){
 
 /* ---------- RELATÓRIO DE MOVIMENTAÇÃO ---------- */
 var MV={de:'',ate:'',insumoId:'',grupo:'',motivoId:'',busca:''};
+var _mvBuscaT=null;
+/* filtro de texto do relatorio: nome, codigo, identificacao ou observacao da linha */
+function casaBuscaMov(l,m,ins){
+  if(!MV.busca)return true;
+  var q=MV.busca.toLowerCase();
+  return (l.nome||'').toLowerCase().indexOf(q)>=0
+      || (m.identificacao||'').toLowerCase().indexOf(q)>=0
+      || (l.obs||m.obs||'').toLowerCase().indexOf(q)>=0
+      || String((ins||{}).codigo||'').toLowerCase().indexOf(q)>=0;
+}
 function telaMovimentacao(){
   baseMov();
   if(!MV.de){MV.de=diasAtrasISO(30);MV.ate=hojeISO();}
@@ -20051,10 +20073,7 @@ function telaMovimentacao(){
       var ins=itemEstoque(l.insumoId);
       if(MV.insumoId&&l.insumoId!==MV.insumoId)return;
       if(MV.grupo&&(!ins||(ins.grupoId!==MV.grupo&&ins.categoriaId!==MV.grupo)))return;
-      if(MV.busca){
-        var q=MV.busca.toLowerCase();
-        if((l.nome||'').toLowerCase().indexOf(q)<0&&(m.identificacao||'').toLowerCase().indexOf(q)<0)return;
-      }
+      if(!casaBuscaMov(l,m,ins))return;
       linhas.push({m:m,l:l,ins:ins});
     });
   });
@@ -20066,7 +20085,7 @@ function telaMovimentacao(){
 
   $('content').innerHTML='<div class="mvWrap">'+
    '<div class="mvTopo">'+
-    '<button class="btnMais" onclick="modalMovimento()">'+sv('plus',20)+'</button>'+
+    '<button class="btnMais" title="Nova baixa manual" onclick="modalMovimento()">'+sv('plus',20)+'</button>'+
     '<h1>Movimentações de estoque</h1>'+
     '<div style="flex:1"></div>'+
     '<button class="btnP2" onclick="exportarMov()">'+sv('down2',13)+' Exportar</button>'+
@@ -20076,7 +20095,7 @@ function telaMovimentacao(){
     '<div class="f2" style="max-width:140px"><label>Até</label><input type="date" id="mvAte" value="'+MV.ate+'"></div>'+
     '<div class="f2" style="min-width:210px"><label>Item</label>'+
      '<input id="mvBusca" list="mvLista" placeholder="digite 3 letras ou o código" autocomplete="off" '+
-     'value="'+E(MV.insumoId?((itemEstoque(MV.insumoId)||{}).nome||''):'')+'">'+
+     'value="'+E(MV.insumoId?((itemEstoque(MV.insumoId)||{}).nome||''):(MV.busca||''))+'">'+
      '<datalist id="mvLista">'+
      itensEstoque().slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
        .map(function(i){return '<option value="'+E(i.nome)+'">'+E(i.codigo||'')+' · '+
@@ -20123,7 +20142,7 @@ function telaMovimentacao(){
       '<td style="text-align:right"><b>'+money(tot)+'</b></td>'+
       '<td class="obsC">'+(l.sistema!==undefined
         ?'sistema '+fmtQt(l.sistema)+' · contado '+fmtQt(l.conferido)
-        :E(m.obs||''))+'</td>'+
+        :E(l.obs||m.obs||''))+'</td>'+
       '<td><div class="rowAct">'+
        '<button class="rBtn" onclick="verMovimento(\''+m.id+'\')" title="Ver o lançamento">'+sv('eye',11)+'</button>'+
        (m.origem!=='venda'?'<button class="rBtn rd" onclick="excluirMov(\''+m.id+'\')" title="Excluir lançamento">'+sv('trash',11)+'</button>':'')+
@@ -20134,7 +20153,7 @@ function telaMovimentacao(){
     '<tr class="sub2"><td colspan="7">Entradas R$ '+money(totEnt)+' · Consumo R$ '+money(totSai)+'</td>'+
     '<td colspan="4"></td></tr></tfoot></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum registro encontrado</b>'+
-    '<span>Ajuste o período ou clique no <b>+</b> para lançar uma movimentação.</span></div>')+
+    '<span>Ajuste o período ou clique no <b>+</b> para lançar uma baixa manual.</span></div>')+
    '</div></div>';
   var mb=document.getElementById('mvBusca');
   if(mb){
@@ -20142,13 +20161,26 @@ function telaMovimentacao(){
       try{mb.setSelectionRange(mb.value.length,mb.value.length)}catch(e){}}
     mb.oninput=mb.onchange=function(){
       _focoBusca='mvBusca';
-      var t=String(this.value||'').trim().toLowerCase();
-      if(!t){ if(MV.insumoId){MV.insumoId='';telaMovimentacao();} return; }
+      var t=String(this.value||'').trim(), tl=t.toLowerCase();
+      clearTimeout(_mvBuscaT);
+      if(!t){
+        if(MV.insumoId||MV.busca){MV.insumoId='';MV.busca='';telaMovimentacao();}
+        return;
+      }
+      /* nome inteiro ou codigo: trava no item exato na hora */
       var l2=itensEstoque();
-      var a=l2.find(function(i){return (i.nome||'').toLowerCase()===t})
-          || l2.find(function(i){return String(i.codigo||'').toLowerCase()===t});
-      if(a){ if(a.id!==MV.insumoId){MV.insumoId=a.id;telaMovimentacao();} return; }
-      if(MV.insumoId){MV.insumoId='';telaMovimentacao();}
+      var a=l2.find(function(i){return (i.nome||'').toLowerCase()===tl})
+          || l2.find(function(i){return String(i.codigo||'').toLowerCase()===tl});
+      if(a){
+        if(a.id!==MV.insumoId||MV.busca){MV.insumoId=a.id;MV.busca='';telaMovimentacao();}
+        return;
+      }
+      /* a partir de 3 letras, busca parcial — sem precisar acertar o nome inteiro */
+      _mvBuscaT=setTimeout(function(){
+        var nova=(t.length>=3?t:'');
+        if(nova===MV.busca&&!MV.insumoId)return;
+        MV.insumoId='';MV.busca=nova;telaMovimentacao();
+      },260);
     };
   }
   rodape(linhas.length+' movimentações no período');
@@ -20177,7 +20209,8 @@ function verMovimento(id){
      arr.map(function(l){
        return '<tr><td><b>'+E(l.nome)+'</b>'+
        (l.fichaNome?'<small style="display:block;color:var(--ink-3)">'+
-         (l.direcao==='entrada'?'produzido a partir de ':'usado em ')+E(l.fichaNome)+'</small>':'')+'</td>'+
+         (l.direcao==='entrada'?'produzido a partir de ':'usado em ')+E(l.fichaNome)+'</small>':'')+
+       (l.obs?'<small style="display:block;color:var(--ink-3)">'+E(l.obs)+'</small>':'')+'</td>'+
        '<td style="text-align:right"><b class="'+cor+'">'+(l.direcao==='entrada'?'+':'-')+
         fmtQt(l.qtd)+' '+un(l.unidade).ab+'</b></td>'+
        '<td style="text-align:right">'+money(l.custo)+'</td>'+
@@ -20237,12 +20270,13 @@ function exportarMov(){
       var ins=itemEstoque(x.insumoId);
       if(MV.insumoId&&x.insumoId!==MV.insumoId)return;
       if(MV.grupo&&(!ins||ins.grupoId!==MV.grupo))return;
+      if(!casaBuscaMov(x,m,ins))return;
       var g=ins?grupoIng(ins.grupoId):null;
       l.push([dataBR(m.data),m.hora||'',x.nome,g?g.nome:'',nomeMotivo(m.motivoId),m.identificacao||'',
         x.direcao==='entrada'?String(x.qtd).replace('.',','):'',
         x.direcao==='saida'?String(x.qtd).replace('.',','):'',
         un(x.unidade).ab,String(x.custo).replace('.',','),
-        String(((Number(x.qtd)||0)*(Number(x.custo)||0)).toFixed(2)).replace('.',','),m.obs||'']);
+        String(((Number(x.qtd)||0)*(Number(x.custo)||0)).toFixed(2)).replace('.',','),x.obs||m.obs||'']);
     });
   });
   var csv=l.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
@@ -20255,9 +20289,22 @@ function exportarMov(){
 
 /* ---------- LANÇAMENTO ---------- */
 var _movItens=[];
+/* a baixa manual so aceita motivo do tipo Saida.
+   Entrada vem por nota fiscal, producao pela ordem de producao, acerto pela contagem. */
+function motivosBaixa(){
+  return (DB.motivosMov||[]).filter(function(m){
+    return motivoVisivel(m)&&!m.sistema&&tipoMotivo(m.id)==='saida';});
+}
 function modalMovimento(){
   baseMov();
-  _movItens=[{tipo:'',refId:'',unidade:'',qtd:0,custo:0}];
+  if(!motivosBaixa().length){
+    alert('Nenhum motivo de SAIDA cadastrado.\n\n'+
+      'Cadastre em Configuracao da Loja > Configuracao de Movimentacao de Estoque.\n\n'+
+      'Esta tela so faz baixa manual: entrada vem por nota de entrada, producao pela '+
+      'ordem de producao e acerto de saldo pela contagem de estoque.');
+    return;
+  }
+  _movItens=[{tipo:'',refId:'',unidade:'',qtd:0,custo:0,obs:''}];
   _movMotivo='';_movIdent='';_movObs='';_movData=hojeISO();_movHora=agoraHM();
   desenhaMovimento();
 }
@@ -20272,65 +20319,54 @@ function desenhaMovimento(){
   var tipoAtual=_movMotivo?tipoMotivo(_movMotivo):'';
 
   var h='<div class="mvMod">'+
-   '<div class="mvH"><div><b>Movimentações de estoque</b>'+
-    '<span>Novo lançamento'+(tipoAtual==='producao'
-      ?' · <i class="avPeq">'+sv('help',11)+' produzir baixa os ingredientes da ficha e gera estoque no destino do grupo</i>'
-      :'')+'</span></div>'+
+   '<div class="mvH"><div><b>Baixa manual de estoque</b>'+
+    '<span>Só saída, com motivo cadastrado · entrada vem por nota de entrada, '+
+    'produção pela ordem de produção, acerto pela contagem</span></div>'+
     '<button onclick="fecharMov()">&times;</button></div>'+
    '<div class="mvCab">'+
     '<div class="f2"><label>Data de movimentação</label><input type="date" id="mvD" value="'+(_movData||hojeISO())+'"></div>'+
     '<div class="f2" style="max-width:110px"><label>Hora</label><input type="time" id="mvH" value="'+(_movHora||agoraHM())+'"></div>'+
-    '<div class="f2"><label>Motivo *</label><select id="mvM" onchange="mudouMotivo(this)">'+
+    '<div class="f2"><label>Motivo da baixa *</label><select id="mvM" onchange="mudouMotivo(this)">'+
      '<option value="">Selecione uma opção</option>'+
-     (DB.motivosMov||[]).filter(function(m){return motivoVisivel(m)&&!m.sistema}).map(function(m){
+     motivosBaixa().map(function(m){
        return '<option value="'+m.id+'"'+(_movMotivo===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
     '</select></div>'+
-    '<div class="f2" style="max-width:150px"><label>Identificação</label>'+
+    '<div class="f2" style="max-width:190px"><label>Identificação</label>'+
      '<input id="mvI" value="'+E(_movIdent)+'" placeholder="lote, nota"></div>'+
-    '<div class="f2"><label>Observação</label><input id="mvO" value="'+E(_movObs)+'"></div>'+
    '</div>'+
    '<div class="mvItens">'+
     '<table class="mvItTab"><thead><tr>'+
-     '<th>Ingrediente / ficha técnica</th>'+
-     '<th style="width:150px">Unidade</th>'+
-     '<th style="width:110px;text-align:right">Qtd.</th>'+
-     '<th style="width:110px;text-align:right">Custo</th>'+
-     '<th style="width:120px;text-align:right">Valor total</th>'+
+     '<th>Item de estoque</th>'+
+     '<th style="width:118px">Unidade</th>'+
+     '<th style="width:96px;text-align:right">Qtd.</th>'+
+     '<th style="width:104px;text-align:right">Custo médio</th>'+
+     '<th style="width:110px;text-align:right">Valor total</th>'+
+     '<th style="width:220px">Observação</th>'+
      '<th style="width:50px;text-align:center">Ações</th></tr></thead><tbody>'+
     _movItens.map(function(it,k){
-      var val=(it.tipo?it.tipo+':'+it.refId:'');
       var base=it.tipo==='insumo'?insumo(it.refId):null;
       var f=it.tipo==='ficha'?(DB.fichas||[]).find(function(x){return x.id===it.refId}):null;
       var uBase=base?un(base.unidade).base:(f?un(f.rendUnidade||f.unidade).base:null);
+      var alvo=it.refId?itemEstoque(it.refId):null;
       return '<tr>'+
       '<td><button class="selItem'+(it.refId?' ok3':'')+'" data-pop="1" onclick="abrirPickItem(event,'+k+')">'+
        '<span>'+(it.refId?E(nomeItem(it)):'Selecione...')+'</span>'+sv('dn',12)+'</button>'+
-       (function(){
-         if(it.tipo!=='ficha')return '';
-         var f3=(DB.fichas||[]).find(function(x){return x.id===it.refId});
-         var d3=f3?destinoDaFicha(f3):null;
-         if(tipoAtual&&tipoAtual!=='producao')
-           return '<div class="destInfo"><span class="vr">'+sv('help',11)+
-             ' o motivo escolhido não é do tipo <b>Produzir</b> — os ingredientes serão baixados '+
-             'e <b>nada será gerado</b></span></div>';
-         return '<div class="destInfo">'+(d3
-           ? sv('cr',11)+' gera estoque em <b>'+E(d3.nome)+'</b>'+
-             (modoDestino(f3)==='receita'?' ('+fmtQt(fatorDestino(f3))+' un por receita)':'')
-           : '<span class="vr">'+sv('help',11)+' esta ficha não gera estoque</span>')+'</div>';
-       })()+'</td>'+
+       (alvo?'<div class="destInfo">'+sv('box',11)+' em estoque: <b>'+
+         fmtQt(Number(alvo.estoqueAtual)||0)+' '+un(alvo.unidade).ab+'</b></div>':'')+'</td>'+
       '<td><select class="mvUn" data-k="'+k+'">'+
        (uBase?unidades().filter(function(u){return u.base===uBase}).map(function(u){
          return '<option value="'+u.id+'"'+(it.unidade===u.id?' selected':'')+'>'+u.n+'</option>'}).join('')
         :'<option value="">—</option>')+
       '</select></td>'+
       '<td><input class="mvQt" data-k="'+k+'" type="number" step="0.0001" value="'+(it.qtd||'')+'"></td>'+
-      '<td><input class="mvCu" data-k="'+k+'" type="number" step="0.0001" value="'+(it.custo||'')+'"></td>'+
+      '<td class="mvCuFix">'+money(it.custo)+'</td>'+
       '<td class="mvTot">'+money((Number(it.qtd)||0)*(Number(it.custo)||0))+'</td>'+
+      '<td><input class="mvOb" data-k="'+k+'" value="'+E(it.obs||'')+'" placeholder="observação desta linha"></td>'+
       '<td style="text-align:center"><button class="xDel" onclick="remLinhaMov('+k+')">'+sv('trash',10)+'</button></td>'+
       '</tr>';
     }).join('')+'</tbody>'+
-    '<tfoot><tr><td colspan="4"><b>Total do lançamento</b></td>'+
-    '<td class="mvTot"><b>'+money(total)+'</b></td><td></td></tr></tfoot></table>'+
+    '<tfoot><tr><td colspan="4"><b>Total da baixa</b></td>'+
+    '<td class="mvTot"><b>'+money(total)+'</b></td><td colspan="2"></td></tr></tfoot></table>'+
     '<button class="btnMais peq" onclick="addLinhaMov()">'+sv('plus',16)+'</button>'+
    '</div>'+
    '<div class="mvF"><button class="btnP2" onclick="fecharMov()">Cancelar</button>'+
@@ -20347,7 +20383,6 @@ var _movMotivo='',_movIdent='',_movObs='',_movData='',_movHora='';
 function guardarCabMov(){
   if($('mvM'))_movMotivo=$('mvM').value;
   if($('mvI'))_movIdent=$('mvI').value;
-  if($('mvO'))_movObs=$('mvO').value;
   if($('mvD'))_movData=$('mvD').value;
   if($('mvH'))_movHora=$('mvH').value;
 }
@@ -20370,14 +20405,23 @@ function ligarLinhasMov(){
       };
     }
   }
-  liga('.mvQt','qtd');liga('.mvCu','custo');
+  liga('.mvQt','qtd');
+  /* observacao por linha: texto puro e sem redesenhar, senao o campo perde o foco */
+  var obs=document.querySelectorAll('.mvOb');
+  for(var y=0;y<obs.length;y++){
+    obs[y].oninput=obs[y].onchange=function(){
+      _movItens[this.getAttribute('data-k')].obs=this.value;
+    };
+  }
   var us=document.querySelectorAll('.mvUn');
   for(var z=0;z<us.length;z++)us[z].onchange=function(){
     var k=this.getAttribute('data-k');
+    var qGuardada=_movItens[k].qtd;         /* trocar unidade nao mexe na quantidade digitada */
     _movItens[k].unidade=this.value;
-    if(_movItens[k].tipo==='insumo'){
-      _movItens[k].custo=custoNaUnidade(insumo(_movItens[k].refId),this.value);
-    }
+    var alvo=itemEstoque(_movItens[k].refId);
+    if(alvo)_movItens[k].custo=(alvo.itens!==undefined&&alvo.rendimento!==undefined)
+      ?custoDoItem(alvo):custoNaUnidade(alvo,this.value);
+    _movItens[k].qtd=qGuardada;
     guardarCabMov();desenhaMovimento();
   };
 }
@@ -20422,7 +20466,8 @@ function montaPickItem(){
 
   /* pastas dos ingredientes */
   (DB.gruposIng||[]).forEach(function(g){
-    var itens=(DB.insumos||[]).filter(function(i){return i.grupoId===g.id&&filtra(i.nome)})
+    var itens=(DB.insumos||[]).filter(function(i){
+        return i.grupoId===g.id&&i.controlaEstoque!==false&&filtra(i.nome)})
       .sort(function(a,b){return a.nome.localeCompare(b.nome)});
     if(q&&!itens.length)return;
     var ab=!!_pickAbertas['g'+g.id]||!!q;
@@ -20439,7 +20484,8 @@ function montaPickItem(){
     '</div>';
   });
   /* itens sem grupo */
-  var soltos=(DB.insumos||[]).filter(function(i){return !grupoIng(i.grupoId)&&filtra(i.nome)});
+  var soltos=(DB.insumos||[]).filter(function(i){
+    return !grupoIng(i.grupoId)&&i.controlaEstoque!==false&&filtra(i.nome)});
   if(soltos.length){
     var ab2=!!_pickAbertas['gsem']||!!q;
     h+='<div class="pkGrp"><div class="pkPasta" onclick="event.stopPropagation();togglePick(\'gsem\')">'+
@@ -20452,9 +20498,9 @@ function montaPickItem(){
     '</div>';
   }
   /* pastas das fichas técnicas */
-  h+='<div class="pkSep">Fichas técnicas</div>';
+  h+='<div class="pkSep">Fichas técnicas estocáveis</div>';
   var semGrupo=(DB.fichas||[]).filter(function(f){
-    return !catFicha(f.categoriaId)&&filtra(f.nome);});
+    return !catFicha(f.categoriaId)&&f.estocavel!==false&&filtra(f.nome);});
   if(semGrupo.length){
     h+='<div class="pkGrp"><div class="pkPasta" onclick="event.stopPropagation();togglePick(\'fsem\')">'+
      '<span class="ftSeta'+(_pickAbertas['fsem']||q?' ab':'')+'">'+sv('tri',9)+'</span>'+
@@ -20466,7 +20512,8 @@ function montaPickItem(){
     '</div>';
   }
   (DB.fichaCats||[]).forEach(function(c){
-    var fs2=(DB.fichas||[]).filter(function(f){return f.categoriaId===c.id&&filtra(f.nome)})
+    var fs2=(DB.fichas||[]).filter(function(f){
+        return f.categoriaId===c.id&&f.estocavel!==false&&filtra(f.nome)})
       .sort(function(a,b){return a.nome.localeCompare(b.nome)});
     if(q&&!fs2.length)return;
     var ab3=!!_pickAbertas['f'+c.id]||!!q;
@@ -20497,19 +20544,20 @@ function togglePick(k){
 function escolherItemMov(tipo,id){
   var it=_movItens[_pickLinha];
   it.tipo=tipo;it.refId=id;
+  if(it.obs===undefined)it.obs='';
   if(tipo==='insumo'){
     var i=insumo(id);
     it.unidade=i?i.unidade:'';it.custo=i?custoNaUnidade(i,i.unidade):0;
   }else{
     var f=(DB.fichas||[]).find(function(x){return x.id===id});
-    it.unidade=f?(f.rendUnidade||f.unidade):'';it.custo=f?custoPorUnidade(f):0;
+    it.unidade=f?(f.rendUnidade||f.unidade):'';it.custo=f?custoDoItem(f):0;
   }
   _pickBusca='';
   fecharPops();
   desenhaMovimento();
 }
-function addLinhaMov(){guardarCabMov();_movItens.push({tipo:'',refId:'',unidade:'',qtd:0,custo:0});desenhaMovimento();}
-function remLinhaMov(k){guardarCabMov();_movItens.splice(k,1);if(!_movItens.length)_movItens.push({tipo:'',refId:'',unidade:'',qtd:0,custo:0});desenhaMovimento();}
+function addLinhaMov(){guardarCabMov();_movItens.push({tipo:'',refId:'',unidade:'',qtd:0,custo:0,obs:''});desenhaMovimento();}
+function remLinhaMov(k){guardarCabMov();_movItens.splice(k,1);if(!_movItens.length)_movItens.push({tipo:'',refId:'',unidade:'',qtd:0,custo:0,obs:''});desenhaMovimento();}
 function fecharMov(){
   var o=document.getElementById('mdOv');if(o)o.remove();
   _movMotivo='';_movIdent='';_movObs='';_movData='';_movHora='';
@@ -20520,60 +20568,34 @@ async function salvarMovimento(){
   if(!_movMotivo){toast('Selecione o motivo da movimentação.');return;}
   var itens=_movItens.filter(function(it){return it.tipo&&it.refId&&(Number(it.qtd)||0)>0});
   if(!itens.length){toast('Informe ao menos um item com quantidade.');return;}
-  var tipo=tipoMotivo(_movMotivo);
-  /* ficha lançada com motivo que não produz: avisa antes de gravar errado */
-  var temFicha=itens.some(function(it){return it.tipo==='ficha'});
-  if(temFicha&&tipo!=='producao'){
-    if(!confirm('O motivo "'+nomeMotivo(_movMotivo)+'" é do tipo "'+
-      ((TIPOS_MOV.find(function(t){return t.id===tipo})||{}).n||tipo)+'".\n\n'+
-      'Para uma ficha técnica gerar produto acabado, o motivo precisa ser do tipo PRODUZIR.\n\n'+
-      'Do jeito que está, os ingredientes serão baixados e NADA será gerado.\n\n'+
-      'Corrija em Configuração da Loja › Configuração de Movimentação de Estoque.\n\n'+
-      'Continuar mesmo assim?'))return;
-  }
-  var semDestino=itens.filter(function(it){
-    if(it.tipo!=='ficha'||tipo!=='producao')return false;
-    var f=(DB.fichas||[]).find(function(x){return x.id===it.refId});
-    return f&&!destinoDaFicha(f);
-  });
-  if(semDestino.length){
-    var nomes=semDestino.map(function(it){
-      var f4=(DB.fichas||[]).find(function(x){return x.id===it.refId});
-      return f4?f4.nome:'';}).join(', ');
-    var segue=await confirmar({
-      titulo:'Ficha sem destino de produção',
-      texto:nomes+' não tem para onde gerar estoque.',
-      aviso:'Os ingredientes serão baixados, mas <b>nenhum produto acabado</b> entrará no estoque.<br>'+
-        'Para corrigir: abra a ficha técnica e preencha <b>Gerar estoque em</b>.',
-      ok:'Continuar mesmo assim',tipo:'perigo'});
-    if(!segue)return;
-  }
-
-  var linhas=montarLinhas(itens,tipo);
-  if(!linhas.length){toast('Nada a movimentar — verifique se os itens controlam estoque.');return;}
-  var falta=faltaEstoque(linhas);
-  if(falta.length){
-    alert(avisoFalta(falta,tipo==='producao'?'esta produção':'esta baixa'));
+  /* esta tela so faz baixa: o motivo tem de ser do tipo Saida */
+  if(tipoMotivo(_movMotivo)!=='saida'){
+    alert('"'+nomeMotivo(_movMotivo)+'" nao e um motivo de saida.\n\n'+
+      'Esta tela so registra baixa manual. Para entrada use a nota de entrada, '+
+      'para produzir use a ordem de producao e para acertar saldo use a contagem de estoque.');
     return;
   }
-  if(tipo==='producao'){
-    var entr=linhas.filter(function(l){return l.direcao==='entrada'});
-    var saiu=linhas.filter(function(l){return l.direcao==='saida'});
-    var resumo='Confirmar a produção?\n\n'+
-      'BAIXA '+saiu.length+' ingrediente(s)\n'+
-      (entr.length
-        ? 'GERA: '+entr.map(function(l){return fmtQt(l.qtd)+' '+un(l.unidade).ab+' de '+l.nome}).join('\n      ')
-        : 'GERA: nada — nenhuma ficha tem destino definido');
-    if(!confirm(resumo))return;
-  }
+  var tipo='saida';
+  var linhas=montarLinhas(itens,tipo);
+  if(!linhas.length){toast('Nada a baixar — verifique se os itens controlam estoque.');return;}
+  var falta=faltaEstoque(linhas);
+  if(falta.length){alert(avisoFalta(falta,'esta baixa'));return;}
+  var ok=await confirmar({
+    titulo:'Confirmar a baixa',
+    texto:linhas.length+' item(ns) sairão do estoque por "'+nomeMotivo(_movMotivo)+'".',
+    aviso:linhas.map(function(l){
+      return '&minus; '+fmtQt(l.qtd)+' '+un(l.unidade).ab+' de <b>'+E(l.nome)+'</b>'+
+        (l.obs?' <i>('+E(l.obs)+')</i>':'');}).join('<br>'),
+    ok:'Dar baixa',tipo:'perigo'});
+  if(!ok)return;
   var mov={id:uid('mv'),data:$('mvD').value||hojeISO(),hora:$('mvH').value||agoraHM(),
-    motivoId:_movMotivo,identificacao:_movIdent,obs:_movObs,
+    motivoId:_movMotivo,identificacao:_movIdent,obs:'',
     itens:JSON.parse(JSON.stringify(itens)),linhas:linhas,origem:'manual'};
   DB.movEst.push(mov);
   aplicarMovimento(mov);
   salvar();
   fecharMov();
-  toast('Movimentação registrada — '+linhas.length+' linha(s) de estoque.');
+  toast('Baixa registrada — '+linhas.length+' item(ns).');
 }
 
 /* devolve ao estoque o que a venda tinha baixado */
@@ -21469,6 +21491,7 @@ function blocoLinhaTempo(){
     '<th>Item</th><th style="width:130px">Grupo</th>'+
     '<th>Origem / destino</th>'+
     '<th style="width:120px;text-align:right">Quantidade</th>'+
+    '<th style="width:118px;text-align:right">Custo médio</th>'+
     '<th style="width:110px;text-align:right">Valor</th></tr></thead><tbody>'+
     lin.map(function(x){
       var g=x.ins?grupoIng(x.ins.grupoId):null;
@@ -21477,23 +21500,26 @@ function blocoLinhaTempo(){
       '<td>'+E(nomeMotivo(x.m.motivoId))+'</td>'+
       '<td><b>'+E(x.l.nome)+'</b></td>'+
       '<td>'+E(g?g.nome:'—')+'</td>'+
-      '<td>'+E(destinoLinha(x))+'</td>'+
+      '<td>'+E(destinoLinha(x))+
+       (x.l.obs?'<small style="display:block;color:var(--ink-3)">'+E(x.l.obs)+'</small>':'')+'</td>'+
       '<td style="text-align:right"><b class="'+(x.l.direcao==='entrada'?'vg':'vr')+'">'+
        (x.l.direcao==='entrada'?'+':'-')+fmtQt(x.l.qtd)+' '+un(x.l.unidade).ab+'</b></td>'+
+      '<td style="text-align:right">R$ '+money(x.l.custo)+
+       '<small style="color:var(--ink-3)"> /'+un(x.l.unidade).ab+'</small></td>'+
       '<td style="text-align:right">R$ '+money(x.l.qtd*x.l.custo)+'</td></tr>';
     }).join('')+'</tbody>'+
-    '<tfoot><tr><td colspan="6"><b>'+lin.length+' movimentos</b></td>'+
+    '<tfoot><tr><td colspan="7"><b>'+lin.length+' movimentos</b></td>'+
     '<td style="text-align:right"><b>R$ '+money(tot)+'</b></td></tr></tfoot></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum movimento no período</b></div>')+
    '</div>';
 }
 function exportarHist(){
   var lin=linhasHist(HP.aba==='rastreio'?HP.item:'');
-  var l=[['Data','Hora','Motivo','Item','Grupo','Origem/destino','Direcao','Quantidade','Unidade','Custo','Valor']];
+  var l=[['Data','Hora','Motivo','Item','Grupo','Origem/destino','Observacao','Direcao','Quantidade','Unidade','Custo medio','Valor']];
   lin.forEach(function(x){
     var g=x.ins?grupoIng(x.ins.grupoId):null;
     l.push([dataBR(x.m.data),x.m.hora||'',nomeMotivo(x.m.motivoId),x.l.nome,g?g.nome:'',
-      destinoLinha(x),x.l.direcao,String(x.l.qtd).replace('.',','),un(x.l.unidade).ab,
+      destinoLinha(x),x.l.obs||x.m.obs||'',x.l.direcao,String(x.l.qtd).replace('.',','),un(x.l.unidade).ab,
       String(x.l.custo).replace('.',','),String((x.l.qtd*x.l.custo).toFixed(2)).replace('.',',')]);
   });
   var csv=l.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
