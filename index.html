@@ -11598,7 +11598,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.3.0';
+var VERSAO='V9.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27831,6 +27831,15 @@ async function confirmarCancelamento(id){
    ========================================================== */
 function baseUsr(){
   DB.usuarios=DB.usuarios||[];
+  /* acesso sem login nao serve para nada e vinha se multiplicando: some */
+  DB.usuarios=DB.usuarios.filter(function(u){return String(u.login||'').trim()!==''});
+  /* garante um unico dono do Nexor */
+  var donos=DB.usuarios.filter(function(u){return String(u.login||'').toLowerCase()===ADM_MESTRE});
+  if(donos.length>1){
+    var manter=donos[0];
+    DB.usuarios=DB.usuarios.filter(function(u){
+      return String(u.login||'').toLowerCase()!==ADM_MESTRE||u===manter;});
+  }
   /* identificador repetido entre dois acessos faz um virar o outro: separa */
   var vistos={};
   DB.usuarios.forEach(function(u,k){
@@ -27911,10 +27920,29 @@ var US={sel:null,busca:'',aba:'permissoes'};
 function telaUsuarios(){
   baseMov();baseSuc();baseUsr();
   var q=(US.busca||'').toLowerCase();
+  baseRedes();
+  var eu=usuarioLogado();
+  var minhaRede=ehPlataforma(eu)?null:redeDoUsuario(eu);
   var lista=DB.usuarios.filter(function(u){
+    if(String(u.login||'').toLowerCase()===ADM_MESTRE&&!ehPlataforma(eu))return false;
+    /* franqueadora ve so os acessos da propria rede */
+    if(minhaRede){
+      var r=redeDoUsuario(u);
+      if(r&&r.id!==minhaRede.id)return false;
+      if(!r&&(u.sucursais||[]).length){
+        var daRede=(u.sucursais||[]).some(function(sid){
+          var sc=(DB.sucursais||[]).find(function(x){return x.id===sid});
+          return sc&&sc.redeId===minhaRede.id;});
+        if(!daRede)return false;
+      }
+    }
     return !q||String(u.nome||'').toLowerCase().indexOf(q)>=0||
       String(u.login||'').toLowerCase().indexOf(q)>=0;
   });
+  /* so as unidades da rede de quem esta olhando */
+  var sucsVisiveis=(DB.sucursais||[]).filter(function(sc){
+    if(sc.matriz)return false;
+    return !minhaRede||sc.redeId===minhaRede.id;});
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Usuários e Permissões</h1>'+
@@ -27945,7 +27973,7 @@ function telaUsuarios(){
          h+='<div class="usrGrp"><div class="usrGrpH">'+sv('users',12)+' Rede inteira'+
             '<em>'+gerais.length+'</em></div>'+gerais.map(function(u){usados[u.id]=1;return cartao(u)}).join('')+'</div>';
        }
-       (DB.sucursais||[]).forEach(function(sc){
+       sucsVisiveis.forEach(function(sc){
          var doLocal=lista.filter(function(u){
            return !usados[u.id]&&(u.sucursais||[]).indexOf(sc.id)>=0;});
          h+='<div class="usrGrp"><div class="usrGrpH">'+sv('store',12)+' '+E(sc.nome)+
