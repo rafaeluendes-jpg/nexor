@@ -11283,6 +11283,7 @@ function abrirSessao(){
   setTimeout(function(){ try{religarNuvem();}catch(e){console.error('religar',e);} },500);
 }
 function entrar(){
+  try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
   baseUsr();
   var lg=$('lgU').value.trim().toLowerCase();
   var sn=$('lgP').value;
@@ -11324,6 +11325,7 @@ function sair(){
 try{
   var _ses=localStorage.getItem('nexor_sessao');
   if(_ses){
+    try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
     baseUsr();
     if(_ses==='1'){SESSAO.usuarioId=null;abrirSessao();}
     else{
@@ -11427,7 +11429,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.8.1';
+var VERSAO='V7.8.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -23969,6 +23971,10 @@ function baseSuc(){
    ---------------------------------------------------------- */
 function semearRedeJolo(){
   if(DB._redeJolo==='v1')return;
+  DB.sucursais=DB.sucursais||[];
+  if(!DB.sucursais.length)
+    DB.sucursais.push({id:'suc_matriz',nome:'Matriz',apelido:'Matriz',cnpj:'',
+      cidade:'',uf:'',telefone:'',matriz:true,ativa:true,cor:'#00A08B'});
   var SUCS=[
     {id:'suc_sfs',       nome:'Jolô Santa Fé do Sul',apelido:'Santa Fé', cidade:'Santa Fé do Sul',uf:'SP',matriz:false},
     {id:'suc_jales',     nome:'Jolô Jales',          apelido:'Jales',    cidade:'Jales',           uf:'SP',matriz:false},
@@ -27070,6 +27076,7 @@ function baseUsr(){
       mestre:true,ativo:true,sucursais:[],permissoes:{},tudo:true,
       criadoEm:new Date().toISOString()});
   }
+  try{semearRedeJolo()}catch(e){}   /* acessos da rede valem ja na tela de login */
   return DB.usuarios;
 }
 function usuarioLogado(){
