@@ -10144,6 +10144,7 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .ctFluxo b{font-size:13px}
 .ctFluxoL{margin:9px 0 4px;font-size:13.5px}
 .ctFluxo span{font-size:11.5px;color:var(--ink-3,#7a7a86)}
+.bkBotoes{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 @media(max-width:760px){.hp2Seta{display:none}.hp2K{min-width:46%}}
 </style>
 </head>
@@ -10319,7 +10320,8 @@ var MOD=[
  {id:'gerar-demo',n:'Gerar Vendas de Demonstração'},
  {id:'reset-sistema',n:'Dados de Teste e Reinício'}]},
 {id:'tecnico',n:'Central Técnica',ic:'gear2',it:[
- {id:'central-tecnica',n:'Mapa do Sistema'}]}
+ {id:'central-tecnica',n:'Mapa do Sistema'},
+ {id:'backup',n:'Backup e Restauração'}]}
 ];
 /* telas exclusivas da franqueadora — franquia nao ve nem por permissao */
 var SO_FRANQUEADORA=['tecnico/central-tecnica'];
@@ -10901,6 +10903,7 @@ async function sincronizar(){
     gravarLocal();
     statusNuvem('ok');
     logNuvem('tudo enviado com sucesso');
+    backupDoDia();                 /* uma cópia por dia, sem travar nada */
     pausaTempoReal(2500);
   }catch(e){
     console.error('[NEXOR sync]',etapa,e);
@@ -11424,7 +11427,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.7.0';
+var VERSAO='V7.8.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -11488,6 +11491,7 @@ if(mid==='estoque'&&iid==='historico-posicao'){
 if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
 if(mid==='loja'&&iid==='reset-sistema')return telaReset();
 if(mid==='tecnico'&&iid==='central-tecnica')return telaCentralTecnica();
+if(mid==='tecnico'&&iid==='backup')return telaBackup();
 if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
 if(mid==='teste'&&iid==='reset-sistema')return telaReset();
 if(mid==='financeira'&&iid==='acerto-entregadores')return telaAcertos();
@@ -15454,6 +15458,179 @@ function relancarSemVinc(id){
 }
 
 /* ==========================================================
+   BACKUP
+   Uma fotografia completa dos dados, guardada na nuvem.
+   Roda sozinha uma vez por dia e pode ser feita a mão.
+   Restaurar troca os dados deste aparelho pelos da fotografia.
+   ========================================================== */
+var BK={lista:null,carregando:false,erro:''};
+
+function _dadosDoBackup(){
+  var copia={};
+  Object.keys(DB).forEach(function(k){
+    if(k.charAt(0)==='_')return;            /* marcas internas nao entram */
+    copia[k]=DB[k];
+  });
+  return copia;
+}
+function _resumoDoBackup(){
+  return {ingredientes:(DB.insumos||[]).length,fichas:(DB.fichas||[]).length,
+    movimentacoes:(DB.movEst||[]).length,notas:(DB.notas||[]).length,
+    lancamentos:(DB.lancFin||[]).length,pedidos:(DB.pedidos||[]).length,
+    produtos:(DB.produtos||[]).length,clientes:(DB.clientes||[]).length,
+    sucursais:(DB.sucursais||[]).length,usuarios:(DB.usuarios||[]).length};
+}
+/* uma cópia por dia, disparada após a sincronização — nunca trava a tela */
+function backupDoDia(){
+  try{
+    if(!NUVEM.ligada)return;
+    var hoje=hojeISO();
+    if(DB._ultimoBackup===hoje)return;
+    DB._ultimoBackup=hoje;gravarLocal();
+    criarBackup('automatico').catch(function(e){
+      DB._ultimoBackup='';                   /* falhou: tenta de novo na próxima */
+      logNuvem('backup do dia falhou: '+((e&&e.message)||'erro'),true);
+    });
+  }catch(e){}
+}
+async function criarBackup(origem){
+  if(!NUVEM.ligada)throw new Error('A nuvem precisa estar ligada para guardar o backup.');
+  var dados=_dadosDoBackup();
+  var txt=JSON.stringify(dados);
+  var u=usuarioLogado();
+  await api('backups','POST',[{loja_id:NUVEM.loja,versao:VERSAO,origem:origem||'manual',
+    feito_por:(u?u.nome:'—'),tamanho_kb:Math.round(txt.length/1024),
+    resumo:_resumoDoBackup(),dados:dados}],{'Prefer':'return=minimal'});
+  logNuvem('backup '+(origem||'manual')+' guardado ('+Math.round(txt.length/1024)+' KB)');
+  await limparBackupsAntigos();
+  return true;
+}
+/* guarda as 30 mais novas; as demais saem para nao inchar o banco */
+async function limparBackupsAntigos(){
+  try{
+    var l=await api('backups?loja_id=eq.'+NUVEM.loja+'&select=id&order=criado_em.desc');
+    if(!l||l.length<=30)return;
+    var sobra=l.slice(30).map(function(x){return x.id});
+    for(var i=0;i<sobra.length;i++)
+      await api('backups?id=eq.'+sobra[i],'DELETE',null,{'Prefer':'return=minimal'});
+  }catch(e){}
+}
+async function carregarBackups(){
+  BK.carregando=true;BK.erro='';telaBackup();
+  try{
+    BK.lista=await api('backups?loja_id=eq.'+NUVEM.loja+
+      '&select=id,criado_em,versao,origem,feito_por,tamanho_kb,resumo&order=criado_em.desc&limit=40');
+  }catch(e){ BK.erro=(e&&e.message)||'não consegui ler a lista'; BK.lista=[]; }
+  BK.carregando=false;telaBackup();
+}
+async function backupAgora(){
+  if(!NUVEM.ligada){toast('Ligue a nuvem antes — o backup é guardado nela.');return;}
+  toast('Guardando a cópia...');
+  try{ await criarBackup('manual'); toast('Backup guardado.'); await carregarBackups(); }
+  catch(e){ toast('Não consegui guardar: '+((e&&e.message)||'erro')); }
+}
+/* cópia extra, em arquivo, na mão do dono */
+function baixarBackupArquivo(){
+  var txt=JSON.stringify({nexor:VERSAO,quando:new Date().toISOString(),
+    resumo:_resumoDoBackup(),dados:_dadosDoBackup()});
+  var b=new Blob([txt],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='nexor-backup-'+hojeISO()+'.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){a.remove()},400);
+  toast('Arquivo baixado — guarde fora do computador da loja.');
+}
+async function restaurarBackup(id,quando){
+  var ok=await confirmar({
+    titulo:'Restaurar o backup de '+quando,
+    texto:'Os dados deste aparelho serão substituídos pelos da cópia.',
+    aviso:'Tudo que foi feito <b>depois</b> dessa data será perdido: vendas, notas, '+
+      'lançamentos e cadastros.<br><br>Antes de restaurar, o sistema guarda automaticamente '+
+      'uma cópia de segurança do estado atual — dá para voltar atrás.',
+    ok:'Restaurar',cancelar:'Não fazer nada',tipo:'perigo'});
+  if(!ok)return;
+  try{
+    toast('Guardando o estado atual antes de trocar...');
+    await criarBackup('antes-de-restaurar');
+    toast('Baixando a cópia...');
+    var r=await api('backups?id=eq.'+id+'&select=dados');
+    var d=(r&&r[0])?r[0].dados:null;
+    if(!d)throw new Error('cópia vazia');
+    Object.keys(DB).forEach(function(k){ if(k.charAt(0)!=='_')delete DB[k]; });
+    Object.keys(d).forEach(function(k){ DB[k]=d[k]; });
+    DB._ultimoBackup='';
+    gravarLocal();
+    await confirmar({titulo:'Backup restaurado',
+      texto:'Os dados voltaram para o estado de '+quando+'.',
+      aviso:'A página será recarregada. Confira o estoque e o financeiro antes de operar.',
+      ok:'Recarregar agora',cancelar:'Depois',tipo:'check'});
+    location.reload();
+  }catch(e){ toast('Não consegui restaurar: '+((e&&e.message)||'erro')); }
+}
+function telaBackup(){
+  if(BK.lista===null&&!BK.carregando&&NUVEM.ligada){carregarBackups();return;}
+  var l=BK.lista||[];
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo"><h1>Backup e Restauração</h1>'+
+    '<p>Uma fotografia completa dos seus dados é guardada na nuvem <b>uma vez por dia</b>, '+
+    'automaticamente. Aqui você vê as cópias, faz uma na hora, baixa um arquivo para guardar '+
+    'fora do sistema, ou volta o sistema para como estava em um dia anterior.</p></div>'+
+   '<div class="bkBotoes">'+
+    '<button class="btnP2 ok" onclick="backupAgora()">'+sv('cloud',13)+' Fazer backup agora</button>'+
+    '<button class="btnP2" onclick="baixarBackupArquivo()">'+sv('file2',13)+' Baixar arquivo (cópia externa)</button>'+
+    '<button class="btnP2" onclick="carregarBackups()">'+sv('ref',13)+' Atualizar a lista</button>'+
+   '</div>'+
+   (!NUVEM.ligada
+    ?'<div class="ctNota ctAt" style="max-width:820px">A nuvem está desligada, então não dá para '+
+     'guardar nem listar cópias. Ligue no ícone de nuvem. <b>O botão de baixar arquivo continua '+
+     'funcionando</b> — ele salva direto no seu computador.</div>'
+    :(BK.erro?'<div class="ctNota ctAt">'+E(BK.erro)+'</div>':''))+
+   (BK.carregando?'<div class="hint" style="padding:20px">carregando as cópias...</div>':'')+
+   (l.length
+    ?'<div class="blk" style="max-width:none;padding:0;overflow:hidden;margin-top:12px">'+
+     '<table class="fmTab"><thead><tr>'+
+      '<th style="width:150px">Quando</th><th style="width:120px">Origem</th>'+
+      '<th style="width:150px">Feito por</th><th>Conteúdo</th>'+
+      '<th style="width:90px;text-align:right">Tamanho</th>'+
+      '<th style="width:90px">Versão</th><th style="width:110px"></th></tr></thead><tbody>'+
+     l.map(function(b){
+       var q=b.criado_em?dataBR(b.criado_em.slice(0,10))+' '+b.criado_em.slice(11,16):'—';
+       var r=b.resumo||{};
+       var cont=[[r.pedidos,'pedidos'],[r.movimentacoes,'movimentos'],[r.notas,'notas'],
+                 [r.lancamentos,'lançamentos'],[r.fichas,'fichas'],[r.ingredientes,'ingredientes']]
+         .filter(function(x){return x[0]}).map(function(x){return x[0]+' '+x[1]}).join(' · ');
+       return '<tr><td><b>'+q+'</b></td>'+
+       '<td>'+(b.origem==='automatico'?'automático':
+               b.origem==='antes-de-restaurar'?'<b class="vr">antes de restaurar</b>':'manual')+'</td>'+
+       '<td>'+E(b.feito_por||'—')+'</td>'+
+       '<td><small>'+E(cont||'—')+'</small></td>'+
+       '<td style="text-align:right">'+(b.tamanho_kb||0)+' KB</td>'+
+       '<td>'+E(b.versao||'—')+'</td>'+
+       '<td><button class="btnP2" onclick="restaurarBackup(\''+b.id+'\',\''+q+'\')">Restaurar</button></td></tr>';
+     }).join('')+'</tbody></table></div>'
+    :(NUVEM.ligada&&!BK.carregando
+      ?'<div class="mvVazio" style="padding:56px">'+sv('cloud',26)+'<b>Nenhuma cópia ainda</b>'+
+       '<span>A primeira é guardada na próxima sincronização, ou clique em Fazer backup agora.</span></div>':''))+
+   '<div class="ctGrade" style="margin-top:14px">'+
+    ctCard('Quantas camadas você tem','proteção em três níveis',
+     ctLinha('1. O aparelho','os dados ficam no computador da loja, funcionando sem internet')+
+     ctLinha('2. A nuvem','o banco Supabase, com backup automático do próprio serviço')+
+     ctLinha('3. Estas cópias','fotografias diárias que você pode restaurar sozinho')+
+     '<div class="ctNota ctOk">Perder tudo exigiria as três falharem ao mesmo tempo. '+
+     'Baixe o arquivo de vez em quando e guarde fora da loja — aí viram quatro.</div>')+
+    ctCard('O que uma cópia guarda','tudo que é seu',
+     ctLinha('Cadastros','ingredientes, fichas, produtos, fornecedores, clientes')+
+     ctLinha('Operação','estoque, movimentações, notas, produção, contagens')+
+     ctLinha('Financeiro','lançamentos, contas, categorias, conciliação')+
+     ctLinha('Vendas','pedidos, caixas, cupons')+
+     ctLinha('Estrutura','sucursais, usuários e permissões')+
+     '<div class="ctNota ctAt">Não guarda o que está fora do sistema: a sessão do WhatsApp, '+
+     'as chaves no Render e o código-fonte no GitHub têm o backup deles próprios.</div>')+
+   '</div></div>';
+  rodape(l.length?l.length+' cópia(s) guardada(s)':'backup');
+}
+
+/* ==========================================================
    CENTRAL TECNICA — o mapa do sistema, em portugues.
    Serve para o Rafael entender e para o programador que
    assumir encontrar tudo sem precisar perguntar.
@@ -15591,6 +15768,7 @@ function ctDados(){
    ctCard('Duas camadas','aparelho e nuvem',
     ctLinha('1ª camada','o próprio aparelho (localStorage do navegador)')+
     ctLinha('2ª camada','o banco na nuvem (Supabase)')+
+    ctLinha('3ª camada','os backups diários — Central Técnica › Backup e Restauração')+
     ctLinha('Quem manda','o aparelho grava primeiro, a nuvem recebe depois')+
     '<div class="ctNota ctOk">Por isso, <b>sem internet o PDV continua vendendo</b>. '+
     'Quando a conexão volta, o que ficou pendente sobe.</div>'+
