@@ -11598,7 +11598,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.3.3';
+var VERSAO='V9.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -27981,38 +27981,44 @@ function telaUsuarios(){
       '<input id="usB" value="'+E(US.busca)+'" placeholder="buscar por nome ou login"></div>'+
      '<div class="usrRol">'+
      (function(){
-       /* agrupa por sucursal: cada loja com os acessos dela */
-       function cartao(u){
+       /* lista simples: matriz em cima, unidades embaixo, uma sob a outra */
+       function escurece(hex){
+         hex=String(hex||'#00A08B').replace('#','');
+         if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+         var n=parseInt(hex,16);
+         var r=Math.max(0,((n>>16)&255)*0.62|0),
+             g=Math.max(0,((n>>8)&255)*0.62|0),
+             b=Math.max(0,(n&255)*0.62|0);
+         return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+       }
+       function corDe(u){
+         if(u.mestre||u.tudo)return '#12263F';
+         var sid=(u.sucursais||[])[0];
+         var sc=(DB.sucursais||[]).find(function(x){return x.id===sid});
+         return escurece(sc&&sc.cor?sc.cor:'#00A08B');
+       }
+       function ondeFica(u){
+         if(u.mestre||u.tudo)return 'matriz';
+         var sid=(u.sucursais||[])[0];
+         var sc=(DB.sucursais||[]).find(function(x){return x.id===sid});
+         return sc?sc.nome:'sem unidade';
+       }
+       var ordem=lista.slice().sort(function(a,b){
+         var pa=(a.mestre||a.tudo)?0:1, pb=(b.mestre||b.tudo)?0:1;
+         if(pa!==pb)return pa-pb;
+         return ondeFica(a).localeCompare(ondeFica(b));
+       });
+       return ordem.map(function(u){
          var nP=(u.mestre||u.tudo)?'acesso total':contaPerm(u)+' telas';
          return '<button class="usrIt'+(US.sel===u.id?' on':'')+(u.ativo===false?' off':'')+'" '+
           'onclick="US.sel=\''+u.id+'\';telaUsuarios()">'+
-          '<div class="usrAv'+(u.mestre?' m':'')+'">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
+          '<div class="usrAv" style="background:'+corDe(u)+';color:#fff">'+
+            E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
           '<div class="usrN"><b>'+E(u.nome)+'</b>'+
            '<span>'+E(u.login)+' · '+nP+'</span></div>'+
           (u.ativo===false?'<span class="badge2 rd">inativo</span>':'')+
          '</button>';
-       }
-       var h='',usados={};
-       var gerais=lista.filter(function(u){return u.mestre||u.tudo});
-       if(gerais.length){
-         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('users',12)+' Matriz'+
-            '<em>'+gerais.length+'</em></div>'+gerais.map(function(u){usados[u.id]=1;return cartao(u)}).join('')+'</div>';
-       }
-       sucsVisiveis.forEach(function(sc){
-         var doLocal=lista.filter(function(u){
-           return !usados[u.id]&&(u.sucursais||[]).indexOf(sc.id)>=0;});
-         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('store',12)+' '+E(sc.nome)+
-            '<em>'+doLocal.length+'</em>'+
-            '<button class="usrAdd" onclick="event.stopPropagation();novoUsuarioNa(\''+sc.id+'\')" '+
-            'title="Criar acesso nesta unidade">'+sv('plus',12)+'</button></div>'+
-            (doLocal.length?doLocal.map(function(u){usados[u.id]=1;return cartao(u)}).join('')
-             :'<div class="usrVaz">nenhum acesso nesta unidade</div>')+'</div>';
-       });
-       var soltos=lista.filter(function(u){return !usados[u.id]});
-       if(soltos.length)
-         h+='<div class="usrGrp"><div class="usrGrpH">'+sv('help',12)+' Sem unidade'+
-            '<em>'+soltos.length+'</em></div>'+soltos.map(cartao).join('')+'</div>';
-       return h;
+       }).join('');
      })()+
      '</div></div>'+
     '<div class="usrDet">'+(US.sel?detalheUsuario():
