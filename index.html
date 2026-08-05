@@ -1640,6 +1640,25 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.etResumo{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin:0 0 11px}
+.etResumo .erBox{min-width:180px;padding:10px 13px;border:1px solid var(--line);border-radius:8px;
+  background:#fff}
+.etResumo .erBox span{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.04em}
+.etResumo .erBox b{display:block;font-size:19px;margin-top:3px;font-variant-numeric:tabular-nums}
+.etResumo .erBox small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.etResumo .erBox.dest{background:var(--alt);border-color:var(--acc)}
+.etResumo .erBox.dest b{color:var(--acc-d)}
+.etResumo.comFiltro .erBox.dest{box-shadow:0 0 0 2px rgba(0,0,0,.04)}
+.etResumo .erNota{align-self:center;font-size:11px;color:var(--ink-3)}
+.etTab th.ordCol{cursor:pointer;user-select:none}
+.etTab th.ordCol>span{display:inline-flex;align-items:center;gap:4px}
+.etTab th.ordCol.dir{text-align:right}
+.etTab th.ordCol.dir>span{justify-content:flex-end;width:100%}
+.etTab th.ordCol:hover{background:var(--alt);color:var(--ink)}
+.etTab th.ordCol .ordSeta{font-style:normal;font-size:9px;opacity:.28;line-height:1}
+.etTab th.ordCol.on{color:var(--acc-d)}
+.etTab th.ordCol.on .ordSeta{opacity:1}
 .avisoPg{display:flex;align-items:flex-start;gap:6px;margin-top:12px;padding:9px 11px;
   background:var(--alt);border:1px solid var(--line);border-radius:6px;
   font-size:11.5px;color:var(--ink-2);line-height:1.45}
@@ -6230,6 +6249,25 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.etResumo{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin:0 0 11px}
+.etResumo .erBox{min-width:180px;padding:10px 13px;border:1px solid var(--line);border-radius:8px;
+  background:#fff}
+.etResumo .erBox span{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.04em}
+.etResumo .erBox b{display:block;font-size:19px;margin-top:3px;font-variant-numeric:tabular-nums}
+.etResumo .erBox small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.etResumo .erBox.dest{background:var(--alt);border-color:var(--acc)}
+.etResumo .erBox.dest b{color:var(--acc-d)}
+.etResumo.comFiltro .erBox.dest{box-shadow:0 0 0 2px rgba(0,0,0,.04)}
+.etResumo .erNota{align-self:center;font-size:11px;color:var(--ink-3)}
+.etTab th.ordCol{cursor:pointer;user-select:none}
+.etTab th.ordCol>span{display:inline-flex;align-items:center;gap:4px}
+.etTab th.ordCol.dir{text-align:right}
+.etTab th.ordCol.dir>span{justify-content:flex-end;width:100%}
+.etTab th.ordCol:hover{background:var(--alt);color:var(--ink)}
+.etTab th.ordCol .ordSeta{font-style:normal;font-size:9px;opacity:.28;line-height:1}
+.etTab th.ordCol.on{color:var(--acc-d)}
+.etTab th.ordCol.on .ordSeta{opacity:1}
 .avisoPg{display:flex;align-items:flex-start;gap:6px;margin-top:12px;padding:9px 11px;
   background:var(--alt);border:1px solid var(--line);border-radius:6px;
   font-size:11.5px;color:var(--ink-2);line-height:1.45}
@@ -11694,7 +11732,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.1.0';
+var VERSAO='V10.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -20800,7 +20838,60 @@ function baixarEstoqueVenda(ped){
 /* ==========================================================
    BLOCO 23 — ESTOQUE TOTAL E CONTAGEM
    ========================================================== */
-var ET={busca:'',grupo:'',tipo:'',ordem:'valor'};
+var ET={busca:'',grupo:'',tipo:'',ordem:'valor',dir:'desc'};
+/* colunas ordenaveis do Estoque Total: rotulo, alinhamento e sentido inicial */
+var COLS_ET=[
+ {k:'codigo', n:'Código',        w:'96px',  dir:'asc'},
+ {k:'nome',   n:'Ingrediente',   w:'',      dir:'asc'},
+ {k:'grupo',  n:'Grupo',         w:'140px', dir:'asc'},
+ {k:'minimo', n:'Mínimo',        w:'110px', dir:'desc', num:true},
+ {k:'qtd',    n:'Quantidade',    w:'120px', dir:'desc', num:true},
+ {k:'custo',  n:'Preço médio',   w:'120px', dir:'desc', num:true},
+ {k:'ultima', n:'Última compra', w:'120px', dir:'desc', num:true},
+ {k:'valor',  n:'Valor total',   w:'130px', dir:'desc', num:true}
+];
+function colET(k){return COLS_ET.find(function(c){return c.k===k})||COLS_ET[7]}
+/* clicar na coluna ordena; clicar de novo inverte */
+function ordEst(k){
+  if(ET.ordem===k)ET.dir=(ET.dir==='asc'?'desc':'asc');
+  else{ET.ordem=k;ET.dir=colET(k).dir;}
+  telaEstoqueTotal();
+}
+function nomeGrupoItem(i){
+  var g=ehFicha(i)?catFicha(i.categoriaId):grupoIng(i.grupoId);
+  return g?g.nome:'';
+}
+function filtroET(){return !!(ET.busca||ET.grupo||ET.tipo)}
+function limparET(){ET={busca:'',grupo:'',tipo:'',ordem:'valor',dir:'desc'};telaEstoqueTotal();}
+function ordenaEstoque(a,b){
+  var k=ET.ordem||'valor',d=(ET.dir==='asc'?1:-1),r=0;
+  function t(x){return String(x==null?'':x)}
+  if(k==='codigo')      r=t(a.codigo).localeCompare(t(b.codigo),'pt',{numeric:true});
+  else if(k==='nome')   r=t(a.nome).localeCompare(t(b.nome),'pt');
+  else if(k==='grupo')  r=nomeGrupoItem(a).localeCompare(nomeGrupoItem(b),'pt');
+  else if(k==='minimo') r=(Number(a.estoqueMin)||0)-(Number(b.estoqueMin)||0);
+  else if(k==='qtd')    r=(Number(a.estoqueAtual)||0)-(Number(b.estoqueAtual)||0);
+  else if(k==='custo')  r=custoDoItem(a)-custoDoItem(b);
+  else if(k==='ultima') r=(Number(a.custoUltima)||0)-(Number(b.custoUltima)||0);
+  else                  r=valorItem(a)-valorItem(b);
+  if(r)return r*d;
+  return t(a.nome).localeCompare(t(b.nome),'pt');   /* empate: sempre pelo nome */
+}
+/* a mesma lista que a tela mostra — usada tambem na exportacao */
+function listaEstoque(){
+  return itensEstoque().filter(function(i){
+    if(ET.grupo&&i.grupoId!==ET.grupo)return false;
+    if(ET.tipo==='ficha'&&!i.gelatoVenda&&!i.deFicha)return false;
+    if(ET.tipo==='insumo'&&(i.gelatoVenda||i.deFicha))return false;
+    if(ET.tipo==='baixo'&&!(Number(i.estoqueAtual)<=Number(i.estoqueMin)))return false;
+    if(ET.tipo==='zerado'&&Number(i.estoqueAtual)>0)return false;
+    if(ET.busca){
+      var q=ET.busca.toLowerCase();
+      if((i.nome||'').toLowerCase().indexOf(q)<0&&String(i.codigo||'').indexOf(q)<0)return false;
+    }
+    return true;
+  }).sort(ordenaEstoque);
+}
 function itensEstoque(){
   baseMov();
   var lista=[];
@@ -20834,29 +20925,14 @@ function abrirCadastroItem(id){
 }
 function telaEstoqueTotal(){
   baseMov();
-  var lista=itensEstoque().filter(function(i){
-    if(ET.grupo&&i.grupoId!==ET.grupo)return false;
-    if(ET.tipo==='ficha'&&!i.gelatoVenda&&!i.deFicha)return false;
-    if(ET.tipo==='insumo'&&(i.gelatoVenda||i.deFicha))return false;
-    if(ET.tipo==='baixo'&&!(Number(i.estoqueAtual)<=Number(i.estoqueMin)))return false;
-    if(ET.tipo==='zerado'&&Number(i.estoqueAtual)>0)return false;
-    if(ET.busca){
-      var q=ET.busca.toLowerCase();
-      if((i.nome||'').toLowerCase().indexOf(q)<0&&String(i.codigo||'').indexOf(q)<0)return false;
-    }
-    return true;
-  }).sort(function(a,b){
-    if(ET.ordem==='valor')return valorItem(b)-valorItem(a);
-    if(ET.ordem==='qtd')return (Number(b.estoqueAtual)||0)-(Number(a.estoqueAtual)||0);
-    if(ET.ordem==='grupo'){
-      var ga=(grupoIng(a.grupoId)||{}).nome||'',gb=(grupoIng(b.grupoId)||{}).nome||'';
-      return ga.localeCompare(gb)||a.nome.localeCompare(b.nome);
-    }
-    return (a.nome||'').localeCompare(b.nome||'');
-  });
+  var todos=itensEstoque();
+  var lista=listaEstoque();
   var total=lista.reduce(function(a,i){return a+valorItem(i)},0);
-  var totalGeral=itensEstoque().reduce(function(a,i){return a+valorItem(i)},0);
-  var abaixo=itensEstoque().filter(function(i){return Number(i.estoqueAtual)<=Number(i.estoqueMin)}).length;
+  var totalGeral=todos.reduce(function(a,i){return a+valorItem(i)},0);
+  var abaixo=todos.filter(function(i){return Number(i.estoqueAtual)<=Number(i.estoqueMin)}).length;
+  var qFiltro=lista.reduce(function(a,i){return a+(Number(i.estoqueAtual)||0)},0);
+  var pct=totalGeral?((total/totalGeral)*100):0;
+  var temFiltro=filtroET();
 
   $('content').innerHTML='<div class="etWrap">'+
    '<div class="etScroll">'+
@@ -20864,7 +20940,7 @@ function telaEstoqueTotal(){
     '<div><h1>Estoque Total</h1><p>Posição atual de todos os itens, atualizada por movimentações e vendas.</p></div>'+
     '<div class="etTot">'+
      '<div class="etT dest"><span>Valor total em estoque</span><b>R$ '+money(totalGeral)+'</b></div>'+
-     '<div class="etT"><span>Itens</span><b>'+itensEstoque().length+'</b></div>'+
+     '<div class="etT"><span>Itens</span><b>'+todos.length+'</b></div>'+
      '<div class="etT"><span>Abaixo do mínimo</span><b class="'+(abaixo?'vr':'vg')+'">'+abaixo+'</b></div>'+
     '</div>'+
     '<button class="btnP2" onclick="exportarEstoque()">'+sv('down2',13)+' Exportar</button>'+
@@ -20882,23 +20958,42 @@ function telaEstoqueTotal(){
      '<option value="baixo"'+(ET.tipo==='baixo'?' selected':'')+'>Abaixo do mínimo</option>'+
      '<option value="zerado"'+(ET.tipo==='zerado'?' selected':'')+'>Zerados ou negativos</option>'+
     '</select></div>'+
-    '<div class="f2"><label>Ordenar</label><select onchange="ET.ordem=this.value;telaEstoqueTotal()">'+
-     '<option value="valor"'+(ET.ordem==='valor'?' selected':'')+'>Maior valor</option>'+
-     '<option value="qtd"'+(ET.ordem==='qtd'?' selected':'')+'>Maior quantidade</option>'+
-     '<option value="nome"'+(ET.ordem==='nome'?' selected':'')+'>Nome</option>'+
-     '<option value="grupo"'+(ET.ordem==='grupo'?' selected':'')+'>Grupo</option>'+
+    '<div class="f2"><label>Ordenar <small style="color:var(--ink-3)">(ou clique na coluna)</small></label>'+
+     '<select onchange="ET.ordem=this.value;ET.dir=colET(this.value).dir;telaEstoqueTotal()">'+
+     COLS_ET.map(function(c){return '<option value="'+c.k+'"'+(ET.ordem===c.k?' selected':'')+'>'+
+       E(c.n)+'</option>'}).join('')+
     '</select></div>'+
-    '<button class="btnP2" onclick="ET={busca:\'\',grupo:\'\',tipo:\'\',ordem:\'valor\'};telaEstoqueTotal()">Limpar</button>'+
+    '<div class="f2" style="max-width:150px"><label>Sentido</label>'+
+     '<select onchange="ET.dir=this.value;telaEstoqueTotal()">'+
+     '<option value="desc"'+(ET.dir==='desc'?' selected':'')+'>Maior para menor</option>'+
+     '<option value="asc"'+(ET.dir==='asc'?' selected':'')+'>Menor para maior</option>'+
+    '</select></div>'+
+    '<button class="btnP2" onclick="limparET()">Limpar</button>'+
+   '</div>'+
+   '<div class="etResumo'+(temFiltro?' comFiltro':'')+'">'+
+    '<div class="erBox dest"><span>'+(temFiltro?'Valor do filtro':'Valor em tela')+'</span>'+
+     '<b>R$ '+money(total)+'</b>'+
+     '<small>'+lista.length+' de '+todos.length+' itens · '+fmtQt(qFiltro)+' em quantidade</small></div>'+
+    '<div class="erBox"><span>Valor total do estoque</span><b>R$ '+money(totalGeral)+'</b>'+
+     '<small>'+todos.length+' itens no total</small></div>'+
+    '<div class="erBox"><span>O filtro representa</span>'+
+     '<b>'+String(pct.toFixed(1)).replace('.',',')+'%</b>'+
+     '<small>do valor em estoque</small></div>'+
+    '<div style="flex:1"></div>'+
+    (temFiltro
+     ?'<button class="btnP2" onclick="limparET()">'+sv('x2',12)+' Limpar filtro</button>'
+     :'<span class="erNota">sem filtro — os dois valores são o mesmo</span>')+
    '</div>'+
    '<div class="etTabW plano2">'+
    (lista.length?'<table class="etTab"><thead><tr>'+
-    '<th style="width:82px">Código</th><th>Ingrediente</th>'+
-    '<th style="width:140px">Grupo</th>'+
-    '<th style="width:110px;text-align:right">Mínimo</th>'+
-    '<th style="width:120px;text-align:right">Quantidade</th>'+
-    '<th style="width:120px;text-align:right">Preço médio</th>'+
-    '<th style="width:120px;text-align:right">Última compra</th>'+
-    '<th style="width:130px;text-align:right">Valor total</th></tr></thead><tbody>'+
+    COLS_ET.map(function(c){
+      var on=(ET.ordem===c.k);
+      var seta=on?(ET.dir==='asc'?'&#9650;':'&#9660;'):'&#8693;';
+      return '<th class="ordCol'+(on?' on':'')+(c.num?' dir':'')+'"'+
+       (c.w?' style="width:'+c.w+'"':'')+
+       ' onclick="ordEst(\''+c.k+'\')" title="Ordenar por '+c.n+'">'+
+       '<span>'+c.n+'<i class="ordSeta">'+seta+'</i></span></th>';
+    }).join('')+'</tr></thead><tbody>'+
     lista.map(function(i){
       var eFicha=(i.itens!==undefined&&i.rendimento!==undefined);
       var g=eFicha?catFicha(i.categoriaId):grupoIng(i.grupoId);
@@ -20920,8 +21015,11 @@ function telaEstoqueTotal(){
       '<td style="text-align:right">'+money(i.custoUltima||0)+'</td>'+
       '<td style="text-align:right"><b>R$ '+money(valorItem(i))+'</b></td></tr>';
     }).join('')+'</tbody>'+
-    '<tfoot><tr><td colspan="7"><b>Total do filtro — '+lista.length+' itens</b></td>'+
-    '<td style="text-align:right"><b>R$ '+money(total)+'</b></td></tr></tfoot></table>'
+    '<tfoot><tr><td colspan="7"><b>Total do filtro — '+lista.length+' de '+todos.length+' itens</b></td>'+
+    '<td style="text-align:right"><b>R$ '+money(total)+'</b></td></tr>'+
+    (temFiltro?'<tr class="sub2"><td colspan="7">Estoque inteiro — '+todos.length+' itens</td>'+
+     '<td style="text-align:right">R$ '+money(totalGeral)+'</td></tr>':'')+
+    '</tfoot></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum item encontrado</b>'+
     '<span>Cadastre ingredientes em <b>Ingredientes e Insumos</b>.</span></div>')+
    '</div></div>';
@@ -20931,13 +21029,20 @@ function telaEstoqueTotal(){
 }
 function exportarEstoque(){
   baseMov();
+  /* exporta exatamente o que esta na tela: mesmo filtro, mesma ordem */
+  var lista=listaEstoque();
+  var todos=itensEstoque();
   var l=[['Codigo','Ingrediente','Grupo','Unidade','Minimo','Quantidade','Preco medio','Ultima compra','Valor total']];
-  itensEstoque().forEach(function(i){
-    var g=grupoIng(i.grupoId);
-    l.push([i.codigo,i.nome,g?g.nome:'',un(i.unidade).ab,i.estoqueMin,i.estoqueAtual,
-      String(custoAtual(i)).replace('.',','),String(i.custoUltima||0).replace('.',','),
+  lista.forEach(function(i){
+    l.push([i.codigo,i.nome,nomeGrupoItem(i),un(i.unidade).ab,i.estoqueMin,i.estoqueAtual,
+      String(custoDoItem(i)).replace('.',','),String(i.custoUltima||0).replace('.',','),
       String(valorItem(i).toFixed(2)).replace('.',',')]);
   });
+  l.push([]);
+  l.push(['Total do filtro',lista.length+' itens','','','','','','',
+    String(lista.reduce(function(a,i){return a+valorItem(i)},0).toFixed(2)).replace('.',',')]);
+  l.push(['Total do estoque',todos.length+' itens','','','','','','',
+    String(todos.reduce(function(a,i){return a+valorItem(i)},0).toFixed(2)).replace('.',',')]);
   var csv=l.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
   var b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');a.href=URL.createObjectURL(b);

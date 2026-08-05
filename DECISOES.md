@@ -80,6 +80,19 @@ Regras que passam a valer:
 - Editar um lançamento que veio de **nota de entrada** mostra os **itens comprados**
   naquela nota: quantidade, valor unitário, desconto e total
 
+## Estoque Total: totais do filtro e ordenação (V10.2.0)
+
+- Acima da tabela ficou uma barra com **três números**: o valor em dinheiro do que o
+  filtro pegou, o valor total do estoque inteiro, e quanto o filtro representa em %
+- Sem filtro, a barra avisa que os dois valores são o mesmo. Com filtro, ela destaca
+  o valor filtrado e oferece o botão de limpar
+- O rodapé da tabela repete os dois totais quando há filtro
+- **Todas as 8 colunas ordenam ao clicar** no título; clicar de novo inverte.
+  Texto começa em A→Z, número começa do maior para o menor. A seta mostra o sentido
+- Empate sempre desempata pelo nome, para a lista nunca "dançar" entre um clique e outro
+- A **exportação passou a seguir o filtro e a ordem da tela**, e traz no fim as duas
+  linhas de total (do filtro e do estoque inteiro)
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
