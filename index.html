@@ -11664,7 +11664,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.8.0';
+var VERSAO='V9.9.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -17423,13 +17423,25 @@ function exportarConc(){
    BLOCO 16 — FORNECEDORES
    ========================================================== */
 function baseForn(){DB.fornec=DB.fornec||[];}
+var FB={busca:''};
+function fornecedor(id){return (DB.fornec||[]).find(function(x){return x.id===id})||null}
 function telaFornecedores(){
   baseForn();
-  var lista=(DB.fornec||[]).slice().sort(function(a,b){return (a.empresa||'').localeCompare(b.empresa||'')});
+  var q=(FB.busca||'').toLowerCase();
+  var lista=(DB.fornec||[]).filter(function(f){
+    if(!q)return true;
+    return (f.empresa||'').toLowerCase().indexOf(q)>=0||(f.nome||'').toLowerCase().indexOf(q)>=0||
+      (f.cnpj||'').toLowerCase().indexOf(q)>=0||soDigitos(f.whats||'').indexOf(soDigitos(q))>=0;
+  }).sort(function(a,b){return (a.empresa||'').localeCompare(b.empresa||'')});
   $('content').innerHTML='<div class="finWrap">'+
   '<div class="finTop"><div><h1>Fornecedores</h1>'+
   '<p>Cadastro usado nos lançamentos financeiros e nas notas de entrada.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalForn()">'+sv('plus',14)+' Cadastrar fornecedor</button></div></div>'+
+  '<div style="margin:0 0 12px;position:relative;max-width:360px">'+
+   '<input id="fbB" value="'+E(FB.busca)+'" placeholder="buscar por empresa, contato, CNPJ ou WhatsApp" '+
+   'style="width:100%;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 11px" '+
+   'oninput="FB.busca=this.value;clearTimeout(window._tfb);window._tfb=setTimeout(function(){'+
+   'telaFornecedores();var e=document.getElementById(\'fbB\');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},280)"></div>'+
   '<div class="pnl2"><div class="pnl2H">Fornecedores <span class="cnt2">'+lista.length+'</span></div>'+
   '<div class="pnl2B" style="padding:0">'+
   (lista.length?'<table class="pTable finTab"><thead><tr>'+
@@ -17462,11 +17474,29 @@ function modalForn(id){
   '<div class="row2"><div class="fld2"><label>Nome do fornecedor</label><input id="foN" value="'+E(f?f.nome:'')+'" placeholder="pessoa de contato"></div>'+
   '<div class="fld2"><label>E-mail</label><input id="foM" type="email" value="'+E(f?f.email:'')+'"></div></div>'+
   '<div class="row2"><div class="fld2" style="margin:0"><label>Telefone</label><input id="foT" value="'+E(f?f.tel:'')+'" placeholder="(00) 0000-0000"></div>'+
-  '<div class="fld2" style="margin:0"><label>WhatsApp</label><input id="foW" value="'+E(f?f.whats:'')+'" placeholder="(00) 00000-0000"></div></div>'+
-  '</div></div>';
+  '<div class="fld2" style="margin:0"><label>WhatsApp *</label><input id="foW" value="'+E(f?f.whats:'')+'" placeholder="(00) 00000-0000"></div></div>'+
+  '</div>'+
+  (f?(function(){
+    var vinc=(DB.insumos||[]).filter(function(i){return i.fornecedorId===f.id});
+    return '<div class="blk" style="margin:11px 0 0;max-width:none"><h3>Insumos deste fornecedor'+
+     ' <span class="cnt2">'+vinc.length+'</span></h3>'+
+     (vinc.length?'<table class="acTab"><thead><tr><th>Insumo</th>'+
+       '<th style="width:90px">Unidade</th><th style="width:110px;text-align:right">Custo médio</th>'+
+       '<th style="width:110px;text-align:right">Em estoque</th></tr></thead><tbody>'+
+       vinc.sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')}).map(function(i){
+         return '<tr><td><b>'+E(i.nome)+'</b></td><td>'+un(i.unidade).ab+'</td>'+
+         '<td style="text-align:right">R$ '+money(custoAtual(i))+'</td>'+
+         '<td style="text-align:right">'+fmtQt(i.estoqueAtual||0)+' '+un(i.unidade).ab+'</td></tr>';
+       }).join('')+'</tbody></table>'
+      :'<div class="hint" style="padding:10px">Nenhum insumo vinculado ainda. '+
+       'O vínculo é criado ao lançar uma nota de entrada deste fornecedor.</div>')+
+     '</div>';
+  })():'')+
+  '</div>';
   modal(f?'Editar fornecedor':'Cadastrar fornecedor',h,'Salvar',function(){
     var emp=$('foE').value.trim();
     if(!emp){toast('Informe o nome da empresa.');return false;}
+    if(!$('foW').value.trim()){toast('Informe o WhatsApp do fornecedor.');return false;}
     var o={empresa:emp,cnpj:$('foC').value.trim(),nome:$('foN').value.trim(),
       email:$('foM').value.trim(),tel:$('foT').value.trim(),whats:$('foW').value.trim()};
     if(f)Object.assign(f,o);
@@ -19909,6 +19939,8 @@ function ajustaEstoque(ins,qtd,unidade,sinal){
   var q=convUnid(qtd,unidade,ins.unidade);
   if(q===null)q=qtd;
   ins.estoqueAtual=+(((Number(ins.estoqueAtual)||0)+sinal*q).toFixed(4));
+  /* sem estoque nao ha custo medio: ele renasce na proxima entrada */
+  if((Number(ins.estoqueAtual)||0)<=0.00001)ins.custo=0;
   return q;
 }
 /* monta as linhas de um lançamento e aplica no estoque */
@@ -22012,6 +22044,32 @@ function finalizarNota(lancs){
   telaNotas();
   toast('Nota lançada — estoque '+(n.receber?'atualizado':'não movimentado')+
     ' e '+(lancs||[]).length+' lançamento(s) no financeiro.');
+  setTimeout(function(){vincularFornecedor(n)},600);
+}
+
+/* ao lancar a nota, os itens passam a pertencer aquele fornecedor */
+async function vincularFornecedor(n){
+  try{
+    if(!n||!n.fornecedorId)return;
+    var novos=(n.itens||[]).map(function(it){return insumo(it.insumoId)})
+      .filter(function(i){return i&&i.fornecedorId!==n.fornecedorId});
+    if(!novos.length)return;
+    var troca=novos.filter(function(i){return i.fornecedorId});
+    var ok=await confirmar({
+      titulo:'Vincular a '+n.fornecedorNome,
+      texto:novos.length+' item(ns) desta nota ainda não pertencem a este fornecedor.',
+      linhas:novos.slice(0,12).map(function(i){
+        var at=i.fornecedorId?(fornecedor(i.fornecedorId)||{}).empresa:'';
+        return [i.nome,(at?'hoje: '+at:'sem fornecedor'),''];}),
+      aviso:(troca.length?'<b>'+troca.length+'</b> item(ns) já tinham outro fornecedor e '+
+        'serão trocados.<br>':'')+
+        'Depois de vincular, eles aparecem na aba <b>Insumos deste fornecedor</b>, no cadastro dele.',
+      ok:'Vincular',cancelar:'Agora não',tipo:'check'});
+    if(!ok)return;
+    novos.forEach(function(i){i.fornecedorId=n.fornecedorId});
+    salvar();
+    toast(novos.length+' insumo(s) vinculado(s) a '+n.fornecedorNome+'.');
+  }catch(e){}
 }
 
 /* ---------- VER / EXCLUIR ---------- */
