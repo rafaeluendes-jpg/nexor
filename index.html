@@ -100,12 +100,16 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   background:#fff;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
 .bandSuc i{font-style:normal;font-size:10px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .drop{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1);background:#fff}
-.drop.op{max-height:560px;border-top:1px solid var(--band-line);box-shadow:0 10px 24px -14px rgba(18,42,66,.5)}
+.drop.op{max-height:min(560px,calc(100vh - 150px));overflow-y:auto;overflow-x:hidden;
+  border-top:1px solid var(--band-line);box-shadow:0 10px 24px -14px rgba(18,42,66,.5);
+  overscroll-behavior:contain}
+.drop.op::-webkit-scrollbar{width:9px}
+.drop.op::-webkit-scrollbar-thumb{background:var(--line,#dcdce3);border-radius:5px}
 .dropHd{padding:13px 18px 4px;display:flex;align-items:center;gap:9px}
 .dropHd .dh{width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;
   color:var(--acc-d);background:var(--acc-soft);border:1px solid #C7EAE3}
 .dropHd b{font-size:13.5px;font-weight:600}
-.dropIn{padding:8px 14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:4px}
+.dropIn{padding:8px 14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px}
 .dItem{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid transparent;border-radius:8px;
   background:none;cursor:pointer;text-align:left;font-size:12.8px;color:var(--ink-2);opacity:0;transform:translateY(-10px)}
 .drop.op .dItem{opacity:1;transform:translateY(0);transition:opacity .3s,transform .3s cubic-bezier(.2,.8,.3,1),background .14s,color .14s}
@@ -11543,7 +11547,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.1.0';
+var VERSAO='V9.1.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
