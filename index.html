@@ -11353,7 +11353,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.4.1';
+var VERSAO='V7.4.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -17050,7 +17050,11 @@ function modalInsumo(id,copia){
   '<div class="row3" style="margin-top:12px">'+
    '<div class="fld2"><label>Estoque mínimo</label><input id="isMi" type="number" step="0.001" value="'+(i?(i.estoqueMin||0):0)+'">'+
     '<div class="hint">Abaixo disso o item é sinalizado.</div></div>'+
-   '<div class="fld2"><label>Estoque atual</label><input id="isAt" type="number" step="0.001" value="'+(i&&!copia?(i.estoqueAtual||0):0)+'"></div>'+
+   '<div class="fld2"><label>Estoque atual</label>'+
+    '<input id="isAt" type="number" step="0.001" readonly style="background:var(--alt)" '+
+     'value="'+(i&&!copia?(i.estoqueAtual||0):0)+'">'+
+    '<div class="hint">Só muda por <b>nota de entrada</b>, <b>movimentação de estoque</b> '+
+    '(com motivo) ou <b>contagem de estoque</b>.</div></div>'+
    '<div class="fld2"><label>Fator de conversão</label><input id="isFa" type="number" step="0.001" value="'+(i?(i.fator||1):1)+'">'+
     '<div class="hint">Multiplicador da unidade de compra.</div></div>'+
   '</div></div>'+
@@ -17168,7 +17172,9 @@ function salvarInsumo(id,copia){
   var o={nome:nome,codigo:$('isC').value.trim()||proxCodInsumo(),unidade:$('isU').value,
     grupoId:$('isG').value,catFinId:$('isCf').value,
     controlaEstoque:$('isCe').checked,compoeCMV:$('isCm').checked,
-    estoqueMin:parseFloat($('isMi').value)||0,estoqueAtual:parseFloat($('isAt').value)||0,
+    estoqueMin:parseFloat($('isMi').value)||0,
+    /* estoque nao entra pelo cadastro: so nota, movimentacao com motivo ou contagem */
+    estoqueAtual:(alvoPrev?Number(alvoPrev.estoqueAtual)||0:0),
     fator:parseFloat($('isFa').value)||1,
     modoCusto:normModo($('isModo').value),
     /* custo e custo da ultima compra vem das notas de entrada, nunca da tela */
