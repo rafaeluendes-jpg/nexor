@@ -100,9 +100,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   background:#fff;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
 .bandSuc i{font-style:normal;font-size:10px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .drop{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1);background:#fff}
-.drop.op{max-height:min(560px,calc(100vh - 150px));overflow-y:auto;overflow-x:hidden;
-  border-top:1px solid var(--band-line);box-shadow:0 10px 24px -14px rgba(18,42,66,.5);
-  overscroll-behavior:contain}
+.drop.op{max-height:560px;border-top:1px solid var(--band-line);box-shadow:0 10px 24px -14px rgba(18,42,66,.5)}
 .drop.op::-webkit-scrollbar{width:9px}
 .drop.op::-webkit-scrollbar-thumb{background:var(--line,#dcdce3);border-radius:5px}
 .dropHd{padding:13px 18px 4px;display:flex;align-items:center;gap:9px}
@@ -531,6 +529,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   border-radius:0 0 9px 9px;box-shadow:0 14px 34px rgba(18,42,66,.22);z-index:60;min-width:266px;padding:4px 0;
   opacity:0;transform:translateY(-8px);pointer-events:none;transition:opacity .18s,transform .18s}
 .mnu.op{opacity:1;transform:translateY(0);pointer-events:auto}
+.mnu{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.mnu::-webkit-scrollbar{width:9px}
+.mnu::-webkit-scrollbar-thumb{background:var(--line,#dcdce3);border-radius:5px}
 .mnu .mh{padding:9px 15px 7px;font-size:10.5px;font-weight:700;color:var(--ink-3);
   text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--line-2);margin-bottom:3px}
 .mnu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;
@@ -11478,6 +11479,13 @@ var b=$('bandRow').querySelectorAll('.mIco');
 for(var k=0;k<b.length;k++)b[k].onclick=function(e){e.stopPropagation();toggleDrop(this.getAttribute('data-m'));};
 $('sucBtn').onclick=function(e){e.stopPropagation();toggleSuc();};
 }
+function ajustaAlturaDrop(){
+  var d=document.getElementById('mnu'); if(!d)return;
+  var topo=d.getBoundingClientRect().top;
+  var livre=Math.max(200,(window.innerHeight||600)-topo-14);
+  d.style.maxHeight=livre+'px';
+}
+window.addEventListener('resize',ajustaAlturaDrop);
 function toggleDrop(mid){
 fecharSuc();
 if(S.aberto===mid){fecharDrop();return;}
@@ -11501,6 +11509,7 @@ requestAnimationFrame(function(){
   var fora=el.getBoundingClientRect().right-window.innerWidth+12;
   if(fora>0)el.style.left=Math.max(6,esq-fora)+'px';
   el.classList.add('op');
+  ajustaAlturaDrop();
 });
 marcaIcones(mid);
 var bs=el.querySelectorAll('button');
@@ -11547,7 +11556,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V9.1.1';
+var VERSAO='V9.1.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
