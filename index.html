@@ -10655,7 +10655,7 @@ var MAPA=[
     campos:function(o,k){return {nome:o.nome,tipo:o.tipo||'bairro',taxa:n(o.taxa),
       km:n(o.km),tempo:n(o.tempo),observacao:o.obs||null,ativa:o.ativa!==false,ordem:k}}}]},
 
- {col:'sucursais', espelha:true, tab:'sucursais',
+ {col:'sucursais', espelha:false, tab:'sucursais',
   campos:function(x){return {nome:x.nome,apelido:x.apelido||null,cnpj:x.cnpj||null,
     telefone:x.telefone||null,cidade:x.cidade||null,uf:x.uf||null,
     matriz:!!x.matriz,ativa:x.ativa!==false,
@@ -10864,8 +10864,9 @@ async function sincronizar(){
           return o;
         });
         var salvos=await enviar(E2.tab,linhas);
-        logNuvem(E2.tab+': '+linhas.length+' enviado(s), '+(salvos||[]).length+' confirmado(s)',
-          (salvos||[]).length!==linhas.length);
+        var faltou=linhas.length-((salvos||[]).length);
+        logNuvem(E2.tab+': '+linhas.length+' enviado(s), '+(salvos||[]).length+' confirmado(s)',faltou!==0);
+        if(faltou>0)toast('Atenção: '+faltou+' registro(s) de '+E2.tab+' não foram aceitos pela nuvem.');
         salvos.forEach(function(r){if(r.ref_local)_ids[r.ref_local]=r.id});
       }
       /* roda mesmo com a lista vazia — senão apagar o último item nunca chega na nuvem */
@@ -11500,7 +11501,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V8.7.1';
+var VERSAO='V8.7.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
