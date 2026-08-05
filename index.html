@@ -11310,6 +11310,8 @@ async function sincronizar(){
     NUVEM.ultima=new Date();
     NUVEM.sujo=false;
     DB._sujo=false;
+    _puxadasPresas=0;
+    (function(){var a=document.getElementById('avisoEnvio');if(a)a.remove();})();
     DB._snapOk=true;
     gravarLocal();
     statusNuvem('ok');
@@ -12060,7 +12062,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V10.6.0';
+var VERSAO='V10.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -12100,7 +12102,10 @@ document.addEventListener('visibilitychange',function(){
 });
 window.addEventListener('focus',checarVersao);
 function rodape(extra){
-$('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada?'Sincronizado com a nuvem':'Salvo neste aparelho')+'</span><span>|</span>'+
+$('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada
+  ?('Nuvem ligada'+(RT.ligado?' · tempo real':' · sem tempo real, conferindo a cada 45s')+
+    (NUVEM.ultima?' · '+NUVEM.ultima.toLocaleTimeString('pt-BR').slice(0,5):''))
+  :'SALVO SÓ NESTE APARELHO')+'</span><span>|</span>'+
 '<span class="soPC">Loja: <b>'+E(nomeLojaAtual())+'</b></span><span class="soPC">|</span>'+
 '<span class="soPC">Usuário: <b>'+E((usuarioLogado()||{}).login||(usuarioLogado()||{}).nome||'—')+'</b>'+
   (ehPlataforma()?' <em style="color:var(--acc)">(dono do Nexor)</em>':'')+'</span>'+
@@ -12934,6 +12939,64 @@ document.addEventListener('visibilitychange',function(){
     agendarRecarga('volta');
   }
 });
+
+/* ==========================================================
+   CONFERÊNCIA PERIÓDICA
+   O aviso instantâneo (tempo real) e um websocket: wifi da loja,
+   proxy, roteador ou o navegador em segundo plano derrubam ele sem
+   dizer nada, e o aparelho fica olhando para dados velhos por horas.
+   Aqui o aparelho confere sozinho a cada 45 segundos. Assim dois
+   computadores se encontram em menos de um minuto mesmo quando o
+   aviso instantaneo nao chega.
+   ========================================================== */
+/* retrato barato do que esta na tela, para so redesenhar quando muda mesmo */
+var _COLS_NOME=['motivosMov','gruposIng','fichaCats','contas','formasPag','catfin',
+                'fornec','unidExtra','lojasFin'];
+function retratoDB(){
+  var r='';
+  try{
+    MAPA.forEach(function(m){ r+=m.col+':'+((DB[m.col]||[]).length)+';'; });
+    _COLS_NOME.forEach(function(c){
+      r+=c+'='+((DB[c]||[]).map(function(x){return (x&&x.nome)||''}).join('|'))+';';
+    });
+  }catch(e){}
+  return r;
+}
+var _puxadasPresas=0;
+async function conferirNuvemAgora(){
+  if(!NUVEM.ligada||NUVEM.sincronizando||RT.pausa)return;
+  if(document.hidden)return;
+  if(ocupado())return;                       /* no meio de um lançamento: nao mexe */
+  if(NUVEM.sujo){
+    /* ha coisa daqui esperando subir. Tenta subir; se travar, avisa em vez de
+       ficar em silencio achando que esta tudo certo. */
+    _puxadasPresas++;
+    try{ await sincronizar(); }catch(e){}
+    if(NUVEM.sujo&&_puxadasPresas>=3)avisoEnvioPreso();
+    return;
+  }
+  _puxadasPresas=0;
+  var antes=retratoDB();
+  try{ await baixarDaNuvem(); }catch(e){ return; }
+  if(retratoDB()===antes)return;             /* nada mudou: nao pisca a tela */
+  logNuvem('conferência periódica trouxe novidades');
+  if(ocupado()){ RT.pendenteTela=true; marcaNovidade(true); }
+  else if(S.mod&&S.it){ abrir(S.mod,S.it); marcaNovidade(false); }
+}
+setInterval(conferirNuvemAgora,45000);
+function avisoEnvioPreso(){
+  try{
+    if(document.getElementById('avisoEnvio'))return;
+    var el=document.createElement('div');
+    el.id='avisoEnvio';el.className='avisoGrav sinc';
+    el.innerHTML='<div><b>Este aparelho está com envio travado</b>'+
+      '<span>Há coisa lançada aqui que não está subindo para a nuvem, e por isso ele '+
+      'também não recebe o que os outros lançam. Abra o Diagnóstico para ver onde parou.</span></div>'+
+      '<button onclick="painelNuvem()">Abrir diagnóstico</button>'+
+      '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+    barraAvisos().appendChild(el);
+  }catch(e){}
+}
 
 /* ---------- DIAGNÓSTICO DA CONEXÃO ---------- */
 async function testarConexao(){

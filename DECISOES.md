@@ -219,6 +219,36 @@ Isso aparecia apenas como "Salvo neste aparelho" em letra pequena no rodapé.
 Cada pessoa da rede precisa da própria conta de nuvem, ou o login do sistema deve
 conectar sozinho usando uma credencial da rede. Hoje só existe a conta do Rafael.
 
+## Um computador não via o outro (V10.7.0)
+
+Os dois aparelhos estavam ligados na nuvem e na versão certa. A propagação dependia de
+**um único mecanismo**: o aviso instantâneo por websocket (Supabase Realtime). Se ele
+cai — wifi da loja, proxy, roteador, aba em segundo plano — não há erro, não há aviso:
+o aparelho simplesmente fica olhando dados velhos por horas.
+
+Conferido no banco (tudo certo do lado do servidor):
+
+- as 36 tabelas do tempo real estão publicadas, com `REPLICA IDENTITY FULL`
+- `motivos_movimentacao` está entre elas
+- toda tabela do MAPA existe e tem índice único em `ref_local`, então o upsert funciona
+- uma loja só, e a RLS exige sessão autenticada
+
+Correções:
+
+- **Conferência periódica a cada 45s**: com ou sem tempo real, o aparelho confere
+  sozinho. Dois computadores convergem em menos de um minuto
+- Só redesenha a tela se algo mudou de verdade (retrato por contagem + nomes dos
+  cadastros pequenos), e nunca no meio de um lançamento ou com janela aberta
+- Não consulta nada com a aba em segundo plano
+- **Aviso quando o envio trava**: se há coisa pendente que não sobe, o aparelho também
+  para de receber. Antes isso era silencioso; agora aparece na barra de avisos
+- O rodapé passou a dizer se o tempo real está de pé e a hora da última sincronização
+
+### Tabelas fora do tempo real (propagam só na conferência de 45s)
+
+`cardapio_config`, `clientes_nexor`, `compras_sem_vinculo`, `ordens_producao`,
+`sucursais`, `usuarios_sistema`
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
