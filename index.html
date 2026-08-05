@@ -10092,6 +10092,28 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .ntSug .sgVaz{padding:10px;font-size:12px;color:var(--ink-3,#7a7a86)}
 .tipoFixo{display:flex;align-items:center;gap:6px;font-size:12.5px;
   background:var(--alt,#f2f3f7);border-radius:8px;padding:8px 11px;margin-bottom:2px}
+/* rastreio do item — faixa do fluxo */
+.hp2Topo{margin:12px 16px;background:#fff;border:1px solid var(--line,#dcdce3);
+  border-radius:8px;overflow:hidden}
+.hp2Nome{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--alt,#f5f5f8);
+  border-bottom:1px solid var(--line,#dcdce3)}
+.hp2Nome b{font-size:14.5px;display:block}
+.hp2Nome span{font-size:11px;color:var(--ink-3,#7a7a86)}
+.hp2Fluxo{display:flex;align-items:stretch;flex-wrap:wrap}
+.hp2K{flex:1;min-width:130px;padding:11px 14px;display:flex;flex-direction:column;gap:1px}
+.hp2K span{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3,#7a7a86)}
+.hp2K b{font-size:17px;line-height:1.2}
+.hp2K small{font-size:10.5px;color:var(--ink-3,#7a7a86)}
+.hp2K.vg2 b{color:var(--acc,#00806F)}
+.hp2K.vr2 b{color:var(--red,#C94141)}
+.hp2Atual{background:var(--acc-soft,#E0F5F1)}
+.hp2Seta{display:flex;align-items:center;color:var(--ink-3,#b9b9c2);padding:0 2px}
+.hpFx td{vertical-align:top}
+.hpFx .hpBar{margin-top:5px;max-width:220px}
+.hpFxQ{width:120px;text-align:right}
+.hpFxQ small{display:block;font-size:10px;color:var(--ink-3,#7a7a86)}
+.hpFxV{width:100px;text-align:right;color:var(--ink-2,#4a4a55)}
+@media(max-width:760px){.hp2Seta{display:none}.hp2K{min-width:46%}}
 </style>
 </head>
 <body>
@@ -11367,7 +11389,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V7.5.0';
+var VERSAO='V7.5.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 async function checarVersao(){
   try{
@@ -19894,7 +19916,7 @@ function buscarHist(){HP.de=$('hpDe').value;HP.ate=$('hpAte').value;telaHistPosi
 function blocoRastreio(){
   if(!HP.item)return '<div class="mvVazio" style="padding:64px">'+sv('search',26)+
    '<b>Escolha um item para rastrear</b>'+
-   '<span>Você verá cada entrada e saída, para onde foi e o saldo depois de cada movimento.</span></div>';
+   '<span>Você verá cada entrada e saída, de onde veio, para onde foi e o saldo após cada movimento.</span></div>';
   var i=itemEstoque(HP.item);
   if(!i)return '';
   var lin=linhasHist(HP.item);
@@ -19905,6 +19927,7 @@ function blocoRastreio(){
   var qEnt=soma(ent),qSai=soma(sai);
   var vEnt=ent.reduce(function(a,x){return a+x.l.qtd*x.l.custo},0);
   var vSai=sai.reduce(function(a,x){return a+x.l.qtd*x.l.custo},0);
+  var ab=un(i.unidade).ab;
   /* saldo retroativo: parte do estoque atual e volta */
   var saldoFinal=Number(i.estoqueAtual)||0;
   var saldos=[],acc=saldoFinal;
@@ -19916,66 +19939,81 @@ function blocoRastreio(){
   }
   var saldoInicial=acc;
 
-  /* para onde foi */
-  var destinos={};
-  sai.forEach(function(x){
-    var d=x.l.fichaNome||(x.m.origem==='venda'?'Venda no PDV':nomeMotivo(x.m.motivoId));
-    var q=convUnid(x.l.qtd,x.l.unidade,i.unidade);
-    if(q===null)q=x.l.qtd;
-    destinos[d]=destinos[d]||{q:0,v:0,n:0};
-    destinos[d].q+=q;destinos[d].v+=x.l.qtd*x.l.custo;destinos[d].n++;
+  /* agrupamento: de onde veio / para onde foi */
+  function agrupar(arr,rotulo){
+    var m={};
+    arr.forEach(function(x){
+      var d=rotulo(x);
+      var q=convUnid(x.l.qtd,x.l.unidade,i.unidade);
+      if(q===null)q=x.l.qtd;
+      m[d]=m[d]||{q:0,v:0,n:0};
+      m[d].q+=q;m[d].v+=x.l.qtd*x.l.custo;m[d].n++;
+    });
+    return Object.keys(m).map(function(k2){return {nome:k2,d:m[k2]}})
+      .sort(function(a,b){return b.d.q-a.d.q});
+  }
+  var origens=agrupar(ent,function(x){
+    if(x.m.origem==='nota')return 'Nota de entrada'+(x.m.obs?' — '+x.m.obs:'');
+    if(String(x.l.origem||'').indexOf('producao')>=0)return 'Produção'+(x.l.fichaNome?' — '+x.l.fichaNome:'');
+    return nomeMotivo(x.m.motivoId);
   });
-  var dest=Object.keys(destinos).map(function(k2){return {nome:k2,d:destinos[k2]}})
-    .sort(function(a,b){return b.d.q-a.d.q});
+  var dest=agrupar(sai,function(x){
+    return x.l.fichaNome||(x.m.origem==='venda'?'Venda no PDV':nomeMotivo(x.m.motivoId));
+  });
 
-  return '<div class="hpGrade">'+
+  function tabelaFluxo(lista,tot,vazio){
+    if(!lista.length)return '<div class="hint" style="padding:16px">'+vazio+'</div>';
+    return '<table class="hpTab hpFx"><tbody>'+lista.map(function(d){
+      var pc=tot?(d.d.q/tot*100):0;
+      return '<tr><td><b>'+E(d.nome)+'</b>'+
+       '<span class="hpBar"><i style="width:'+Math.min(100,pc)+'%"></i></span></td>'+
+       '<td class="hpFxQ"><b>'+fmtQt(d.d.q)+' '+ab+'</b>'+
+        '<small>'+pc.toFixed(0)+'% · '+d.d.n+' mov.</small></td>'+
+       '<td class="hpFxV">R$ '+money(d.d.v)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  }
+
+  return '<div class="hp2Topo">'+
+    '<div class="hp2Nome">'+sv('box',17)+'<div><b>'+E(i.nome)+'</b>'+
+     '<span>'+un(i.unidade).n+(i.codigo?' · cód. '+E(i.codigo):'')+'</span></div></div>'+
+    '<div class="hp2Fluxo">'+
+     '<div class="hp2K"><span>Saldo no início</span><b>'+fmtQt(saldoInicial)+' '+ab+'</b></div>'+
+     '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
+     '<div class="hp2K vg2"><span>Entrou</span><b>+'+fmtQt(qEnt)+' '+ab+'</b><small>R$ '+money(vEnt)+'</small></div>'+
+     '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
+     '<div class="hp2K vr2"><span>Saiu</span><b>&minus;'+fmtQt(qSai)+' '+ab+'</b><small>R$ '+money(vSai)+'</small></div>'+
+     '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
+     '<div class="hp2K hp2Atual"><span>Saldo atual</span><b>'+fmtQt(saldoFinal)+' '+ab+'</b>'+
+      '<small>R$ '+money(saldoFinal*custoDoItem(i))+' em estoque · custo médio R$ '+money(custoDoItem(i))+'</small></div>'+
+    '</div></div>'+
+   '<div class="hpGrade" style="padding-top:0">'+
    '<div class="hpCol">'+
     '<div class="hpCard">'+
-     '<div class="hpH">'+sv('box',15)+' '+E(i.nome)+
-      '<span class="hpUn">'+un(i.unidade).n+'</span></div>'+
-     '<div class="hpNums">'+
-      '<div class="hpN"><span>Saldo no início</span><b>'+fmtQt(saldoInicial)+'</b></div>'+
-      '<div class="hpN"><span>Entrou</span><b class="vg">+'+fmtQt(qEnt)+'</b></div>'+
-      '<div class="hpN"><span>Saiu</span><b class="vr">-'+fmtQt(qSai)+'</b></div>'+
-      '<div class="hpN dest4"><span>Saldo atual</span><b>'+fmtQt(saldoFinal)+'</b></div>'+
-     '</div>'+
-     '<div class="hpNums" style="border-top:1px solid var(--line-2)">'+
-      '<div class="hpN"><span>Valor que entrou</span><b class="vg">R$ '+money(vEnt)+'</b></div>'+
-      '<div class="hpN"><span>Valor consumido</span><b class="vr">R$ '+money(vSai)+'</b></div>'+
-      '<div class="hpN"><span>Custo médio hoje</span><b>R$ '+money(custoDoItem(i))+'</b></div>'+
-      '<div class="hpN"><span>Valor em estoque</span><b>R$ '+money(saldoFinal*custoDoItem(i))+'</b></div>'+
-     '</div></div>'+
+     '<div class="hpH">'+sv('down2',14)+' De onde veio</div>'+
+     tabelaFluxo(origens,qEnt,'Este item ainda não teve entrada no período.')+
+    '</div>'+
     '<div class="hpCard">'+
-     '<div class="hpH">'+sv('cr',14)+' Para onde foi</div>'+
-     (dest.length?'<table class="hpTab"><tbody>'+dest.map(function(d){
-       var pc=qSai?(d.d.q/qSai*100):0;
-       return '<tr><td><b>'+E(d.nome)+'</b><small>'+d.d.n+' movimento(s)</small></td>'+
-       '<td style="width:110px;text-align:right">'+fmtQt(d.d.q)+' '+un(i.unidade).ab+'</td>'+
-       '<td style="width:100px;text-align:right">R$ '+money(d.d.v)+'</td>'+
-       '<td style="width:90px"><span class="hpBar"><i style="width:'+Math.min(100,pc)+'%"></i></span>'+
-       '<small>'+pc.toFixed(0)+'%</small></td></tr>';
-     }).join('')+'</tbody></table>'
-     :'<div class="hint" style="padding:16px">Este item ainda não teve saída.</div>')+
+     '<div class="hpH">'+sv('out',14)+' Para onde foi</div>'+
+     tabelaFluxo(dest,qSai,'Este item ainda não teve saída no período.')+
     '</div></div>'+
    '<div class="hpCol">'+
     '<div class="hpCard">'+
-     '<div class="hpH">'+sv('list',14)+' Linha do tempo — '+lin.length+' movimentos</div>'+
+     '<div class="hpH">'+sv('list',14)+' Linha do tempo <span class="hpUn">'+lin.length+' movimentos · mais recente primeiro</span></div>'+
      (lin.length?'<div class="hpTimeW"><table class="hpTab"><thead><tr>'+
-      '<th style="width:92px">Data</th><th>Movimento</th>'+
+      '<th style="width:88px">Data</th><th>Movimento</th>'+
       '<th style="width:104px;text-align:right">Qtd</th>'+
-      '<th style="width:96px;text-align:right">Saldo</th>'+
-      '<th style="width:96px;text-align:right">Valor</th></tr></thead><tbody>'+
+      '<th style="width:110px;text-align:right">Saldo após</th></tr></thead><tbody>'+
       lin.slice().reverse().map(function(x,idx){
         var k3=lin.length-1-idx;
         var q=convUnid(x.l.qtd,x.l.unidade,i.unidade);
         if(q===null)q=x.l.qtd;
         return '<tr class="'+(x.l.direcao==='entrada'?'ent':'sai')+'">'+
         '<td>'+dataBR(x.m.data)+'<small>'+E(x.m.hora||'')+'</small></td>'+
-        '<td><b>'+E(nomeMotivo(x.m.motivoId))+'</b><small>'+E(destinoLinha(x))+'</small></td>'+
+        '<td><b>'+E(nomeMotivo(x.m.motivoId))+'</b><small>'+E(destinoLinha(x))+
+         (x.l.custo?' · R$ '+money(x.l.qtd*x.l.custo):'')+'</small></td>'+
         '<td style="text-align:right"><b class="'+(x.l.direcao==='entrada'?'vg':'vr')+'">'+
-         (x.l.direcao==='entrada'?'+':'-')+fmtQt(x.l.qtd)+' '+un(x.l.unidade).ab+'</b></td>'+
-        '<td style="text-align:right">'+fmtQt(saldos[k3])+'</td>'+
-        '<td style="text-align:right">R$ '+money(x.l.qtd*x.l.custo)+'</td></tr>';
+         (x.l.direcao==='entrada'?'+':'&minus;')+fmtQt(x.l.qtd)+' '+un(x.l.unidade).ab+'</b></td>'+
+        '<td style="text-align:right"><b>'+fmtQt(saldos[k3])+' '+ab+'</b></td></tr>';
       }).join('')+'</tbody></table></div>'
      :'<div class="hint" style="padding:20px">Nenhum movimento no período.</div>')+
     '</div></div></div>';
