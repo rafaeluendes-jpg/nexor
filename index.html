@@ -12207,7 +12207,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.3.0';
+var VERSAO='V11.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16276,8 +16276,7 @@ function modalPagamento(ids){
      contas.map(function(c){return '<option value="'+c.id+'"'+(cSel===c.id?' selected':'')+'>'+
        E(c.nome)+'</option>'}).join('')+
     '</select></div>'+
-    '<div class="fld2"><label>Forma de pagamento * '+
-     '<a class="incNovo" onclick="abrir(\'financeira\',\'formas-pagamento\')">(incluir nova)</a></label>'+
+    '<div class="fld2"><label>Forma de pagamento *</label>'+
      '<select id="pgM"><option value="">Selecione uma opção</option>'+
      formas.map(function(f){return '<option value="'+f.id+'"'+(mSel===f.id?' selected':'')+'>'+
        E(f.nome)+'</option>'}).join('')+
@@ -17528,7 +17527,7 @@ function modalLanc(id,tipoNovo,pre){
     '<option value="">Selecione uma opção</option>'+
     (DB.contas||[]).map(function(c){return '<option value="'+c.id+'"'+((l&&l.contaId===c.id)||(!l&&P.contaId===c.id)?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
    '</select></div>'+
-   '<div class="fld2"><label>Forma de pagamento <a class="incNovo" onclick="abrir(\'financeira\',\'formas-pagamento\')">(incluir novo)</a></label>'+
+   '<div class="fld2"><label>Forma de pagamento</label>'+
    '<select id="lnM"><option value="">Selecione uma opção</option>'+
     (DB.formasPag||[]).filter(function(f){return f.ativa!==false}).map(function(f){
       return '<option value="'+f.id+'"'+(l&&l.metodoId===f.id?' selected':'')+'>'+E(f.nome)+'</option>'}).join('')+
