@@ -1640,6 +1640,37 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.bsBox{display:flex;align-items:center;gap:9px;margin:0 0 9px}
+.bsBox input{flex:1;max-width:340px;height:32px;padding:0 11px;border:1px solid var(--line);
+  border-radius:6px;font-size:12.5px;background:#fff}
+.bsBox.ativo input{border-color:var(--acc)}
+.bsBox .bsCont{font-size:11px;color:var(--ink-3);font-weight:600}
+th.bsOrd{cursor:pointer;user-select:none}
+th.bsOrd:hover{background:var(--alt);color:var(--ink)}
+th.bsOrd:after{content:'\2195';font-size:9px;opacity:.25;margin-left:5px}
+th.bsOrd.bsOn{color:var(--acc-d)}
+th.bsOrd.bsOn:after{opacity:1}
+th.bsOrd.bsOn[data-dir=asc]:after{content:'\25B2'}
+th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
+.mmResumo{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.mmGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:11px}
+.mmCol{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+.mmH{display:flex;align-items:center;gap:8px;padding:11px 13px;background:var(--alt);
+  border-bottom:1px solid var(--line)}
+.mmH b{flex:1;font-size:12.5px}
+.mmPend{background:#C94141;color:#fff;font-size:10px;font-weight:700;border-radius:9px;
+  min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.mmOk{color:#0E8A46;display:flex}
+.mmIt{display:flex;align-items:center;gap:8px;padding:8px 13px;font-size:12px;
+  border-bottom:1px solid var(--line-2,#F0F2F5)}
+.mmIt:last-child{border-bottom:0}
+.mmIt i{width:8px;height:8px;border-radius:50%;background:#0E8A46;flex:none}
+.mmIt span{flex:1;min-width:0}
+.mmIt.falta{color:var(--ink-3)}
+.mmIt.falta i{background:#C94141}
+.mmIt em{font-style:normal;font-size:10px;color:#C94141;font-weight:700}
+.mmDot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#C94141;
+  margin-right:4px}
 .opFixa{display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;border-radius:5px;
   background:var(--alt);border:1px solid var(--line);font-size:12.5px;font-weight:600;
   color:var(--ink-2);white-space:nowrap}
@@ -6291,6 +6322,37 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.bsBox{display:flex;align-items:center;gap:9px;margin:0 0 9px}
+.bsBox input{flex:1;max-width:340px;height:32px;padding:0 11px;border:1px solid var(--line);
+  border-radius:6px;font-size:12.5px;background:#fff}
+.bsBox.ativo input{border-color:var(--acc)}
+.bsBox .bsCont{font-size:11px;color:var(--ink-3);font-weight:600}
+th.bsOrd{cursor:pointer;user-select:none}
+th.bsOrd:hover{background:var(--alt);color:var(--ink)}
+th.bsOrd:after{content:'\2195';font-size:9px;opacity:.25;margin-left:5px}
+th.bsOrd.bsOn{color:var(--acc-d)}
+th.bsOrd.bsOn:after{opacity:1}
+th.bsOrd.bsOn[data-dir=asc]:after{content:'\25B2'}
+th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
+.mmResumo{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.mmGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:11px}
+.mmCol{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+.mmH{display:flex;align-items:center;gap:8px;padding:11px 13px;background:var(--alt);
+  border-bottom:1px solid var(--line)}
+.mmH b{flex:1;font-size:12.5px}
+.mmPend{background:#C94141;color:#fff;font-size:10px;font-weight:700;border-radius:9px;
+  min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.mmOk{color:#0E8A46;display:flex}
+.mmIt{display:flex;align-items:center;gap:8px;padding:8px 13px;font-size:12px;
+  border-bottom:1px solid var(--line-2,#F0F2F5)}
+.mmIt:last-child{border-bottom:0}
+.mmIt i{width:8px;height:8px;border-radius:50%;background:#0E8A46;flex:none}
+.mmIt span{flex:1;min-width:0}
+.mmIt.falta{color:var(--ink-3)}
+.mmIt.falta i{background:#C94141}
+.mmIt em{font-style:normal;font-size:10px;color:#C94141;font-weight:700}
+.mmDot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#C94141;
+  margin-right:4px}
 .opFixa{display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;border-radius:5px;
   background:var(--alt);border:1px solid var(--line);font-size:12.5px;font-weight:600;
   color:var(--ink-2);white-space:nowrap}
@@ -10508,7 +10570,7 @@ var MOD=[
  {id:'venda-data-hora',n:'Venda por Data e Hora'},
  {id:'comparativo-anual',n:'Comparativo Anual e Mensal'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
- {id:'cfg-loja',n:'Dados da Loja'},
+ {id:'cfg-loja',n:'Mapa do Sistema'},
  {id:'carga-inicial',n:'Importar Dados'},
  {id:'cfg-sucursais',n:'Sucursais da Franquia'},
  {id:'cfg-operadores',n:'Operadores'},
@@ -12116,7 +12178,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.0.0';
+var VERSAO='V11.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -12189,6 +12251,7 @@ if(mid==='pdv'&&iid==='pdv')return telaPDV();
 if(mid==='pdv'&&iid==='pedidos-online'){limparSeloPedidos();return telaPedidosOnline();}
 if(mid==='loja'&&iid==='cfg-pdv')return telaCfgPDV();
 if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
+if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
 if(mid==='estoque'&&iid==='contagem-estoque')return telaContagem();
@@ -26778,10 +26841,6 @@ var AFAZER={
    'Cupons usados no período, quanto de desconto cada um gerou e quantos clientes novos trouxe.'],
  'loja/canais-integracao':['Canais de Venda e Integração',
    'Ligações com iFood, cardápio digital e WhatsApp — cada canal com sua chave de acesso.'],
- 'loja/cfg-loja':['Configuração da Loja',
-   'Nome, logotipo, horário de funcionamento e os dados que aparecem no cupom.'],
- 'loja/dados-loja':['Dados da Loja',
-   'Razão social, endereço e contatos usados nos documentos.'],
  'loja/dados-fiscais':['Dados Fiscais',
    'Regime tributário, CNPJ, certificado e a integração com o emissor de nota.'],
  'loja/cfg-entregador':['Configuração de Entregadores',
@@ -26797,6 +26856,154 @@ var AFAZER={
  'loja/usuarios-permissoes':['Usuários e Permissões',
    'Login e senha de cada pessoa, com o que ela pode ver em cada sucursal.']
 };
+/* ==========================================================
+   BUSCA E ORDENAÇÃO EM TODA TABELA
+   Em vez de mexer em cada uma das dezenas de telas, o sistema
+   olha o que está desenhado e liga busca e ordenação sozinho.
+   Toda tela nova nasce com isso funcionando.
+   Quem já tem busca/ordenação própria (Estoque Total, por exemplo)
+   é reconhecido e não recebe outra por cima.
+   ========================================================== */
+function numDaCelula(v){
+  var t=String(v||'').replace(/[^\d,.\-]/g,'');
+  if(!t||t==='-')return null;
+  t=t.replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.');
+  var n=parseFloat(t);
+  return isNaN(n)?null:n;
+}
+function ordenarTabela(t,i,th){
+  var tb=t.tBodies[0];if(!tb||!tb.rows.length)return;
+  var linhas=Array.prototype.slice.call(tb.rows);
+  /* linha com célula juntada (subtotal, separador) quebraria a ordem */
+  for(var z=0;z<linhas.length;z++){
+    if(linhas[z].cells.length<=i)return;
+    if(linhas[z].cells[i].colSpan>1)return;
+  }
+  var vals=linhas.map(function(tr){return (tr.cells[i].textContent||'').trim()});
+  var nums=vals.map(numDaCelula);
+  var ehNum=nums.filter(function(x){return x!==null}).length>=Math.max(1,Math.floor(vals.length*0.7));
+  var dir=th.getAttribute('data-dir');
+  if(!dir)dir=ehNum?'desc':'asc';              /* número começa do maior; texto, de A a Z */
+  else dir=(dir==='asc'?'desc':'asc');
+  var cab=t.querySelectorAll('thead th');
+  for(var c=0;c<cab.length;c++){cab[c].removeAttribute('data-dir');cab[c].classList.remove('bsOn');}
+  th.setAttribute('data-dir',dir);th.classList.add('bsOn');
+  var mul=(dir==='asc'?1:-1);
+  linhas.forEach(function(tr,k){tr._k=k});
+  linhas.sort(function(a,b){
+    var r;
+    if(ehNum){
+      var na=nums[a._k],nb=nums[b._k];
+      if(na===null&&nb===null)r=0; else if(na===null)r=1; else if(nb===null)r=-1;
+      else r=na-nb;
+    }else r=vals[a._k].localeCompare(vals[b._k],'pt',{numeric:true,sensitivity:'base'});
+    return r?r*mul:(a._k-b._k);               /* empate mantém a ordem original */
+  });
+  linhas.forEach(function(tr){tb.appendChild(tr)});
+}
+function ligarBuscaTabela(t){
+  var cx=document.createElement('div');
+  cx.className='bsBox';
+  cx.innerHTML='<input type="text" placeholder="Buscar por nome — digite 3 letras" autocomplete="off">'+
+    '<span class="bsCont"></span>';
+  t.parentNode.insertBefore(cx,t);
+  var inp=cx.querySelector('input'),ct=cx.querySelector('.bsCont');
+  inp.addEventListener('input',function(){
+    var q=this.value.trim().toLowerCase();
+    var tb=t.tBodies[0];if(!tb)return;
+    var vis=0,rs=tb.rows;
+    for(var r=0;r<rs.length;r++){
+      var passa=(q.length<3)||((rs[r].textContent||'').toLowerCase().indexOf(q)>=0);
+      rs[r].style.display=passa?'':'none';
+      if(passa)vis++;
+    }
+    ct.textContent=(q.length<3)?'':(vis+' de '+rs.length);
+    cx.classList.toggle('ativo',q.length>=3);
+  });
+}
+function ativarTabelas(){
+  var cont=document.getElementById('content');if(!cont)return;
+  var tabs=cont.getElementsByTagName('table');
+  for(var i=0;i<tabs.length;i++){
+    var t=tabs[i];
+    if(t.getAttribute('data-bs'))continue;
+    if(t.className.indexOf('semBusca')>=0){t.setAttribute('data-bs','x');continue;}
+    var cab=t.querySelectorAll('thead th');
+    var tb=t.tBodies[0];
+    if(!cab.length||!tb||tb.rows.length<2)continue;
+    t.setAttribute('data-bs','1');
+    for(var c=0;c<cab.length;c++){
+      var th=cab[c];
+      /* já tem ordenação própria nesta coluna: não mexe */
+      if(th.getAttribute('onclick')||th.className.indexOf('ordCol')>=0)continue;
+      if(!(th.textContent||'').trim())continue;
+      th.classList.add('bsOrd');
+      th.title='Ordenar por '+(th.textContent||'').trim();
+      (function(tt,idx,cel){
+        cel.addEventListener('click',function(){ordenarTabela(tt,idx,cel)});
+      })(t,c,th);
+    }
+    /* busca própria da tela já resolve (Estoque Total, Movimentação) */
+    var jaTem=t.previousElementSibling&&
+      (t.previousElementSibling.className||'').indexOf('bsBox')>=0;
+    if(tb.rows.length>=6&&!jaTem)ligarBuscaTabela(t);
+  }
+}
+(function(){
+  function liga(){
+    var cont=document.getElementById('content');
+    if(!cont){setTimeout(liga,400);return;}
+    var esp=null;
+    new MutationObserver(function(){
+      clearTimeout(esp);esp=setTimeout(ativarTabelas,90);
+    }).observe(cont,{childList:true,subtree:true});
+    ativarTabelas();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',liga);
+  else liga();
+})();
+
+/* ==========================================================
+   O QUE JÁ ESTÁ PRONTO E O QUE FALTA
+   ========================================================== */
+function telaMapaModulos(){
+  var pronto=0,falta=0;
+  var cols=MOD.map(function(m){
+    var its=m.it.map(function(t){
+      var f=!!AFAZER[m.id+'/'+t.id];
+      if(f)falta++;else pronto++;
+      return {n:t.n,f:f,d:(AFAZER[m.id+'/'+t.id]||[])[1]||''};
+    });
+    /* os prontos primeiro; os que faltam vêm depois, no fim da lista */
+    its.sort(function(a,b){return (a.f?1:0)-(b.f?1:0)});
+    var qf=its.filter(function(x){return x.f}).length;
+    return '<div class="mmCol">'+
+      '<div class="mmH">'+sv(m.ic,15)+'<b>'+E(m.n)+'</b>'+
+       (qf?'<span class="mmPend">'+qf+'</span>':'<span class="mmOk">'+sv('check',11)+'</span>')+
+      '</div>'+
+      its.map(function(x){
+        return '<div class="mmIt'+(x.f?' falta':'')+'" title="'+E(x.f?x.d:'pronto')+'">'+
+          '<i></i><span>'+E(x.n)+'</span>'+
+          (x.f?'<em>a construir</em>':'')+'</div>';
+      }).join('')+
+    '</div>';
+  }).join('');
+  var tot=pronto+falta;
+  $('content').innerHTML=
+   '<div class="topo"><div><h1>Mapa do Sistema</h1>'+
+   '<p>O que já está construído e o que ainda falta. A bolinha vermelha marca '+
+   'os módulos que estão no menu porque fazem parte do plano, mas ainda não foram feitos.</p></div></div>'+
+   '<div class="mmResumo">'+
+    '<div class="erBox dest"><span>Prontos</span><b>'+pronto+'</b>'+
+     '<small>de '+tot+' telas do plano</small></div>'+
+    '<div class="erBox"><span>A construir</span><b>'+falta+'</b>'+
+     '<small><i class="mmDot"></i> marcados em vermelho</small></div>'+
+    '<div class="erBox"><span>Concluído</span><b>'+
+     String((pronto/tot*100).toFixed(0))+'%</b><small>do plano do sistema</small></div>'+
+   '</div>'+
+   '<div class="mmGrid">'+cols+'</div>';
+  rodape(pronto+' de '+tot+' telas prontas');
+}
 function telaConstrucao(mid,iid){
   var k=mid+'/'+iid;
   var x=AFAZER[k];

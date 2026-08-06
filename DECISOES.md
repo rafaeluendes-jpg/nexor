@@ -283,6 +283,32 @@ Tabela `loja_versao` com uma linha por loja e 41 gatilhos que incrementam o núm
 cada gravação. O aparelho lê **uma linha** de 6 em 6 segundos; só baixa o banco quando
 o número mudou. Custo desprezível, convergência em segundos.
 
+## Busca e ordenação em toda tabela (V11.1.0)
+
+Em vez de mexer nas dezenas de telas uma a uma, o sistema **observa o que foi desenhado
+e liga busca e ordenação sozinho**. Toda tela nova nasce com isso funcionando, e não há
+o risco de esquecer uma.
+
+- Campo de busca acima de qualquer tabela com 6+ linhas: filtra a partir de **3 letras**,
+  olhando a linha inteira, e mostra "X de Y"
+- Todo cabeçalho vira clicável. Coluna de texto começa A→Z; coluna de número começa da
+  maior para a menor. Clicar de novo inverte. Empate mantém a ordem original
+- O tipo é detectado pelo conteúdo: "1.200 g" ordena como 1200, não como texto
+- Tabelas com linha de subtotal (célula juntada) **não** são reordenadas, para não
+  misturar os grupos
+- Telas com busca/ordenação própria (Estoque Total, Movimentação) são reconhecidas e
+  não recebem outra por cima. Para excluir uma tabela, basta a classe `semBusca`
+
+## Mapa do Sistema
+
+`Configuração da Loja › Mapa do Sistema` (era "Dados da Loja", que era um placeholder).
+Lista todas as telas do plano, módulo por módulo:
+
+- **Bolinha verde** = pronto · **bolinha vermelha** = a construir
+- Dentro de cada módulo, os prontos vêm primeiro e os pendentes no fim
+- Resumo no topo: quantas prontas, quantas faltam, % concluído
+- A lista sai de `AFAZER`, então se mantém correta sozinha conforme as telas ficam prontas
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
