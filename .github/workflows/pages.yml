@@ -1,9 +1,8 @@
 # Publica o Nexor no GitHub Pages.
 #
-# O caminho antigo ("legacy") processava o repositório antes de publicar, levava
-# de 40s a 5min e falhava de forma intermitente dizendo apenas "Page build failed".
-# Este sobe os arquivos direto: publica em segundos e, quando falha, o erro fica
-# visível no histórico de execuções do repositório.
+# Envia APENAS os arquivos do site, montados numa pasta limpa. Antes o pacote
+# levava o repositório inteiro, incluindo o histórico do git e a própria pasta
+# de workflows — peso desnecessário que deixava a publicação lenta e instável.
 name: Publicar Nexor
 
 on:
@@ -29,12 +28,23 @@ jobs:
     steps:
       - name: Baixar o repositório
         uses: actions/checkout@v4
+
+      - name: Montar a pasta do site
+        run: |
+          mkdir -p _site
+          cp index.html manifest.json _headers _site/
+          cp nexor-*.png _site/
+          touch _site/.nojekyll
+          ls -la _site
+
       - name: Preparar o Pages
         uses: actions/configure-pages@v5
-      - name: Empacotar os arquivos
+
+      - name: Empacotar o site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
+
       - name: Publicar
         id: deploy
         uses: actions/deploy-pages@v4
