@@ -2749,8 +2749,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @media(max-width:900px){.rtTag{display:none}}
 
 /* versão sempre visível, inclusive no celular */
-.verTag{font-weight:700;color:var(--deep);white-space:nowrap;cursor:pointer}
-.verTag:hover{color:var(--acc-d);text-decoration:underline}
+/* o rodapé é verde escuro: a versão em var(--deep) ficava invisível.
+   Dourado claro para ler bem sobre o verde. */
+.verTag{font-weight:700;color:#DCC084;white-space:nowrap;cursor:pointer;
+  letter-spacing:.04em}
+.verTag:hover{color:#FFFFFF;text-decoration:underline}
 .verBox{margin-top:10px;padding:9px 12px;background:var(--alt);border:1px solid var(--line-2);
   border-radius:6px;font-size:12px;color:var(--ink-2);text-align:center}
 .verBox b{color:var(--acc-d);font-size:13px}
@@ -8182,8 +8185,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @media(max-width:900px){.rtTag{display:none}}
 
 /* versão sempre visível, inclusive no celular */
-.verTag{font-weight:700;color:var(--deep);white-space:nowrap;cursor:pointer}
-.verTag:hover{color:var(--acc-d);text-decoration:underline}
+/* o rodapé é verde escuro: a versão em var(--deep) ficava invisível.
+   Dourado claro para ler bem sobre o verde. */
+.verTag{font-weight:700;color:#DCC084;white-space:nowrap;cursor:pointer;
+  letter-spacing:.04em}
+.verTag:hover{color:#FFFFFF;text-decoration:underline}
 .verBox{margin-top:10px;padding:9px 12px;background:var(--alt);border:1px solid var(--line-2);
   border-radius:6px;font-size:12px;color:var(--ink-2);text-align:center}
 .verBox b{color:var(--acc-d);font-size:13px}
@@ -14088,7 +14094,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V14.1.0';
+var VERSAO='V14.1.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
