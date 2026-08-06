@@ -1423,8 +1423,22 @@ tbody td small{font-size:10.5px}
   background:var(--acc-soft);color:var(--acc-d);font-size:12.5px;font-weight:600}
 .cupErr{display:flex;align-items:center;gap:7px;margin-top:9px;padding:8px 11px;border-radius:5px;
   background:var(--red-soft);color:var(--red);font-size:12.5px;font-weight:600}
-.codCup{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:12px;letter-spacing:.06em;
-  background:var(--alt);border:1px solid var(--line);border-radius:4px;padding:3px 9px}
+/* o código do cupom vira uma etiqueta, com o recorte de bilhete nas pontas */
+.codCup{display:inline-flex;align-items:center;font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-weight:700;font-size:11.5px;letter-spacing:.08em;color:var(--acc-d);
+  background:var(--acc-soft);border:1px dashed var(--acc);border-radius:5px;padding:4px 11px;
+  position:relative}
+.codCup:before,.codCup:after{content:'';position:absolute;top:50%;width:7px;height:7px;
+  border-radius:50%;background:var(--panel);transform:translateY(-50%)}
+.codCup:before{left:-4px} .codCup:after{right:-4px}
+/* usos: número grande e uma barra fina do quanto já foi usado */
+.cupUso{display:flex;flex-direction:column;gap:3px}
+.cupUso b{font-size:13px;font-variant-numeric:tabular-nums}
+.cupUso b i{font-style:normal;font-weight:400;color:var(--ink-3);font-size:11px}
+.cupUso>span{font-size:10.5px;color:var(--ink-3)}
+.cupBar{display:block;height:4px;border-radius:99px;background:var(--line-2);overflow:hidden}
+.cupBar i{display:block;height:100%;background:var(--acc);border-radius:99px}
+.cupBar i.cheio{background:var(--red)}
 .cliNm{display:flex;align-items:center;gap:9px}
 .cliNm b{display:block;font-size:12.8px;font-weight:600}
 .cliNm small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:1px}
@@ -6268,8 +6282,22 @@ tbody td small{font-size:10.5px}
   background:var(--acc-soft);color:var(--acc-d);font-size:12.5px;font-weight:600}
 .cupErr{display:flex;align-items:center;gap:7px;margin-top:9px;padding:8px 11px;border-radius:5px;
   background:var(--red-soft);color:var(--red);font-size:12.5px;font-weight:600}
-.codCup{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:12px;letter-spacing:.06em;
-  background:var(--alt);border:1px solid var(--line);border-radius:4px;padding:3px 9px}
+/* o código do cupom vira uma etiqueta, com o recorte de bilhete nas pontas */
+.codCup{display:inline-flex;align-items:center;font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-weight:700;font-size:11.5px;letter-spacing:.08em;color:var(--acc-d);
+  background:var(--acc-soft);border:1px dashed var(--acc);border-radius:5px;padding:4px 11px;
+  position:relative}
+.codCup:before,.codCup:after{content:'';position:absolute;top:50%;width:7px;height:7px;
+  border-radius:50%;background:var(--panel);transform:translateY(-50%)}
+.codCup:before{left:-4px} .codCup:after{right:-4px}
+/* usos: número grande e uma barra fina do quanto já foi usado */
+.cupUso{display:flex;flex-direction:column;gap:3px}
+.cupUso b{font-size:13px;font-variant-numeric:tabular-nums}
+.cupUso b i{font-style:normal;font-weight:400;color:var(--ink-3);font-size:11px}
+.cupUso>span{font-size:10.5px;color:var(--ink-3)}
+.cupBar{display:block;height:4px;border-radius:99px;background:var(--line-2);overflow:hidden}
+.cupBar i{display:block;height:100%;background:var(--acc);border-radius:99px}
+.cupBar i.cheio{background:var(--red)}
 .cliNm{display:flex;align-items:center;gap:9px}
 .cliNm b{display:block;font-size:12.8px;font-weight:600}
 .cliNm small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:1px}
@@ -10957,7 +10985,7 @@ var MOD=[
  {id:'fornecedores',n:'Fornecedores'},
  {id:'frente-caixa',n:'Frente de Caixa'}]},
 {id:'clientes',n:'Gestão de Clientes',ic:'users',it:[
- {id:'cadastro-clientes',n:'Cadastro de Clientes'},{id:'cupons-clientes',n:'Cupons de Clientes'}]},
+ {id:'cadastro-clientes',n:'Cadastro de Clientes'},{id:'cupons-clientes',n:'Cupons de Desconto'}]},
 {id:'estoque',n:'Gestão de Estoque',ic:'box',it:[
  {id:'producao',n:'Produção'},
  {id:'ficha-tecnica',n:'Ficha Técnica'},
@@ -12757,7 +12785,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V16.1.0';
+var VERSAO='V16.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19712,8 +19740,8 @@ function telaCupons(){
   var usos=(DB.cupomUsos||[]).slice().reverse();
 
   $('content').innerHTML='<div class="finWrap" style="max-width:1250px">'+
-  '<div class="finTop"><div><h1>Cupons de Clientes</h1>'+
-  '<p>Cupons aplicados na tela de pagamento do PDV.</p></div>'+
+  '<div class="finTop"><div><h1>Cupons de Desconto</h1>'+
+  '<p>Descontos aplicados na tela de pagamento do PDV.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalCupom()">'+sv('plus',14)+' Novo cupom</button></div></div>'+
 
   '<div class="lfTabs" style="border-radius:6px 6px 0 0;border:1px solid var(--line);border-bottom:none">'+
@@ -19731,7 +19759,7 @@ function telaCupons(){
      '<th style="width:105px;text-align:right">Mínimo</th>'+
      '<th style="width:160px">Validade</th>'+
      '<th style="width:210px">Onde aplica</th>'+
-     '<th style="width:110px;text-align:center">Usos</th>'+
+     '<th style="width:120px">Usos</th>'+
      '<th style="width:100px;text-align:center">Situação</th>'+
      '<th style="width:170px"></th></tr></thead><tbody>'+
      lista.map(function(cp){
@@ -19750,7 +19778,14 @@ function telaCupons(){
          (cp.canais.length===CANAIS.length?'<span class="cidTag">todos os canais</span>'
           :cp.canais.map(function(k){return '<span class="cidTag">'+E(nomeCanal(k))+'</span>'}).join(' '))
          :'<span class="semCid">nenhum canal</span>')+'</td>'+
-       '<td style="text-align:center">'+u+(cp.quantidade?' / '+cp.quantidade:'')+'</td>'+
+       '<td>'+(function(){
+         var q=Number(cp.quantidade)||0;
+         if(!q)return '<div class="cupUso"><b>'+u+'</b><span>sem limite</span></div>';
+         var pc=Math.min(100,Math.round(u/q*100));
+         return '<div class="cupUso"><b>'+u+' <i>de '+q+'</i></b>'+
+           '<span class="cupBar"><i style="width:'+pc+'%"'+
+           (pc>=100?' class="cheio"':'')+'></i></span></div>';
+       })()+'</td>'+
        '<td style="text-align:center">'+
         (cp.ativo===false?'<span class="badge2 rd">Inativo</span>'
          :venc?'<span class="badge2 rd">Vencido</span>'
@@ -19786,7 +19821,7 @@ function modalCupom(id){
   baseCupons();
   var cp=id?DB.cupons.find(function(x){return x.id===id}):null;
   var h='<div class="mdB">'+
-  '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Cupom</h3>'+
+  '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Cupom de desconto</h3>'+
   '<div class="row2">'+
   '<div class="fld2"><label>Código *</label><input id="cuC" value="'+E(cp?cp.codigo:'')+'" '+
    'placeholder="ex: BEMVINDO10" style="text-transform:uppercase;font-weight:700;letter-spacing:.05em"></div>'+
