@@ -309,6 +309,25 @@ Lista todas as telas do plano, módulo por módulo:
 - Resumo no topo: quantas prontas, quantas faltam, % concluído
 - A lista sai de `AFAZER`, então se mantém correta sozinha conforme as telas ficam prontas
 
+## Janela do navegador substituída (V11.2.0)
+
+`alert()` mostra uma caixa cinza com o endereço do site em cima — muda de cara em cada
+navegador e não parece parte do sistema. Agora `window.alert` é substituído por `aviso()`,
+que usa a mesma caixa das outras janelas do Nexor, no meio da tela. A primeira linha da
+mensagem vira o título; o resto fica no corpo, preservando as quebras de linha. Fecha no
+botão, no Escape, no Enter ou clicando fora.
+
+Como a substituição é no `window.alert`, **toda tela do sistema passou a usar a janela
+própria** — inclusive as que ainda não foram escritas.
+
+## Ficha técnica
+
+- **Subgrupo** e **Grupo de conta** saíram do cadastro. O que já estava gravado nesses
+  campos é preservado ao editar; a tela só não pergunta mais
+- Na composição, **Preço** e **Margem** viraram **Preço do kg** = custo total ÷ rendimento.
+  A margem mostrava −100% enquanto não houvesse preço de venda, o que era só ruído.
+  O preço de venda gravado continua intacto
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

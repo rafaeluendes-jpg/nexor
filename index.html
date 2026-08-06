@@ -1640,6 +1640,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.cfTexto{margin-top:12px;padding:12px 14px;background:var(--alt);border:1px solid var(--line);
+  border-radius:7px;font-size:12.5px;line-height:1.6;color:var(--ink-2);
+  white-space:pre-line;max-height:46vh;overflow:auto}
+.fmVal.dest{color:var(--acc-d);font-weight:700}
 .bsBox{display:flex;align-items:center;gap:9px;margin:0 0 9px}
 .bsBox input{flex:1;max-width:340px;height:32px;padding:0 11px;border:1px solid var(--line);
   border-radius:6px;font-size:12.5px;background:#fff}
@@ -6322,6 +6326,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.cfTexto{margin-top:12px;padding:12px 14px;background:var(--alt);border:1px solid var(--line);
+  border-radius:7px;font-size:12.5px;line-height:1.6;color:var(--ink-2);
+  white-space:pre-line;max-height:46vh;overflow:auto}
+.fmVal.dest{color:var(--acc-d);font-weight:700}
 .bsBox{display:flex;align-items:center;gap:9px;margin:0 0 9px}
 .bsBox input{flex:1;max-width:340px;height:32px;padding:0 11px;border:1px solid var(--line);
   border-radius:6px;font-size:12.5px;background:#fff}
@@ -12178,7 +12186,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.1.0';
+var VERSAO='V11.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19999,18 +20007,11 @@ function modalFicha(id){
      '<option value="">Selecione</option>'+
      (DB.fichaCats||[]).map(function(c){return '<option value="'+c.id+'"'+(f&&f.categoriaId===c.id?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
     '</select></div>'+
-    '<div class="fld2"><label>Subgrupo</label><select id="ftSg">'+
-     '<option value="">—</option>'+
-     ((c0&&c0.subs)||[]).map(function(sg){return '<option value="'+sg.id+'"'+(f&&f.subgrupoId===sg.id?' selected':'')+'>'+E(sg.nome)+'</option>'}).join('')+
-    '</select></div></div>'+
-   '<div class="fld2"><label>Grupo de conta</label><select id="ftGc">'+
-    '<option value="">Não vincular</option>'+
-    subs.map(function(x){return '<option value="'+x.id+'"'+(f&&f.contaId===x.id?' selected':'')+'>'+E(x.nome)+'</option>'}).join('')+
-   '</select></div>'+
+    '</div>'+
    '</div>'+
-   '<div class="blk" style="margin:11px 0 0;max-width:none"><h3>O que a produção gera</h3>'+
-   '<div class="hint" style="margin-bottom:10px">Ao produzir esta ficha, o estoque entra neste item. '+
-   'Ex.: todo sabor de gelato gera <b>Gelato Venda</b>; a massa de cascão gera <b>Cascão</b>.</div>'+
+   '<div class="blk" style="margin:9px 0 0;max-width:none"><h3>O que a produção gera</h3>'+
+   '<div class="hint" style="margin-bottom:8px">Ao produzir, o estoque entra neste item — '+
+   'sabor de gelato gera <b>Gelato Venda</b>, massa de cascão gera <b>Cascão</b>.</div>'+
    '<div class="row2">'+
     '<div class="fld2" style="margin:0"><label>Gerar estoque em</label><select id="ftDest">'+
      '<option value="">Usar o padrão do grupo'+
@@ -20073,7 +20074,10 @@ function modalFicha(id){
     var cks=document.querySelectorAll('.ftL');
     for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value);
     var o={nome:nome,codigo:$('ftC').value.trim()||proxCodFicha(),unidade:$('ftU').value,
-      categoriaId:$('ftG').value,subgrupoId:$('ftSg').value,contaId:$('ftGc').value,
+      categoriaId:$('ftG').value,
+      /* os dois campos sairam da tela: o que ja estava gravado e preservado */
+      subgrupoId:($('ftSg')?$('ftSg').value:(f?f.subgrupoId||'':'')),
+      contaId:($('ftGc')?$('ftGc').value:(f?f.contaId||'':'')),
       estocavel:$('ftEs').checked,disponivelVenda:$('ftDv2').checked,
       ncm:$('ftNc').value.trim(),cfop:$('ftCf').value.trim(),cest:$('ftCe').value.trim(),
       origem:$('ftOr').value,cst:$('ftCs').value.trim(),aliquota:parseFloat($('ftAl').value)||0,lojas:ls,
@@ -20108,6 +20112,7 @@ function avisaFator(){
 }
 function trocaGrupoFicha(){
   var c=catFicha($('ftG').value);
+  if(!$('ftSg'))return;
   $('ftSg').innerHTML='<option value="">—</option>'+((c&&c.subs)||[]).map(function(s){
     return '<option value="'+s.id+'">'+E(s.nome)+'</option>'}).join('');
 }
@@ -20235,10 +20240,13 @@ function desenhaComp(){
    '<div class="fmTopo">'+
     '<div class="fmC"><label>Produto</label><div class="fmVal nm">'+E(f.nome)+'</div></div>'+
     '<div class="fmC"><label>Custo Total</label><div class="fmVal num">'+money(custo)+'</div></div>'+
-    '<div class="fmC"><label>Preço</label><div class="cur"><span>R$</span>'+
-     '<input id="cpPreco" type="number" step="0.01" value="'+preco+'"></div></div>'+
-    '<div class="fmC"><label>Margem</label><div class="fmVal num '+(margem>=0?'vg':'vr')+'">'+
-     margem.toFixed(2).replace('.',',')+'%</div></div>'+
+    (function(){
+      /* preço da unidade de rendimento: custo total dividido pelo peso da receita */
+      var rr=Number(f.rendimento)||0;
+      var ab=un(f.rendUnidade||f.unidade).ab||'';
+      return '<div class="fmC"><label>Preço do '+E(ab||'Kg')+'</label>'+
+        '<div class="fmVal num dest">'+(rr>0?'R$ '+money(custo/rr):'—')+'</div></div>';
+    })()+
    '</div>'+
    '<div class="fmMid">'+
     '<div class="fmBox"><div class="fmBoxT">Rendimento</div>'+
@@ -25083,6 +25091,44 @@ function apagarVendasDemo(){
 /* ==========================================================
    CONFIRMAÇÃO E AVISO — no lugar das caixas do navegador
    ========================================================== */
+/* Aviso no padrão do Nexor, no meio da tela. Substitui a janela cinza do
+   navegador, que muda de cara em cada máquina e mostra o endereço do site. */
+function aviso(msg,titulo,tipo){
+  return new Promise(function(resolve){
+    var txt=String(msg==null?'':msg);
+    var linhas=txt.split('\n');
+    var t=titulo||'';
+    if(!t&&linhas.length>1&&linhas[0].length<=70){t=linhas.shift().replace(/\s*[—-]\s*$/,'');}
+    var corpo=linhas.join('\n').replace(/^\n+|\n+$/g,'');
+    tipo=tipo||(/insuficiente|não pode|nao pode|erro|falha|atenção|atencao/i.test(txt)?'perigo':'info');
+    var ic=tipo==='perigo'?'help':'help';
+    var cor=tipo==='perigo'?'var(--red)':'var(--blue)';
+    var fundo=tipo==='perigo'?'var(--red-soft)':'var(--blue-soft)';
+    var h='<div class="cfBox">'+
+     '<div class="cfTopo">'+
+      '<div class="cfIc" style="background:'+fundo+';color:'+cor+'">'+sv(ic,22)+'</div>'+
+      '<div><b>'+E(t||'Aviso')+'</b></div></div>'+
+     (corpo?'<div class="cfTexto">'+E(corpo)+'</div>':'')+
+     '<div class="cfBt"><button class="btnP2 ok" onclick="_respAviso()">Entendi</button></div>'+
+    '</div>';
+    var ov=document.createElement('div');
+    ov.className='mdOv cfOv';ov.id='avOv';
+    ov.innerHTML=h;
+    document.body.appendChild(ov);
+    var fim=function(){
+      var o=document.getElementById('avOv');if(o)o.remove();
+      document.removeEventListener('keydown',esc);
+      window._respAviso=null;resolve(true);
+    };
+    window._respAviso=fim;
+    var esc=function(e){ if(e.key==='Escape'||e.key==='Enter')fim(); };
+    document.addEventListener('keydown',esc);
+    ov.addEventListener('mousedown',function(e){ if(e.target===ov)fim(); });
+    setTimeout(function(){var b=ov.querySelector('button');if(b)b.focus();},40);
+  });
+}
+/* qualquer alert() do sistema passa a abrir a janela do Nexor */
+window.alert=function(m){ try{aviso(m)}catch(e){console.log(m)} };
 function confirmar(op){
   /* op: {titulo, texto, linhas:[[rotulo,valor,cor]], aviso, ok, cancelar, tipo, aoConfirmar} */
   return new Promise(function(resolve){
