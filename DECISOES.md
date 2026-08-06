@@ -734,6 +734,21 @@ Categoria de receita e de despesa não se misturam mais.
 - Relatório de entradas (só existe o de despesas)
 - Melhoria visual do cadastro de contas de banco
 
+## Contas bancárias: lista e cadastro (V16.1.0)
+
+**A lista** era um cartão grande por conta, com botões escritos. Com três contas já
+rolava a tela. Virou **uma lista**: selo do banco, nome com agência e conta embaixo,
+saldo à direita, ações como ícone. Rodapé com contagem e total. Os cartões de indicador
+saíram do meio da tela — o saldo total subiu para o cabeçalho.
+
+**O cadastro** tinha uma grade de 14 botões grandes de banco que ocupava mais espaço que
+o formulário inteiro. Virou **pastilha**, com os 5 mais usados à mostra e "+ 9 bancos"
+sob demanda. Se a conta editada usa um banco fora dos 5, ele entra na frente.
+
+Campos reordenados: **Nome e Saldo inicial** na primeira linha (o saldo estava espremido
+entre agência e conta, sendo o campo que mais importa), agência e conta na segunda, como
+opcionais. A explicação do saldo virou caixa de informação azul.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

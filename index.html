@@ -1726,6 +1726,50 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* contas bancárias: lista compacta em vez de um cartão por conta */
+.ctTotTopo{text-align:right;white-space:nowrap}
+.ctTotTopo span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;
+  color:var(--ink-3);text-transform:uppercase}
+.ctTotTopo b{display:block;font-size:18px;font-variant-numeric:tabular-nums;margin-top:1px}
+.ctLista{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ctLin{display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.ctLin:nth-child(even){background:var(--alt)}
+.ctLin:last-of-type{border-bottom:0}
+.ctSel{width:30px;height:30px;border-radius:7px;color:#fff;flex:none;display:flex;
+  align-items:center;justify-content:center;font-size:10.5px;font-weight:700}
+.ctSel[data-esc="1"]{color:#1F2A24}
+.ctNm{flex:1;min-width:0}
+.ctNm b{display:block;font-size:12.5px;font-weight:600}
+.ctNm span{display:block;font-size:11px;color:var(--ink-3);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.ctVal{text-align:right;white-space:nowrap}
+.ctVal b{display:block;font-size:14.5px;font-variant-numeric:tabular-nums}
+.ctVal span{display:block;font-size:10px;color:var(--ink-3)}
+.ctAcs{display:flex;gap:3px;margin-left:8px;flex:none}
+.ctB{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;
+  cursor:pointer;color:var(--ink-2);display:flex;align-items:center;justify-content:center}
+.ctB:hover{border-color:var(--acc);color:var(--acc-d);background:var(--acc-soft)}
+.ctB.rd:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+.ctB.az{color:var(--blue)}
+.ctB.az:hover{border-color:var(--blue);background:var(--blue-soft)}
+.ctRod{display:flex;align-items:center;padding:9px 14px;background:var(--alt);
+  border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
+.ctRod b{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ctVazio{padding:26px 16px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.ctVazio b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:3px}
+/* pastilhas de banco no cadastro */
+.bcoPils{display:flex;flex-wrap:wrap;gap:6px}
+.bcoPil{display:flex;align-items:center;gap:7px;padding:5px 12px 5px 5px;border-radius:99px;
+  border:1px solid var(--line);background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2)}
+.bcoPil .bcoIc{width:22px;height:22px;border-radius:50%;color:#fff;display:flex;
+  align-items:center;justify-content:center;font-size:9px;font-weight:700;flex:none}
+.bcoPil:hover{border-color:var(--acc)}
+.bcoPil.on{border-color:var(--acc-d);background:var(--acc-soft);color:var(--acc-d);font-weight:600}
+.bcoPil.mais{padding:6px 13px;border-style:dashed;color:var(--ink-3)}
+.avisoInfo{display:flex;align-items:flex-start;gap:9px;margin-top:12px;padding:10px 12px;
+  background:var(--blue-soft);border-left:3px solid var(--blue);border-radius:0 7px 7px 0;
+  font-size:11.5px;color:#1C5474;line-height:1.5}
+.avisoInfo svg{flex:none;margin-top:1px;color:var(--blue)}
 /* categorias financeiras em duas colunas */
 .catDuas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
 .catCol{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
@@ -6527,6 +6571,50 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* contas bancárias: lista compacta em vez de um cartão por conta */
+.ctTotTopo{text-align:right;white-space:nowrap}
+.ctTotTopo span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;
+  color:var(--ink-3);text-transform:uppercase}
+.ctTotTopo b{display:block;font-size:18px;font-variant-numeric:tabular-nums;margin-top:1px}
+.ctLista{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ctLin{display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.ctLin:nth-child(even){background:var(--alt)}
+.ctLin:last-of-type{border-bottom:0}
+.ctSel{width:30px;height:30px;border-radius:7px;color:#fff;flex:none;display:flex;
+  align-items:center;justify-content:center;font-size:10.5px;font-weight:700}
+.ctSel[data-esc="1"]{color:#1F2A24}
+.ctNm{flex:1;min-width:0}
+.ctNm b{display:block;font-size:12.5px;font-weight:600}
+.ctNm span{display:block;font-size:11px;color:var(--ink-3);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.ctVal{text-align:right;white-space:nowrap}
+.ctVal b{display:block;font-size:14.5px;font-variant-numeric:tabular-nums}
+.ctVal span{display:block;font-size:10px;color:var(--ink-3)}
+.ctAcs{display:flex;gap:3px;margin-left:8px;flex:none}
+.ctB{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;
+  cursor:pointer;color:var(--ink-2);display:flex;align-items:center;justify-content:center}
+.ctB:hover{border-color:var(--acc);color:var(--acc-d);background:var(--acc-soft)}
+.ctB.rd:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+.ctB.az{color:var(--blue)}
+.ctB.az:hover{border-color:var(--blue);background:var(--blue-soft)}
+.ctRod{display:flex;align-items:center;padding:9px 14px;background:var(--alt);
+  border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
+.ctRod b{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ctVazio{padding:26px 16px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.ctVazio b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:3px}
+/* pastilhas de banco no cadastro */
+.bcoPils{display:flex;flex-wrap:wrap;gap:6px}
+.bcoPil{display:flex;align-items:center;gap:7px;padding:5px 12px 5px 5px;border-radius:99px;
+  border:1px solid var(--line);background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2)}
+.bcoPil .bcoIc{width:22px;height:22px;border-radius:50%;color:#fff;display:flex;
+  align-items:center;justify-content:center;font-size:9px;font-weight:700;flex:none}
+.bcoPil:hover{border-color:var(--acc)}
+.bcoPil.on{border-color:var(--acc-d);background:var(--acc-soft);color:var(--acc-d);font-weight:600}
+.bcoPil.mais{padding:6px 13px;border-style:dashed;color:var(--ink-3)}
+.avisoInfo{display:flex;align-items:flex-start;gap:9px;margin-top:12px;padding:10px 12px;
+  background:var(--blue-soft);border-left:3px solid var(--blue);border-radius:0 7px 7px 0;
+  font-size:11.5px;color:#1C5474;line-height:1.5}
+.avisoInfo svg{flex:none;margin-top:1px;color:var(--blue)}
 /* categorias financeiras em duas colunas */
 .catDuas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
 .catCol{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
@@ -12669,7 +12757,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V16.0.0';
+var VERSAO='V16.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16135,40 +16223,47 @@ function telaContas(){
   baseCat();
   var contas=DB.contas||[];
   var total=contas.reduce(function(a,c){return a+saldoConta(c)},0);
-  $('content').innerHTML='<div class="finWrap">'+
+  var cx=caixaAberto();
+  $('content').innerHTML='<div class="finWrap" style="max-width:920px">'+
   '<div class="finTop"><div><h1>Contas Bancárias</h1>'+
-  '<p>Bancos, caixa e cofre. Os saldos alimentam os lançamentos financeiros e os pagamentos.</p></div>'+
-  '<div class="finActs"><button class="btnP2 ok" onclick="modalConta()">'+sv('plus',14)+' Cadastrar conta</button></div></div>'+
-  '<div class="kpiRow">'+
-   '<div class="kpi2"><span>Contas</span><b>'+contas.length+'</b></div>'+
-   '<div class="kpi2 dest2"><span>Saldo total</span><b>R$ '+money(total)+'</b></div>'+
-  '</div>'+
-  '<div class="entWrap">'+
-  contas.map(function(c){
+  '<p>Bancos, caixa e cofre. Os saldos alimentam os lançamentos e os pagamentos.</p></div>'+
+  '<div class="finActs" style="align-items:center;gap:14px">'+
+   '<div class="ctTotTopo"><span>Saldo total</span><b>R$ '+money(total)+'</b></div>'+
+   '<button class="btnP2 ok" onclick="modalConta()">'+sv('plus',14)+' Cadastrar conta</button>'+
+  '</div></div>'+
+
+  /* uma lista, não um cartão por conta: as três cabem onde antes cabia uma */
+  '<div class="ctLista">'+
+  (contas.length?contas.map(function(c){
     var b=c.fixa?null:banco(c.banco);
-    var cor=c.fixa==='caixa'?'#0E8A46':c.fixa==='cofre'?'#5C6B80':b.c;
+    var cor=c.fixa==='caixa'?'var(--acc-d)':c.fixa==='cofre'?'#5C6B80':b.c;
     var sig=c.fixa==='caixa'?'CX':c.fixa==='cofre'?'CO':b.s;
-    var cx=caixaAberto();
-    return '<div class="contaCard">'+
-    '<div class="ctIco" style="background:'+cor+'"'+(b&&b.esc?' data-esc="1"':'')+'>'+E(sig)+'</div>'+
-    '<div class="ctInfo"><b>'+E(c.nome)+
-      (c.fixa?' <span class="badge2 gr">fixa</span>':'')+'</b>'+
-     '<span>'+E(c.fixa==='caixa'?'Caixa do PDV':c.fixa==='cofre'?'Cofre da loja':(b.n+(c.agencia?' · Ag. '+E(c.agencia):'')+(c.numero?' · C/C '+E(c.numero):'')))+'</span>'+
-     (c.fixa==='caixa'?'<span class="ctObs">'+(cx?'caixa aberto — saldo vem do PDV':'caixa fechado')+'</span>':'')+
-    '</div>'+
-    '<div class="ctSaldo"><span>Saldo atual</span><b>R$ '+money(saldoConta(c))+'</b></div>'+
-    '<div class="ctBtns">'+
-     (c.fixa==='caixa'
-       ?'<button class="btnP2" onclick="abrir(\'pdv\',\'pdv\')">'+sv('pos',13)+' Ir ao PDV</button>'
-       :'<button class="btnP2" onclick="modalConta(\''+c.id+'\')">'+sv('edit',13)+' Editar</button>')+
-     (c.fixa?'':'<button class="btnP2 rdB" onclick="excluirConta(\''+c.id+'\')">'+sv('trash',13)+'</button>')+
-    '</div></div>';
-  }).join('')+
+    var det=c.fixa==='caixa'
+      ?('Caixa do PDV · '+(cx?'caixa aberto, saldo vem do PDV':'caixa fechado'))
+      :c.fixa==='cofre'?'Cofre da loja'
+      :(b.n+(c.agencia?' · Ag. '+E(c.agencia):'')+(c.numero?' · C/C '+E(c.numero):''));
+    return '<div class="ctLin">'+
+     '<span class="ctSel" style="background:'+cor+'"'+(b&&b.esc?' data-esc="1"':'')+'>'+E(sig)+'</span>'+
+     '<div class="ctNm"><b>'+E(c.nome)+
+       (c.fixa?' <span class="badge2 gr">fixa</span>':'')+'</b><span>'+det+'</span></div>'+
+     '<div class="ctVal"><b>R$ '+money(saldoConta(c))+'</b><span>saldo atual</span></div>'+
+     '<div class="ctAcs">'+
+      (c.fixa==='caixa'
+        ?'<button class="ctB az" onclick="abrir(\'pdv\',\'pdv\')" title="Ir ao PDV">'+sv('pos',15)+'</button>'
+        :'<button class="ctB" onclick="modalConta(\''+c.id+'\')" title="Editar">'+sv('edit',15)+'</button>')+
+      (c.fixa?'':'<button class="ctB rd" onclick="excluirConta(\''+c.id+'\')" title="Excluir">'+sv('trash',15)+'</button>')+
+     '</div></div>';
+  }).join('')
+  :'<div class="ctVazio"><b>Nenhuma conta cadastrada</b>'+
+   '<span>Clique em <b>Cadastrar conta</b> para incluir o primeiro banco.</span></div>')+
+  (contas.length?'<div class="ctRod"><span>'+contas.length+' conta(s)</span>'+
+   '<b>R$ '+money(total)+'</b></div>':'')+
   '</div>'+
+
   '<div class="avisoCfg" style="margin-top:4px">'+sv('help',16)+
   '<div>O <b>Caixa da loja</b> e o <b>Cofre</b> são contas fixas do sistema. '+
-  'O saldo do Caixa vem direto da frente de caixa aberta no PDV (fundo de troco + dinheiro recebido + suprimentos − sangrias), '+
-  'por isso não é editável aqui.</div></div>'+
+  'O saldo do Caixa vem direto da frente de caixa aberta no PDV (fundo de troco + dinheiro '+
+  'recebido + suprimentos − sangrias), por isso não é editável aqui.</div></div>'+
   '</div>';
   rodape(contas.length+' contas');
 }
@@ -16176,21 +16271,39 @@ function modalConta(id){
   baseCat();
   var c=id?DB.contas.find(function(x){return x.id===id}):null;
   var sel=c?c.banco:'nubank';
+  /* a grade de 14 botões grandes ocupava mais que o formulário inteiro:
+     virou pastilha, com os cinco mais usados à mostra e o resto sob demanda */
+  var _maisB=false;
+  function grade(){
+    var ord=BANCOS.slice();
+    var vis=_maisB?ord:ord.slice(0,5);
+    if(!_maisB&&!vis.some(function(b){return b.id===sel})){
+      var achou=ord.find(function(b){return b.id===sel});
+      if(achou)vis=[achou].concat(ord.slice(0,4));
+    }
+    return vis.map(function(b){
+      return '<button type="button" class="bcoPil'+(sel===b.id?' on':'')+'" data-b="'+b.id+'">'+
+      '<span class="bcoIc" style="background:'+b.c+'">'+b.s+'</span>'+E(b.n)+'</button>';}).join('')+
+      (_maisB?'':'<button type="button" class="bcoPil mais" id="bcoMais">+ '+
+        Math.max(0,BANCOS.length-5)+' bancos</button>');
+  }
   var h='<div class="mdB">'+
-  '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Banco</h3>'+
-  '<div class="bcoGrid" id="bcoGrid">'+BANCOS.map(function(b){
-    return '<button type="button" class="bcoBtn'+(sel===b.id?' on':'')+'" data-b="'+b.id+'">'+
-    '<span class="bcoIc" style="background:'+b.c+'">'+b.s+'</span><span>'+E(b.n)+'</span></button>';}).join('')+
-  '</div></div>'+
-  '<div class="blk" style="margin:0;max-width:none"><h3>Dados da conta</h3>'+
-  '<div class="fld2"><label>Nome da conta *</label>'+
-  '<input id="cbN" value="'+E(c?c.nome:'')+'" placeholder="ex: Nubank PJ, Itaú principal"></div>'+
-  '<div class="row3"><div class="fld2"><label>Agência</label><input id="cbA" value="'+E(c?c.agencia:'')+'"></div>'+
-  '<div class="fld2"><label>Conta</label><input id="cbC" value="'+E(c?c.numero:'')+'"></div>'+
-  '<div class="fld2"><label>Saldo inicial</label><div class="cur"><span>R$</span>'+
-  '<input id="cbS" type="number" step="0.01" value="'+(c?(c.saldoInicial||0):0)+'"></div></div></div>'+
-  '<div class="hint">O saldo inicial é o valor que a conta tinha quando você começou a usar o sistema. '+
-  'A partir daí, os lançamentos somam e subtraem sozinhos.</div></div></div>';
+  '<div class="blk" style="margin:0;max-width:none">'+
+  '<div class="fld2" style="margin-bottom:12px"><label>Banco</label>'+
+   '<div class="bcoPils" id="bcoGrid">'+grade()+'</div></div>'+
+  '<div class="row2">'+
+   '<div class="fld2" style="flex:1.4"><label>Nome da conta *</label>'+
+   '<input id="cbN" value="'+E(c?c.nome:'')+'" placeholder="ex: Nubank PJ, Itaú principal"></div>'+
+   '<div class="fld2"><label>Saldo inicial</label><div class="cur"><span>R$</span>'+
+   '<input id="cbS" type="number" step="0.01" value="'+(c?(c.saldoInicial||0):0)+'"></div></div>'+
+  '</div>'+
+  '<div class="row2">'+
+   '<div class="fld2"><label>Agência</label><input id="cbA" value="'+E(c?c.agencia:'')+'" placeholder="opcional"></div>'+
+   '<div class="fld2"><label>Conta</label><input id="cbC" value="'+E(c?c.numero:'')+'" placeholder="opcional"></div>'+
+  '</div>'+
+  '<div class="avisoInfo">'+sv('help',15)+'<div>O <b>saldo inicial</b> é quanto a conta tinha '+
+  'quando você começou a usar o sistema. A partir daí os lançamentos somam e subtraem sozinhos.</div></div>'+
+  '</div></div>';
   modal(c?'Editar conta':'Cadastrar conta',h,'Salvar',function(){
     var nome=$('cbN').value.trim();
     if(!nome){toast('Informe o nome da conta.');return false;}
@@ -16199,14 +16312,21 @@ function modalConta(id){
     if(c)Object.assign(c,o);
     else{o.id=uid('ct');DB.contas.push(o);}
     salvar();telaContas();toast('Conta salva.');return true;
-  },'lg');
-  var bs=document.querySelectorAll('#bcoGrid .bcoBtn');
-  for(var i=0;i<bs.length;i++)bs[i].onclick=function(){
-    sel=this.getAttribute('data-b');
-    for(var j=0;j<bs.length;j++)bs[j].classList.remove('on');
-    this.classList.add('on');
-    var n=$('cbN');if(n&&!n.value)n.value=banco(sel).n;
-  };
+  });
+  function ligaPils(){
+    var cx=document.getElementById('bcoGrid');
+    if(!cx)return;
+    var bs=cx.querySelectorAll('.bcoPil');
+    for(var i=0;i<bs.length;i++)bs[i].onclick=function(){
+      if(this.id==='bcoMais'){_maisB=true;cx.innerHTML=grade();ligaPils();return;}
+      sel=this.getAttribute('data-b');
+      var t=cx.querySelectorAll('.bcoPil');
+      for(var j=0;j<t.length;j++)t[j].classList.remove('on');
+      this.classList.add('on');
+      var n=$('cbN');if(n&&!n.value)n.value=banco(sel).n;
+    };
+  }
+  ligaPils();
 }
 async function excluirConta(id){
   var c=DB.contas.find(function(x){return x.id===id});
