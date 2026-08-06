@@ -12536,7 +12536,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.8.0';
+var VERSAO='V11.8.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18514,8 +18514,9 @@ function telaConciliacao(){
      (movs.length?'<table class="cbTab"><thead><tr>'+
       '<th style="width:38px"></th>'+
       '<th style="width:100px">Data</th><th>Movimento</th>'+
-      '<th style="width:130px;text-align:right">Valor</th>'+
-      '<th style="width:130px;text-align:right">Saldo</th>'+
+      '<th style="width:118px;text-align:right">Valor do boleto</th>'+
+      '<th style="width:126px;text-align:right">Valor pago</th>'+
+      '<th style="width:126px;text-align:right">Saldo</th>'+
       '<th style="width:120px;text-align:center">Conciliado</th></tr></thead><tbody>'+
       movs.map(function(l){
         var v=sinal(l)*l.valor;saldo+=v;
@@ -18526,9 +18527,11 @@ function telaConciliacao(){
         '<td><b>'+E(l.descricao)+'</b>'+
          ((l.documento||l.metodoId)?'<small>'+(l.documento?'Doc.: '+E(l.documento):'')+
           (l.documento&&l.metodoId?' · ':'')+(l.metodoId?E(metodoNome(l.metodoId)):'')+'</small>':'')+'</td>'+
-        '<td style="text-align:right" class="'+(v<0?'vr':'vg')+'"><b>'+(v<0?'- ':'')+'R$ '+money(Math.abs(v))+'</b>'+
-         (encargos(l)>0
-          ?'<small class="vEnc">boleto R$ '+money(valorBoleto(l))+' + R$ '+money(encargos(l))+'</small>':'')+
+        '<td style="text-align:right"><span class="vBol">'+(v<0?'- ':'')+
+         'R$ '+money(valorBoleto(l))+'</span></td>'+
+        '<td style="text-align:right"><b class="'+(v<0?'vr':'vg')+'">'+(v<0?'- ':'')+
+         'R$ '+money(Math.abs(v))+'</b>'+
+         (encargos(l)>0?'<small class="vEnc">+ R$ '+money(encargos(l))+' juros/multa</small>':'')+
         '</td>'+
         '<td style="text-align:right">R$ '+money(saldo)+'</td>'+
         '<td style="text-align:center" onclick="event.stopPropagation()">'+
@@ -18539,7 +18542,7 @@ function telaConciliacao(){
             ' onchange="CB.marcadas[\''+l.id+'\']=this.checked;atualizaCB()">')+
         '</td></tr>';
       }).join('')+
-      '<tr class="cbFim"><td colspan="4"><b>Saldo em '+dataBR(CB.ate)+'</b></td>'+
+      '<tr class="cbFim"><td colspan="5"><b>Saldo em '+dataBR(CB.ate)+'</b></td>'+
       '<td style="text-align:right"><b>R$ '+money(saldo)+'</b></td><td></td></tr>'+
       '</tbody></table>'
      :'<div class="lfVazio"><b>Nenhum movimento nesta conta e período</b>'+

@@ -425,8 +425,9 @@ fornecedor e o que realmente saiu da conta.
 - Lista de lançamentos: **duas colunas** — "Valor do boleto" (discreto) e "Valor pago"
   (em destaque, com a cor do tipo). Quando houve encargo, uma linha embaixo mostra
   "+ R$ 20,00 juros/multa". Conta não paga mostra "em aberto"
-- Conciliação bancária: o valor continua sendo **o que saiu do banco**, porque é ele que
-  aparece no extrato. Embaixo, a composição: "boleto R$ 158,00 + R$ 20,00"
+- Conciliação bancária usa **exatamente as mesmas duas colunas** do lançamento
+  financeiro: "Valor do boleto" e "Valor pago". O saldo acumulado segue o valor pago,
+  que é o que aparece no extrato (V11.8.1)
 - Exportação: colunas separadas de boleto, juros, multa e valor pago
 - Helpers: `valorBoleto(l)`, `encargos(l)`, `valorPago(l)`
 
