@@ -1740,6 +1740,19 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* Abas de listagem. As classes eram usadas na tela de cupons e NUNCA tinham
+   estilo: viravam botão cru do navegador, com o número colado no texto. */
+.lfTabs{display:flex;gap:0;background:var(--alt);overflow:hidden}
+.lfTab{display:flex;align-items:center;gap:8px;padding:10px 18px;border:0!important;
+  border-radius:0!important;background:transparent;cursor:pointer;
+  font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;
+  box-shadow:inset 0 -2px 0 transparent;transition:color var(--t),background var(--t),box-shadow var(--t)}
+.lfTab:hover{color:var(--ink);background:rgba(255,255,255,.6)}
+.lfTab.on{color:var(--acc-d);background:var(--panel);box-shadow:inset 0 -2px 0 var(--acc-d)}
+.lfN{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:19px;
+  padding:0 7px;border-radius:99px;background:var(--line-2);color:var(--ink-3);
+  font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.lfTab.on .lfN{background:var(--acc-soft);color:var(--acc-d)}
 /* contas bancárias: lista compacta em vez de um cartão por conta */
 .ctTotTopo{text-align:right;white-space:nowrap}
 .ctTotTopo span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;
@@ -6599,6 +6612,19 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* Abas de listagem. As classes eram usadas na tela de cupons e NUNCA tinham
+   estilo: viravam botão cru do navegador, com o número colado no texto. */
+.lfTabs{display:flex;gap:0;background:var(--alt);overflow:hidden}
+.lfTab{display:flex;align-items:center;gap:8px;padding:10px 18px;border:0!important;
+  border-radius:0!important;background:transparent;cursor:pointer;
+  font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;
+  box-shadow:inset 0 -2px 0 transparent;transition:color var(--t),background var(--t),box-shadow var(--t)}
+.lfTab:hover{color:var(--ink);background:rgba(255,255,255,.6)}
+.lfTab.on{color:var(--acc-d);background:var(--panel);box-shadow:inset 0 -2px 0 var(--acc-d)}
+.lfN{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:19px;
+  padding:0 7px;border-radius:99px;background:var(--line-2);color:var(--ink-3);
+  font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.lfTab.on .lfN{background:var(--acc-soft);color:var(--acc-d)}
 /* contas bancárias: lista compacta em vez de um cartão por conta */
 .ctTotTopo{text-align:right;white-space:nowrap}
 .ctTotTopo span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;
@@ -12785,7 +12811,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V16.2.0';
+var VERSAO='V16.2.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
