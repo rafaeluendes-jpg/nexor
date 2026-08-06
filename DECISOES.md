@@ -678,6 +678,19 @@ nenhum id batia e o sistema concluía que tudo tinha sido excluído.
 - `arrumarEspelhoCardapio()` zera uma vez a marca antiga, que estava com os dois
   formatos misturados
 
+## O Mapa do Sistema mentia (V14.1.0)
+
+Rafael abriu Usuários e Permissões e a tela estava lá — mas o Mapa marcava como
+pendente. O mapa lia de `AFAZER`, uma **lista escrita à mão** que envelhece toda vez que
+uma tela é construída e ninguém lembra de tirar da lista.
+
+`telaPronta(mid,iid)` agora **pergunta ao roteador**: lê o código de `abrir()` e monta a
+relação de telas que ele sabe abrir. Se o roteador atende, está pronta — a lista à mão
+vira só o texto explicativo do que ainda falta. O mapa não pode mais mentir.
+
+Duas entradas saíram da lista por já existirem: **Usuários e Permissões** e
+**Canais de Venda e Integração**. Restam **7 pendentes**.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

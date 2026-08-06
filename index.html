@@ -14088,7 +14088,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V14.0.1';
+var VERSAO='V14.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29004,8 +29004,6 @@ function explicaMotivos(){
 var AFAZER={
  'relatorios/cupons':['Relatório de Cupons',
    'Cupons usados no período, quanto de desconto cada um gerou e quantos clientes novos trouxe.'],
- 'loja/canais-integracao':['Canais de Venda e Integração',
-   'Ligações com iFood, cardápio digital e WhatsApp — cada canal com sua chave de acesso.'],
  'loja/dados-fiscais':['Dados Fiscais',
    'Regime tributário, CNPJ, certificado e a integração com o emissor de nota.'],
  'loja/cfg-entregador':['Configuração de Entregadores',
@@ -29017,9 +29015,7 @@ var AFAZER={
  'loja/status-vendas':['Status de Vendas',
    'As fases do kanban: nomes, cores e ordem.'],
  'loja/turnos':['Turnos',
-   'Horários de trabalho para separar o faturamento por turno.'],
- 'loja/usuarios-permissoes':['Usuários e Permissões',
-   'Login e senha de cada pessoa, com o que ela pode ver em cada sucursal.']
+   'Horários de trabalho para separar o faturamento por turno.']
 };
 /* ==========================================================
    BUSCA E ORDENAÇÃO EM TODA TABELA
@@ -29131,11 +29127,26 @@ function ativarTabelas(){
 /* ==========================================================
    O QUE JÁ ESTÁ PRONTO E O QUE FALTA
    ========================================================== */
+/* Uma tela está pronta quando o roteador sabe abri-la. Perguntar direto ao roteador
+   é a única forma do mapa não mentir: lista escrita à mão envelhece, como aconteceu
+   com Usuários e Permissões e com Canais de Integração. */
+var _rotasProntas=null;
+function telaPronta(mid,iid){
+  if(_rotasProntas===null){
+    _rotasProntas={};
+    try{
+      var src=String(abrir),re2=/iid===['"]([a-z0-9-]+)['"]/g,m2;
+      while((m2=re2.exec(src)))_rotasProntas[m2[1]]=true;
+    }catch(e){}
+  }
+  if(_rotasProntas[iid])return true;
+  return !AFAZER[mid+'/'+iid];
+}
 function telaMapaModulos(){
   var pronto=0,falta=0;
   var cols=MOD.map(function(m){
     var its=m.it.map(function(t){
-      var f=!!AFAZER[m.id+'/'+t.id];
+      var f=!telaPronta(m.id,t.id);
       if(f)falta++;else pronto++;
       return {n:t.n,f:f,d:(AFAZER[m.id+'/'+t.id]||[])[1]||''};
     });
