@@ -11294,9 +11294,14 @@ async function sincronizar(){
     });
     gravarLocal();
 
+    NUVEM.erros=[];
     for(var m=0;m<MAPA.length;m++){
       var E2=MAPA[m];
       etapa=E2.tab;
+      /* Cada tabela é enviada por conta própria. Antes, um único registro
+         recusado pelo banco parava a fila inteira e as 40 tabelas seguintes
+         nunca subiam — o aparelho ficava "travado" sem dizer onde. */
+      try{
       var lista=DB[E2.col]||[];
 
       /* ---- ENVIO INCREMENTAL ----
@@ -11378,6 +11383,13 @@ async function sincronizar(){
         }
       }
 
+      }catch(eT){
+        NUVEM.erros.push({tab:etapa,msg:(eT&&eT.message)||'falha'});
+        logNuvem('ERRO em '+etapa+': '+((eT&&eT.message)||'falha')+
+          ' — as demais tabelas continuam subindo',true);
+        continue;
+      }
+
       /* vínculos N:N (produto <-> grupos) */
       if(E2.vinculo){
         var V=E2.vinculo;
@@ -11429,10 +11441,19 @@ async function sincronizar(){
     if(pend.length)logNuvem(pend.length+' vínculo(s) de produção gravado(s)');
 
     NUVEM.ultima=new Date();
+    /* tabelas com problema nao seguram o resto: o que subiu, subiu, e o
+       download volta a funcionar (o que ainda nao foi confirmado esta protegido) */
     NUVEM.sujo=false;
     DB._sujo=false;
     _puxadasPresas=0;
     (function(){var a=document.getElementById('avisoEnvio');if(a)a.remove();})();
+    if((NUVEM.erros||[]).length){
+      var tt=NUVEM.erros.map(function(x){return x.tab}).join(', ');
+      logNuvem('tabelas que não subiram: '+tt,true);
+      avisoTabelaComErro(NUVEM.erros);
+    }else{
+      var av=document.getElementById('avisoTab');if(av)av.remove();
+    }
     DB._snapOk=true;
     gravarLocal();
     statusNuvem('ok');
@@ -12186,7 +12207,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.2.0';
+var VERSAO='V11.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13148,6 +13169,21 @@ function marcarVersaoAtual(){
   api('loja_versao?loja_id=eq.'+NUVEM.loja+'&select=versao')
     .then(function(r){ if(r&&r[0])_versaoLoja=Number(r[0].versao); })
     .catch(function(){});
+}
+/* diz exatamente qual tabela o banco recusou e por quê */
+function avisoTabelaComErro(erros){
+  try{
+    var el=document.getElementById('avisoTab');
+    if(el)el.remove();
+    el=document.createElement('div');
+    el.id='avisoTab';el.className='avisoGrav sinc';
+    el.innerHTML='<div><b>'+erros.length+' tabela(s) não subiram para a nuvem</b>'+
+      '<span>'+E(erros.map(function(x){
+        return x.tab.replace(/_/g,' ')+' — '+x.msg;}).join(' · '))+
+      '<br>O resto do sistema continua sincronizando normalmente.</span></div>'+
+      '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+    barraAvisos().appendChild(el);
+  }catch(e){}
 }
 function avisoEnvioPreso(){
   try{
@@ -19149,9 +19185,44 @@ function baseEstoque(){
   DB.fichaCats=DB.fichaCats||[{id:'fc_prod',nome:'Produzido'},{id:'fc_venda',nome:'Vendas'}];
   DB.lojasFin=DB.lojasFin||[{id:'lj_matriz',nome:'Matriz'}];
 }
-function proxCodInsumo(){
-  var n=(DB.insumos||[]).reduce(function(a,f){return Math.max(a,Number(f.codigo)||700000)},700000);
-  return String(n+1);
+/* Insumo e ficha dividem a MESMA numeração — é a mesma lista do estoque.
+   O próximo código é sempre o maior existente + 1, então cadastrar algo novo
+   não mexe no número de ninguém. */
+function proxCodItem(){
+  var mx=0;
+  (DB.insumos||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>mx)mx=v});
+  (DB.fichas||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>mx)mx=v});
+  return String(mx+1);
+}
+function proxCodInsumo(){return proxCodItem()}
+/* Renumera tudo de 1 em diante, na ordem alfabética do nome, misturando
+   insumos e fichas numa lista só — a mesma ordem que o estoque mostra. */
+function renumerarCodigos(){
+  var todos=[];
+  (DB.insumos||[]).forEach(function(x){todos.push(x)});
+  (DB.fichas||[]).forEach(function(x){todos.push(x)});
+  todos.sort(function(a,b){
+    return String(a.nome||'').localeCompare(String(b.nome||''),'pt',{sensitivity:'base'});
+  });
+  todos.forEach(function(x,i){x.codigo=String(i+1)});
+  return todos.length;
+}
+async function pedirRenumerar(){
+  var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
+  var ok=await confirmar({
+    titulo:'Renumerar os códigos',
+    texto:'Os '+q+' itens do estoque — ingredientes e fichas juntos — passam a ter '+
+      'código 1, 2, 3... na ordem alfabética do nome.',
+    aviso:'Os códigos atuais serão substituídos. Os que você cadastrar depois seguem '+
+      'a sequência (o próximo número livre), sem mexer nos já existentes.<br>'+
+      '<b>Se você usa os códigos de hoje em etiqueta, planilha ou nota, anote antes.</b>',
+    ok:'Renumerar agora',tipo:'perigo'});
+  if(!ok)return;
+  var q2=renumerarCodigos();
+  salvar();
+  if(typeof telaEstoqueTotal==='function'&&S.it==='posicao-estoque')telaEstoqueTotal();
+  else if(S.mod&&S.it)abrir(S.mod,S.it);
+  toast(q2+' itens renumerados em ordem alfabética.');
 }
 function grupoIng(id){return (DB.gruposIng||[]).find(function(g){return g.id===id})||null}
 function insumo(id){return (DB.insumos||[]).find(function(i){return i.id===id})||null}
@@ -19638,10 +19709,7 @@ function excluirGrupoIng(id){
    ========================================================== */
 var FT={cat:'',sub:'',busca:'',sel:null,loja:'',mostrar:false,abertas:{}};
 
-function proxCodFicha(){
-  var n=(DB.fichas||[]).reduce(function(a,f){return Math.max(a,Number(f.codigo)||0)},0);
-  return String(n+1).padStart(5,'0');
-}
+function proxCodFicha(){return proxCodItem()}
 function catFicha(id){return (DB.fichaCats||[]).find(function(c){return c.id===id})||null}
 function subFicha(id){
   var achou=null;
@@ -20551,6 +20619,10 @@ function itemEstoque(id){
 }
 function custoDoItem(it){
   if(!it)return 0;
+  /* Regra do sistema: sem saldo em estoque não há custo médio.
+     Custo médio é o preço do que está lá dentro; sem nada dentro, é zero.
+     O custo volta a existir na próxima entrada, que é quem forma o preço. */
+  if(Number(it.estoqueAtual)<=0&&(it.controlaEstoque!==false))return 0;
   var eFicha=(it.itens!==undefined&&it.rendimento!==undefined);
   if(!eFicha)return custoAtual(it);
   /* ficha que recebe produção usa o custo médio do que entrou;
@@ -21562,6 +21634,8 @@ function telaEstoqueTotal(){
      '<option value="asc"'+(ET.dir==='asc'?' selected':'')+'>Menor para maior</option>'+
     '</select></div>'+
     '<button class="btnP2" onclick="limparET()">Limpar</button>'+
+    '<button class="btnP2" title="Códigos 1, 2, 3... na ordem alfabética" '+
+     'onclick="pedirRenumerar()">'+sv('ref',12)+' Renumerar códigos</button>'+
    '</div>'+
    '<div class="etResumo'+(temFiltro?' comFiltro':'')+'">'+
     '<div class="erBox dest"><span>'+(temFiltro?'Valor do filtro':'Valor em tela')+'</span>'+

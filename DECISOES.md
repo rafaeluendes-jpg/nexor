@@ -328,6 +328,33 @@ própria** — inclusive as que ainda não foram escritas.
   A margem mostrava −100% enquanto não houvesse preço de venda, o que era só ruído.
   O preço de venda gravado continua intacto
 
+## Uma tabela com problema paralisava as outras 40 (V11.3.0)
+
+Diagnóstico no banco: `fichas_tecnicas` tinha **1 registro no aparelho e 0 na nuvem**.
+Como o envio era uma fila única dentro de um `try` só, o primeiro registro recusado pelo
+banco abortava tudo — as 40 tabelas seguintes nunca subiam, e o aparelho ficava
+"travado" sem dizer onde. Schema, índices e RLS estavam corretos; era um dado.
+
+- Cada tabela passou a subir **por conta própria**. Uma falhando, as outras continuam
+- O aviso agora **nomeia a tabela e mostra a mensagem que o banco devolveu**
+- O aparelho deixa de ficar travado: o download volta a funcionar, porque o que ainda
+  não foi confirmado já está protegido por `_enviados`
+
+## Sem estoque, sem custo
+
+`custoDoItem` devolve **0 quando o saldo é zero ou negativo**. Custo médio é o preço do
+que está dentro do estoque; sem nada dentro, não há custo. Ele volta a existir na
+próxima entrada, que é quem forma o preço. Itens que não controlam estoque mantêm o
+custo. O preço da **última compra** continua aparecendo — é histórico, não saldo.
+
+## Códigos: numeração única, em ordem alfabética
+
+- **Ingrediente e ficha dividem a mesma numeração** — é a mesma lista do estoque
+- Botão **Renumerar códigos** no Estoque Total: dá 1, 2, 3... na ordem alfabética
+- Cadastro novo pega **o próximo número livre**, sem renumerar os existentes. Inserir
+  alfabeticamente empurraria milhares de códigos a cada cadastro e quebraria etiqueta,
+  planilha e nota fiscal
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
