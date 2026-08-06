@@ -12207,7 +12207,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.3.1';
+var VERSAO='V11.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19206,6 +19206,19 @@ function renumerarCodigos(){
   todos.forEach(function(x,i){x.codigo=String(i+1)});
   return todos.length;
 }
+/* Os códigos antigos vinham de dois contadores separados: o de ingrediente
+   começava em 700000 só para não colidir com o de ficha, que começava em 1.
+   Não havia razão além dessa — e ela deixou de existir quando as duas listas
+   passaram a dividir a mesma numeração. Este acerto roda UMA vez. */
+function arrumarCodigos(){
+  if(DB._codOk)return;
+  var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
+  if(!q)return;
+  renumerarCodigos();
+  DB._codOk=true;
+  try{ salvar(); }catch(e){ try{gravarLocal()}catch(e2){} }
+  try{ logNuvem(q+' códigos arrumados: 1 a '+q+' em ordem alfabética'); }catch(e){}
+}
 async function pedirRenumerar(){
   var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
   var ok=await confirmar({
@@ -19218,6 +19231,7 @@ async function pedirRenumerar(){
     ok:'Renumerar agora',tipo:'perigo'});
   if(!ok)return;
   var q2=renumerarCodigos();
+  DB._codOk=true;
   salvar();
   if(typeof telaEstoqueTotal==='function'&&S.it==='posicao-estoque')telaEstoqueTotal();
   else if(S.mod&&S.it)abrir(S.mod,S.it);
@@ -20505,6 +20519,7 @@ var TIPOS_MOV=[
 function baseMov(){
   baseFicha();
   if(typeof baseCat==='function')baseCat();
+  arrumarCodigos();
   DB.motivosMov=DB.motivosMov||[
     {id:'mv_ent',  nome:'Entrada manual',        tipo:'entrada', sistema:false,ativo:true,lojas:[]},
     {id:'mv_sai',  nome:'Saída manual',          tipo:'saida',   sistema:false,ativo:true,lojas:[]},

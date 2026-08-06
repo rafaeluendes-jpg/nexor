@@ -355,6 +355,17 @@ custo. O preço da **última compra** continua aparecendo — é histórico, nã
   alfabeticamente empurraria milhares de códigos a cada cadastro e quebraria etiqueta,
   planilha e nota fiscal
 
+## De onde vinham os códigos 700002 (V11.4.0)
+
+Havia **dois contadores separados**: o de ingrediente começava em 700000 e o de ficha
+em 1, para não colidirem. Era a única razão do número grande — e ela deixou de existir
+quando as duas listas passaram a dividir a mesma numeração.
+
+O acerto agora **roda sozinho, uma vez**, na primeira vez que uma tela de estoque abre
+(`arrumarCodigos()`, marcado por `DB._codOk`). Não fica renumerando a cada tela. O botão
+**Renumerar códigos** continua no Estoque Total para reorganizar depois de um lote de
+cadastros.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
