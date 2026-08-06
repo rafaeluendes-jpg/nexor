@@ -691,6 +691,19 @@ vira só o texto explicativo do que ainda falta. O mapa não pode mais mentir.
 Duas entradas saíram da lista por já existirem: **Usuários e Permissões** e
 **Canais de Venda e Integração**. Restam **7 pendentes**.
 
+## Nova tela de acesso e grupos com editar/excluir visíveis (V15.0.0)
+
+- Tela de acesso trocada pelo arquivo `Nexor_Login.html`. As três imagens viraram
+  arquivos (`nexor-logo-h.png` e `nexor-marca-lado.png`), o estilo foi preso a `#login`
+  e as variáveis ganharam prefixo `lg-`. Os identificadores dos campos continuam os do
+  sistema, então `entrar()` não mudou
+- O campo **Cliente** virou digitação, não lista fixa: o sistema compara com a rede
+  cadastrada na loja, e uma lista com opções fixas travaria o acesso de outras redes
+- Restos da tela anterior (marcação e estilo, nas duas folhas) foram removidos
+- Na ficha técnica, **editar e excluir grupo já existiam, mas só apareciam ao passar o
+  mouse** — ninguém encontrava. Agora ficam visíveis, com opacidade reduzida, e cheios
+  ao passar o mouse ou no grupo ativo
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
