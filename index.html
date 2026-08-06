@@ -13634,6 +13634,33 @@ async function baixarDaNuvem(forcar){
       'Se isso se repetir, avise antes de continuar lançando.');
   }
 
+  /* ---- rede de proteção 3: a nuvem nunca apaga um vínculo que existe aqui ----
+     Era isto que "mudava a ficha de lugar": o vínculo subia vazio por um erro
+     momentâneo, e o download seguinte trazia esse vazio e apagava o grupo correto
+     que ainda estava no aparelho. Agora o vínculo cheio ganha do vazio, sempre. */
+  var _VINC=['categoriaId','subgrupoId','grupoId','contaId','destinoId','fornecedorId',
+             'metodoId','contaDestinoId','clienteId','entregadorId','ref','caixaId','motivoId'];
+  var _religados=0;
+  Object.keys(_antesDB).forEach(function(k){
+    var tinha=_antesDB[k], veio=DB[k];
+    if(!Array.isArray(tinha)||!Array.isArray(veio)||veio===tinha)return;
+    var antesPorId={};
+    tinha.forEach(function(x){ if(x&&x.id)antesPorId[x.id]=x; });
+    veio.forEach(function(x){
+      var v=x&&x.id?antesPorId[x.id]:null;
+      if(!v)return;
+      _VINC.forEach(function(c){
+        if(!v[c])return;                       /* aqui também estava vazio: nada a fazer */
+        if(x[c])return;                        /* a nuvem trouxe vínculo: ela manda */
+        x[c]=v[c];_religados++;                /* a nuvem veio vazia: mantém o daqui */
+      });
+    });
+  });
+  if(_religados){
+    logNuvem(_religados+' vínculo(s) mantidos deste aparelho — a nuvem os trouxe vazios');
+    NUVEM.sujo=true;DB._sujo=true;agendarSync();
+  }
+
   /* ---- rede de proteção 2: o que foi criado aqui e a nuvem ainda NÃO confirmou ----
      Este é o caso do motivo de baixa que sumia: o cadastro nascia no aparelho, o
      envio não chegava a acontecer (ou falhava numa tabela anterior), e o download
@@ -14022,7 +14049,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V13.2.1';
+var VERSAO='V13.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

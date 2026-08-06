@@ -628,6 +628,22 @@ Duas correções estruturais:
   registra qual vínculo faltou, e a impressão do registro **não é gravada** — ele volta
   a subir na próxima sincronização, quando o vínculo já existir
 
+## Por que a ficha "mudava de lugar" (V13.3.0)
+
+Rafael foi preciso: ela **estava no lugar certo** e se perdeu ao atualizar. O mecanismo:
+
+1. O vínculo com o grupo subiu vazio por uma falha momentânea de resolução
+2. O download seguinte trouxe esse vazio e **apagou o grupo correto que ainda estava
+   no aparelho** — o dado bom foi destruído pelo dado ruim
+
+**Terceira rede de proteção:** no download, **vínculo cheio ganha de vínculo vazio**.
+Se a nuvem traz um vínculo em branco e o registro local tem um, o local é mantido e o
+sistema agenda o reenvio para corrigir a nuvem. Se a nuvem traz um vínculo **diferente**,
+ela manda — a troca feita em outro aparelho continua valendo.
+
+Vale para 13 campos de ligação: categoria, subgrupo, grupo, conta, destino, fornecedor,
+forma de pagamento, conta destino, cliente, entregador, origem, caixa e motivo.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
