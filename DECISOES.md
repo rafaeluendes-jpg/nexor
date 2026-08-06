@@ -451,6 +451,18 @@ vira `mdOv2` acima dele. O nó é clonado para descartar o clique-fora herdado (
 fecharia o lançamento de trás), os botões de fechar passam a chamar `fecharNotaSobre()`
 e o "Excluir nota" é retirado — ali a nota é consulta.
 
+## O bloco da nota não aparecia (V11.9.0)
+
+O vínculo do lançamento com a nota (`l.ref`) **nunca era enviado nem baixado** — não
+havia coluna para ele. A nota era criada, o vínculo existia no aparelho, e a primeira
+sincronização o apagava. Sem `ref`, o bloco simplesmente não renderizava.
+
+- Coluna `origem_ref` criada em `lancamentos_financeiros`; `l.ref` sobe e volta
+- `notaDoLanc(l)` acha a nota por **três caminhos**: pelo `ref`, pela lista `lancIds`
+  guardada na nota, e por nº do documento + fornecedor. Ao achar, **religa o `ref`**,
+  então lançamentos antigos se consertam sozinhos ao serem abertos
+- O mesmo `ref` é usado pelo fechamento de caixa, que também deixa de perder o vínculo
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

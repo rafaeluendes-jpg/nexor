@@ -11380,7 +11380,9 @@ var MAPA=[
     emissao:x.emissao||null,vencimento:x.vencimento||null,pagamento:x.pagamento||null,
     pago:!!x.pago,conciliado:!!x.conciliado,data_conciliacao:x.dataConc||null,
     juros:n(x.juros),multa:n(x.multa),valor_original:(x.valorOriginal!==undefined?n(x.valorOriginal):null),
-    origem:x.origem||null,observacao:x.obs||null}}}
+    /* de onde este lançamento veio (a nota, o fechamento de caixa...).
+       Sem isto, o vínculo se perdia em toda sincronização. */
+    origem:x.origem||null,origem_ref:x.ref||null,observacao:x.obs||null}}}
 ];
 
 function n(v){var x=Number(v);return isNaN(x)?0:x}
@@ -11877,7 +11879,7 @@ async function baixarDaNuvem(forcar){
     fornecedor:x.fornecedor_nome||'',descricao:x.descricao,documento:x.documento,
     valor:Number(x.valor)||0,emissao:x.emissao,vencimento:x.vencimento,pagamento:x.pagamento,
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
-    origem:x.origem,obs:x.observacao}});
+    origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}});
   /* cardápio */
   var rc=await api('categorias'+qs+'&order=ordem');
   var rp=await api('produtos'+qs+'&order=ordem');
@@ -12552,7 +12554,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.8.2';
+var VERSAO='V11.9.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17913,8 +17915,7 @@ function modalLanc(id,tipoNovo,pre){
      so aparecem depois que a conta foi paga */
   var mostraPg=!!(l&&l.pago);
   /* lancamento que nasceu de uma nota de entrada: mostra o que foi comprado */
-  var notaL=(l&&l.origem==='nota-entrada'&&l.ref)
-    ?((DB.notas||[]).find(function(x){return x.id===l.ref})||null):null;
+  var notaL=notaDoLanc(l);
   var cats=[];
   (DB.catfin||[]).forEach(function(p){(p.itens||[]).forEach(function(it){
     cats.push({id:it.id,nome:p.nome+' › '+it.nome});});});
@@ -18595,6 +18596,25 @@ function editarMovSel(){
 }
 /* Do boleto para a nota SEM sair da tela: a nota abre por cima do lançamento
    e, ao fechar, você continua exatamente onde estava. */
+/* Acha a nota deste lançamento por três caminhos, porque o vínculo direto
+   pode ter se perdido em versões antigas: pelo ref, pela lista de lançamentos
+   guardada na nota, e por fornecedor + número do documento. */
+function notaDoLanc(l){
+  if(!l)return null;
+  var ns=DB.notas||[];
+  var n=null;
+  if(l.ref)n=ns.find(function(x){return x.id===l.ref})||null;
+  if(!n)n=ns.find(function(x){return (x.lancIds||[]).indexOf(l.id)>=0})||null;
+  if(!n&&l.documento){
+    var num=String(l.documento).replace(/[^0-9]/g,'');
+    if(num)n=ns.find(function(x){
+      return String(x.numero||'').replace(/[^0-9]/g,'')===num&&
+        (!l.fornecedorId||x.fornecedorId===l.fornecedorId);
+    })||null;
+  }
+  if(n&&!l.ref){l.ref=n.id;l.origem=l.origem||'nota-entrada';}   /* religa e não perde de novo */
+  return n;
+}
 function abrirNotaDoLanc(id){
   var n=(DB.notas||[]).find(function(x){return x.id===id});
   if(!n){toast('A nota de entrada não foi encontrada.');return;}
