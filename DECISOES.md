@@ -497,6 +497,20 @@ Rafael enviou o arquivo `Nexor_Login_Funcional.html` com a tela oficial e a arte
 - As mensagens de erro passaram a usar o estilo `.feedback` do arquivo (`lgAviso()`)
 - O símbolo `nexor-n.png` substituiu o "N" desenhado no topo do sistema
 
+## Ícone do sistema (V12.1.0)
+
+O sistema **não declarava ícone nenhum** — por isso, ao salvar ou instalar no computador,
+o navegador inventava um símbolo genérico.
+
+- `nexor-icone.png` (512), `nexor-icone-192.png` e `nexor-n.png` (64) gerados a partir do
+  símbolo oficial, recortados no quadrado central
+- `<link rel="icon">` em dois tamanhos, `apple-touch-icon` e **`manifest.json`** — é o
+  manifesto que dá o ícone e o nome corretos ao instalar no computador ou no celular.
+  Inclui o ícone `maskable`, que o Android usa sem cortar em quadrado
+- `theme-color` da marca na barra do navegador
+- O "N" desenhado saiu dos três lugares que ainda o usavam: topo do sistema, marca da
+  tela inicial e ícone na lista de aplicativos
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

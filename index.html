@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
 <title>Nexor</title>
+<link rel="icon" type="image/png" sizes="512x512" href="nexor-icone.png">
+<link rel="icon" type="image/png" sizes="192x192" href="nexor-icone-192.png">
+<link rel="apple-touch-icon" href="nexor-icone.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b8a93">
+<meta name="apple-mobile-web-app-title" content="Nexor">
+<meta name="application-name" content="Nexor">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1640,6 +1647,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.logo .logoIco{width:18px;height:18px;object-fit:contain;border-radius:4px;
+  margin-right:7px;vertical-align:-4px}
+img.orb{object-fit:contain;background:transparent!important;border-radius:22%}
+.appIco img{width:100%;height:100%;object-fit:contain;border-radius:inherit;display:block}
 
 /* ============ TELA DE ACESSO — arte e estilo oficiais do Nexor ============
    Estilo do arquivo oficial, com os seletores presos ao #login para não
@@ -7013,6 +7024,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.logo .logoIco{width:18px;height:18px;object-fit:contain;border-radius:4px;
+  margin-right:7px;vertical-align:-4px}
+img.orb{object-fit:contain;background:transparent!important;border-radius:22%}
+.appIco img{width:100%;height:100%;object-fit:contain;border-radius:inherit;display:block}
 
 /* ============ TELA DE ACESSO — arte e estilo oficiais do Nexor ============
    Estilo do arquivo oficial, com os seletores presos ao #login para não
@@ -13727,7 +13742,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V12.0.0';
+var VERSAO='V12.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13775,7 +13790,8 @@ $('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada
 '<span class="soPC">Usuário: <b>'+E((usuarioLogado()||{}).login||(usuarioLogado()||{}).nome||'—')+'</b>'+
   (ehPlataforma()?' <em style="color:var(--acc)">(dono do Nexor)</em>':'')+'</span>'+
 (extra?'<span class="soPC">|</span><span class="soPC">'+extra+'</span>':'')+
-'<span class="gw"></span><span class="logo soPC"><em>N</em>NEXOR</span>'+
+'<span class="gw"></span><span class="logo soPC">'+
+ '<img src="nexor-n.png" alt="" class="logoIco">NEXOR</span>'+
 '<span class="verTag" onclick="location.reload(true)" title="clique para buscar a versão mais nova">'+VERSAO+'</span>';
 }
 
@@ -13854,7 +13870,8 @@ if(mid==='estoque'&&iid==='ficha-tecnica')return telaFichaTecnica();
 if(mid==='estoque'&&iid==='ingredientes-insumos')return telaInsumos();
 if(mid==='estoque'&&iid==='grupo-ingredientes')return telaGruposIng();
 if(it)return telaConstrucao(mid,iid);
-$('content').innerHTML='<div class="brandBg"><div class="orb">N</div><h2>nexor</h2>'+
+$('content').innerHTML='<div class="brandBg">'+
+ '<img class="orb" src="nexor-icone.png" alt="Nexor"><h2>nexor</h2>'+
 '<p>gestão simples, lucro visível</p><div class="hint">'+
 (m?'Selecione um item de <b>'+E(m.n)+'</b>':'Clique em um ícone acima')+'</div></div>';
 rodape();
@@ -29048,7 +29065,7 @@ function blocoApp(){
    '<div class="cfgCol estreita"><div class="colH">Link para enviar</div>'+
     '<div class="colB" style="padding:16px">'+
      '<div class="appQr">'+
-      '<div class="appIco"><b>N</b></div>'+
+      '<div class="appIco"><img src="nexor-n.png" alt="Nexor"></div>'+
       '<b>Nexor Gestão</b>'+
       '<span>painel da loja no celular</span>'+
      '</div>'+
