@@ -1640,6 +1640,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.vBol{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.vNp{color:var(--ink-3);font-size:11px}
+small.vEnc{display:block;font-size:10px;color:#B06A00;font-weight:600;margin-top:1px;
+  white-space:nowrap}
 .acTit.notaLink{display:flex;align-items:center;gap:7px;cursor:pointer}
 .acTit.notaLink span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acTit.notaLink em{font-style:normal;font-size:10.5px;color:var(--acc-d);font-weight:700;
@@ -6340,6 +6344,10 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.vBol{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.vNp{color:var(--ink-3);font-size:11px}
+small.vEnc{display:block;font-size:10px;color:#B06A00;font-weight:600;margin-top:1px;
+  white-space:nowrap}
 .acTit.notaLink{display:flex;align-items:center;gap:7px;cursor:pointer}
 .acTit.notaLink span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acTit.notaLink em{font-style:normal;font-size:10.5px;color:var(--acc-d);font-weight:700;
@@ -12268,7 +12276,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.6.0';
+var VERSAO='V11.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16136,7 +16144,9 @@ function telaLancamentos(){
     '<th style="width:34px"><input type="checkbox" class="chk" onclick="selTodasLF(this)"></th>'+
     '<th style="width:106px">Vencimento</th><th style="width:100px">Emissão</th><th style="width:104px">Pagamento</th>'+
     '<th>Conta / Descrição</th><th style="width:150px">Método</th><th style="width:180px">Categoria</th>'+
-    '<th style="width:120px;text-align:right">Valor</th><th style="width:110px;text-align:center">Ações</th></tr></thead><tbody>'+
+    '<th style="width:118px;text-align:right">Valor do boleto</th>'+
+    '<th style="width:126px;text-align:right">Valor pago</th>'+
+    '<th style="width:110px;text-align:center">Ações</th></tr></thead><tbody>'+
     lista.map(function(l){
       var neg=l.tipo==='despesa';
       var atras=neg&&!l.pago&&l.vencimento&&l.vencimento<hojeISO();
@@ -16152,7 +16162,14 @@ function telaLancamentos(){
        '</div></div></td>'+
       '<td>'+E(l.metodoId?metodoNome(l.metodoId):'—')+'</td>'+
       '<td><span class="grpTag">'+E(catTexto(l))+'</span>'+(l.conciliado?'<span class="concTag" title="conciliado no banco">'+sv('nike',14)+'</span>':'')+'</td>'+
-      '<td style="text-align:right"><b class="'+(neg?'vr':'vg')+'">'+(neg?'- ':'')+'R$ '+money(l.valor)+'</b></td>'+
+      '<td style="text-align:right"><span class="vBol">'+(neg?'- ':'')+'R$ '+money(valorBoleto(l))+'</span></td>'+
+      '<td style="text-align:right">'+
+       (l.pago
+        ?'<b class="'+(neg?'vr':'vg')+'">'+(neg?'- ':'')+'R$ '+money(valorPago(l))+'</b>'+
+          (encargos(l)>0
+           ?'<small class="vEnc">+ R$ '+money(encargos(l))+' juros/multa</small>':'')
+        :'<span class="vNp">em aberto</span>')+
+      '</td>'+
       '<td><div class="acoesLf">'+
        '<button class="joia '+(l.pago?'on':'')+'" onclick="togglePago(\''+l.id+'\')" title="'+(l.pago?'Pago':'Não pago')+'">'+
         sv(l.pago?'up4':'dn4',14)+'</button>'+
@@ -16300,6 +16317,18 @@ function mudarPago(v){
   salvar();telaLancamentos();
   toast(n+' lançamento(s) marcado(s) como não pago.');
 }
+/* Dois valores diferentes que nao podem ser confundidos:
+   o do boleto (o que foi combinado) e o que realmente saiu do banco. */
+function valorBoleto(l){
+  if(!l)return 0;
+  return (l.valorOriginal!==undefined&&l.valorOriginal!==null)
+    ?Number(l.valorOriginal)||0:Number(l.valor)||0;
+}
+function encargos(l){
+  if(!l)return 0;
+  return (Number(l.juros)||0)+(Number(l.multa)||0);
+}
+function valorPago(l){return Number(l.valor)||0}   /* ja inclui juros e multa */
 var _pgBase=0,_pgTipo='despesa';
 /* mostra na hora quanto vai sair da conta com juros e multa somados */
 function recalcPagamento(){
@@ -17939,11 +17968,16 @@ function modalTransf(){
 /* ---------- EXPORTAR / IMPRIMIR ---------- */
 function exportarLanc(){
   var lista=filtrarLanc();
-  var linhas=[['Vencimento','Emissao','Pagamento','Descricao','Fornecedor','Documento','Metodo','Categoria','Conta','Tipo','Valor','Situacao']];
+  var linhas=[['Vencimento','Emissao','Pagamento','Descricao','Fornecedor','Documento','Metodo','Categoria','Conta','Tipo','Valor do boleto','Juros','Multa','Valor pago','Situacao']];
   lista.forEach(function(l){
+    var sg=(l.tipo==='despesa'?'-':'');
     linhas.push([dataBR(l.vencimento),dataBR(l.emissao),l.pagamento?dataBR(l.pagamento):'',
       l.descricao,l.fornecedor||'',l.documento||'',metodoNome(l.metodoId),catTexto(l),
-      contaNome(l.contaId),l.tipo,(l.tipo==='despesa'?'-':'')+String(l.valor).replace('.',','),
+      contaNome(l.contaId),l.tipo,
+      sg+String(valorBoleto(l)).replace('.',','),
+      String(Number(l.juros)||0).replace('.',','),
+      String(Number(l.multa)||0).replace('.',','),
+      l.pago?(sg+String(valorPago(l)).replace('.',',')):'',
       l.pago?'Pago':'Nao pago']);
   });
   var csv=linhas.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
@@ -18232,7 +18266,10 @@ function telaConciliacao(){
         '<td><b>'+E(l.descricao)+'</b>'+
          ((l.documento||l.metodoId)?'<small>'+(l.documento?'Doc.: '+E(l.documento):'')+
           (l.documento&&l.metodoId?' · ':'')+(l.metodoId?E(metodoNome(l.metodoId)):'')+'</small>':'')+'</td>'+
-        '<td style="text-align:right" class="'+(v<0?'vr':'vg')+'"><b>'+(v<0?'- ':'')+'R$ '+money(Math.abs(v))+'</b></td>'+
+        '<td style="text-align:right" class="'+(v<0?'vr':'vg')+'"><b>'+(v<0?'- ':'')+'R$ '+money(Math.abs(v))+'</b>'+
+         (encargos(l)>0
+          ?'<small class="vEnc">boleto R$ '+money(valorBoleto(l))+' + R$ '+money(encargos(l))+'</small>':'')+
+        '</td>'+
         '<td style="text-align:right">R$ '+money(saldo)+'</td>'+
         '<td style="text-align:center" onclick="event.stopPropagation()">'+
          (l.conciliado
