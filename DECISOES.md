@@ -397,6 +397,26 @@ baixado por cima.
 - Zerar os juros devolve o valor original — não acumula a cada pagamento
 - Em pagamento de vários lançamentos os campos não aparecem: juros são de cada conta
 
+## "All object keys must match" (V11.6.0)
+
+O banco exige que **todos os registros de um envio tenham exatamente as mesmas chaves**.
+Alguns mapeamentos escreviam `fk(...)||undefined` para um vínculo inexistente — e um
+campo `undefined` simplesmente some do registro. Um grupo com destino subia com 3 chaves,
+outro sem destino com 2, e o lote inteiro era recusado.
+
+- `igualarChaves()` no `enviar()` **iguala todo lote antes de subir**: quem não tem o
+  campo sobe com ele em branco. Vale para as 41 tabelas, inclusive as futuras
+- Os dois mapeamentos que usavam `||undefined` passaram a usar `||null`
+
+## Do boleto para a nota
+
+No lançamento vindo de nota de entrada, o cabeçalho do bloco de itens virou **link**:
+clicar abre a nota de entrada que gerou aquele boleto. Se a nota tiver sido apagada,
+avisa em vez de quebrar.
+
+O link "(cadastrar novo)" do Fornecedor saiu — não sobrou nenhum atalho de cadastro
+dentro das telas de lançamento.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

@@ -1640,6 +1640,11 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.acTit.notaLink{display:flex;align-items:center;gap:7px;cursor:pointer}
+.acTit.notaLink span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acTit.notaLink em{font-style:normal;font-size:10.5px;color:var(--acc-d);font-weight:700;
+  display:flex;align-items:center;gap:3px;white-space:nowrap}
+.acTit.notaLink:hover{background:var(--alt);color:var(--acc-d)}
 .pgTotal{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .pgTotal>div{display:flex;justify-content:space-between;align-items:center;
   padding:8px 13px;font-size:12.5px;border-bottom:1px solid var(--line)}
@@ -6335,6 +6340,11 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.acTit.notaLink{display:flex;align-items:center;gap:7px;cursor:pointer}
+.acTit.notaLink span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acTit.notaLink em{font-style:normal;font-size:10.5px;color:var(--acc-d);font-weight:700;
+  display:flex;align-items:center;gap:3px;white-space:nowrap}
+.acTit.notaLink:hover{background:var(--alt);color:var(--acc-d)}
 .pgTotal{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .pgTotal>div{display:flex;justify-content:space-between;align-items:center;
   padding:8px 13px;font-size:12.5px;border-bottom:1px solid var(--line)}
@@ -10936,7 +10946,7 @@ var MAPA=[
 
  {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
   campos:function(x){return {nome:x.nome,
-    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||undefined}}},
+    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null}}},
 
  {col:'fichas', espelha:false,      tab:'fichas_tecnicas',
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,grupo_id:fk('fichaCats',x.categoriaId),
@@ -10946,7 +10956,7 @@ var MAPA=[
     tempo:n(x.tempo),validade:n(x.validade),temperatura:x.temperatura||null,
     observacao:x.obs||null,foto:x.foto||null,ncm:x.ncm||null,cfop:x.cfop||null,cest:x.cest||null,
     origem:x.origem||null,cst:x.cst||null,aliquota:n(x.aliquota),lojas:x.lojas||[],
-    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||undefined,
+    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null,
     destino_fator:n(x.destinoFator)||1,estoque_atual:n(x.estoqueAtual),
     custo_medio:n(x.custoMedio),destino_nome:x.destinoNome||null,
     destino_modo:x.destinoModo||'igual'}},
@@ -11159,11 +11169,30 @@ function hashTexto(t){
   return h.toString(36);
 }
 /* grava (insere ou atualiza) pelo ref_local e devolve os ids */
+/* O banco exige que TODOS os registros de um envio tenham exatamente as mesmas
+   chaves. Um campo que às vezes vale `undefined` (um vínculo que não existe)
+   simplesmente some do registro, e aí um tem 12 chaves e o outro 11 — daí o
+   "All object keys must match". Aqui os registros são igualados antes de subir:
+   quem não tem o campo sobe com ele em branco. Vale para as 41 tabelas. */
+function igualarChaves(linhas){
+  var todas={};
+  linhas.forEach(function(o){
+    Object.keys(o).forEach(function(k){
+      if(o[k]!==undefined)todas[k]=true;
+    });
+  });
+  var chaves=Object.keys(todas);
+  return linhas.map(function(o){
+    var novo={};
+    chaves.forEach(function(k){ novo[k]=(o[k]===undefined?null:o[k]); });
+    return novo;
+  });
+}
 async function enviar(tab,linhas){
   if(!linhas.length)return [];
   var out=[];
   for(var i=0;i<linhas.length;i+=200){
-    var lote=linhas.slice(i,i+200);
+    var lote=igualarChaves(linhas.slice(i,i+200));
     var r=await api(tab+'?on_conflict=ref_local','POST',lote,
       {'Prefer':'resolution=merge-duplicates,return=representation'});
     out=out.concat(r||[]);
@@ -12239,7 +12268,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.5.0';
+var VERSAO='V11.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17622,7 +17651,7 @@ function modalLanc(id,tipoNovo,pre){
     '<span>'+E(l&&l.categoriaId?nomeCategoria(l.categoriaId):'Selecione uma opção')+'</span>'+sv('dn',13)+'</button>'+
     '<input type="hidden" id="lnCat" value="'+E(l?l.categoriaId:'')+'">'+
     '<div class="arvIn" id="lnCatArv" style="display:none"></div></div>'+
-   '<div class="fld2"><label>Fornecedor <a class="incNovo" onclick="modalForn()">(cadastrar novo)</a></label>'+
+   '<div class="fld2"><label>Fornecedor</label>'+
     '<select id="lnFid"><option value="">— sem fornecedor —</option>'+
     (DB.fornec||[]).map(function(fo){
       return '<option value="'+fo.id+'"'+((l&&l.fornecedorId===fo.id)||(!l&&P.fornecedorId===fo.id)?' selected':'')+'>'+E(fo.empresa)+
@@ -17665,10 +17694,13 @@ function modalLanc(id,tipoNovo,pre){
   '</div></div>')+
   (notaL
   ?'<div class="blk" style="margin:0 0 11px;max-width:none;padding:0;overflow:hidden">'+
-   '<div class="acTit">Itens comprados nesta nota'+
+   '<div class="acTit notaLink" onclick="abrirNotaDoLanc(\''+notaL.id+'\')" '+
+    'title="Abrir a nota de entrada que gerou este boleto">'+
+    sv('book',13)+' <span>Nota de entrada'+
     (notaL.numero?' — NF '+E(notaL.numero):'')+
     (notaL.fornecedorNome?' · '+E(notaL.fornecedorNome):'')+
-    (notaL.data?' · '+dataBR(notaL.data):'')+'</div>'+
+    (notaL.data?' · '+dataBR(notaL.data):'')+'</span>'+
+    '<em>abrir a nota'+sv('cr',11)+'</em></div>'+
    ((notaL.itens||[]).length
     ?'<table class="acTab"><thead><tr><th>Item</th>'+
      '<th style="width:120px;text-align:right">Quantidade</th>'+
@@ -18244,6 +18276,14 @@ function editarMovSel(){
   if(!l)return;
   if(l.conciliado){toast('Movimento conciliado — desconcilie antes de editar.');return;}
   modalLancCB(l.id);
+}
+/* do boleto para a nota que o gerou, sem sair procurando */
+function abrirNotaDoLanc(id){
+  var n=(DB.notas||[]).find(function(x){return x.id===id});
+  if(!n){toast('A nota de entrada não foi encontrada.');return;}
+  fecharModal();
+  abrir('estoque','notas-entrada');
+  setTimeout(function(){ verNota(id); },80);
 }
 function modalLancCB(id){
   var voltar=telaConciliacao;
