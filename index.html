@@ -1642,10 +1642,12 @@ tbody td small{font-size:10.5px}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 
 /* ================= TELA DE ACESSO ================= */
-#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:auto}
+#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:hidden}
 #login.hide{display:none}
-.nxLogin{min-height:100%;display:grid;grid-template-columns:1.15fr .85fr}
-@media(max-width:940px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
+/* proporção do desenho: a marca ocupa pouco menos de 60% e nada rola na tela */
+.nxLogin{height:100%;display:grid;grid-template-columns:1.38fr 1fr}
+@media(max-width:980px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
+@media(max-height:640px){#login{overflow:auto}.nxLogin{height:auto;min-height:100%}}
 
 .nxMarca{position:relative;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(150deg,#F4FAFC 0%,#DCEEF4 55%,#C3E4EC 100%);overflow:hidden}
@@ -1655,16 +1657,19 @@ tbody td small{font-size:10.5px}
   background-size:46px 46px;
   -webkit-mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%);
   mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%)}
-.nxMarcaIn{position:relative;text-align:center;padding:30px}
-.nxLogo{filter:drop-shadow(0 10px 26px rgba(14,155,148,.30))}
-.nxNome{margin-top:16px;font-size:60px;font-weight:800;letter-spacing:.10em;color:#12354A;
-  text-shadow:0 2px 0 #fff,0 12px 26px rgba(18,53,74,.14)}
-.nxTag{margin-top:4px;font-size:17px;color:#1B7F86;letter-spacing:.01em}
+.nxMarcaIn{position:relative;text-align:center;padding:26px}
+.nxLogo{filter:drop-shadow(0 12px 30px rgba(14,155,148,.34))}
+.nxNome{margin-top:10px;font-size:clamp(44px,5.4vw,78px);font-weight:800;letter-spacing:.12em;
+  color:#14405A;line-height:1;text-shadow:0 2px 0 #fff,0 14px 30px rgba(18,53,74,.16)}
+.nxTag{margin-top:8px;font-size:clamp(14px,1.35vw,21px);color:#1B7F86;letter-spacing:.01em}
+/* quando existir a arte da marca, ela entra aqui e substitui o desenho vetorial */
+.nxMarca.comArte .nxMarcaIn{display:none}
+.nxMarca.comArte{background:#EAF4F8 center/cover no-repeat}
 
-.nxPainel{display:flex;flex-direction:column;padding:26px 34px 34px;
+.nxPainel{display:flex;flex-direction:column;justify-content:center;padding:20px 30px;
   background:linear-gradient(180deg,#F7FBFD 0%,#EAF3F7 100%);
-  border-left:1px solid rgba(14,155,148,.18)}
-.nxTopo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  border-left:1px solid rgba(14,155,148,.18);min-width:0;overflow:auto}
+.nxTopo{display:flex;align-items:center;gap:12px;margin:0 auto 16px;width:100%;max-width:540px}
 .nxSelo{display:flex;align-items:center;gap:9px;flex:1}
 .nxSelo span{font-size:19px;font-weight:800;letter-spacing:.06em;color:#12354A}
 .nxOn{display:flex;align-items:center;gap:6px;font-size:12px;color:#3C5A6B}
@@ -1672,14 +1677,15 @@ tbody td small{font-size:10.5px}
   box-shadow:0 0 0 3px rgba(18,183,106,.18)}
 
 .nxCard{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);
-  border-radius:18px;padding:30px 30px 24px;
+  border-radius:18px;padding:26px 28px 20px;
   box-shadow:0 18px 50px rgba(18,53,74,.10);backdrop-filter:blur(6px);
-  max-width:520px;width:100%;margin:0 auto}
-.nxCard h1{font-size:31px;font-weight:800;color:#12354A;margin:0 0 4px;letter-spacing:-.01em}
-.nxCard p{margin:0 0 22px;color:#5C7688;font-size:14px}
+  max-width:540px;width:100%;margin:0 auto}
+.nxCard h1{font-size:clamp(21px,2.1vw,29px);font-weight:800;color:#12354A;margin:0 0 3px;
+  letter-spacing:-.01em;white-space:nowrap}
+.nxCard p{margin:0 0 18px;color:#5C7688;font-size:13.5px}
 .nxRot{display:block;font-size:10.5px;font-weight:700;letter-spacing:.09em;
-  text-transform:uppercase;color:#5C7688;margin:0 0 6px}
-.nxCampo{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;margin-bottom:16px;
+  text-transform:uppercase;color:#5C7688;margin:0 0 5px}
+.nxCampo{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;margin-bottom:13px;
   background:#fff;border:1.5px solid #DCE7EE;border-radius:11px;color:#8FA6B4;
   transition:border-color .15s,box-shadow .15s}
 .nxCampo:focus-within{border-color:#0E9B94;box-shadow:0 0 0 4px rgba(14,155,148,.13)}
@@ -1690,8 +1696,10 @@ tbody td small{font-size:10.5px}
   color:#8FA6B4;display:flex;align-items:center;justify-content:center;padding:0}
 .nxOlho:hover{color:#0E9B94}
 
-.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 20px}
-.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:14px;color:#3C5A6B}
+.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 16px;
+  flex-wrap:nowrap}
+.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px;color:#3C5A6B;
+  white-space:nowrap}
 .nxSw input{position:absolute;opacity:0;width:0;height:0}
 .nxSw i{width:42px;height:23px;border-radius:99px;background:#C8D6DF;position:relative;
   transition:background .18s;flex:none}
@@ -1699,14 +1707,14 @@ tbody td small{font-size:10.5px}
   background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s}
 .nxSw input:checked + i{background:#0E9B94}
 .nxSw input:checked + i:after{left:22px}
-.nxEsq{color:#0E9B94;font-size:13.5px;cursor:pointer;font-weight:600}
+.nxEsq{color:#0E9B94;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap}
 .nxEsq:hover{text-decoration:underline}
 
 #login .lgErr{min-height:0;color:#B42318;font-size:13px;line-height:1.45}
 #login .lgErr:not(:empty){margin:0 0 14px;padding:10px 12px;background:#FEF3F2;
   border:1px solid #FDA29B;border-radius:9px}
 
-.nxBtn{width:100%;height:56px;border:0;border-radius:12px;cursor:pointer;
+.nxBtn{width:100%;height:52px;border:0;border-radius:12px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:10px;
   background:linear-gradient(100deg,#0FA39B,#0B8A93);color:#fff;
   font-size:17px;font-weight:700;letter-spacing:.01em;
@@ -1714,13 +1722,13 @@ tbody td small{font-size:10.5px}
 .nxBtn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(11,138,147,.36)}
 .nxBtn:active{transform:translateY(0)}
 
-.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;
-  padding-top:18px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:14px}
-.nxPes{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:10px;
-  color:#5C7688;font-size:12px;flex-wrap:wrap}
-.nxPes span{display:flex;align-items:center;gap:5px}
-.nxPes span:before{content:'';width:13px;height:13px;border-radius:50%;flex:none;
-  border:1.6px solid #0E9B94}
+.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;
+  padding-top:15px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:13.5px}
+.nxPes{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;
+  color:#5C7688;font-size:11.5px;flex-wrap:nowrap;white-space:nowrap}
+.nxPes span{display:flex;align-items:center;gap:4px}
+.nxPes span:before{content:'';width:12px;height:12px;border-radius:50%;flex:none;
+  border:1.5px solid #0E9B94}
 .nxPes i{color:#B6C8D3;font-style:normal}
 .nxLogin.shake{animation:nxSh .34s}
 @keyframes nxSh{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
@@ -6433,10 +6441,12 @@ tbody td small{font-size:10.5px}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 
 /* ================= TELA DE ACESSO ================= */
-#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:auto}
+#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:hidden}
 #login.hide{display:none}
-.nxLogin{min-height:100%;display:grid;grid-template-columns:1.15fr .85fr}
-@media(max-width:940px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
+/* proporção do desenho: a marca ocupa pouco menos de 60% e nada rola na tela */
+.nxLogin{height:100%;display:grid;grid-template-columns:1.38fr 1fr}
+@media(max-width:980px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
+@media(max-height:640px){#login{overflow:auto}.nxLogin{height:auto;min-height:100%}}
 
 .nxMarca{position:relative;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(150deg,#F4FAFC 0%,#DCEEF4 55%,#C3E4EC 100%);overflow:hidden}
@@ -6446,16 +6456,19 @@ tbody td small{font-size:10.5px}
   background-size:46px 46px;
   -webkit-mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%);
   mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%)}
-.nxMarcaIn{position:relative;text-align:center;padding:30px}
-.nxLogo{filter:drop-shadow(0 10px 26px rgba(14,155,148,.30))}
-.nxNome{margin-top:16px;font-size:60px;font-weight:800;letter-spacing:.10em;color:#12354A;
-  text-shadow:0 2px 0 #fff,0 12px 26px rgba(18,53,74,.14)}
-.nxTag{margin-top:4px;font-size:17px;color:#1B7F86;letter-spacing:.01em}
+.nxMarcaIn{position:relative;text-align:center;padding:26px}
+.nxLogo{filter:drop-shadow(0 12px 30px rgba(14,155,148,.34))}
+.nxNome{margin-top:10px;font-size:clamp(44px,5.4vw,78px);font-weight:800;letter-spacing:.12em;
+  color:#14405A;line-height:1;text-shadow:0 2px 0 #fff,0 14px 30px rgba(18,53,74,.16)}
+.nxTag{margin-top:8px;font-size:clamp(14px,1.35vw,21px);color:#1B7F86;letter-spacing:.01em}
+/* quando existir a arte da marca, ela entra aqui e substitui o desenho vetorial */
+.nxMarca.comArte .nxMarcaIn{display:none}
+.nxMarca.comArte{background:#EAF4F8 center/cover no-repeat}
 
-.nxPainel{display:flex;flex-direction:column;padding:26px 34px 34px;
+.nxPainel{display:flex;flex-direction:column;justify-content:center;padding:20px 30px;
   background:linear-gradient(180deg,#F7FBFD 0%,#EAF3F7 100%);
-  border-left:1px solid rgba(14,155,148,.18)}
-.nxTopo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  border-left:1px solid rgba(14,155,148,.18);min-width:0;overflow:auto}
+.nxTopo{display:flex;align-items:center;gap:12px;margin:0 auto 16px;width:100%;max-width:540px}
 .nxSelo{display:flex;align-items:center;gap:9px;flex:1}
 .nxSelo span{font-size:19px;font-weight:800;letter-spacing:.06em;color:#12354A}
 .nxOn{display:flex;align-items:center;gap:6px;font-size:12px;color:#3C5A6B}
@@ -6463,14 +6476,15 @@ tbody td small{font-size:10.5px}
   box-shadow:0 0 0 3px rgba(18,183,106,.18)}
 
 .nxCard{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);
-  border-radius:18px;padding:30px 30px 24px;
+  border-radius:18px;padding:26px 28px 20px;
   box-shadow:0 18px 50px rgba(18,53,74,.10);backdrop-filter:blur(6px);
-  max-width:520px;width:100%;margin:0 auto}
-.nxCard h1{font-size:31px;font-weight:800;color:#12354A;margin:0 0 4px;letter-spacing:-.01em}
-.nxCard p{margin:0 0 22px;color:#5C7688;font-size:14px}
+  max-width:540px;width:100%;margin:0 auto}
+.nxCard h1{font-size:clamp(21px,2.1vw,29px);font-weight:800;color:#12354A;margin:0 0 3px;
+  letter-spacing:-.01em;white-space:nowrap}
+.nxCard p{margin:0 0 18px;color:#5C7688;font-size:13.5px}
 .nxRot{display:block;font-size:10.5px;font-weight:700;letter-spacing:.09em;
-  text-transform:uppercase;color:#5C7688;margin:0 0 6px}
-.nxCampo{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;margin-bottom:16px;
+  text-transform:uppercase;color:#5C7688;margin:0 0 5px}
+.nxCampo{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;margin-bottom:13px;
   background:#fff;border:1.5px solid #DCE7EE;border-radius:11px;color:#8FA6B4;
   transition:border-color .15s,box-shadow .15s}
 .nxCampo:focus-within{border-color:#0E9B94;box-shadow:0 0 0 4px rgba(14,155,148,.13)}
@@ -6481,8 +6495,10 @@ tbody td small{font-size:10.5px}
   color:#8FA6B4;display:flex;align-items:center;justify-content:center;padding:0}
 .nxOlho:hover{color:#0E9B94}
 
-.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 20px}
-.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:14px;color:#3C5A6B}
+.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 16px;
+  flex-wrap:nowrap}
+.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px;color:#3C5A6B;
+  white-space:nowrap}
 .nxSw input{position:absolute;opacity:0;width:0;height:0}
 .nxSw i{width:42px;height:23px;border-radius:99px;background:#C8D6DF;position:relative;
   transition:background .18s;flex:none}
@@ -6490,14 +6506,14 @@ tbody td small{font-size:10.5px}
   background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s}
 .nxSw input:checked + i{background:#0E9B94}
 .nxSw input:checked + i:after{left:22px}
-.nxEsq{color:#0E9B94;font-size:13.5px;cursor:pointer;font-weight:600}
+.nxEsq{color:#0E9B94;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap}
 .nxEsq:hover{text-decoration:underline}
 
 #login .lgErr{min-height:0;color:#B42318;font-size:13px;line-height:1.45}
 #login .lgErr:not(:empty){margin:0 0 14px;padding:10px 12px;background:#FEF3F2;
   border:1px solid #FDA29B;border-radius:9px}
 
-.nxBtn{width:100%;height:56px;border:0;border-radius:12px;cursor:pointer;
+.nxBtn{width:100%;height:52px;border:0;border-radius:12px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:10px;
   background:linear-gradient(100deg,#0FA39B,#0B8A93);color:#fff;
   font-size:17px;font-weight:700;letter-spacing:.01em;
@@ -6505,13 +6521,13 @@ tbody td small{font-size:10.5px}
 .nxBtn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(11,138,147,.36)}
 .nxBtn:active{transform:translateY(0)}
 
-.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;
-  padding-top:18px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:14px}
-.nxPes{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:10px;
-  color:#5C7688;font-size:12px;flex-wrap:wrap}
-.nxPes span{display:flex;align-items:center;gap:5px}
-.nxPes span:before{content:'';width:13px;height:13px;border-radius:50%;flex:none;
-  border:1.6px solid #0E9B94}
+.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;
+  padding-top:15px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:13.5px}
+.nxPes{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;
+  color:#5C7688;font-size:11.5px;flex-wrap:nowrap;white-space:nowrap}
+.nxPes span{display:flex;align-items:center;gap:4px}
+.nxPes span:before{content:'';width:12px;height:12px;border-radius:50%;flex:none;
+  border:1.5px solid #0E9B94}
 .nxPes i{color:#B6C8D3;font-style:normal}
 .nxLogin.shake{animation:nxSh .34s}
 @keyframes nxSh{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
@@ -12536,7 +12552,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.8.1';
+var VERSAO='V11.8.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
