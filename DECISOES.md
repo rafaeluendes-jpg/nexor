@@ -595,6 +595,19 @@ mínima de 320px para não espremer.
 Menu lateral agrupado e recolhível, barra superior com busca global e trilha, dashboard
 como central de controle, e a varredura tela a tela.
 
+## Estoque Total mais enxuto (V13.1.0)
+
+A barra de três cartões abaixo dos filtros saiu inteira. O valor do filtro subiu para a
+fileira de números do topo, ao lado do valor total do estoque, com destaque em teal e a
+contagem "x de y itens" embaixo. Ele **só aparece quando há filtro** — sem filtro seria
+o mesmo número duas vezes.
+
+Os outros dois cartões ("Valor total do estoque" e "O filtro representa") foram
+removidos: o primeiro repetia o do topo, o segundo era informação que ninguém usava.
+
+A tabela também ganhou a classe `semBusca`: ela já tem busca e ordenação próprias, e
+estava recebendo a busca automática por cima, duplicando o campo.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

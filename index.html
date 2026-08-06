@@ -2532,6 +2532,9 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .etTopo h1{font-size:16px;font-weight:600}
 .etTopo p{font-size:12px;color:var(--ink-2);margin-top:2px}
 .etTot{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.etT.filtro{border-color:var(--acc);background:var(--acc-soft)}
+.etT.filtro b{color:var(--acc-d)}
+.etT small{display:block;font-size:10px;color:var(--ink-3);margin-top:2px;white-space:nowrap}
 .etT{border:1px solid var(--line);border-radius:5px;padding:8px 13px;background:#fff;min-width:104px}
 .etT span{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
 .etT b{display:block;font-size:16px;font-weight:700;margin-top:2px}
@@ -7946,6 +7949,9 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .etTopo h1{font-size:16px;font-weight:600}
 .etTopo p{font-size:12px;color:var(--ink-2);margin-top:2px}
 .etTot{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.etT.filtro{border-color:var(--acc);background:var(--acc-soft)}
+.etT.filtro b{color:var(--acc-d)}
+.etT small{display:block;font-size:10px;color:var(--ink-3);margin-top:2px;white-space:nowrap}
 .etT{border:1px solid var(--line);border-radius:5px;padding:8px 13px;background:#fff;min-width:104px}
 .etT span{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
 .etT b{display:block;font-size:16px;font-weight:700;margin-top:2px}
@@ -13997,7 +14003,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V13.0.0';
+var VERSAO='V13.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23534,6 +23540,10 @@ function telaEstoqueTotal(){
     '<div><h1>Estoque Total</h1><p>Posição atual de todos os itens, atualizada por movimentações e vendas.</p></div>'+
     '<div class="etTot">'+
      '<div class="etT dest"><span>Valor total em estoque</span><b>R$ '+money(totalGeral)+'</b></div>'+
+     (temFiltro
+      ?'<div class="etT filtro"><span>Valor do filtro</span><b>R$ '+money(total)+'</b>'+
+        '<small>'+lista.length+' de '+todos.length+' itens</small></div>'
+      :'')+
      '<div class="etT"><span>Itens</span><b>'+todos.length+'</b></div>'+
      '<div class="etT"><span>Abaixo do mínimo</span><b class="'+(abaixo?'vr':'vg')+'">'+abaixo+'</b></div>'+
     '</div>'+
@@ -23566,22 +23576,8 @@ function telaEstoqueTotal(){
     '<button class="btnP2" title="Códigos 1, 2, 3... na ordem alfabética" '+
      'onclick="pedirRenumerar()">'+sv('ref',12)+' Renumerar códigos</button>'+
    '</div>'+
-   '<div class="etResumo'+(temFiltro?' comFiltro':'')+'">'+
-    '<div class="erBox dest"><span>'+(temFiltro?'Valor do filtro':'Valor em tela')+'</span>'+
-     '<b>R$ '+money(total)+'</b>'+
-     '<small>'+lista.length+' de '+todos.length+' itens · '+fmtQt(qFiltro)+' em quantidade</small></div>'+
-    '<div class="erBox"><span>Valor total do estoque</span><b>R$ '+money(totalGeral)+'</b>'+
-     '<small>'+todos.length+' itens no total</small></div>'+
-    '<div class="erBox"><span>O filtro representa</span>'+
-     '<b>'+String(pct.toFixed(1)).replace('.',',')+'%</b>'+
-     '<small>do valor em estoque</small></div>'+
-    '<div style="flex:1"></div>'+
-    (temFiltro
-     ?'<button class="btnP2" onclick="limparET()">'+sv('x2',12)+' Limpar filtro</button>'
-     :'<span class="erNota">sem filtro — os dois valores são o mesmo</span>')+
-   '</div>'+
    '<div class="etTabW plano2">'+
-   (lista.length?'<table class="etTab"><thead><tr>'+
+   (lista.length?'<table class="etTab semBusca"><thead><tr>'+
     COLS_ET.map(function(c){
       var on=(ET.ordem===c.k);
       var seta=on?(ET.dir==='asc'?'&#9650;':'&#9660;'):'&#8693;';
@@ -23680,7 +23676,7 @@ function telaContagem(){
     '<button class="btnP2" onclick="verTodasContagens()">Todas</button>'+
    '</div>'+
    '<div class="etTabW plano2">'+
-   (lista.length?'<table class="etTab"><thead><tr>'+
+   (lista.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:140px">Data</th><th style="width:100px;text-align:center">Itens</th>'+
     '<th style="width:110px;text-align:center">Divergências</th>'+
     '<th style="width:150px;text-align:right">Sobra</th>'+
@@ -24320,7 +24316,7 @@ function blocoLinhaTempo(){
   var lin=linhasHist().reverse();
   var tot=lin.reduce(function(a,x){return a+x.l.qtd*x.l.custo},0);
   return '<div class="etTabW plano2">'+
-   (lin.length?'<table class="etTab"><thead><tr>'+
+   (lin.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:96px">Data</th><th style="width:150px">Motivo</th>'+
     '<th>Item</th><th style="width:130px">Grupo</th>'+
     '<th>Origem / destino</th>'+
@@ -24552,7 +24548,7 @@ function telaNotas(){
      '</div></aside>'+
     '<div class="ntMain">'+
      '<div class="ntTabW">'+
-     (lista.length?'<table class="etTab"><thead><tr>'+
+     (lista.length?'<table class="etTab semBusca"><thead><tr>'+
       '<th style="width:80px">Nº</th><th style="width:104px">Data</th>'+
       '<th>Fornecedor</th>'+
       '<th style="width:80px;text-align:center">Itens</th>'+
@@ -25122,7 +25118,7 @@ function telaProducao(){
      sv('search',13)+' Buscar</button>'+
    '</div>'+
    '<div class="etTabW plano2">'+
-   (lista.length?'<table class="etTab"><thead><tr>'+
+   (lista.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:80px">Nº</th><th style="width:120px">Data</th>'+
     '<th style="width:80px;text-align:center">Sabores</th>'+
     '<th>Responsável</th>'+
@@ -25978,7 +25974,7 @@ function telaFaturamentoDia(){
     '<div class="rk"><span>Canceladas</span><b class="'+(t.canc?'vr':'')+'">'+t.canc+' · R$ '+money(t.vcanc)+'</b></div>'+
    '</div>'+
    '<div class="etTabW plano2" id="relArea">'+
-   (linhas.length?'<table class="etTab"><thead><tr>'+
+   (linhas.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:100px">Data</th><th style="width:90px">Dia</th>'+
     '<th style="width:80px;text-align:right">Vendas</th>'+
     '<th style="width:120px;text-align:right">Valor</th>'+
@@ -26247,7 +26243,7 @@ function telaItensConsumidos(){
     '<div class="rk"><span>Movimentos</span><b>'+lista.reduce(function(a,x){return a+x.mov},0)+'</b></div>'+
    '</div>'+
    '<div class="etTabW plano2" id="relArea">'+
-   (lista.length?'<table class="etTab"><thead><tr>'+
+   (lista.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th>Item</th><th style="width:160px">Grupo</th>'+
     '<th style="width:130px;text-align:right">Consumido</th>'+
     '<th style="width:130px;text-align:right">Custo por unidade</th>'+
@@ -26667,7 +26663,7 @@ function telaVendasArea(){
       '</svg></div></div>';
    })():'')+
    '<div class="etTabW plano2" id="relArea">'+
-   (lista.length?'<table class="etTab"><thead><tr>'+
+   (lista.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th>Cidade / área</th>'+
     '<th style="width:110px;text-align:right">Entregas</th>'+
     '<th style="width:100px;text-align:right">Itens</th>'+
@@ -26809,7 +26805,7 @@ function telaVendasFormaPag(){
    '</div>'+
    '<div class="vpGrade">'+
    '<div class="etTabW plano2" id="relArea">'+
-   (lista.length?'<table class="etTab"><thead><tr>'+
+   (lista.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th>Forma de pagamento</th>'+
     '<th style="width:100px;text-align:right">Qtd</th>'+
     '<th style="width:140px;text-align:right">Valor bruto</th>'+
@@ -27313,7 +27309,7 @@ function telaVendasPeriodo(){
     }).join('')+
     '</div></div>'+
    '<div class="etTabW plano2" id="relArea">'+
-   (lista.length?'<table class="etTab"><thead><tr>'+
+   (lista.length?'<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:70px">Pedido</th>'+
     '<th style="width:110px">Data</th><th style="width:70px">Hora</th>'+
     '<th>Cliente</th>'+
@@ -27874,7 +27870,7 @@ function telaSucursais(){
     '<button class="btnP2 ok" onclick="formSucursal()">'+sv('plus',14)+' Cadastrar sucursal</button>'+
    '</div>'+
    '<div class="etTabW plano2">'+
-   '<table class="etTab"><thead><tr>'+
+   '<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:36px"></th><th>Nome</th><th style="width:150px">Apelido</th>'+
     '<th style="width:170px">CNPJ</th><th style="width:180px">Cidade</th>'+
     '<th style="width:100px;text-align:center">Situação</th>'+
@@ -28222,7 +28218,7 @@ function telaFaturamento(){
       '<div><span>'+E(k[0])+'</span><b>'+E(k[1])+'</b></div></div>';
    }).join('')+'</div>'+
    '<div class="etTabW plano2" id="relArea">'+
-   '<table class="etTab"><thead><tr>'+
+   '<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:30px"></th><th>Loja</th>'+
     '<th style="width:140px;text-align:right">Faturamento</th>'+
     '<th style="width:100px;text-align:right">Pedidos</th>'+
@@ -29295,7 +29291,7 @@ function blocoApp(){
   return '<div class="cfgDuas">'+
    '<div class="cfgCol"><div class="colH">Quem tem acesso ao aplicativo</div>'+
     '<div class="colB" style="padding:0">'+
-    '<table class="etTab"><thead><tr>'+
+    '<table class="etTab semBusca"><thead><tr>'+
      '<th>Pessoa</th><th style="width:150px">Login</th>'+
      '<th style="width:170px">Lojas</th>'+
      '<th style="width:150px;text-align:center">No aplicativo</th>'+
@@ -29719,7 +29715,7 @@ function abaProdutos(c){
      '<div><b>'+semFoto+' produto(s) sem foto</b> — no cardápio eles aparecem com um desenho. '+
      'Fotos boas aumentam muito o pedido. Adicione em Gestão de Cardápio.</div></div>':'')+
    '<div class="etTabW plano2" style="margin:0">'+
-   '<table class="etTab"><thead><tr>'+
+   '<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:54px">Foto</th><th>Produto</th><th style="width:150px">Categoria</th>'+
     '<th style="width:110px;text-align:right">Preço</th>'+
     '<th style="width:130px;text-align:center">No cardápio</th></tr></thead><tbody>'+
@@ -30894,7 +30890,7 @@ function telaOperadores(){
     '<button class="btnP2 ok" onclick="formOperador()">'+sv('plus',14)+' Cadastrar operador</button>'+
    '</div>'+
    '<div class="etTabW plano2">'+
-   '<table class="etTab"><thead><tr>'+
+   '<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:38px"></th><th>Nome</th>'+
     '<th style="width:190px">Função</th>'+
     '<th style="width:150px">Senha do caixa</th>'+
