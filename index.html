@@ -1640,6 +1640,93 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ================= TELA DE ACESSO ================= */
+#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:auto}
+#login.hide{display:none}
+.nxLogin{min-height:100%;display:grid;grid-template-columns:1.15fr .85fr}
+@media(max-width:940px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
+
+.nxMarca{position:relative;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,#F4FAFC 0%,#DCEEF4 55%,#C3E4EC 100%);overflow:hidden}
+.nxGrade{position:absolute;inset:0;opacity:.5;
+  background-image:linear-gradient(rgba(14,155,148,.10) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(14,155,148,.10) 1px,transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%);
+  mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%)}
+.nxMarcaIn{position:relative;text-align:center;padding:30px}
+.nxLogo{filter:drop-shadow(0 10px 26px rgba(14,155,148,.30))}
+.nxNome{margin-top:16px;font-size:60px;font-weight:800;letter-spacing:.10em;color:#12354A;
+  text-shadow:0 2px 0 #fff,0 12px 26px rgba(18,53,74,.14)}
+.nxTag{margin-top:4px;font-size:17px;color:#1B7F86;letter-spacing:.01em}
+
+.nxPainel{display:flex;flex-direction:column;padding:26px 34px 34px;
+  background:linear-gradient(180deg,#F7FBFD 0%,#EAF3F7 100%);
+  border-left:1px solid rgba(14,155,148,.18)}
+.nxTopo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.nxSelo{display:flex;align-items:center;gap:9px;flex:1}
+.nxSelo span{font-size:19px;font-weight:800;letter-spacing:.06em;color:#12354A}
+.nxOn{display:flex;align-items:center;gap:6px;font-size:12px;color:#3C5A6B}
+.nxOn i{width:8px;height:8px;border-radius:50%;background:#12B76A;
+  box-shadow:0 0 0 3px rgba(18,183,106,.18)}
+
+.nxCard{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);
+  border-radius:18px;padding:30px 30px 24px;
+  box-shadow:0 18px 50px rgba(18,53,74,.10);backdrop-filter:blur(6px);
+  max-width:520px;width:100%;margin:0 auto}
+.nxCard h1{font-size:31px;font-weight:800;color:#12354A;margin:0 0 4px;letter-spacing:-.01em}
+.nxCard p{margin:0 0 22px;color:#5C7688;font-size:14px}
+.nxRot{display:block;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:#5C7688;margin:0 0 6px}
+.nxCampo{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;margin-bottom:16px;
+  background:#fff;border:1.5px solid #DCE7EE;border-radius:11px;color:#8FA6B4;
+  transition:border-color .15s,box-shadow .15s}
+.nxCampo:focus-within{border-color:#0E9B94;box-shadow:0 0 0 4px rgba(14,155,148,.13)}
+.nxCampo svg{flex:none}
+.nxCampo input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:15px;color:#12354A}
+.nxCampo input::placeholder{color:#9FB3C0}
+.nxOlho{flex:none;width:28px;height:28px;border:0;background:none;cursor:pointer;
+  color:#8FA6B4;display:flex;align-items:center;justify-content:center;padding:0}
+.nxOlho:hover{color:#0E9B94}
+
+.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 20px}
+.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:14px;color:#3C5A6B}
+.nxSw input{position:absolute;opacity:0;width:0;height:0}
+.nxSw i{width:42px;height:23px;border-radius:99px;background:#C8D6DF;position:relative;
+  transition:background .18s;flex:none}
+.nxSw i:after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s}
+.nxSw input:checked + i{background:#0E9B94}
+.nxSw input:checked + i:after{left:22px}
+.nxEsq{color:#0E9B94;font-size:13.5px;cursor:pointer;font-weight:600}
+.nxEsq:hover{text-decoration:underline}
+
+#login .lgErr{min-height:0;color:#B42318;font-size:13px;line-height:1.45}
+#login .lgErr:not(:empty){margin:0 0 14px;padding:10px 12px;background:#FEF3F2;
+  border:1px solid #FDA29B;border-radius:9px}
+
+.nxBtn{width:100%;height:56px;border:0;border-radius:12px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:linear-gradient(100deg,#0FA39B,#0B8A93);color:#fff;
+  font-size:17px;font-weight:700;letter-spacing:.01em;
+  box-shadow:0 10px 24px rgba(11,138,147,.30);transition:transform .12s,box-shadow .12s}
+.nxBtn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(11,138,147,.36)}
+.nxBtn:active{transform:translateY(0)}
+
+.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;
+  padding-top:18px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:14px}
+.nxPes{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:10px;
+  color:#5C7688;font-size:12px;flex-wrap:wrap}
+.nxPes span{display:flex;align-items:center;gap:5px}
+.nxPes span:before{content:'';width:13px;height:13px;border-radius:50%;flex:none;
+  border:1.6px solid #0E9B94}
+.nxPes i{color:#B6C8D3;font-style:normal}
+.nxLogin.shake{animation:nxSh .34s}
+@keyframes nxSh{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
+
+/* a nota abrindo por cima do lançamento */
+.mdOv.notaOv{z-index:1400;background:rgba(12,26,38,.45)}
 .vBol{color:var(--ink-2);font-variant-numeric:tabular-nums}
 .vNp{color:var(--ink-3);font-size:11px}
 small.vEnc{display:block;font-size:10px;color:#B06A00;font-weight:600;margin-top:1px;
@@ -6344,6 +6431,93 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ================= TELA DE ACESSO ================= */
+#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:auto}
+#login.hide{display:none}
+.nxLogin{min-height:100%;display:grid;grid-template-columns:1.15fr .85fr}
+@media(max-width:940px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
+
+.nxMarca{position:relative;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,#F4FAFC 0%,#DCEEF4 55%,#C3E4EC 100%);overflow:hidden}
+.nxGrade{position:absolute;inset:0;opacity:.5;
+  background-image:linear-gradient(rgba(14,155,148,.10) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(14,155,148,.10) 1px,transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%);
+  mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%)}
+.nxMarcaIn{position:relative;text-align:center;padding:30px}
+.nxLogo{filter:drop-shadow(0 10px 26px rgba(14,155,148,.30))}
+.nxNome{margin-top:16px;font-size:60px;font-weight:800;letter-spacing:.10em;color:#12354A;
+  text-shadow:0 2px 0 #fff,0 12px 26px rgba(18,53,74,.14)}
+.nxTag{margin-top:4px;font-size:17px;color:#1B7F86;letter-spacing:.01em}
+
+.nxPainel{display:flex;flex-direction:column;padding:26px 34px 34px;
+  background:linear-gradient(180deg,#F7FBFD 0%,#EAF3F7 100%);
+  border-left:1px solid rgba(14,155,148,.18)}
+.nxTopo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.nxSelo{display:flex;align-items:center;gap:9px;flex:1}
+.nxSelo span{font-size:19px;font-weight:800;letter-spacing:.06em;color:#12354A}
+.nxOn{display:flex;align-items:center;gap:6px;font-size:12px;color:#3C5A6B}
+.nxOn i{width:8px;height:8px;border-radius:50%;background:#12B76A;
+  box-shadow:0 0 0 3px rgba(18,183,106,.18)}
+
+.nxCard{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);
+  border-radius:18px;padding:30px 30px 24px;
+  box-shadow:0 18px 50px rgba(18,53,74,.10);backdrop-filter:blur(6px);
+  max-width:520px;width:100%;margin:0 auto}
+.nxCard h1{font-size:31px;font-weight:800;color:#12354A;margin:0 0 4px;letter-spacing:-.01em}
+.nxCard p{margin:0 0 22px;color:#5C7688;font-size:14px}
+.nxRot{display:block;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:#5C7688;margin:0 0 6px}
+.nxCampo{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;margin-bottom:16px;
+  background:#fff;border:1.5px solid #DCE7EE;border-radius:11px;color:#8FA6B4;
+  transition:border-color .15s,box-shadow .15s}
+.nxCampo:focus-within{border-color:#0E9B94;box-shadow:0 0 0 4px rgba(14,155,148,.13)}
+.nxCampo svg{flex:none}
+.nxCampo input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:15px;color:#12354A}
+.nxCampo input::placeholder{color:#9FB3C0}
+.nxOlho{flex:none;width:28px;height:28px;border:0;background:none;cursor:pointer;
+  color:#8FA6B4;display:flex;align-items:center;justify-content:center;padding:0}
+.nxOlho:hover{color:#0E9B94}
+
+.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 20px}
+.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:14px;color:#3C5A6B}
+.nxSw input{position:absolute;opacity:0;width:0;height:0}
+.nxSw i{width:42px;height:23px;border-radius:99px;background:#C8D6DF;position:relative;
+  transition:background .18s;flex:none}
+.nxSw i:after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s}
+.nxSw input:checked + i{background:#0E9B94}
+.nxSw input:checked + i:after{left:22px}
+.nxEsq{color:#0E9B94;font-size:13.5px;cursor:pointer;font-weight:600}
+.nxEsq:hover{text-decoration:underline}
+
+#login .lgErr{min-height:0;color:#B42318;font-size:13px;line-height:1.45}
+#login .lgErr:not(:empty){margin:0 0 14px;padding:10px 12px;background:#FEF3F2;
+  border:1px solid #FDA29B;border-radius:9px}
+
+.nxBtn{width:100%;height:56px;border:0;border-radius:12px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:linear-gradient(100deg,#0FA39B,#0B8A93);color:#fff;
+  font-size:17px;font-weight:700;letter-spacing:.01em;
+  box-shadow:0 10px 24px rgba(11,138,147,.30);transition:transform .12s,box-shadow .12s}
+.nxBtn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(11,138,147,.36)}
+.nxBtn:active{transform:translateY(0)}
+
+.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;
+  padding-top:18px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:14px}
+.nxPes{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:10px;
+  color:#5C7688;font-size:12px;flex-wrap:wrap}
+.nxPes span{display:flex;align-items:center;gap:5px}
+.nxPes span:before{content:'';width:13px;height:13px;border-radius:50%;flex:none;
+  border:1.6px solid #0E9B94}
+.nxPes i{color:#B6C8D3;font-style:normal}
+.nxLogin.shake{animation:nxSh .34s}
+@keyframes nxSh{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
+
+/* a nota abrindo por cima do lançamento */
+.mdOv.notaOv{z-index:1400;background:rgba(12,26,38,.45)}
 .vBol{color:var(--ink-2);font-variant-numeric:tabular-nums}
 .vNp{color:var(--ink-3);font-size:11px}
 small.vEnc{display:block;font-size:10px;color:#B06A00;font-weight:600;margin-top:1px;
@@ -10463,23 +10637,88 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 
 <!-- ============ LOGIN ============ -->
 <section id="login">
-  <div class="lgCard" id="lgCard">
-    <div class="lgL">
-      <div class="lgHd">
-        <div class="lgEmb">
-          <svg viewBox="0 0 64 64" width="34" height="34" fill="none" stroke="#fff"
-            stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 46V18l26 28V18"/></svg>
+  <div class="nxLogin" id="lgCard">
+
+    <div class="nxMarca">
+      <div class="nxGrade"></div>
+      <div class="nxMarcaIn">
+        <div class="nxLogo">
+          <svg viewBox="0 0 120 120" width="112" height="112" aria-hidden="true">
+            <defs>
+              <linearGradient id="nxg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#7FE3E0"/><stop offset="1" stop-color="#0E9B94"/>
+              </linearGradient>
+            </defs>
+            <path d="M60 8 108 34v52L60 112 12 86V34z" fill="none" stroke="url(#nxg)" stroke-width="7"
+              stroke-linejoin="round"/>
+            <path d="M40 82V38l40 44V38" fill="none" stroke="url(#nxg)" stroke-width="10"
+              stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-        <div class="lgTt"><b>nexor</b><em>gestão simples, lucro visível</em></div>
+        <div class="nxNome">NEXOR</div>
+        <div class="nxTag">gestão simples, lucro visível</div>
       </div>
-      <div class="sb">Informe cliente, usuário e senha</div>
-      <div class="f"><label>Cliente</label><div class="w"><input id="lgC" value="" autocomplete="off" placeholder="nome da rede"></div></div>
-      <div class="f"><label>Usuário</label><div class="w"><input id="lgU" value="" autocomplete="off" placeholder="seu acesso"></div></div>
-      <div class="f"><label>Senha</label><div class="w"><input id="lgP" type="password" value="" autocomplete="off" placeholder="sua senha"><button class="eye" id="tg"></button></div></div>
-      <div class="lgErr" id="lgE"></div>
-      <button class="lgBtn" id="lgB">Entrar</button>
-      <div class="lgNote">Acesso restrito &middot; fale com o administrador da sua rede</div>
+    </div>
+
+    <div class="nxPainel">
+      <div class="nxTopo">
+        <div class="nxSelo">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#0E9B94"
+            stroke-width="2" stroke-linejoin="round"><path d="M12 2l9 5v10l-9 5-9-5V7z"/></svg>
+          <span>NEXOR ACCESS</span>
+        </div>
+        <div class="nxOn"><i></i>Sistema disponível</div>
+      </div>
+
+      <div class="nxCard">
+        <h1>Bem-vindo ao Nexor</h1>
+        <p>Acesse seu ambiente de gestão</p>
+
+        <label class="nxRot" for="lgC">Cliente</label>
+        <div class="nxCampo">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+            stroke-width="1.8"><path d="M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M4 21h16M8 8h3M8 12h3M8 16h3"/></svg>
+          <input id="lgC" autocomplete="off" placeholder="Nome da rede">
+        </div>
+
+        <label class="nxRot" for="lgU">Usuário</label>
+        <div class="nxCampo">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+            stroke-width="1.8"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg>
+          <input id="lgU" autocomplete="off" placeholder="E-mail corporativo">
+        </div>
+
+        <label class="nxRot" for="lgP">Senha</label>
+        <div class="nxCampo">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+            stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+          <input id="lgP" type="password" autocomplete="off" placeholder="Digite sua senha">
+          <button class="nxOlho" id="tg" type="button" title="Mostrar senha"></button>
+        </div>
+
+        <div class="nxLinha">
+          <label class="nxSw"><input type="checkbox" id="lgK" checked><i></i>
+            <span>Manter conectado</span></label>
+          <a class="nxEsq" id="lgEsq">Esqueci minha senha</a>
+        </div>
+
+        <div class="lgErr" id="lgE"></div>
+
+        <button class="nxBtn" id="lgB">Entrar no Nexor
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+        </button>
+
+        <div class="nxProt">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0E9B94"
+            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l8 3v6c0 4.6-3.3 8-8 9-4.7-1-8-4.4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <b>Acesso corporativo protegido</b>
+        </div>
+        <div class="nxPes">
+          <span>Sessão segura</span><i>&bull;</i><span>Dados protegidos</span><i>&bull;</i><span>Suporte Nexor</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -12108,7 +12347,19 @@ async function entrar(){
     SESSAO.login=String(u.login||'').toLowerCase();
     u.ultimoAcesso=new Date().toISOString();
     salvar();
-    try{localStorage.setItem('nexor_sessao',SESSAO.login)}catch(e){}
+    /* "Manter conectado" ligado: a sessão fica no aparelho e ele volta direto.
+       Desligado: vale só enquanto a aba estiver aberta. */
+    var manter=!$('lgK')||$('lgK').checked;
+    try{
+      localStorage.setItem('nexor_manter',manter?'1':'0');
+      if(manter){
+        localStorage.setItem('nexor_sessao',SESSAO.login);
+        sessionStorage.removeItem('nexor_sessao');
+      }else{
+        localStorage.removeItem('nexor_sessao');
+        sessionStorage.setItem('nexor_sessao',SESSAO.login);
+      }
+    }catch(e){}
     abrirSessao();
     return;
   }
@@ -12124,6 +12375,10 @@ function sacode(){
   if(c){c.classList.add('shake');setTimeout(function(){c.classList.remove('shake')},360);}
 }
 $('lgB').onclick=entrar;
+if($('lgEsq'))$('lgEsq').onclick=function(){
+  $('lgE').innerHTML='Para redefinir a senha, fale com o administrador da sua rede — '+
+    'ele altera em <b>Configuração da Loja › Usuários e Permissões</b>.';
+};
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&!$('login').classList.contains('hide'))entrar();
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&$('login').classList.contains('hide')){e.preventDefault();paleta();}
@@ -12131,7 +12386,7 @@ document.addEventListener('keydown',function(e){
 });
 function sair(){
   if(!confirm('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
-  try{localStorage.removeItem('nexor_sessao')}catch(e){}
+  try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){}
   SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');
   $('lgE').textContent='';
@@ -12139,6 +12394,11 @@ function sair(){
 /* se ja tinha entrado antes, volta direto para o sistema */
 try{
   var _ses=localStorage.getItem('nexor_sessao');
+  try{ if(!_ses)_ses=sessionStorage.getItem('nexor_sessao'); }catch(e){}
+  try{
+    var _mk=localStorage.getItem('nexor_manter');
+    if(_mk==='0'){var _c=document.getElementById('lgK');if(_c)_c.checked=false;}
+  }catch(e){}
   if(_ses){
     try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
     baseUsr();
@@ -12276,7 +12536,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.7.0';
+var VERSAO='V11.8.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17729,7 +17989,7 @@ function modalLanc(id,tipoNovo,pre){
     (notaL.numero?' — NF '+E(notaL.numero):'')+
     (notaL.fornecedorNome?' · '+E(notaL.fornecedorNome):'')+
     (notaL.data?' · '+dataBR(notaL.data):'')+'</span>'+
-    '<em>abrir a nota'+sv('cr',11)+'</em></div>'+
+    '<em>'+sv('eye',13)+' ver a nota</em></div>'+
    ((notaL.itens||[]).length
     ?'<table class="acTab"><thead><tr><th>Item</th>'+
      '<th style="width:120px;text-align:right">Quantidade</th>'+
@@ -18314,14 +18574,33 @@ function editarMovSel(){
   if(l.conciliado){toast('Movimento conciliado — desconcilie antes de editar.');return;}
   modalLancCB(l.id);
 }
-/* do boleto para a nota que o gerou, sem sair procurando */
+/* Do boleto para a nota SEM sair da tela: a nota abre por cima do lançamento
+   e, ao fechar, você continua exatamente onde estava. */
 function abrirNotaDoLanc(id){
   var n=(DB.notas||[]).find(function(x){return x.id===id});
   if(!n){toast('A nota de entrada não foi encontrada.');return;}
-  fecharModal();
-  abrir('estoque','notas-entrada');
-  setTimeout(function(){ verNota(id); },80);
+  var v=document.getElementById('mdOv2');if(v)v.remove();
+  /* a nota se desenha sozinha numa camada 'mdOv'. Escondemos o nome do lançamento
+     por um instante para a nota nascer separada e virar a camada de cima. */
+  var base=document.getElementById('mdOv');
+  if(base)base.id='mdOvBase';
+  try{ verNota(id); }catch(e){}
+  var nova=document.getElementById('mdOv');
+  if(base)base.id='mdOv';
+  if(!nova||nova===base){toast('Não consegui abrir a nota.');return;}
+  /* clonar tira os cliques de fora que fechariam o lançamento de trás */
+  var lim=nova.cloneNode(true);
+  nova.parentNode.replaceChild(lim,nova);
+  lim.id='mdOv2';lim.className='mdOv notaOv';
+  var bts=lim.querySelectorAll('[onclick]');
+  for(var i=0;i<bts.length;i++){
+    var oc=bts[i].getAttribute('onclick')||'';
+    if(oc.indexOf('fecharModal')>=0)bts[i].setAttribute('onclick','fecharNotaSobre()');
+    if(oc.indexOf('excluirNota')>=0)bts[i].remove();   /* aqui a nota é só consulta */
+  }
+  lim.addEventListener('mousedown',function(e){ if(e.target===lim)fecharNotaSobre(); });
 }
+function fecharNotaSobre(){var o=document.getElementById('mdOv2');if(o)o.remove();}
 function modalLancCB(id){
   var voltar=telaConciliacao;
   var antes=telaLancamentos;

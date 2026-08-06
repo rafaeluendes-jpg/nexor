@@ -430,6 +430,26 @@ fornecedor e o que realmente saiu da conta.
 - Exportação: colunas separadas de boleto, juros, multa e valor pago
 - Helpers: `valorBoleto(l)`, `encargos(l)`, `valorPago(l)`
 
+## Nova tela de acesso (V11.8.0)
+
+Refeita conforme o desenho: painel da marca à esquerda, cartão de acesso à direita com
+selo NEXOR ACCESS, indicador de sistema disponível, campos com ícone, "Manter conectado",
+"Esqueci minha senha" e o rodapé de segurança. Os identificadores antigos (`lgC`, `lgU`,
+`lgP`, `lgE`, `lgB`, `tg`) foram mantidos, então toda a lógica de entrada continua a mesma.
+
+**Manter conectado** funciona de verdade:
+- ligado → sessão em `localStorage`, o aparelho volta direto
+- desligado → sessão em `sessionStorage`, vale só enquanto a aba estiver aberta
+- a escolha fica lembrada em `nexor_manter`; `sair()` limpa os dois lugares
+
+## A nota abre por cima do lançamento
+
+`abrirNotaDoLanc` deixou de navegar para Notas de Entrada. A nota se desenha na própria
+camada `mdOv`, então o lançamento é renomeado por um instante, a nota nasce separada e
+vira `mdOv2` acima dele. O nó é clonado para descartar o clique-fora herdado (que
+fecharia o lançamento de trás), os botões de fechar passam a chamar `fecharNotaSobre()`
+e o "Excluir nota" é retirado — ali a nota é consulta.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
