@@ -16,17 +16,81 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --deep:#122A42; --band:#EDF2F7; --band-2:#E2EAF2; --band-line:#CFDBE6;
-  --bg:#EAEFF4; --panel:#FFF; --line:#D7E0E9; --line-2:#EAEFF4;
-  --ink:#12212F; --ink-2:#4E5F73; --ink-3:#8394A6;
-  --acc:#00A08B; --acc-d:#00806F; --acc-l:#33BCA9; --acc-soft:#E0F5F1;
-  --blue:#2C6FD1; --blue-soft:#E8F0FC;
-  --red:#C94141; --red-soft:#FCEBEB; --amber:#B8730B; --amber-soft:#FDF4E3;
-  --alt:#F7FAFC;
-  --sh:0 1px 2px rgba(18,42,66,.06),0 2px 5px rgba(18,42,66,.05);
-  --sh2:0 16px 40px rgba(18,42,66,.18),0 3px 10px rgba(18,42,66,.08);
+  /* ---- DESIGN SYSTEM NEXOR ----
+     Cores tiradas da própria marca: azul-marinho de base, verde-petróleo e teal
+     como assinatura. Tudo no sistema lê destes tokens — mudar aqui muda todas
+     as telas ao mesmo tempo, sem tocar em nenhuma função. */
+  --deep:#0B2B3B;            /* azul-marinho: barras e menu */
+  --deep-2:#0F3648;
+  --band:#E8F1F2; --band-2:#DCE9EB; --band-line:#D6E1E4;
+  --bg:#F3F7F8;              /* área de trabalho */
+  --panel:#FFF; --line:#D6E1E4; --line-2:#E8F1F2;
+  --ink:#17262F; --ink-2:#667780; --ink-3:#93A2AA;
+  --acc:#159A9C;             /* teal de destaque */
+  --acc-d:#0E7475;           /* verde-petróleo: ação principal */
+  --acc-l:#2FB6B7; --acc-soft:#E8F1F2;
+  --blue:#2C6FD1; --blue-soft:#EAF1FB;
+  --ok:#238A63; --ok-soft:#E6F3EE;
+  --red:#C94B4B; --red-soft:#FBECEC; --amber:#C88A27; --amber-soft:#FBF3E4;
+  --alt:#F7FAFA;
+  /* profundidade quase imperceptível: painel não flutua, apenas se separa do fundo */
+  --sh:0 1px 1px rgba(11,43,59,.04),0 1px 3px rgba(11,43,59,.05);
+  --sh2:0 18px 44px rgba(11,43,59,.16),0 2px 8px rgba(11,43,59,.07);
+  --r:8px;                   /* raio padrão dos componentes */
+  --r-s:6px;                 /* raio de botões e campos */
+  --t:170ms cubic-bezier(.4,0,.2,1);   /* animação padrão */
 }
 *{box-sizing:border-box;margin:0;padding:0}
+
+/* ====== DESIGN SYSTEM NEXOR — componentes ======
+   Regras de acabamento aplicadas por cima do que já existe. Nenhuma
+   troca de marcação: só padroniza raio, altura, foco, densidade e rolagem. */
+
+/* raio: nada acima de 10px nos componentes principais */
+.blk,.card,.mdBox,.cfBox,.painel,.etWrap,.cfgCol,.lfTabW,.cbTabW,.acTabW,
+.mmCol,.motCol,.rcItem,.syncIt,.erBox{border-radius:var(--r)!important}
+button,input,select,textarea,.btn,.btnP2,.btnMini,.selItem{border-radius:var(--r-s)!important}
+
+/* botões: hierarquia clara e altura de ERP (36–42px) */
+.btn,.btnP2{min-height:36px;padding:0 14px;font-size:12.5px;font-weight:600;
+  letter-spacing:0;transition:background var(--t),border-color var(--t),color var(--t)}
+.btn.p,.btnP2.ok,.btnConf,.btnPrim{background:var(--acc-d);border:1px solid var(--acc-d);color:#fff}
+.btn.p:hover,.btnP2.ok:hover,.btnConf:hover{background:var(--acc);border-color:var(--acc)}
+.btnP2{background:#fff;border:1px solid var(--line);color:var(--ink-2)}
+.btnP2:hover{border-color:var(--acc);color:var(--acc-d);background:var(--alt)}
+.btnP2.rdB,.btn.rdB{color:var(--red);border-color:var(--line)}
+.btnP2.rdB:hover,.btn.rdB:hover{background:var(--red-soft);border-color:var(--red)}
+
+/* campos: rótulo sempre visível, foco em teal, altura consistente */
+.fld2 label,.f2 label,.fld label{display:block;font-size:11px;font-weight:600;
+  color:var(--ink-2);margin-bottom:5px;letter-spacing:.01em}
+.fld2 input,.fld2 select,.fld2 textarea,.f2 input,.f2 select{
+  transition:border-color var(--t),box-shadow var(--t)}
+.fld2 input:focus,.fld2 select:focus,.fld2 textarea:focus,
+.f2 input:focus,.f2 select:focus,input:focus,select:focus,textarea:focus{
+  outline:0;border-color:var(--acc);box-shadow:0 0 0 3px rgba(21,154,156,.14)}
+
+/* tabelas: densas, cabeçalho fixo, zebra sutil, destaque ao passar o mouse */
+table thead th{position:sticky;top:0;z-index:2;background:var(--alt);
+  font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);border-bottom:1px solid var(--line);white-space:nowrap}
+table tbody tr:nth-child(even){background:rgba(232,241,242,.38)}
+table tbody tr{transition:background var(--t)}
+table tbody tr:hover{background:var(--acc-soft)}
+table tbody td{border-bottom:1px solid var(--line-2)}
+
+/* rolagem discreta: a barra grossa do sistema apertava o conteúdo */
+*{scrollbar-width:thin;scrollbar-color:#C3D2D6 transparent}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#C3D2D6;border-radius:99px;border:2px solid transparent;
+  background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#A9BDC3;background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
+
+/* estados clicáveis coerentes em todo o sistema */
+a,button,.mIco,.rcItem,.mmIt,.selItem{transition:background var(--t),color var(--t),
+  border-color var(--t)}
 body{font:400 13px/1.45 'Inter',-apple-system,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--ink);
   height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;letter-spacing:-.005em}
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
@@ -1178,14 +1242,20 @@ button.cxTag:hover{background:rgba(0,160,139,.26)}
    Menos cor, tipografia menor, densidade maior.
    ========================================================== */
 :root{
-  --acc:#0F7A6B; --acc-d:#0B6153; --acc-l:#1B9B88; --acc-soft:#EAF3F1;
-  --blue:#2B5F9E; --blue-soft:#EDF2F8;
-  --red:#B03A3A; --red-soft:#F9EDED;
-  --amber:#8A6415; --amber-soft:#F8F2E4;
-  --line:#DDE3EA; --line-2:#EDF0F4; --alt:#F7F8FA;
-  --ink:#1A2430; --ink-2:#54606E; --ink-3:#8A93A0;
-  --sh:0 1px 1px rgba(20,30,45,.04);
-  --sh2:0 10px 26px rgba(20,30,45,.12);
+  /* Esta segunda folha reafinava as cores por cima da primeira e era ela que
+     valia de verdade. Agora as duas falam a mesma língua: a paleta da marca. */
+  --acc:#159A9C; --acc-d:#0E7475; --acc-l:#2FB6B7; --acc-soft:#E8F1F2;
+  --blue:#2C6FD1; --blue-soft:#EAF1FB;
+  --ok:#238A63; --ok-soft:#E6F3EE;
+  --red:#C94B4B; --red-soft:#FBECEC;
+  --amber:#C88A27; --amber-soft:#FBF3E4;
+  --line:#D6E1E4; --line-2:#E8F1F2; --alt:#F7FAFA;
+  --ink:#17262F; --ink-2:#667780; --ink-3:#93A2AA;
+  --deep:#0B2B3B; --deep-2:#0F3648; --bg:#F3F7F8;
+  --band:#E8F1F2; --band-2:#DCE9EB; --band-line:#D6E1E4;
+  --sh:0 1px 1px rgba(11,43,59,.04),0 1px 3px rgba(11,43,59,.05);
+  --sh2:0 18px 44px rgba(11,43,59,.16),0 2px 8px rgba(11,43,59,.07);
+  --r:8px; --r-s:6px; --t:170ms cubic-bezier(.4,0,.2,1);
 }
 body{font-size:12.5px}
 
@@ -3074,7 +3144,10 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -3170,7 +3243,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -3901,7 +3978,10 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -3997,7 +4077,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -4810,7 +4894,10 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -4906,7 +4993,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -5637,7 +5728,10 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -5733,7 +5827,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -6549,14 +6647,20 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
    Menos cor, tipografia menor, densidade maior.
    ========================================================== */
 :root{
-  --acc:#0F7A6B; --acc-d:#0B6153; --acc-l:#1B9B88; --acc-soft:#EAF3F1;
-  --blue:#2B5F9E; --blue-soft:#EDF2F8;
-  --red:#B03A3A; --red-soft:#F9EDED;
-  --amber:#8A6415; --amber-soft:#F8F2E4;
-  --line:#DDE3EA; --line-2:#EDF0F4; --alt:#F7F8FA;
-  --ink:#1A2430; --ink-2:#54606E; --ink-3:#8A93A0;
-  --sh:0 1px 1px rgba(20,30,45,.04);
-  --sh2:0 10px 26px rgba(20,30,45,.12);
+  /* Esta segunda folha reafinava as cores por cima da primeira e era ela que
+     valia de verdade. Agora as duas falam a mesma língua: a paleta da marca. */
+  --acc:#159A9C; --acc-d:#0E7475; --acc-l:#2FB6B7; --acc-soft:#E8F1F2;
+  --blue:#2C6FD1; --blue-soft:#EAF1FB;
+  --ok:#238A63; --ok-soft:#E6F3EE;
+  --red:#C94B4B; --red-soft:#FBECEC;
+  --amber:#C88A27; --amber-soft:#FBF3E4;
+  --line:#D6E1E4; --line-2:#E8F1F2; --alt:#F7FAFA;
+  --ink:#17262F; --ink-2:#667780; --ink-3:#93A2AA;
+  --deep:#0B2B3B; --deep-2:#0F3648; --bg:#F3F7F8;
+  --band:#E8F1F2; --band-2:#DCE9EB; --band-line:#D6E1E4;
+  --sh:0 1px 1px rgba(11,43,59,.04),0 1px 3px rgba(11,43,59,.05);
+  --sh2:0 18px 44px rgba(11,43,59,.16),0 2px 8px rgba(11,43,59,.07);
+  --r:8px; --r-s:6px; --t:170ms cubic-bezier(.4,0,.2,1);
 }
 body{font-size:12.5px}
 
@@ -8454,7 +8558,10 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -8550,7 +8657,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -9281,7 +9392,10 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -9377,7 +9491,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -10190,7 +10308,10 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -10286,7 +10407,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -11017,7 +11142,10 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   padding:6px 11px;border-radius:6px}
 .alertaCfg{background:var(--amber-soft);color:#8A5A08;border:1px solid #E8CFA0}
 .okCfg{background:var(--acc-soft);color:var(--acc-d);border:1px solid var(--acc)}
-.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:flex-start;flex:1;min-height:0}
+.cfgDuas{display:flex;gap:12px;padding:14px 16px;align-items:stretch;flex:1;min-height:0;
+  flex-wrap:wrap}
+.cfgDuas>.cfgCol{min-width:320px}
+@media(max-width:900px){.cfgDuas>.cfgCol{min-width:100%}}
 .cfgCol{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;
   display:flex;flex-direction:column;overflow:hidden}
 .cfgCol.estreita{width:330px;flex:none}
@@ -11113,7 +11241,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @media(max-width:800px){.semIt{grid-template-columns:1fr}.semV{text-align:left}}
 
 /* ---------- configuração do PDV ---------- */
-.layGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.layGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;
+  align-items:start}
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+.layGrade .layMini{width:100%;max-width:190px;aspect-ratio:4/3;object-fit:contain}
 .layOp{text-align:left;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
 .layOp:hover{border-color:var(--acc)}
 .layOp.on{border-color:var(--acc);background:var(--acc-soft)}
@@ -13865,7 +13997,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V12.3.0';
+var VERSAO='V13.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

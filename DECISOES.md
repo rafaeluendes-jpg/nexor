@@ -557,6 +557,44 @@ texto perdido no meio do branco. Parecia formulário de celular esticado.
 Os ajustes vão nas **duas** folhas de estilo — a segunda cópia das regras originais
 desfaria a primeira.
 
+## Design System Nexor — base (V13.0.0)
+
+Primeira etapa do redesenho. **Nenhuma função, rota, permissão ou regra foi tocada.**
+
+### Tokens
+
+O sistema já lia tudo de variáveis CSS — bastou realinhá-las com a paleta da marca para
+todas as telas mudarem ao mesmo tempo. Descoberta importante: havia **três blocos
+`:root`**, e o segundo reafinava as cores por cima do primeiro. Era ele que valia. Os
+dois primeiros agora falam a mesma língua.
+
+| Token | Valor |
+|---|---|
+| `--deep` | `#0B2B3B` azul-marinho |
+| `--acc-d` | `#0E7475` verde-petróleo (ação principal) |
+| `--acc` | `#159A9C` teal (destaque) |
+| `--bg` | `#F3F7F8` · `--line` `#D6E1E4` |
+| `--ink` / `--ink-2` | `#17262F` / `#667780` |
+| `--ok` / `--amber` / `--red` | `#238A63` / `#C88A27` / `#C94B4B` |
+| `--r` / `--r-s` | 8px / 6px · `--t` 170ms |
+
+### Componentes globais
+
+Raio limitado a 8px (6px em botões e campos), botões de 36px com hierarquia
+petróleo/branco/vermelho, foco em teal com anel de 3px, tabelas com cabeçalho fixo,
+zebra sutil e destaque no hover, sombras quase imperceptíveis, rolagem fina de 9px.
+
+### Configuração do PDV
+
+`repeat(auto-fit, ...)` fazia um item sozinho ocupar a coluna inteira e esticar a
+miniatura. Trocado por `auto-fill` com `aspect-ratio`, e as colunas ganharam largura
+mínima de 320px para não espremer.
+
+### Pendente
+
+Menu lateral agrupado e recolhível, barra superior com busca global e trilha, dashboard
+como central de controle, e a varredura tela a tela.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
