@@ -14022,7 +14022,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V13.2.0';
+var VERSAO='V13.2.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23569,10 +23569,11 @@ function telaEstoqueTotal(){
     '<div><h1>Estoque Total</h1><p>Posição atual de todos os itens, atualizada por movimentações e vendas.</p></div>'+
     '<div class="etTot">'+
      '<div class="etT dest"><span>Valor total em estoque</span><b>R$ '+money(totalGeral)+'</b></div>'+
-     (temFiltro
-      ?'<div class="etT filtro"><span>Valor do filtro</span><b>R$ '+money(total)+'</b>'+
-        '<small>'+lista.length+' de '+todos.length+' itens</small></div>'
-      :'')+
+     /* fixo na tela: sem filtro ele mostra o total, com filtro mostra o recorte */
+     '<div class="etT filtro"><span>Valor do filtro</span><b>R$ '+money(total)+'</b>'+
+      '<small>'+(temFiltro
+        ?lista.length+' de '+todos.length+' itens'
+        :'todos os '+todos.length+' itens')+'</small></div>'+
      '<div class="etT"><span>Itens</span><b>'+todos.length+'</b></div>'+
      '<div class="etT"><span>Abaixo do mínimo</span><b class="'+(abaixo?'vr':'vg')+'">'+abaixo+'</b></div>'+
     '</div>'+
