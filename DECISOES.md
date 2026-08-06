@@ -366,6 +366,37 @@ O acerto agora **roda sozinho, uma vez**, na primeira vez que uma tela de estoqu
 **Renumerar códigos** continua no Estoque Total para reorganizar depois de um lote de
 cadastros.
 
+## Colunas que faltavam no banco (V11.5.0)
+
+A mensagem "Could not find the 'cfg_dre' column of 'config_loja'" era literal: o cliente
+mandava campos que **não existiam no banco**. Comparei, campo a campo, o que cada tabela
+do MAPA envia com as colunas reais. Faltavam quatro:
+
+| Tabela | Coluna |
+|---|---|
+| `config_loja` | `cfg_dre`, `cfg_pdv` |
+| `lancamentos_financeiros` | `cancelado` |
+| `compras_sem_vinculo` | `itens` |
+
+Criadas. A mensagem culpava `lancamentos_financeiros` porque `etapa` ficava na última
+tabela do laço e o bloco de `config_loja` rodava fora dele — agora esse bloco também é
+isolado e nomeia a si mesmo.
+
+### Falha isolada x falha sistêmica
+
+Uma ou duas tabelas com problema de dado não paralisam o aparelho. Mas se metade delas
+falhar (ou 3+), é rede ou credencial caindo — aí a pendência continua marcada e nada é
+baixado por cima.
+
+## Juros e multa no pagamento
+
+- Campos de **Juros** e **Multa** na confirmação de pagamento, com o total recalculado ao vivo
+- Ao confirmar, o **valor do lançamento passa a ser o que realmente saiu da conta**, e o
+  valor de antes fica em `valorOriginal`. Assim fluxo de caixa, DRE e conciliação batem
+  com o extrato, sem precisar mexer em cada relatório
+- Zerar os juros devolve o valor original — não acumula a cada pagamento
+- Em pagamento de vários lançamentos os campos não aparecem: juros são de cada conta
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

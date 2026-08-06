@@ -1640,6 +1640,15 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.pgTotal{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.pgTotal>div{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 13px;font-size:12.5px;border-bottom:1px solid var(--line)}
+.pgTotal>div:last-child{border-bottom:0}
+.pgTotal>div span{color:var(--ink-3)}
+.pgTotal>div b{font-variant-numeric:tabular-nums}
+.pgTotal .tot{background:var(--alt)}
+.pgTotal .tot span{color:var(--ink);font-weight:600}
+.pgTotal .tot b{font-size:16px}
 .cfTexto{margin-top:12px;padding:12px 14px;background:var(--alt);border:1px solid var(--line);
   border-radius:7px;font-size:12.5px;line-height:1.6;color:var(--ink-2);
   white-space:pre-line;max-height:46vh;overflow:auto}
@@ -6326,6 +6335,15 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.pgTotal{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.pgTotal>div{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 13px;font-size:12.5px;border-bottom:1px solid var(--line)}
+.pgTotal>div:last-child{border-bottom:0}
+.pgTotal>div span{color:var(--ink-3)}
+.pgTotal>div b{font-variant-numeric:tabular-nums}
+.pgTotal .tot{background:var(--alt)}
+.pgTotal .tot span{color:var(--ink);font-weight:600}
+.pgTotal .tot b{font-size:16px}
 .cfTexto{margin-top:12px;padding:12px 14px;background:var(--alt);border:1px solid var(--line);
   border-radius:7px;font-size:12.5px;line-height:1.6;color:var(--ink-2);
   white-space:pre-line;max-height:46vh;overflow:auto}
@@ -11088,6 +11106,7 @@ var MAPA=[
     descricao:x.descricao,documento:x.documento||null,valor:n(x.valor),
     emissao:x.emissao||null,vencimento:x.vencimento||null,pagamento:x.pagamento||null,
     pago:!!x.pago,conciliado:!!x.conciliado,data_conciliacao:x.dataConc||null,
+    juros:n(x.juros),multa:n(x.multa),valor_original:(x.valorOriginal!==undefined?n(x.valorOriginal):null),
     origem:x.origem||null,observacao:x.obs||null}}}
 ];
 
@@ -11407,7 +11426,9 @@ async function sincronizar(){
       }
     }
 
-    /* configuração da loja */
+    /* configuração da loja — também isolada: se ela falhar, o resto já subiu */
+    etapa='config_loja';
+    try{
     var c=cfg();
     await api('config_loja?on_conflict=loja_id','POST',[{loja_id:l,
       loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
@@ -11416,6 +11437,10 @@ async function sincronizar(){
     cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
       mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}}],
       {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }catch(eC){
+      NUVEM.erros.push({tab:'config_loja',msg:(eC&&eC.message)||'falha'});
+      logNuvem('ERRO em config_loja: '+((eC&&eC.message)||'falha'),true);
+    }
 
     /* vínculo de produção que aponta para outra ficha só existe depois
        que todas as fichas subiram — por isso é gravado agora, no fim */
@@ -11441,10 +11466,15 @@ async function sincronizar(){
     if(pend.length)logNuvem(pend.length+' vínculo(s) de produção gravado(s)');
 
     NUVEM.ultima=new Date();
-    /* tabelas com problema nao seguram o resto: o que subiu, subiu, e o
-       download volta a funcionar (o que ainda nao foi confirmado esta protegido) */
-    NUVEM.sujo=false;
-    DB._sujo=false;
+    /* Uma ou outra tabela com problema de dado nao pode paralisar o aparelho.
+       Mas se MUITAS falharem de uma vez, isso e rede ou credencial caindo — e
+       ai a pendencia continua marcada, para nada ser baixado por cima. */
+    var comDados=MAPA.filter(function(E9){return (DB[E9.col]||[]).length}).length||1;
+    var sistemico=(NUVEM.erros||[]).length>=Math.max(3,Math.ceil(comDados/2));
+    NUVEM.sujo=sistemico;
+    DB._sujo=sistemico;
+    if(sistemico)logNuvem('muitas tabelas falharam ('+NUVEM.erros.length+
+      ') — parece rede ou credencial; nada será baixado por cima',true);
     _puxadasPresas=0;
     (function(){var a=document.getElementById('avisoEnvio');if(a)a.remove();})();
     if((NUVEM.erros||[]).length){
@@ -11547,6 +11577,8 @@ async function baixarDaNuvem(forcar){
   var mapaFP={};fp.forEach(function(x){mapaFP[x.id]=x.ref_local||x.id});
   var mapaFo={};fo.forEach(function(x){mapaFo[x.id]=x.ref_local||x.id});
   DB.lancFin=volta(lf,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,
+    juros:Number(x.juros)||0,multa:Number(x.multa)||0,
+    valorOriginal:(x.valor_original===null||x.valor_original===undefined?undefined:Number(x.valor_original)),
     contaId:mapaConta[x.conta_id]||'',contaDestinoId:mapaConta[x.conta_destino_id]||'',
     metodoId:mapaFP[x.forma_id]||'',categoriaId:mapaSub[x.subcategoria_id]||'',
     categoriaTxt:x.categoria_texto||'',fornecedorId:mapaFo[x.fornecedor_id]||'',
@@ -12207,7 +12239,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.4.0';
+var VERSAO='V11.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16239,6 +16271,19 @@ function mudarPago(v){
   salvar();telaLancamentos();
   toast(n+' lançamento(s) marcado(s) como não pago.');
 }
+var _pgBase=0,_pgTipo='despesa';
+/* mostra na hora quanto vai sair da conta com juros e multa somados */
+function recalcPagamento(){
+  var el=document.getElementById('pgTotal');
+  if(!el)return;
+  var j=$('pgJ')?(parseFloat($('pgJ').value)||0):0;
+  var mu=$('pgMu')?(parseFloat($('pgMu').value)||0):0;
+  var tot=_pgBase+j+mu;
+  el.innerHTML='<div><span>Valor da conta</span><b>R$ '+money(_pgBase)+'</b></div>'+
+   ((j+mu)>0?'<div><span>Juros e multa</span><b class="vr">+ R$ '+money(j+mu)+'</b></div>':'')+
+   '<div class="tot"><span>Total a pagar</span>'+
+    '<b class="'+(_pgTipo==='despesa'?'vr':'vg')+'">R$ '+money(tot)+'</b></div>';
+}
 /* ---------- CONFIRMAÇÃO DE PAGAMENTO ----------
    O banco e a forma de pagamento se escolhem aqui, na hora de dar baixa,
    e não no cadastro do lançamento. */
@@ -16282,21 +16327,50 @@ function modalPagamento(ids){
        E(f.nome)+'</option>'}).join('')+
     '</select></div>'+
    '</div>'+
-   '<div class="fld2" style="max-width:220px"><label>Dia do pagamento</label>'+
-    '<input id="pgD" type="date" value="'+(prim.pagamento||hojeISO())+'"></div>'+
+   '<div class="row3" style="margin-top:2px">'+
+    '<div class="fld2"><label>Dia do pagamento</label>'+
+     '<input id="pgD" type="date" value="'+(prim.pagamento||hojeISO())+'"></div>'+
+    (ls.length===1
+     ?'<div class="fld2"><label>Juros (R$)</label>'+
+       '<input id="pgJ" type="number" step="0.01" min="0" value="'+(Number(prim.juros)||0||'')+'" '+
+       'placeholder="0,00" oninput="recalcPagamento()"></div>'+
+      '<div class="fld2"><label>Multa (R$)</label>'+
+       '<input id="pgMu" type="number" step="0.01" min="0" value="'+(Number(prim.multa)||0||'')+'" '+
+       'placeholder="0,00" oninput="recalcPagamento()"></div>'
+     :'<div class="fld2"></div><div class="fld2"></div>')+
+   '</div>'+
+   (ls.length===1
+    ?'<div class="pgTotal" id="pgTotal"></div>'
+    :'')+
    '</div></div>';
+  /* base do cálculo: o valor de antes de qualquer juros já lançado */
+  _pgBase=(prim.valorOriginal!==undefined?Number(prim.valorOriginal):Number(prim.valor))||0;
+  _pgTipo=prim.tipo;
   modal(ls.length>1?'Dar baixa em '+ls.length+' lançamentos':'Confirmar pagamento',
     h,'Confirmar pagamento',function(){
     var c=$('pgC').value,m=$('pgM').value;
     if(!c){toast('Selecione o banco / conta.');return false;}
     if(!m){toast('Selecione a forma de pagamento.');return false;}
     var d=$('pgD').value||hojeISO();
-    ls.forEach(function(l){l.pago=true;l.contaId=c;l.metodoId=m;l.pagamento=d;});
+    var j=$('pgJ')?(parseFloat($('pgJ').value)||0):0;
+    var mu=$('pgMu')?(parseFloat($('pgMu').value)||0):0;
+    if(j<0||mu<0){toast('Juros e multa não podem ser negativos.');return false;}
+    ls.forEach(function(l){
+      l.pago=true;l.contaId=c;l.metodoId=m;l.pagamento=d;
+      if($('pgJ')){
+        /* o valor do lançamento passa a ser o que realmente saiu da conta,
+           para que fluxo de caixa, DRE e conciliação batam com o extrato */
+        if(l.valorOriginal===undefined)l.valorOriginal=Number(l.valor)||0;
+        l.juros=j;l.multa=mu;
+        l.valor=+((Number(l.valorOriginal)||0)+j+mu).toFixed(2);
+      }
+    });
     salvar();telaLancamentos();
-    toast((ls.length>1?ls.length+' lançamentos pagos':'Pago')+' — '+
-      contaNome(c)+' · '+metodoNome(m)+'.');
+    toast((ls.length>1?ls.length+' lançamentos pagos':'Pago R$ '+money(ls[0].valor))+' — '+
+      contaNome(c)+' · '+metodoNome(m)+((j+mu)>0?' · com juros/multa':'')+'.');
     return true;
   });
+  setTimeout(recalcPagamento,60);
 }
 function excluirLanc(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
