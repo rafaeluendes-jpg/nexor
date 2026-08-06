@@ -11697,6 +11697,34 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   .hUsr b,.hUsr span{display:none}
   .mIco{width:74px}.mIco .tile{width:28px;height:28px}.mIco .lb{font-size:9.5px;max-width:68px}
 }
+/* ---- ajustes do Nexor: cabe numa tela só, sem barra de rolagem ---- */
+#login,#login *{max-width:100%}
+#login .login-shell{width:100%;max-width:100vw;overflow:hidden}
+#login .access-panel{overflow:hidden}
+#login .access-card{max-height:100%;overflow:auto;scrollbar-width:none}
+#login .access-card::-webkit-scrollbar{display:none}
+body.semRolagem{overflow:hidden}
+#login .access-header{min-height:0;margin-bottom:clamp(10px,1.6vh,18px)}
+#login .access-card{padding:clamp(16px,2.1vh,28px) clamp(18px,2vw,32px) clamp(14px,1.6vh,20px)}
+#login .card-heading{font-size:clamp(20px,1.5vw,27px);margin-bottom:4px}
+#login .card-subtitle{margin-bottom:clamp(12px,1.7vh,18px)}
+#login .field{margin-bottom:clamp(8px,1.1vh,12px)}
+#login .field-label{margin-bottom:4px}
+#login .input-shell{height:clamp(42px,4.6vh,48px)}
+#login .submit-button{min-height:clamp(48px,5.4vh,56px);gap:12px}
+#login .security-block{padding-top:clamp(12px,1.6vh,18px)}
+#login .feedback{min-height:0}
+#login .feedback:empty{display:none}
+@media(max-width:1100px){#login .login-shell{grid-template-columns:minmax(0,46fr) minmax(0,54fr)}}
+@media(max-width:980px){#login .login-shell{grid-template-columns:1fr}#login .brand-panel{display:none}}
+@media(max-height:700px){
+  #login .access-card{padding:14px 18px 12px}
+  #login .card-heading{font-size:20px}
+  #login .input-shell{height:40px}
+  #login .field{margin-bottom:7px}
+  #login .submit-button{min-height:44px}
+  #login .security-block{padding-top:10px}
+}
 </style>
 <style>
 .ntMercBox{position:relative}
@@ -11805,6 +11833,34 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 /* o detalhe embaixo do texto principal precisa de linha propria */
 .fmTab td small{display:block;font-size:10.5px;color:var(--ink-3,#7a7a86);line-height:1.35;margin-top:1px}
 @media(max-width:760px){.hp2Seta{display:none}.hp2K{min-width:46%}}
+/* ---- ajustes do Nexor: cabe numa tela só, sem barra de rolagem ---- */
+#login,#login *{max-width:100%}
+#login .login-shell{width:100%;max-width:100vw;overflow:hidden}
+#login .access-panel{overflow:hidden}
+#login .access-card{max-height:100%;overflow:auto;scrollbar-width:none}
+#login .access-card::-webkit-scrollbar{display:none}
+body.semRolagem{overflow:hidden}
+#login .access-header{min-height:0;margin-bottom:clamp(10px,1.6vh,18px)}
+#login .access-card{padding:clamp(16px,2.1vh,28px) clamp(18px,2vw,32px) clamp(14px,1.6vh,20px)}
+#login .card-heading{font-size:clamp(20px,1.5vw,27px);margin-bottom:4px}
+#login .card-subtitle{margin-bottom:clamp(12px,1.7vh,18px)}
+#login .field{margin-bottom:clamp(8px,1.1vh,12px)}
+#login .field-label{margin-bottom:4px}
+#login .input-shell{height:clamp(42px,4.6vh,48px)}
+#login .submit-button{min-height:clamp(48px,5.4vh,56px);gap:12px}
+#login .security-block{padding-top:clamp(12px,1.6vh,18px)}
+#login .feedback{min-height:0}
+#login .feedback:empty{display:none}
+@media(max-width:1100px){#login .login-shell{grid-template-columns:minmax(0,46fr) minmax(0,54fr)}}
+@media(max-width:980px){#login .login-shell{grid-template-columns:1fr}#login .brand-panel{display:none}}
+@media(max-height:700px){
+  #login .access-card{padding:14px 18px 12px}
+  #login .card-heading{font-size:20px}
+  #login .input-shell{height:40px}
+  #login .field{margin-bottom:7px}
+  #login .submit-button{min-height:44px}
+  #login .security-block{padding-top:10px}
+}
 </style>
 </head>
 <body>
@@ -13567,6 +13623,15 @@ function lgAviso(html,tipo){
   e.innerHTML=html||'';
   e.className='feedback lgErr'+(html?(' '+(tipo||'error')):'');
 }
+/* a página não rola por baixo enquanto a entrada está aberta */
+function travaRolagem(){
+  try{
+    var lg=document.getElementById('login');
+    document.body.classList.toggle('semRolagem',!!lg&&!lg.classList.contains('hide'));
+  }catch(e){}
+}
+travaRolagem();
+window.addEventListener('resize',travaRolagem);
 function sacode(){
   var c=$('lgCard');
   if(c){c.classList.add('shake');setTimeout(function(){c.classList.remove('shake')},360);}
@@ -13585,7 +13650,7 @@ async function sair(){
   if(!await pergunta('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
   try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){}
   SESSAO.usuarioId=null;SESSAO.login=null;
-  $('app').classList.add('hide');$('login').classList.remove('hide');
+  $('app').classList.add('hide');$('login').classList.remove('hide');travaRolagem();
   lgAviso('');
 }
 /* se ja tinha entrado antes, volta direto para o sistema */

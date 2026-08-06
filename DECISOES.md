@@ -525,6 +525,23 @@ a grade num item flex com folga, estourando a largura. Removida.
   reduzido — as informações ficaram compactas sem perder a estética
 - **"Sistema disponível" removido**
 
+## Tela de acesso sem rolagem (V12.2.0)
+
+O arquivo oficial foi desenhado para telas grandes: botão de 72px, campos de 54px,
+cabeçalho de 58px. Num notebook comum isso estourava a altura e aparecia barra de
+rolagem — e a regra `minmax(560px, ...)` do arquivo forçava largura mínima, gerando
+barra horizontal também.
+
+- Compactação por `clamp()`: cabeçalho, cartão, título, campos e botão encolhem com a
+  tela em vez de transbordar. Dois pontos extras em 1100px e 980px de largura, e um em
+  700px de altura
+- `overflow:hidden` na estrutura; só o cartão rola, e apenas em tela muito baixa, com a
+  barra escondida
+- `body.semRolagem` enquanto a entrada está aberta: a página não rola por baixo
+- O bloco **"Sistema disponível"** saiu — era informação que não ajuda quem vai entrar
+- Os ajustes precisaram entrar nas **duas** folhas de estilo, senão a segunda cópia das
+  regras originais sobrescrevia a compactação
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
