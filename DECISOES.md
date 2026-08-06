@@ -481,6 +481,22 @@ do Nexor precisa esperar a resposta.
 
 Nenhuma chamada ao `confirm` do navegador restou no arquivo.
 
+## Identidade oficial (V12.0.0)
+
+Rafael enviou o arquivo `Nexor_Login_Funcional.html` com a tela oficial e a arte da marca.
+
+- As duas imagens embutidas foram extraídas para arquivos do repositório:
+  **`nexor-marca.png`** (painel da esquerda) e **`nexor-n.png`** (símbolo)
+- O estilo do arquivo foi portado **inteiro**, com cada seletor preso a `#login` e as
+  variáveis renomeadas com prefixo `nx-`, para não vazar no resto do sistema
+- A marcação também é a do arquivo; só os identificadores dos campos viraram os do
+  sistema (`lgC`, `lgU`, `lgP`, `lgK`, `lgB`, `lgE`, `tg`), então `entrar()` não mudou
+- O `<form>` virou `<div>`: o sistema já trata Enter e o clique do botão
+- **Cabe em uma tela só**: dois pontos de ajuste (900px e 760px de altura) encolhem
+  cartão, campos e botão em vez de deixar rolar
+- As mensagens de erro passaram a usar o estilo `.feedback` do arquivo (`lgAviso()`)
+- O símbolo `nexor-n.png` substituiu o "N" desenhado no topo do sistema
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

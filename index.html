@@ -73,7 +73,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 /* ---------- SHELL ---------- */
 #app{height:100vh;display:flex;flex-direction:column}
 .hdr{height:44px;background:var(--deep);display:flex;align-items:center;gap:10px;padding:0 14px;flex:none}
-.hMk{width:27px;height:27px;border-radius:7px;background:linear-gradient(140deg,var(--acc-l),var(--acc-d));
+.hMk{width:27px;height:27px;border-radius:7px;object-fit:contain;background:transparent;
   color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
 .hNm{color:#fff;font-weight:600;letter-spacing:.2em;font-size:13.5px}
 .hGrow{flex:1}
@@ -1641,98 +1641,672 @@ tbody td small{font-size:10.5px}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 
-/* ================= TELA DE ACESSO ================= */
-#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:hidden}
+/* ============ TELA DE ACESSO — arte e estilo oficiais do Nexor ============
+   Estilo do arquivo oficial, com os seletores presos ao #login para não
+   afetar o resto do sistema, e as variáveis renomeadas com prefixo nx.
+   Ajuste do Nexor: cabe numa tela só, sem rolagem. */
+#login{position:fixed;inset:0;z-index:500;overflow:hidden}
 #login.hide{display:none}
-/* proporção do desenho: a marca ocupa pouco menos de 60% e nada rola na tela */
-.nxLogin{height:100%;display:grid;grid-template-columns:1.38fr 1fr}
-@media(max-width:980px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
-@media(max-height:640px){#login{overflow:auto}.nxLogin{height:auto;min-height:100%}}
 
-.nxMarca{position:relative;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(150deg,#F4FAFC 0%,#DCEEF4 55%,#C3E4EC 100%);overflow:hidden}
-.nxGrade{position:absolute;inset:0;opacity:.5;
-  background-image:linear-gradient(rgba(14,155,148,.10) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(14,155,148,.10) 1px,transparent 1px);
-  background-size:46px 46px;
-  -webkit-mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%);
-  mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%)}
-.nxMarcaIn{position:relative;text-align:center;padding:26px}
-.nxLogo{filter:drop-shadow(0 12px 30px rgba(14,155,148,.34))}
-.nxNome{margin-top:10px;font-size:clamp(44px,5.4vw,78px);font-weight:800;letter-spacing:.12em;
-  color:#14405A;line-height:1;text-shadow:0 2px 0 #fff,0 14px 30px rgba(18,53,74,.16)}
-.nxTag{margin-top:8px;font-size:clamp(14px,1.35vw,21px);color:#1B7F86;letter-spacing:.01em}
-/* quando existir a arte da marca, ela entra aqui e substitui o desenho vetorial */
-.nxMarca.comArte .nxMarcaIn{display:none}
-.nxMarca.comArte{background:#EAF4F8 center/cover no-repeat}
+    #login{
+      --nx-navy-950: #061b3c;
+      --nx-navy-900: #092652;
+      --nx-navy-800: #123d74;
+      --nx-navy-600: #41658f;
+      --nx-text-muted: #6d7f9e;
+      --nx-teal-600: #008d96;
+      --nx-teal-500: #04adb4;
+      --nx-teal-400: #14cad0;
+      --nx-ice-100: #f8fcff;
+      --nx-ice-200: #edf6fc;
+      --nx-line: rgba(93, 126, 163, 0.22);
+      --nx-shadow: 0 24px 60px rgba(34, 75, 115, 0.16);
+      --nx-radius: 18px;
+    }
 
-.nxPainel{display:flex;flex-direction:column;justify-content:center;padding:20px 30px;
-  background:linear-gradient(180deg,#F7FBFD 0%,#EAF3F7 100%);
-  border-left:1px solid rgba(14,155,148,.18);min-width:0;overflow:auto}
-.nxTopo{display:flex;align-items:center;gap:12px;margin:0 auto 16px;width:100%;max-width:540px}
-.nxSelo{display:flex;align-items:center;gap:9px;flex:1}
-.nxSelo span{font-size:19px;font-weight:800;letter-spacing:.06em;color:#12354A}
-.nxOn{display:flex;align-items:center;gap:6px;font-size:12px;color:#3C5A6B}
-.nxOn i{width:8px;height:8px;border-radius:50%;background:#12B76A;
-  box-shadow:0 0 0 3px rgba(18,183,106,.18)}
+    #login *{
+      box-sizing: border-box;
+    }
 
-.nxCard{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);
-  border-radius:18px;padding:26px 28px 20px;
-  box-shadow:0 18px 50px rgba(18,53,74,.10);backdrop-filter:blur(6px);
-  max-width:540px;width:100%;margin:0 auto}
-.nxCard h1{font-size:clamp(21px,2.1vw,29px);font-weight:800;color:#12354A;margin:0 0 3px;
-  letter-spacing:-.01em;white-space:nowrap}
-.nxCard p{margin:0 0 18px;color:#5C7688;font-size:13.5px}
-.nxRot{display:block;font-size:10.5px;font-weight:700;letter-spacing:.09em;
-  text-transform:uppercase;color:#5C7688;margin:0 0 5px}
-.nxCampo{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;margin-bottom:13px;
-  background:#fff;border:1.5px solid #DCE7EE;border-radius:11px;color:#8FA6B4;
-  transition:border-color .15s,box-shadow .15s}
-.nxCampo:focus-within{border-color:#0E9B94;box-shadow:0 0 0 4px rgba(14,155,148,.13)}
-.nxCampo svg{flex:none}
-.nxCampo input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:15px;color:#12354A}
-.nxCampo input::placeholder{color:#9FB3C0}
-.nxOlho{flex:none;width:28px;height:28px;border:0;background:none;cursor:pointer;
-  color:#8FA6B4;display:flex;align-items:center;justify-content:center;padding:0}
-.nxOlho:hover{color:#0E9B94}
+    #login{
+      min-height: 100%;
+      margin: 0;
+    }
 
-.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 16px;
-  flex-wrap:nowrap}
-.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px;color:#3C5A6B;
-  white-space:nowrap}
-.nxSw input{position:absolute;opacity:0;width:0;height:0}
-.nxSw i{width:42px;height:23px;border-radius:99px;background:#C8D6DF;position:relative;
-  transition:background .18s;flex:none}
-.nxSw i:after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;
-  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s}
-.nxSw input:checked + i{background:#0E9B94}
-.nxSw input:checked + i:after{left:22px}
-.nxEsq{color:#0E9B94;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap}
-.nxEsq:hover{text-decoration:underline}
+    #login{
+      color: var(--nx-navy-950);
+      background: #deedf8;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
 
-#login .lgErr{min-height:0;color:#B42318;font-size:13px;line-height:1.45}
-#login .lgErr:not(:empty){margin:0 0 14px;padding:10px 12px;background:#FEF3F2;
-  border:1px solid #FDA29B;border-radius:9px}
+    #login button, #login input{
+      font: inherit;
+    }
 
-.nxBtn{width:100%;height:52px;border:0;border-radius:12px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  background:linear-gradient(100deg,#0FA39B,#0B8A93);color:#fff;
-  font-size:17px;font-weight:700;letter-spacing:.01em;
-  box-shadow:0 10px 24px rgba(11,138,147,.30);transition:transform .12s,box-shadow .12s}
-.nxBtn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(11,138,147,.36)}
-.nxBtn:active{transform:translateY(0)}
+    #login button, #login label, #login a{
+      -webkit-tap-highlight-color: transparent;
+    }
 
-.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;
-  padding-top:15px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:13.5px}
-.nxPes{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;
-  color:#5C7688;font-size:11.5px;flex-wrap:nowrap;white-space:nowrap}
-.nxPes span{display:flex;align-items:center;gap:4px}
-.nxPes span:before{content:'';width:12px;height:12px;border-radius:50%;flex:none;
-  border:1.5px solid #0E9B94}
-.nxPes i{color:#B6C8D3;font-style:normal}
-.nxLogin.shake{animation:nxSh .34s}
-@keyframes nxSh{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
+    #login .login-shell{
+      display: grid;
+      grid-template-columns: minmax(0, 58.25fr) minmax(560px, 41.75fr);
+      min-height: 100dvh;
+      overflow: hidden;
+    }
 
+    #login .brand-panel{
+      position: relative;
+      min-height: 100dvh;
+      background-color: #e8f3fb;
+      background-image: url("nexor-marca.png");
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      isolation: isolate;
+    }
+
+    #login .brand-panel::after{
+      content: "";
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      right: -1px;
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(0, 192, 200, 0.25), rgba(0, 168, 179, 0.9), rgba(0, 192, 200, 0.2));
+      box-shadow: 0 0 18px rgba(0, 184, 193, 0.28);
+    }
+
+    #login .access-panel{
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      padding: clamp(24px, 3.4vh, 36px) clamp(24px, 2.5vw, 42px) clamp(22px, 2.8vh, 30px);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 86% 10%, rgba(255, 255, 255, 0.98) 0 9%, transparent 31%),
+        linear-gradient(145deg, #f7fbff 0%, #eaf4fb 47%, #d7e8f5 100%);
+    }
+
+    #login .access-panel::before, #login .access-panel::after{
+      content: "";
+      position: absolute;
+      pointer-events: none;
+    }
+
+    #login .access-panel::before{
+      top: -40px;
+      right: -55px;
+      width: 360px;
+      height: 280px;
+      opacity: 0.34;
+      background:
+        linear-gradient(45deg, transparent 48%, rgba(22, 76, 119, 0.11) 49% 51%, transparent 52%) 0 0 / 96px 96px,
+        linear-gradient(-45deg, transparent 48%, rgba(8, 169, 179, 0.11) 49% 51%, transparent 52%) 0 0 / 96px 96px;
+      transform: rotate(8deg);
+    }
+
+    #login .access-panel::after{
+      inset: auto -130px -170px auto;
+      width: 420px;
+      height: 420px;
+      border: 1px solid rgba(3, 174, 184, 0.14);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 48px rgba(3, 174, 184, 0.035),
+        0 0 0 102px rgba(3, 174, 184, 0.025);
+    }
+
+    #login .access-header{
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 58px;
+      margin-bottom: clamp(18px, 2.8vh, 28px);
+    }
+
+    #login .access-brand{
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+      color: var(--nx-navy-950);
+      font-size: clamp(18px, 1.3vw, 24px);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    #login .access-brand img{
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      object-fit: cover;
+      box-shadow: 0 8px 18px rgba(0, 123, 136, 0.16);
+    }
+
+    #login .availability{
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 42px;
+      padding: 0 15px;
+      color: var(--nx-navy-950);
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      border-radius: 12px;
+      box-shadow: 0 10px 26px rgba(49, 91, 128, 0.08);
+      font-size: 14px;
+      white-space: nowrap;
+      backdrop-filter: blur(12px);
+    }
+
+    #login .availability-dot{
+      width: 9px;
+      height: 9px;
+      background: #21ce55;
+      border-radius: 50%;
+      box-shadow: 0 0 0 5px rgba(33, 206, 85, 0.09), 0 0 12px rgba(33, 206, 85, 0.48);
+    }
+
+    #login .access-card{
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      width: 100%;
+      min-height: 0;
+      padding: clamp(30px, 4vh, 48px) clamp(30px, 3.2vw, 48px) clamp(24px, 3vh, 34px);
+      overflow: auto;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(248, 252, 255, 0.64)),
+        rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+      border-radius: var(--nx-radius);
+      box-shadow: var(--nx-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(20px) saturate(128%);
+    }
+
+    #login .access-card::before{
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 42%;
+      height: 115px;
+      opacity: 0.55;
+      background: linear-gradient(135deg, transparent 0 42%, rgba(52, 116, 160, 0.055) 43% 51%, transparent 52%);
+      pointer-events: none;
+    }
+
+    #login .card-heading{
+      position: relative;
+      margin: 0 0 6px;
+      color: var(--nx-navy-950);
+      font-size: clamp(30px, 2.35vw, 43px);
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+    }
+
+    #login .card-subtitle{
+      margin: 0 0 clamp(24px, 3vh, 34px);
+      color: var(--nx-text-muted);
+      font-size: clamp(16px, 1.25vw, 21px);
+      line-height: 1.5;
+    }
+
+    #login .login-form{
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    #login .field{
+      margin-bottom: clamp(16px, 2vh, 22px);
+    }
+
+    #login .field-label{
+      display: block;
+      margin: 0 0 8px;
+      color: var(--nx-navy-950);
+      font-size: 13px;
+      font-weight: 750;
+      letter-spacing: 0.055em;
+    }
+
+    #login .input-shell{
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: clamp(58px, 7vh, 68px);
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(88, 119, 157, 0.3);
+      border-radius: 10px;
+      box-shadow: inset 0 1px 2px rgba(25, 62, 104, 0.025), 0 4px 14px rgba(48, 87, 125, 0.035);
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    #login .input-shell:focus-within{
+      border-color: var(--nx-teal-400);
+      box-shadow: 0 0 0 3px rgba(13, 192, 198, 0.11), 0 8px 25px rgba(0, 151, 161, 0.08);
+      transform: translateY(-1px);
+    }
+
+    #login .input-shell.has-error{
+      border-color: #df5a57;
+      box-shadow: 0 0 0 3px rgba(223, 90, 87, 0.1);
+    }
+
+    #login .field-icon{
+      position: absolute;
+      left: 20px;
+      width: 25px;
+      height: 25px;
+      color: var(--nx-navy-800);
+      pointer-events: none;
+    }
+
+    #login .input-shell input{
+      width: 100%;
+      height: 100%;
+      padding: 0 54px 0 62px;
+      color: var(--nx-navy-950);
+      background: transparent;
+      border: 0;
+      outline: 0;
+      font-size: clamp(16px, 1.1vw, 19px);
+    }
+
+    #login .input-shell input::placeholder{
+      color: #8493ad;
+      opacity: 1;
+    }
+
+    #login .password-toggle{
+      position: absolute;
+      right: 13px;
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      color: var(--nx-navy-800);
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: color 150ms ease, background 150ms ease;
+    }
+
+    #login .password-toggle:hover, #login .password-toggle:focus-visible{
+      color: var(--nx-teal-600);
+      background: rgba(4, 173, 180, 0.08);
+      outline: none;
+    }
+
+    #login .password-toggle svg{
+      width: 25px;
+      height: 25px;
+    }
+
+    #login .form-options{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 0 0 clamp(22px, 2.8vh, 30px);
+    }
+
+    #login .remember{
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--nx-navy-900);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #login .remember input{
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    #login .switch{
+      position: relative;
+      width: 48px;
+      height: 27px;
+      flex: 0 0 auto;
+      background: #aab9c8;
+      border: 1px solid rgba(20, 66, 105, 0.1);
+      border-radius: 99px;
+      box-shadow: inset 0 2px 5px rgba(19, 65, 100, 0.12);
+      transition: background 180ms ease, box-shadow 180ms ease;
+    }
+
+    #login .switch::after{
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 19px;
+      height: 19px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(17, 47, 82, 0.25);
+      transition: transform 180ms ease;
+    }
+
+    #login .remember input:checked + .switch{
+      background: linear-gradient(90deg, var(--nx-teal-600), var(--nx-teal-400));
+      box-shadow: inset 0 2px 4px rgba(0, 77, 85, 0.2), 0 0 0 3px rgba(4, 173, 180, 0.08);
+    }
+
+    #login .remember input:checked + .switch::after{
+      transform: translateX(21px);
+    }
+
+    #login .remember input:focus-visible + .switch{
+      outline: 3px solid rgba(4, 173, 180, 0.2);
+      outline-offset: 2px;
+    }
+
+    #login .forgot-link{
+      padding: 6px 0;
+      color: var(--nx-teal-600);
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    #login .forgot-link:hover, #login .forgot-link:focus-visible{
+      color: #00727a;
+      text-decoration: underline;
+      outline: none;
+    }
+
+    #login .submit-button{
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      width: 100%;
+      min-height: clamp(62px, 7.3vh, 72px);
+      padding: 0 28px;
+      overflow: hidden;
+      color: white;
+      background: linear-gradient(105deg, #06979f 0%, #0bbbc1 52%, #04828d 100%);
+      border: 1px solid rgba(0, 112, 122, 0.45);
+      border-radius: 9px;
+      box-shadow: 0 14px 28px rgba(0, 144, 152, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.36);
+      cursor: pointer;
+      font-size: clamp(18px, 1.35vw, 23px);
+      font-weight: 720;
+      transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+    }
+
+    #login .submit-button::before{
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -25%;
+      width: 35%;
+      height: 330%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+      transform: rotate(18deg);
+      transition: left 420ms ease;
+    }
+
+    #login .submit-button:hover{
+      box-shadow: 0 18px 34px rgba(0, 144, 152, 0.27), inset 0 1px 0 rgba(255, 255, 255, 0.36);
+      filter: saturate(1.08);
+      transform: translateY(-2px);
+    }
+
+    #login .submit-button:hover::before{
+      left: 115%;
+    }
+
+    #login .submit-button:active{
+      transform: translateY(0);
+    }
+
+    #login .submit-button:focus-visible{
+      outline: 4px solid rgba(4, 173, 180, 0.22);
+      outline-offset: 3px;
+    }
+
+    #login .submit-button:disabled{
+      cursor: wait;
+      filter: grayscale(0.15);
+      opacity: 0.78;
+      transform: none;
+    }
+
+    #login .button-arrow{
+      width: 26px;
+      height: 26px;
+      transition: transform 160ms ease;
+    }
+
+    #login .submit-button:hover .button-arrow{
+      transform: translateX(4px);
+    }
+
+    #login .feedback{
+      min-height: 23px;
+      margin: 10px 0 0;
+      color: var(--nx-text-muted);
+      font-size: 13px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    #login .feedback.success{
+      color: #087d63;
+    }
+
+    #login .feedback.error{
+      color: #ba3d3a;
+    }
+
+    #login .security-block{
+      margin-top: auto;
+      padding-top: clamp(18px, 2.4vh, 25px);
+      border-top: 1px solid var(--nx-line);
+      text-align: center;
+    }
+
+    #login .security-title{
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 16px;
+      color: var(--nx-navy-900);
+      font-weight: 650;
+    }
+
+    #login .security-title svg{
+      width: 31px;
+      height: 31px;
+      color: var(--nx-teal-600);
+    }
+
+    #login .trust-list{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: 0;
+      padding: 0;
+      color: var(--nx-navy-900);
+      font-size: 12px;
+      list-style: none;
+    }
+
+    #login .trust-list li{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    #login .trust-list li:not(:last-child)::after{
+      content: "•";
+      margin-left: 10px;
+      color: var(--nx-teal-500);
+    }
+
+    #login .trust-check{
+      display: grid;
+      width: 19px;
+      height: 19px;
+      place-items: center;
+      color: var(--nx-teal-600);
+      border: 1.5px solid currentColor;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    @media (max-width: 1100px) {
+      #login .login-shell{
+        grid-template-columns: minmax(380px, 49fr) minmax(520px, 51fr);
+      }
+
+      #login .brand-panel{
+        background-size: auto 100%;
+      }
+
+      #login .trust-list{
+        flex-wrap: wrap;
+        row-gap: 8px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      #login .login-shell{
+        display: block;
+        overflow: visible;
+      }
+
+      #login .brand-panel{
+        min-height: 36vh;
+        background-size: cover;
+        background-position: center;
+      }
+
+      #login .brand-panel::after{
+        top: auto;
+        bottom: -1px;
+        width: 100%;
+        height: 2px;
+      }
+
+      #login .access-panel{
+        min-height: 64vh;
+      }
+
+      #login .access-card{
+        min-height: 660px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      #login .brand-panel{
+        min-height: 29vh;
+      }
+
+      #login .access-panel{
+        min-height: 71vh;
+        padding: 20px 14px;
+      }
+
+      #login .access-header{
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      #login .access-brand{
+        font-size: 17px;
+      }
+
+      #login .access-brand img{
+        width: 42px;
+        height: 42px;
+      }
+
+      #login .availability{
+        min-height: 36px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
+
+      #login .access-card{
+        min-height: 640px;
+        padding: 28px 20px 22px;
+        border-radius: 15px;
+      }
+
+      #login .form-options{
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      #login .trust-list{
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        padding-left: 18px;
+      }
+
+      #login .trust-list li:not(:last-child)::after{
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #login *, #login *::before, #login *::after{
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  
+/* cabe em uma tela só */
+#login .login-shell{min-height:100%;height:100%}
+#login .brand-panel{min-height:100%}
+#login .access-panel{min-height:100%;overflow:auto}
+@media(max-height:900px){
+ #login .access-panel{padding-top:22px;padding-bottom:22px}
+ #login .access-card{padding:26px 28px 22px}
+ #login .card-heading{font-size:27px}
+ #login .input-shell{height:48px}
+ #login .field{margin-bottom:13px}
+ #login .submit-button{height:52px}
+ #login .security-block{margin-top:16px;padding-top:14px}
+}
+@media(max-height:760px){
+ #login .access-header{margin-bottom:12px}
+ #login .access-card{padding:20px 24px 18px}
+ #login .card-heading{font-size:23px}
+ #login .card-subtitle{margin-bottom:14px}
+ #login .input-shell{height:44px}
+ #login .field{margin-bottom:10px}
+ #login .submit-button{height:48px}
+ #login .trust-list{font-size:11px}
+}
 /* a nota abrindo por cima do lançamento */
 .mdOv.notaOv{z-index:1400;background:rgba(12,26,38,.45)}
 .vBol{color:var(--ink-2);font-variant-numeric:tabular-nums}
@@ -6440,98 +7014,672 @@ tbody td small{font-size:10.5px}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 
-/* ================= TELA DE ACESSO ================= */
-#login{position:fixed;inset:0;background:#EEF4F8;z-index:500;overflow:hidden}
+/* ============ TELA DE ACESSO — arte e estilo oficiais do Nexor ============
+   Estilo do arquivo oficial, com os seletores presos ao #login para não
+   afetar o resto do sistema, e as variáveis renomeadas com prefixo nx.
+   Ajuste do Nexor: cabe numa tela só, sem rolagem. */
+#login{position:fixed;inset:0;z-index:500;overflow:hidden}
 #login.hide{display:none}
-/* proporção do desenho: a marca ocupa pouco menos de 60% e nada rola na tela */
-.nxLogin{height:100%;display:grid;grid-template-columns:1.38fr 1fr}
-@media(max-width:980px){.nxLogin{grid-template-columns:1fr}.nxMarca{display:none!important}}
-@media(max-height:640px){#login{overflow:auto}.nxLogin{height:auto;min-height:100%}}
 
-.nxMarca{position:relative;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(150deg,#F4FAFC 0%,#DCEEF4 55%,#C3E4EC 100%);overflow:hidden}
-.nxGrade{position:absolute;inset:0;opacity:.5;
-  background-image:linear-gradient(rgba(14,155,148,.10) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(14,155,148,.10) 1px,transparent 1px);
-  background-size:46px 46px;
-  -webkit-mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%);
-  mask-image:radial-gradient(120% 90% at 50% 60%,#000 30%,transparent 78%)}
-.nxMarcaIn{position:relative;text-align:center;padding:26px}
-.nxLogo{filter:drop-shadow(0 12px 30px rgba(14,155,148,.34))}
-.nxNome{margin-top:10px;font-size:clamp(44px,5.4vw,78px);font-weight:800;letter-spacing:.12em;
-  color:#14405A;line-height:1;text-shadow:0 2px 0 #fff,0 14px 30px rgba(18,53,74,.16)}
-.nxTag{margin-top:8px;font-size:clamp(14px,1.35vw,21px);color:#1B7F86;letter-spacing:.01em}
-/* quando existir a arte da marca, ela entra aqui e substitui o desenho vetorial */
-.nxMarca.comArte .nxMarcaIn{display:none}
-.nxMarca.comArte{background:#EAF4F8 center/cover no-repeat}
+    #login{
+      --nx-navy-950: #061b3c;
+      --nx-navy-900: #092652;
+      --nx-navy-800: #123d74;
+      --nx-navy-600: #41658f;
+      --nx-text-muted: #6d7f9e;
+      --nx-teal-600: #008d96;
+      --nx-teal-500: #04adb4;
+      --nx-teal-400: #14cad0;
+      --nx-ice-100: #f8fcff;
+      --nx-ice-200: #edf6fc;
+      --nx-line: rgba(93, 126, 163, 0.22);
+      --nx-shadow: 0 24px 60px rgba(34, 75, 115, 0.16);
+      --nx-radius: 18px;
+    }
 
-.nxPainel{display:flex;flex-direction:column;justify-content:center;padding:20px 30px;
-  background:linear-gradient(180deg,#F7FBFD 0%,#EAF3F7 100%);
-  border-left:1px solid rgba(14,155,148,.18);min-width:0;overflow:auto}
-.nxTopo{display:flex;align-items:center;gap:12px;margin:0 auto 16px;width:100%;max-width:540px}
-.nxSelo{display:flex;align-items:center;gap:9px;flex:1}
-.nxSelo span{font-size:19px;font-weight:800;letter-spacing:.06em;color:#12354A}
-.nxOn{display:flex;align-items:center;gap:6px;font-size:12px;color:#3C5A6B}
-.nxOn i{width:8px;height:8px;border-radius:50%;background:#12B76A;
-  box-shadow:0 0 0 3px rgba(18,183,106,.18)}
+    #login *{
+      box-sizing: border-box;
+    }
 
-.nxCard{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);
-  border-radius:18px;padding:26px 28px 20px;
-  box-shadow:0 18px 50px rgba(18,53,74,.10);backdrop-filter:blur(6px);
-  max-width:540px;width:100%;margin:0 auto}
-.nxCard h1{font-size:clamp(21px,2.1vw,29px);font-weight:800;color:#12354A;margin:0 0 3px;
-  letter-spacing:-.01em;white-space:nowrap}
-.nxCard p{margin:0 0 18px;color:#5C7688;font-size:13.5px}
-.nxRot{display:block;font-size:10.5px;font-weight:700;letter-spacing:.09em;
-  text-transform:uppercase;color:#5C7688;margin:0 0 5px}
-.nxCampo{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;margin-bottom:13px;
-  background:#fff;border:1.5px solid #DCE7EE;border-radius:11px;color:#8FA6B4;
-  transition:border-color .15s,box-shadow .15s}
-.nxCampo:focus-within{border-color:#0E9B94;box-shadow:0 0 0 4px rgba(14,155,148,.13)}
-.nxCampo svg{flex:none}
-.nxCampo input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:15px;color:#12354A}
-.nxCampo input::placeholder{color:#9FB3C0}
-.nxOlho{flex:none;width:28px;height:28px;border:0;background:none;cursor:pointer;
-  color:#8FA6B4;display:flex;align-items:center;justify-content:center;padding:0}
-.nxOlho:hover{color:#0E9B94}
+    #login{
+      min-height: 100%;
+      margin: 0;
+    }
 
-.nxLinha{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 16px;
-  flex-wrap:nowrap}
-.nxSw{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px;color:#3C5A6B;
-  white-space:nowrap}
-.nxSw input{position:absolute;opacity:0;width:0;height:0}
-.nxSw i{width:42px;height:23px;border-radius:99px;background:#C8D6DF;position:relative;
-  transition:background .18s;flex:none}
-.nxSw i:after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;
-  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s}
-.nxSw input:checked + i{background:#0E9B94}
-.nxSw input:checked + i:after{left:22px}
-.nxEsq{color:#0E9B94;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap}
-.nxEsq:hover{text-decoration:underline}
+    #login{
+      color: var(--nx-navy-950);
+      background: #deedf8;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
 
-#login .lgErr{min-height:0;color:#B42318;font-size:13px;line-height:1.45}
-#login .lgErr:not(:empty){margin:0 0 14px;padding:10px 12px;background:#FEF3F2;
-  border:1px solid #FDA29B;border-radius:9px}
+    #login button, #login input{
+      font: inherit;
+    }
 
-.nxBtn{width:100%;height:52px;border:0;border-radius:12px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  background:linear-gradient(100deg,#0FA39B,#0B8A93);color:#fff;
-  font-size:17px;font-weight:700;letter-spacing:.01em;
-  box-shadow:0 10px 24px rgba(11,138,147,.30);transition:transform .12s,box-shadow .12s}
-.nxBtn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(11,138,147,.36)}
-.nxBtn:active{transform:translateY(0)}
+    #login button, #login label, #login a{
+      -webkit-tap-highlight-color: transparent;
+    }
 
-.nxProt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;
-  padding-top:15px;border-top:1px solid rgba(18,53,74,.10);color:#12354A;font-size:13.5px}
-.nxPes{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;
-  color:#5C7688;font-size:11.5px;flex-wrap:nowrap;white-space:nowrap}
-.nxPes span{display:flex;align-items:center;gap:4px}
-.nxPes span:before{content:'';width:12px;height:12px;border-radius:50%;flex:none;
-  border:1.5px solid #0E9B94}
-.nxPes i{color:#B6C8D3;font-style:normal}
-.nxLogin.shake{animation:nxSh .34s}
-@keyframes nxSh{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
+    #login .login-shell{
+      display: grid;
+      grid-template-columns: minmax(0, 58.25fr) minmax(560px, 41.75fr);
+      min-height: 100dvh;
+      overflow: hidden;
+    }
 
+    #login .brand-panel{
+      position: relative;
+      min-height: 100dvh;
+      background-color: #e8f3fb;
+      background-image: url("nexor-marca.png");
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      isolation: isolate;
+    }
+
+    #login .brand-panel::after{
+      content: "";
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      right: -1px;
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(0, 192, 200, 0.25), rgba(0, 168, 179, 0.9), rgba(0, 192, 200, 0.2));
+      box-shadow: 0 0 18px rgba(0, 184, 193, 0.28);
+    }
+
+    #login .access-panel{
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      padding: clamp(24px, 3.4vh, 36px) clamp(24px, 2.5vw, 42px) clamp(22px, 2.8vh, 30px);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 86% 10%, rgba(255, 255, 255, 0.98) 0 9%, transparent 31%),
+        linear-gradient(145deg, #f7fbff 0%, #eaf4fb 47%, #d7e8f5 100%);
+    }
+
+    #login .access-panel::before, #login .access-panel::after{
+      content: "";
+      position: absolute;
+      pointer-events: none;
+    }
+
+    #login .access-panel::before{
+      top: -40px;
+      right: -55px;
+      width: 360px;
+      height: 280px;
+      opacity: 0.34;
+      background:
+        linear-gradient(45deg, transparent 48%, rgba(22, 76, 119, 0.11) 49% 51%, transparent 52%) 0 0 / 96px 96px,
+        linear-gradient(-45deg, transparent 48%, rgba(8, 169, 179, 0.11) 49% 51%, transparent 52%) 0 0 / 96px 96px;
+      transform: rotate(8deg);
+    }
+
+    #login .access-panel::after{
+      inset: auto -130px -170px auto;
+      width: 420px;
+      height: 420px;
+      border: 1px solid rgba(3, 174, 184, 0.14);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 48px rgba(3, 174, 184, 0.035),
+        0 0 0 102px rgba(3, 174, 184, 0.025);
+    }
+
+    #login .access-header{
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 58px;
+      margin-bottom: clamp(18px, 2.8vh, 28px);
+    }
+
+    #login .access-brand{
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+      color: var(--nx-navy-950);
+      font-size: clamp(18px, 1.3vw, 24px);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    #login .access-brand img{
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      object-fit: cover;
+      box-shadow: 0 8px 18px rgba(0, 123, 136, 0.16);
+    }
+
+    #login .availability{
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 42px;
+      padding: 0 15px;
+      color: var(--nx-navy-950);
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      border-radius: 12px;
+      box-shadow: 0 10px 26px rgba(49, 91, 128, 0.08);
+      font-size: 14px;
+      white-space: nowrap;
+      backdrop-filter: blur(12px);
+    }
+
+    #login .availability-dot{
+      width: 9px;
+      height: 9px;
+      background: #21ce55;
+      border-radius: 50%;
+      box-shadow: 0 0 0 5px rgba(33, 206, 85, 0.09), 0 0 12px rgba(33, 206, 85, 0.48);
+    }
+
+    #login .access-card{
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      width: 100%;
+      min-height: 0;
+      padding: clamp(30px, 4vh, 48px) clamp(30px, 3.2vw, 48px) clamp(24px, 3vh, 34px);
+      overflow: auto;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(248, 252, 255, 0.64)),
+        rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+      border-radius: var(--nx-radius);
+      box-shadow: var(--nx-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(20px) saturate(128%);
+    }
+
+    #login .access-card::before{
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 42%;
+      height: 115px;
+      opacity: 0.55;
+      background: linear-gradient(135deg, transparent 0 42%, rgba(52, 116, 160, 0.055) 43% 51%, transparent 52%);
+      pointer-events: none;
+    }
+
+    #login .card-heading{
+      position: relative;
+      margin: 0 0 6px;
+      color: var(--nx-navy-950);
+      font-size: clamp(30px, 2.35vw, 43px);
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+    }
+
+    #login .card-subtitle{
+      margin: 0 0 clamp(24px, 3vh, 34px);
+      color: var(--nx-text-muted);
+      font-size: clamp(16px, 1.25vw, 21px);
+      line-height: 1.5;
+    }
+
+    #login .login-form{
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    #login .field{
+      margin-bottom: clamp(16px, 2vh, 22px);
+    }
+
+    #login .field-label{
+      display: block;
+      margin: 0 0 8px;
+      color: var(--nx-navy-950);
+      font-size: 13px;
+      font-weight: 750;
+      letter-spacing: 0.055em;
+    }
+
+    #login .input-shell{
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: clamp(58px, 7vh, 68px);
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(88, 119, 157, 0.3);
+      border-radius: 10px;
+      box-shadow: inset 0 1px 2px rgba(25, 62, 104, 0.025), 0 4px 14px rgba(48, 87, 125, 0.035);
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    #login .input-shell:focus-within{
+      border-color: var(--nx-teal-400);
+      box-shadow: 0 0 0 3px rgba(13, 192, 198, 0.11), 0 8px 25px rgba(0, 151, 161, 0.08);
+      transform: translateY(-1px);
+    }
+
+    #login .input-shell.has-error{
+      border-color: #df5a57;
+      box-shadow: 0 0 0 3px rgba(223, 90, 87, 0.1);
+    }
+
+    #login .field-icon{
+      position: absolute;
+      left: 20px;
+      width: 25px;
+      height: 25px;
+      color: var(--nx-navy-800);
+      pointer-events: none;
+    }
+
+    #login .input-shell input{
+      width: 100%;
+      height: 100%;
+      padding: 0 54px 0 62px;
+      color: var(--nx-navy-950);
+      background: transparent;
+      border: 0;
+      outline: 0;
+      font-size: clamp(16px, 1.1vw, 19px);
+    }
+
+    #login .input-shell input::placeholder{
+      color: #8493ad;
+      opacity: 1;
+    }
+
+    #login .password-toggle{
+      position: absolute;
+      right: 13px;
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      color: var(--nx-navy-800);
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: color 150ms ease, background 150ms ease;
+    }
+
+    #login .password-toggle:hover, #login .password-toggle:focus-visible{
+      color: var(--nx-teal-600);
+      background: rgba(4, 173, 180, 0.08);
+      outline: none;
+    }
+
+    #login .password-toggle svg{
+      width: 25px;
+      height: 25px;
+    }
+
+    #login .form-options{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 0 0 clamp(22px, 2.8vh, 30px);
+    }
+
+    #login .remember{
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--nx-navy-900);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #login .remember input{
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    #login .switch{
+      position: relative;
+      width: 48px;
+      height: 27px;
+      flex: 0 0 auto;
+      background: #aab9c8;
+      border: 1px solid rgba(20, 66, 105, 0.1);
+      border-radius: 99px;
+      box-shadow: inset 0 2px 5px rgba(19, 65, 100, 0.12);
+      transition: background 180ms ease, box-shadow 180ms ease;
+    }
+
+    #login .switch::after{
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 19px;
+      height: 19px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(17, 47, 82, 0.25);
+      transition: transform 180ms ease;
+    }
+
+    #login .remember input:checked + .switch{
+      background: linear-gradient(90deg, var(--nx-teal-600), var(--nx-teal-400));
+      box-shadow: inset 0 2px 4px rgba(0, 77, 85, 0.2), 0 0 0 3px rgba(4, 173, 180, 0.08);
+    }
+
+    #login .remember input:checked + .switch::after{
+      transform: translateX(21px);
+    }
+
+    #login .remember input:focus-visible + .switch{
+      outline: 3px solid rgba(4, 173, 180, 0.2);
+      outline-offset: 2px;
+    }
+
+    #login .forgot-link{
+      padding: 6px 0;
+      color: var(--nx-teal-600);
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    #login .forgot-link:hover, #login .forgot-link:focus-visible{
+      color: #00727a;
+      text-decoration: underline;
+      outline: none;
+    }
+
+    #login .submit-button{
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      width: 100%;
+      min-height: clamp(62px, 7.3vh, 72px);
+      padding: 0 28px;
+      overflow: hidden;
+      color: white;
+      background: linear-gradient(105deg, #06979f 0%, #0bbbc1 52%, #04828d 100%);
+      border: 1px solid rgba(0, 112, 122, 0.45);
+      border-radius: 9px;
+      box-shadow: 0 14px 28px rgba(0, 144, 152, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.36);
+      cursor: pointer;
+      font-size: clamp(18px, 1.35vw, 23px);
+      font-weight: 720;
+      transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+    }
+
+    #login .submit-button::before{
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -25%;
+      width: 35%;
+      height: 330%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+      transform: rotate(18deg);
+      transition: left 420ms ease;
+    }
+
+    #login .submit-button:hover{
+      box-shadow: 0 18px 34px rgba(0, 144, 152, 0.27), inset 0 1px 0 rgba(255, 255, 255, 0.36);
+      filter: saturate(1.08);
+      transform: translateY(-2px);
+    }
+
+    #login .submit-button:hover::before{
+      left: 115%;
+    }
+
+    #login .submit-button:active{
+      transform: translateY(0);
+    }
+
+    #login .submit-button:focus-visible{
+      outline: 4px solid rgba(4, 173, 180, 0.22);
+      outline-offset: 3px;
+    }
+
+    #login .submit-button:disabled{
+      cursor: wait;
+      filter: grayscale(0.15);
+      opacity: 0.78;
+      transform: none;
+    }
+
+    #login .button-arrow{
+      width: 26px;
+      height: 26px;
+      transition: transform 160ms ease;
+    }
+
+    #login .submit-button:hover .button-arrow{
+      transform: translateX(4px);
+    }
+
+    #login .feedback{
+      min-height: 23px;
+      margin: 10px 0 0;
+      color: var(--nx-text-muted);
+      font-size: 13px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    #login .feedback.success{
+      color: #087d63;
+    }
+
+    #login .feedback.error{
+      color: #ba3d3a;
+    }
+
+    #login .security-block{
+      margin-top: auto;
+      padding-top: clamp(18px, 2.4vh, 25px);
+      border-top: 1px solid var(--nx-line);
+      text-align: center;
+    }
+
+    #login .security-title{
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 16px;
+      color: var(--nx-navy-900);
+      font-weight: 650;
+    }
+
+    #login .security-title svg{
+      width: 31px;
+      height: 31px;
+      color: var(--nx-teal-600);
+    }
+
+    #login .trust-list{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: 0;
+      padding: 0;
+      color: var(--nx-navy-900);
+      font-size: 12px;
+      list-style: none;
+    }
+
+    #login .trust-list li{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    #login .trust-list li:not(:last-child)::after{
+      content: "•";
+      margin-left: 10px;
+      color: var(--nx-teal-500);
+    }
+
+    #login .trust-check{
+      display: grid;
+      width: 19px;
+      height: 19px;
+      place-items: center;
+      color: var(--nx-teal-600);
+      border: 1.5px solid currentColor;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    @media (max-width: 1100px) {
+      #login .login-shell{
+        grid-template-columns: minmax(380px, 49fr) minmax(520px, 51fr);
+      }
+
+      #login .brand-panel{
+        background-size: auto 100%;
+      }
+
+      #login .trust-list{
+        flex-wrap: wrap;
+        row-gap: 8px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      #login .login-shell{
+        display: block;
+        overflow: visible;
+      }
+
+      #login .brand-panel{
+        min-height: 36vh;
+        background-size: cover;
+        background-position: center;
+      }
+
+      #login .brand-panel::after{
+        top: auto;
+        bottom: -1px;
+        width: 100%;
+        height: 2px;
+      }
+
+      #login .access-panel{
+        min-height: 64vh;
+      }
+
+      #login .access-card{
+        min-height: 660px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      #login .brand-panel{
+        min-height: 29vh;
+      }
+
+      #login .access-panel{
+        min-height: 71vh;
+        padding: 20px 14px;
+      }
+
+      #login .access-header{
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      #login .access-brand{
+        font-size: 17px;
+      }
+
+      #login .access-brand img{
+        width: 42px;
+        height: 42px;
+      }
+
+      #login .availability{
+        min-height: 36px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
+
+      #login .access-card{
+        min-height: 640px;
+        padding: 28px 20px 22px;
+        border-radius: 15px;
+      }
+
+      #login .form-options{
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      #login .trust-list{
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        padding-left: 18px;
+      }
+
+      #login .trust-list li:not(:last-child)::after{
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #login *, #login *::before, #login *::after{
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  
+/* cabe em uma tela só */
+#login .login-shell{min-height:100%;height:100%}
+#login .brand-panel{min-height:100%}
+#login .access-panel{min-height:100%;overflow:auto}
+@media(max-height:900px){
+ #login .access-panel{padding-top:22px;padding-bottom:22px}
+ #login .access-card{padding:26px 28px 22px}
+ #login .card-heading{font-size:27px}
+ #login .input-shell{height:48px}
+ #login .field{margin-bottom:13px}
+ #login .submit-button{height:52px}
+ #login .security-block{margin-top:16px;padding-top:14px}
+}
+@media(max-height:760px){
+ #login .access-header{margin-bottom:12px}
+ #login .access-card{padding:20px 24px 18px}
+ #login .card-heading{font-size:23px}
+ #login .card-subtitle{margin-bottom:14px}
+ #login .input-shell{height:44px}
+ #login .field{margin-bottom:10px}
+ #login .submit-button{height:48px}
+ #login .trust-list{font-size:11px}
+}
 /* a nota abrindo por cima do lançamento */
 .mdOv.notaOv{z-index:1400;background:rgba(12,26,38,.45)}
 .vBol{color:var(--ink-2);font-variant-numeric:tabular-nums}
@@ -10653,89 +11801,102 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 
 <!-- ============ LOGIN ============ -->
 <section id="login">
-  <div class="nxLogin" id="lgCard">
+  <div class="login-shell" id="lgCard">
+    <section class="brand-panel" aria-label="Identidade visual Nexor"></section>
 
-    <div class="nxMarca">
-      <div class="nxGrade"></div>
-      <div class="nxMarcaIn">
-        <div class="nxLogo">
-          <svg viewBox="0 0 120 120" width="112" height="112" aria-hidden="true">
-            <defs>
-              <linearGradient id="nxg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#7FE3E0"/><stop offset="1" stop-color="#0E9B94"/>
-              </linearGradient>
-            </defs>
-            <path d="M60 8 108 34v52L60 112 12 86V34z" fill="none" stroke="url(#nxg)" stroke-width="7"
-              stroke-linejoin="round"/>
-            <path d="M40 82V38l40 44V38" fill="none" stroke="url(#nxg)" stroke-width="10"
-              stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <div class="nxNome">NEXOR</div>
-        <div class="nxTag">gestão simples, lucro visível</div>
-      </div>
-    </div>
-
-    <div class="nxPainel">
-      <div class="nxTopo">
-        <div class="nxSelo">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#0E9B94"
-            stroke-width="2" stroke-linejoin="round"><path d="M12 2l9 5v10l-9 5-9-5V7z"/></svg>
+    <section class="access-panel" aria-labelledby="login-title">
+      <header class="access-header">
+        <div class="access-brand">
+          <img src="nexor-n.png" alt="Símbolo Nexor">
           <span>NEXOR ACCESS</span>
         </div>
-        <div class="nxOn"><i></i>Sistema disponível</div>
+
+        <div class="availability" aria-label="Status do sistema: disponível">
+          <span class="availability-dot" aria-hidden="true"></span>
+          <span>Sistema disponível</span>
+        </div>
+      </header>
+
+      <div class="access-card">
+        <h1 class="card-heading" id="lgTit">Bem-vindo ao Nexor</h1>
+        <p class="card-subtitle">Acesse seu ambiente de gestão</p>
+
+        <div class="login-form" id="login-form">
+          <div class="field">
+            <label class="field-label" for="lgC">CLIENTE</label>
+            <div class="input-shell" id="lgCsh">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M4 21V5.7c0-.7.5-1.2 1.2-1.2h8.1c.7 0 1.2.5 1.2 1.2V21M14.5 10.5h4.3c.7 0 1.2.5 1.2 1.2V21M2 21h20M7 8h1M11 8h1M7 12h1M11 12h1M7 16h1M11 16h1M17 14h1M17 17h1"/>
+              </svg>
+              <input id="lgC" name="client" type="text" placeholder="Nome da rede" autocomplete="organization" required autofocus>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="lgU">USUÁRIO</label>
+            <div class="input-shell" id="lgUsh">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <circle cx="12" cy="7.5" r="3.5"/>
+                <path d="M5 21v-2.2A5.8 5.8 0 0 1 10.8 13h2.4a5.8 5.8 0 0 1 5.8 5.8V21"/>
+              </svg>
+              <input id="lgU" name="email" type="email" placeholder="E-mail corporativo" autocomplete="username" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="lgP">SENHA</label>
+            <div class="input-shell" id="lgPsh">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="11" rx="2"/>
+                <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>
+              </svg>
+              <input id="lgP" name="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" minlength="3" required>
+              <button class="password-toggle" id="tg" type="button" aria-label="Mostrar senha" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/>
+                  <circle cx="12" cy="12" r="2.7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-options">
+            <label class="remember" for="lgK">
+              <input id="lgK" name="remember" type="checkbox" checked>
+              <span class="switch" aria-hidden="true"></span>
+              <span>Manter conectado</span>
+            </label>
+
+            <button class="forgot-link" id="lgEsq" type="button">Esqueci minha senha</button>
+          </div>
+
+          <button class="submit-button" id="lgB" type="button">
+            <span id="button-label">Entrar no Nexor</span>
+            <svg class="button-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M5 12h14M14 7l5 5-5 5"/>
+            </svg>
+          </button>
+
+          <p class="feedback lgErr" id="lgE" role="status" aria-live="polite"></p>
+
+          <div class="security-block">
+            <p class="security-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                <path d="M12 2.5 20 6v5.4c0 5-3.3 8.4-8 10.1-4.7-1.7-8-5.1-8-10.1V6l8-3.5Z"/>
+                <path d="m8.3 12 2.3 2.3 5-5"/>
+              </svg>
+              <span>Acesso corporativo protegido</span>
+            </p>
+
+            <ul class="trust-list" aria-label="Recursos de segurança">
+              <li><span class="trust-check" aria-hidden="true">✓</span>Sessão segura</li>
+              <li><span class="trust-check" aria-hidden="true">✓</span>Dados protegidos</li>
+              <li><span class="trust-check" aria-hidden="true">✓</span>Suporte Nexor</li>
+            </ul>
+          </div>
+        </div>
       </div>
-
-      <div class="nxCard">
-        <h1>Bem-vindo ao Nexor</h1>
-        <p>Acesse seu ambiente de gestão</p>
-
-        <label class="nxRot" for="lgC">Cliente</label>
-        <div class="nxCampo">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
-            stroke-width="1.8"><path d="M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M4 21h16M8 8h3M8 12h3M8 16h3"/></svg>
-          <input id="lgC" autocomplete="off" placeholder="Nome da rede">
-        </div>
-
-        <label class="nxRot" for="lgU">Usuário</label>
-        <div class="nxCampo">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
-            stroke-width="1.8"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg>
-          <input id="lgU" autocomplete="off" placeholder="E-mail corporativo">
-        </div>
-
-        <label class="nxRot" for="lgP">Senha</label>
-        <div class="nxCampo">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
-            stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
-          <input id="lgP" type="password" autocomplete="off" placeholder="Digite sua senha">
-          <button class="nxOlho" id="tg" type="button" title="Mostrar senha"></button>
-        </div>
-
-        <div class="nxLinha">
-          <label class="nxSw"><input type="checkbox" id="lgK" checked><i></i>
-            <span>Manter conectado</span></label>
-          <a class="nxEsq" id="lgEsq">Esqueci minha senha</a>
-        </div>
-
-        <div class="lgErr" id="lgE"></div>
-
-        <button class="nxBtn" id="lgB">Entrar no Nexor
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
-            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
-        </button>
-
-        <div class="nxProt">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0E9B94"
-            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3l8 3v6c0 4.6-3.3 8-8 9-4.7-1-8-4.4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
-          <b>Acesso corporativo protegido</b>
-        </div>
-        <div class="nxPes">
-          <span>Sessão segura</span><i>&bull;</i><span>Dados protegidos</span><i>&bull;</i><span>Suporte Nexor</span>
-        </div>
-      </div>
-    </div>
+    </section>
   </div>
 </section>
 
@@ -12276,8 +13437,13 @@ window.onerror=function(msg,arq,lin){
   return false;
 };
 /* ===== BLOCO 5 — LOGIN ===== */
-$('tg').innerHTML=sv('eye',17);
-$('tg').onclick=function(){var i=$('lgP'),v=i.type==='text';i.type=v?'password':'text';this.innerHTML=sv(v?'eye':'eyeOff',17);};
+$('tg').onclick=function(){
+  var i=$('lgP'),v=i.type==='text';
+  i.type=v?'password':'text';
+  this.classList.toggle('is-visible',!v);
+  this.setAttribute('aria-pressed',String(!v));
+  this.setAttribute('aria-label',v?'Mostrar senha':'Ocultar senha');
+};
 function abrirSessao(){
   carregar();
   $('login').classList.add('hide');$('app').classList.remove('hide');
@@ -12334,7 +13500,7 @@ async function entrar(){
     return String(x.login||'').toLowerCase()===lg&&x.senha===sn;});
   /* nao existe neste aparelho? procura na nuvem antes de recusar */
   if(!u&&lg&&sn){
-    $('lgE').textContent='conferindo o acesso...';
+    lgAviso('conferindo o acesso...');
     var nu=await buscarAcessoNaNuvem(lg,sn);
     if(nu){
       var ja=(DB.usuarios||[]).find(function(x){
@@ -12343,7 +13509,7 @@ async function entrar(){
       else{DB.usuarios.push(nu);u=nu;}
       salvar();
     }
-    $('lgE').textContent='';
+    lgAviso('');
   }
   /* o dono do Nexor entra sem cliente; os demais precisam informar a rede certa */
   if(u&&String(u.login||'').toLowerCase()!==ADM_MESTRE){
@@ -12351,13 +13517,13 @@ async function entrar(){
     var ok=!cli?false:(r?(chaveCliente(r.nome).indexOf(cli)>=0||cli.indexOf(chaveCliente(r.nome))>=0||
         chaveCliente(r.dominio).indexOf(cli)>=0):true);
     if(!ok){
-      $('lgE').innerHTML=cli?'Este acesso não pertence ao cliente informado.'
-        :'Informe o <b>cliente</b> (o nome da rede).';
+      lgAviso(cli?'Este acesso não pertence ao cliente informado.'
+        :'Informe o <b>cliente</b> (o nome da rede).');
       sacode();return;
     }
   }
   if(u&&u.ativo===false){
-    $('lgE').textContent='Este acesso está desativado. Fale com o administrador.';
+    lgAviso('Este acesso está desativado. Fale com o administrador.');
     sacode();return;
   }
   if(u){
@@ -12383,10 +13549,16 @@ async function entrar(){
   }
   var lst=(DB.usuarios||[]).filter(function(x){return x.ativo!==false})
     .map(function(x){return x.login}).filter(Boolean);
-  $('lgE').innerHTML='Usuário ou senha inválidos.'+
+  lgAviso('Usuário ou senha inválidos.'+
     (lst.length?'<br><small style="opacity:.85">acessos deste aparelho: '+
-      lst.map(function(x){return E(x)}).join(' · ')+'</small>':'');
+      lst.map(function(x){return E(x)}).join(' · ')+'</small>':''));
   sacode();
+}
+/* a mensagem entra no estilo do arquivo oficial */
+function lgAviso(html,tipo){
+  var e=$('lgE');if(!e)return;
+  e.innerHTML=html||'';
+  e.className='feedback lgErr'+(html?(' '+(tipo||'error')):'');
 }
 function sacode(){
   var c=$('lgCard');
@@ -12394,8 +13566,8 @@ function sacode(){
 }
 $('lgB').onclick=entrar;
 if($('lgEsq'))$('lgEsq').onclick=function(){
-  $('lgE').innerHTML='Para redefinir a senha, fale com o administrador da sua rede — '+
-    'ele altera em <b>Configuração da Loja › Usuários e Permissões</b>.';
+  lgAviso('Para redefinir a senha, fale com o administrador da sua rede — '+
+    'ele altera em <b>Configuração da Loja › Usuários e Permissões</b>.');
 };
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&!$('login').classList.contains('hide'))entrar();
@@ -12407,7 +13579,7 @@ async function sair(){
   try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){}
   SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');
-  $('lgE').textContent='';
+  lgAviso('');
 }
 /* se ja tinha entrado antes, volta direto para o sistema */
 try{
@@ -12435,7 +13607,8 @@ function boot(){topo();faixa();abrir('cardapio','cfg-cardapio');
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
 function topo(){
-$('hdr').innerHTML='<div class="hMk">N</div><div class="hNm">NEXOR</div><div class="hGrow"></div>'+
+$('hdr').innerHTML='<img class="hMk" src="nexor-n.png" alt="Nexor">'+
+  '<div class="hNm">NEXOR</div><div class="hGrow"></div>'+
 '<button class="hSearch" onclick="paleta()">'+sv('search',15)+'<span>Buscar no sistema</span><kbd>Ctrl K</kbd></button>'+
 '<button class="hIc" onclick="toast(\'Nenhuma notificação no momento.\')">'+sv('bell',18)+'<span class="hBadge">0</span></button>'+
 '<span class="rtTag" id="rtTag"><i></i>tempo real</span>'+
@@ -12554,7 +13727,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.10.0';
+var VERSAO='V12.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
