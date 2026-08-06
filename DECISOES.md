@@ -665,6 +665,19 @@ Fundo creme `#FAF6EF` na área de trabalho, branco no conteúdo, bordas `#EAE4D9
 
 A quinta cor é o limite: se aparecer uma sexta sem trabalho definido, a regra quebra.
 
+## "Evitou apagar 18 de 24 de cardapio_config" (V14.0.1)
+
+A trava funcionou, mas o motivo era um defeito: `DB.cardapioL` é um **espelho derivado**
+de `DB.cardapio`, gerado no envio com id `cc_<sucursal>`. O download sobrescrevia esse
+espelho com as **linhas cruas da nuvem**, cujo id é o uuid do banco. No envio seguinte,
+nenhum id batia e o sistema concluía que tudo tinha sido excluído.
+
+- O download **não toca mais** no espelho — ele é derivado, não vem da nuvem
+- Regra geral em `apagarRemovidos`: **zero identificadores em comum entre o antes e o
+  agora é troca de formato, não exclusão**. A lista nova é adotada sem apagar nada
+- `arrumarEspelhoCardapio()` zera uma vez a marca antiga, que estava com os dois
+  formatos misturados
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

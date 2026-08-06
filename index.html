@@ -12958,6 +12958,13 @@ async function apagarRemovidos(tab,chave,idsAgora){
     if(!antes){DB._snap[chave]=idsAgora.slice();return;}   /* primeira vez: nada a comparar */
     var sumiram=antes.filter(function(id){return idsAgora.indexOf(id)<0});
     if(!sumiram.length){DB._snap[chave]=idsAgora.slice();return;}
+    /* Nenhum identificador em comum entre o que havia e o que há agora: isso é
+       troca de formato de identificador, não exclusão. Adota a lista nova. */
+    if(idsAgora.length&&sumiram.length===antes.length){
+      logNuvem(tab+': identificadores mudaram de formato — lista adotada sem apagar nada');
+      DB._snap[chave]=idsAgora.slice();
+      return;
+    }
 
     /* ---- TRAVAS: apagar tudo de uma vez quase nunca é intenção ----
        Sem elas, um download que veio vazio virava exclusão definitiva na nuvem.
@@ -13486,7 +13493,9 @@ async function baixarDaNuvem(forcar){
   var scPre=await api('sucursais'+qs);
   var mapaSuc2={};scPre.forEach(function(x){mapaSuc2[x.id]=x.ref_local||x.id});
   var cd=await api('cardapio_config'+qs);
-  DB.cardapioL=cd;   /* espelho da lista, para o motor de sync */
+  /* DB.cardapioL é derivado de DB.cardapio e recebe id 'cc_<sucursal>' no envio.
+     Guardar aqui as linhas cruas da nuvem trocava esses ids por uuid, e no envio
+     seguinte o sistema achava que TODOS tinham sido excluídos. Não se toca nele. */
   DB.cardapio=DB.cardapio||{};
   cd.forEach(function(x){
     var sid=mapaSuc2[x.sucursal_id]||x.sucursal_id;
@@ -14079,7 +14088,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V14.0.0';
+var VERSAO='V14.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21207,6 +21216,13 @@ function renumerarCodigos(){
    começava em 700000 só para não colidir com o de ficha, que começava em 1.
    Não havia razão além dessa — e ela deixou de existir quando as duas listas
    passaram a dividir a mesma numeração. Este acerto roda UMA vez. */
+/* acerto de uma vez: o espelho do cardápio chegou a guardar dois formatos de
+   identificador ao mesmo tempo. Zera a marca para ela nascer certa. */
+function arrumarEspelhoCardapio(){
+  if(DB._espelhoOk)return;
+  try{ if(DB._snap)delete DB._snap.cardapioL; }catch(e){}
+  DB._espelhoOk=true;
+}
 function arrumarCodigos(){
   if(DB._codOk)return;
   var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
@@ -22527,6 +22543,7 @@ function baseMov(){
   baseFicha();
   if(typeof baseCat==='function')baseCat();
   arrumarCodigos();
+  arrumarEspelhoCardapio();
   DB.motivosMov=DB.motivosMov||[
     {id:'mv_ent',  nome:'Entrada manual',        tipo:'entrada', sistema:false,ativo:true,lojas:[]},
     {id:'mv_sai',  nome:'Saída manual',          tipo:'saida',   sistema:false,ativo:true,lojas:[]},
