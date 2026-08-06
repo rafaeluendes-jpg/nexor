@@ -542,6 +542,21 @@ barra horizontal também.
 - Os ajustes precisaram entrar nas **duas** folhas de estilo, senão a segunda cópia das
   regras originais sobrescrevia a compactação
 
+## Proporção da tela de acesso (V12.3.0)
+
+O desenho original enche a coluna da direita. Quando a marca sai da tela, essa coluna
+vira a tela inteira e o cartão estica junto: campos larguíssimos para 46px de altura,
+texto perdido no meio do branco. Parecia formulário de celular esticado.
+
+- **Coluna de leitura com largura máxima** (`--nx-col: min(432px,100%)`), centralizada,
+  valendo para o cabeçalho e o cartão. É a correção que resolve a desproporção
+- A marca só some abaixo de **820px** (era 980), então na maioria das janelas ela aparece
+- Ritmo vertical apertado: rótulo colado no campo, campos de 46px, título 25px,
+  botão 50px, selo e lista de segurança proporcionais
+
+Os ajustes vão nas **duas** folhas de estilo — a segunda cópia das regras originais
+desfaria a primeira.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
