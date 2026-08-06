@@ -2532,6 +2532,8 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .etTopo h1{font-size:16px;font-weight:600}
 .etTopo p{font-size:12px;color:var(--ink-2);margin-top:2px}
 .etTot{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.ftQt{margin-left:6px;font-size:10px;color:var(--amber);background:var(--amber-soft);
+  padding:0 6px;border-radius:9px}
 .etT.filtro{border-color:var(--acc);background:var(--acc-soft)}
 .etT.filtro b{color:var(--acc-d)}
 .etT small{display:block;font-size:10px;color:var(--ink-3);margin-top:2px;white-space:nowrap}
@@ -7949,6 +7951,8 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .etTopo h1{font-size:16px;font-weight:600}
 .etTopo p{font-size:12px;color:var(--ink-2);margin-top:2px}
 .etTot{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.ftQt{margin-left:6px;font-size:10px;color:var(--amber);background:var(--amber-soft);
+  padding:0 6px;border-radius:9px}
 .etT.filtro{border-color:var(--acc);background:var(--acc-soft)}
 .etT.filtro b{color:var(--acc-d)}
 .etT small{display:block;font-size:10px;color:var(--ink-3);margin-top:2px;white-space:nowrap}
@@ -12815,7 +12819,15 @@ var MAPA=[
 
 function n(v){var x=Number(v);return isNaN(x)?0:x}
 var _ids={};                       /* ref_local -> uuid do banco */
-function fk(col,ref){return ref&&_ids[ref]?_ids[ref]:null}
+function fk(col,ref){
+  if(!ref)return null;
+  if(_ids[ref])return _ids[ref];
+  /* o registro aponta para algo que a nuvem ainda não conhece: avisa em vez de
+     gravar um vínculo vazio que ninguém percebe */
+  _fkPerdido[col+':'+ref]=true;
+  return null;
+}
+var _fkPerdido={};
 function fkSub(ref){return ref&&_ids[ref]?_ids[ref]:null}
 
 /* ---- chamada direta ao banco (sem depender de biblioteca externa) ---- */
@@ -13081,10 +13093,17 @@ async function sincronizar(){
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};
         salvos.forEach(function(r){if(r.ref_local)confirmados[r.ref_local]=true});
+        var perdeuVinculo=Object.keys(_fkPerdido).length>0;
         Object.keys(hNovo).forEach(function(ref){
+          if(perdeuVinculo)return;                 /* não marca como enviado: tenta de novo */
           if(!mudou[ref]||confirmados[ref])hSalvar[ref]=hNovo[ref];
           else if(hAnt[ref]!==undefined)hSalvar[ref]=hAnt[ref];
         });
+        if(perdeuVinculo){
+          logNuvem(E2.tab+': vínculo não resolvido ('+Object.keys(_fkPerdido).join(', ')+
+            ') — será reenviado',true);
+          _fkPerdido={};
+        }
         DB._hash[E2.col]=hSalvar;
         DB._enviados[E2.col]=lista.map(function(x){return x.id})
           .filter(function(id){return !!DB._uuid[E2.col][id]});
@@ -14003,7 +14022,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V13.1.0';
+var VERSAO='V13.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21713,6 +21732,7 @@ function telaFichaTecnica(){
   if(FT.mostrar){
     lista=(DB.fichas||[]).filter(function(f){
       if(FT.sub&&f.subgrupoId!==FT.sub)return false;
+      if(FT.cat==='__sem')return !catFicha(f.categoriaId);
       if(FT.cat&&!FT.sub&&f.categoriaId!==FT.cat)return false;
       if(FT.busca){
         var q=FT.busca.toLowerCase();
@@ -21743,6 +21763,15 @@ function telaFichaTecnica(){
        '<div class="arvFT">'+
         '<div class="ftNo'+(!FT.cat&&!FT.sub?' on':'')+'" onclick="filtroFT(\'\',\'\')">'+
          '<span class="ftSeta vaz"></span>'+sv('folder',13)+' Todos os grupos</div>'+
+        /* Uma ficha sem grupo ficava fora de toda a árvore: existia no banco e
+           não aparecia em lugar nenhum. Agora ela tem onde ser vista e corrigida. */
+        (function(){
+          var orfas=(DB.fichas||[]).filter(function(f){return !catFicha(f.categoriaId)});
+          if(!orfas.length)return '';
+          return '<div class="ftNo'+(FT.cat==='__sem'?' on':'')+'" onclick="filtroFT(\'__sem\',\'\')">'+
+           '<span class="ftSeta vaz"></span>'+sv('folder',13)+
+           ' <b style="color:var(--amber)">Sem grupo</b> <span class="ftQt">'+orfas.length+'</span></div>';
+        })()+
         (DB.fichaCats||[]).map(function(c){
           var ab=!!FT.abertas[c.id];
           return '<div class="ftNo'+(FT.cat===c.id&&!FT.sub?' on':'')+'">'+

@@ -608,6 +608,26 @@ removidos: o primeiro repetia o do topo, o segundo era informação que ninguém
 A tabela também ganhou a classe `semBusca`: ela já tem busca e ordenação próprias, e
 estava recebendo a busca automática por cima, duplicando o campo.
 
+## A ficha que "sumiu" (V13.2.0)
+
+Conferido no banco: **as 12 fichas estão lá**, inclusive a "BELGA GELATO" com os 2 itens.
+Nada foi perdido. O que aconteceu foi pior de diagnosticar: ela ficou com
+`grupo_id = null` e a tela de ficha técnica **só desenha por grupo** — então ela existia
+e não aparecia em lugar nenhum.
+
+Causa: no envio, `fk('fichaCats', categoriaId)` não resolveu o vínculo e gravou `null`
+em silêncio. Com o envio incremental, a impressão do registro foi dada como boa e ele
+nunca mais foi reenviado — o `null` virou permanente.
+
+Duas correções estruturais:
+
+- **Nenhum registro pode ficar invisível.** A árvore ganhou a pasta **Sem grupo**, com
+  contagem em âmbar, que aparece só quando existe ficha órfã. O que estiver lá pode ser
+  visto, aberto e corrigido
+- **Vínculo que não resolve não passa batido.** `fk()` anota a falha, o log da nuvem
+  registra qual vínculo faltou, e a impressão do registro **não é gravada** — ele volta
+  a subir na próxima sincronização, quando o vínculo já existir
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
