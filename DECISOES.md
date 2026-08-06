@@ -717,6 +717,23 @@ estabilizar" — e não dava como diagnosticar nada. Agora:
   seja enviada — é ela que resolve em minutos. Não há repetição automática, porque erro
   de dado não melhora tentando de novo
 
+## Categoria financeira separada por tipo (V16.0.0)
+
+Categoria de receita e de despesa não se misturam mais.
+
+- Coluna `tipo` em `categorias_financeiras`; categorias antigas entram como **despesa**
+  e não somem
+- A tela virou **duas colunas** — Receita em verde, Despesa — cada uma com o seu botão
+  "Cadastrar receita" / "Cadastrar despesa". O tipo é fixo depois de criado
+- O lançamento **só oferece as categorias do tipo que está sendo lançado**, e trocar
+  receita/despesa descarta a categoria escolhida se ela for do outro lado
+- Compras sem Vínculo ganhou largura máxima e centralização — estava colado na borda
+
+### Ainda pendente deste pedido
+
+- Relatório de entradas (só existe o de despesas)
+- Melhoria visual do cadastro de contas de banco
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

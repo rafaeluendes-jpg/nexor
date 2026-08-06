@@ -1726,6 +1726,29 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* categorias financeiras em duas colunas */
+.catDuas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.catCol{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  display:flex;flex-direction:column}
+.catCol.receita{border-color:#BBD8C6}
+.catColH{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid var(--line);
+  background:var(--alt)}
+.catCol.receita .catColH{background:var(--ok-soft);border-bottom-color:#BBD8C6}
+.catColH b{display:block;font-size:13px}
+.catColH span{display:block;font-size:11px;color:var(--ink-3)}
+.catCol.receita .catColH svg{color:var(--ok)}
+.catCol.despesa .catColH svg{color:var(--red)}
+.catQt{margin-left:auto;font-size:11px;color:var(--ink-3);white-space:nowrap}
+.catCol .arvBody{flex:1;min-height:70px}
+.catAdd{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;
+  border:0;border-top:1px solid var(--line);background:var(--alt);color:var(--ink-2);
+  padding:10px;cursor:pointer;font-size:12.5px;font-weight:600}
+.catCol.receita .catAdd{background:var(--ok-soft);color:var(--ok);border-top-color:#BBD8C6}
+.catAdd:hover{background:var(--acc-soft);color:var(--acc-d)}
+.catCol.receita .catAdd:hover{background:#DCEFE4}
+.catTipoFixo{display:flex;align-items:center;gap:7px;margin-top:9px;padding:8px 11px;
+  border-radius:6px;font-size:12px;background:var(--red-soft);color:var(--red)}
+.catTipoFixo.receita{background:var(--ok-soft);color:var(--ok)}
 /* azul: o que se clica e o que informa */
 .incNovo,.lnkAz,a.lnk{color:var(--blue)}
 table tbody tr:hover{background:var(--blue-soft)}
@@ -6504,6 +6527,29 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* categorias financeiras em duas colunas */
+.catDuas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.catCol{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  display:flex;flex-direction:column}
+.catCol.receita{border-color:#BBD8C6}
+.catColH{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid var(--line);
+  background:var(--alt)}
+.catCol.receita .catColH{background:var(--ok-soft);border-bottom-color:#BBD8C6}
+.catColH b{display:block;font-size:13px}
+.catColH span{display:block;font-size:11px;color:var(--ink-3)}
+.catCol.receita .catColH svg{color:var(--ok)}
+.catCol.despesa .catColH svg{color:var(--red)}
+.catQt{margin-left:auto;font-size:11px;color:var(--ink-3);white-space:nowrap}
+.catCol .arvBody{flex:1;min-height:70px}
+.catAdd{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;
+  border:0;border-top:1px solid var(--line);background:var(--alt);color:var(--ink-2);
+  padding:10px;cursor:pointer;font-size:12.5px;font-weight:600}
+.catCol.receita .catAdd{background:var(--ok-soft);color:var(--ok);border-top-color:#BBD8C6}
+.catAdd:hover{background:var(--acc-soft);color:var(--acc-d)}
+.catCol.receita .catAdd:hover{background:#DCEFE4}
+.catTipoFixo{display:flex;align-items:center;gap:7px;margin-top:9px;padding:8px 11px;
+  border-radius:6px;font-size:12px;background:var(--red-soft);color:var(--red)}
+.catTipoFixo.receita{background:var(--ok-soft);color:var(--ok)}
 /* azul: o que se clica e o que informa */
 .incNovo,.lnkAz,a.lnk{color:var(--blue)}
 table tbody tr:hover{background:var(--blue-soft)}
@@ -11151,7 +11197,7 @@ var MAPA=[
     numero:x.numero||null,saldo_inicial:n(x.saldoInicial),fixa:x.fixa||null}}},
 
  {col:'catfin', espelha:true,      tab:'categorias_financeiras',
-  campos:function(x,i){return {nome:x.nome,ordem:i}},
+  campos:function(x,i){return {nome:x.nome,ordem:i,tipo:x.tipo||'despesa'}},
   filhos:[{lista:'itens',tab:'subcategorias_financeiras',pai:'categoria_id',
     campos:function(o,k){return {nome:o.nome,ordem:k}}}]},
 
@@ -11864,7 +11910,7 @@ async function baixarDaNuvem(forcar){
   var cf=await api('categorias_financeiras'+q+'&select=*,subcategorias_financeiras(*)&order=ordem');
   DB.catfin=volta(cf,function(x){
     var paiRef=x.ref_local||x.id;
-    return {id:paiRef,nome:x.nome,
+    return {id:paiRef,nome:x.nome,tipo:x.tipo||'despesa',
       itens:(x.subcategorias_financeiras||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
         .map(function(s){return {id:idFilho(paiRef,s.ref_local,s.id),nome:s.nome}})};});
   var fo=await api('fornecedores'+qs);
@@ -12623,7 +12669,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V15.2.0';
+var VERSAO='V16.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15942,16 +15988,29 @@ function baseCat(){
    CATEGORIAS FINANCEIRAS
    ========================================================== */
 var CF={abertas:{}};
+/* Categoria de receita e categoria de despesa não se misturam: cada lado tem o
+   seu cadastro, e o lançamento só oferece as do tipo que está sendo lançado. */
+function tipoCat(p){return (p&&p.tipo==='receita')?'receita':'despesa'}
 function telaCatFin(){
   baseCat();
-  var pastas=DB.catfin;
-  $('content').innerHTML='<div class="finWrap" style="max-width:900px">'+
+  $('content').innerHTML='<div class="finWrap" style="max-width:1000px">'+
   '<div class="finTop"><div><h1>Categorias Financeiras</h1>'+
-  '<p>Crie a pasta e adicione as subcategorias dentro dela.</p></div>'+
-  '<div class="finActs"><button class="btnP2 ok" onclick="modalPasta()">'+sv('plus',14)+' Nova categoria</button></div></div>'+
-
-  '<div class="arvore">'+
-   '<div class="arvTopo">Categorias</div>'+
+  '<p>Receita de um lado, despesa do outro. É esta divisão que faz o lançamento '+
+  'mostrar só as categorias certas.</p></div></div>'+
+  '<div class="catDuas">'+
+   colunaCatFin('receita','Receita','entradas de dinheiro')+
+   colunaCatFin('despesa','Despesa','saídas de dinheiro')+
+  '</div></div>';
+  rodape((DB.catfin||[]).length+' categorias');
+}
+function colunaCatFin(tipo,titulo,desc){
+  var pastas=(DB.catfin||[]).filter(function(p){return tipoCat(p)===tipo});
+  var n=pastas.reduce(function(a,p){return a+((p.itens||[]).length)},0);
+  return '<div class="catCol '+tipo+'">'+
+   '<div class="catColH">'+sv(tipo==='receita'?'up2':'dn4',15)+
+    '<div><b>'+titulo+'</b><span>'+desc+'</span></div>'+
+    '<span class="catQt">'+pastas.length+' · '+n+' itens</span></div>'+
+   '<div class="arvore" style="margin:0;border:0;border-radius:0">'+
    '<div class="arvBody">'+
    (pastas.length?pastas.map(function(p){
      var ab=!!CF.abertas[p.id];
@@ -15984,31 +16043,35 @@ function telaCatFin(){
        '</div>':'')+
      '</div>';
    }).join('')
-   :'<div class="arvVazio"><b>Nenhuma categoria cadastrada</b>'+
-    'Clique em <b>Nova categoria</b> para criar a primeira pasta — por exemplo <b>Custos Fixos</b> — '+
-    'e depois adicione dentro dela: Água, Energia, Contador.</div>')+
-   '</div>'+
-  '</div></div>';
-  rodape();
+   :'<div class="arvVazio"><b>Nenhuma categoria de '+titulo.toLowerCase()+'</b>'+
+    'Use o botão abaixo para criar a primeira.</div>')+
+   '</div></div>'+
+   '<button class="catAdd" onclick="modalPasta(null,\''+tipo+'\')">'+sv('plus',13)+
+    ' Cadastrar '+(tipo==='receita'?'receita':'despesa')+'</button>'+
+  '</div>';
 }
 function abrirPasta(id){
   CF.abertas[id]=!CF.abertas[id];
   telaCatFin();
 }
-function modalPasta(id){
+function modalPasta(id,tipoPadrao){
   baseCat();
   var p=id?DB.catfin.find(function(x){return x.id===id}):null;
+  var tp=p?tipoCat(p):(tipoPadrao||'despesa');
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
   '<div class="fld2" style="margin:0"><label>Nome da categoria *</label>'+
-  '<input id="pfN" value="'+E(p?p.nome:'')+'" placeholder="ex: Custos Fixos, Despesas Gerais Variáveis">'+
+  '<input id="pfN" value="'+E(p?p.nome:'')+'" placeholder="'+
+   (tp==='receita'?'ex: Vendas, Serviços, Outras receitas':'ex: Custos Fixos, Despesas Variáveis')+'">'+
+  '<div class="catTipoFixo '+tp+'">'+sv(tp==='receita'?'up2':'dn4',13)+
+   ' Categoria de <b>'+(tp==='receita'?'receita':'despesa')+'</b> — o tipo não muda depois</div>'+
   '<div class="hint">Depois de criar, clique na pasta para adicionar as subcategorias dentro dela.</div></div>'+
   '</div></div>';
-  modal(p?'Editar categoria':'Nova categoria',h,'Salvar',function(){
+  modal(p?'Editar categoria':('Cadastrar '+(tp==='receita'?'receita':'despesa')),h,'Salvar',function(){
     var nome=$('pfN').value.trim();
     if(!nome){toast('Informe o nome da categoria.');return false;}
     if(p)p.nome=nome;
     else{
-      var novo={id:uid('cf'),nome:nome,itens:[]};
+      var novo={id:uid('cf'),nome:nome,tipo:tp,itens:[]};
       DB.catfin.push(novo);
       CF.abertas[novo.id]=true;
     }
@@ -16832,7 +16895,7 @@ function telaSemVinculo(){
     return true;
   }).sort(function(a,b){return (b.excluidoEm||'').localeCompare(a.excluidoEm||'')});
   var tot=lista.reduce(function(a,c){return a+(Number(c.valor)||0)},0);
-  $('content').innerHTML='<div class="mvWrap">'+
+  $('content').innerHTML='<div class="mvWrap" style="max-width:1080px;margin:0 auto;padding-left:22px;padding-right:22px">'+
    '<div class="mvTopo"><h1>Compras sem Vínculo</h1><div style="flex:1"></div></div>'+
    '<p style="margin:2px 0 12px;color:var(--ink-3);font-size:13px">Boletos de nota de entrada que foram excluídos do financeiro '+
     '<b>sem excluir a nota</b>. A compra existe no estoque, mas ficou sem a conta a pagar.</p>'+
@@ -17995,8 +18058,8 @@ function modalLanc(id,tipoNovo,pre){
   var h='<div class="mdB">'+
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
   '<div class="tipoRad"'+(escondeTipo?' style="display:none"':'')+'>'+
-   '<label class="radL"><input type="radio" name="lnT" value="receita"'+(tipo==='receita'?' checked':'')+'> Receita</label>'+
-   '<label class="radL"><input type="radio" name="lnT" value="despesa"'+(tipo==='despesa'?' checked':'')+'> Despesa</label>'+
+   '<label class="radL"><input type="radio" name="lnT" value="receita" onchange="limpaCatSeTrocou()"'+(tipo==='receita'?' checked':'')+'> Receita</label>'+
+   '<label class="radL"><input type="radio" name="lnT" value="despesa" onchange="limpaCatSeTrocou()"'+(tipo==='despesa'?' checked':'')+'> Despesa</label>'+
   '</div>'+
   /* compra de mercadoria e sempre despesa: nao se escolhe o tipo */
   ((!l&&P.soDespesa)?'<div class="tipoFixo">'+sv('dn',12)+' Compra de mercadoria — lançada como <b>despesa</b></div>':'')+
@@ -18169,12 +18232,32 @@ function abreCatLanc(){
   if(box.style.display!=='none'){box.style.display='none';return;}
   box.style.display='';desenhaCatLanc();
 }
+/* trocar receita/despesa descarta a categoria escolhida se ela for do outro lado */
+function limpaCatSeTrocou(){
+  var c=document.getElementById('lnCat');
+  var tp=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
+  if(c&&c.value){
+    var achou=(DB.catfin||[]).some(function(p){
+      return tipoCat(p)===tp&&(p.itens||[]).some(function(it){return it.id===c.value});
+    });
+    if(!achou){
+      c.value='';
+      var b=document.getElementById('lnCatB');
+      if(b)b.innerHTML='<span>Selecione uma opção</span>'+sv('dn',12);
+    }
+  }
+  var a=document.getElementById('lnCatArv');
+  if(a&&a.style.display!=='none')desenhaCatLanc();
+}
 function desenhaCatLanc(){
   var box=document.getElementById('lnCatArv');
   if(!box)return;
   var atual=(document.getElementById('lnCat')||{}).value||'';
+  /* mostra só as categorias do tipo que está sendo lançado */
+  var tpSel=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
+  var lista=(DB.catfin||[]).filter(function(p){return tipoCat(p)===tpSel});
   var h='<div class="arvInB">';
-  (DB.catfin||[]).forEach(function(p){
+  lista.forEach(function(p){
     var ab=!!_catLancAbertas[p.id];
     h+='<div class="arvInG">'+
      '<div class="arvInP" onclick="togglePastaLanc(\''+p.id+'\')">'+
@@ -18187,8 +18270,9 @@ function desenhaCatLanc(){
        :'<div class="hint" style="padding:5px 26px">sem itens</div>')+'</div>':'')+
     '</div>';
   });
-  if(!(DB.catfin||[]).length)
-    h+='<div class="hint" style="padding:12px">Cadastre em Financeiro \u203A Categorias Financeiras.</div>';
+  if(!lista.length)
+    h+='<div class="hint" style="padding:12px">Nenhuma categoria de '+
+      (tpSel==='receita'?'receita':'despesa')+'. Cadastre em Financeiro \u203A Categorias Financeiras.</div>';
   h+='</div>';
   box.innerHTML=h;
 }
@@ -20077,8 +20161,9 @@ function desenhaCatIns(){
        :'<div class="hint" style="padding:5px 26px">sem itens</div>')+'</div>':'')+
     '</div>';
   });
-  if(!(DB.catfin||[]).length)
-    h+='<div class="hint" style="padding:12px">Cadastre em Financeiro \u203A Categorias Financeiras.</div>';
+  if(!lista.length)
+    h+='<div class="hint" style="padding:12px">Nenhuma categoria de '+
+      (tpSel==='receita'?'receita':'despesa')+'. Cadastre em Financeiro \u203A Categorias Financeiras.</div>';
   h+='</div>';
   box.innerHTML=h;
 }
