@@ -10558,10 +10558,35 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   .hUsr b,.hUsr span{display:none}
   .mIco{width:74px}.mIco .tile{width:28px;height:28px}.mIco .lb{font-size:9.5px;max-width:68px}
 }
-/* a tela de acesso ocupa a janela inteira e a página não rola por baixo */
-#login .shell{min-height:100%}
+/* ---- ajuste do Nexor: cabe em uma tela só ----
+   O arquivo original usa 100vh no palco, cartão de altura mínima 650px e
+   espaçamentos generosos — numa tela de notebook isso passa da janela e obriga
+   a rolar para achar o botão. Aqui tudo encolhe junto com a altura disponível. */
+#login{overflow:hidden}
+#login .shell{min-height:0;height:100%;display:flex;flex-direction:column}
+#login .topbar{height:clamp(52px,7vh,72px);flex:none;justify-content:flex-start}
+#login .logo{width:clamp(150px,15vw,210px);height:auto;max-height:70%}
+#login .stage{flex:1;min-height:0;padding:clamp(12px,2.2vh,40px) 24px;overflow:auto}
+#login .card{min-height:0;width:min(100%,470px);
+  padding:clamp(20px,3vh,44px) clamp(22px,2.4vw,36px) clamp(16px,2.2vh,30px)}
+#login .eyebrow{margin:0 0 clamp(6px,1.1vh,14px);font-size:clamp(12px,1.1vh,15px)}
+#login h1{font-size:clamp(22px,2.6vh,33px)}
+#login .intro{margin:clamp(6px,1vh,12px) 0 clamp(14px,2.4vh,28px);
+  font-size:clamp(13px,1.4vh,16px)}
+#login .group{margin-bottom:clamp(9px,1.6vh,20px)}
+#login .group label{margin-bottom:clamp(4px,.7vh,8px);font-size:clamp(12px,1.3vh,15px)}
+#login .group input,#login .group select{height:clamp(38px,5vh,48px);
+  font-size:clamp(13px,1.5vh,16px)}
+#login .options{margin:0 0 clamp(12px,2vh,24px)}
+#login .check,#login .forgot{font-size:clamp(12px,1.3vh,15px)}
+#login .check input{width:18px;height:18px}
+#login .submit{height:clamp(42px,5.6vh,54px);font-size:clamp(14px,1.6vh,18px)}
+#login .security{margin-top:clamp(10px,1.8vh,24px);font-size:clamp(12px,1.3vh,15px)}
+#login .badge{width:clamp(24px,3vh,32px);height:clamp(24px,3vh,32px)}
+#login .message{min-height:0;margin:clamp(6px,1vh,12px) 0 0}
+#login .message:empty{display:none}
+#login .mark{opacity:.11}
 body.semRolagem{overflow:hidden}
-@media(max-height:760px){#login .card{padding:22px 24px}#login h1{font-size:23px}}
 </style>
 <style>
 .ntMercBox{position:relative}
@@ -10677,7 +10702,7 @@ body.semRolagem{overflow:hidden}
 <!-- ============ LOGIN ============ -->
 <section id="login">
 <div class="shell">
-    <header class="topbar"><img class="logo" src="nexor-logo-h.png" alt="Nexor" width="230" height="70"><button class="avatar" type="button" aria-label="Perfil de Rafael Ulian">RU</button></header>
+    <header class="topbar"><img class="logo" src="nexor-logo-h.png" alt="Nexor" width="230" height="70"></header>
     <main class="stage">
       <img class="mark left" src="nexor-marca-lado.png" alt=""><img class="mark right" src="nexor-marca-lado.png" alt="">
       <section class="card" aria-labelledby="title">
@@ -12598,7 +12623,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V15.1.0';
+var VERSAO='V15.1.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
