@@ -20,25 +20,26 @@
      Cores tiradas da própria marca: azul-marinho de base, verde-petróleo e teal
      como assinatura. Tudo no sistema lê destes tokens — mudar aqui muda todas
      as telas ao mesmo tempo, sem tocar em nenhuma função. */
-  --deep:#0B2B3B;            /* azul-marinho: barras e menu */
-  --deep-2:#0F3648;
-  --band:#E8F1F2; --band-2:#DCE9EB; --band-line:#D6E1E4;
-  --bg:#F3F7F8;              /* área de trabalho */
-  --panel:#FFF; --line:#D6E1E4; --line-2:#E8F1F2;
-  --ink:#17262F; --ink-2:#667780; --ink-3:#93A2AA;
-  --acc:#159A9C;             /* teal de destaque */
-  --acc-d:#0E7475;           /* verde-petróleo: ação principal */
-  --acc-l:#2FB6B7; --acc-soft:#E8F1F2;
-  --blue:#2C6FD1; --blue-soft:#EAF1FB;
-  --ok:#238A63; --ok-soft:#E6F3EE;
-  --red:#C94B4B; --red-soft:#FBECEC; --amber:#C88A27; --amber-soft:#FBF3E4;
-  --alt:#F7FAFA;
-  /* profundidade quase imperceptível: painel não flutua, apenas se separa do fundo */
-  --sh:0 1px 1px rgba(11,43,59,.04),0 1px 3px rgba(11,43,59,.05);
-  --sh2:0 18px 44px rgba(11,43,59,.16),0 2px 8px rgba(11,43,59,.07);
-  --r:8px;                   /* raio padrão dos componentes */
-  --r-s:6px;                 /* raio de botões e campos */
-  --t:170ms cubic-bezier(.4,0,.2,1);   /* animação padrão */
+  /* ---- PALETA NEXOR ----
+     Quatro cores, quatro trabalhos, e ninguém usa cor por decoração:
+       verde     — identidade e navegação (barras do sistema)
+       dourado   — a ação principal
+       azul      — o que se clica e o que informa
+       terracota — o que exige atenção
+     Fundo creme na área de trabalho, branco no conteúdo. */
+  --deep:#1E4634; --deep-2:#2A5C44;
+  --band:#FFFFFF; --band-2:#FFFFFF; --band-line:#EFE9DC;
+  --bg:#FAF6EF; --panel:#FFF; --line:#EAE4D9; --line-2:#F0EDE6;
+  --ink:#1F2A24; --ink-2:#6E7A72; --ink-3:#8A9089;
+  --acc:#A07D3C; --acc-d:#8A6A32; --acc-l:#B99A5E; --acc-soft:#FBF3E6;
+  --blue:#1C6E97; --blue-soft:#EDF5F9;
+  --ok:#3D6B4F; --ok-soft:#EFF3EC;
+  --red:#9A4A3C; --red-soft:#F6E6E2;
+  --amber:#8A6A32; --amber-soft:#FBF3E6;
+  --alt:#FBF8F2;
+  --sh:0 1px 1px rgba(31,42,36,.04),0 1px 3px rgba(31,42,36,.05);
+  --sh2:0 18px 44px rgba(31,42,36,.16),0 2px 8px rgba(31,42,36,.07);
+  --r:9px; --r-s:7px; --t:170ms cubic-bezier(.4,0,.2,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 
@@ -163,7 +164,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .hPwr{width:29px;height:26px;border:none;border-radius:6px;background:#B23A3A;color:#fff;cursor:pointer;
   display:flex;align-items:center;justify-content:center;margin-left:4px}
 
-.band{background:linear-gradient(180deg,#F6F9FC,var(--band-2));border-bottom:1px solid var(--band-line);flex:none;position:relative;z-index:40}
+.band{background:#FFFFFF;border-bottom:1px solid var(--band-line);flex:none;position:relative;z-index:40}
 .bandRow{display:flex;align-items:center;gap:4px;padding:6px 12px;overflow-x:auto;position:relative}
 .bandRow::-webkit-scrollbar{height:0}
 .mIco{position:relative;width:72px;padding:5px 3px 5px;border:1px solid transparent;border-radius:8px;background:none;
@@ -209,8 +210,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .wTitle b{font-size:13.5px;font-weight:600;color:var(--deep)}
 .wTitle span{font-size:11.5px;color:var(--ink-3)}
 #content{flex:1;overflow:hidden;display:flex;flex-direction:column}
-.stat{height:26px;background:linear-gradient(180deg,#F6F9FC,#E9EFF5);border-top:1px solid var(--line);
-  display:flex;align-items:center;gap:12px;padding:0 14px;font-size:11px;color:var(--ink-3);flex:none}
+.stat{height:26px;background:var(--deep);border-top:0;
+  display:flex;align-items:center;gap:12px;padding:0 14px;font-size:11px;color:#9CC4AF;flex:none}
+.stat b{color:#E8EFEA;font-weight:600}
 .stat b{color:var(--ink-2);font-weight:600}
 .stat .gw{flex:1}
 .stat .live{display:flex;align-items:center;gap:6px}
@@ -1244,18 +1246,26 @@ button.cxTag:hover{background:rgba(0,160,139,.26)}
 :root{
   /* Esta segunda folha reafinava as cores por cima da primeira e era ela que
      valia de verdade. Agora as duas falam a mesma língua: a paleta da marca. */
-  --acc:#159A9C; --acc-d:#0E7475; --acc-l:#2FB6B7; --acc-soft:#E8F1F2;
-  --blue:#2C6FD1; --blue-soft:#EAF1FB;
-  --ok:#238A63; --ok-soft:#E6F3EE;
-  --red:#C94B4B; --red-soft:#FBECEC;
-  --amber:#C88A27; --amber-soft:#FBF3E4;
-  --line:#D6E1E4; --line-2:#E8F1F2; --alt:#F7FAFA;
-  --ink:#17262F; --ink-2:#667780; --ink-3:#93A2AA;
-  --deep:#0B2B3B; --deep-2:#0F3648; --bg:#F3F7F8;
-  --band:#E8F1F2; --band-2:#DCE9EB; --band-line:#D6E1E4;
-  --sh:0 1px 1px rgba(11,43,59,.04),0 1px 3px rgba(11,43,59,.05);
-  --sh2:0 18px 44px rgba(11,43,59,.16),0 2px 8px rgba(11,43,59,.07);
-  --r:8px; --r-s:6px; --t:170ms cubic-bezier(.4,0,.2,1);
+  /* ---- PALETA NEXOR ----
+     Quatro cores, quatro trabalhos, e ninguém usa cor por decoração:
+       verde     — identidade e navegação (barras do sistema)
+       dourado   — a ação principal
+       azul      — o que se clica e o que informa
+       terracota — o que exige atenção
+     Fundo creme na área de trabalho, branco no conteúdo. */
+  --deep:#1E4634; --deep-2:#2A5C44;
+  --band:#FFFFFF; --band-2:#FFFFFF; --band-line:#EFE9DC;
+  --bg:#FAF6EF; --panel:#FFF; --line:#EAE4D9; --line-2:#F0EDE6;
+  --ink:#1F2A24; --ink-2:#6E7A72; --ink-3:#8A9089;
+  --acc:#A07D3C; --acc-d:#8A6A32; --acc-l:#B99A5E; --acc-soft:#FBF3E6;
+  --blue:#1C6E97; --blue-soft:#EDF5F9;
+  --ok:#3D6B4F; --ok-soft:#EFF3EC;
+  --red:#9A4A3C; --red-soft:#F6E6E2;
+  --amber:#8A6A32; --amber-soft:#FBF3E6;
+  --alt:#FBF8F2;
+  --sh:0 1px 1px rgba(31,42,36,.04),0 1px 3px rgba(31,42,36,.05);
+  --sh2:0 18px 44px rgba(31,42,36,.16),0 2px 8px rgba(31,42,36,.07);
+  --r:9px; --r-s:7px; --t:170ms cubic-bezier(.4,0,.2,1);
 }
 body{font-size:12.5px}
 
@@ -1715,6 +1725,12 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* azul: o que se clica e o que informa */
+.incNovo,.lnkAz,a.lnk{color:var(--blue)}
+table tbody tr:hover{background:var(--blue-soft)}
+.etTab tbody tr.sel,table tbody tr.sel{background:var(--blue-soft);
+  box-shadow:inset 3px 0 0 var(--blue)}
+.hint svg,.cfAviso svg{color:var(--blue)}
 .logo .logoIco{width:18px;height:18px;object-fit:contain;border-radius:4px;
   margin-right:7px;vertical-align:-4px}
 img.orb{object-fit:contain;background:transparent!important;border-radius:22%}
@@ -6654,18 +6670,26 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 :root{
   /* Esta segunda folha reafinava as cores por cima da primeira e era ela que
      valia de verdade. Agora as duas falam a mesma língua: a paleta da marca. */
-  --acc:#159A9C; --acc-d:#0E7475; --acc-l:#2FB6B7; --acc-soft:#E8F1F2;
-  --blue:#2C6FD1; --blue-soft:#EAF1FB;
-  --ok:#238A63; --ok-soft:#E6F3EE;
-  --red:#C94B4B; --red-soft:#FBECEC;
-  --amber:#C88A27; --amber-soft:#FBF3E4;
-  --line:#D6E1E4; --line-2:#E8F1F2; --alt:#F7FAFA;
-  --ink:#17262F; --ink-2:#667780; --ink-3:#93A2AA;
-  --deep:#0B2B3B; --deep-2:#0F3648; --bg:#F3F7F8;
-  --band:#E8F1F2; --band-2:#DCE9EB; --band-line:#D6E1E4;
-  --sh:0 1px 1px rgba(11,43,59,.04),0 1px 3px rgba(11,43,59,.05);
-  --sh2:0 18px 44px rgba(11,43,59,.16),0 2px 8px rgba(11,43,59,.07);
-  --r:8px; --r-s:6px; --t:170ms cubic-bezier(.4,0,.2,1);
+  /* ---- PALETA NEXOR ----
+     Quatro cores, quatro trabalhos, e ninguém usa cor por decoração:
+       verde     — identidade e navegação (barras do sistema)
+       dourado   — a ação principal
+       azul      — o que se clica e o que informa
+       terracota — o que exige atenção
+     Fundo creme na área de trabalho, branco no conteúdo. */
+  --deep:#1E4634; --deep-2:#2A5C44;
+  --band:#FFFFFF; --band-2:#FFFFFF; --band-line:#EFE9DC;
+  --bg:#FAF6EF; --panel:#FFF; --line:#EAE4D9; --line-2:#F0EDE6;
+  --ink:#1F2A24; --ink-2:#6E7A72; --ink-3:#8A9089;
+  --acc:#A07D3C; --acc-d:#8A6A32; --acc-l:#B99A5E; --acc-soft:#FBF3E6;
+  --blue:#1C6E97; --blue-soft:#EDF5F9;
+  --ok:#3D6B4F; --ok-soft:#EFF3EC;
+  --red:#9A4A3C; --red-soft:#F6E6E2;
+  --amber:#8A6A32; --amber-soft:#FBF3E6;
+  --alt:#FBF8F2;
+  --sh:0 1px 1px rgba(31,42,36,.04),0 1px 3px rgba(31,42,36,.05);
+  --sh2:0 18px 44px rgba(31,42,36,.16),0 2px 8px rgba(31,42,36,.07);
+  --r:9px; --r-s:7px; --t:170ms cubic-bezier(.4,0,.2,1);
 }
 body{font-size:12.5px}
 
@@ -7125,6 +7149,12 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* azul: o que se clica e o que informa */
+.incNovo,.lnkAz,a.lnk{color:var(--blue)}
+table tbody tr:hover{background:var(--blue-soft)}
+.etTab tbody tr.sel,table tbody tr.sel{background:var(--blue-soft);
+  box-shadow:inset 3px 0 0 var(--blue)}
+.hint svg,.cfAviso svg{color:var(--blue)}
 .logo .logoIco{width:18px;height:18px;object-fit:contain;border-radius:4px;
   margin-right:7px;vertical-align:-4px}
 img.orb{object-fit:contain;background:transparent!important;border-radius:22%}
@@ -14049,7 +14079,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V13.3.0';
+var VERSAO='V14.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

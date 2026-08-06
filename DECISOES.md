@@ -644,6 +644,27 @@ ela manda — a troca feita em outro aparelho continua valendo.
 Vale para 13 campos de ligação: categoria, subgrupo, grupo, conta, destino, fornecedor,
 forma de pagamento, conta destino, cliente, entregador, origem, caixa e motivo.
 
+## Paleta creme, verde, dourado e azul (V14.0.0)
+
+Só as cores mudaram — estrutura, telas e funções ficaram idênticas. **Quatro cores,
+quatro trabalhos, e ninguém usa cor por decoração:**
+
+| Cor | Token | Trabalho |
+|---|---|---|
+| Verde profundo `#1E4634` | `--deep` | identidade e navegação (barras do sistema) |
+| Dourado `#8A6A32` | `--acc-d` | a ação principal |
+| Azul petróleo `#1C6E97` | `--blue` | o que se clica e o que informa |
+| Terracota `#9A4A3C` | `--red` | o que exige atenção |
+
+Fundo creme `#FAF6EF` na área de trabalho, branco no conteúdo, bordas `#EAE4D9`.
+
+- O rodapé virou verde, fechando a tela como aplicativo em vez de página que rola
+- A faixa de módulos ficou branca, sem degradê
+- Azul entrou onde faltava cor com função: link, linha sob o mouse, linha selecionada,
+  ícone de aviso informativo
+
+A quinta cor é o limite: se aparecer uma sexta sem trabalho definido, a regra quebra.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
