@@ -511,6 +511,20 @@ o navegador inventava um símbolo genérico.
 - O "N" desenhado saiu dos três lugares que ainda o usavam: topo do sistema, marca da
   tela inicial e ícone na lista de aplicativos
 
+## Tela de acesso sem rolagem (V12.1.1)
+
+A causa da barra horizontal não estava no estilo novo: a regra **antiga** do `#login`
+sobreviveu no arquivo — `display:flex; padding:16px; min-height:100dvh` — e transformava
+a grade num item flex com folga, estourando a largura. Removida.
+
+- `minmax(560px, 41.75fr)` virou `minmax(0, 41.75fr)`: a coluna direita pode encolher
+- `100dvh` virou `height:100%` nos três painéis (o `dvh` somava com a barra do navegador)
+- O cartão deixou de rolar por dentro (`overflow:visible`) e o painel centraliza
+- Abaixo de 980px de largura, a marca sai e fica só o acesso
+- Título de 43px para 31px no máximo; campos de 68px para 54px; espaçamento entre campos
+  reduzido — as informações ficaram compactas sem perder a estética
+- **"Sistema disponível" removido**
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia
