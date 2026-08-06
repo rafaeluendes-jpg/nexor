@@ -463,6 +463,24 @@ sincronização o apagava. Sem `ref`, o bloco simplesmente não renderizava.
   então lançamentos antigos se consertam sozinhos ao serem abertos
 - O mesmo `ref` é usado pelo fechamento de caixa, que também deixa de perder o vínculo
 
+## Nenhuma janela do navegador sobrou (V11.10.0)
+
+A V11.2.0 trocou o `alert`. Faltava o `confirm`, que estava em **38 lugares** — e ele
+não dá para substituir por cima, porque o do navegador devolve o resultado na hora e o
+do Nexor precisa esperar a resposta.
+
+- `pergunta(msg, ok, tipo)` — mesma caixa do aviso, com dois botões. O tipo é deduzido
+  do texto: excluir/apagar/remover/limpar/sair abrem em vermelho
+- 35 funções viraram `async` e passaram a usar `await pergunta(...)`
+- As 3 restantes eram validações dentro de janelas, que devolvem `false` para impedir o
+  fechamento. Para elas, `modal()` passou a **esperar validação assíncrona**:
+  `if(f && typeof f.then==='function') f = await f`. Isso vale para qualquer janela do
+  sistema daqui em diante
+- O recibo do entregador, que perguntava depois de gravar, virou `.then()` — não precisa
+  segurar o retorno da janela
+
+Nenhuma chamada ao `confirm` do navegador restou no arquivo.
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

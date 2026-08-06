@@ -11063,12 +11063,12 @@ function infoRespaldo(){
   catch(e){ return null; }
 }
 /* volta o aparelho para a ultima copia boa, antes do ultimo download */
-function restaurarRespaldo(){
+async function restaurarRespaldo(){
   var raw=null;
   try{ raw=localStorage.getItem('nexor_respaldo'); }catch(e){}
   if(!raw){alert('Não há cópia local guardada neste aparelho.');return;}
   var i=infoRespaldo()||{};
-  if(!confirm('Voltar este aparelho para a cópia de '+
+  if(!await pergunta('Voltar este aparelho para a cópia de '+
     (i.quando?new Date(i.quando).toLocaleString('pt-BR'):'antes do último download')+'?\n\n'+
     'O que estiver na tela agora será substituído por essa cópia.\n'+
     'A nuvem não é tocada até você conferir e salvar.'))return;
@@ -12402,8 +12402,8 @@ document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&$('login').classList.contains('hide')){e.preventDefault();paleta();}
   if(e.key==='Escape'){var p=$('pal');if(p)p.remove();var m=$('mdOv');if(m)m.remove();fecharPops();fecharDrop();fecharSuc();}
 });
-function sair(){
-  if(!confirm('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
+async function sair(){
+  if(!await pergunta('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
   try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){}
   SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');
@@ -12554,7 +12554,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V11.9.0';
+var VERSAO='V11.10.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -12758,11 +12758,11 @@ function menuCat(ev,id){
   '<div class="popSep"></div>'+
   '<button class="rd" onclick="excluirCat(\''+id+'\');fecharPops()">'+sv('trash',15)+' Excluir categoria</button>');
 }
-function excluirCat(id){
+async function excluirCat(id){
   var qtd=DB.produtos.filter(function(p){return p.categoriaId===id}).length;
   if(qtd){toast('Esta categoria tem '+qtd+' produto(s). Mova-os antes de excluir.');return;}
   var c=DB.categorias.find(function(x){return x.id===id});
-  if(!confirm('Excluir a categoria "'+c.nome+'"?'))return;
+  if(!await pergunta('Excluir a categoria "'+c.nome+'"?'))return;
   DB.categorias=DB.categorias.filter(function(x){return x.id!==id});
   if(S.cat===id)S.cat='todos';
   salvar();renderCategorias();renderProdutos();toast('Categoria excluída.');
@@ -12908,9 +12908,9 @@ function duplicarProd(id){
   n.id=uid('prod');n.nome=p.nome+' (cópia)';n.ordem=DB.produtos.length;
   DB.produtos.push(n);salvar();renderProdutos();toast('Produto duplicado.');
 }
-function excluirProd(id){
+async function excluirProd(id){
   var p=DB.produtos.find(function(x){return x.id===id});
-  if(!confirm('Excluir o produto "'+p.nome+'"?'))return;
+  if(!await pergunta('Excluir o produto "'+p.nome+'"?'))return;
   DB.produtos=DB.produtos.filter(function(x){return x.id!==id});
   salvar();renderProdutos();toast('Produto excluído.');
 }
@@ -13284,9 +13284,9 @@ function lerOps(){
 }
 function addOp(){lerOps();_gops.push({nome:'',preco:0});renderOps();}
 function remOp(i){lerOps();_gops.splice(i,1);renderOps();}
-function excluirGrupo(id){
+async function excluirGrupo(id){
   var g=DB.grupos.find(function(x){return x.id===id});
-  if(!confirm('Excluir o grupo "'+g.nome+'"?'))return;
+  if(!await pergunta('Excluir o grupo "'+g.nome+'"?'))return;
   DB.grupos=DB.grupos.filter(function(x){return x.id!==id});
   DB.produtos.forEach(function(p){p.grupos=(p.grupos||[]).filter(function(x){return x!==id})});
   salvar();var m=$('mdOv');if(m)m.remove();abrirGrupos();toast('Grupo excluído.');
@@ -13309,16 +13309,16 @@ function exportarDados(){
     toast('Cópia baixada. Guarde este arquivo.');
   }catch(e){toast('Não foi possível gerar a cópia.');}
 }
-function importarDados(input){
+async function importarDados(input){
   var f=input.files&&input.files[0];
   if(!f)return;
   var r=new FileReader();
-  r.onload=function(){
+  r.onload=async function(){
     try{
       var p=JSON.parse(r.result);
       var d=p.dados||p;
       if(!d||(!d.produtos&&!d.categorias))throw new Error('formato');
-      if(!confirm('Isso substitui os dados atuais deste aparelho pelos do arquivo. Continuar?'))return;
+      if(!await pergunta('Isso substitui os dados atuais deste aparelho pelos do arquivo. Continuar?'))return;
       DB=d;
       DB.categorias=DB.categorias||[];DB.produtos=DB.produtos||[];
       DB.grupos=DB.grupos||[];DB.fichas=DB.fichas||[];
@@ -13731,7 +13731,7 @@ function copiarDiagnostico(){
   catch(e){prompt('Copie o texto abaixo:',t);}
 }
 async function puxarNuvem(){
-  if(!confirm('Isso substitui o que está neste aparelho pelos dados da nuvem. Continuar?'))return;
+  if(!await pergunta('Isso substitui o que está neste aparelho pelos dados da nuvem. Continuar?'))return;
   try{await baixarDaNuvem(true);fecharModal();telaCardapio();toast('Dados baixados da nuvem.');}
   catch(e){toast('Erro ao baixar: '+((e&&e.message)||''));}
 }
@@ -14067,9 +14067,9 @@ function obsItem(i){
   var t=prompt('Observação para "'+it.nome+'":',it.obs||'');
   if(t===null)return;it.obs=t;renderVenda();
 }
-function limparComanda(){
+async function limparComanda(){
   if(!PDV.comanda.length)return;
-  if(!confirm('Limpar todos os itens da comanda?'))return;
+  if(!await pergunta('Limpar todos os itens da comanda?'))return;
   PDV.comanda=[];renderVenda();
 }
 
@@ -14221,14 +14221,14 @@ function formCliente(id,telPre){
      '<div><div class="hint">Ticket médio</div><b style="font-size:17px">R$ '+money(c.compras?(c.gasto/c.compras):0)+'</b></div></div>'+
      '<div class="hint" style="margin-top:9px">Última compra: '+(c.ultima||'—')+'</div></div>':'')+
   '</div>';
-  modal(c?'Cliente':'Cadastrar cliente',h,'Salvar',function(){
+  modal(c?'Cliente':'Cadastrar cliente',h,'Salvar',async function(){
     var nome=$('clN').value.trim();
     var tel=$('clT').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
     if(soDigitos(tel).length<8){toast('Informe um telefone válido — é ele que identifica o cliente.');return false;}
     var dup=clientePorTel(tel);
     if(dup&&(!c||dup.id!==c.id)){
-      if(!confirm('Já existe um cliente com este telefone: "'+dup.nome+'".\nDeseja atualizar o cadastro dele em vez de criar outro?'))return false;
+      if(!await pergunta('Já existe um cliente com este telefone: "'+dup.nome+'".\nDeseja atualizar o cadastro dele em vez de criar outro?','Atualizar o cadastro'))return false;
       c=dup;
     }
     var o={nome:nome,tel:tel,rua:$('clR').value.trim(),numero:$('clNu').value.trim(),
@@ -15283,10 +15283,10 @@ function pendentesSemEntregador(){
   }).join('')+'</tbody></table></div></div>';
 }
 
-function tirarDoAcerto(pedId,entId){
+async function tirarDoAcerto(pedId,entId){
   var p=(DB.pedidos||[]).find(function(x){return x.id===pedId});
   if(!p)return;
-  if(!confirm('Remover o pedido #'+p.numero+' deste acerto?\n\nEle deixa de contar para o entregador.'))return;
+  if(!await pergunta('Remover o pedido #'+p.numero+' deste acerto?\n\nEle deixa de contar para o entregador.'))return;
   p.entregadorId=null;
   salvar();fecharModal();telaAcertoDet(entId);
   toast('Pedido #'+p.numero+' removido do acerto.');
@@ -15334,11 +15334,11 @@ function tornarPadrao(id){
   salvar();telaAcertos();
   toast(ent(id).nome+' agora é o padrão.'+(n?' '+n+' entrega(s) vinculada(s).':''));
 }
-function excluirEntregador(id){
+async function excluirEntregador(id){
   var e=ent(id);
   var pend=(DB.pedidos||[]).filter(function(p){return p.entregadorId===id&&!p.acertoId}).length;
   if(pend){toast('Este entregador tem '+pend+' entrega(s) sem acerto. Faça o acerto ou remova as entregas antes.');return;}
-  if(!confirm('Excluir o entregador "'+e.nome+'"?\n\nOs acertos já realizados continuam no histórico.'))return;
+  if(!await pergunta('Excluir o entregador "'+e.nome+'"?\n\nOs acertos já realizados continuam no histórico.'))return;
   DB.entregadores=DB.entregadores.filter(function(x){return x.id!==id});
   salvar();telaAcertos();toast('Entregador excluído.');
 }
@@ -15698,7 +15698,8 @@ function modalRealizarAcerto(entId){
     telaAcertos();
     toast('Acerto de R$ '+money(pago)+' pago via '+conta.nome+'. Lançado no financeiro.');
     setTimeout(function(){
-      if(confirm('Pagamento registrado.\n\nImprimir o recibo para o entregador assinar?'))reciboPago(ac.id);
+      pergunta('Pagamento registrado.\nImprimir o recibo para o entregador assinar?','Imprimir recibo','pergunta')
+        .then(function(v){ if(v)reciboPago(ac.id); });
     },250);
     return true;
   },'lg');
@@ -15944,10 +15945,10 @@ function modalPasta(id){
   });
   setTimeout(function(){var n=$('pfN');if(n)n.focus();},60);
 }
-function excluirPasta(id){
+async function excluirPasta(id){
   var p=DB.catfin.find(function(x){return x.id===id});
   var n=(p.itens||[]).length;
-  if(!confirm('Excluir a categoria "'+p.nome+'"'+(n?' e suas '+n+' subcategorias':'')+'?'))return;
+  if(!await pergunta('Excluir a categoria "'+p.nome+'"'+(n?' e suas '+n+' subcategorias':'')+'?'))return;
   DB.catfin=DB.catfin.filter(function(x){return x.id!==id});
   salvar();telaCatFin();toast('Categoria excluída.');
 }
@@ -15969,9 +15970,9 @@ function renomearSub(pid,k){
   novo=novo.trim();if(!novo)return;
   p.itens[k].nome=novo;salvar();telaCatFin();
 }
-function excluirSub(pid,k){
+async function excluirSub(pid,k){
   var p=DB.catfin.find(function(x){return x.id===pid});
-  if(!confirm('Excluir "'+p.itens[k].nome+'"?'))return;
+  if(!await pergunta('Excluir "'+p.itens[k].nome+'"?'))return;
   p.itens.splice(k,1);salvar();telaCatFin();
 }
 /* lista pronta para os lançamentos financeiros */
@@ -16073,12 +16074,12 @@ function modalConta(id){
     var n=$('cbN');if(n&&!n.value)n.value=banco(sel).n;
   };
 }
-function excluirConta(id){
+async function excluirConta(id){
   var c=DB.contas.find(function(x){return x.id===id});
   if(c.fixa){toast('Contas fixas do sistema não podem ser excluídas.');return;}
   var usos=(DB.lancamentos||[]).filter(function(l){return l.contaId===id}).length;
   if(usos){toast('Esta conta tem '+usos+' lançamento(s). Não é possível excluir.');return;}
-  if(!confirm('Excluir a conta "'+c.nome+'"?'))return;
+  if(!await pergunta('Excluir a conta "'+c.nome+'"?'))return;
   DB.contas=DB.contas.filter(function(x){return x.id!==id});
   salvar();telaContas();toast('Conta excluída.');
 }
@@ -16155,11 +16156,11 @@ function moverForma(id,d){
   lista.forEach(function(x,k){x.ordem=k});
   syncFormas();salvar();telaFormasPag();
 }
-function excluirForma(id){
+async function excluirForma(id){
   var f=formaPag(id);
   var usos=(DB.pedidos||[]).filter(function(p){return (p.pagamentos||[]).some(function(x){return x.forma===id})}).length;
   if(usos){toast('Esta forma já foi usada em '+usos+' pedido(s). Inative em vez de excluir.');return;}
-  if(!confirm('Excluir a forma "'+f.nome+'"?'))return;
+  if(!await pergunta('Excluir a forma "'+f.nome+'"?'))return;
   DB.formasPag=DB.formasPag.filter(function(x){return x.id!==id});
   syncFormas();salvar();telaFormasPag();toast('Forma excluída.');
 }
@@ -16708,7 +16709,7 @@ function modalPagamento(ids){
   });
   setTimeout(recalcPagamento,60);
 }
-function excluirLanc(id){
+async function excluirLanc(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(l.conciliado){toast('Movimento conciliado — não pode ser excluído. Desconcilie primeiro.');return;}
   /* lancamento de nota de entrada cuja nota ainda existe:
@@ -16716,7 +16717,7 @@ function excluirLanc(id){
   var nota=(l.origem==='nota-entrada'&&l.ref)
     ?(DB.notas||[]).find(function(x){return x.id===l.ref}):null;
   if(nota){
-    if(!confirm('Este boleto pertence à nota '+nota.numero+' ('+nota.fornecedorNome+'), que continua lançada.\n\n'+
+    if(!await pergunta('Este boleto pertence à nota '+nota.numero+' ('+nota.fornecedorNome+'), que continua lançada.\n\n'+
       'Ele será REMOVIDO do financeiro e registrado em\n'+
       'Gestão Financeira › Compras sem Vínculo — com data, hora e usuário.\n\n'+
       'Para excluir a compra inteira, exclua a NOTA em Notas de Entrada.\n\nContinuar?'))return;
@@ -16726,7 +16727,7 @@ function excluirLanc(id){
     toast('Boleto movido para Compras sem Vínculo.');
     return;
   }
-  if(!confirm('Excluir "'+(l.descricao||'lançamento')+'"?'))return;
+  if(!await pergunta('Excluir "'+(l.descricao||'lançamento')+'"?'))return;
   DB.lancFin=DB.lancFin.filter(function(x){return x.id!==id});
   salvar();telaLancamentos();toast('Lançamento excluído.');
 }
@@ -16833,10 +16834,10 @@ function verSemVinc(id){
    '<button class="btnP2 ok" onclick="relancarSemVinc(\''+c.id+'\')">Relançar no financeiro</button></div></div>';
   document.body.appendChild(o);
 }
-function relancarSemVinc(id){
+async function relancarSemVinc(id){
   var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
   if(!c)return;
-  if(!confirm('Relançar o boleto de R$ '+money(c.valor)+' no financeiro?\n\n'+
+  if(!await pergunta('Relançar o boleto de R$ '+money(c.valor)+' no financeiro?\n\n'+
     'Ele volta como conta a pagar e sai desta lista.'))return;
   var lc=c.lanc||{};
   DB.lancFin=DB.lancFin||[];
@@ -17138,7 +17139,7 @@ function marcarPago(id){
 }
 async function excluirCN(id){
   var c=DB.clientesNexor.find(function(x){return x.id===id});if(!c)return;
-  if(!confirm('Excluir o cliente "'+c.rede+'" da sua carteira?\n\nIsto não apaga o sistema nem os dados dele.'))return;
+  if(!await pergunta('Excluir o cliente "'+c.rede+'" da sua carteira?\n\nIsto não apaga o sistema nem os dados dele.'))return;
   DB.clientesNexor=DB.clientesNexor.filter(function(x){return x.id!==id});
   salvar();telaClientesNexor();toast('Cliente removido da carteira.');
 }
@@ -17318,9 +17319,9 @@ function salvarUnidade(redeId,sucId){
   }
   salvar();fecharModal();telaInstalacao();toast('Unidade salva.');
 }
-function apagarUnidade(redeId,sucId){
+async function apagarUnidade(redeId,sucId){
   var x=(DB.sucursais||[]).find(function(z){return z.id===sucId});if(!x)return;
-  if(!confirm('Excluir a unidade "'+x.nome+'" e o acesso dela?\n\nOs dados já lançados nela não são apagados.'))return;
+  if(!await pergunta('Excluir a unidade "'+x.nome+'" e o acesso dela?\n\nOs dados já lançados nela não são apagados.'))return;
   DB.sucursais=DB.sucursais.filter(function(z){return z.id!==sucId});
   DB.usuarios=(DB.usuarios||[]).filter(function(z){return (z.sucursais||[]).indexOf(sucId)<0});
   salvar();telaInstalacao();toast('Unidade removida.');
@@ -18658,9 +18659,9 @@ function conciliarSelecionadas(){
   toast(n+' movimento(s) conciliado(s). Eles ficam travados nos lançamentos.');
 }
 function podeDesconciliar(){return true}
-function desconciliar(id){
+async function desconciliar(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
-  if(!confirm('Desconciliar "'+l.descricao+'"?\n\nEle volta a ficar editável nos lançamentos financeiros.'))return;
+  if(!await pergunta('Desconciliar "'+l.descricao+'"?\n\nEle volta a ficar editável nos lançamentos financeiros.'))return;
   l.conciliado=false;l.dataConc='';
   salvar();telaConciliacao();toast('Movimento desconciliado.');
 }
@@ -18789,11 +18790,11 @@ function modalForn(id){
     salvar();telaFornecedores();toast('Fornecedor salvo.');return true;
   },'lg');
 }
-function excluirForn(id){
+async function excluirForn(id){
   var f=DB.fornec.find(function(x){return x.id===id});
   var usos=(DB.lancFin||[]).filter(function(l){return l.fornecedorId===id}).length;
   if(usos){toast('Este fornecedor tem '+usos+' lançamento(s). Não é possível excluir.');return;}
-  if(!confirm('Excluir "'+f.empresa+'"?'))return;
+  if(!await pergunta('Excluir "'+f.empresa+'"?'))return;
   DB.fornec=DB.fornec.filter(function(x){return x.id!==id});
   salvar();telaFornecedores();toast('Fornecedor excluído.');
 }
@@ -19305,13 +19306,13 @@ function formCliente2(id){
   '<div class="hint">Zero significa que o cliente não pode comprar fiado.</div></div>'+
   '<div class="fld2" style="margin:0"><label>Observações</label><input id="k2O" value="'+E(c?c.obs:'')+'"></div></div>'+
   '</div></div>';
-  modal(c?'Editar cliente':'Novo cliente',h,'Salvar',function(){
+  modal(c?'Editar cliente':'Novo cliente',h,'Salvar',async function(){
     var nome=$('k2N').value.trim(),tel=$('k2T').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
     if(soDigitos(tel).length<8){toast('Informe um telefone válido — é ele que identifica o cliente.');return false;}
     var dup=clientePorTel(tel);
     if(dup&&(!c||dup.id!==c.id)){
-      if(!confirm('Já existe um cliente com este telefone: "'+dup.nome+'".\nAtualizar o cadastro dele?'))return false;
+      if(!await pergunta('Já existe um cliente com este telefone: "'+dup.nome+'".\nAtualizar o cadastro dele?','Atualizar o cadastro'))return false;
       c=dup;
     }
     var o={nome:nome,tel:tel,cpf:$('k2C').value.trim(),nascimento:$('k2A').value,
@@ -19594,11 +19595,11 @@ function copiarCupom(id){
       function(){prompt('Copie o texto:',txt)});
   }else prompt('Copie o texto:',txt);
 }
-function excluirCupom(id){
+async function excluirCupom(id){
   var cp=DB.cupons.find(function(x){return x.id===id});
   var u=usosDoCupom(id).length;
   if(u){toast('Este cupom já foi usado '+u+' vez(es). Inative em vez de excluir.');return;}
-  if(!confirm('Excluir o cupom "'+cp.codigo+'"?'))return;
+  if(!await pergunta('Excluir o cupom "'+cp.codigo+'"?'))return;
   DB.cupons=DB.cupons.filter(function(x){return x.id!==id});
   salvar();telaCupons();toast('Cupom excluído.');
 }
@@ -20056,12 +20057,12 @@ function salvarInsumo(id,copia){
   }
   toast('Ingrediente salvo.');
 }
-function excluirInsumo(id){
+async function excluirInsumo(id){
   var usos=(DB.fichas||[]).filter(function(f){
     return (f.itens||[]).some(function(it){return it.insumoId===id})});
   if(usos.length){toast('Este item está em '+usos.length+' ficha(s): '+usos.map(function(f){return f.nome}).slice(0,3).join(', ')+'.');return;}
   var i=insumo(id);
-  if(!confirm('Excluir "'+i.nome+'"?'))return;
+  if(!await pergunta('Excluir "'+i.nome+'"?'))return;
   DB.insumos=DB.insumos.filter(function(x){return x.id!==id});
   salvar();telaInsumos();toast('Ingrediente excluído.');
 }
@@ -20177,11 +20178,11 @@ function modalGrupoIng(id){
     salvar();telaGruposIng();toast('Grupo salvo.');return true;
   },'sm2');
 }
-function excluirGrupoIng(id){
+async function excluirGrupoIng(id){
   var q=(DB.insumos||[]).filter(function(i){return i.grupoId===id}).length;
   if(q){toast('Este grupo tem '+q+' ingrediente(s). Mova-os antes de excluir.');return;}
   var g=grupoIng(id);
-  if(!confirm('Excluir o grupo "'+g.nome+'"?'))return;
+  if(!await pergunta('Excluir o grupo "'+g.nome+'"?'))return;
   DB.gruposIng=DB.gruposIng.filter(function(x){return x.id!==id});
   salvar();telaGruposIng();toast('Grupo excluído.');
 }
@@ -20462,12 +20463,12 @@ async function baixarEVincular(){
   corrigirVinculos();
 }
 function editarSel(){if(!FT.sel){toast('Selecione um produto.');return;}modalFicha(FT.sel);}
-function excluirSel(){
+async function excluirSel(){
   if(!FT.sel){toast('Selecione um produto.');return;}
   var f=DB.fichas.find(function(x){return x.id===FT.sel});
   var uso=(DB.produtos||[]).filter(function(p){return p.fichaId===f.id}).length;
   if(uso){toast('Vinculado a '+uso+' produto(s) do cardápio.');return;}
-  if(!confirm('Excluir "'+f.nome+'"?'))return;
+  if(!await pergunta('Excluir "'+f.nome+'"?'))return;
   DB.fichas=DB.fichas.filter(function(x){return x.id!==FT.sel});
   FT.sel=null;salvar();telaFichaTecnica();toast('Excluído.');
 }
@@ -20503,10 +20504,10 @@ function modalCatFicha(id){
     salvar();telaFichaTecnica();return true;
   },'sm2');
 }
-function excluirCatFicha(id){
+async function excluirCatFicha(id){
   var q=(DB.fichas||[]).filter(function(f){return f.categoriaId===id}).length;
   if(q){toast('Este grupo tem '+q+' produto(s).');return;}
-  if(!confirm('Excluir o grupo?'))return;
+  if(!await pergunta('Excluir o grupo?'))return;
   DB.fichaCats=DB.fichaCats.filter(function(x){return x.id!==id});
   salvar();telaFichaTecnica();
 }
@@ -20524,11 +20525,11 @@ function renSubFicha(cid,k){
   if(novo===null)return;novo=novo.trim();if(!novo)return;
   c.subs[k].nome=novo;salvar();telaFichaTecnica();
 }
-function delSubFicha(cid,k){
+async function delSubFicha(cid,k){
   var c=catFicha(cid);
   var q=(DB.fichas||[]).filter(function(f){return f.subgrupoId===c.subs[k].id}).length;
   if(q){toast('Este subgrupo tem '+q+' produto(s).');return;}
-  if(!confirm('Excluir "'+c.subs[k].nome+'"?'))return;
+  if(!await pergunta('Excluir "'+c.subs[k].nome+'"?'))return;
   c.subs.splice(k,1);salvar();telaFichaTecnica();
 }
 
@@ -21211,14 +21212,14 @@ function modalMotivo(id){
     salvar();telaCfgMovimentacao();toast('Motivo salvo.');return true;
   },'sm2');
 }
-function excluirMotivo(id){
+async function excluirMotivo(id){
   var m=motivo(id);
   var q=(DB.movEst||[]).filter(function(x){return x.motivoId===id}).length;
   if(q){toast('Este motivo tem '+q+' lançamento(s). Inative em vez de excluir.');return;}
   if(m&&m.sistema){
-    if(!confirm('"'+m.nome+'" é usado automaticamente pelas vendas do PDV.\n\n'+
+    if(!await pergunta('"'+m.nome+'" é usado automaticamente pelas vendas do PDV.\n\n'+
       'Excluindo, as vendas deixam de gerar baixa de estoque. Continuar?'))return;
-  }else if(!confirm('Excluir o motivo "'+nomeMotivo(id)+'"?'))return;
+  }else if(!await pergunta('Excluir o motivo "'+nomeMotivo(id)+'"?'))return;
   DB.motivosMov=DB.motivosMov.filter(function(x){return x.id!==id});
   salvar();telaCfgMovimentacao();toast('Motivo excluído.');
 }
@@ -22447,7 +22448,7 @@ function preencherContagem(){
   telaContagem();
   toast('Preenchido com o estoque do sistema — ajuste o que estiver diferente.');
 }
-function fecharContagem(){
+async function fecharContagem(){
   baseMov();
   var linhas=[],det=[],perda=0,ganho=0;
   itensEstoque().forEach(function(i){
@@ -22466,7 +22467,7 @@ function fecharContagem(){
       sistema:sis,conferido:conf,diferenca:d});
   });
   if(!det.length){toast('Informe a quantidade conferida de ao menos um item.');return;}
-  if(!confirm('Finalizar a contagem?\n\n'+det.length+' item(ns) conferido(s), '+linhas.length+' com diferença.\n'+
+  if(!await pergunta('Finalizar a contagem?\n\n'+det.length+' item(ns) conferido(s), '+linhas.length+' com diferença.\n'+
     'Sobra R$ '+money(ganho)+' · Perda R$ '+money(Math.abs(perda))+'\n\n'+
     'O estoque será ajustado e o lançamento vai para a movimentação.'))return;
   var ag=new Date();
@@ -23007,8 +23008,8 @@ async function zerarEstoqueTudo(){
   salvar();telaReset();
   toast('Estoque zerado. O cardápio continua intacto.');
 }
-function limparDemo(){
-  if(!confirm('Apagar os ingredientes e sabores de demonstração?'))return;
+async function limparDemo(){
+  if(!await pergunta('Apagar os ingredientes e sabores de demonstração?'))return;
   var idsF=(DB.fichas||[]).filter(function(f){return f.demo}).map(function(f){return f.id});
   var idsI=(DB.insumos||[]).filter(function(i){return i.demo}).map(function(i){return i.id});
   DB.fichas=(DB.fichas||[]).filter(function(f){return !f.demo});
@@ -23020,8 +23021,8 @@ function limparDemo(){
   autorizarEsvaziar();
   salvar();telaReset();toast('Dados de demonstração apagados.');
 }
-function zerarMovimento(){
-  if(!confirm('Apagar todo o movimento?\n\nPedidos, caixas, movimentações de estoque, contagens e lançamentos financeiros serão removidos.\nOs cadastros continuam.'))return;
+async function zerarMovimento(){
+  if(!await pergunta('Apagar todo o movimento?\n\nPedidos, caixas, movimentações de estoque, contagens e lançamentos financeiros serão removidos.\nOs cadastros continuam.'))return;
   DB.pedidos=[];DB.caixas=[];DB.movEst=[];DB.contagens=[];DB.lancFin=[];
   DB.fiadoMov=[];DB.cupomUsos=[];DB.acertos=[];
   autorizarEsvaziar();
@@ -23029,9 +23030,9 @@ function zerarMovimento(){
   (DB.clientes||[]).forEach(function(c){c.compras=0;c.gasto=0;c.saldoFiado=0;c.ultima='';});
   salvar();telaReset();toast('Movimento zerado.');
 }
-function resetTotal(){
-  if(!confirm('REINICIAR O SISTEMA?\n\nTudo será apagado: cardápio, fichas, estoque, financeiro, clientes e configurações.'))return;
-  if(!confirm('Tem certeza absoluta?\n\nEsta ação não pode ser desfeita.'))return;
+async function resetTotal(){
+  if(!await pergunta('REINICIAR O SISTEMA?\n\nTudo será apagado: cardápio, fichas, estoque, financeiro, clientes e configurações.'))return;
+  if(!await pergunta('Tem certeza absoluta?\n\nEsta ação não pode ser desfeita.'))return;
   try{localStorage.removeItem('nexor_dados');}catch(e){}
   location.reload();
 }
@@ -25625,10 +25626,10 @@ function gerarVendasDemo(){
   telaGerarDemo();
   toast(criados+' vendas e '+movs+' movimentações criadas nos últimos '+meses+' meses.');
 }
-function apagarVendasDemo(){
+async function apagarVendasDemo(){
   var q=(DB.pedidos||[]).filter(function(p){return p.demo}).length;
   var m=(DB.movEst||[]).filter(function(x){return x.demo}).length;
-  if(!confirm('Apagar '+q+' venda(s) e '+m+' movimentação(ões) de demonstração?\n\n'+
+  if(!await pergunta('Apagar '+q+' venda(s) e '+m+' movimentação(ões) de demonstração?\n\n'+
     'Os cadastros criados junto (produtos, clientes) também serão removidos.'))return;
   (DB.movEst||[]).filter(function(x){return x.demo}).forEach(function(x){
     try{aplicarMovimento(x,true);}catch(e){}
@@ -25686,6 +25687,22 @@ function aviso(msg,titulo,tipo){
 }
 /* qualquer alert() do sistema passa a abrir a janela do Nexor */
 window.alert=function(m){ try{aviso(m)}catch(e){console.log(m)} };
+/* Pergunta de sim/nao no padrao do Nexor, no lugar da caixa cinza do navegador.
+   Mesma caixa do aviso, com dois botoes. */
+function pergunta(msg,ok,tipo){
+  var txt=String(msg==null?'':msg);
+  var linhas=txt.split('\n');
+  var t=(linhas.length>1&&linhas[0].length<=70)?linhas.shift():'';
+  var corpo=linhas.join('\n').replace(/^\n+|\n+$/g,'');
+  if(!t){t=corpo;corpo='';}
+  return confirmar({
+    titulo:t||'Confirmar',
+    texto:'',
+    aviso:corpo?E(corpo).replace(/\n/g,'<br>'):'',
+    ok:ok||'Confirmar',
+    tipo:tipo||(/excluir|apagar|remover|substitui|limpar|sair/i.test(txt)?'perigo':'pergunta')
+  });
+}
 function confirmar(op){
   /* op: {titulo, texto, linhas:[[rotulo,valor,cor]], aviso, ok, cancelar, tipo, aoConfirmar} */
   return new Promise(function(resolve){
@@ -30121,7 +30138,11 @@ function modal(titulo,corpo,btn,onOk,tam){
   '<button class="btn p" id="mdOk">'+E(btn)+'</button></div></div>';
   document.body.appendChild(o);
   fecharSoForaDeVerdade(o);
-  $('mdOk').onclick=function(){var f=onOk?onOk():true;if(f!==false)fecharModal();};
+  $('mdOk').onclick=async function(){
+    var f=onOk?onOk():true;
+    if(f&&typeof f.then==='function')f=await f;   /* validação pode perguntar antes */
+    if(f!==false)fecharModal();
+  };
 }
 /* fechar ao clicar fora só vale se o clique nasceu fora.
    Antes, arrastar para selecionar um valor dentro do campo fechava a janela
