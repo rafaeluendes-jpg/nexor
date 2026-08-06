@@ -704,6 +704,19 @@ Duas entradas saíram da lista por já existirem: **Usuários e Permissões** e
   mouse** — ninguém encontrava. Agora ficam visíveis, com opacidade reduzida, e cheios
   ao passar o mouse ou no grupo ativo
 
+## O aviso da leitura da nuvem passou a dizer onde parou (V15.1.0)
+
+O aviso de download interrompido era genérico — "tente de novo quando a internet
+estabilizar" — e não dava como diagnosticar nada. Agora:
+
+- `api()` carrega no erro **a tabela** e o status, e distingue **queda de rede**
+  (o `fetch` falha) de **erro do banco** (resposta com status ruim)
+- Queda de rede: **tenta de novo sozinho** depois de 900ms antes de reclamar, e o texto
+  fala de internet
+- Erro do banco: o aviso nomeia a tabela e repete a mensagem exata do banco, e pede que
+  seja enviada — é ela que resolve em minutos. Não há repetição automática, porque erro
+  de dado não melhora tentando de novo
+
 ## Ordem dos relatórios (definida por Rafael)
 
 1. Faturamento por Dia

@@ -11375,8 +11375,20 @@ async function api(caminho,metodo,corpo,extra,_repetiu){
   var h={'apikey':NUVEM.chave,'Content-Type':'application/json'};
   if(NUVEM.token)h['Authorization']='Bearer '+NUVEM.token;
   if(extra)for(var k in extra)h[k]=extra[k];
-  var r=await fetch(NUVEM.url+'/rest/v1/'+caminho,{method:metodo||'GET',headers:h,
-    body:corpo?JSON.stringify(corpo):undefined});
+  var tab=String(caminho).split('?')[0];
+  var r;
+  try{
+    r=await fetch(NUVEM.url+'/rest/v1/'+caminho,{method:metodo||'GET',headers:h,
+      body:corpo?JSON.stringify(corpo):undefined});
+  }catch(eRede){
+    /* fetch só falha assim quando a rede caiu: vale uma segunda tentativa */
+    if(!_repetiu){
+      await new Promise(function(ok){setTimeout(ok,900)});
+      return api(caminho,metodo,corpo,extra,true);
+    }
+    var e1=new Error('sem conexão com a nuvem');
+    e1.tabela=tab;e1.rede=true;throw e1;
+  }
   var t=await r.text();
   var d=null;
   try{ d=t?JSON.parse(t):null; }catch(e){ d=null; }
@@ -11386,7 +11398,9 @@ async function api(caminho,metodo,corpo,extra,_repetiu){
       await tokenAtual(true);
       return api(caminho,metodo,corpo,extra,true);
     }
-    throw new Error((d&&(d.message||d.hint))||('erro '+r.status));
+    var e2=new Error((d&&(d.message||d.hint))||('erro '+r.status));
+    e2.tabela=tab;e2.status=r.status;
+    throw e2;
   }
   return d;
 }
@@ -12142,12 +12156,16 @@ async function baixarDaNuvem(forcar){
   /* ---- o download parou no meio: desfaz tudo e mantém o aparelho como estava ---- */
   if(_falhou){
     Object.keys(_antesDB).forEach(function(k){ DB[k]=_antesDB[k]; });
-    logNuvem('download interrompido ('+((_falhou&&_falhou.message)||'erro')+
-      ') — nada foi alterado neste aparelho',true);
+    var ondeT=(_falhou&&_falhou.tabela)?_falhou.tabela.replace(/_/g,' '):'';
+    var pqT=(_falhou&&_falhou.message)||'erro';
+    logNuvem('download interrompido em '+(ondeT||'?')+': '+pqT+
+      ' — nada foi alterado neste aparelho',true);
     statusNuvem('erro','download incompleto — seus dados locais foram preservados');
-    avisoSinc('O sistema não conseguiu terminar de baixar da nuvem. '+
-      'Nada foi apagado aqui — o que você lançou continua neste aparelho. '+
-      'Tente de novo quando a internet estabilizar.');
+    avisoSinc((_falhou&&_falhou.rede)
+      ? 'A internet caiu no meio da leitura da nuvem. Nada foi apagado aqui — o que você '+
+        'lançou continua neste aparelho, e o sistema tenta de novo sozinho em instantes.'
+      : 'A leitura da nuvem parou em "'+(ondeT||'—')+'": '+pqT+'. '+
+        'Nada foi apagado aqui. Me mande esta mensagem que eu corrijo.');
     return false;
   }
 
@@ -12580,7 +12598,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V15.0.0';
+var VERSAO='V15.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
