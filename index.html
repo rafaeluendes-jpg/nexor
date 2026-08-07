@@ -11087,7 +11087,6 @@ var MOD=[
  {id:'cfg-gerente',n:'Assistente Nexor'},
  {id:'cfg-dre',n:'Configuração do DRE'},
  {id:'dados-fiscais',n:'Dados Fiscais'},
- {id:'cfg-entregador',n:'Configuração do Entregador'},
  {id:'modelo-impressao',n:'Modelo de Impressão'},
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
  {id:'status-vendas',n:'Status de Vendas'},
@@ -12984,7 +12983,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.9.3';
+var VERSAO='V18.9.4';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13105,6 +13104,8 @@ if(mid==='loja'&&iid==='cfg-gerente')return telaGerente();
 /* Operadores virou Usuários e Permissões: um cadastro só, com login,
    senha e as telas que cada pessoa enxerga. */
 if(mid==='loja'&&iid==='cfg-operadores')return abrir('loja','usuarios-permissoes');
+/* o cadastro e as regras do entregador moram em Acerto com Entregadores */
+if(mid==='loja'&&iid==='cfg-entregador')return abrir('financeira','acerto-entregadores');
 if(mid==='loja'&&iid==='usuarios-permissoes')return telaUsuarios();
 if(mid==='dashboard'&&iid==='canais-venda')return telaCanaisVenda();
 if(mid==='dashboard'&&iid==='faturamento')return telaFaturamento();
@@ -28169,8 +28170,6 @@ var AFAZER={
    'Cupons usados no período, quanto de desconto cada um gerou e quantos clientes novos trouxe.'],
  'loja/dados-fiscais':['Dados Fiscais',
    'Regime tributário, CNPJ, certificado e a integração com o emissor de nota.'],
- 'loja/cfg-entregador':['Configuração de Entregadores',
-   'Diária, comissão por entrega e regras de acerto.'],
  'loja/modelo-impressao':['Modelo de Impressão',
    'Como sai o cupom e a comanda da cozinha, com prévia.'],
  'loja/motivo-cancelamento':['Motivos de Cancelamento',
