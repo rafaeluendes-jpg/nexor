@@ -12821,7 +12821,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V17.0.0';
+var VERSAO='V17.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29575,8 +29575,13 @@ function baseGerente(){
       avisaAbertura:true,avisaFechamento:true,avisaCancelamento:true,
       avisaSangria:true,avisaDivergencia:true,
       limiteDivergencia:5,
-      /* assistente: perguntas do gestor e envio do relatório */
-      assistente:true,emailRel:'',freqRel:'semanal'
+      /* Assistente Nexor — canal próprio, separado do robô do cardápio */
+      assistente:true,
+      assNome:'',          /* como ela se apresenta nesta loja */
+      assZap:'',           /* o número da assistente (API oficial da Meta) */
+      donoNome:'',donoZap:'',   /* quem recebe e conversa com ela */
+      relZap:'',           /* WhatsApp da franqueadora que recebe o relatório */
+      emailRel:'',freqRel:'semanal'
     };
   });
   return DB.gerente;
@@ -29793,11 +29798,27 @@ function telaGerente(){
      '<span><b>Responder perguntas do gestor</b><span>faturamento do dia, saldo de um '+
      'item, o que precisa comprar, boletos a vencer — e cobrar as rotinas</span></span></label>'+
     '<div class="row2" style="margin-top:12px">'+
-     '<div class="fld2"><label>E-mail que recebe o relatório</label>'+
+     '<div class="fld2"><label>Nome da assistente nesta loja</label>'+
+      '<input id="geAssN" value="'+E(g.assNome||'')+'" placeholder="ex: Adilson, Maria"></div>'+
+     '<div class="fld2"><label>WhatsApp da assistente</label>'+
+      '<input id="geAssZ" value="'+E(g.assZap||'')+'" placeholder="o número do sistema"></div>'+
+    '</div>'+
+    '<div class="row2">'+
+     '<div class="fld2"><label>Nome do dono da loja</label>'+
+      '<input id="geDonoN" value="'+E(g.donoNome||'')+'" placeholder="quem conversa com ela"></div>'+
+     '<div class="fld2"><label>WhatsApp do dono da loja</label>'+
+      '<input id="geDonoZ" value="'+E(g.donoZap||g.tel||'')+'" placeholder="só este número recebe"></div>'+
+    '</div>'+
+    '<div class="cfgSep" style="margin:14px 0 0">Relatório para a franqueadora</div>'+
+    '<div class="row2" style="margin-top:10px">'+
+     '<div class="fld2"><label>WhatsApp da franqueadora</label>'+
+      '<input id="geRelZ" value="'+E(g.relZap||'')+'" placeholder="recebe o PDF pela assistente"></div>'+
+     '<div class="fld2"><label>E-mail (opcional)</label>'+
       '<input id="geEmail" value="'+E(g.emailRel||'')+'" placeholder="franqueadora@empresa.com"></div>'+
-     '<div class="fld2" style="max-width:200px"><label>Frequência</label>'+
+     '<div class="fld2" style="max-width:200px"><label>Enviar a cada</label>'+
       '<select id="geFreq">'+
-       ['diaria|Todo dia','tresdias|A cada 3 dias','semanal|Toda semana','mensal|Todo mês']
+       ['diaria|1 dia','tresdias|3 dias','quatrodias|4 dias','cincodias|5 dias',
+        'semanal|7 dias','mensal|30 dias']
         .map(function(o){var p=o.split('|');
           return '<option value="'+p[0]+'"'+((g.freqRel||'semanal')===p[0]?' selected':'')+'>'+p[1]+'</option>';})
         .join('')+
@@ -29826,8 +29847,12 @@ async function publicarAssistente(suc){
   try{
     await api('whatsapp_config?on_conflict=sucursal_id','POST',[{
       loja_id:NUVEM.loja,sucursal_id:suc,
-      gestor_nome:g.nome||null,
-      gestor_zap:soDigitos(g.tel||'')||null,
+      gestor_nome:g.donoNome||g.nome||null,
+      gestor_zap:soDigitos(g.donoZap||g.tel||'')||null,
+      assistente_nome:g.assNome||null,
+      assistente_zap:soDigitos(g.assZap||'')||null,
+      relatorio_zap:soDigitos(g.relZap||'')||null,
+      relatorio_freq:g.freqRel||'semanal',
       assistente_ativa:!!(g.ativo&&g.assistente!==false)
     }],{'Prefer':'resolution=merge-duplicates'});
     logNuvem('assistente publicada para o robô');
@@ -29877,6 +29902,11 @@ function salvarGerente(){
   g.avisaCancelamento=$('geCa').checked;
   g.avisaSangria=$('geSa').checked;
   if($('geAss'))g.assistente=$('geAss').checked;
+  if($('geAssN'))g.assNome=$('geAssN').value.trim();
+  if($('geAssZ'))g.assZap=$('geAssZ').value.trim();
+  if($('geDonoN'))g.donoNome=$('geDonoN').value.trim();
+  if($('geDonoZ')){g.donoZap=$('geDonoZ').value.trim();g.tel=g.donoZap;}
+  if($('geRelZ'))g.relZap=$('geRelZ').value.trim();
   if($('geEmail'))g.emailRel=$('geEmail').value.trim();
   if($('geFreq'))g.freqRel=$('geFreq').value;
   salvar();
