@@ -797,3 +797,39 @@ tela cheia, sem escolher loja, botões maiores, volta ao início sozinho.
    instalado na máquina. É a parte cara e demorada.
 
 **Ordem sugerida:** depois de usuários e permissões.
+
+## Chave do robô: fechada dos dois lados (V17.3.0)
+
+O robô do WhatsApp estava **aberto**. A exigência de chave dependia da variável
+`EXIGIR_CHAVE=sim` no Render, que nunca foi ligada — então `protege` deixava tudo
+passar. Quem descobrisse o endereço do Render conseguia mandar mensagem pelo WhatsApp
+das lojas e derrubar as conexões. E a chave que o sistema enviava (`NexorZap2026`)
+estava escrita dentro do `index.html`, num repositório público.
+
+**No robô (`server.js`):**
+
+- A chave passou a ser exigida **sempre que existir chave configurada**. Só fica aberto
+  quem não configurou nenhuma — e agora isso aparece no log da inicialização
+- `CORS` deixou de aceitar qualquer origem: só os domínios do Nexor e `localhost`
+- `/diagnostico`, `/envios` e `/testeia` estavam **sem proteção**. `/diagnostico`
+  mostrava os números conectados e os nomes das variáveis de ambiente; `/envios` listava
+  telefones de clientes. Os três passaram por `protege`, e a lista de variáveis saiu
+  da resposta
+- Freio de **20 envios por minuto por loja**, porque o WhatsApp bane número que dispara
+  em rajada
+
+**No sistema (`index.html`):**
+
+- `ZAP_KEY` saiu do código. A chave é digitada **uma vez por aparelho** e guardada
+  em `localStorage` — não sobe para a nuvem e não viaja com o sistema. Cada computador
+  que for comandar o robô precisa digitar
+- Campo novo em Robô do WhatsApp › Conexão, com guardar e apagar
+- `zapApi()` agora distingue **falta de chave**, **chave recusada** (401) e
+  **limite de envio** (429), cada um com o seu recado
+- `desconectarZap()` e `desconectarZapPdv()` eram as duas únicas chamadas sem
+  `try/catch` — passariam a quebrar sozinhas agora que a função pode recusar
+
+**O que continua valendo:** o Nexor roda no navegador, então a chave é visível para
+quem já está logado e abre as ferramentas do navegador. Isso protege contra quem está
+de fora, não contra quem já tem acesso ao sistema. A proteção completa exige passar as
+chamadas por uma função no Supabase — fica para depois.
