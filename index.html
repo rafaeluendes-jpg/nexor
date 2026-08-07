@@ -1740,6 +1740,11 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.chaveMestra{display:flex;align-items:center;padding:11px 13px;border-radius:var(--r);
+  background:var(--ok-soft);border:1px solid #BBD8C6}
+.chaveMestra.off{background:var(--alt);border-color:var(--line)}
+.chaveMestra.off b{color:var(--ink-2)}
+.apagado{opacity:.42;pointer-events:none}
 /* Abas de listagem. As classes eram usadas na tela de cupons e NUNCA tinham
    estilo: viravam botão cru do navegador, com o número colado no texto. */
 .lfTabs{display:flex;gap:0;background:var(--alt);overflow:hidden}
@@ -6612,6 +6617,11 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.chaveMestra{display:flex;align-items:center;padding:11px 13px;border-radius:var(--r);
+  background:var(--ok-soft);border:1px solid #BBD8C6}
+.chaveMestra.off{background:var(--alt);border-color:var(--line)}
+.chaveMestra.off b{color:var(--ink-2)}
+.apagado{opacity:.42;pointer-events:none}
 /* Abas de listagem. As classes eram usadas na tela de cupons e NUNCA tinham
    estilo: viravam botão cru do navegador, com o número colado no texto. */
 .lfTabs{display:flex;gap:0;background:var(--alt);overflow:hidden}
@@ -12811,7 +12821,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V16.2.2';
+var VERSAO='V16.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29108,6 +29118,7 @@ function baseZap(){
       msgSaiu:'{nome}, seu pedido #{numero} saiu para entrega! 🛵\n\nChega em instantes no endereço informado.',
       msgEntregue:'Pedido #{numero} entregue! 😊\n\nEsperamos que goste. Se puder, responda de 1 a 5 como foi sua experiência — isso nos ajuda muito.',
       pedeAvaliacao:true,
+      avisosAtivos:true,   /* as mensagens automáticas de cada fase do pedido */
       iaAtiva:true,iaNome:'Nina',iaTom:'acolhedor',iaRegras:'',iaApresenta:true
     };
   });
@@ -29334,20 +29345,31 @@ function previewIA(){
   if(el)el.innerHTML=previewIAhtml(n,t);
 }
 function abaAvisos(c){
+  var lig=c.avisosAtivos!==false;
   return '<div style="padding:14px 16px">'+
-   '<div class="cnAviso" style="margin-bottom:12px">'+sv('help',15)+
+   /* chave mestra: dá para calar as mensagens automáticas e deixar só a atendente */
+   '<div class="chaveMestra'+(lig?'':' off')+'">'+
+    '<label class="chkL" style="margin:0;flex:1"><input type="checkbox" id="zpAvisos" '+
+     (lig?'checked':'')+' onchange="telaZapSalvaAba()">'+
+     '<span><b>Mensagens automáticas '+(lig?'ligadas':'desligadas')+'</b>'+
+     '<span>'+(lig
+       ?'o sistema avisa o cliente sozinho a cada fase do pedido'
+       :'o cliente não recebe aviso nenhum de fase — só a atendente virtual responde')+
+     '</span></span></label>'+
+   '</div>'+
+   '<div class="cnAviso" style="margin:12px 0">'+sv('help',15)+
    '<div>Estas mensagens saem sozinhas quando você move o pedido no kanban. '+
    'Use <b>{nome}</b>, <b>{numero}</b>, <b>{total}</b> e <b>{tempo}</b> — o sistema troca pelos '+
    'dados reais de cada pedido.</div></div>'+
-   '<div class="avisoG">'+FASES_ZAP.map(function(f){
+   '<div class="avisoG'+(lig?'':' apagado')+'">'+FASES_ZAP.map(function(f){
      return '<div class="avisoC">'+
       '<div class="avisoH"><b>'+E(f.n)+'</b><span>'+E(f.d)+'</span></div>'+
       '<textarea id="zp_'+f.id+'" rows="4">'+E(c[f.id]||'')+'</textarea>'+
       '<div class="avisoP" id="prev_'+f.id+'">'+previewMsg(c[f.id]||'')+'</div>'+
      '</div>';
    }).join('')+'</div>'+
-   '<label class="chkL" style="margin-top:12px"><input type="checkbox" id="zpAval" '+
-    (c.pedeAvaliacao!==false?'checked':'')+'>'+
+   '<label class="chkL'+(lig?'':' apagado')+'" style="margin-top:12px"><input type="checkbox" id="zpAval" '+
+    (c.pedeAvaliacao!==false?'checked':'')+(lig?'':' disabled')+'>'+
     '<span><b>Pedir avaliação ao entregar</b><span>o cliente responde de 1 a 5 e fica registrado</span></span></label>'+
    '</div>';
 }
@@ -29412,10 +29434,18 @@ function remResp(k){
   c.respostas.splice(k,1);
   salvar();telaZap();
 }
+/* a chave mestra mostra o efeito na hora, antes de salvar */
+function telaZapSalvaAba(){
+  var c=zapAtual();
+  if($('zpAvisos'))c.avisosAtivos=$('zpAvisos').checked;
+  FASES_ZAP.forEach(function(f){ if($('zp_'+f.id))c[f.id]=$('zp_'+f.id).value; });
+  salvar();telaZap();
+}
 /* ---------- salvar ---------- */
 async function salvarZap(){
   var c=zapAtual();
   if($('zpAtivo'))c.ativo=$('zpAtivo').checked;
+  if($('zpAvisos'))c.avisosAtivos=$('zpAvisos').checked;
   if($('zpAval'))c.pedeAvaliacao=$('zpAval').checked;
   FASES_ZAP.forEach(function(f){ if($('zp_'+f.id))c[f.id]=$('zp_'+f.id).value; });
   ['saudacao','textoHorario','textoEntrega','textoPagamento','textoEndereco'].forEach(function(k){
@@ -29445,9 +29475,14 @@ async function salvarZap(){
         texto_entrega:c.textoEntrega||null,texto_pagamento:c.textoPagamento||null,
         texto_endereco:c.textoEndereco||null,
         respostas:c.respostas||[],
-        msg_aceito:c.msgAceito||null,msg_preparo:c.msgPreparo||null,
-        msg_saiu:c.msgSaiu||null,msg_entregue:c.msgEntregue||null,
-        pede_avaliacao:c.pedeAvaliacao!==false,
+        /* com as mensagens automáticas desligadas, o robô recebe elas vazias:
+           é isso que faz o cliente não receber aviso nenhum de fase */
+        msg_aceito:(c.avisosAtivos!==false?(c.msgAceito||null):null),
+        msg_preparo:(c.avisosAtivos!==false?(c.msgPreparo||null):null),
+        msg_saiu:(c.avisosAtivos!==false?(c.msgSaiu||null):null),
+        msg_entregue:(c.avisosAtivos!==false?(c.msgEntregue||null):null),
+        pede_avaliacao:(c.avisosAtivos!==false&&c.pedeAvaliacao!==false),
+        avisos_ativos:c.avisosAtivos!==false,
         ia_ativa:c.iaAtiva!==false,ia_nome:c.iaNome||'Nina',
         ia_tom:c.iaTom||'acolhedor',ia_regras:c.iaRegras||null,
         ia_apresenta:c.iaApresenta!==false,
