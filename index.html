@@ -1740,6 +1740,16 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.assPlat{margin:14px 16px 0;border:1px solid var(--acc);border-radius:var(--r);overflow:hidden}
+.assPlatH{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--acc-soft);
+  color:var(--acc-d);font-size:12.5px;border-bottom:1px solid var(--acc)}
+.assPlatH span{margin-left:auto;font-size:11px;color:var(--ink-3)}
+.assLojas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px}
+.assOk,.assOff{display:flex;align-items:center;gap:7px;height:38px;padding:0 12px;
+  border-radius:var(--r-s);font-size:12.5px}
+.assOk{background:var(--ok-soft);color:var(--ok);border:1px solid #BBD8C6}
+.assOff{background:var(--alt);color:var(--ink-3);border:1px solid var(--line)}
+.assOk span,.assOff span{margin-left:auto;font-size:11px;opacity:.85}
 .chaveMestra{display:flex;align-items:center;padding:11px 13px;border-radius:var(--r);
   background:var(--ok-soft);border:1px solid #BBD8C6}
 .chaveMestra.off{background:var(--alt);border-color:var(--line)}
@@ -6617,6 +6627,16 @@ tbody td small{font-size:10.5px}
 .mvItTab input{text-align:right}
 .mvItTab select:focus,.mvItTab input:focus{border-color:var(--acc)}
 .mvItTab .mvTot{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.assPlat{margin:14px 16px 0;border:1px solid var(--acc);border-radius:var(--r);overflow:hidden}
+.assPlatH{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--acc-soft);
+  color:var(--acc-d);font-size:12.5px;border-bottom:1px solid var(--acc)}
+.assPlatH span{margin-left:auto;font-size:11px;color:var(--ink-3)}
+.assLojas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px}
+.assOk,.assOff{display:flex;align-items:center;gap:7px;height:38px;padding:0 12px;
+  border-radius:var(--r-s);font-size:12.5px}
+.assOk{background:var(--ok-soft);color:var(--ok);border:1px solid #BBD8C6}
+.assOff{background:var(--alt);color:var(--ink-3);border:1px solid var(--line)}
+.assOk span,.assOff span{margin-left:auto;font-size:11px;opacity:.85}
 .chaveMestra{display:flex;align-items:center;padding:11px 13px;border-radius:var(--r);
   background:var(--ok-soft);border:1px solid #BBD8C6}
 .chaveMestra.off{background:var(--alt);border-color:var(--line)}
@@ -12821,7 +12841,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V17.1.0';
+var VERSAO='V17.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29566,6 +29586,16 @@ async function avisarCliente(ped,fase){
 /* ==========================================================
    AVISOS AO GERENTE — abertura, fechamento e cancelamentos
    ========================================================== */
+/* A assistente é um serviço da plataforma: o número é UM só, cadastrado pelo dono
+   do Nexor, e liberado loja a loja. A loja não digita número nenhum. */
+function baseAssPlat(){
+  DB.assPlat=DB.assPlat||{numero:'',nome:'Assistente Nexor',liberadas:{}};
+  return DB.assPlat;
+}
+function assLiberada(suc){
+  var a=baseAssPlat();
+  return !!(a.numero&&a.liberadas&&a.liberadas[suc]);
+}
 function baseGerente(){
   DB.gerente=DB.gerente||{};
   baseSuc();
@@ -29791,6 +29821,7 @@ function telaGerente(){
    '</div>'+
 
    /* a assistente responde perguntas e cobra as rotinas */
+   (ehPlataforma(usuarioLogado())?blocoAssPlataforma():'')+
    '<div class="cfgSep" style="margin:14px 16px 0">Assistente</div>'+
    '<div style="padding:10px 16px 0">'+
     '<label class="chkL"><input type="checkbox" id="geAss" '+
@@ -29800,8 +29831,13 @@ function telaGerente(){
     '<div class="row2" style="margin-top:12px">'+
      '<div class="fld2"><label>Nome da assistente nesta loja</label>'+
       '<input id="geAssN" value="'+E(g.assNome||'')+'" placeholder="ex: Adilson, Maria"></div>'+
-     '<div class="fld2"><label>WhatsApp da assistente</label>'+
-      '<input id="geAssZ" value="'+E(g.assZap||'')+'" placeholder="o número do sistema"></div>'+
+     '<div class="fld2"><label>Situação</label>'+
+      (assLiberada(GE.suc)
+       ?'<div class="assOk">'+sv('check',14)+' Assistente conectada'+
+        '<span>'+E(baseAssPlat().numero)+'</span></div>'
+       :'<div class="assOff">'+sv('help',14)+' Não contratada'+
+        '<span>fale com a franqueadora para liberar</span></div>')+
+     '</div>'+
     '</div>'+
     '<div class="row2">'+
      '<div class="fld2"><label>Nome do dono da loja</label>'+
@@ -29839,6 +29875,48 @@ function telaGerente(){
 }
 function previewMsg2(t){
   return String(t||'').replace(/\*(.+?)\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+}
+/* painel do dono do Nexor: um número para tudo, liberado loja a loja */
+function blocoAssPlataforma(){
+  var a=baseAssPlat();
+  baseSuc();
+  return '<div class="assPlat">'+
+   '<div class="assPlatH">'+sv('lock',14)+' <b>Administração do Nexor</b>'+
+    '<span>só você vê este bloco</span></div>'+
+   '<div style="padding:13px 15px">'+
+    '<div class="row2">'+
+     '<div class="fld2"><label>Número da Assistente Nexor</label>'+
+      '<input id="apNum" value="'+E(a.numero||'')+'" placeholder="o número oficial da Meta"></div>'+
+     '<div class="fld2"><label>Nome padrão</label>'+
+      '<input id="apNome" value="'+E(a.nome||'Assistente Nexor')+'"></div>'+
+    '</div>'+
+    '<div class="cfgSep" style="margin:12px 0 8px">Liberar para</div>'+
+    '<div class="assLojas">'+
+     (DB.sucursais||[]).filter(function(x){return x.ativa!==false}).map(function(sc){
+       return '<label class="chkL"><input type="checkbox" data-suc="'+sc.id+'" '+
+        (a.liberadas&&a.liberadas[sc.id]?'checked':'')+'>'+
+        '<span><b>'+E(sc.nome)+'</b><span>'+E(sc.cidade||'')+'</span></span></label>';
+     }).join('')+
+    '</div>'+
+    '<div class="avisoInfo" style="margin-top:12px">'+sv('help',15)+
+     '<div><b>Serviço cobrado à parte.</b> O custo varia com a quantidade de mensagens '+
+     'que a assistente envia por conta própria. Reveja antes de liberar para novas lojas.</div></div>'+
+    '<button class="btnP2 ok" style="margin-top:12px" onclick="salvarAssPlat()">'+
+     sv('check',13)+' Salvar liberações</button>'+
+   '</div></div>';
+}
+function salvarAssPlat(){
+  var a=baseAssPlat();
+  if($('apNum'))a.numero=$('apNum').value.trim();
+  if($('apNome'))a.nome=$('apNome').value.trim()||'Assistente Nexor';
+  a.liberadas={};
+  var cx=document.querySelectorAll('.assLojas input[data-suc]');
+  for(var i=0;i<cx.length;i++)
+    if(cx[i].checked)a.liberadas[cx[i].getAttribute('data-suc')]=true;
+  salvar();
+  Object.keys(a.liberadas).forEach(function(sid){ publicarAssistente(sid); });
+  toast('Liberações salvas.');
+  telaGerente();
 }
 /* o robô só conhece o gestor se o número chegar no banco */
 async function publicarAssistente(suc){
@@ -29903,7 +29981,7 @@ function salvarGerente(){
   g.avisaSangria=$('geSa').checked;
   if($('geAss'))g.assistente=$('geAss').checked;
   if($('geAssN'))g.assNome=$('geAssN').value.trim();
-  if($('geAssZ'))g.assZap=$('geAssZ').value.trim();
+  g.assZap=baseAssPlat().numero||'';
   if($('geDonoN'))g.donoNome=$('geDonoN').value.trim();
   if($('geDonoZ')){g.donoZap=$('geDonoZ').value.trim();g.tel=g.donoZap;}
   if($('geRelZ'))g.relZap=$('geRelZ').value.trim();
