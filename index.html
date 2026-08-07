@@ -790,9 +790,11 @@ button.cxTag:hover{background:rgba(0,160,139,.26)}
 .cidTag.ok{background:#E6F4EA;color:#1E7B34;border-color:#BFE0C8}
 .chkDia{display:inline-flex;align-items:center;cursor:pointer;user-select:none}
 .chkDia input{display:none}
-.chkDia span{display:block;padding:7px 13px;border:1px solid var(--linha);
- border-radius:var(--r-s);font-size:13px;background:#fff;transition:.12s}
-.chkDia input:checked+span{background:var(--verde);color:#fff;border-color:var(--verde)}
+.chkDia span{display:block;padding:8px 15px;border:1px solid var(--line);
+ border-radius:var(--r-s);font-size:13px;font-weight:600;background:#fff;
+ color:var(--ink-2);transition:.12s;min-width:44px;text-align:center}
+.chkDia span:hover{border-color:var(--acc)}
+.chkDia input:checked+span{background:var(--acc);color:#fff;border-color:var(--acc)}
 
 .alertaTx{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;
   background:var(--amber);color:#fff;font-size:10px;font-weight:800;margin-left:5px;vertical-align:middle}
@@ -12967,7 +12969,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.5.0';
+var VERSAO='V18.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30244,7 +30246,7 @@ function modalRotina(id) {
      E(x ? x.pergunta : '') + '</textarea></div>' +
 
     '<div class="cfgSep" style="margin:14px 0 8px">Dias da semana</div>' +
-    '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">' +
      DIAS_SEM.map(function (d) {
        return '<label class="chkDia"><input type="checkbox" class="rtDia" value="' + d.n + '"' +
          (dias.indexOf(d.n) >= 0 ? ' checked' : '') + '><span>' + d.curto + '</span></label>';
@@ -30266,11 +30268,11 @@ function modalRotina(id) {
 
     '<div class="cfgSep" style="margin:14px 0 8px">Quais lojas recebem</div>' +
     '<div class="hint" style="margin-bottom:8px">Sem marcar nenhuma, todas recebem.</div>' +
-    '<div class="chkGrade">' +
+    /* uma loja por linha faria a janela passar da tela com 6 unidades */
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
      sucAtivas().map(function (s) {
-       return '<label class="chkL"><input type="checkbox" class="rtSuc" value="' + E(s.id) + '"' +
-         (sucs.indexOf(s.id) >= 0 ? ' checked' : '') + '>' +
-         '<span><b>' + E(s.nome) + '</b><span>' + E(s.cidade || '') + '</span></span></label>';
+       return '<label class="chkDia"><input type="checkbox" class="rtSuc" value="' + E(s.id) + '"' +
+         (sucs.indexOf(s.id) >= 0 ? ' checked' : '') + '><span>' + E(s.nome) + '</span></label>';
      }).join('') +
     '</div>',
     'Salvar', async function () {
