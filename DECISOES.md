@@ -1001,3 +1001,61 @@ pasta âmbar da V13.2.0 fazendo o trabalho dela — mostrando o que ficaria invi
 O cadastro ainda guarda a senha em texto puro, e ela sobe para `usuarios_sistema`. Depois
 do Auth isso é **sobra**: só serve para a conferência local quando a internet cai. O certo
 é guardar uma marca no aparelho, que não viaja para a nuvem. Fica para depois do `nexor-app`.
+
+## O aplicativo do franqueado fala só por função (V17.5.0)
+
+Eram as duas últimas portas abertas, e as piores que restavam:
+
+- `app_usuarios` com leitura pública — o aplicativo **baixava a tabela inteira e comparava
+  a senha dentro do navegador**. Qualquer pessoa com o endereço lia nome, login e senha em
+  texto puro de todos os acessos de todas as redes
+- `pedidos` com leitura pública, até 20 mil linhas, sem login nenhum
+
+**Achado no caminho:** a consulta de pedidos do aplicativo filtrava por uma coluna `data`
+que **não existe** na tabela — o nome certo é `data_venda`. Ela vinha falhando em silêncio,
+então os números do franqueado nunca carregaram. Corrigido junto.
+
+### No banco
+
+- `senha_hash` em `app_usuarios`, cifrada com bcrypt. A coluna `senha` foi esvaziada
+- `app_sessoes`: token de 64 caracteres, validade de 30 dias. RLS ligada **sem política
+  nenhuma**, de propósito — só as funções abaixo entram lá
+- `app_entrar(login,senha)` devolve token e perfil, **nunca a senha**. Freio de 5 tentativas
+  e 15 minutos de bloqueio, com meio segundo de espera em cada erro para travar varredura.
+  Durante o bloqueio nem a senha certa passa
+- `app_dados(token,dias)` devolve lojas, produtos e pedidos **já filtrados pelas sucursais
+  daquele acesso** — antes o franqueado de Jales lia os pedidos de São Paulo
+- `app_definir_senha(login,senha)` cifra dentro do banco, e só aceita acesso da própria rede
+- As políticas `login publico` e `app le pedidos` foram removidas
+
+### No aplicativo
+
+Zero consultas diretas a tabela: são só chamadas de função. A senha **deixou de ser
+guardada no aparelho** — fica só o token, que vence e pode ser cortado pelo banco.
+
+## Criação de acesso por Edge Function (V17.5.0)
+
+`criar-usuario`, no servidor. É a única coisa que tem a chave de administrador — ela não
+pode ir para o navegador, senão qualquer cliente vira admin de todas as redes.
+
+- Confere a sessão de quem chamou com `getUser()`, e lê o perfil **com a sessão dele**,
+  então o RLS continua valendo
+- Só `admin` e `plataforma` criam. Gerente recebe recusa
+- **A loja é sempre a de quem chamou**, nunca a que vem no pedido — senão um admin criaria
+  usuário dentro da rede do vizinho
+- E-mail válido e senha de 6+ obrigatórios. Se o e-mail já existir em outra rede, recusa
+- `verify_jwt` desligado de propósito: com ele ligado, a vistoria do navegador (OPTIONS),
+  que vai sem cabeçalho, seria recusada antes de chegar na função. O rigor está no `getUser()`
+
+Testada nos quatro caminhos: sem sessão recusa, gerente recusa, admin cria, senha curta
+recusa. A tela de Usuários e Permissões perdeu o aviso âmbar — agora a conta nasce ao salvar.
+
+### O que sobrou aberto ao anônimo
+
+Só o que o cardápio digital precisa ler sem login: `produtos`, `categorias`,
+`areas_entrega`, `areas_zonas`, `formas_pagamento`, `grupos_opcoes`, `opcoes`, `sucursais`
+e `cardapio_config`. Mais as três do WhatsApp, que esperam saber qual chave o robô usa
+no Render.
+
+`sucursais` merece uma volta depois: ela expõe CNPJ, endereço e telefone de todas as redes,
+e o cardápio precisa de bem menos que isso.
