@@ -833,3 +833,137 @@ estava escrita dentro do `index.html`, num repositório público.
 quem já está logado e abre as ferramentas do navegador. Isso protege contra quem está
 de fora, não contra quem já tem acesso ao sistema. A proteção completa exige passar as
 chamadas por uma função no Supabase — fica para depois.
+
+## Próxima obra: ligar o login no Supabase Auth (mapa levantado em 07/08)
+
+Levantamento feito direto no banco. Corrige duas crenças antigas que estavam erradas:
+
+- **O RLS não está desligado.** Está ligado nas 61 tabelas, e a arquitetura certa **já existe**:
+  tabela `perfis` ligada a `auth.uid()`, e as funções `minha_loja()`, `minha_empresa()` e
+  `sou_admin()`. 29 tabelas usam a regra
+  `loja_id = minha_loja() OR (sou_admin() AND loja da minha empresa)`
+- **A chave do Supabase no `index.html` não é vazamento.** É a `publishable`, pública por
+  desenho. O que a torna inofensiva é o RLS — que está lá
+
+**O que falta é a ligação.** O sistema ainda faz login comparando senha em texto puro na
+tabela `usuarios`. Como ninguém entra pelo Auth, `auth.uid()` fica vazio e as regras das
+29 tabelas não têm em quem se apoiar.
+
+### Buracos concretos
+
+| Tabela | Aberto para | Gravidade |
+|---|---|---|
+| `whatsapp_config` | leitura e escrita por qualquer um | alta |
+| `whatsapp_mensagens` | leitura e escrita — 70 conversas de cliente | **alta** |
+| `whatsapp_sessoes` | leitura e escrita | alta |
+| `pedidos`, `app_usuarios` | leitura | média |
+| `produtos`, `categorias`, `areas_entrega`, `areas_zonas`, `formas_pagamento`, `grupos_opcoes`, `opcoes`, `sucursais` | leitura | proposital — o cardápio digital lê sem login |
+
+As três do WhatsApp não precisam de acesso pelo navegador: quem escreve nelas é o robô,
+pelo servidor. Fechar é seguro.
+
+### Ordem
+
+1. Criar o usuário do Rafael no Supabase Auth + linha em `perfis` com `cargo='admin'`
+2. Trocar `entrar()` para autenticar no Auth; `api()` passa a levar o token da sessão
+3. Fechar `whatsapp_config`, `whatsapp_mensagens`, `whatsapp_sessoes`
+4. Tirar `pedidos` e `app_usuarios` da leitura pública
+5. Criação de usuário por Edge Function (a chave de administrador **não pode** ir para o
+   navegador — senão qualquer cliente vira admin de todas as redes)
+6. Chave do robô por cliente, guardada no servidor, via Edge Function. Remover o campo de
+   digitar chave criado na V17.3.0
+
+### O que NÃO se perde
+
+Insumos (326), fichas (12 + 4.391 itens), fornecedores (53), sucursais (6) e toda a
+configuração continuam. Só os 7 usuários são recriados — começando pelo do Rafael, e os
+demais pela própria tela depois.
+
+### Risco a vigiar
+
+Se o token não for junto nas chamadas, as telas abrem **vazias**. Não é perda de dado, é
+o banco recusando. Testar tela por tela depois do passo 2, antes de seguir.
+
+## Vazamento entre redes: cinco tabelas fechadas (07/08)
+
+O levantamento da véspera apontou três tabelas do WhatsApp abertas ao público. Conferindo
+política por política no `pg_policies`, apareceram **outras cinco**, de gravidade maior,
+que ninguém tinha visto: `usuarios_sistema`, `app_usuarios`, `pedidos_online`,
+`whatsapp_gestores` e `whatsapp_pendentes` estavam com `ALL / true` para **authenticated**.
+
+Não é acesso público — é pior no contexto de um sistema vendido a várias redes: qualquer
+cliente logado enxergava os dados de **todos os outros clientes**. Em `usuarios_sistema`
+isso inclui login e senha em texto puro de toda a base.
+
+- Função nova `minha_rede(loja_id)`, para as políticas não repetirem a expressão
+- As cinco passaram a valer a mesma regra das outras 29
+- `whatsapp_pendentes` não tem `loja_id` e guarda a sucursal como texto — pode ser o uuid
+  do banco ou o código local (`suc_sfs`), então a política aceita os dois caminhos
+- Conferido nos dois sentidos: o usuário do Rafael continua vendo 7 usuários, 326 insumos
+  e 9 pedidos online; um usuário de outra rede vê zero
+
+### O que ficou aberto de propósito
+
+`app_usuarios` (leitura pública) e `pedidos` (política "app le pedidos") **alimentam o
+aplicativo do franqueado**, em `rafaeluendes-jpg.github.io/nexor-app/`, que entra sem
+sessão. Tirar derruba o aplicativo. O certo não é tirar: é trocar por função no banco que
+devolva a linha só quando a senha bate — como já faz a `login_nexor`. Fica para quando o
+repositório do `nexor-app` for mexido.
+
+## Correções ao mapa da obra do Auth (07/08)
+
+- **O passo 1 já estava feito.** `rafael@nexor.app` existe no Auth desde 28/07, com perfil,
+  loja e empresa. O cargo é `plataforma`, não `admin` — e `sou_admin()` só aceita `'admin'`.
+  Com uma loja só não atrapalha, porque `minha_loja()` resolve; na segunda rede o ramo de
+  admin nunca dispararia
+- **`login_nexor` está aberta ao anônimo.** É um endereço público que confere senha em
+  texto puro, sem freio, e devolve `loja_id`, permissões, `tudo` e `mestre` quando acerta.
+  Com senha de 3 caracteres é questão de minutos. Some no passo 2, junto com a tabela
+- **O passo 2 esbarra nas senhas.** Os 7 usuários têm senha de 3 caracteres; o Auth exige 6.
+  E o login `franqueador` não é e-mail, que o Auth exige. Os outros 6 já são
+- **O robô não está conectado.** `whatsapp_sessoes` vazia e nada em `whatsapp_mensagens`
+  desde 02/08 — fechar as três do WhatsApp não interrompe operação nenhuma
+
+## Uma entrada só: o login virou Supabase Auth (V17.4.0)
+
+Eram duas entradas — a do sistema (senha em texto puro em `usuarios_sistema`) e a da
+nuvem (ícone de nuvem › Banco de dados). Como ninguém entrava pelo Auth, `auth.uid()`
+ficava vazio e as regras de RLS das 29 tabelas não tinham em quem se apoiar: estavam
+escritas e não valiam nada. Agora **quem entra no sistema entra na nuvem**.
+
+### No banco
+
+- As **7 contas criadas no Auth**, com e-mail confirmado e identidade. O login
+  `franqueador` não era e-mail, que o Auth exige — virou `franqueador@jologelato.com`
+- Uma linha em `perfis` para cada: os dois `mestre` como `admin`, as 5 unidades como
+  `gerente`. `rafael@nexor.app` continua como `plataforma`, com a senha antiga — é a
+  conta de conexão, separada das de pessoas
+- **`login_nexor` removida.** Era executável pelo anônimo e conferia senha em texto
+  puro sem freio nenhum. Conferido no repositório `nexor-app`: ninguém mais a chama
+
+### No sistema
+
+- `entrarPeloAuth()` distingue **senha recusada** de **internet caída**. A diferença é
+  o que impede uma recusa do servidor de virar entrada pela conferência local
+- Sem internet, a entrada **cai para o cadastro do aparelho** e abre em modo local, com
+  o aviso vermelho do rodapé. Uma loja não pode parar de vender porque o wifi caiu
+- `abrirSessao()` não religa a nuvem quando a entrada já ligou — só busca o que mudou
+- `sair()` encerra também a sessão do Auth; deixá-la de pé manteria o token válido
+- A senha `'123'` embutida do administrador mestre **saiu do `baseUsr()`**. Era a mesma
+  em toda instalação do Nexor: porta destrancada em todo cliente futuro
+
+### Consequência que ficou registrada na tela
+
+Criar usuário em Usuários e Permissões **não cria a conta no Auth** — a chave de
+administrador não pode ir para o navegador, senão qualquer cliente vira admin de todas
+as redes. Até a Edge Function existir, a tela avisa em caixa âmbar que a conta precisa
+ser criada no banco, e o login passou a exigir formato de e-mail.
+
+**O passo 5 deixou de ser opcional:** sem ele, ninguém cadastra usuário novo sozinho.
+
+### Ainda aberto
+
+O `nexor-app` lê `app_usuarios` inteira e **compara a senha dentro do navegador**, e puxa
+`pedidos` com limite de 20 mil linhas, sem sessão. São as duas últimas políticas públicas.
+Fecham quando aquele repositório for mexido — troca por função no banco, como era a
+`login_nexor`.
