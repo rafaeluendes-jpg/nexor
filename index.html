@@ -12961,7 +12961,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.1.0';
+var VERSAO='V18.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30242,6 +30242,12 @@ function telaGerente(){
         .join('')+
       '</select></div>'+
     '</div>'+
+    /* Sem botão, o que a pessoa digitava se perdia ao trocar de tela — e ela
+       só descobria depois, quando a assistente não respondia. */
+    '<div style="display:flex;gap:9px;align-items:center;margin:14px 0 4px">'+
+     '<button class="btnP2 ok" onclick="salvarAssistente()">'+sv('check',13)+' Salvar assistente</button>'+
+     '<span class="hint" id="assSalvoAviso"></span>'+
+    '</div>'+
    '</div>'+
 
    '<div class="cfgSep" style="margin:14px 16px 0">Respostas gravadas</div>'+
@@ -30253,6 +30259,45 @@ function telaGerente(){
    '</div>'+
    '</div></div>';
   carregarRespostasAss();
+  rodape(g.tel?'assistente: '+g.tel:'sem WhatsApp cadastrado');
+}
+/* Grava a configuração da assistente desta loja. Fica no aparelho e sobe com
+   o resto — o robô lê de whatsapp_config para saber de quem é o número que
+   escreveu e para onde mandar o relatório. */
+function salvarAssistente(){
+  baseGerente();
+  if(!GE.suc){toast('Escolha a loja primeiro.');return;}
+  DB.gerente[GE.suc]=DB.gerente[GE.suc]||{};
+  var g=DB.gerente[GE.suc];
+  var v=function(id){var e=$(id);return e?e.value.trim():'';};
+  var soNum=function(t){return String(t||'').replace(/\D/g,'');};
+
+  var zapDono=soNum(v('geDonoZ'));
+  var zapFranq=soNum(v('geRelZ'));
+  if(zapDono&&zapDono.length<10){
+    toast('O WhatsApp do dono parece incompleto — use DDD e número.');return;}
+  if(zapFranq&&zapFranq.length<10){
+    toast('O WhatsApp da franqueadora parece incompleto — use DDD e número.');return;}
+  var em=v('geEmail');
+  if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){
+    toast('O e-mail não parece válido.');return;}
+
+  g.assistente=$('geAss')?$('geAss').checked:true;
+  g.assNome=v('geAssN');
+  g.donoNome=v('geDonoN');
+  g.donoZap=zapDono;
+  g.tel=zapDono||g.tel;
+  g.relZap=zapFranq;
+  g.emailRel=em;
+  g.freqRel=$('geFreq')?$('geFreq').value:'semanal';
+  salvar();
+
+  var av=document.getElementById('assSalvoAviso');
+  if(av){
+    av.textContent='Guardado às '+agoraHM()+'.';
+    setTimeout(function(){ if(av)av.textContent=''; },4000);
+  }
+  toast('Assistente salva.');
   rodape(g.tel?'assistente: '+g.tel:'sem WhatsApp cadastrado');
 }
 function previewMsg2(t){
