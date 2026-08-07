@@ -11056,7 +11056,7 @@ var MOD=[
  {id:'cfg-movimentacao',n:'Motivos de Baixa de Estoque'},
  {id:'areas-entrega',n:'Áreas de Entrega'},
  {id:'canais-integracao',n:'Canais de Venda e Integração'},
- {id:'cfg-gerente',n:'Avisos ao Gerente'},
+ {id:'cfg-gerente',n:'Assistente Nexor'},
  {id:'cfg-dre',n:'Configuração do DRE'},
  {id:'dados-fiscais',n:'Dados Fiscais'},
  {id:'cfg-entregador',n:'Configuração do Entregador'},
@@ -12821,7 +12821,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V16.3.0';
+var VERSAO='V17.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29574,7 +29574,9 @@ function baseGerente(){
       ativo:false,nome:'',tel:'',
       avisaAbertura:true,avisaFechamento:true,avisaCancelamento:true,
       avisaSangria:true,avisaDivergencia:true,
-      limiteDivergencia:5
+      limiteDivergencia:5,
+      /* assistente: perguntas do gestor e envio do relatório */
+      assistente:true,emailRel:'',freqRel:'semanal'
     };
   });
   return DB.gerente;
@@ -29735,8 +29737,9 @@ function telaGerente(){
   var g=DB.gerente[GE.suc]||{};
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
-    '<div><h1>Avisos ao Gerente</h1>'+
-    '<p>O gerente recebe no WhatsApp o que acontece no caixa, mesmo estando fora da loja.</p></div>'+
+    '<div><h1>Assistente Nexor</h1>'+
+    '<p>Ela avisa o que acontece na loja, cobra as rotinas e responde o que você '+
+    'perguntar sobre venda, estoque e contas — pelo WhatsApp.</p></div>'+
     '<div style="flex:1"></div>'+
     '<button class="btnP2" onclick="testarAvisoGerente()">'+sv('chat',13)+' Enviar teste</button>'+
     '<button class="btnP2 ok" onclick="salvarGerente()">'+sv('check',13)+' Salvar</button>'+
@@ -29780,11 +29783,88 @@ function telaGerente(){
       '<div class="hint" style="margin-top:12px">As mensagens saem pelo mesmo WhatsApp '+
       'conectado ao robô. Se ele estiver desconectado, os avisos não são enviados.</div>'+
      '</div></div>'+
-   '</div></div></div>';
-  rodape(g.tel?'gerente: '+g.tel:'sem gerente cadastrado');
+   '</div>'+
+
+   /* a assistente responde perguntas e cobra as rotinas */
+   '<div class="cfgSep" style="margin:14px 16px 0">Assistente</div>'+
+   '<div style="padding:10px 16px 0">'+
+    '<label class="chkL"><input type="checkbox" id="geAss" '+
+     (g.assistente!==false?'checked':'')+'>'+
+     '<span><b>Responder perguntas do gestor</b><span>faturamento do dia, saldo de um '+
+     'item, o que precisa comprar, boletos a vencer — e cobrar as rotinas</span></span></label>'+
+    '<div class="row2" style="margin-top:12px">'+
+     '<div class="fld2"><label>E-mail que recebe o relatório</label>'+
+      '<input id="geEmail" value="'+E(g.emailRel||'')+'" placeholder="franqueadora@empresa.com"></div>'+
+     '<div class="fld2" style="max-width:200px"><label>Frequência</label>'+
+      '<select id="geFreq">'+
+       ['diaria|Todo dia','tresdias|A cada 3 dias','semanal|Toda semana','mensal|Todo mês']
+        .map(function(o){var p=o.split('|');
+          return '<option value="'+p[0]+'"'+((g.freqRel||'semanal')===p[0]?' selected':'')+'>'+p[1]+'</option>';})
+        .join('')+
+      '</select></div>'+
+    '</div>'+
+   '</div>'+
+
+   '<div class="cfgSep" style="margin:14px 16px 0">Respostas gravadas</div>'+
+   '<div style="padding:8px 16px 20px">'+
+    '<div class="hint" style="margin-bottom:9px">Cada pergunta que a assistente faz e cada '+
+    'resposta do gestor ficam registradas aqui, com data e hora. É este registro que vai '+
+    'no relatório da franqueadora.</div>'+
+    '<div class="acTabW" id="assResp"></div>'+
+   '</div>'+
+   '</div></div>';
+  carregarRespostasAss();
+  rodape(g.tel?'assistente: '+g.tel:'sem WhatsApp cadastrado');
 }
 function previewMsg2(t){
   return String(t||'').replace(/\*(.+?)\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+}
+/* o robô só conhece o gestor se o número chegar no banco */
+async function publicarAssistente(suc){
+  if(!NUVEM.ligada||!NUVEM.loja)return;
+  var g=(DB.gerente||{})[suc]||{};
+  try{
+    await api('whatsapp_config?on_conflict=sucursal_id','POST',[{
+      loja_id:NUVEM.loja,sucursal_id:suc,
+      gestor_nome:g.nome||null,
+      gestor_zap:soDigitos(g.tel||'')||null,
+      assistente_ativa:!!(g.ativo&&g.assistente!==false)
+    }],{'Prefer':'resolution=merge-duplicates'});
+    logNuvem('assistente publicada para o robô');
+  }catch(e){ logNuvem('não consegui publicar a assistente: '+((e&&e.message)||''),true); }
+}
+/* respostas gravadas pela assistente, para conferência e relatório */
+async function carregarRespostasAss(){
+  var box=document.getElementById('assResp');
+  if(!box)return;
+  if(!NUVEM.ligada){box.innerHTML='<div class="hint" style="padding:14px">'+
+    'Ligue a nuvem para ver as respostas.</div>';return;}
+  box.innerHTML='<div class="carregandoP">buscando as respostas...</div>';
+  try{
+    var r=await api('assistente_conversas?loja_id=eq.'+NUVEM.loja+
+      '&order=enviada_em.desc&limit=200');
+    if(!r||!r.length){box.innerHTML='<div class="hint" style="padding:14px">'+
+      'Nenhuma resposta gravada ainda. Elas aparecem aqui assim que a assistente '+
+      'começar a cobrar as rotinas.</div>';return;}
+    box.innerHTML='<table class="acTab semBusca"><thead><tr>'+
+     '<th style="width:92px">Data</th><th style="width:74px">Hora</th>'+
+     '<th>Rotina</th><th style="width:96px">Resposta</th>'+
+     '<th style="width:150px">Respondida em</th></tr></thead><tbody>'+
+     r.map(function(c){
+       var q=c.respondida_em?new Date(c.respondida_em):null;
+       var e=c.enviada_em?new Date(c.enviada_em):null;
+       return '<tr><td>'+dataBR(c.data)+'</td>'+
+        '<td>'+(e?e.toLocaleTimeString('pt-BR').slice(0,5):'—')+'</td>'+
+        '<td>'+E(c.rotina_nome||'—')+'</td>'+
+        '<td>'+(c.feito===true?'<span class="badge2 vd">feito</span>'
+              :c.feito===false?'<span class="badge2 rd">não fez</span>'
+              :'<span class="badge2">sem resposta</span>')+'</td>'+
+        '<td>'+(q?q.toLocaleString('pt-BR').slice(0,16):'—')+'</td></tr>';
+     }).join('')+'</tbody></table>';
+  }catch(e){
+    box.innerHTML='<div class="hint" style="padding:14px">Não consegui buscar: '+
+      E((e&&e.message)||'')+'</div>';
+  }
 }
 function salvarGerente(){
   baseGerente();
@@ -29796,9 +29876,13 @@ function salvarGerente(){
   g.avisaFechamento=$('geFe').checked;
   g.avisaCancelamento=$('geCa').checked;
   g.avisaSangria=$('geSa').checked;
+  if($('geAss'))g.assistente=$('geAss').checked;
+  if($('geEmail'))g.emailRel=$('geEmail').value.trim();
+  if($('geFreq'))g.freqRel=$('geFreq').value;
   salvar();
-  if(g.ativo&&!g.tel)toast('Informe o WhatsApp do gerente para os avisos funcionarem.');
-  else toast('Avisos ao gerente salvos.');
+  publicarAssistente(GE.suc);
+  if(g.ativo&&!g.tel)toast('Informe o WhatsApp para a assistente funcionar.');
+  else toast('Assistente salva.');
 }
 async function testarAvisoGerente(){
   var tel=($('geTel')||{}).value||'';
