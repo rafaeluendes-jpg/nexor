@@ -12983,7 +12983,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.9.5';
+var VERSAO='V19.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30043,10 +30043,17 @@ async function avisarGerente(suc,tipo,texto){
     divergencia:'avisaDivergencia'}[tipo];
   if(quer&&g[quer]===false)return;
   try{
-    var alvo=(await lojaConectada())||suc||lojaAtualId();
+    /* lojaConectada() procura sessão de QR. Com a Assistente na Meta não há
+       sessão, e o aviso morria aqui em silêncio — o caixa fechava e nada
+       chegava. O robô é quem sabe por onde mandar. */
+    var alvo=suc||lojaAtualId();
     var r=await zapApi('/enviar','POST',{loja:alvo,telefone:g.tel,texto:texto});
     if(r&&r.ok)toast('Gerente avisado no WhatsApp.');
-  }catch(e){}
+    else if(r&&r.erro)toast('Não consegui avisar o gerente: '+r.erro);
+  }catch(e){
+    /* engolir o erro fazia parecer que tinha dado certo */
+    toast('Não consegui avisar o gerente: '+((e&&e.message)||'sem resposta'));
+  }
 }
 function agoraBR(){
   var d=new Date();
