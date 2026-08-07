@@ -1231,3 +1231,57 @@ com **um relatório por rede, não por unidade**. Período vazio não gera envio
 **Limite conhecido:** o PDF vai pelo Baileys, que aceita o arquivo direto. A Cloud API da
 Meta exige URL pública para documento — quando o número da Meta existir, o PDF precisará
 subir para algum lugar antes. Fica anotado.
+
+## A descoberta do fim do dia: o modelo de rede (07/08, a decidir)
+
+Ao construir a tela de rotinas apareceram **seis rotinas idênticas**. Não eram cópias:
+eram **seis lojas diferentes** no banco. Cinco delas estão completamente vazias — zero
+usuários, zero sucursais, zero insumos, zero pedidos. Tudo vive na `Jolô Franqueadora`.
+
+Não são lixo. **São o modelo certo, nunca preenchido.**
+
+### O que o Rafael descreveu
+
+Cada cliente é uma rede, com uma matriz. Loja única? Essa loja é a matriz. A matriz dá
+permissão, enxerga as unidades, cadastra as rotinas — e **replica estoque e ficha técnica
+para as filhas**. Cada unidade tem os dados dela; cliente novo nasce zerado.
+
+**Replicar só faz sentido se cada unidade tiver a própria cópia.** Se fossem sucursais
+dentro de uma loja, haveria uma lista só e não haveria o que replicar. Logo:
+**uma `loja` por unidade, todas sob a mesma `empresa`, que é a rede.**
+
+### Isso já está no banco
+
+A regra das 29 tabelas é `loja_id = minha_loja() OR (sou_admin() AND loja da minha empresa)`.
+É a frase do Rafael escrita em SQL: cada um vê a própria loja, e o admin da matriz vê todas
+as lojas da empresa dele. Alguém pensou nisso e construiu — e depois o sistema seguiu por
+outro caminho.
+
+### O desvio, medido
+
+| | Hoje no sistema | O modelo |
+|---|---|---|
+| Unidade | sucursal (**120 lugares** no código) | uma `loja` por unidade |
+| Dados | uma lista de insumos para todas | cada unidade com a sua |
+| Replicação | não faz sentido | a matriz empurra para as filhas |
+| Separação entre franqueados | regra de tela | regra de banco, **já escrita** |
+
+O seletor "LOJA" no topo troca de **sucursal**, não de loja.
+
+### Ordem proposta
+
+1. **Fechar o modelo no papel** antes de uma linha de código: o que é empresa, loja e
+   sucursal, e se sucursal continua existindo (uma loja com dois pontos físicos) ou some
+2. **A replicação da matriz para as filhas** — é o coração do produto
+3. **Só então a tela de rotinas**, que fica trivial: vai listar lojas, não sucursais
+
+**Aviso:** mexer nos 120 lugares é a maior obra do sistema até hoje. Se sair torta, quebra
+estoque, financeiro e relatórios de uma vez. Não começar no cansaço.
+
+### Correções já feitas nesta descoberta
+
+- `assistente_rotinas` ganhou `sucursais jsonb` (vazio = todas)
+- `assistente_conversas` ganhou `sucursal_id` — sem ele o relatório de checklist agrupava
+  por um campo que guarda outra coisa, e sairia errado. Defeito meu, do mesmo dia
+- Anotado: a tela de cadastro de rotinas **não existe**; as seis foram inseridas direto no
+  banco. Sem ela não se cumpre a promessa de "rotina é cadastro, não código"
