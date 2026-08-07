@@ -11220,8 +11220,13 @@ function conferirNuvem(){
   try{
     var el=document.getElementById('avisoNuvem');
     if(NUVEM.ligada){ if(el)el.remove(); return; }
+    /* Fora do sistema não há o que avisar: ninguém está lançando nada.
+       Olhar o app é mais seguro que olhar o login — o app só aparece
+       depois da sessão aberta. */
+    var ap=document.getElementById('app');
+    if(!ap||ap.classList.contains('hide')){ if(el)el.remove(); return; }
     var lg=document.getElementById('login');
-    if(lg&&!lg.classList.contains('hide'))return;    /* ainda na tela de entrada */
+    if(lg&&!lg.classList.contains('hide')){ if(el)el.remove(); return; }
     if(el)return;
     el=document.createElement('div');
     el.id='avisoNuvem';el.className='avisoGrav';
@@ -12821,6 +12826,16 @@ async function sair(){
   try{ desconectarNuvem(); }catch(e){}
   SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');travaRolagem();
+  /* Os avisos são da operação, não da entrada. Deixá-los pendurados fazia a
+     tela de login abrir com tarja vermelha dizendo que nada seria salvo —
+     assustando quem ainda nem entrou. */
+  try{
+    ['avisoNuvem','avisoTab','avisoVer','avisoGrav'].forEach(function(id){
+      var e=document.getElementById(id); if(e)e.remove();
+    });
+    var b=document.getElementById('barraAvisos');
+    if(b)b.innerHTML='';
+  }catch(e){}
   lgAviso('');
 }
 /* se ja tinha entrado antes, volta direto para o sistema */
@@ -12969,7 +12984,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.9.2';
+var VERSAO='V18.9.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
