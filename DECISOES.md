@@ -967,3 +967,37 @@ O `nexor-app` lê `app_usuarios` inteira e **compara a senha dentro do navegador
 `pedidos` com limite de 20 mil linhas, sem sessão. São as duas últimas políticas públicas.
 Fecham quando aquele repositório for mexido — troca por função no banco, como era a
 `login_nexor`.
+
+### Testado e funcionando (07/08, 12:02 → 12:10)
+
+Entrada confirmada pelas duas contas, com o banco registrando `last_sign_in_at`:
+`rafael@uendes.com` às 12:02 e `franqueador@jologelato.com` às 12:10. Estoque Total
+(R$ 19.632,63 em 337 itens), Ficha Técnica, Lançamentos, PDV e Usuários abriram cheias —
+é o que prova que o token está indo junto e o RLS reconheceu `auth.uid()`. Na sessão do
+franqueador o menu **Administração não aparece**: a diferença de cargo funcionando.
+
+### Três coisas que o teste levantou
+
+**1. `clientes_nexor` recusava o envio.** É a tabela do contrato — plano, módulos, situação
+da rede — e a regra dela exige `sou_plataforma()`. A regra está certa: num sistema vendido,
+o cliente não pode gravar o próprio contrato, senão se dá o plano que quiser. Faltava o
+Rafael ser reconhecido como dono da plataforma. `rafael@uendes.com` passou a `plataforma`,
+e `sou_admin()` foi ampliada para `cargo in ('admin','plataforma')` — senão trocar o cargo
+tiraria dele o ramo de admin das 29 tabelas.
+
+**2. Mexer por SQL em tabela espelhada não gruda.** Eu troquei `franqueador` para
+`franqueador@jologelato.com` direto no banco; o aparelho subiu a cópia local por cima e
+desfez. Resultado: a conta do Auth existia com um nome e o cadastro do sistema com outro,
+e ninguém entrava por aquele acesso. **A correção tem de ser feita pela tela**, que é quem
+manda em `usuarios_sistema`. É também o motivo de o passo 5 (Edge Function) não ter
+alternativa: não há como criar usuário por fora sem a sincronização desfazer.
+
+**3. "Sem grupo 1" na Ficha Técnica não era falha do Auth.** É ficha duplicada:
+**BELGA GELATO código 84** sem grupo e **Belga Gelato código 85** dentro de Produzido. A
+pasta âmbar da V13.2.0 fazendo o trabalho dela — mostrando o que ficaria invisível.
+
+### Gordura que sobrou
+
+O cadastro ainda guarda a senha em texto puro, e ela sobe para `usuarios_sistema`. Depois
+do Auth isso é **sobra**: só serve para a conferência local quando a internet cai. O certo
+é guardar uma marca no aparelho, que não viaja para a nuvem. Fica para depois do `nexor-app`.
