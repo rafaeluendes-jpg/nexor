@@ -12969,7 +12969,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.9.0';
+var VERSAO='V18.9.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30748,11 +30748,17 @@ function baseOper(){
       senha:'',ativo:true,sucursais:[]});
   return DB.operadores;
 }
+/* A função descreve o papel da pessoa na loja e é o que aparece na abertura
+   de caixa e nas ordens de produção. Quem manda no que ela enxerga são as
+   telas marcadas no cadastro — a função não dá nem tira permissão. */
 var FUNCOES=[
  {id:'administrador',n:'Administrador',d:'acesso total ao sistema'},
  {id:'gerente',      n:'Gerente',      d:'acompanha a loja, vê relatórios e fecha caixa'},
  {id:'caixa',        n:'Operador de caixa',d:'abre e fecha caixa, lança vendas'},
  {id:'atendente',    n:'Atendente',    d:'lança vendas na frente de caixa'},
+ {id:'producao',     n:'Produção',     d:'produz as fichas, lança perdas e movimenta estoque'},
+ {id:'estoquista',   n:'Estoque',      d:'recebe nota, faz contagem e cuida do estoque'},
+ {id:'financeiro',   n:'Financeiro',   d:'lança contas, concilia e acompanha o caixa'},
  {id:'entregador',   n:'Entregador',   d:'vê os pedidos de entrega'}
 ];
 /* Quem abre o caixa vem de Usuários e Permissões, não de uma lista à parte.
