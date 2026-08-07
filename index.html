@@ -12967,7 +12967,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.4.0';
+var VERSAO='V18.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23623,13 +23623,18 @@ async function aplicarPendenteAssistente(p){
   /* financeiro: uma conta a pagar, em aberto. Banco e forma pertencem ao
      pagamento — quem paga escolhe depois, na confirmação, como no resto
      do sistema. A assistente não decide de onde o dinheiro sai. */
+  /* o gestor disse na conversa se pagou ou não; sem isso todo lançamento
+     entraria em aberto e o fluxo de caixa mentiria */
+  var jaPago=!!d.pago;
   var lanc={id:uid('lf'),tipo:'despesa',contaId:'',metodoId:'',
     descricao:'NF '+doc+' — '+(forn?forn.empresa:'sem fornecedor'),
     fornecedor:forn?forn.empresa:'',fornecedorId:forn?forn.id:'',
     documento:'NF '+doc,categoriaTxt:'',
-    valor:total,emissao:dt,vencimento:dt,pagamento:'',pago:false,
+    valor:total,emissao:dt,vencimento:dt,
+    pagamento:jaPago?dt:'',pago:jaPago,
     origem:'nota-entrada',ref:n.id,
-    obs:'Lançado pela Assistente Nexor, confirmado por '+(p.telefone||'—')};
+    obs:'Lançado pela Assistente Nexor, confirmado por '+(p.telefone||'—')+
+      (d.formaPagamento?' · '+d.formaPagamento:'')};
   DB.lancFin.push(lanc);
   n.lancIds=[lanc.id];
   n.pagamento={tipo:'A prazo',parcelas:1,contaId:'',metodoId:'',categoriaId:''};
