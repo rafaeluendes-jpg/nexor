@@ -12969,7 +12969,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.7.0';
+var VERSAO='V18.7.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30575,7 +30575,10 @@ async function publicarAssistente(suc){
       assistente_zap:soDigitos(g.assZap||'')||null,
       relatorio_zap:soDigitos(g.relZap||'')||null,
       relatorio_freq:g.freqRel||'semanal',
-      assistente_ativa:!!(g.ativo&&g.assistente!==false)
+      /* Antes exigia g.ativo — a caixinha dos AVISOS DE CAIXA, lá no topo.
+         São coisas independentes: a assistente ficava desligada mesmo com a
+         caixinha dela marcada, e o agendador nem olhava para a loja. */
+      assistente_ativa:!!(g.assistente!==false&&(g.donoZap||g.tel))
     }],{'Prefer':'resolution=merge-duplicates'});
     logNuvem('assistente publicada para o robô');
   }catch(e){ logNuvem('não consegui publicar a assistente: '+((e&&e.message)||''),true); }
