@@ -11079,7 +11079,7 @@ var MOD=[
  {id:'cfg-loja',n:'Mapa do Sistema'},
  {id:'carga-inicial',n:'Importar Dados'},
  {id:'cfg-sucursais',n:'Sucursais da Franquia'},
- {id:'cfg-operadores',n:'Operadores'},
+
  {id:'cfg-pdv',n:'Configuração do PDV'},
  {id:'cfg-movimentacao',n:'Motivos de Baixa de Estoque'},
  {id:'areas-entrega',n:'Áreas de Entrega'},
@@ -12969,7 +12969,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.8.0';
+var VERSAO='V18.9.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13087,7 +13087,9 @@ if(mid==='loja'&&iid==='cfg-sucursais')return telaSucursais();
 if(mid==='loja'&&iid==='areas-entrega')return telaAreasEntrega();
 if(mid==='loja'&&iid==='canais-integracao')return telaCanaisIntegracao();
 if(mid==='loja'&&iid==='cfg-gerente')return telaGerente();
-if(mid==='loja'&&iid==='cfg-operadores')return telaOperadores();
+/* Operadores virou Usuários e Permissões: um cadastro só, com login,
+   senha e as telas que cada pessoa enxerga. */
+if(mid==='loja'&&iid==='cfg-operadores')return abrir('loja','usuarios-permissoes');
 if(mid==='loja'&&iid==='usuarios-permissoes')return telaUsuarios();
 if(mid==='dashboard'&&iid==='canais-venda')return telaCanaisVenda();
 if(mid==='dashboard'&&iid==='faturamento')return telaFaturamento();
@@ -15228,7 +15230,7 @@ function abrirCaixa(){
      }).join('')+'</select>'
     :'<select id="cxOp" onchange="pedeSenhaCaixa(\'cx\')">'+
      ops.map(function(o){return '<option value="'+E(o.id)+'">'+E(o.nome)+'</option>'}).join('')+
-     '</select><div class="hint">Cadastre a equipe em Configuração da Loja › Operadores.</div>')+
+     '</select><div class="hint">Cadastre a equipe em Configuração da Loja › Usuários e Permissões.</div>')+
   '</div>'+
   '<div class="fld2" id="boxSenhaCx" style="display:none"><label>Senha do operador *</label>'+
    '<input id="cxSenha" type="password" inputmode="numeric" placeholder="senha cadastrada" autocomplete="off">'+
@@ -30753,7 +30755,28 @@ var FUNCOES=[
  {id:'atendente',    n:'Atendente',    d:'lança vendas na frente de caixa'},
  {id:'entregador',   n:'Entregador',   d:'vê os pedidos de entrega'}
 ];
-function operAtivos(){return baseOper().filter(function(o){return o.ativo!==false})}
+/* Quem abre o caixa vem de Usuários e Permissões, não de uma lista à parte.
+   Duas telas cadastrando gente divergem: alguém cria numa, edita na outra,
+   e ninguém sabe qual vale. Os operadores antigos continuam aparecendo até
+   serem migrados, para não quebrar caixa já aberto. */
+function operAtivos(){
+  baseUsr();
+  var dosUsuarios=(DB.usuarios||[]).filter(function(u){
+    if(u.ativo===false)return false;
+    if(String(u.login||'').toLowerCase()===ADM_MESTRE)return false;
+    return true;
+  }).map(function(u){
+    return {id:u.id,nome:u.nome,funcao:u.funcao||'atendente',
+      senha:u.senhaCaixa||'',ativo:true,sucursais:u.sucursais||[],deUsuario:true};
+  });
+  var antigos=baseOper().filter(function(o){
+    if(o.ativo===false)return false;
+    /* já migrado? não repete */
+    return !dosUsuarios.some(function(u){
+      return String(u.nome||'').toLowerCase()===String(o.nome||'').toLowerCase();});
+  });
+  return dosUsuarios.concat(antigos);
+}
 function nomeFuncao(id){var f=FUNCOES.find(function(x){return x.id===id});return f?f.n:id}
 
 function telaOperadores(){
@@ -31409,6 +31432,16 @@ function formUsuario(id){
     '<div class="fld2" style="margin:0"><label>Telefone</label>'+
      '<input id="uTel" value="'+E(u?u.tel:'')+'" placeholder="para contato"></div>'+
    '</div>'+
+   /* A função diz o que a pessoa faz na loja e é o que aparece na abertura
+      de caixa. As telas que ela enxerga continuam sendo as marcadas abaixo —
+      a função não manda nas permissões, só descreve o papel. */
+   '<div class="fld2"><label>Função na loja</label>'+
+    '<div class="tipoEsc">'+FUNCOES.map(function(f){
+      var sel=(u?(u.funcao||'atendente'):'atendente')===f.id;
+      return '<label class="tipoOp'+(sel?' on':'')+'">'+
+       '<input type="radio" name="uFunc" value="'+f.id+'"'+(sel?' checked':'')+'>'+
+       '<b>'+f.n+'</b><span>'+f.d+'</span></label>';
+    }).join('')+'</div></div>'+
    '<div style="background:#EAF3F8;border:1px solid #C5DCE8;border-radius:var(--r-s);'+
     'padding:10px 12px;margin:12px 0;font-size:12.5px;line-height:1.5;color:var(--ink-2)">'+
     '<b style="color:var(--ink)">A conta de acesso é criada no banco ao salvar.</b><br>'+
@@ -31443,7 +31476,10 @@ function formUsuario(id){
         return false;
       }
     }
-    var dados={nome:nome,login:login,tel:$('uTel').value.trim(),
+    var func='atendente';
+    var rs=document.querySelectorAll('input[name="uFunc"]');
+    for(var i=0;i<rs.length;i++)if(rs[i].checked)func=rs[i].value;
+    var dados={nome:nome,login:login,tel:$('uTel').value.trim(),funcao:func,
       tudo:$('uTudo')?$('uTudo').checked:(u?u.tudo:false)};
     if(senha)dados.senha=senha;
     if(u)Object.assign(u,dados);
