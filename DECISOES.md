@@ -1059,3 +1059,38 @@ no Render.
 
 `sucursais` merece uma volta depois: ela expõe CNPJ, endereço e telefone de todas as redes,
 e o cardápio precisa de bem menos que isso.
+
+## As três do WhatsApp, fechadas (V17.5.1)
+
+Estavam abertas há meses porque o **robô usava a chave pública do banco** — sem as
+políticas `ALL/true`, ele não conseguiria gravar. Fechar antes de resolver isso teria
+derrubado o robô no meio do expediente.
+
+Descoberto ao olhar o Render: a variável se chama `CHAVE_BANCO`, que **não está na lista
+de nomes que o `server.js` procura**. Funcionava só porque o robô acha a chave **pelo
+formato** (`acharPorConteudo`), com uma regra que reconhecia `sb_publishable_` ou `eyJ` —
+e por isso nunca reconheceria uma chave secreta.
+
+**No robô:** a chave secreta passou a ter preferência (`sb_secret_`, ou um JWT cujo corpo
+diga `service_role`). O log da inicialização agora diz qual está em uso, e reclama quando
+for a pública. Rafael trocou o valor de `CHAVE_BANCO` no Render; o log confirmou
+`chave do banco: SECRETA (correta)`.
+
+**No banco:**
+
+- `whatsapp_mensagens` e `whatsapp_config` passaram a valer pela sucursal, que chega na
+  loja — nenhuma das duas tem `loja_id` próprio, e a sucursal é texto, então as políticas
+  aceitam tanto o uuid quanto o código local
+- `whatsapp_sessoes` ficou **com RLS ligada e nenhuma política**. Ela guarda a credencial
+  da conexão do WhatsApp e o navegador não tem o que fazer ali — só o robô, pelo servidor,
+  com a chave secreta que passa por cima do RLS
+
+Conferido nos dois sentidos: o anônimo recebe lista vazia e é recusado ao escrever; a
+sessão do Rafael continua vendo as 70 mensagens e as 5 configurações.
+
+### Chaves queimadas nesta série de sessões
+
+Tudo que passou por conversa ou por repositório público deve ser considerado exposto:
+`NexorZap2026` (já trocada), a chave publishable do Supabase (é pública por desenho, sem
+problema), o token do GitHub `ghp_4VkW...`, a `CHAVE_API` do robô e a `GROQ_KEY`. As três
+últimas continuam pendentes de troca.
