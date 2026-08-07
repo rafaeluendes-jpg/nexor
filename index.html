@@ -12969,7 +12969,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.6.0';
+var VERSAO='V18.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30580,6 +30580,78 @@ async function publicarAssistente(suc){
     logNuvem('assistente publicada para o robô');
   }catch(e){ logNuvem('não consegui publicar a assistente: '+((e&&e.message)||''),true); }
 }
+/* ---------- detalhe de uma resposta e o PDF ----------
+   A tabela mostra o essencial; o detalhe mostra a conversa que gerou o
+   registro. É o que dá valor à trilha: não é "não fez", é "não fez porque
+   faltou funcionário", com hora. */
+var ASSR={lista:[]};
+
+function verResposta(k){
+  var c=ASSR.lista[k]; if(!c)return;
+  var q=c.respondida_em?new Date(c.respondida_em):null;
+  var e=c.enviada_em?new Date(c.enviada_em):null;
+  var linha=function(r,v){
+    return '<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2)">'+
+      '<div style="width:130px;color:var(--ink-2);font-size:13px">'+r+'</div>'+
+      '<div style="flex:1;font-size:13.5px">'+v+'</div></div>';
+  };
+  modal('Resposta registrada',
+    linha('Rotina','<b>'+E(c.rotina_nome||'—')+'</b>')+
+    linha('Data',dataBR(c.data))+
+    linha('Perguntada em',e?e.toLocaleString('pt-BR').slice(0,16):'—')+
+    linha('A pergunta',E(c.pergunta||'—'))+
+    linha('Resposta',
+      (c.feito===true?'<span class="badge2 vd">feito</span>'
+      :c.feito===false?'<span class="badge2 rd">não fez</span>'
+      :'<span class="badge2">sem resposta</span>')+
+      (c.resposta?' <span style="opacity:.75">— '+E(c.resposta)+'</span>':''))+
+    linha('Respondida em',q?q.toLocaleString('pt-BR').slice(0,16):'—')+
+    (c.motivo?linha('Motivo informado','<i>"'+E(c.motivo)+'"</i>'):'')+
+    linha('Telefone',E(c.telefone||'—'))+
+    '<div class="hint" style="margin-top:14px">Este registro não pode ser alterado — '+
+    'nem pela loja, nem pela matriz. É o que faz dele prova.</div>',
+    'Fechar', function(){ return true; });
+}
+
+/* PDF pela impressão do navegador: sem biblioteca, e a pessoa escolhe
+   salvar como PDF ou imprimir na hora. */
+function pdfRespostas(){
+  var r=ASSR.lista||[];
+  if(!r.length){toast('Nada para gerar ainda.');return;}
+  var sim=0,nao=0,sem=0;
+  var linhas=r.map(function(c){
+    if(c.feito===true)sim++; else if(c.feito===false)nao++; else sem++;
+    var q=c.respondida_em?new Date(c.respondida_em):null;
+    return '<tr><td>'+dataBR(c.data)+'</td><td>'+E(c.rotina_nome||'—')+'</td>'+
+      '<td class="c">'+(c.feito===true?'FEITO':c.feito===false?'NÃO FEZ':'SEM RESPOSTA')+'</td>'+
+      '<td>'+E(c.motivo||'')+'</td>'+
+      '<td class="c">'+(q?q.toLocaleString('pt-BR').slice(0,16):'—')+'</td></tr>';
+  }).join('');
+  var w=window.open('','_blank');
+  if(!w){toast('O navegador bloqueou a janela. Libere os pop-ups e tente de novo.');return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8">'+
+   '<title>Checklist — '+E(nomeLojaAtual())+'</title><style>'+
+   'body{font:13px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1a2734;margin:32px}'+
+   'h1{font-size:19px;margin:0 0 3px}.sub{color:#667;margin:0 0 18px;font-size:13px}'+
+   'table{width:100%;border-collapse:collapse}'+
+   'th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;'+
+   'color:#667;border-bottom:2px solid #d8dee6;padding:7px 8px}'+
+   'td{padding:7px 8px;border-bottom:1px solid #eef1f5;vertical-align:top}'+
+   '.c{text-align:center}.res{margin-top:18px;padding-top:12px;border-top:2px solid #d8dee6}'+
+   '.rod{margin-top:22px;color:#889;font-size:11px}'+
+   '@media print{body{margin:14mm}}</style></head><body>'+
+   '<h1>Relatório de checklist</h1>'+
+   '<p class="sub">'+E(nomeLojaAtual())+' · gerado em '+new Date().toLocaleString('pt-BR').slice(0,16)+'</p>'+
+   '<table><thead><tr><th>Data</th><th>Rotina</th><th class="c">Resposta</th>'+
+   '<th>Motivo</th><th class="c">Respondida em</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+   '<div class="res"><b>Resumo:</b> '+sim+' feito(s) · '+nao+' não feito(s) · '+sem+' sem resposta</div>'+
+   '<p class="rod">Documento gerado pelo Nexor. O registro original fica no sistema, '+
+   'com data e hora de cada resposta, e não pode ser alterado.</p>'+
+   '</body></html>');
+  w.document.close();
+  setTimeout(function(){ try{w.print();}catch(e){} },400);
+}
+
 /* respostas gravadas pela assistente, para conferência e relatório */
 async function carregarRespostasAss(){
   var box=document.getElementById('assResp');
@@ -30593,20 +30665,30 @@ async function carregarRespostasAss(){
     if(!r||!r.length){box.innerHTML='<div class="hint" style="padding:14px">'+
       'Nenhuma resposta gravada ainda. Elas aparecem aqui assim que a assistente '+
       'começar a cobrar as rotinas.</div>';return;}
-    box.innerHTML='<table class="acTab semBusca"><thead><tr>'+
+    ASSR.lista=r;
+    box.innerHTML=
+     '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">'+
+      '<button class="btnP2" onclick="pdfRespostas()">'+sv('file',13)+' Gerar PDF</button>'+
+      '<span class="hint">'+r.length+' registro(s) — últimos primeiro</span>'+
+     '</div>'+
+     '<table class="acTab semBusca"><thead><tr>'+
      '<th style="width:92px">Data</th><th style="width:74px">Hora</th>'+
      '<th>Rotina</th><th style="width:96px">Resposta</th>'+
-     '<th style="width:150px">Respondida em</th></tr></thead><tbody>'+
-     r.map(function(c){
+     '<th style="width:150px">Respondida em</th>'+
+     '<th style="width:46px"></th></tr></thead><tbody>'+
+     r.map(function(c,k){
        var q=c.respondida_em?new Date(c.respondida_em):null;
        var e=c.enviada_em?new Date(c.enviada_em):null;
        return '<tr><td>'+dataBR(c.data)+'</td>'+
         '<td>'+(e?e.toLocaleTimeString('pt-BR').slice(0,5):'—')+'</td>'+
-        '<td>'+E(c.rotina_nome||'—')+'</td>'+
+        '<td>'+E(c.rotina_nome||'—')+
+          (c.motivo?'<div class="hint" style="margin:2px 0 0">'+E(c.motivo)+'</div>':'')+'</td>'+
         '<td>'+(c.feito===true?'<span class="badge2 vd">feito</span>'
               :c.feito===false?'<span class="badge2 rd">não fez</span>'
               :'<span class="badge2">sem resposta</span>')+'</td>'+
-        '<td>'+(q?q.toLocaleString('pt-BR').slice(0,16):'—')+'</td></tr>';
+        '<td>'+(q?q.toLocaleString('pt-BR').slice(0,16):'—')+'</td>'+
+        '<td style="text-align:right"><button class="btnMini" title="ver detalhe" '+
+         'onclick="verResposta('+k+')">'+sv('eye',12)+'</button></td></tr>';
      }).join('')+'</tbody></table>';
   }catch(e){
     box.innerHTML='<div class="hint" style="padding:14px">Não consegui buscar: '+
