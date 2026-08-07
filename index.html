@@ -11616,8 +11616,42 @@ async function tokenAtual(forcar){
   }catch(e){}
   return NUVEM.token;
 }
+/* O token do Supabase vence em uma hora. Antes, api() mandava o que estivesse
+   na memória: vencido virava anônimo, e as 15 tabelas com regra de escrita eram
+   recusadas de uma vez — sempre em bloco, sempre com "row-level security".
+   Agora a sessão é renovada ANTES de vencer, e a recusa por sessão é tratada
+   como o que é: falta de credencial, não erro de dado. */
+var _tokenAte=0;
+async function tokenValido(forcar){
+  if(!NUVEM.cli)return NUVEM.token;
+  var agora=Date.now();
+  if(!forcar&&NUVEM.token&&agora<_tokenAte)return NUVEM.token;
+  try{
+    var r=await NUVEM.cli.auth.getSession();
+    var ses=r&&r.data?r.data.session:null;
+    /* renova quando falta menos de 5 minutos, em vez de esperar quebrar */
+    var venceEm=ses&&ses.expires_at?ses.expires_at*1000:0;
+    if(!ses||forcar||(venceEm&&venceEm-agora<300000)){
+      var rr=await NUVEM.cli.auth.refreshSession();
+      ses=rr&&rr.data?rr.data.session:null;
+      venceEm=ses&&ses.expires_at?ses.expires_at*1000:0;
+    }
+    if(ses){
+      NUVEM.token=ses.access_token;
+      _tokenAte=venceEm?venceEm-300000:agora+600000;
+      if(NUVEM.cli.realtime&&NUVEM.cli.realtime.setAuth)
+        NUVEM.cli.realtime.setAuth(NUVEM.token);
+    }else{
+      /* a sessão acabou de verdade: parar de fingir que está ligado */
+      NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;
+      try{conferirNuvem();rodape();}catch(e){}
+    }
+  }catch(e){}
+  return NUVEM.token;
+}
 async function api(caminho,metodo,corpo,extra,_repetiu){
   var h={'apikey':NUVEM.chave,'Content-Type':'application/json'};
+  if(NUVEM.cli)await tokenValido();
   if(NUVEM.token)h['Authorization']='Bearer '+NUVEM.token;
   if(extra)for(var k in extra)h[k]=extra[k];
   var tab=String(caminho).split('?')[0];
@@ -11638,10 +11672,21 @@ async function api(caminho,metodo,corpo,extra,_repetiu){
   var d=null;
   try{ d=t?JSON.parse(t):null; }catch(e){ d=null; }
   if(!r.ok){
-    /* credencial vencida: renova e tenta uma vez */
-    if((r.status===401||r.status===403)&&!_repetiu){
-      await tokenAtual(true);
-      return api(caminho,metodo,corpo,extra,true);
+    /* Recusa por credencial: renova e tenta UMA vez. Se a renovação não
+       devolver token, a sessão acabou mesmo — repetir só produziria a lista
+       de 15 tabelas recusadas, que assusta e não diz o que houve. */
+    var porSessao=(r.status===401||r.status===403||
+      (d&&(d.code==='42501'||/row-level security/i.test(d.message||''))));
+    if(porSessao&&!_repetiu){
+      var tk=await tokenValido(true);
+      if(tk)return api(caminho,metodo,corpo,extra,true);
+    }
+    if(porSessao){
+      NUVEM.ligada=false;NUVEM.token=null;_tokenAte=0;
+      try{conferirNuvem();rodape();}catch(e){}
+      var eS=new Error('sua sessão expirou');
+      eS.tabela=tab;eS.status=r.status;eS.sessao=true;
+      throw eS;
     }
     var e2=new Error((d&&(d.message||d.hint))||('erro '+r.status));
     e2.tabela=tab;e2.status=r.status;
@@ -12916,7 +12961,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.0.0';
+var VERSAO='V18.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13888,11 +13933,23 @@ function avisoTabelaComErro(erros){
     if(el)el.remove();
     el=document.createElement('div');
     el.id='avisoTab';el.className='avisoGrav sinc';
-    el.innerHTML='<div><b>'+erros.length+' tabela(s) não subiram para a nuvem</b>'+
-      '<span>'+E(erros.map(function(x){
-        return x.tab.replace(/_/g,' ')+' — '+x.msg;}).join(' · '))+
-      '<br>O resto do sistema continua sincronizando normalmente.</span></div>'+
-      '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+    /* Quando a causa é a sessão, TODAS as tabelas com regra de escrita caem
+       juntas. Listar as 15 com o texto do banco assusta e esconde o que houve:
+       não é erro de dado, é falta de credencial. Uma frase e um botão. */
+    var todasSessao=erros.length>2&&erros.every(function(x){
+      return /row-level security|JWT|sess/i.test(x.msg||'');});
+    if(todasSessao){
+      el.innerHTML='<div><b>Sua sessão expirou</b>'+
+        '<span>Nada foi perdido — o que você lançou está guardado neste aparelho '+
+        'e sobe assim que você entrar de novo.</span></div>'+
+        '<button class="btnP2 ok" onclick="sair()">Entrar de novo</button>';
+    }else{
+      el.innerHTML='<div><b>'+erros.length+' tabela(s) não subiram para a nuvem</b>'+
+        '<span>'+E(erros.map(function(x){
+          return x.tab.replace(/_/g,' ')+' — '+x.msg;}).join(' · '))+
+        '<br>O resto do sistema continua sincronizando normalmente.</span></div>'+
+        '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+    }
     barraAvisos().appendChild(el);
   }catch(e){}
 }

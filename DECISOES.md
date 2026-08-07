@@ -1194,3 +1194,123 @@ o preço da última compra saem todos pelo caminho de sempre.
 
 **Na fila do banco** ficou um pendente de teste (`TESTE ASSISTENTE`, 100 copinhos por
 R$ 100,00) para conferir de ponta a ponta na primeira abertura.
+
+## Relatório do checklist em PDF (V18.1.0 — parte 3)
+
+### A trilha era furada em dois pontos
+
+Conferindo as políticas antes de construir, apareceram duas falhas que esvaziavam o
+sentido do relatório:
+
+- **A matriz da rede conseguia apagar.** A regra dizia `sou_admin()`, e essa função foi
+  ampliada hoje. Mas a matriz é parte interessada no que o relatório mostra. Passou a ser
+  `sou_plataforma()` — apagar é só do dono do Nexor
+- **O franqueado podia reescrever uma resposta já dada.** A regra de UPDATE deixava alterar
+  qualquer linha da loja dele: dava para trocar um "não" por "sim" no dia seguinte. Agora a
+  regra exige `respondida_em is null`, e um **gatilho no banco** recusa a alteração mesmo
+  para quem chegar por fora do RLS. Testado: a troca foi barrada
+
+### `relatorio.js`
+
+PDF escrito à mão, sem biblioteca. Uma tabela de texto não justifica arrastar 2 MB de
+pacote para um serviço que roda sozinho, e menos dependência é menos coisa para quebrar.
+Validado com um leitor de PDF de verdade: paginação, fontes e xref corretos.
+
+- Uma seção por sucursal; quem não tem registro aparece como "sem registro", em vez de
+  sumir. O que não casar com sucursal nenhuma cai em "Sem unidade identificada" — dado
+  órfão não pode desaparecer do relatório
+- Quem não respondeu aparece como **SEM RESPOSTA**, que é informação, não ausência
+- Acento é trocado por equivalente sem acento: o PDF base usa WinAnsi e mostraria caractere
+  quebrado num documento que vai para o franqueador
+- Rodapé diz que o PDF é cópia e que o original está no Nexor, sem poder ser alterado
+
+**O envio** roda de hora em hora e respeita a frequência de cada rede (`relatorio_freq`),
+com **um relatório por rede, não por unidade**. Período vazio não gera envio. Rota
+`/relatorio/:loja` dispara na hora, para conferir sem esperar o prazo.
+
+**Limite conhecido:** o PDF vai pelo Baileys, que aceita o arquivo direto. A Cloud API da
+Meta exige URL pública para documento — quando o número da Meta existir, o PDF precisará
+subir para algum lugar antes. Fica anotado.
+
+## A descoberta do fim do dia: o modelo de rede (07/08, a decidir)
+
+Ao construir a tela de rotinas apareceram **seis rotinas idênticas**. Não eram cópias:
+eram **seis lojas diferentes** no banco. Cinco delas estão completamente vazias — zero
+usuários, zero sucursais, zero insumos, zero pedidos. Tudo vive na `Jolô Franqueadora`.
+
+Não são lixo. **São o modelo certo, nunca preenchido.**
+
+### O que o Rafael descreveu
+
+Cada cliente é uma rede, com uma matriz. Loja única? Essa loja é a matriz. A matriz dá
+permissão, enxerga as unidades, cadastra as rotinas — e **replica estoque e ficha técnica
+para as filhas**. Cada unidade tem os dados dela; cliente novo nasce zerado.
+
+**Replicar só faz sentido se cada unidade tiver a própria cópia.** Se fossem sucursais
+dentro de uma loja, haveria uma lista só e não haveria o que replicar. Logo:
+**uma `loja` por unidade, todas sob a mesma `empresa`, que é a rede.**
+
+### Isso já está no banco
+
+A regra das 29 tabelas é `loja_id = minha_loja() OR (sou_admin() AND loja da minha empresa)`.
+É a frase do Rafael escrita em SQL: cada um vê a própria loja, e o admin da matriz vê todas
+as lojas da empresa dele. Alguém pensou nisso e construiu — e depois o sistema seguiu por
+outro caminho.
+
+### O desvio, medido
+
+| | Hoje no sistema | O modelo |
+|---|---|---|
+| Unidade | sucursal (**120 lugares** no código) | uma `loja` por unidade |
+| Dados | uma lista de insumos para todas | cada unidade com a sua |
+| Replicação | não faz sentido | a matriz empurra para as filhas |
+| Separação entre franqueados | regra de tela | regra de banco, **já escrita** |
+
+O seletor "LOJA" no topo troca de **sucursal**, não de loja.
+
+### Ordem proposta
+
+1. **Fechar o modelo no papel** antes de uma linha de código: o que é empresa, loja e
+   sucursal, e se sucursal continua existindo (uma loja com dois pontos físicos) ou some
+2. **A replicação da matriz para as filhas** — é o coração do produto
+3. **Só então a tela de rotinas**, que fica trivial: vai listar lojas, não sucursais
+
+**Aviso:** mexer nos 120 lugares é a maior obra do sistema até hoje. Se sair torta, quebra
+estoque, financeiro e relatórios de uma vez. Não começar no cansaço.
+
+### Correções já feitas nesta descoberta
+
+- `assistente_rotinas` ganhou `sucursais jsonb` (vazio = todas)
+- `assistente_conversas` ganhou `sucursal_id` — sem ele o relatório de checklist agrupava
+  por um campo que guarda outra coisa, e sairia errado. Defeito meu, do mesmo dia
+- Anotado: a tela de cadastro de rotinas **não existe**; as seis foram inseridas direto no
+  banco. Sem ela não se cumpre a promessa de "rotina é cadastro, não código"
+
+## "15 tabelas não subiram" — causa e fim (V18.1.0)
+
+O erro vinha sempre igual: um bloco de 10 a 15 tabelas recusadas, todas com
+`new row violates row-level security policy`. Parecia problema de permissão. Não era.
+
+**A causa:** `api()` mandava `NUVEM.token` do jeito que estivesse na memória. O token do
+Supabase **vence em uma hora**. Existia uma `tokenAtual()` que renova a sessão — e `api()`
+nunca a chamava. Token vencido é tratado como anônimo pelo banco, e aí **todas** as tabelas
+com regra de escrita caem de uma vez. Daí o erro vir sempre em bloco.
+
+`NUVEM.ligada` continuava `true` o tempo todo: nada percebia que a sessão tinha acabado.
+
+**Três correções:**
+
+1. **`tokenValido()` renova antes de vencer** — quando falta menos de 5 minutos, e não
+   quando já quebrou. `api()` chama em toda ida ao banco, com o resultado guardado para não
+   consultar a sessão a cada clique
+2. **Recusa por credencial tenta renovar e repetir uma vez.** Se a renovação não devolver
+   token, a sessão acabou mesmo: o sistema para de fingir que está ligado, marca
+   `NUVEM.ligada=false` e o aviso de fora da nuvem aparece
+3. **O aviso mudou.** Quando todas as falhas são por sessão, em vez da lista de 15 nomes
+   com o texto cru do banco, aparece **"Sua sessão expirou — nada foi perdido"** e um botão
+   para entrar de novo. A lista detalhada continua para falha de dado de verdade, que é
+   quando ela ajuda
+
+**Erro de digitação encontrado junto:** a tela mostrava `franqueadora@jologelato.com`, com
+"a" no fim. A conta criada no Auth é `franqueador@jologelato.com`. A primeira não existe e
+não entra.
