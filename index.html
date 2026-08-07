@@ -12841,7 +12841,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V17.2.0';
+var VERSAO='V17.2.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29308,7 +29308,9 @@ function abaIA(c){
      '<label class="chkL" style="margin-bottom:14px"><input type="checkbox" id="iaAtiva" '+
       (c.iaAtiva!==false?'checked':'')+'>'+
       '<span><b>Atendente virtual ligada</b>'+
-      '<span>responde o que as respostas prontas não cobrem, usando os dados reais da loja</span></span></label>'+
+      '<span>ela responde tudo, conversando com os dados reais da loja. '+
+      '<b>Desligada</b>, quem atende são as respostas prontas — uma ou outra, nunca as duas '+
+      'juntas, para não misturar os tons.</span></span></label>'+
      '<div class="row2">'+
       '<div class="fld2" style="margin:0"><label>Nome dela</label>'+
        '<input id="iaNome" value="'+E(nome)+'" placeholder="Nina, Sofia, Bia..." '+
