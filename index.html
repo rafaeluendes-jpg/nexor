@@ -787,6 +787,12 @@ button.cxTag:hover{background:rgba(0,160,139,.26)}
 .acTab tbody tr:hover{background:var(--alt)}
 .acTab tfoot td{padding:11px 13px;background:var(--alt);border-top:2px solid var(--line);font-size:13px}
 .cidTag{background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+.cidTag.ok{background:#E6F4EA;color:#1E7B34;border-color:#BFE0C8}
+.chkDia{display:inline-flex;align-items:center;cursor:pointer;user-select:none}
+.chkDia input{display:none}
+.chkDia span{display:block;padding:7px 13px;border:1px solid var(--linha);
+ border-radius:var(--r-s);font-size:13px;background:#fff;transition:.12s}
+.chkDia input:checked+span{background:var(--verde);color:#fff;border-color:var(--verde)}
 
 .alertaTx{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;
   background:var(--amber);color:#fff;font-size:10px;font-weight:800;margin-left:5px;vertical-align:middle}
@@ -12961,7 +12967,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.3.0';
+var VERSAO='V18.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30114,6 +30120,212 @@ function msgSangria(valor,motivo){
     'Valor retirado: *R$ '+money(valor)+'*\n'+
     (motivo?'Motivo: '+E(motivo):'');
 }
+/* ==========================================================
+   ROTINAS DA ASSISTENTE
+
+   As cobranças automáticas: nome, pergunta, horário, dias da
+   semana e quais lojas recebem.
+
+   Quem cadastra é a MATRIZ da rede — ela conhece a operação e
+   decide o que cobrar de quem. O franqueado responde, não cria.
+   Por isso o bloco só aparece para quem tem acesso total.
+
+   As rotinas vivem só na nuvem, não no localStorage: quem cobra
+   é o robô, que lê direto do banco a cada dez minutos. Guardar
+   uma cópia no aparelho criaria duas verdades sobre o mesmo
+   horário — e o gestor receberia a cobrança errada.
+   ========================================================== */
+
+var ROT = { lista: [], carregando: false, edit: null };
+
+var DIAS_SEM = [
+  { n: 1, curto: 'Seg' }, { n: 2, curto: 'Ter' }, { n: 3, curto: 'Qua' },
+  { n: 4, curto: 'Qui' }, { n: 5, curto: 'Sex' }, { n: 6, curto: 'Sáb' },
+  { n: 0, curto: 'Dom' }
+];
+
+function rotDias(d) {
+  var a = Array.isArray(d) ? d : [];
+  if (!a.length) return 'nenhum dia';
+  if (a.length === 7) return 'todos os dias';
+  var seg = [1, 2, 3, 4, 5].every(function (x) { return a.indexOf(x) >= 0; });
+  if (seg && a.length === 5) return 'de segunda a sexta';
+  if (seg && a.length === 6 && a.indexOf(6) >= 0) return 'de segunda a sábado';
+  return DIAS_SEM.filter(function (x) { return a.indexOf(x.n) >= 0; })
+    .map(function (x) { return x.curto; }).join(', ');
+}
+
+function rotLojas(s) {
+  var a = Array.isArray(s) ? s : [];
+  if (!a.length) return 'todas as lojas';
+  baseSuc();
+  var nomes = a.map(function (id) {
+    var x = (DB.sucursais || []).find(function (y) { return y.id === id; });
+    return x ? x.nome : id;
+  });
+  return nomes.length > 2
+    ? nomes.length + ' lojas'
+    : nomes.join(' e ');
+}
+
+/* ---------- buscar ---------- */
+async function carregarRotinas() {
+  var box = document.getElementById('rotBox');
+  if (!box) return;
+  if (!NUVEM.ligada) {
+    box.innerHTML = '<div class="hint" style="padding:14px">Ligue a nuvem para ver as rotinas.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="carregandoP">buscando as rotinas...</div>';
+  try {
+    var r = await api('assistente_rotinas?loja_id=eq.' + NUVEM.loja + '&order=hora.asc');
+    ROT.lista = r || [];
+    desenharRotinas();
+  } catch (e) {
+    box.innerHTML = '<div class="avisoErro" style="margin:10px 0">' +
+      'Não consegui buscar as rotinas: ' + E((e && e.message) || '') + '</div>';
+  }
+}
+
+function desenharRotinas() {
+  var box = document.getElementById('rotBox');
+  if (!box) return;
+  if (!ROT.lista.length) {
+    box.innerHTML = '<div class="hint" style="padding:16px">' +
+      'Nenhuma rotina cadastrada. Crie a primeira no botão acima — ' +
+      'ela passa a ser cobrada no horário que você escolher.</div>';
+    return;
+  }
+  box.innerHTML = '<table class="acTab semBusca"><thead><tr>' +
+    '<th style="width:74px">Hora</th><th>Rotina</th>' +
+    '<th style="width:150px">Dias</th><th style="width:130px">Lojas</th>' +
+    '<th style="width:88px">Resposta</th><th style="width:74px">Situação</th>' +
+    '<th style="width:104px"></th></tr></thead><tbody>' +
+    ROT.lista.map(function (x) {
+      return '<tr' + (x.ativa === false ? ' style="opacity:.5"' : '') + '>' +
+        '<td><b>' + E(String(x.hora || '').slice(0, 5)) + '</b></td>' +
+        '<td><b>' + E(x.nome || '') + '</b>' +
+        '<div class="hint" style="margin:2px 0 0">' + E(x.pergunta || '') + '</div></td>' +
+        '<td>' + E(rotDias(x.dias)) + '</td>' +
+        '<td>' + E(rotLojas(x.sucursais)) + '</td>' +
+        '<td>' + (x.tipo_resposta === 'texto' ? 'texto livre' : 'sim / não') + '</td>' +
+        '<td>' + (x.ativa === false
+          ? '<span class="cidTag">desligada</span>'
+          : '<span class="cidTag ok">ligada</span>') + '</td>' +
+        '<td style="text-align:right;white-space:nowrap">' +
+        '<button class="btnMini" onclick="modalRotina(\'' + x.id + '\')">' + sv('edit', 12) + '</button> ' +
+        '<button class="btnMini" onclick="excluirRotina(\'' + x.id + '\')">' + sv('trash', 12) + '</button>' +
+        '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+/* ---------- criar e editar ---------- */
+function modalRotina(id) {
+  baseSuc();
+  var x = id ? ROT.lista.find(function (y) { return y.id === id; }) : null;
+  var dias = x && Array.isArray(x.dias) ? x.dias : [1, 2, 3, 4, 5, 6];
+  var sucs = x && Array.isArray(x.sucursais) ? x.sucursais : [];
+
+  modal((x ? 'Editar rotina' : 'Nova rotina'),
+    '<div class="row2">' +
+     '<div class="fld2"><label>Nome da rotina *</label>' +
+      '<input id="rtNome" value="' + E(x ? x.nome : '') + '" ' +
+      'placeholder="ex: Checklist de abertura"></div>' +
+     '<div class="fld2" style="max-width:130px"><label>Horário *</label>' +
+      '<input type="time" id="rtHora" value="' + E(x ? String(x.hora || '').slice(0, 5) : '08:00') + '"></div>' +
+    '</div>' +
+    '<div class="fld2"><label>A pergunta que ela vai mandar *</label>' +
+     '<textarea id="rtPerg" rows="2" placeholder="ex: Bom dia! Você já fez o checklist de abertura hoje?">' +
+     E(x ? x.pergunta : '') + '</textarea></div>' +
+
+    '<div class="cfgSep" style="margin:14px 0 8px">Dias da semana</div>' +
+    '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+     DIAS_SEM.map(function (d) {
+       return '<label class="chkDia"><input type="checkbox" class="rtDia" value="' + d.n + '"' +
+         (dias.indexOf(d.n) >= 0 ? ' checked' : '') + '><span>' + d.curto + '</span></label>';
+     }).join('') +
+    '</div>' +
+
+    '<div class="cfgSep" style="margin:14px 0 8px">Tipo de resposta</div>' +
+    '<div class="row2">' +
+     '<div class="fld2"><select id="rtTipo">' +
+      '<option value="sim_nao"' + (!x || x.tipo_resposta !== 'texto' ? ' selected' : '') + '>Sim ou não</option>' +
+      '<option value="texto"' + (x && x.tipo_resposta === 'texto' ? ' selected' : '') + '>Texto livre</option>' +
+      '</select></div>' +
+     '<div class="fld2"><label class="chkL" style="margin:0;height:38px">' +
+      '<input type="checkbox" id="rtAtiva"' + (!x || x.ativa !== false ? ' checked' : '') + '>' +
+      '<span>Rotina ligada</span></label></div>' +
+    '</div>' +
+    '<div class="hint" style="margin:-4px 0 10px">Respondendo <b>não</b>, a assistente ' +
+    'pergunta o motivo e guarda junto — é o motivo que explica a falha no relatório.</div>' +
+
+    '<div class="cfgSep" style="margin:14px 0 8px">Quais lojas recebem</div>' +
+    '<div class="hint" style="margin-bottom:8px">Sem marcar nenhuma, todas recebem.</div>' +
+    '<div class="chkGrade">' +
+     sucAtivas().map(function (s) {
+       return '<label class="chkL"><input type="checkbox" class="rtSuc" value="' + E(s.id) + '"' +
+         (sucs.indexOf(s.id) >= 0 ? ' checked' : '') + '>' +
+         '<span><b>' + E(s.nome) + '</b><span>' + E(s.cidade || '') + '</span></span></label>';
+     }).join('') +
+    '</div>',
+    'Salvar', async function () {
+      var nome = $('rtNome').value.trim();
+      var perg = $('rtPerg').value.trim();
+      var hora = $('rtHora').value;
+      if (!nome) { toast('Dê um nome à rotina.'); return false; }
+      if (!perg) { toast('Escreva a pergunta que ela vai mandar.'); return false; }
+      if (!hora) { toast('Escolha o horário.'); return false; }
+      var dd = [].slice.call(document.querySelectorAll('.rtDia:checked'))
+        .map(function (e) { return Number(e.value); });
+      if (!dd.length) { toast('Marque ao menos um dia da semana.'); return false; }
+      var ss = [].slice.call(document.querySelectorAll('.rtSuc:checked'))
+        .map(function (e) { return e.value; });
+
+      var corpo = {
+        loja_id: NUVEM.loja, nome: nome, pergunta: perg,
+        hora: hora.length === 5 ? hora + ':00' : hora,
+        dias: dd, sucursais: ss,
+        tipo_resposta: $('rtTipo').value,
+        ativa: $('rtAtiva').checked
+      };
+      try {
+        if (x) await api('assistente_rotinas?id=eq.' + x.id, 'PATCH', corpo);
+        else await api('assistente_rotinas', 'POST', [corpo], { 'Prefer': 'return=minimal' });
+        toast('Rotina salva.');
+        carregarRotinas();
+        return true;
+      } catch (e) {
+        toast('Não consegui salvar: ' + ((e && e.message) || 'erro'));
+        return false;
+      }
+    }, 'lg');
+}
+
+async function excluirRotina(id) {
+  var x = ROT.lista.find(function (y) { return y.id === id; });
+  if (!x) return;
+  if (!await pergunta('Excluir a rotina "' + x.nome + '"?\n\n' +
+    'As respostas já gravadas continuam no histórico — só a cobrança deixa de acontecer.')) return;
+  try {
+    await api('assistente_rotinas?id=eq.' + id, 'DELETE', null, { 'Prefer': 'return=minimal' });
+    toast('Rotina excluída.');
+    carregarRotinas();
+  } catch (e) { toast('Não consegui excluir: ' + ((e && e.message) || 'erro')); }
+}
+
+/* ---------- o bloco na tela ---------- */
+function blocoRotinas() {
+  if (!ehFranqueadora(usuarioLogado())) return '';
+  return '<div class="cfgSep" style="margin:14px 16px 0">Rotinas da assistente</div>' +
+   '<div style="padding:10px 16px 0">' +
+    '<div class="hint" style="margin-bottom:11px">As cobranças automáticas. A assistente ' +
+    'manda a pergunta no horário, nos dias marcados, e guarda a resposta com data e hora. ' +
+    'Quem cadastra é a matriz — o franqueado responde.</div>' +
+    '<button class="btnP2 ok" onclick="modalRotina()">' + sv('plus', 13) + ' Nova rotina</button>' +
+    '<div class="acTabW" id="rotBox" style="margin-top:11px"></div>' +
+   '</div>';
+}
+
 /* ---------- resumo do turno ---------- */
 function resumoDoCaixa(cx){
   baseFormas();
@@ -30254,6 +30466,7 @@ function telaGerente(){
     '</div>'+
    '</div>'+
 
+   blocoRotinas()+
    '<div class="cfgSep" style="margin:14px 16px 0">Respostas gravadas</div>'+
    '<div style="padding:8px 16px 20px">'+
     '<div class="hint" style="margin-bottom:9px">Cada pergunta que a assistente faz e cada '+
@@ -30263,6 +30476,7 @@ function telaGerente(){
    '</div>'+
    '</div></div>';
   carregarRespostasAss();
+  carregarRotinas();
   rodape(g.tel?'assistente: '+g.tel:'sem WhatsApp cadastrado');
 }
 /* Grava a configuração da assistente desta loja. Fica no aparelho e sobe com
