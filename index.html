@@ -12983,7 +12983,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.9.4';
+var VERSAO='V18.9.5';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30398,13 +30398,16 @@ function telaGerente(){
    '</div>'+
    '<div class="barraF">'+
     '<div class="bfCampo" style="min-width:230px"><label>Loja</label>'+
-     '<select onchange="GE.suc=this.value;telaGerente()">'+
+     '<select onchange="GE.suc=this.value;telaGerente();window.scrollTo(0,0)">'+
      sucAtivas().map(function(s){
        return '<option value="'+s.id+'"'+(GE.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'+
     '<div class="bfCampo"><label>Situação</label>'+
+     /* grava na hora: marcar e esquecer de salvar fazia a caixinha voltar
+        sozinha, e a pessoa achava que o sistema tinha ignorado o clique */
      '<label class="chkL" style="height:32px;margin:0"><input type="checkbox" id="geAtivo" '+
-     (g.ativo?'checked':'')+'><span>avisos ligados</span></label></div>'+
+     (g.ativo?'checked':'')+' onchange="ligarAvisos(this.checked)">'+
+     '<span>avisos ligados</span></label></div>'+
    '</div>'+
    '<div class="cfgDuas">'+
     '<div class="cfgCol"><div class="colH">O que avisar</div>'+
@@ -30532,12 +30535,25 @@ function salvarAssistente(){
 
   salvarGerente();
 
+  /* Redesenhar a tela ao salvar jogava a pessoa de volta ao topo no meio do
+     preenchimento, e o que ela tinha marcado e ainda não salvo voltava ao
+     estado antigo. A tela já reflete o que está gravado — não há o que
+     redesenhar. */
   var av=document.getElementById('assSalvoAviso');
   if(av){
     av.textContent='Guardado às '+agoraHM()+'.';
     setTimeout(function(){ if(av)av.textContent=''; },4000);
   }
-  telaGerente();
+}
+/* a caixinha de avisos grava sozinha, sem redesenhar a tela */
+function ligarAvisos(lig){
+  baseGerente();
+  if(!GE.suc)return;
+  DB.gerente[GE.suc]=DB.gerente[GE.suc]||{};
+  DB.gerente[GE.suc].ativo=!!lig;
+  salvar();
+  publicarAssistente(GE.suc);
+  toast(lig?'Avisos ligados.':'Avisos desligados.');
 }
 function previewMsg2(t){
   return String(t||'').replace(/\*(.+?)\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
@@ -30582,7 +30598,6 @@ function salvarAssPlat(){
   salvar();
   Object.keys(a.liberadas).forEach(function(sid){ publicarAssistente(sid); });
   toast('Liberações salvas.');
-  telaGerente();
 }
 /* o robô só conhece o gestor se o número chegar no banco */
 async function publicarAssistente(suc){
