@@ -12969,7 +12969,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.9.1';
+var VERSAO='V18.9.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -31085,6 +31085,10 @@ function sucursaisDoUsuario(){
 
 /* ---------- tela ---------- */
 var US={sel:null,busca:'',aba:'permissoes'};
+function achou(u,q){
+  return !q||String(u.nome||'').toLowerCase().indexOf(q)>=0||
+    String(u.login||'').toLowerCase().indexOf(q)>=0;
+}
 function telaUsuarios(){
   baseMov();baseSuc();baseUsr();
   var q=(US.busca||'').toLowerCase();
@@ -31105,8 +31109,23 @@ function telaUsuarios(){
         if(!daRede)return false;
       }
     }
-    return !q||String(u.nome||'').toLowerCase().indexOf(q)>=0||
-      String(u.login||'').toLowerCase().indexOf(q)>=0;
+    /* ------------------------------------------------------------------
+       O filtro só separava por REDE. Como todas as unidades da Jolô são da
+       mesma rede, o gerente de Santa Fé enxergava os acessos de São Paulo,
+       de Sorocaba e o da própria franqueadora — inclusive para editar.
+       Quem não é matriz vê apenas os acessos das unidades que ele opera.
+       ------------------------------------------------------------------ */
+    if(!ehFranqueadora(eu)&&!ehPlataforma(eu)){
+      var minhas=(eu&&eu.sucursais)||[];
+      if(minhas.length){
+        if(u.id===(eu||{}).id)return achou(u,q);   /* o próprio sempre aparece */
+        if(u.tudo||u.mestre)return false;          /* acesso total não é da unidade */
+        var dele=(u.sucursais||[]);
+        if(!dele.length)return false;              /* sem unidade = da rede toda */
+        if(!dele.some(function(sid){return minhas.indexOf(sid)>=0}))return false;
+      }
+    }
+    return achou(u,q);
   });
   /* so as unidades da rede de quem esta olhando */
   var sucsVisiveis=(DB.sucursais||[]).filter(function(sc){
