@@ -12969,7 +12969,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V18.7.1';
+var VERSAO='V18.8.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30413,6 +30413,12 @@ function telaGerente(){
         '<span><b>Venda cancelada</b><span>avisa na hora, com o valor e quem cancelou</span></span></label>'+
        '<label class="chkL"><input type="checkbox" id="geSa" '+(g.avisaSangria!==false?'checked':'')+'>'+
         '<span><b>Sangria de caixa</b><span>toda retirada de dinheiro da gaveta</span></span></label>'+
+      '</div>'+
+      /* Sem botão aqui, a caixinha "avisos ligados" voltava sozinha ao trocar
+         de tela — a pessoa marcava e o sistema esquecia. */
+      '<div style="display:flex;gap:9px;align-items:center;margin-top:14px">'+
+       '<button class="btnP2 ok" onclick="salvarAssistente()">'+sv('check',13)+' Salvar</button>'+
+       '<span class="hint">grava esta tela inteira</span>'+
       '</div>'+
      '</div></div>'+
     '<div class="cfgCol estreita"><div class="colH">Como o gerente recebe</div>'+
