@@ -12912,7 +12912,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V17.4.0';
+var VERSAO='V17.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30652,11 +30652,22 @@ async function publicarAcesso(){
     var sucs=(u.sucursais||[]).map(function(id){return mapa[id]||id});
     await api('app_usuarios?on_conflict=login','POST',[{
       loja_id:NUVEM.loja,
-      nome:u.nome,login:u.login,senha:u.senha,
+      nome:u.nome,login:u.login,
       ativo:u.ativo!==false,mestre:!!u.mestre,tudo:!!u.tudo,
       sucursais:sucs,permissoes:u.permissoes||{},
       cartoes:u.cartoes||[],ref_local:u.id
     }],{'Prefer':'resolution=merge-duplicates'});
+    /* a senha vai por funcao, que cifra dentro do banco. Mandar o texto puro
+       na tabela deixaria a senha legivel para quem lesse a linha. */
+    if(u.senha){
+      var rs=await api('rpc/app_definir_senha','POST',
+        {p_login:u.login,p_senha:u.senha});
+      var dd=Array.isArray(rs)?rs[0]:rs;
+      if(dd&&dd.erro)throw new Error(dd.erro);
+    }else{
+      throw new Error('Este acesso está sem senha. Edite o usuário, informe uma '+
+        'senha e publique de novo — é ela que abre o aplicativo.');
+    }
     u.publicadoEm=new Date().toISOString();
     salvar();telaUsuarios();
     toast('Acesso publicado — '+u.nome+' já pode entrar no aplicativo.');
@@ -30804,18 +30815,16 @@ function formUsuario(id){
     '<div class="fld2" style="margin:0"><label>Telefone</label>'+
      '<input id="uTel" value="'+E(u?u.tel:'')+'" placeholder="para contato"></div>'+
    '</div>'+
-   '<div style="background:#FFF6E5;border:1px solid #E8D5A8;border-radius:var(--r-s);'+
+   '<div style="background:#EAF3F8;border:1px solid #C5DCE8;border-radius:var(--r-s);'+
     'padding:10px 12px;margin:12px 0;font-size:12.5px;line-height:1.5;color:var(--ink-2)">'+
-    '<b style="color:var(--ink)">A conta de acesso ainda não é criada aqui.</b><br>'+
-    'Desde a V17.4.0 a entrada passa pelo Auth do banco. O que você grava nesta tela são '+
-    'o nome, as lojas e as permissões — a conta e a senha precisam ser criadas no banco, '+
-    'uma vez, por quem administra o Nexor. Enquanto isso não for feito, o login novo '+
-    'não entra.'+
+    '<b style="color:var(--ink)">A conta de acesso é criada no banco ao salvar.</b><br>'+
+    'O login precisa ser um e-mail e a senha, ao menos 6 caracteres — é o Auth do banco '+
+    'que guarda, cifrada. '+(u?'Deixe a senha vazia para não alterar a atual.':'')+
    '</div>'+
    (u&&u.mestre?'':'<label class="chkL"><input type="checkbox" id="uTudo" '+
      ((u&&u.tudo)?'checked':'')+'>'+
      '<span><b>Acesso total</b><span>vê todas as telas e todas as lojas, como o administrador</span></span></label>')+
-  '</div>','Salvar',function(){
+  '</div>','Salvar',async function(){
     var nome=$('uNome').value.trim();
     var login=$('uLogin').value.trim().toLowerCase().replace(/\s+/g,'');
     if(!nome){toast('Informe o nome.');return false;}
@@ -30827,6 +30836,19 @@ function formUsuario(id){
     if(rep){toast('Já existe um usuário com o login "'+login+'".');return false;}
     var senha=$('uSenha').value;
     if(!u&&!senha){toast('Informe a senha.');return false;}
+    if(senha&&senha.length<6){toast('A senha precisa ter ao menos 6 caracteres.');return false;}
+    /* a conta de verdade nasce no servidor: a chave de administrador nao pode
+       vir para o navegador, senao qualquer cliente vira admin de todas as redes */
+    if(senha||!u){
+      if(!NUVEM.ligada){toast('Ligue a nuvem para criar ou alterar o acesso.');return false;}
+      try{
+        var rr=await criarAcessoNoBanco(login,senha,nome);
+        if(rr&&rr.erro){toast(rr.erro);return false;}
+      }catch(e){
+        toast('Não consegui criar o acesso: '+((e&&e.message)||'servidor não respondeu'));
+        return false;
+      }
+    }
     var dados={nome:nome,login:login,tel:$('uTel').value.trim(),
       tudo:$('uTudo')?$('uTudo').checked:(u?u.tudo:false)};
     if(senha)dados.senha=senha;
@@ -30839,9 +30861,21 @@ function formUsuario(id){
       US.sel=novo.id;
     }
     salvar();telaUsuarios();
-    toast('Usuário salvo.');
+    toast('Usuário salvo'+((senha||!u)?' e acesso liberado.':'.'));
     return true;
   },'lg');
+}
+/* fala com a funcao do servidor, que e a unica que tem a chave de administrador */
+async function criarAcessoNoBanco(login,senha,nome){
+  var r=await fetch(NUVEM.url+'/functions/v1/criar-usuario',{
+    method:'POST',
+    headers:{'apikey':NUVEM.chave,'Authorization':'Bearer '+NUVEM.token,
+             'Content-Type':'application/json'},
+    body:JSON.stringify({email:login,senha:senha,nome:nome,cargo:'gerente'})});
+  var d=null;
+  try{ d=await r.json(); }catch(e){}
+  if(!r.ok)return {erro:(d&&d.erro)||('o servidor recusou ('+r.status+')')};
+  return d;
 }
 async function excluirUsuario(){
   var u=usrSel();
