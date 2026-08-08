@@ -11443,6 +11443,21 @@ function carregar(){
   DB.grupos=DB.grupos||[];DB.fichas=DB.fichas||[];
 }
 var _ultimoTamanho=0;
+/* O navegador da uns 5 MB por site. Guardavamos DUAS copias inteiras no
+   mesmo lugar — os dados e o respaldo — e juntas elas estouravam o limite.
+   Agora, quando falta espaco, o sistema joga fora o que e descartavel e
+   tenta de novo, em vez de simplesmente parar de salvar. */
+function liberarEspacoLocal(){
+  var soltos=['nexor_respaldo','nexor_respaldo_info','nexor_log','nexor_cache'];
+  var liberou=0;
+  soltos.forEach(function(k){
+    try{
+      var v=localStorage.getItem(k);
+      if(v){liberou+=v.length;localStorage.removeItem(k);}
+    }catch(e){}
+  });
+  return liberou;
+}
 function gravarLocal(){
   var txt;
   try{ txt=JSON.stringify(DB); }
@@ -11453,11 +11468,23 @@ function gravarLocal(){
     limparAlertaGravacao();
     return true;
   }catch(e){
+    /* segunda chance: descarta a copia de respaldo e tenta de novo */
+    var lib=liberarEspacoLocal();
+    if(lib){
+      try{
+        localStorage.setItem('nexor_dados',txt);
+        _ultimoTamanho=txt.length;
+        limparAlertaGravacao();
+        logNuvem('espaço apertado: descartei a cópia local ('+Math.round(lib/1024)+
+          ' KB) para conseguir salvar');
+        return true;
+      }catch(e2){}
+    }
     /* memoria do navegador cheia: a gravacao falha e o proximo F5 volta ao estado antigo.
        Isso NAO pode passar como um toast que some em tres segundos. */
-    alertaGravacao('O navegador recusou a gravação — provavelmente memória cheia ('+
+    alertaGravacao('O navegador recusou a gravação — memória cheia ('+
       Math.round(txt.length/1024)+' KB). Nada do que você lançar agora será guardado '+
-      'neste aparelho até resolver.');
+      'neste aparelho até resolver. Seus dados na nuvem estão a salvo.');
     logNuvem('FALHA AO GRAVAR NO APARELHO — '+Math.round(txt.length/1024)+' KB',true);
     return false;
   }
@@ -11521,6 +11548,16 @@ function respaldoLocal(motivo){
   try{
     var raw=localStorage.getItem('nexor_dados');
     if(!raw||raw.length<200)return false;
+    /* A copia so faz sentido se sobrar espaco para ela. Guardar uma segunda
+       copia inteira e o que estourava o limite do navegador — e sem espaco
+       o sistema para de salvar, que e muito pior do que ficar sem a copia. */
+    if(raw.length>1600000){
+      try{localStorage.removeItem('nexor_respaldo');
+          localStorage.removeItem('nexor_respaldo_info');}catch(e0){}
+      logNuvem('base grande ('+Math.round(raw.length/1024)+' KB): cópia local '+
+        'desligada para não faltar espaço. O backup da nuvem continua normal.');
+      return false;
+    }
     localStorage.setItem('nexor_respaldo',raw);
     localStorage.setItem('nexor_respaldo_info',JSON.stringify({
       quando:new Date().toISOString(),motivo:motivo||'',tam:raw.length}));
@@ -13389,7 +13426,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.14.1';
+var VERSAO='V19.14.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15274,7 +15311,7 @@ function explicaFiscal(){
    estiver ligado, a tela ja registra a venda como cupom pendente:
    assim, no dia em que ligar, o historico nao comeca do zero.
    ========================================================== */
-var CF={de:'',ate:'',status:'',origem:'',pag:'',consumidor:'',num:'',sel:{}};
+var CFI={de:'',ate:'',status:'',origem:'',pag:'',consumidor:'',num:'',sel:{}};
 var STATUS_CUPOM=[
  {id:'autorizado',  n:'Autorizado',   cor:'#0E8A46'},
  {id:'pendente',    n:'Pendente',     cor:'#8A8578'},
@@ -15294,14 +15331,14 @@ function corStatusCupom(id){
 function baseCuponsFiscais(){DB.cupons_f=DB.cupons_f||[];return DB.cupons_f;}
 function filtrarCupons(){
   baseCuponsFiscais();
-  var q=(CF.consumidor||'').toLowerCase(), qp=(CF.pag||'').toLowerCase();
+  var q=(CFI.consumidor||'').toLowerCase(), qp=(CFI.pag||'').toLowerCase();
   return DB.cupons_f.filter(function(c){
     var d=String(c.data||'').slice(0,10);
-    if(CF.de&&d<CF.de)return false;
-    if(CF.ate&&d>CF.ate)return false;
-    if(CF.status&&c.status!==CF.status)return false;
-    if(CF.origem&&c.origem!==CF.origem)return false;
-    if(CF.num&&String(c.numero||'').indexOf(CF.num)<0)return false;
+    if(CFI.de&&d<CFI.de)return false;
+    if(CFI.ate&&d>CFI.ate)return false;
+    if(CFI.status&&c.status!==CFI.status)return false;
+    if(CFI.origem&&c.origem!==CFI.origem)return false;
+    if(CFI.num&&String(c.numero||'').indexOf(CFI.num)<0)return false;
     if(q&&(c.consumidor||'').toLowerCase().indexOf(q)<0)return false;
     if(qp&&(c.pagamento||'').toLowerCase().indexOf(qp)<0)return false;
     return true;
@@ -15311,15 +15348,15 @@ function filtrarCupons(){
 }
 function telaCuponsFiscais(){
   baseCuponsFiscais();
-  if(!CF.de){var d=new Date();
-    CF.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-    CF.ate=hojeISO();}
+  if(!CFI.de){var d=new Date();
+    CFI.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+    CFI.ate=hojeISO();}
   var lst=filtrarCupons();
   var aut=lst.filter(function(c){return c.status==='autorizado'});
   var tot=aut.reduce(function(a,c){return a+(Number(c.total)||0)},0);
   var f=fiscalCfg();
-  var selN=Object.keys(CF.sel).filter(function(k){return CF.sel[k]}).length;
-  var selV=lst.filter(function(c){return CF.sel[c.id]})
+  var selN=Object.keys(CFI.sel).filter(function(k){return CFI.sel[k]}).length;
+  var selV=lst.filter(function(c){return CFI.sel[c.id]})
               .reduce(function(a,c){return a+(Number(c.total)||0)},0);
 
   $('content').innerHTML='<div class="finWrap">'+
@@ -15340,16 +15377,16 @@ function telaCuponsFiscais(){
      :''))+
 
   '<div class="filtroCard">'+
-   '<div class="fl"><label>De</label><input type="date" id="cfDe" value="'+CF.de+'"></div>'+
-   '<div class="fl"><label>Até</label><input type="date" id="cfAte" value="'+CF.ate+'"></div>'+
-   '<div class="fl"><label>Número</label><input id="cfNum" value="'+E(CF.num)+'" placeholder="nº do cupom"></div>'+
+   '<div class="fl"><label>De</label><input type="date" id="cfDe" value="'+CFI.de+'"></div>'+
+   '<div class="fl"><label>Até</label><input type="date" id="cfAte" value="'+CFI.ate+'"></div>'+
+   '<div class="fl"><label>Número</label><input id="cfNum" value="'+E(CFI.num)+'" placeholder="nº do cupom"></div>'+
    '<div class="fl"><label>Status</label><select id="cfSt"><option value="">Todos</option>'+
     STATUS_CUPOM.map(function(s){
-      return '<option value="'+s.id+'"'+(CF.status===s.id?' selected':'')+'>'+E(s.n)+'</option>';
+      return '<option value="'+s.id+'"'+(CFI.status===s.id?' selected':'')+'>'+E(s.n)+'</option>';
     }).join('')+'</select></div>'+
    '<div class="fl"><label>Origem</label><select id="cfOr"><option value="">Todas</option>'+
     ['salao','entrega','mesa','online'].map(function(o){
-      return '<option value="'+o+'"'+(CF.origem===o?' selected':'')+'>'+
+      return '<option value="'+o+'"'+(CFI.origem===o?' selected':'')+'>'+
         (o==='salao'?'Salão':o==='entrega'?'Entrega':o==='mesa'?'Mesa':'Online')+'</option>';
     }).join('')+'</select></div>'+
    '<button class="btnP2 ok" onclick="buscarCupons()">'+sv('search',14)+' Buscar</button>'+
@@ -15362,7 +15399,7 @@ function telaCuponsFiscais(){
 
   (selN?'<div class="cfSel">'+sv('nike',15)+
     '<div><b>'+selN+' cupom(ns) selecionado(s)</b> — R$ '+money(selV)+'</div>'+
-    '<button class="btnP2" onclick="CF.sel={};telaCuponsFiscais()">Limpar</button>'+
+    '<button class="btnP2" onclick="CFI.sel={};telaCuponsFiscais()">Limpar</button>'+
     '<button class="btnP2 ok" onclick="converterAgrupada()">Converter em NF-e agrupada</button>'+
    '</div>':'')+
 
@@ -15380,8 +15417,8 @@ function telaCuponsFiscais(){
    '<th style="width:70px"></th></tr></thead><tbody>'+
    lst.map(function(c){
      return '<tr>'+
-      '<td><label class="flagBox"><input type="checkbox" '+(CF.sel[c.id]?'checked':'')+
-       ' onchange="CF.sel[\''+c.id+'\']=this.checked;telaCuponsFiscais()"></label></td>'+
+      '<td><label class="flagBox"><input type="checkbox" '+(CFI.sel[c.id]?'checked':'')+
+       ' onchange="CFI.sel[\''+c.id+'\']=this.checked;telaCuponsFiscais()"></label></td>'+
       '<td><b>'+E(c.origem==='salao'?'Salão':c.origem==='entrega'?'Entrega':
         c.origem==='mesa'?'Mesa':'Online')+'</b></td>'+
       '<td>'+dataBR(String(c.data||'').slice(0,10))+(c.hora?', '+E(c.hora):'')+'</td>'+
@@ -15400,8 +15437,8 @@ function telaCuponsFiscais(){
   rodape(lst.length+' cupons · '+aut.length+' autorizados');
 }
 function buscarCupons(){
-  CF.de=$('cfDe').value;CF.ate=$('cfAte').value;CF.num=$('cfNum').value.trim();
-  CF.status=$('cfSt').value;CF.origem=$('cfOr').value;
+  CFI.de=$('cfDe').value;CFI.ate=$('cfAte').value;CFI.num=$('cfNum').value.trim();
+  CFI.status=$('cfSt').value;CFI.origem=$('cfOr').value;
   telaCuponsFiscais();
 }
 function verCupom(id){
@@ -15437,7 +15474,7 @@ function explicaCupons(){
    ok:'Entendi',cancelar:null}).then(function(){});
 }
 async function converterAgrupada(){
-  var lst=filtrarCupons().filter(function(c){return CF.sel[c.id]});
+  var lst=filtrarCupons().filter(function(c){return CFI.sel[c.id]});
   if(!lst.length)return;
   var tot=lst.reduce(function(a,c){return a+(Number(c.total)||0)},0);
   var jaAut=lst.filter(function(c){return c.status==='autorizado'}).length;
@@ -15453,7 +15490,7 @@ async function converterAgrupada(){
   if(!ok)return;
   var ref=uid('nfa');
   lst.forEach(function(c){c.status='agrupado';c.nfeAgrupada=ref;});
-  CF.sel={};salvar();telaCuponsFiscais();
+  CFI.sel={};salvar();telaCuponsFiscais();
   toast(lst.length+' cupons marcados para a NF-e agrupada.');
   if(NUVEM.ligada)sincronizar();
 }
