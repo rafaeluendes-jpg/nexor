@@ -671,6 +671,8 @@ body.pdvFull .wTitle{display:none}
 .mdvOp.on{border-color:var(--pr,#0E5C3A);background:#fff}
 .mdvOp.on b{color:var(--pr,#0E5C3A)}
 .mdvOp.trv{opacity:.5;cursor:not-allowed}
+.mesaTag{font-size:10px;background:var(--al,#B4542F);color:#fff;border-radius:4px;
+ padding:1px 6px;font-weight:700;letter-spacing:.03em}
 .cmdFaixa{display:flex;align-items:center;gap:10px;background:#FFF3E6;
  border-bottom:1px solid var(--lin,#e6e0d4);padding:8px 16px;font-size:13px;color:#8A4B1F}
 .cmdFaixa>div{flex:1}
@@ -11268,6 +11270,7 @@ var MOD=[
  {id:'dre',n:'DRE'},
  {id:'cmv-mercadoria',n:'CMV por Mercadoria'},
  {id:'cancelamentos',n:'Cancelamentos'},
+ {id:'vendas-mesa',n:'Vendas por Mesa'},
  {id:'cupons',n:'Cupons'}]},
 {id:'dashboard',n:'Gestão e Dashboard',ic:'chart',it:[
  {id:'canais-venda',n:'Canais de Venda'},
@@ -11363,16 +11366,19 @@ var CANAIS=[
  {id:'pdv',      n:'Frente de caixa', d:'venda no balcão e salão'},
  {id:'delivery', n:'Delivery',        d:'pedidos de entrega'},
  {id:'online',   n:'Pedido online',   d:'site e link de pedido'},
- {id:'cardapio', n:'Cardápio digital',d:'cardápio pelo celular'}
+ {id:'cardapio', n:'Cardápio digital',d:'cardápio pelo celular'},
+ {id:'mesa',     n:'Mesa (QR Code)',   d:'quem está sentado na loja'}
 ];
 /* Onde este produto pode ser vendido. Produto sem nenhuma marcacao aparece
    em todo lugar — senao, ao subir esta versao, o cardapio de quem nunca
    preencheu isso ficaria vazio de uma hora para outra. */
 function disponivelNo(p,canal){
   var d=(p&&p.disponivel)||{};
-  var algum=d.pdv||d.delivery||d.online||d.cardapio;
+  var algum=d.pdv||d.delivery||d.online||d.cardapio||d.mesa;
   if(!algum)return true;
   if(canal==='cardapio')return !!(d.cardapio||d.online||d.delivery);
+  /* a mesa vende o que se vende no balcão, não o que sai para entrega */
+  if(canal==='mesa')return !!(d.mesa||d.pdv);
   return !!d[canal];
 }
 var IMPOSTOS=['Sem tributação','Tributado integralmente','Isento','Substituição tributária','Não tributado'];
@@ -13325,7 +13331,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.10.0';
+var VERSAO='V19.11.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13421,6 +13427,7 @@ if(mid==='loja'&&iid==='mesas')return telaMesas();
 if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
 if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
+if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -30446,7 +30453,8 @@ function desenhaPedidosOnline(){
       '<td>'+(p.tipo==='entrega'?'Entrega':'Retirada')+'</td>'+
       '<td style="text-align:right"><b>R$ '+money(p.total)+'</b></td>'+
       '<td style="text-align:center"><span class="badge2'+(p.situacao==='recusado'?' rd':'')+'">'+
-       (p.situacao==='aceito'?'aceito':p.situacao==='recusado'?'recusado':E(p.situacao))+'</span></td>'+
+       (p.situacao==='aceito'?'aceito':p.situacao==='recusado'?'recusado':E(p.situacao))+'</span>'+
+       (p.tipo==='mesa'?' <span class="mesaTag">MESA '+E(p.mesa_numero)+'</span>':'')+'</td>'+
       '<td><button class="rBtn" onclick="verPedidoOnline(\''+p.id+'\')" title="Ver o pedido">'+
        sv('eye',12)+'</button></td></tr>';
     }).join('')+'</tbody></table></div>'
@@ -30537,6 +30545,9 @@ function cardPedidoOnline(p){
 async function aceitarPedidoOnline(id){
   var p=PON.lista.find(function(x){return x.id===id});
   if(!p)return;
+  /* Pedido de mesa nao vira venda ao ser aceito: ele engorda a comanda.
+     A venda so nasce quando a conta e fechada, la no salao. */
+  if(p.tipo==='mesa')return aceitarPedidoMesa(p);
   var ok=await confirmar({
     titulo:'Aceitar o pedido #'+p.numero,
     texto:E(p.cliente_nome)+' · '+(p.tipo==='entrega'?'entrega':'retirada'),
@@ -30657,6 +30668,48 @@ function formaPorNome(nome){
     if(n.indexOf('dinheiro')>=0)return y.indexOf('dinheiro')>=0;
     return false;});
   return f?f.id:((DB.formasPag||[])[0]||{}).id;
+}
+async function aceitarPedidoMesa(p){
+  baseMesas();baseComandas();
+  var num=Number(p.mesa_numero)||0;
+  var m=mesaPorNumero(num);
+  if(!m){
+    toast('A mesa '+num+' não está cadastrada. Cadastre em Configuração da Loja › Mesas.');
+    return;
+  }
+  var nome=String(p.comanda_nome||p.cliente_nome||'').trim()||'Mesa '+num;
+  var ok=await confirmar({
+    titulo:'Levar para a mesa '+num,
+    texto:'Comanda de '+E(nome),
+    linhas:[['Itens',String((p.itens||[]).length),''],
+            ['Valor','R$ '+money(p.total),''],
+            ['Mesa',String(num),'']],
+    aviso:'Os itens entram na comanda desta pessoa. Nada é cobrado agora — '+
+     'a conta fecha no salão, quando a mesa pedir.',
+    ok:'Confirmar e mandar para a cozinha',tipo:'check'});
+  if(!ok)return;
+
+  /* comanda com o mesmo nome nesta mesa: soma nela em vez de criar outra */
+  var c=comandasDaMesa(m.id).find(function(x){
+    return x.nome.toLowerCase()===nome.toLowerCase();});
+  if(!c){
+    c={id:uid('cm'),mesaId:m.id,mesaNumero:num,nome:nome,itens:[],aberta:true,
+       abertaEm:new Date().toISOString(),sucursalId:m.sucursalId||''};
+    DB.comandas.push(c);
+  }
+  (p.itens||[]).forEach(function(i){
+    var x=JSON.parse(JSON.stringify(i));
+    if(p.observacao&&!x.obs)x.obs=p.observacao;
+    c.itens.push(x);
+  });
+  salvar();
+  try{
+    await api('pedidos_online?id=eq.'+p.id,'PATCH',{situacao:'aceito'});
+  }catch(e){}
+  PON.lista=PON.lista.map(function(x){if(x.id===p.id)x.situacao='aceito';return x;});
+  desenhaPedidosOnline();
+  toast('Lançado na comanda de '+nome+' — mesa '+num+'.');
+  if(NUVEM.ligada)sincronizar();
 }
 async function recusarPedidoOnline(id){
   var p=PON.lista.find(function(x){return x.id===id});
@@ -32519,6 +32572,105 @@ function atrasado(p){
   return minutosNoStatus(p)>st.minutos;
 }
 
+
+/* ==========================================================
+   RELATÓRIO DE MESAS
+   Quanto cada mesa rendeu, quantas contas fechou e o ticket.
+   ========================================================== */
+var RM={de:'',ate:''};
+function telaRelMesas(){
+  baseMesas();
+  if(!RM.de){var d=new Date();
+    RM.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+    RM.ate=hojeISO();}
+  var peds=(DB.pedidos||[]).filter(function(p){
+    if(!p.mesaId&&!p.mesa)return false;
+    if(ehCancelado(p))return false;
+    var d=String(p.data||'').slice(0,10);
+    return (!RM.de||d>=RM.de)&&(!RM.ate||d<=RM.ate);
+  });
+  var porMesa={};
+  peds.forEach(function(p){
+    var k=String(p.mesa||'—');
+    if(!porMesa[k])porMesa[k]={mesa:k,contas:0,valor:0,taxa:0,itens:0};
+    var x=porMesa[k];
+    x.contas++;x.valor+=Number(p.total)||0;x.taxa+=Number(p.taxaServico)||0;
+    x.itens+=(p.itens||[]).reduce(function(a,i){return a+(Number(i.qtd)||0)},0);
+  });
+  var lst=Object.keys(porMesa).map(function(k){return porMesa[k]})
+    .sort(function(a,b){return b.valor-a.valor});
+  var totV=lst.reduce(function(a,x){return a+x.valor},0);
+  var totC=lst.reduce(function(a,x){return a+x.contas},0);
+  var totT=lst.reduce(function(a,x){return a+x.taxa},0);
+
+  $('content').innerHTML='<div class="finWrap">'+
+  '<div class="finTop"><div><h1>Vendas por Mesa</h1>'+
+  '<p>Contas fechadas no salão, por mesa. Só entram vendas concluídas — cancelada não conta.</p></div>'+
+  '<div class="finActs">'+
+   '<button class="infoBt" onclick="explicaRelMesas()">'+sv('help',15)+'</button>'+
+   '<button class="btnP2" onclick="exportarMesas()">'+sv('file',14)+' Exportar CSV</button>'+
+  '</div></div>'+
+  '<div class="filtroCard">'+
+   '<div class="fl"><label>De</label><input type="date" id="rmDe" value="'+RM.de+'"></div>'+
+   '<div class="fl"><label>Até</label><input type="date" id="rmAte" value="'+RM.ate+'"></div>'+
+   '<button class="btnP2 ok" onclick="RM.de=$(\'rmDe\').value;RM.ate=$(\'rmAte\').value;telaRelMesas()">'+
+    sv('search',14)+' Buscar</button>'+
+   '<div style="flex:1"></div>'+
+   '<div class="fcResumo">'+
+    '<div><span>Contas</span><b>'+totC+'</b></div>'+
+    '<div><span>Faturamento</span><b>R$ '+money(totV)+'</b></div>'+
+    '<div><span>Ticket médio</span><b>R$ '+money(totC?totV/totC:0)+'</b></div>'+
+    (totT?'<div><span>Taxa de serviço</span><b>R$ '+money(totT)+'</b></div>':'')+
+   '</div>'+
+  '</div>'+
+  '<div class="pnl2"><div class="pnl2H">Mesas <span class="cnt2">'+lst.length+'</span></div>'+
+  '<div class="pnl2B" style="padding:0">'+
+  (lst.length?'<table class="pTable finTab"><thead><tr>'+
+   '<th>Mesa</th>'+
+   '<th style="width:96px;text-align:center">Contas</th>'+
+   '<th style="width:96px;text-align:center">Itens</th>'+
+   '<th style="width:120px;text-align:right">Ticket médio</th>'+
+   '<th style="width:120px;text-align:right">Taxa</th>'+
+   '<th style="width:130px;text-align:right">Faturamento</th></tr></thead><tbody>'+
+   lst.map(function(x){
+     return '<tr><td><b>Mesa '+E(x.mesa)+'</b></td>'+
+     '<td style="text-align:center">'+x.contas+'</td>'+
+     '<td style="text-align:center">'+x.itens+'</td>'+
+     '<td style="text-align:right">R$ '+money(x.contas?x.valor/x.contas:0)+'</td>'+
+     '<td style="text-align:right">R$ '+money(x.taxa)+'</td>'+
+     '<td style="text-align:right"><b>R$ '+money(x.valor)+'</b></td></tr>';
+   }).join('')+'</tbody></table>'
+  :'<div class="entVazio"><b>Nenhuma conta de mesa no período</b>'+
+   '<span>Ajuste as datas e clique em Buscar.</span></div>')+
+  '</div></div></div>';
+  rodape(totC+' contas de mesa no período');
+}
+function explicaRelMesas(){
+  confirmar({titulo:'Como este relatório é montado',texto:'Vendas por Mesa',
+   linhas:[['O que entra','vendas fechadas no salão, com mesa marcada',''],
+           ['O que não entra','cancelamentos, delivery e balcão sem mesa',''],
+           ['Ticket médio','faturamento dividido pelo número de contas','']],
+   aviso:'Uma conta é um fechamento. Se a mesa 1 fechou unificado para quatro pessoas, '+
+    'isso conta como UMA conta — que é o que interessa para medir giro de mesa.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function exportarMesas(){
+  var peds=(DB.pedidos||[]).filter(function(p){
+    if(!p.mesaId&&!p.mesa)return false;
+    if(ehCancelado(p))return false;
+    var d=String(p.data||'').slice(0,10);
+    return (!RM.de||d>=RM.de)&&(!RM.ate||d<=RM.ate);});
+  if(!peds.length){toast('Nada para exportar no período.');return;}
+  var l=[['Pedido','Data','Hora','Mesa','Comanda','Itens','Taxa de servico','Total']];
+  peds.forEach(function(p){
+    l.push([p.numero,dataBR(String(p.data).slice(0,10)),p.hora||'',p.mesa||'',
+      p.comandaNome||'',(p.itens||[]).length,
+      String(p.taxaServico||0).replace('.',','),
+      String(p.total||0).replace('.',',')]);
+  });
+  baixarCSV(l,'vendas-por-mesa');
+}
+
 /* ==========================================================
    MODELO DE IMPRESSAO
    O cupom deixa de ser codigo e vira texto editavel. Cada linha
@@ -33829,7 +33981,7 @@ function podeVer(mid,iid){
   if(!moduloContratado(mid))return false;   /* fora do contrato: some para todos */
   if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono do Nexor */
   /* modo de venda desligado: a tela dele nao existe para esta loja */
-  if(iid==='mesas'&&typeof modoAtivo==='function'&&!modoAtivo('mesa'))return false;
+  if((iid==='mesas'||iid==='vendas-mesa')&&typeof modoAtivo==='function'&&!modoAtivo('mesa'))return false;
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
   /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
