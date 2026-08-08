@@ -657,6 +657,20 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.lmLista{display:flex;flex-direction:column;gap:8px}
+.lmMod{border:1px solid var(--lin,#e6e0d4);border-radius:10px;background:var(--card,#fff);overflow:hidden}
+.lmMod.on{border-color:var(--pr,#0E5C3A)}
+.lmH{display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer}
+.lmIc{color:var(--pr,#0E5C3A);display:flex}
+.lmN{flex:1;min-width:0}
+.lmN b{display:block;font-size:13.5px;color:var(--tx,#2f2a24)}
+.lmN span{display:block;font-size:11px;color:var(--tx2,#7a7266)}
+.lmAc{display:flex;gap:3px}
+.lmSeta{color:var(--tx2,#7a7266);display:flex}
+.lmItens{border-top:1px solid var(--lin,#e6e0d4);background:var(--bg2,#faf7f0);padding:6px 13px 10px 42px}
+.lmIt{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--lin,#e6e0d4)}
+.lmIt:last-child{border-bottom:none}
+.lmIt span{flex:1;font-size:12.5px;color:var(--tx,#2f2a24)}
 .stPrev{margin:0 0 14px}
 .stPrevH{font-size:11px;color:var(--tx2,#7a7266);text-transform:uppercase;
  letter-spacing:.04em;margin-bottom:7px}
@@ -11218,6 +11232,7 @@ var MOD=[
  {id:'clientes-nexor',n:'Clientes Nexor'},
  {id:'instalacao',n:'Assistente de Instalação'},
  {id:'backup',n:'Backup e Restauração'},
+ {id:'layout-menu',n:'Layout do Menu'},
  {id:'reset-sistema',n:'Dados de Teste e Reinício'}]}
 ];
 /* telas exclusivas da franqueadora — franquia nao ve nem por permissao */
@@ -12459,6 +12474,7 @@ async function baixarDaNuvem(forcar){
   DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ativo:x.ativo!==false,ordem:x.ordem||0}});
 
+  baixarLayoutMenu();
   var stv=await api('status_venda'+qs+'&order=ordem');
   DB.statusVenda=volta(stv,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     papel:x.papel||'producao',ordem:x.ordem||0,ativo:x.ativo!==false,cor:x.cor||'',
@@ -13077,6 +13093,8 @@ function boot(){
   DB.modelosImp=DB.modelosImp||[];
   DB.statusVenda=DB.statusVenda||[];
   baseCanc();baseTurnos();baseImp();baseStatus();
+  aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
+  baixarLayoutMenu();
   topo();faixa();abrir('cardapio','cfg-cardapio');
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
@@ -13201,7 +13219,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.5.5';
+var VERSAO='V19.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13309,6 +13327,7 @@ if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
 if(mid==='tecnico'&&iid==='reset-sistema')return telaReset();
 if(mid==='tecnico'&&iid==='central-tecnica')return telaCentralTecnica();
 if(mid==='tecnico'&&iid==='backup')return telaBackup();
+if(mid==='tecnico'&&iid==='layout-menu')return telaLayoutMenu();
 if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
 if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
@@ -14499,6 +14518,134 @@ var FASES_DISP=[
  {id:'entregue',n:'Entregue / Concluído'},
  {id:'cancelado',n:'Cancelado'}
 ];
+
+
+/* ==========================================================
+   LAYOUT DO MENU — só o dono do Nexor
+   A ordem dos modulos e das telas dentro deles estava escrita no
+   codigo. Agora ela vem de uma linha unica no banco, valida para
+   todas as redes: o que for salvo aqui muda o menu de todo mundo.
+   Em vez de cada tela consultar a ordem, o proprio MOD e reordenado
+   assim que o layout chega — quem desenha o menu nao precisa saber
+   que isso existe.
+   ========================================================== */
+function aplicarLayoutMenu(){
+  var L=DB._layoutMenu;
+  if(!L)return;
+  if(L.mods&&L.mods.length){
+    var pos={};L.mods.forEach(function(id,i){pos[id]=i});
+    /* modulo que nao esta na lista salva vai para o fim, sem sumir */
+    MOD.sort(function(a,b){
+      var pa=(pos[a.id]===undefined)?999:pos[a.id];
+      var pb=(pos[b.id]===undefined)?999:pos[b.id];
+      return pa-pb;
+    });
+  }
+  if(L.itens){
+    MOD.forEach(function(m){
+      var ord=L.itens[m.id];
+      if(!ord||!ord.length)return;
+      var p={};ord.forEach(function(id,i){p[id]=i});
+      m.it.sort(function(a,b){
+        var pa=(p[a.id]===undefined)?999:p[a.id];
+        var pb=(p[b.id]===undefined)?999:p[b.id];
+        return pa-pb;
+      });
+    });
+  }
+}
+async function baixarLayoutMenu(){
+  if(!NUVEM.ligada||!NUVEM.cli)return;
+  try{
+    var r=await NUVEM.cli.from('menu_layout').select('mods,itens').eq('id',1).maybeSingle();
+    if(r.error||!r.data)return;
+    DB._layoutMenu={mods:r.data.mods||[],itens:r.data.itens||{}};
+    aplicarLayoutMenu();
+    gravarLocal();
+    try{faixa()}catch(e){}
+  }catch(e){}
+}
+var LM={mod:null};
+function telaLayoutMenu(){
+  if(!ehPlataforma()){
+    $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
+     '<div class="construIc">'+sv('lock',30)+'</div><b>Tela do dono do Nexor</b>'+
+     '<p>Só a plataforma configura o layout do menu.</p></div></div>';
+    rodape('sem permissão');return;
+  }
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Layout do Menu</h1>'+
+    '<p>A ordem em que os módulos e as telas aparecem para <b>todos os clientes</b>. '+
+    'Suba o que é mais usado. Nada some daqui — para tirar uma tela de um cliente, '+
+    'use Clientes Nexor &rsaquo; Telas liberadas.</p></div>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2 ok" onclick="salvarLayoutMenu()">'+sv('nike',14)+' Salvar e publicar</button>'+
+   '</div>'+
+   '<div id="lmBox">'+listaLayoutHTML()+'</div>'+
+   '</div></div>';
+  rodape(MOD.length+' módulos');
+}
+function listaLayoutHTML(){
+  return '<div class="lmLista">'+MOD.map(function(m,i){
+    var ab=(LM.mod===m.id);
+    return '<div class="lmMod'+(ab?' on':'')+'">'+
+     '<div class="lmH" onclick="LM.mod=(LM.mod===\''+m.id+'\'?null:\''+m.id+'\');redesenharLayout()">'+
+      '<span class="lmIc">'+sv(m.ic||'gear2',15)+'</span>'+
+      '<div class="lmN"><b>'+E(m.n)+'</b><span>'+(m.it||[]).length+' telas</span></div>'+
+      '<div class="lmAc" onclick="event.stopPropagation()">'+
+       (i>0?'<button class="rBtn" onclick="moverMod('+i+',-1)" title="Subir">'+sv('cima',12)+'</button>':'')+
+       (i<MOD.length-1?'<button class="rBtn" onclick="moverMod('+i+',1)" title="Descer">'+sv('baixo',12)+'</button>':'')+
+      '</div>'+
+      '<span class="lmSeta">'+sv(ab?'cima':'baixo',13)+'</span>'+
+     '</div>'+
+     (ab?'<div class="lmItens">'+(m.it||[]).map(function(t,j){
+       return '<div class="lmIt">'+
+        '<span>'+E(t.n)+'</span>'+
+        '<div class="lmAc">'+
+         (j>0?'<button class="rBtn" onclick="moverItem(\''+m.id+'\','+j+',-1)" title="Subir">'+sv('cima',11)+'</button>':'')+
+         (j<m.it.length-1?'<button class="rBtn" onclick="moverItem(\''+m.id+'\','+j+',1)" title="Descer">'+sv('baixo',11)+'</button>':'')+
+        '</div></div>';
+     }).join('')+'</div>':'')+
+    '</div>';
+  }).join('')+'</div>';
+}
+function redesenharLayout(){
+  var b=$('lmBox');
+  if(!b){telaLayoutMenu();return;}
+  b.innerHTML=listaLayoutHTML();
+}
+function moverMod(i,d){
+  if(i+d<0||i+d>=MOD.length)return;
+  var t=MOD[i];MOD[i]=MOD[i+d];MOD[i+d]=t;
+  redesenharLayout();faixa();
+}
+function moverItem(mid,j,d){
+  var m=M(mid);if(!m)return;
+  if(j+d<0||j+d>=m.it.length)return;
+  var t=m.it[j];m.it[j]=m.it[j+d];m.it[j+d]=t;
+  redesenharLayout();
+}
+async function salvarLayoutMenu(){
+  if(!ehPlataforma()){toast('Só o dono do Nexor pode publicar o layout.');return;}
+  var mods=MOD.map(function(m){return m.id});
+  var itens={};
+  MOD.forEach(function(m){itens[m.id]=(m.it||[]).map(function(t){return t.id})});
+  DB._layoutMenu={mods:mods,itens:itens};
+  gravarLocal();
+  if(!NUVEM.ligada||!NUVEM.cli){
+    toast('Layout guardado neste aparelho. Ligue a nuvem para publicar.');
+    return;
+  }
+  try{
+    var r=await NUVEM.cli.from('menu_layout')
+      .update({mods:mods,itens:itens,atualizado_em:new Date().toISOString()}).eq('id',1);
+    if(r.error)throw r.error;
+    toast('Layout publicado — vale para todas as redes.');
+  }catch(e){
+    toast('Não consegui publicar: '+((e&&e.message)||'falha'));
+  }
+}
 
 /* ==========================================================
    STATUS DE VENDA — as colunas do Kanban viraram cadastro
