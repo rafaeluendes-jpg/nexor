@@ -657,6 +657,43 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.impAbas{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 14px}
+.impAba{text-align:left;background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);
+ border-radius:12px;padding:11px 14px;cursor:pointer;display:block}
+.impAba b{display:block;font-size:14px;color:var(--tx,#2f2a24)}
+.impAba span{display:block;font-size:11px;color:var(--tx2,#7a7266);margin-top:2px;line-height:1.35}
+.impAba.on{border-color:var(--pr,#0E5C3A);box-shadow:inset 0 0 0 1px var(--pr,#0E5C3A)}
+.impAba.on b{color:var(--pr,#0E5C3A)}
+.impGrade{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+@media(max-width:980px){.impGrade{grid-template-columns:1fr}}
+.impEdit{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:14px}
+.impBarra{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+.impCampos{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;align-items:center}
+.impCH{font-size:11px;color:var(--tx2,#7a7266);margin-right:4px}
+.impChip{font:600 11px/1 ui-monospace,Menlo,Consolas,monospace;background:var(--bg2,#f6f2e9);
+ border:1px solid var(--lin,#e6e0d4);border-radius:6px;padding:5px 7px;cursor:pointer;color:var(--az,#1F5F8B)}
+.impChip:hover{background:var(--az,#1F5F8B);color:#fff;border-color:var(--az,#1F5F8B)}
+.impTxt{width:100%;min-height:420px;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;
+ border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:12px;resize:vertical;
+ background:var(--bg2,#faf7f0);color:var(--tx,#2f2a24)}
+.impAcoes{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
+.impPrev{position:sticky;top:12px}
+.impPrevH{font-size:11px;color:var(--tx2,#7a7266);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+.papel{background:#fff;color:#111;padding:12px 10px;border-radius:4px;
+ box-shadow:0 2px 14px rgba(0,0,0,.14);width:320px;max-width:100%;
+ font:12px/1.42 ui-monospace,Menlo,Consolas,monospace;white-space:pre}
+.papel.p58{width:228px;font-size:11px}
+.papel .ppL{white-space:pre;overflow:hidden}
+.papel .ct{text-align:center}
+.papel .dr{text-align:right}
+.papel .bd{font-weight:700}
+.papel .gr{font-size:1.55em;font-weight:700;line-height:1.2}
+.papel .pq{font-size:.85em;color:#444}
+.papel .ppCorte{color:#999;overflow:hidden;white-space:nowrap;margin:6px 0}
+.papel .ppBar{text-align:center;margin:6px 0}
+.papel .ppBarG{height:34px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 4px,#111 4px 5px,#fff 5px 8px);margin-bottom:2px}
+.papel .ppBar span{font-size:10px}
+.papelPg{display:flex;justify-content:center;padding:4px 0}
 .rcRank{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px}
 .rcRank .rcRankIt{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);
  border-radius:10px;padding:9px 14px;display:flex;align-items:baseline;gap:8px;min-width:130px}
@@ -11457,6 +11494,11 @@ var MAPA=[
  {col:'motivosCanc', espelha:true, tab:'motivos_cancelamento',
   campos:function(x,i){return {nome:x.nome,ativo:x.ativo!==false,ordem:x.ordem||i}}},
 
+ {col:'modelosImp', espelha:true, tab:'modelos_impressao',
+  campos:function(x){return {tipo:x.tipo,nome:x.nome,colunas:n(x.colunas)||48,
+    vias:n(x.vias)||1,corte:x.corte!==false,gaveta:!!x.gaveta,
+    modelo:x.modelo||'',ativo:x.ativo!==false}}},
+
  /* Turno tem que vir antes de caixas no MAPA: o caixa aponta para o turno,
     e o vinculo so resolve se o turno ja subiu. */
  {col:'turnos', espelha:true, tab:'turnos',
@@ -12313,6 +12355,11 @@ async function baixarDaNuvem(forcar){
   DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ativo:x.ativo!==false,ordem:x.ordem||0}});
 
+  var mi=await api('modelos_impressao'+qs);
+  DB.modelosImp=volta(mi,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
+    colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
+    gaveta:!!x.gaveta,modelo:x.modelo||'',ativo:x.ativo!==false}});
+
   var tn=await api('turnos'+qs+'&order=ordem');
   var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
   DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
@@ -12909,7 +12956,8 @@ try{
 function boot(){
   DB.motivosCanc=DB.motivosCanc||[];DB.turnos=DB.turnos||[];
   DB.cancelamentos=DB.cancelamentos||[];
-  baseCanc();baseTurnos();
+  DB.modelosImp=DB.modelosImp||[];
+  baseCanc();baseTurnos();baseImp();
   topo();faixa();abrir('cardapio','cfg-cardapio');
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
@@ -13034,7 +13082,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.1.0';
+var VERSAO='V19.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13110,6 +13158,7 @@ if(mid==='loja'&&iid==='cfg-pdv')return telaCfgPDV();
 if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
+if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
@@ -15023,25 +15072,17 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   PDV.aba='pedidos';telaPDV();
   toast('Venda finalizada — pedido #'+ped.numero+'.');
 }
+/* A via do pedido sai pelo modelo cadastrado em Configuracao da Loja >
+   Modelo de Impressao. Antes o cupom estava escrito dentro desta funcao:
+   mudar uma linha do papel exigia mexer no sistema. */
 function imprimirVia(ped){
-  var el=document.getElementById('viaImp')||document.createElement('div');
-  el.id='viaImp';
-  el.innerHTML='<div style="text-align:center"><b>NEXOR</b><br>Pedido #'+ped.numero+'<br>'+
-  new Date(ped.data).toLocaleString('pt-BR')+'</div><hr>'+
-  '<div>Cliente: '+E(ped.clienteNome)+'</div>'+
-  '<div>Tipo: '+(ped.tipo==='entrega'?'ENTREGA':'LOJA')+'</div><hr>'+
-  ped.itens.map(function(i){
-    return i.qtd+'x '+E(i.nome)+' .... R$ '+money(i.total)+
-    (i.opcoes&&i.opcoes.length?'<br>&nbsp;&nbsp;'+i.opcoes.map(function(o){return '+'+E(o.nome)}).join('<br>&nbsp;&nbsp;'):'')+
-    (i.obs?'<br>&nbsp;&nbsp;obs: '+E(i.obs):'');}).join('<br>')+
-  '<hr>'+(ped.taxa?'Taxa entrega: R$ '+money(ped.taxa)+'<br>':'')+
-  (ped.desconto?'Desconto: R$ '+money(ped.desconto)+'<br>':'')+
-  '<b>TOTAL: R$ '+money(ped.total)+'</b><br>'+
-  ped.pagamentos.map(function(p){var f=FORMAS.find(function(x){return x.id===p.forma});
-    return f.n+': R$ '+money(p.valor)}).join('<br>')+
-  '<hr>'+(ped.fiscal?'CUPOM FISCAL SOLICITADO':'SEM VALOR FISCAL');
-  document.body.appendChild(el);
-  setTimeout(function(){window.print()},150);
+  if(!ped)return;
+  baseImp();
+  var tipo=(ped.tipo==='entrega')?'entrega':(ped.mesa?'mesa':'ficha');
+  var m=modeloImp(tipo)||modeloImp('ficha');
+  if(!m){toast('Nenhum modelo de impressao cadastrado.');return;}
+  var cols=m.colunas||48;
+  imprimirPapel(montarImp(m.modelo,ped,cols),cols,m.vias||1);
 }
 
 /* ---------- ABA: PEDIDOS (kanban) ---------- */
@@ -28253,14 +28294,9 @@ var AFAZER={
    'Cupons usados no período, quanto de desconto cada um gerou e quantos clientes novos trouxe.'],
  'loja/dados-fiscais':['Dados Fiscais',
    'Regime tributário, CNPJ, certificado e a integração com o emissor de nota.'],
- 'loja/modelo-impressao':['Modelo de Impressão',
-   'Como sai o cupom e a comanda da cozinha, com prévia.'],
- 'loja/motivo-cancelamento':['Motivos de Cancelamento',
-   'Lista de motivos que o operador escolhe ao cancelar uma venda.'],
+
  'loja/status-vendas':['Status de Vendas',
-   'As fases do kanban: nomes, cores e ordem.'],
- 'loja/turnos':['Turnos',
-   'Horários de trabalho para separar o faturamento por turno.']
+   'As fases do kanban: nomes, cores e ordem.']
 };
 /* ==========================================================
    BUSCA E ORDENAÇÃO EM TODA TABELA
@@ -31131,6 +31167,480 @@ async function confirmarCancelamento(id){
     msgCancelamento(p,p.motivoCancelamento));
 }
 
+
+
+/* ==========================================================
+   MODELO DE IMPRESSAO
+   O cupom deixa de ser codigo e vira texto editavel. Cada linha
+   do modelo e uma linha do papel; o que esta entre chaves e
+   trocado pelo dado do pedido na hora de imprimir.
+   ========================================================== */
+var IMP={tipo:'ficha',rascunho:null};
+
+/* Os tres papeis que saem da impressora. A mesa ja fica pronta
+   mesmo antes do modulo de mesas existir: quando ele chegar, o
+   modelo ja esta ali e nao vira obra nova. */
+var IMP_TIPOS=[
+ {id:'ficha',  n:'Ficha',   d:'sai na frente de caixa: uma via para o cliente, outra para a producao'},
+ {id:'entrega',n:'Entrega', d:'sai no pedido de delivery, com endereco e telefone'},
+ {id:'mesa',   n:'Mesa',    d:'conta da mesa, para quando o modulo de mesas entrar'}
+];
+
+var IMP_PADRAO={
+ ficha:
+  '{c}{n}{loja}{/n}\n'+
+  '{c}{cnpj}\n'+
+  '{c}{endereco}\n'+
+  '{linha}\n'+
+  '{c}{g}FICHA{/g}\n'+
+  '{d}{data} - {hora}\n'+
+  'Senha: {n}{g}{senha}{/g}{/n}\n'+
+  'Cliente: {cliente}\n'+
+  'Pedido: {numero}\n'+
+  '{linha}\n'+
+  'Qt.Descricao|Valor\n'+
+  '{linha}\n'+
+  '{itens}\n'+
+  '{linha}\n'+
+  'Quantidade de itens:|{qtd_itens}\n'+
+  '{linha}\n'+
+  'Total itens(=)|{subtotal}\n'+
+  '{?acrescimo}Acrescimo(+)|{acrescimo}\n'+
+  '{?desconto}Desconto(-)|{desconto}\n'+
+  '{n}TOTAL(=)|{total}{/n}\n'+
+  '{linha}\n'+
+  'Forma de pagamento\n'+
+  '{pagamentos}\n'+
+  '{linha}\n'+
+  '{c}{barras}\n'+
+  '{c}Pedido {numero}\n'+
+  '{c}Op: {operador}\n'+
+  '{branco}\n'+
+  '{c}{p}{loja} - Nexor{/p}\n'+
+  '{corte}',
+ entrega:
+  '{c}{n}{loja}{/n}\n'+
+  '{c}{cnpj}\n'+
+  '{c}{endereco}\n'+
+  '{linha}\n'+
+  '{c}{g}ENTREGA{/g}\n'+
+  '{d}{data} - {hora}\n'+
+  'Pedido: {n}{g}#{numero}{/g}{/n}\n'+
+  'Cliente: {cliente}\n'+
+  '{?fone_cliente}Telefone: {fone_cliente}\n'+
+  '{linha}\n'+
+  '{n}{end_entrega}{/n}\n'+
+  '{?bairro}{bairro}\n'+
+  '{?obs}Obs: {obs}\n'+
+  '{linha}\n'+
+  'Qt.Descricao|Valor\n'+
+  '{linha}\n'+
+  '{itens}\n'+
+  '{linha}\n'+
+  'Quantidade de itens:|{qtd_itens}\n'+
+  '{linha}\n'+
+  'Total itens(=)|{subtotal}\n'+
+  '{?taxa}Taxa de entrega(+)|{taxa}\n'+
+  '{?acrescimo}Acrescimo(+)|{acrescimo}\n'+
+  '{?desconto}Desconto(-)|{desconto}\n'+
+  '{n}TOTAL(=)|{total}{/n}\n'+
+  '{linha}\n'+
+  'Forma de pagamento\n'+
+  '{pagamentos}\n'+
+  '{linha}\n'+
+  '{c}Op: {operador}\n'+
+  '{branco}\n'+
+  '{c}{p}{loja} - Nexor{/p}\n'+
+  '{corte}',
+ mesa:
+  '{c}{n}{loja}{/n}\n'+
+  '{c}{cnpj}\n'+
+  '{c}{endereco}\n'+
+  '{linha}\n'+
+  '{c}{g}MESA {mesa}{/g}\n'+
+  '{d}{data} - {hora}\n'+
+  'Pedido: {numero}\n'+
+  '{?cliente}Cliente: {cliente}\n'+
+  '{linha}\n'+
+  'Qt.Descricao|Valor\n'+
+  '{linha}\n'+
+  '{itens}\n'+
+  '{linha}\n'+
+  'Quantidade de itens:|{qtd_itens}\n'+
+  '{linha}\n'+
+  'Total itens(=)|{subtotal}\n'+
+  '{?acrescimo}Acrescimo(+)|{acrescimo}\n'+
+  '{?desconto}Desconto(-)|{desconto}\n'+
+  '{n}TOTAL(=)|{total}{/n}\n'+
+  '{linha}\n'+
+  '{c}{p}Este documento nao tem valor fiscal{/p}\n'+
+  '{c}Op: {operador}\n'+
+  '{branco}\n'+
+  '{c}{p}{loja} - Nexor{/p}\n'+
+  '{corte}'
+};
+
+function baseImp(){
+  DB.modelosImp=DB.modelosImp||[];
+  IMP_TIPOS.forEach(function(t,i){
+    if(!DB.modelosImp.some(function(m){return m.tipo===t.id}))
+      DB.modelosImp.push({id:uid('mi'),tipo:t.id,nome:t.n,colunas:48,vias:t.id==='ficha'?2:1,
+        corte:true,gaveta:false,modelo:IMP_PADRAO[t.id],ativo:true});
+  });
+  return DB.modelosImp;
+}
+function modeloImp(tipo){
+  baseImp();
+  return DB.modelosImp.find(function(m){return m.tipo===tipo})||null;
+}
+
+/* ---------- os dados que entram no lugar das chaves ---------- */
+function dadosImp(ped){
+  baseSuc();
+  var s=(DB.sucursais||[])[0]||{};
+  var cx=caixaAberto()||{};
+  var sub=(ped.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
+  var end=[s.endereco,s.cidade,s.uf].filter(Boolean).join(', ');
+  return {
+    loja:s.apelido||s.nome||'Loja',
+    cnpj:s.cnpj?('CNPJ: '+s.cnpj):'',
+    endereco:end,
+    telefone:s.telefone||'',
+    data:dataBR(String(ped.data||hojeISO()).slice(0,10)),
+    hora:ped.hora||agoraHM(),
+    numero:String(ped.numero||''),
+    senha:String(ped.senha||ped.numero||''),
+    cliente:ped.clienteNome||'Consumidor',
+    fone_cliente:ped.clienteFone||'',
+    end_entrega:ped.endereco||'',
+    bairro:ped.zona||ped.cidade||'',
+    mesa:String(ped.mesa||''),
+    canal:ped.canal||'',
+    obs:ped.obs||'',
+    qtd_itens:String((ped.itens||[]).reduce(function(a,i){return a+(Number(i.qtd)||0)},0)),
+    subtotal:money(sub),
+    taxa:Number(ped.taxa)?money(ped.taxa):'',
+    acrescimo:Number(ped.acrescimo)?money(ped.acrescimo):'',
+    desconto:Number(ped.desconto)?money(ped.desconto):'',
+    total:money(ped.total),
+    operador:cx.operador||'—',
+    turno:cx.turno||''
+  };
+}
+
+/* ---------- o motor: modelo + pedido = linhas de papel ----------
+   Devolve uma lista de {txt, al, n, g, p, corte, barras} — cru, sem
+   HTML. Quem desenha (previa) e quem imprime usam a mesma lista, e e
+   por isso que a previa nao mente. */
+function montarImp(modelo,ped,cols){
+  var d=dadosImp(ped);
+  var out=[];
+  function preenche(t){
+    return String(t).replace(/\{([a-z_]+)\}/g,function(todo,k){
+      return (d[k]!==undefined)?d[k]:todo;});
+  }
+  String(modelo||'').split('\n').forEach(function(ln){
+    /* {?campo} no comeco: a linha so sai se o campo tiver conteudo */
+    var cond=ln.match(/^\{\?([a-z_]+)\}/);
+    if(cond){
+      if(!d[cond[1]])return;
+      ln=ln.replace(/^\{\?[a-z_]+\}/,'');
+    }
+    if(/^\{linha\}\s*$/.test(ln)){out.push({tipo:'linha'});return;}
+    if(/^\{branco\}\s*$/.test(ln)){out.push({tipo:'txt',txt:'',al:'e'});return;}
+    if(/^\{corte\}\s*$/.test(ln)){out.push({tipo:'corte'});return;}
+    if(/^\{itens\}\s*$/.test(ln)){linhasItens(ped,cols,true).forEach(function(x){out.push(x)});return;}
+    if(/^\{itens_sem_preco\}\s*$/.test(ln)){linhasItens(ped,cols,false).forEach(function(x){out.push(x)});return;}
+    if(/^\{pagamentos\}\s*$/.test(ln)){linhasPag(ped,cols).forEach(function(x){out.push(x)});return;}
+
+    var al='e';
+    if(/^\{c\}/.test(ln)){al='c';ln=ln.replace(/^\{c\}/,'');}
+    else if(/^\{d\}/.test(ln)){al='d';ln=ln.replace(/^\{d\}/,'');}
+
+    var neg=/\{n\}/.test(ln), gr=/\{g\}/.test(ln), pq=/\{p\}/.test(ln);
+    var temBarras=/\{barras\}/.test(ln);
+    ln=ln.replace(/\{\/?[ngp]\}/g,'');
+
+    if(temBarras){
+      ln=ln.replace(/\{barras\}/,'');
+      out.push({tipo:'barras',txt:preenche(d.numero),al:al});
+      if(!ln.trim())return;
+    }
+    ln=preenche(ln);
+
+    /* a barra vertical separa o que fica na esquerda do que encosta na direita */
+    if(ln.indexOf('|')>=0){
+      var p=ln.split('|');
+      var esq=p[0],dir=p.slice(1).join('|');
+      var largura=gr?Math.floor(cols/2):cols;
+      var espaco=largura-esq.length-dir.length;
+      ln=esq+(espaco>0?new Array(espaco+1).join(' '):' ')+dir;
+      al='e';
+    }
+    /* Linha maior que o papel: quebra na palavra. Sem isto a impressora
+       corta ou embola sozinha, e a previa mentiria sobre o resultado.
+       Letra grande ocupa o dobro, entao cabe metade. */
+    var larg=gr?Math.floor(cols/2):cols;
+    quebrar(ln,larg).forEach(function(t){
+      out.push({tipo:'txt',txt:t,al:al,n:neg,g:gr,p:pq});
+    });
+  });
+  return out;
+}
+function quebrar(txt,larg){
+  txt=String(txt==null?'':txt);
+  if(txt.length<=larg)return [txt];
+  var r=[],linha='';
+  txt.split(' ').forEach(function(p){
+    /* palavra sozinha maior que o papel: parte no meio, nao ha alternativa */
+    while(p.length>larg){
+      if(linha){r.push(linha);linha='';}
+      r.push(p.slice(0,larg));p=p.slice(larg);
+    }
+    if(!linha)linha=p;
+    else if((linha+' '+p).length<=larg)linha+=' '+p;
+    else {r.push(linha);linha=p;}
+  });
+  if(linha)r.push(linha);
+  return r;
+}
+function linhasItens(ped,cols,comPreco){
+  var r=[];
+  (ped.itens||[]).forEach(function(i){
+    var q=String(i.qtd||1);
+    var val=comPreco?money(i.total):'';
+    var largNome=cols-q.length-2-(val?val.length+1:0);
+    var nome=String(i.nome||'');
+    var cab=q+'  '+nome.slice(0,Math.max(4,largNome));
+    if(val){
+      var esp=cols-cab.length-val.length;
+      cab=cab+(esp>0?new Array(esp+1).join(' '):' ')+val;
+    }
+    r.push({tipo:'txt',txt:cab,al:'e'});
+    /* nome que nao coube continua na linha de baixo, recuado */
+    if(nome.length>Math.max(4,largNome))
+      r.push({tipo:'txt',txt:'   '+nome.slice(Math.max(4,largNome)),al:'e'});
+    (i.opcoes||[]).forEach(function(o){
+      r.push({tipo:'txt',txt:'   + '+(o.nome||o),al:'e',p:true});});
+    if(i.obs)r.push({tipo:'txt',txt:'   obs: '+i.obs,al:'e',p:true});
+  });
+  if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
+  return r;
+}
+function linhasPag(ped,cols){
+  var r=[];
+  (ped.pagamentos||[]).forEach(function(g){
+    var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId||x.id===g.forma});
+    var nm=(f?f.nome:'Pagamento');
+    var v=money(g.valor);
+    var esp=cols-nm.length-v.length;
+    r.push({tipo:'txt',txt:nm+(esp>0?new Array(esp+1).join(' '):' ')+v,al:'e'});
+  });
+  if(!r.length)r.push({tipo:'txt',txt:'(nao informado)',al:'e'});
+  return r;
+}
+
+/* ---------- desenha o papel na tela ---------- */
+function papelHTML(linhas,cols){
+  return linhas.map(function(l){
+    if(l.tipo==='linha')return '<div class="ppL">'+new Array(cols+1).join('-')+'</div>';
+    if(l.tipo==='corte')return '<div class="ppCorte">'+new Array(cols+1).join('- ')+'</div>';
+    if(l.tipo==='barras')
+      return '<div class="ppBar"><div class="ppBarG"></div><span>'+E(l.txt)+'</span></div>';
+    var cls='ppL';
+    if(l.al==='c')cls+=' ct'; else if(l.al==='d')cls+=' dr';
+    if(l.n)cls+=' bd'; if(l.g)cls+=' gr'; if(l.p)cls+=' pq';
+    return '<div class="'+cls+'">'+(E(l.txt)||'&nbsp;')+'</div>';
+  }).join('');
+}
+
+/* pedido de mentira, so para a previa mostrar algo parecido com a vida real */
+function pedidoExemplo(tipo){
+  return {numero:1042,senha:18,data:hojeISO(),hora:agoraHM(),
+    clienteNome:tipo==='ficha'?'Consumidor':'Maria da Graca Vitorino',
+    clienteFone:'(17) 98116-0247',
+    endereco:'Rua Tenente Dercio Lupiano de Assis, 234, Casa',
+    zona:'Tres Fronteiras',mesa:'07',obs:tipo==='entrega'?'Interfone quebrado':'',
+    itens:[{qtd:2,nome:'Copo 1 Bola',total:26,opcoes:[{nome:'Morango'},{nome:'Chocolate'}]},
+           {qtd:1,nome:'Pote M (1kg)',total:65,obs:'sem calda'}],
+    taxa:tipo==='entrega'?3:0,acrescimo:0,desconto:0,
+    total:tipo==='entrega'?94:91,
+    pagamentos:[{formaId:(DB.formasPag||[{}])[0].id,valor:tipo==='entrega'?94:91}]};
+}
+
+/* ---------- a tela ---------- */
+function telaModeloImp(){
+  baseImp();
+  var m=modeloImp(IMP.tipo);
+  var texto=(IMP.rascunho!==null?IMP.rascunho:m.modelo);
+  var cols=m.colunas||48;
+  var linhas=montarImp(texto,pedidoExemplo(IMP.tipo),cols);
+
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Modelo de Impressao</h1>'+
+    '<p>Cada linha do modelo e uma linha do papel. O que esta entre chaves e trocado pelo '+
+    'dado do pedido na hora de imprimir. A previa ao lado usa um pedido de exemplo e '+
+    'atualiza enquanto voce digita.</p></div>'+
+    '<button class="infoBt" onclick="explicaImp()">'+sv('help',15)+'</button>'+
+   '</div>'+
+
+   '<div class="impAbas">'+IMP_TIPOS.map(function(t){
+     return '<button class="impAba'+(IMP.tipo===t.id?' on':'')+'" onclick="trocarImp(\''+t.id+'\')">'+
+      '<b>'+E(t.n)+'</b><span>'+E(t.d)+'</span></button>';
+   }).join('')+'</div>'+
+
+   '<div class="impGrade">'+
+    '<div class="impEdit">'+
+     '<div class="impBarra">'+
+      '<div class="fl"><label>Largura do papel</label><select id="impCols" onchange="salvarImpCampo()">'+
+       '<option value="32"'+(cols===32?' selected':'')+'>58 mm (32 colunas)</option>'+
+       '<option value="48"'+(cols===48?' selected':'')+'>80 mm (48 colunas)</option>'+
+      '</select></div>'+
+      '<div class="fl"><label>Vias</label>'+
+       '<input type="number" id="impVias" min="1" max="4" value="'+(m.vias||1)+'" onchange="salvarImpCampo()"></div>'+
+      '<label class="chkL" style="margin:0"><input type="checkbox" id="impCorte" '+
+       (m.corte!==false?'checked':'')+' onchange="salvarImpCampo()"><span>Cortar papel</span></label>'+
+      '<label class="chkL" style="margin:0"><input type="checkbox" id="impGaveta" '+
+       (m.gaveta?'checked':'')+' onchange="salvarImpCampo()"><span>Abrir gaveta</span></label>'+
+     '</div>'+
+     '<div class="impCampos">'+
+      '<span class="impCH">Clique para inserir:</span>'+
+      IMP_CAMPOS.map(function(c){
+        return '<button class="impChip" title="'+E(c[1])+'" onclick="inserirImp(\''+c[0]+'\')">'+E(c[0])+'</button>';
+      }).join('')+
+     '</div>'+
+     '<textarea id="impTxt" class="impTxt" spellcheck="false" '+
+      'oninput="IMP.rascunho=this.value;previaImp()">'+E(texto)+'</textarea>'+
+     '<div class="impAcoes">'+
+      '<button class="btnP2 ok" onclick="salvarImp()">'+sv('nike',14)+' Salvar modelo</button>'+
+      '<button class="btnP2" onclick="testarImp()">'+sv('file',14)+' Imprimir teste</button>'+
+      '<div style="flex:1"></div>'+
+      '<button class="btnP2 rdB" onclick="restaurarImp()">Restaurar padrao</button>'+
+     '</div>'+
+    '</div>'+
+    '<div class="impPrev">'+
+     '<div class="impPrevH">Previa — '+cols+' colunas'+
+      (m.vias>1?' · '+m.vias+' vias':'')+'</div>'+
+     '<div class="papel'+(cols===32?' p58':'')+'" id="impPapel">'+papelHTML(linhas,cols)+'</div>'+
+    '</div>'+
+   '</div>'+
+   '</div></div>';
+  rodape('modelo de '+m.nome+(IMP.rascunho!==null?' — alteracoes nao salvas':''));
+}
+var IMP_CAMPOS=[
+ ['{loja}','nome da loja'],['{cnpj}','CNPJ'],['{endereco}','endereco da loja'],
+ ['{telefone}','telefone da loja'],
+ ['{data}','data do pedido'],['{hora}','hora do pedido'],
+ ['{numero}','numero do pedido'],['{senha}','senha de retirada'],
+ ['{cliente}','nome do cliente'],['{fone_cliente}','telefone do cliente'],
+ ['{end_entrega}','endereco da entrega'],['{bairro}','bairro ou zona'],
+ ['{mesa}','numero da mesa'],['{obs}','observacao do pedido'],
+ ['{itens}','lista de itens com preco'],['{itens_sem_preco}','itens sem preco (producao)'],
+ ['{qtd_itens}','quantidade de itens'],['{subtotal}','soma dos itens'],
+ ['{taxa}','taxa de entrega'],['{acrescimo}','acrescimo'],['{desconto}','desconto'],
+ ['{total}','total do pedido'],['{pagamentos}','formas de pagamento'],
+ ['{operador}','quem esta no caixa'],['{turno}','turno do caixa'],
+ ['{c}','centralizar a linha'],['{d}','alinhar a direita'],
+ ['{n}texto{/n}','negrito'],['{g}texto{/g}','letra grande'],['{p}texto{/p}','letra pequena'],
+ ['|','empurra o resto para a direita'],
+ ['{linha}','traco divisorio'],['{branco}','linha em branco'],
+ ['{barras}','codigo de barras'],['{corte}','cortar o papel'],
+ ['{?campo}','so imprime se o campo tiver conteudo']
+];
+function trocarImp(t){
+  if(IMP.rascunho!==null&&IMP.rascunho!==modeloImp(IMP.tipo).modelo){
+    if(!confirm('Ha alteracoes nao salvas neste modelo. Trocar mesmo assim?'))return;
+  }
+  IMP.tipo=t;IMP.rascunho=null;telaModeloImp();
+}
+function previaImp(){
+  var m=modeloImp(IMP.tipo);
+  var cols=parseInt(($('impCols')||{}).value||m.colunas||48,10);
+  var el=$('impPapel');
+  if(!el)return;
+  el.className='papel'+(cols===32?' p58':'');
+  el.innerHTML=papelHTML(montarImp(IMP.rascunho!==null?IMP.rascunho:m.modelo,
+    pedidoExemplo(IMP.tipo),cols),cols);
+}
+function inserirImp(txt){
+  var ta=$('impTxt');if(!ta)return;
+  var i=ta.selectionStart||0,f=ta.selectionEnd||0;
+  ta.value=ta.value.slice(0,i)+txt+ta.value.slice(f);
+  ta.focus();ta.selectionStart=ta.selectionEnd=i+txt.length;
+  IMP.rascunho=ta.value;previaImp();
+}
+function salvarImpCampo(){
+  var m=modeloImp(IMP.tipo);
+  m.colunas=parseInt($('impCols').value,10)||48;
+  m.vias=parseInt($('impVias').value,10)||1;
+  m.corte=$('impCorte').checked;
+  m.gaveta=$('impGaveta').checked;
+  salvar();previaImp();
+  if(NUVEM.ligada)sincronizar();
+}
+function salvarImp(){
+  var m=modeloImp(IMP.tipo);
+  m.modelo=$('impTxt').value;
+  m.colunas=parseInt($('impCols').value,10)||48;
+  m.vias=parseInt($('impVias').value,10)||1;
+  m.corte=$('impCorte').checked;
+  m.gaveta=$('impGaveta').checked;
+  IMP.rascunho=null;
+  salvar();telaModeloImp();toast('Modelo de '+m.nome+' salvo.');
+  if(NUVEM.ligada)sincronizar();
+}
+async function restaurarImp(){
+  var m=modeloImp(IMP.tipo);
+  var ok=await confirmar({titulo:'Restaurar o padrao',texto:'Modelo de '+m.nome,
+    aviso:'O modelo volta a ser o que veio de fabrica. O que voce escreveu se perde.',
+    ok:'Restaurar',tipo:'perigo'});
+  if(!ok)return;
+  m.modelo=IMP_PADRAO[m.tipo];IMP.rascunho=null;
+  salvar();telaModeloImp();toast('Modelo restaurado.');
+  if(NUVEM.ligada)sincronizar();
+}
+function explicaImp(){
+  confirmar({titulo:'Como o modelo funciona',texto:'Modelo de Impressao',
+   linhas:[['Uma linha do modelo','e uma linha do papel',''],
+           ['{chave}','vira o dado do pedido',''],
+           ['A barra |','empurra o que vem depois para a direita',''],
+           ['{?campo}','a linha so sai se o campo tiver conteudo','']],
+   aviso:'A previa usa um pedido de exemplo e o mesmo motor da impressao — o que voce ve '+
+    'e o que sai no papel. Estes tres modelos NAO sao cupom fiscal: o cupom fiscal (NFC-e) '+
+    'tem layout definido por lei e sai do emissor, quando a integracao fiscal for feita.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function testarImp(){
+  var m=modeloImp(IMP.tipo);
+  var cols=parseInt(($('impCols')||{}).value||m.colunas||48,10);
+  imprimirPapel(montarImp(IMP.rascunho!==null?IMP.rascunho:m.modelo,
+    pedidoExemplo(IMP.tipo),cols),cols,1);
+}
+
+/* ---------- manda para a impressora ----------
+   Sai pelo navegador: a impressora termica instalada no Windows aparece
+   como impressora comum. Comando direto ESC/POS (corte e gaveta) exige
+   um programa na maquina — ainda nao existe, e os dois campos ficam
+   guardados esperando ele. */
+function imprimirPapel(linhas,cols,vias){
+  var mm=(cols===32?58:80);
+  var el=document.getElementById('viaImp')||document.createElement('div');
+  el.id='viaImp';
+  var uma='<div class="papel'+(cols===32?' p58':'')+'">'+papelHTML(linhas,cols)+'</div>';
+  var todas='';
+  for(var v=0;v<(vias||1);v++)
+    todas+='<div class="papelPg">'+uma+'</div>';
+  el.innerHTML=todas;
+  document.body.appendChild(el);
+  var st=document.getElementById('impCSS')||document.createElement('style');
+  st.id='impCSS';
+  st.textContent='@media print{@page{size:'+mm+'mm auto;margin:2mm}'+
+   'body>*{display:none!important}#viaImp{display:block!important}'+
+   '.papelPg{page-break-after:always}}';
+  document.head.appendChild(st);
+  setTimeout(function(){window.print()},200);
+}
 
 /* ==========================================================
    MOTIVOS DE CANCELAMENTO — cadastro
