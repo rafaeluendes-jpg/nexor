@@ -668,6 +668,7 @@ body.pdvFull .wTitle{display:none}
 .stCol span{display:block;font-size:10.5px;color:var(--tx2,#7a7266);margin-top:1px}
 .stCol i{display:inline-flex;align-items:center;gap:3px;font-style:normal;
  font-size:10px;color:var(--tx2,#7a7266);margin-top:4px;margin-right:7px}
+.stTopo{font-size:11px;color:var(--tx2,#7a7266)}
 .stOrd{display:flex;gap:2px}
 .stPt{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .stPap{font-size:11px;background:var(--bg2,#f6f2e9);border:1px solid var(--lin,#e6e0d4);
@@ -11098,6 +11099,8 @@ chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="
 store:'<path d="M3 9l1.5-5h15L21 9M3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/>',
 bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
 clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
+cima:'<polyline points="18 15 12 9 6 15"/>',
+baixo:'<polyline points="6 9 12 15 18 9"/>',
 help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/>',
 search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.6" y2="16.6"/>',
 dn:'<polyline points="6 9 12 15 18 9"/>',
@@ -13173,7 +13176,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.5.0';
+var VERSAO='V19.5.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -31425,9 +31428,11 @@ function telaStatusVendas(){
    lst.map(function(x,i){
      var pedidos=(DB.pedidos||[]).filter(function(p){return p.fase===x.id}).length;
      return '<tr'+(x.ativo===false?' class="off"':'')+'>'+
+      /* so o subir: com ele da para chegar a qualquer ordem, e a coluna
+         fica limpa. O descer era um botao a mais sem serventia. */
       '<td><div class="stOrd">'+
-       (i>0?'<button class="rBtn" onclick="moverStatus(\''+x.id+'\',-1)">'+sv('up2',10)+'</button>':'')+
-       (i<lst.length-1?'<button class="rBtn" onclick="moverStatus(\''+x.id+'\',1)">'+sv('dn4',10)+'</button>':'')+
+       (i>0?'<button class="rBtn" onclick="moverStatus(\''+x.id+'\',-1)" title="Subir">'+
+        sv('cima',12)+'</button>':'<span class="stTopo">1&ordf;</span>')+
       '</div></td>'+
       '<td><b><span class="stPt" style="background:'+E(x.cor||'#8A8578')+'"></span>'+E(x.nome)+'</b>'+
        (pedidos?'<small>'+pedidos+' pedido(s) neste status</small>':'')+'</td>'+
@@ -31485,8 +31490,8 @@ function formStatus(id){
     '<span>Emitir alerta sonoro quando um pedido chegar neste status</span></label>'+
    '<label class="chkL"><input type="checkbox" id="stConf" '+(x&&x.confPag?'checked':'')+'>'+
     '<span>Conferir o pagamento antes de sair deste status</span></label>'+
-   '<label class="chkL"><input type="checkbox" id="stAtivo" '+(!x||x.ativo!==false?'checked':'')+'>'+
-    '<span>Ativo — aparece como coluna no Kanban</span></label>'+
+   '<div class="hint">Para ligar ou desligar este status no Kanban, use a chave da '+
+    'coluna <b>Ativo</b> na lista — nao precisa entrar aqui.</div>'+
   '</div>','Salvar',function(){
     var nome=$('stNome').value.trim();
     if(!nome){toast('Informe a descricao do status.');return false;}
@@ -31495,17 +31500,10 @@ function formStatus(id){
     var rs=document.querySelectorAll('input[name="stCor"]');
     for(var i=0;i<rs.length;i++)if(rs[i].checked)cor=rs[i].value;
     var o={nome:nome,papel:papel,cor:cor,minutos:parseInt($('stMin').value,10)||0,
-      som:$('stSom').checked,confPag:$('stConf').checked,ativo:$('stAtivo').checked};
-    /* desligar o ultimo Cancelado ou Finalizado deixaria o PDV sem saida */
-    if(!o.ativo&&x&&(x.papel==='cancelado'||x.papel==='finalizado')){
-      var sobra=statusAtivos().filter(function(y){return y.papel===x.papel&&y.id!==x.id});
-      if(!sobra.length){
-        toast('Precisa haver ao menos um status ativo com o papel '+nomePapel(x.papel)+'.');
-        return false;
-      }
-    }
+      som:$('stSom').checked,confPag:$('stConf').checked};
+    /* o ativo nao e mexido aqui: quem edita o nome nao perde o que ja estava ligado */
     if(x)Object.assign(x,o);
-    else DB.statusVenda.push(Object.assign({id:uid('st'),ordem:DB.statusVenda.length},o));
+    else DB.statusVenda.push(Object.assign({id:uid('st'),ordem:DB.statusVenda.length,ativo:true},o));
     salvar();telaStatusVendas();toast(x?'Status atualizado.':'Status criado.');
     if(NUVEM.ligada)sincronizar();
     return true;
@@ -32120,8 +32118,8 @@ function listaBlocosHTML(m){
        '<div class="blkN"><b>'+E(nomeBloco(b.t))+'</b>'+
         (resumoBloco(b)?'<span>'+E(resumoBloco(b))+'</span>':'')+'</div>'+
        '<div class="blkAc">'+
-        (i>0?'<button class="rBtn" onclick="moverBloco('+i+',-1)" title="Subir">'+sv('up2',11)+'</button>':'')+
-        (i<m.blocos.length-1?'<button class="rBtn" onclick="moverBloco('+i+',1)" title="Descer">'+sv('dn4',11)+'</button>':'')+
+        (i>0?'<button class="rBtn" onclick="moverBloco('+i+',-1)" title="Subir">'+sv('cima',12)+'</button>':'')+
+        (i<m.blocos.length-1?'<button class="rBtn" onclick="moverBloco('+i+',1)" title="Descer">'+sv('baixo',12)+'</button>':'')+
         '<button class="rBtn rd" onclick="tirarBloco('+i+')" title="Remover">'+sv('trash',11)+'</button>'+
        '</div>'+
       '</div>'+
