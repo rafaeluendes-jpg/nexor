@@ -657,6 +657,23 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.msBarra{display:flex;gap:22px;flex-wrap:wrap;background:var(--card,#fff);
+ border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 16px;margin-bottom:14px}
+.msGrupo{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.msGrupo b{font-size:11px;color:var(--tx2,#7a7266);text-transform:uppercase;
+ letter-spacing:.04em;margin-right:2px}
+.msGrupo input{width:130px;border:1px solid var(--lin,#e6e0d4);border-radius:8px;
+ padding:8px 10px;background:#fff}
+.msGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:12px}
+.msCard{border:1px solid var(--lin,#e6e0d4);border-radius:12px;background:var(--card,#fff);
+ padding:11px}
+.msCard.off{opacity:.45}
+.msH{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.msH b{flex:1;font-size:15px;color:var(--tx,#2f2a24)}
+.msAc{display:flex;gap:2px}
+.msQR{display:flex;justify-content:center;padding:4px 0 8px;min-height:128px;align-items:center}
+.msQR canvas{border-radius:4px}
+.msSw{justify-content:flex-start}
 .lmLista{display:flex;flex-direction:column;gap:8px}
 .lmMod{border:1px solid var(--lin,#e6e0d4);border-radius:10px;background:var(--card,#fff);overflow:hidden}
 .lmMod.on{border-color:var(--pr,#0E5C3A)}
@@ -11224,6 +11241,7 @@ var MOD=[
  {id:'modelo-impressao',n:'Modelo de Impressão'},
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
  {id:'status-vendas',n:'Status de Vendas'},
+ {id:'mesas',n:'Mesas e QR Code'},
  {id:'turnos',n:'Turnos'},
  {id:'usuarios-permissoes',n:'Usuários e Permissões'}]},
 
@@ -11619,6 +11637,10 @@ var MAPA=[
 
  /* Turno tem que vir antes de caixas no MAPA: o caixa aponta para o turno,
     e o vinculo so resolve se o turno ja subiu. */
+ {col:'mesas', espelha:true, tab:'mesas',
+  campos:function(x){return {numero:n(x.numero),nome:x.nome||null,
+    lugares:n(x.lugares)||4,ativa:x.ativa!==false,sucursal_id:x.sucursalId||null}}},
+
  {col:'turnos', espelha:true, tab:'turnos',
   campos:function(x,i){return {nome:x.nome,hora_inicio:x.ini||null,hora_fim:x.fim||null,
     ativo:x.ativo!==false,ordem:ordemDe(x,i)}}},
@@ -11691,7 +11713,8 @@ var MAPA=[
     cliente_id:fk('clientes',x.clienteId),cliente_nome:x.clienteNome||null,cidade:x.cidade||null,
     entregador_id:fk('entregadores',x.entregadorId),caixa_id:fk('caixas',x.caixaId),
     total:n(x.total),taxa:n(x.taxa),desconto:n(x.desconto),fiscal:!!x.fiscal,
-    hora:x.hora||null,data_venda:x.data||null}},
+    hora:x.hora||null,data_venda:x.data||null,
+    mesa_id:fk('mesas',x.mesaId),mesa_numero:n(x.mesa)}},
   filhos:[
    {lista:'itens',tab:'pedido_itens',pai:'pedido_id',
     campos:function(o){return {produto_id:fk('produtos',o.produtoId),nome:o.nome,
@@ -12499,6 +12522,12 @@ async function baixarDaNuvem(forcar){
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
     ativo:x.ativo!==false}});
 
+  var ms=await api('mesas'+qs+'&order=numero');
+  var mapaMs={};ms.forEach(function(x){mapaMs[x.id]=x.ref_local||x.id});
+  DB.mesas=volta(ms,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
+    nome:x.nome||'',lugares:Number(x.lugares)||4,ativa:x.ativa!==false,
+    sucursalId:x.sucursal_id||''}});
+
   var tn=await api('turnos'+qs+'&order=ordem');
   var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
   DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
@@ -13105,6 +13134,7 @@ function boot(){
   DB.cancelamentos=DB.cancelamentos||[];
   DB.modelosImp=DB.modelosImp||[];
   DB.statusVenda=DB.statusVenda||[];
+  DB.mesas=DB.mesas||[];
   baseCanc();baseTurnos();baseImp();baseStatus();
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
@@ -13232,7 +13262,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.7.0';
+var VERSAO='V19.8.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13324,6 +13354,7 @@ if(mid==='loja'&&iid==='cfg-pdv')return telaCfgPDV();
 if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
+if(mid==='loja'&&iid==='mesas')return telaMesas();
 if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
 if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
@@ -14536,6 +14567,233 @@ var FASES_DISP=[
  {id:'cancelado',n:'Cancelado'}
 ];
 
+
+
+/* ==========================================================
+   MESAS — cadastro e QR Code
+   Cada mesa tem um QR proprio. O cliente aponta a camera, cai no
+   cardapio digital ja sabendo em que mesa esta, e o pedido chega
+   marcado. O garcom nao precisa anotar de que mesa veio.
+   ========================================================== */
+var MS={sel:{}};
+function baseMesas(){DB.mesas=DB.mesas||[];return DB.mesas;}
+function mesasAtivas(){
+  baseMesas();
+  return DB.mesas.filter(function(m){return m.ativa!==false})
+    .sort(function(a,b){return (a.numero||0)-(b.numero||0)});
+}
+function mesaPorNumero(n){
+  baseMesas();
+  return DB.mesas.find(function(m){return String(m.numero)===String(n)})||null;
+}
+/* o endereco que o QR carrega */
+function linkMesa(m){
+  var suc=m.sucursalId||(sucAtivas()[0]||{}).id||'';
+  return 'https://rafaeluendes-jpg.github.io/delivery/?mesa='+encodeURIComponent(m.numero)+
+         (suc?'&loja='+encodeURIComponent(suc):'');
+}
+/* A biblioteca do QR e carregada so quando a tela abre. Sobe uma vez e
+   fica; nas outras visitas nao ha espera. */
+var _qrPronto=null;
+function carregarQR(){
+  if(_qrPronto)return _qrPronto;
+  _qrPronto=new Promise(function(ok,falha){
+    if(window.QRCode)return ok();
+    var s=document.createElement('script');
+    s.src='https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
+    s.onload=function(){ok()};
+    s.onerror=function(){falha(new Error('sem internet para carregar o gerador de QR'))};
+    document.head.appendChild(s);
+  });
+  return _qrPronto;
+}
+async function pintarQRs(){
+  try{ await carregarQR(); }catch(e){
+    var av=$('msAviso');
+    if(av)av.innerHTML='<div class="hint">Não consegui carregar o gerador de QR Code. '+
+      'Verifique a internet e recarregue — o cadastro das mesas funciona do mesmo jeito.';
+    return;
+  }
+  baseMesas();
+  DB.mesas.forEach(function(m){
+    var el=document.getElementById('qr_'+m.id);
+    if(!el)return;
+    window.QRCode.toCanvas(el,linkMesa(m),{width:120,margin:1,
+      color:{dark:'#1B2419',light:'#FFFFFF'}},function(){});
+  });
+}
+function telaMesas(){
+  baseMesas();
+  var lst=DB.mesas.slice().sort(function(a,b){return (a.numero||0)-(b.numero||0)});
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Mesas</h1>'+
+    '<p>Cada mesa ganha um QR Code próprio. O cliente aponta a câmera, o cardápio '+
+    'abre já sabendo a mesa, e o pedido chega marcado no PDV.</p></div>'+
+    '<button class="infoBt" onclick="explicaMesas()">'+sv('help',15)+'</button>'+
+   '</div>'+
+   '<div class="msBarra">'+
+    '<div class="msGrupo"><b>Cadastrar</b>'+
+     '<input type="number" id="msQtd" min="1" max="200" placeholder="Quantidade">'+
+     '<button class="btnP2 ok" onclick="criarMesas()">Cadastrar mesas</button>'+
+     '<button class="btnP2" onclick="criarUmaMesa()">Cadastrar apenas uma</button>'+
+    '</div>'+
+    '<div class="msGrupo"><b>Imprimir QR Code</b>'+
+     '<button class="btnP2 ok" onclick="imprimirQR(false)">Imprimir todos</button>'+
+     '<button class="btnP2" onclick="imprimirQR(true)">Imprimir selecionados</button>'+
+    '</div>'+
+   '</div>'+
+   '<div id="msAviso"></div>'+
+   '<div class="msGrade">'+(lst.length?lst.map(function(m){
+     return '<div class="msCard'+(m.ativa===false?' off':'')+'">'+
+      '<div class="msH">'+
+       '<label class="flagBox"><input type="checkbox" '+(MS.sel[m.id]?'checked':'')+
+        ' onchange="MS.sel[\''+m.id+'\']=this.checked"></label>'+
+       '<b>'+E(m.nome||m.numero)+'</b>'+
+       '<div class="msAc">'+
+        '<button class="rBtn" onclick="formMesa(\''+m.id+'\')" title="Editar">'+sv('edit',11)+'</button>'+
+        '<button class="rBtn rd" onclick="excluirMesa(\''+m.id+'\')" title="Excluir">'+sv('trash',11)+'</button>'+
+       '</div></div>'+
+      '<div class="msQR"><canvas id="qr_'+m.id+'"></canvas></div>'+
+      '<label class="chkMini msSw"><input type="checkbox" '+(m.ativa!==false?'checked':'')+
+       ' onchange="togMesa(\''+m.id+'\')"><span>Mesa ativa</span></label>'+
+     '</div>';
+   }).join(''):'<div class="entVazio" style="grid-column:1/-1"><b>Nenhuma mesa cadastrada</b>'+
+     '<span>Informe a quantidade acima e clique em Cadastrar mesas.</span></div>')+
+   '</div>'+
+   '</div></div>';
+  rodape(lst.length+' mesas · '+mesasAtivas().length+' ativas');
+  pintarQRs();
+}
+function explicaMesas(){
+  confirmar({titulo:'Como a mesa funciona',texto:'Mesas e QR Code',
+   linhas:[['O QR leva para','o cardápio digital, com a mesa já marcada',''],
+           ['O pedido chega em','PDV › Mesas, na mesa certa',''],
+           ['A conta','vai somando até você fechar',''],
+           ['Ao fechar','cai no pagamento do PDV, como qualquer venda','']],
+   aviso:'Desativar a mesa tira ela do salão e o QR dela para de aceitar pedido. '+
+    'Mesa com conta aberta não pode ser excluída.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function proximoNumeroMesa(){
+  baseMesas();
+  var max=0;
+  DB.mesas.forEach(function(m){if((m.numero||0)>max)max=m.numero||0});
+  return max+1;
+}
+function criarMesas(){
+  var q=parseInt(($('msQtd')||{}).value,10)||0;
+  if(q<1){toast('Informe quantas mesas quer cadastrar.');return;}
+  if(q>200){toast('No máximo 200 de uma vez.');return;}
+  baseMesas();
+  var n=proximoNumeroMesa();
+  for(var i=0;i<q;i++){
+    DB.mesas.push({id:uid('ms'),numero:n+i,nome:String(n+i),lugares:4,ativa:true,
+      sucursalId:(sucAtivas()[0]||{}).id||''});
+  }
+  $('msQtd').value='';
+  salvar();telaMesas();toast(q+' mesa(s) cadastrada(s).');
+  if(NUVEM.ligada)sincronizar();
+}
+function criarUmaMesa(){formMesa();}
+function formMesa(id){
+  baseMesas();
+  var m=id?DB.mesas.find(function(x){return x.id===id}):null;
+  var sucs=sucAtivas();
+  modal(m?'Editar mesa':'Cadastrar mesa',
+  '<div class="mdB">'+
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+    '<div class="fld2"><label>Número da mesa *</label>'+
+     '<input id="msNum" type="number" min="1" value="'+(m?m.numero:proximoNumeroMesa())+'"></div>'+
+    '<div class="fld2"><label>Lugares</label>'+
+     '<input id="msLug" type="number" min="1" value="'+(m?m.lugares||4:4)+'"></div>'+
+   '</div>'+
+   '<div class="fld2"><label>Nome na tela</label>'+
+    '<input id="msNome" value="'+E(m?m.nome||'':'')+'" placeholder="Mesa 1, Varanda, Balcão...">'+
+    '<div class="hint">Deixe em branco para usar o número.</div></div>'+
+   (sucs.length>1?'<div class="fld2"><label>Unidade</label><select id="msSuc">'+
+     sucs.map(function(s){
+       return '<option value="'+E(s.id)+'"'+((m&&m.sucursalId)===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
+     }).join('')+'</select></div>':'')+
+  '</div>','Salvar',function(){
+    var num=parseInt($('msNum').value,10)||0;
+    if(num<1){toast('Informe o número da mesa.');return false;}
+    var rep=DB.mesas.some(function(x){return x.numero===num&&(!m||x.id!==m.id)});
+    if(rep){toast('Já existe a mesa '+num+'.');return false;}
+    var o={numero:num,lugares:parseInt($('msLug').value,10)||4,
+      nome:$('msNome').value.trim()||String(num),
+      sucursalId:($('msSuc')?$('msSuc').value:(m?m.sucursalId:(sucs[0]||{}).id))||''};
+    if(m)Object.assign(m,o);
+    else DB.mesas.push(Object.assign({id:uid('ms'),ativa:true},o));
+    salvar();telaMesas();toast(m?'Mesa atualizada.':'Mesa cadastrada.');
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+}
+function togMesa(id){
+  var m=(DB.mesas||[]).find(function(x){return x.id===id});
+  if(!m)return;
+  m.ativa=(m.ativa===false);
+  salvar();
+  var c=document.getElementById('qr_'+id);
+  if(c&&c.parentNode&&c.parentNode.parentNode)
+    c.parentNode.parentNode.classList.toggle('off',m.ativa===false);
+  rodape((DB.mesas||[]).length+' mesas · '+mesasAtivas().length+' ativas');
+  if(NUVEM.ligada)sincronizar();
+}
+async function excluirMesa(id){
+  var m=(DB.mesas||[]).find(function(x){return x.id===id});
+  if(!m)return;
+  var abertos=(DB.pedidos||[]).filter(function(p){
+    return p.mesaId===id&&!ehFinalizado(p)&&!ehCancelado(p);}).length;
+  if(abertos){
+    toast('A mesa '+m.numero+' tem conta aberta. Feche a conta antes de excluir.');
+    return;
+  }
+  var ok=await confirmar({titulo:'Excluir a mesa '+E(m.nome||m.numero),
+    texto:'O QR Code dela para de funcionar',
+    aviso:'Quem já imprimiu esse QR e colou na mesa vai precisar trocar. '+
+     'Se for só para tirar de uso, desative em vez de excluir.',
+    ok:'Excluir',tipo:'perigo'});
+  if(!ok)return;
+  DB.mesas=DB.mesas.filter(function(x){return x.id!==id});
+  delete MS.sel[id];
+  salvar();telaMesas();toast('Mesa excluída.');
+  if(NUVEM.ligada)sincronizar();
+}
+async function imprimirQR(soSelecionadas){
+  baseMesas();
+  var lst=DB.mesas.slice().sort(function(a,b){return (a.numero||0)-(b.numero||0)});
+  if(soSelecionadas)lst=lst.filter(function(m){return MS.sel[m.id]});
+  if(!lst.length){toast(soSelecionadas?'Nenhuma mesa selecionada.':'Nenhuma mesa cadastrada.');return;}
+  try{ await carregarQR(); }catch(e){ toast('Sem internet para gerar os QR Codes.'); return; }
+  var loja=(sucAtivas()[0]||{}).nome||'';
+  var partes=[];
+  for(var i=0;i<lst.length;i++){
+    var url=await window.QRCode.toDataURL(linkMesa(lst[i]),{width:340,margin:1});
+    partes.push('<div class="qrPg"><div class="qrCx">'+
+      '<div class="qrLoja">'+E(loja)+'</div>'+
+      '<img src="'+url+'">'+
+      '<div class="qrMesa">MESA '+E(lst[i].nome||lst[i].numero)+'</div>'+
+      '<div class="qrTx">Aponte a câmera e faça seu pedido</div>'+
+      '</div></div>');
+  }
+  var el=document.getElementById('viaImp')||document.createElement('div');
+  el.id='viaImp';el.innerHTML=partes.join('');
+  document.body.appendChild(el);
+  var st=document.getElementById('impCSS')||document.createElement('style');
+  st.id='impCSS';
+  st.textContent='@media print{@page{size:A4;margin:12mm}'+
+   'body>*{display:none!important}#viaImp{display:block!important}'+
+   '.qrPg{page-break-after:always;display:flex;align-items:center;justify-content:center;height:250mm}'+
+   '.qrCx{text-align:center;border:2px solid #111;border-radius:14px;padding:26px 34px}'+
+   '.qrCx img{width:74mm;height:74mm}'+
+   '.qrLoja{font:600 15pt sans-serif;margin-bottom:10px}'+
+   '.qrMesa{font:700 30pt sans-serif;margin-top:10px;letter-spacing:.04em}'+
+   '.qrTx{font:12pt sans-serif;margin-top:6px;color:#444}}';
+  document.head.appendChild(st);
+  setTimeout(function(){window.print()},350);
+}
 
 /* ==========================================================
    LAYOUT DO MENU — só o dono do Nexor
