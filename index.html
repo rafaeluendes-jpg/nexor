@@ -13341,7 +13341,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.11.2';
+var VERSAO='V19.11.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13686,8 +13686,10 @@ function renderProdutos(){
 function resumoCanais(p){
   var d=p.disponivel||{};
   var on=CANAIS.filter(function(c){return d[c.id]});
-  if(on.length===CANAIS.length)return 'Todos os tipos / canais de venda';
-  if(!on.length)return 'Nenhum canal selecionado';
+  if(on.length===CANAIS.length)return 'Todos os canais';
+  /* Dizia "Nenhum canal selecionado", e o produto aparecia em todo lugar.
+     A tela contava o contrário do que o sistema fazia. */
+  if(!on.length)return 'Todos — nada marcado ainda';
   return on.map(function(c){return c.n}).join(', ');
 }
 function mudarPreco(id,v){
