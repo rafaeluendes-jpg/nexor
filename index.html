@@ -686,6 +686,16 @@ body.pdvFull .wTitle{display:none}
 .msLink{text-align:center;font-size:10.5px;color:var(--az,#1F5F8B);cursor:pointer;
  margin:-4px 0 6px;display:flex;align-items:center;justify-content:center;gap:4px}
 .msLink:hover{text-decoration:underline}
+.opc{font-style:normal;font-size:10px;background:var(--bg2,#f0ece2);border-radius:4px;
+ padding:1px 5px;color:var(--tx2,#9a9288);margin-left:5px;font-weight:400}
+.blAviso{font-size:11px;margin-top:4px;display:flex;align-items:center;gap:5px;min-height:15px;
+ color:var(--tx2,#7a7266)}
+.blAviso.ok{color:#0E8A46}
+.blAviso.ruim{color:var(--al,#B4542F)}
+.cbLinha{display:flex;align-items:center;gap:8px;background:var(--bg2,#faf7f0);
+ border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:8px 11px;margin-top:8px;
+ font:12px/1.3 ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+.cbLinha>span{flex:1}
 .msCfg{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:12px 16px;margin-bottom:14px}
 .msCfg>b{font-size:11px;color:var(--tx2,#7a7266);text-transform:uppercase;letter-spacing:.04em}
@@ -11873,6 +11883,7 @@ var MAPA=[
     subcategoria_id:fkSub(x.categoriaId),categoria_texto:x.categoriaTxt||null,
     fornecedor_id:fk('fornec',x.fornecedorId),fornecedor_nome:x.fornecedor||null,
     descricao:x.descricao,documento:x.documento||null,valor:n(x.valor),
+    codigo_barras:x.codigoBarras||null,
     emissao:x.emissao||null,vencimento:x.vencimento||null,pagamento:x.pagamento||null,
     pago:!!x.pago,conciliado:!!x.conciliado,data_conciliacao:x.dataConc||null,
     juros:n(x.juros),multa:n(x.multa),valor_original:(x.valorOriginal!==undefined?n(x.valorOriginal):null),
@@ -12468,6 +12479,7 @@ async function baixarDaNuvem(forcar){
     metodoId:mapaFP[x.forma_id]||'',categoriaId:mapaSub[x.subcategoria_id]||'',
     categoriaTxt:x.categoria_texto||'',fornecedorId:mapaFo[x.fornecedor_id]||'',
     fornecedor:x.fornecedor_nome||'',descricao:x.descricao,documento:x.documento,
+    codigoBarras:x.codigo_barras||'',
     valor:Number(x.valor)||0,emissao:x.emissao,vencimento:x.vencimento,pagamento:x.pagamento,
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
     origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}});
@@ -13341,7 +13353,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.12.0';
+var VERSAO='V19.13.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14912,6 +14924,94 @@ var QRN=(function(){
   }
   return {gerar:gerar};
 })();
+
+
+/* ==========================================================
+   CODIGO DE BARRAS DO BOLETO
+   Guardar a linha digitavel muda o dia do gerente: em vez de
+   procurar o papel, ele recebe o numero pelo WhatsApp e cola no
+   aplicativo do banco. Por isso o campo aceita colar sujo — com
+   ponto, espaco e traco — e limpa sozinho.
+   ========================================================== */
+/* mod 10: cada casa da direita para a esquerda multiplica por 2 e 1;
+   resultado com duas casas vira a soma dos algarismos */
+function mod10(bloco){
+  var s=0,p=2;
+  for(var i=bloco.length-1;i>=0;i--){
+    var v=parseInt(bloco[i],10)*p;
+    if(v>9)v=Math.floor(v/10)+(v%10);
+    s+=v;p=(p===2)?1:2;
+  }
+  var r=s%10;
+  return r===0?0:10-r;
+}
+function mod11Arrec(bloco){
+  var s=0,p=2;
+  for(var i=bloco.length-1;i>=0;i--){
+    s+=parseInt(bloco[i],10)*p;
+    p++; if(p>9)p=2;
+  }
+  var r=s%11,d=11-r;
+  if(d===0||d===1||d>9)return 0;
+  return d;
+}
+/* Devolve {ok, tipo, digitos, aviso}. Nao recusa: avisa. Boleto com um
+   digito trocado precisa ser visto, mas quem lanca pode saber de algo
+   que o sistema nao sabe. */
+function conferirBoleto(txt){
+  var d=soDigitos(txt);
+  if(!d)return {ok:false,vazio:true,digitos:''};
+  if(d.length===47){
+    var c1=d.slice(0,9),v1=d[9],c2=d.slice(10,20),v2=d[20],c3=d.slice(21,31),v3=d[31];
+    var erros=[];
+    if(mod10(c1)!==+v1)erros.push('1º campo');
+    if(mod10(c2)!==+v2)erros.push('2º campo');
+    if(mod10(c3)!==+v3)erros.push('3º campo');
+    return {ok:!erros.length,tipo:'boleto',digitos:d,
+      aviso:erros.length?('dígito verificador não confere no '+erros.join(' e no ')):''};
+  }
+  if(d.length===48){
+    /* conta de consumo: 4 blocos de 12, cada um com seu verificador */
+    var oito=d[2];                              /* 6 ou 7 = mod10; 8 ou 9 = mod11 */
+    var f=(oito==='6'||oito==='7')?mod10:mod11Arrec;
+    var errs=[];
+    for(var i=0;i<4;i++){
+      var b=d.slice(i*12,i*12+11),dv=d[i*12+11];
+      if(f(b)!==+dv)errs.push((i+1)+'º bloco');
+    }
+    return {ok:!errs.length,tipo:'concessionária',digitos:d,
+      aviso:errs.length?('dígito verificador não confere no '+errs.join(', ')):''};
+  }
+  if(d.length===44)
+    return {ok:true,tipo:'código de barras',digitos:d,
+      aviso:'são 44 dígitos (código de barras). O ideal é a linha digitável, de 47.'};
+  return {ok:false,tipo:'',digitos:d,
+    aviso:'tem '+d.length+' dígitos. Boleto tem 47, conta de consumo tem 48.'};
+}
+/* separa em blocos, como vem impresso no papel */
+function boletoBonito(txt){
+  var d=soDigitos(txt);
+  if(d.length===47)
+    return d.slice(0,5)+'.'+d.slice(5,10)+' '+d.slice(10,15)+'.'+d.slice(15,21)+' '+
+           d.slice(21,26)+'.'+d.slice(26,32)+' '+d[32]+' '+d.slice(33);
+  if(d.length===48)
+    return d.slice(0,12)+' '+d.slice(12,24)+' '+d.slice(24,36)+' '+d.slice(36);
+  return d;
+}
+/* aviso embaixo do campo, enquanto a pessoa digita */
+function checarCampoBoleto(idCampo,idAviso){
+  var c=$(idCampo),a=$(idAviso);
+  if(!c||!a)return;
+  var r=conferirBoleto(c.value);
+  if(r.vazio){a.className='blAviso';a.innerHTML='';return;}
+  if(r.ok&&!r.aviso){
+    a.className='blAviso ok';
+    a.innerHTML=sv('nike',12)+' '+r.tipo+' válido · '+E(boletoBonito(r.digitos));
+  }else{
+    a.className='blAviso '+(r.ok?'':'ruim');
+    a.innerHTML=sv('help',12)+' '+E(r.aviso||'confira o número');
+  }
+}
 
 /* ==========================================================
    MESAS — cadastro e QR Code
@@ -19951,6 +20051,14 @@ function modalLanc(id,tipoNovo,pre){
       (fo.nome?' — '+E(fo.nome):'')+'</option>';}).join('')+
     '</select></div>'+
    '<div class="fld2"><label>Nº documento / NF</label><input id="lnDoc" value="'+E(l?l.documento:(P.documento||''))+'"></div>'+
+   /* opcional: quando existe, a Assistente manda junto com a cobrança */
+   '<div class="fld2"><label>Código de barras do boleto <i class="opc">opcional</i></label>'+
+    '<input id="lnCB" inputmode="numeric" autocomplete="off" placeholder="cole a linha digitável"'+
+    ' value="'+E(l?(l.codigoBarras||''):(P.codigoBarras||''))+'"'+
+    ' oninput="checarCampoBoleto(\'lnCB\',\'lnCBav\')">'+
+    '<div id="lnCBav" class="blAviso"></div>'+
+    '<div class="hint">Preenchido, ele vai junto na cobrança que a Assistente manda no '+
+    'WhatsApp — o gerente copia e paga sem procurar o papel.</div></div>'+
   '</div>'+
   '<label class="chkL" style="margin-top:4px"><input type="checkbox" id="lnP" '+(l&&l.pago?'checked':'')+'>'+
   '<span>Já está pago<small style="display:block;color:var(--ink-3)">marque para informar o dia do pagamento</small></span></label>'+
@@ -20031,7 +20139,8 @@ function modalLanc(id,tipoNovo,pre){
       metodoId:($('lnM')?$('lnM').value:(l?(l.metodoId||''):(P.metodoId||''))),descricao:d,valor:v,
       emissao:$('lnE').value||hojeISO(),vencimento:$('lnVc').value||hojeISO(),
       pagamento:pago?($('lnPg').value||hojeISO()):'',pago:pago,
-      categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),obs:$('lnO').value};
+      categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),
+      codigoBarras:soDigitos(($('lnCB')||{}).value),obs:$('lnO').value};
     if(l){Object.assign(l,o);salvar();telaLancamentos();toast('Lançamento salvo.');return true;}
     var parc=$('lnParc')&&$('lnParc').checked;
     if(parc){
@@ -20253,11 +20362,11 @@ function modalTransf(){
 /* ---------- EXPORTAR / IMPRIMIR ---------- */
 function exportarLanc(){
   var lista=filtrarLanc();
-  var linhas=[['Vencimento','Emissao','Pagamento','Descricao','Fornecedor','Documento','Metodo','Categoria','Conta','Tipo','Valor do boleto','Juros','Multa','Valor pago','Situacao']];
+  var linhas=[['Vencimento','Emissao','Pagamento','Descricao','Fornecedor','Documento','Codigo de barras','Metodo','Categoria','Conta','Tipo','Valor do boleto','Juros','Multa','Valor pago','Situacao']];
   lista.forEach(function(l){
     var sg=(l.tipo==='despesa'?'-':'');
     linhas.push([dataBR(l.vencimento),dataBR(l.emissao),l.pagamento?dataBR(l.pagamento):'',
-      l.descricao,l.fornecedor||'',l.documento||'',metodoNome(l.metodoId),catTexto(l),
+      l.descricao,l.fornecedor||'',l.documento||'',l.codigoBarras||'',metodoNome(l.metodoId),catTexto(l),
       contaNome(l.contaId),l.tipo,
       sg+String(valorBoleto(l)).replace('.',','),
       String(Number(l.juros)||0).replace('.',','),
@@ -20607,6 +20716,14 @@ function editarMovSel(){
 /* Acha a nota deste lançamento por três caminhos, porque o vínculo direto
    pode ter se perdido em versões antigas: pelo ref, pela lista de lançamentos
    guardada na nota, e por fornecedor + número do documento. */
+/* copia o codigo do jeito que o banco pede: so numeros */
+function copiarBoleto(id){
+  var l=(DB.lancFin||[]).find(function(x){return x.id===id});
+  if(!l||!l.codigoBarras)return;
+  try{ navigator.clipboard.writeText(l.codigoBarras);
+    toast('Código de barras copiado.'); }
+  catch(e){ toast(l.codigoBarras); }
+}
 function notaDoLanc(l){
   if(!l)return null;
   var ns=DB.notas||[];
