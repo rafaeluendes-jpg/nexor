@@ -13353,7 +13353,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.13.0';
+var VERSAO='V19.13.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15368,13 +15368,17 @@ function abrirMesa(id){
       '<div class="cmdV">R$ '+money(t)+'</div>'+
       '<div class="cmdAc">'+
        '<button class="btnP2" onclick="lancarNaComanda(\''+c.id+'\')">'+sv('plus',12)+' Lançar</button>'+
-       '<button class="btnP2" onclick="verComanda(\''+c.id+'\')">'+sv('eye',12)+'</button>'+
+       '<button class="btnP2" onclick="verComanda(\''+c.id+'\')" title="Ver itens">'+sv('eye',12)+'</button>'+
+       '<button class="btnP2" onclick="renomearComanda(\''+c.id+'\')" title="Trocar o nome">'+sv('edit',12)+'</button>'+
+       '<button class="btnP2 rd" onclick="excluirComanda(\''+c.id+'\')" title="Excluir comanda">'+sv('trash',12)+'</button>'+
        '<button class="btnP2 ok" onclick="fecharComanda(\''+c.id+'\')">Pagar</button>'+
       '</div></div>';
    }).join('')+'</div>'
    :'<div class="entVazio"><b>Mesa livre</b><span>Abra uma comanda para começar.</span></div>')+
    '<button class="btnP2" style="width:100%;justify-content:center;margin-top:10px" '+
     'onclick="novaComanda(\''+id+'\')">'+sv('plus',13)+' Nova comanda nesta mesa</button>'+
+   (cs.length?'<button class="btnP2 rd" style="width:100%;justify-content:center;margin-top:7px" '+
+     'onclick="liberarMesa(\''+id+'\')">'+sv('trash',13)+' Liberar mesa sem cobrar</button>':'')+
    (cs.length?'<div class="cmdTot">'+
      '<div class="linha"><span>Soma das comandas</span><b>R$ '+money(sub)+'</b></div>'+
      (tx?'<div class="linha"><span>Taxa de serviço ('+cfgMesa().taxaPct+'%)</span><b>R$ '+money(tx)+'</b></div>':'')+
@@ -15463,6 +15467,74 @@ function tirarDaComanda(id,k){
   c.itens.splice(k,1);
   salvar();fecharModal();
   setTimeout(function(){verComanda(id)},60);
+  if(NUVEM.ligada)sincronizar();
+}
+
+/* ---------- desfazer ----------
+   Nem toda comanda termina em venda: teste, nome errado, cliente que
+   desistiu. Sem uma saida, a mesa ficava ocupada para sempre. */
+function renomearComanda(id){
+  var c=comandaPorId(id);if(!c)return;
+  var mesaId=c.mesaId;
+  fecharModal();
+  modal('Trocar o nome da comanda',
+  '<div class="mdB"><div class="fld2"><label>Nome</label>'+
+   '<input id="cmNv" value="'+E(c.nome)+'" autocomplete="off"></div></div>','Salvar',function(){
+    var nv=$('cmNv').value.trim();
+    if(!nv){toast('Informe o nome.');return false;}
+    var rep=comandasDaMesa(mesaId).some(function(x){
+      return x.id!==id&&x.nome.toLowerCase()===nv.toLowerCase();});
+    if(rep){toast('Já existe uma comanda com este nome nesta mesa.');return false;}
+    c.nome=nv;salvar();
+    setTimeout(function(){abrirMesa(mesaId)},80);
+    toast('Nome alterado.');
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+}
+async function excluirComanda(id){
+  var c=comandaPorId(id);if(!c)return;
+  var mesaId=c.mesaId;
+  var qtd=(c.itens||[]).length, tot=totalComanda(c);
+  fecharModal();
+  var ok=await confirmar({
+    titulo:'Excluir a comanda de '+E(c.nome),
+    texto:qtd?(qtd+' item(ns) — R$ '+money(tot)):'comanda vazia',
+    aviso:qtd?('Os itens somem e NADA é cobrado. Isso não é uma venda cancelada: '+
+      'é como se a comanda nunca tivesse existido. Se o cliente consumiu, '+
+      'feche pagando em vez de excluir.')
+     :'A comanda está vazia — pode excluir à vontade.',
+    ok:'Excluir',tipo:'perigo'});
+  if(!ok)return;
+  DB.comandas=DB.comandas.filter(function(x){return x.id!==id});
+  if(PDV.comandaId===id)PDV.comandaId=null;
+  salvar();
+  if(comandasDaMesa(mesaId).length)setTimeout(function(){abrirMesa(mesaId)},80);
+  else if(PDV.aba==='mesas')renderMesas();
+  toast('Comanda excluída — nada foi cobrado.');
+  if(NUVEM.ligada)sincronizar();
+}
+async function liberarMesa(mesaId){
+  var m=(DB.mesas||[]).find(function(x){return x.id===mesaId})||{};
+  var cs=comandasDaMesa(mesaId);
+  if(!cs.length)return;
+  var tot=totalMesa(mesaId);
+  fecharModal();
+  var ok=await confirmar({
+    titulo:'Liberar a mesa '+E(m.nome||m.numero),
+    texto:cs.length+' comanda(s) — R$ '+money(tot),
+    linhas:cs.map(function(c){
+      return [c.nome,(c.itens||[]).length+' itens','R$ '+money(totalComanda(c))];}),
+    aviso:'Todas as comandas desta mesa somem e NADA é cobrado. Use quando a mesa '+
+     'foi aberta por engano ou em teste. Se houve consumo de verdade, feche pagando.',
+    ok:'Liberar sem cobrar',tipo:'perigo'});
+  if(!ok)return;
+  var ids={};cs.forEach(function(c){ids[c.id]=true});
+  DB.comandas=DB.comandas.filter(function(x){return !ids[x.id]});
+  if(ids[PDV.comandaId])PDV.comandaId=null;
+  salvar();
+  if(PDV.aba==='mesas')renderMesas();
+  toast('Mesa '+(m.nome||m.numero)+' liberada.');
   if(NUVEM.ligada)sincronizar();
 }
 
