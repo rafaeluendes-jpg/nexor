@@ -679,6 +679,13 @@ body.pdvFull .wTitle{display:none}
 .cmdFaixa{display:flex;align-items:center;gap:10px;background:#FFF3E6;
  border-bottom:1px solid var(--lin,#e6e0d4);padding:8px 16px;font-size:13px;color:#8A4B1F}
 .cmdFaixa>div{flex:1}
+.msCarr{font-size:12px;color:var(--tx2,#7a7266);padding:8px 0}
+.msErro{display:flex;gap:9px;background:#FDEEE8;border:1px solid #F0CBBC;border-radius:9px;
+ padding:11px 13px;margin-bottom:12px;font-size:12.5px;color:#8A3A1A;line-height:1.45}
+.msErro button{margin-left:6px}
+.msLink{text-align:center;font-size:10.5px;color:var(--az,#1F5F8B);cursor:pointer;
+ margin:-4px 0 6px;display:flex;align-items:center;justify-content:center;gap:4px}
+.msLink:hover{text-decoration:underline}
 .msCfg{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:12px 16px;margin-bottom:14px}
 .msCfg>b{font-size:11px;color:var(--tx2,#7a7266);text-transform:uppercase;letter-spacing:.04em}
@@ -13334,7 +13341,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.11.1';
+var VERSAO='V19.11.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14668,32 +14675,56 @@ function linkMesa(m){
 /* A biblioteca do QR e carregada so quando a tela abre. Sobe uma vez e
    fica; nas outras visitas nao ha espera. */
 var _qrPronto=null;
+var QR_FONTES=[
+ 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js',
+ 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js'
+];
+/* Uma fonte so era frágil: se o unpkg estivesse fora do ar ou bloqueado na
+   rede da loja, o QR simplesmente nao aparecia e ninguem sabia por que.
+   Agora tenta a segunda, e o erro aparece na tela em vez de sumir. */
 function carregarQR(){
   if(_qrPronto)return _qrPronto;
   _qrPronto=new Promise(function(ok,falha){
     if(window.QRCode)return ok();
-    var s=document.createElement('script');
-    s.src='https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
-    s.onload=function(){ok()};
-    s.onerror=function(){falha(new Error('sem internet para carregar o gerador de QR'))};
-    document.head.appendChild(s);
+    var i=0;
+    (function tenta(){
+      if(i>=QR_FONTES.length)return falha(new Error('não consegui baixar o gerador de QR'));
+      var sc=document.createElement('script');
+      sc.src=QR_FONTES[i++];
+      sc.onload=function(){ window.QRCode?ok():tenta(); };
+      sc.onerror=function(){ tenta(); };
+      document.head.appendChild(sc);
+    })();
   });
+  _qrPronto.catch(function(){_qrPronto=null});   /* permite tentar de novo depois */
   return _qrPronto;
 }
 async function pintarQRs(){
+  baseMesas();
+  if(!DB.mesas.length)return;
+  var av=$('msAviso');
+  if(av)av.innerHTML='<div class="msCarr">'+sv('ref',13)+' Gerando os QR Codes...</div>';
   try{ await carregarQR(); }catch(e){
-    var av=$('msAviso');
-    if(av)av.innerHTML='<div class="hint">Não consegui carregar o gerador de QR Code. '+
-      'Verifique a internet e recarregue — o cadastro das mesas funciona do mesmo jeito.';
+    if(av)av.innerHTML='<div class="msErro">'+sv('help',14)+
+      '<div><b>Não consegui gerar os QR Codes.</b> O cadastro das mesas está salvo e '+
+      'funcionando — falta só o desenho do código. Isso costuma ser internet ou '+
+      'bloqueio da rede da loja. <button class="btnP2" onclick="pintarQRs()">Tentar de novo</button></div></div>';
     return;
   }
-  baseMesas();
-  DB.mesas.forEach(function(m){
-    var el=document.getElementById('qr_'+m.id);
-    if(!el)return;
-    window.QRCode.toCanvas(el,linkMesa(m),{width:120,margin:1,
-      color:{dark:'#1B2419',light:'#FFFFFF'}},function(){});
-  });
+  if(av)av.innerHTML='';
+  /* desenha como imagem, e nao direto no canvas: imagem imprime e copia,
+     canvas as vezes sai em branco na impressao */
+  for(var i=0;i<DB.mesas.length;i++){
+    var m=DB.mesas[i];
+    var cx=document.getElementById('qr_'+m.id);
+    if(!cx)continue;
+    try{
+      var url=await window.QRCode.toDataURL(linkMesa(m),{width:240,margin:1,
+        color:{dark:'#1B2419',light:'#FFFFFF'}});
+      cx.innerHTML='<img src="'+url+'" alt="QR da mesa '+E(m.numero)+'" '+
+        'style="width:120px;height:120px;border-radius:4px">';
+    }catch(e){ cx.innerHTML='<span class="hint">erro no QR</span>'; }
+  }
 }
 function telaMesas(){
   baseMesas();
@@ -14737,7 +14768,9 @@ function telaMesas(){
         '<button class="rBtn" onclick="formMesa(\''+m.id+'\')" title="Editar">'+sv('edit',11)+'</button>'+
         '<button class="rBtn rd" onclick="excluirMesa(\''+m.id+'\')" title="Excluir">'+sv('trash',11)+'</button>'+
        '</div></div>'+
-      '<div class="msQR"><canvas id="qr_'+m.id+'"></canvas></div>'+
+      '<div class="msQR" id="qr_'+m.id+'"></div>'+
+      '<div class="msLink" onclick="copiarLinkMesa(\''+m.id+'\')" title="clique para copiar">'+
+       sv('copy',10)+' copiar link</div>'+
       '<label class="chkMini msSw"><input type="checkbox" '+(m.ativa!==false?'checked':'')+
        ' onchange="togMesa(\''+m.id+'\')"><span>Mesa ativa</span></label>'+
      '</div>';
@@ -14755,6 +14788,15 @@ function salvarCfgMesa(){
   salvar();
   toast(cm.taxaServico?('Taxa de serviço de '+cm.taxaPct+'% ligada.'):'Taxa de serviço desligada.');
   if(NUVEM.ligada)sincronizar();
+}
+/* nem sempre da para escanear: o link tambem serve para testar no navegador */
+function copiarLinkMesa(id){
+  var m=(DB.mesas||[]).find(function(x){return x.id===id});
+  if(!m)return;
+  try{
+    navigator.clipboard.writeText(linkMesa(m));
+    toast('Link da mesa '+m.numero+' copiado — cole no navegador para testar.');
+  }catch(e){ toast(linkMesa(m)); }
 }
 function explicaMesas(){
   confirmar({titulo:'Como a mesa funciona',texto:'Mesas e QR Code',
