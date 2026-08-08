@@ -696,6 +696,16 @@ body.pdvFull .wTitle{display:none}
  border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:8px 11px;margin-top:8px;
  font:12px/1.3 ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
 .cbLinha>span{flex:1}
+.fscPend{display:flex;gap:10px;background:#FFF6E8;border:1px solid #F0DCB8;border-radius:10px;
+ padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#7A5320;line-height:1.5}
+.fscPend b{display:block;margin-bottom:2px}
+.fscPend ul{margin:4px 0 0;padding-left:17px}
+.fscPend li{margin:2px 0}
+.fscOk{display:flex;align-items:center;gap:9px;background:#EAF5EE;border:1px solid #BFE0CC;
+ border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12.5px;color:#1B5E36}
+.cfSel{display:flex;align-items:center;gap:11px;background:#EAF2F8;border:1px solid #C2D8E8;
+ border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#1F5F8B}
+.cfSel>div{flex:1}
 .msCfg{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:12px 16px;margin-bottom:14px}
 .msCfg>b{font-size:11px;color:var(--tx2,#7a7266);text-transform:uppercase;letter-spacing:.04em}
@@ -11291,6 +11301,7 @@ var MOD=[
  {id:'cmv-mercadoria',n:'CMV por Mercadoria'},
  {id:'cancelamentos',n:'Cancelamentos'},
  {id:'vendas-mesa',n:'Vendas por Mesa'},
+ {id:'cupons-fiscais',n:'Cupons Gerados'},
  {id:'cupons',n:'Cupons'}]},
 {id:'dashboard',n:'Gestão e Dashboard',ic:'chart',it:[
  {id:'canais-venda',n:'Canais de Venda'},
@@ -11313,6 +11324,7 @@ var MOD=[
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
  {id:'status-vendas',n:'Status de Vendas'},
  {id:'mesas',n:'Mesas e QR Code'},
+ {id:'fiscal',n:'Configuração Fiscal'},
  {id:'turnos',n:'Turnos'},
  {id:'usuarios-permissoes',n:'Usuários e Permissões'}]},
 
@@ -11711,6 +11723,16 @@ var MAPA=[
 
  /* Turno tem que vir antes de caixas no MAPA: o caixa aponta para o turno,
     e o vinculo so resolve se o turno ja subiu. */
+ {col:'cupons_f', tab:'cupons_fiscais',
+  campos:function(x){return {pedido_ref:x.pedidoId||null,pedido_numero:n(x.pedidoNumero),
+    origem:x.origem||null,modelo:'65',serie:n(x.serie),numero:n(x.numero),
+    chave:x.chave||null,protocolo:x.protocolo||null,status:x.status||'pendente',
+    motivo:x.motivo||null,ambiente:x.ambiente||null,
+    consumidor_nome:x.consumidor||null,consumidor_doc:x.doc||null,
+    pagamento:x.pagamento||null,valor_total:n(x.total),valor_desconto:n(x.desconto),
+    valor_entrega:n(x.entrega),data_venda:x.data||null,hora_venda:x.hora||null,
+    nfe_agrupada_ref:x.nfeAgrupada||null,contingencia:!!x.contingencia}}},
+
  {col:'comandas', tab:'mesa_comandas',
   campos:function(x){return {mesa_ref:x.mesaId||null,mesa_numero:n(x.mesaNumero),
     nome:x.nome,itens:x.itens||[],aberta:x.aberta!==false,
@@ -11760,6 +11782,9 @@ var MAPA=[
     imagem:x.imagem||null,disponivel_delivery:x.delivery!==false,
     pesado:!!x.pesado,variacao:!!x.variacao,nome_online:x.nomeOnline||null,
     disponivel:x.disponivel||{},promocoes:x.promocoes||[],vincula_estoque:!!x.vinculaEstoque,
+    ncm:x.ncm||null,cfop:x.cfop||null,csosn:x.csosn||null,cst:x.cst||null,
+    origem_fiscal:x.origemFiscal||null,cest:x.cest||null,gtin:x.gtin||null,
+    unidade_tributavel:x.unTrib||null,
     ficha_id:fk('fichas',x.fichaId),insumo_id:fk('insumos',x.insumoId),
     insumo_qtd:n(x.insumoQtd),insumo_un:x.insumoUn||null}},
   vinculo:{tab:'produto_grupos',pai:'produto_id',campo:'grupo_id',lista:'grupos',ref:'grupos'}},
@@ -12328,7 +12353,7 @@ async function sincronizar(){
     await api('config_loja?on_conflict=loja_id','POST',[{loja_id:l,
       loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
       tempo_retirada:n(c.tempoRetirada),caixa_cego:!!c.caixaCego,
-      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},
+      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},cfg_fiscal:c.fiscal||{},
     cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
       mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}}],
       {'Prefer':'resolution=merge-duplicates,return=minimal'});
@@ -12515,6 +12540,7 @@ async function baixarDaNuvem(forcar){
     if(cfgS[0].cfg_dre)DB.cfgDre=cfgS[0].cfg_dre;
     if(cfgS[0].cfg_mesa)c3.mesa=cfgS[0].cfg_mesa;
     if(cfgS[0].cfg_modos)c3.modos=cfgS[0].cfg_modos;
+    if(cfgS[0].cfg_fiscal)c3.fiscal=cfgS[0].cfg_fiscal;
     if(cfgS[0].cfg_pdv){var cp=cfgS[0].cfg_pdv;
       c3.colunas=cp.colunas;c3.mostraPreco=cp.mostraPreco;
       c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}}
@@ -12606,6 +12632,16 @@ async function baixarDaNuvem(forcar){
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
     ativo:x.ativo!==false}});
+
+  var cpf=await api('cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
+  DB.cupons_f=volta(cpf,function(x){return {id:x.ref_local||x.id,pedidoId:x.pedido_ref||'',
+    pedidoNumero:Number(x.pedido_numero)||0,origem:x.origem||'',serie:Number(x.serie)||0,
+    numero:Number(x.numero)||0,chave:x.chave||'',protocolo:x.protocolo||'',
+    status:x.status||'pendente',motivo:x.motivo||'',ambiente:x.ambiente||'',
+    consumidor:x.consumidor_nome||'',doc:x.consumidor_doc||'',pagamento:x.pagamento||'',
+    total:Number(x.valor_total)||0,desconto:Number(x.valor_desconto)||0,
+    entrega:Number(x.valor_entrega)||0,data:x.data_venda||'',hora:x.hora_venda||'',
+    nfeAgrupada:x.nfe_agrupada_ref||'',contingencia:!!x.contingencia}});
 
   var cmd=await api('mesa_comandas'+qs+'&order=aberta_em.desc&limit=500');
   DB.comandas=volta(cmd,function(x){return {id:x.ref_local||x.id,mesaId:x.mesa_ref||'',
@@ -13225,7 +13261,7 @@ function boot(){
   DB.cancelamentos=DB.cancelamentos||[];
   DB.modelosImp=DB.modelosImp||[];
   DB.statusVenda=DB.statusVenda||[];
-  DB.mesas=DB.mesas||[];DB.comandas=DB.comandas||[];
+  DB.mesas=DB.mesas||[];DB.comandas=DB.comandas||[];DB.cupons_f=DB.cupons_f||[];
   baseCanc();baseTurnos();baseImp();baseStatus();
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
@@ -13353,7 +13389,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.13.1';
+var VERSAO='V19.14.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13446,10 +13482,12 @@ if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='mesas')return telaMesas();
+if(mid==='loja'&&iid==='fiscal')return telaFiscalCfg();
 if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
 if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
+if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCupons();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -13916,6 +13954,24 @@ function abaDados(){
   '<div class="fld2"><label>Categoria *</label><select id="pCat">'+
   (cats||'<option value="">— cadastre uma categoria primeiro —</option>')+'</select></div>'+
   '</div>'+
+  (fiscalCfg().modo!=='desligado'
+   ?'<div class="blk"><h3>Dados fiscais</h3>'+
+    '<div class="hint" style="margin:-4px 0 10px">Em branco, vale o padrão da '+
+    '<b>Configuração Fiscal</b>. O NCM é o único que a SEFAZ não perdoa.</div>'+
+    '<div class="row2">'+
+     '<div class="fld2"><label>NCM</label><input id="pdNcm" value="'+E(p?(p.ncm||''):'')+
+      '" placeholder="'+E(fiscalCfg().ncm||'8 dígitos')+'"></div>'+
+     '<div class="fld2"><label>CFOP</label><input id="pdCfop" value="'+E(p?(p.cfop||''):'')+
+      '" placeholder="'+E(fiscalCfg().cfop||'5102')+'"></div>'+
+    '</div>'+
+    '<div class="row2">'+
+     '<div class="fld2"><label>'+(fiscalCfg().regime==='simples'?'CSOSN':'CST')+'</label>'+
+      '<input id="pdCst" value="'+E(p?(fiscalCfg().regime==='simples'?(p.csosn||''):(p.cst||'')):'')+
+      '" placeholder="'+E(fiscalCfg().regime==='simples'?(fiscalCfg().csosn||'102'):(fiscalCfg().cst||'00'))+'"></div>'+
+     '<div class="fld2"><label>Código de barras (GTIN)</label>'+
+      '<input id="pdGtin" value="'+E(p?(p.gtin||''):'')+'" placeholder="opcional"></div>'+
+    '</div>'+
+   '</div>':'')+
   '<div class="blk"><h3>Onde o produto está disponível?</h3>'+
   '<div class="hint" style="margin:-4px 0 10px">É daqui que sai o cardápio digital: '+
   'marque Delivery, Pedido online ou Cardápio digital e o item aparece lá sozinho. '+
@@ -15011,6 +15067,416 @@ function checarCampoBoleto(idCampo,idAviso){
     a.className='blAviso '+(r.ok?'':'ruim');
     a.innerHTML=sv('help',12)+' '+E(r.aviso||'confira o número');
   }
+}
+
+
+/* ==========================================================
+   FISCAL — NFC-e (modelo 65)
+   Sao Paulo tornou a NFC-e obrigatoria em janeiro de 2026.
+   O Nexor nao fala com a SEFAZ direto: quem assina, transmite e
+   acompanha rejeicao e um provedor homologado. Assim, quando o
+   leiaute muda — e mudou agora, com IBS/CBS da reforma — quem
+   atualiza e o provedor, nao nos.
+   ========================================================== */
+var PROVEDORES=[
+ {id:'focus',     n:'Focus NFe',   url:'https://api.focusnfe.com.br'},
+ {id:'tecnospeed',n:'TecnoSpeed / PlugNotas', url:'https://api.plugnotas.com.br'},
+ {id:'webmania',  n:'WebmaniaBR',  url:'https://api.webmaniabr.com'},
+ {id:'nfeio',     n:'NFe.io',      url:'https://api.nfe.io'},
+ {id:'outro',     n:'Outro provedor', url:''}
+];
+var MODOS_FISCAIS=[
+ {id:'sempre',   n:'Sempre fiscal', d:'toda venda da frente de caixa emite cupom automaticamente'},
+ {id:'opcional', n:'Sob demanda',   d:'o operador escolhe se emite, venda a venda'},
+ {id:'desligado',n:'Desligado',     d:'nenhum cupom é emitido'}
+];
+var ORIGENS_FISCAIS=[
+ {id:'0',n:'0 — Nacional'},{id:'1',n:'1 — Estrangeira, importação direta'},
+ {id:'2',n:'2 — Estrangeira, mercado interno'},{id:'3',n:'3 — Nacional, +40% importado'},
+ {id:'4',n:'4 — Nacional, processos produtivos básicos'},
+ {id:'5',n:'5 — Nacional, até 40% importado'},{id:'6',n:'6 — Estrangeira, sem similar nacional'},
+ {id:'7',n:'7 — Estrangeira, mercado interno sem similar'},{id:'8',n:'8 — Nacional, +70% importado'}
+];
+function fiscalCfg(){
+  var c=cfg();
+  c.fiscal=c.fiscal||{};
+  var f=c.fiscal;
+  if(f.modo===undefined)f.modo='desligado';
+  if(f.ambiente===undefined)f.ambiente='homologacao';
+  if(f.serie===undefined)f.serie=1;
+  if(f.serieCont===undefined)f.serieCont=9;
+  if(f.regime===undefined)f.regime='simples';
+  if(f.cfop===undefined)f.cfop='5102';
+  if(f.csosn===undefined)f.csosn='102';
+  if(f.origem===undefined)f.origem='0';
+  return f;
+}
+function fiscalLigado(){
+  var f=fiscalCfg();
+  return f.modo!=='desligado'&&!!f.provedor&&!!f.token;
+}
+/* o que ainda falta para poder emitir de verdade */
+function pendenciasFiscais(){
+  var f=fiscalCfg(),p=[];
+  if(!f.provedor)p.push('escolher o provedor e colar o token da API');
+  if(!f.token)p.push('token da API não informado');
+  if(!f.cnpj)p.push('CNPJ do emitente');
+  if(!f.ie)p.push('Inscrição Estadual');
+  if(!f.cscId||!f.csc)p.push('CSC (ID e código) — sem ele o QR Code do cupom não é válido');
+  if(!f.certValidade)p.push('validade do certificado digital A1');
+  var semNCM=(DB.produtos||[]).filter(function(x){
+    return x.ativo!==false&&!(x.ncm||f.ncm);}).length;
+  if(semNCM)p.push(semNCM+' produto(s) ativos sem NCM — a SEFAZ rejeita sem isso');
+  return p;
+}
+function telaFiscalCfg(){
+  var f=fiscalCfg();
+  var pend=pendenciasFiscais();
+  var vencCert=f.certValidade?Math.ceil((new Date(f.certValidade)-new Date())/86400000):null;
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo"><div><h1>Configuração Fiscal</h1>'+
+   '<p>NFC-e — o cupom fiscal eletrônico do consumidor. Em São Paulo passou a ser '+
+   'obrigatória em janeiro de 2026 para todo o varejo.</p></div>'+
+   '<button class="infoBt" onclick="explicaFiscal()">'+sv('help',15)+'</button></div>'+
+
+   (pend.length?'<div class="fscPend">'+sv('help',16)+'<div><b>Falta para poder emitir</b>'+
+     '<ul>'+pend.map(function(x){return '<li>'+E(x)+'</li>'}).join('')+'</ul></div></div>':
+     '<div class="fscOk">'+sv('nike',16)+' Configuração completa — pronto para emitir.</div>')+
+
+   '<div class="cfgDuas">'+
+    '<div class="cfgCol"><div class="colH">Como o sistema emite</div>'+
+     '<div class="fld2"><label>Modo</label><select id="fsModo" onchange="salvarFiscal()">'+
+      MODOS_FISCAIS.map(function(m){
+        return '<option value="'+m.id+'"'+(f.modo===m.id?' selected':'')+'>'+E(m.n)+' — '+E(m.d)+'</option>';
+      }).join('')+'</select></div>'+
+     '<div class="fld2"><label>Ambiente</label><select id="fsAmb" onchange="salvarFiscal()">'+
+      '<option value="homologacao"'+(f.ambiente==='homologacao'?' selected':'')+'>Homologação (teste — sem valor fiscal)</option>'+
+      '<option value="producao"'+(f.ambiente==='producao'?' selected':'')+'>Produção (vale para a Receita)</option>'+
+      '</select><div class="hint">Teste em homologação até acertar tudo. Cupom de homologação '+
+      'não vale como documento fiscal.</div></div>'+
+     '<div class="row2">'+
+      '<div class="fld2"><label>Série normal</label><input id="fsSerie" type="number" min="1" value="'+(f.serie||1)+'" onchange="salvarFiscal()"></div>'+
+      '<div class="fld2"><label>Série de contingência</label><input id="fsSerieC" type="number" min="1" value="'+(f.serieCont||9)+'" onchange="salvarFiscal()"></div>'+
+     '</div>'+
+     '<div class="hint">A lei exige série <b>diferente</b> para as notas emitidas quando a '+
+     'SEFAZ está fora do ar. Elas são transmitidas em até 24 horas.</div>'+
+    '</div>'+
+
+    '<div class="cfgCol"><div class="colH">Provedor da API</div>'+
+     '<div class="fld2"><label>Empresa que transmite para a SEFAZ</label>'+
+      '<select id="fsProv" onchange="salvarFiscal()">'+
+      '<option value="">— escolha —</option>'+
+      PROVEDORES.map(function(p){
+        return '<option value="'+p.id+'"'+(f.provedor===p.id?' selected':'')+'>'+E(p.n)+'</option>';
+      }).join('')+'</select></div>'+
+     '<div class="fld2"><label>Endereço da API</label>'+
+      '<input id="fsUrl" value="'+E(f.url||'')+'" placeholder="https://..." onchange="salvarFiscal()"></div>'+
+     '<div class="fld2"><label>Token / chave da API</label>'+
+      '<input id="fsTok" type="password" value="'+E(f.token||'')+'" '+
+      'placeholder="cole a chave que o provedor entregou" onchange="salvarFiscal()">'+
+      '<div class="hint">Fica guardado só nesta loja. Não é enviado a mais ninguém.</div></div>'+
+    '</div>'+
+   '</div>'+
+
+   '<div class="cfgDuas">'+
+    '<div class="cfgCol"><div class="colH">Emitente</div>'+
+     '<div class="row2">'+
+      '<div class="fld2"><label>CNPJ</label><input id="fsCnpj" value="'+E(f.cnpj||'')+'" onchange="salvarFiscal()"></div>'+
+      '<div class="fld2"><label>Inscrição Estadual</label><input id="fsIe" value="'+E(f.ie||'')+'" onchange="salvarFiscal()"></div>'+
+     '</div>'+
+     '<div class="fld2"><label>Razão social</label><input id="fsRz" value="'+E(f.razao||'')+'" onchange="salvarFiscal()"></div>'+
+     '<div class="fld2"><label>Regime tributário</label><select id="fsReg" onchange="salvarFiscal()">'+
+      '<option value="simples"'+(f.regime==='simples'?' selected':'')+'>Simples Nacional</option>'+
+      '<option value="presumido"'+(f.regime==='presumido'?' selected':'')+'>Lucro Presumido</option>'+
+      '<option value="real"'+(f.regime==='real'?' selected':'')+'>Lucro Real</option>'+
+      '</select><div class="hint">No Simples o produto usa <b>CSOSN</b>; nos demais, <b>CST</b>.</div></div>'+
+    '</div>'+
+    '<div class="cfgCol"><div class="colH">Segurança do QR Code (CSC)</div>'+
+     '<div class="fld2"><label>ID do CSC</label><input id="fsCscId" value="'+E(f.cscId||'')+'" onchange="salvarFiscal()"></div>'+
+     '<div class="fld2"><label>Código CSC</label><input id="fsCsc" type="password" value="'+E(f.csc||'')+'" onchange="salvarFiscal()">'+
+      '<div class="hint">Gerado no portal da SEFAZ do seu estado, um par para homologação e '+
+      'outro para produção. Sem ele o QR Code impresso no cupom não é aceito.</div></div>'+
+     '<div class="fld2"><label>Validade do certificado digital A1</label>'+
+      '<input id="fsCert" type="date" value="'+E(f.certValidade||'')+'" onchange="salvarFiscal()">'+
+      (vencCert!==null?'<div class="blAviso '+(vencCert<0?'ruim':(vencCert<30?'':'ok'))+'">'+
+        (vencCert<0?('venceu há '+Math.abs(vencCert)+' dias — a emissão para'):
+         vencCert<30?('vence em '+vencCert+' dias — providencie a renovação'):
+         ('válido por mais '+vencCert+' dias'))+'</div>':'')+
+      '<div class="hint">O certificado fica no provedor. Aqui guardamos só a data, '+
+      'para avisar antes de vencer — certificado vencido para a loja.</div></div>'+
+    '</div>'+
+   '</div>'+
+
+   '<div class="cfgDuas"><div class="cfgCol" style="grid-column:1/-1">'+
+    '<div class="colH">Padrões dos produtos</div>'+
+    '<div class="hint" style="margin-bottom:9px">Usado quando o produto não tem o dado próprio. '+
+    'Evita cadastrar item por item.</div>'+
+    '<div class="row2">'+
+     '<div class="fld2"><label>NCM padrão</label><input id="fsNcm" value="'+E(f.ncm||'')+'" placeholder="ex: 21050010 (sorvetes)" onchange="salvarFiscal()"></div>'+
+     '<div class="fld2"><label>CFOP padrão</label><input id="fsCfop" value="'+E(f.cfop||'5102')+'" onchange="salvarFiscal()"></div>'+
+    '</div>'+
+    '<div class="row2">'+
+     '<div class="fld2"><label>'+(f.regime==='simples'?'CSOSN':'CST')+' padrão</label>'+
+      '<input id="fsCst" value="'+E(f.regime==='simples'?(f.csosn||'102'):(f.cst||'00'))+'" onchange="salvarFiscal()"></div>'+
+     '<div class="fld2"><label>Origem padrão</label><select id="fsOrig" onchange="salvarFiscal()">'+
+      ORIGENS_FISCAIS.map(function(o){
+        return '<option value="'+o.id+'"'+(f.origem===o.id?' selected':'')+'>'+E(o.n)+'</option>';
+      }).join('')+'</select></div>'+
+    '</div>'+
+   '</div></div>'+
+   '</div></div>';
+  rodape(fiscalLigado()?'fiscal ligado — '+(f.ambiente==='producao'?'PRODUÇÃO':'homologação'):'fiscal desligado');
+}
+function salvarFiscal(){
+  var f=fiscalCfg();
+  function v(id){var e=$(id);return e?e.value:undefined;}
+  f.modo=v('fsModo');f.ambiente=v('fsAmb');
+  f.serie=parseInt(v('fsSerie'),10)||1;f.serieCont=parseInt(v('fsSerieC'),10)||9;
+  var prov=v('fsProv');
+  if(prov!==f.provedor){
+    f.provedor=prov;
+    var p=PROVEDORES.find(function(x){return x.id===prov});
+    if(p&&p.url&&!v('fsUrl'))f.url=p.url;   /* preenche o endereço conhecido */
+  }
+  if(v('fsUrl')!==undefined&&v('fsUrl')!=='')f.url=v('fsUrl');
+  f.token=v('fsTok');f.cnpj=v('fsCnpj');f.ie=v('fsIe');f.razao=v('fsRz');
+  f.regime=v('fsReg');f.cscId=v('fsCscId');f.csc=v('fsCsc');
+  f.certValidade=v('fsCert');f.ncm=v('fsNcm');f.cfop=v('fsCfop');f.origem=v('fsOrig');
+  if(f.regime==='simples')f.csosn=v('fsCst'); else f.cst=v('fsCst');
+  salvar();telaFiscalCfg();
+  if(NUVEM.ligada)sincronizar();
+}
+function explicaFiscal(){
+  confirmar({titulo:'O que a lei exige',texto:'NFC-e — modelo 65',
+   linhas:[['Certificado digital','e-CNPJ A1, instalado no provedor',''],
+           ['Credenciamento','na SEFAZ do seu estado',''],
+           ['CSC','ID + código, gerados no portal da SEFAZ',''],
+           ['Série','uma para normal, outra para contingência',''],
+           ['NCM por produto','sem ele a SEFAZ rejeita',''],
+           ['Impressora','comum serve — não precisa ser fiscal','']],
+   aviso:'O Nexor não fala com a SEFAZ direto. Quem assina e transmite é o provedor '+
+    'homologado — assim, quando o leiaute muda (como agora, com IBS e CBS da reforma '+
+    'tributária), quem atualiza é ele. Nada aqui substitui seu contador.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+
+/* ==========================================================
+   CUPONS GERADOS
+   O espelho do que foi para a Receita. Enquanto o provedor nao
+   estiver ligado, a tela ja registra a venda como cupom pendente:
+   assim, no dia em que ligar, o historico nao comeca do zero.
+   ========================================================== */
+var CF={de:'',ate:'',status:'',origem:'',pag:'',consumidor:'',num:'',sel:{}};
+var STATUS_CUPOM=[
+ {id:'autorizado',  n:'Autorizado',   cor:'#0E8A46'},
+ {id:'pendente',    n:'Pendente',     cor:'#8A8578'},
+ {id:'contingencia',n:'Contingência', cor:'#B4542F'},
+ {id:'rejeitado',   n:'Rejeitado',    cor:'#C94141'},
+ {id:'cancelado',   n:'Cancelado',    cor:'#C94141'},
+ {id:'agrupado',    n:'Em NF-e agrupada',cor:'#1F5F8B'}
+];
+function nomeStatusCupom(id){
+  var s=STATUS_CUPOM.find(function(x){return x.id===id});
+  return s?s.n:(id||'—');
+}
+function corStatusCupom(id){
+  var s=STATUS_CUPOM.find(function(x){return x.id===id});
+  return s?s.cor:'#8A8578';
+}
+function baseCupons(){DB.cupons_f=DB.cupons_f||[];return DB.cupons_f;}
+function filtrarCupons(){
+  baseCupons();
+  var q=(CF.consumidor||'').toLowerCase(), qp=(CF.pag||'').toLowerCase();
+  return DB.cupons_f.filter(function(c){
+    var d=String(c.data||'').slice(0,10);
+    if(CF.de&&d<CF.de)return false;
+    if(CF.ate&&d>CF.ate)return false;
+    if(CF.status&&c.status!==CF.status)return false;
+    if(CF.origem&&c.origem!==CF.origem)return false;
+    if(CF.num&&String(c.numero||'').indexOf(CF.num)<0)return false;
+    if(q&&(c.consumidor||'').toLowerCase().indexOf(q)<0)return false;
+    if(qp&&(c.pagamento||'').toLowerCase().indexOf(qp)<0)return false;
+    return true;
+  }).sort(function(a,b){
+    return (b.data+' '+(b.hora||'')).localeCompare(a.data+' '+(a.hora||''));
+  });
+}
+function telaCupons(){
+  baseCupons();
+  if(!CF.de){var d=new Date();
+    CF.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+    CF.ate=hojeISO();}
+  var lst=filtrarCupons();
+  var aut=lst.filter(function(c){return c.status==='autorizado'});
+  var tot=aut.reduce(function(a,c){return a+(Number(c.total)||0)},0);
+  var f=fiscalCfg();
+  var selN=Object.keys(CF.sel).filter(function(k){return CF.sel[k]}).length;
+  var selV=lst.filter(function(c){return CF.sel[c.id]})
+              .reduce(function(a,c){return a+(Number(c.total)||0)},0);
+
+  $('content').innerHTML='<div class="finWrap">'+
+  '<div class="finTop"><div><h1>Cupons Gerados</h1>'+
+  '<p>Tudo que passou pela frente de caixa e o que foi para a Receita.</p></div>'+
+  '<div class="finActs">'+
+   '<button class="infoBt" onclick="explicaCupons()">'+sv('help',15)+'</button>'+
+   '<button class="btnP2" onclick="exportarCupons()">'+sv('file',14)+' Exportar</button>'+
+  '</div></div>'+
+
+  (f.modo==='desligado'
+   ?'<div class="fscPend">'+sv('help',16)+'<div><b>Emissão desligada</b>'+
+     'As vendas ficam registradas aqui como pendentes, mas nada é enviado à Receita. '+
+     'Ligue em <b>Configuração Fiscal</b>.</div></div>'
+   :(f.ambiente==='homologacao'
+     ?'<div class="fscPend">'+sv('help',16)+'<div><b>Ambiente de teste</b>'+
+       'Os cupons daqui não têm valor fiscal. Troque para Produção quando estiver pronto.</div></div>'
+     :''))+
+
+  '<div class="filtroCard">'+
+   '<div class="fl"><label>De</label><input type="date" id="cfDe" value="'+CF.de+'"></div>'+
+   '<div class="fl"><label>Até</label><input type="date" id="cfAte" value="'+CF.ate+'"></div>'+
+   '<div class="fl"><label>Número</label><input id="cfNum" value="'+E(CF.num)+'" placeholder="nº do cupom"></div>'+
+   '<div class="fl"><label>Status</label><select id="cfSt"><option value="">Todos</option>'+
+    STATUS_CUPOM.map(function(s){
+      return '<option value="'+s.id+'"'+(CF.status===s.id?' selected':'')+'>'+E(s.n)+'</option>';
+    }).join('')+'</select></div>'+
+   '<div class="fl"><label>Origem</label><select id="cfOr"><option value="">Todas</option>'+
+    ['salao','entrega','mesa','online'].map(function(o){
+      return '<option value="'+o+'"'+(CF.origem===o?' selected':'')+'>'+
+        (o==='salao'?'Salão':o==='entrega'?'Entrega':o==='mesa'?'Mesa':'Online')+'</option>';
+    }).join('')+'</select></div>'+
+   '<button class="btnP2 ok" onclick="buscarCupons()">'+sv('search',14)+' Buscar</button>'+
+   '<div style="flex:1"></div>'+
+   '<div class="fcResumo">'+
+    '<div><span>Notas autorizadas</span><b>'+aut.length+'</b></div>'+
+    '<div><span>Valor autorizado</span><b>R$ '+money(tot)+'</b></div>'+
+   '</div>'+
+  '</div>'+
+
+  (selN?'<div class="cfSel">'+sv('nike',15)+
+    '<div><b>'+selN+' cupom(ns) selecionado(s)</b> — R$ '+money(selV)+'</div>'+
+    '<button class="btnP2" onclick="CF.sel={};telaCupons()">Limpar</button>'+
+    '<button class="btnP2 ok" onclick="converterAgrupada()">Converter em NF-e agrupada</button>'+
+   '</div>':'')+
+
+  '<div class="pnl2"><div class="pnl2H">Cupons <span class="cnt2">'+lst.length+'</span></div>'+
+  '<div class="pnl2B" style="padding:0">'+
+  (lst.length?'<table class="pTable finTab"><thead><tr>'+
+   '<th style="width:34px"></th>'+
+   '<th style="width:90px">Origem</th>'+
+   '<th style="width:140px">Data da venda</th>'+
+   '<th style="width:80px">Cupom</th>'+
+   '<th>Consumidor</th>'+
+   '<th style="width:150px">Pagamento</th>'+
+   '<th style="width:120px">Status</th>'+
+   '<th style="width:110px;text-align:right">Total</th>'+
+   '<th style="width:70px"></th></tr></thead><tbody>'+
+   lst.map(function(c){
+     return '<tr>'+
+      '<td><label class="flagBox"><input type="checkbox" '+(CF.sel[c.id]?'checked':'')+
+       ' onchange="CF.sel[\''+c.id+'\']=this.checked;telaCupons()"></label></td>'+
+      '<td><b>'+E(c.origem==='salao'?'Salão':c.origem==='entrega'?'Entrega':
+        c.origem==='mesa'?'Mesa':'Online')+'</b></td>'+
+      '<td>'+dataBR(String(c.data||'').slice(0,10))+(c.hora?', '+E(c.hora):'')+'</td>'+
+      '<td>'+(c.numero||'—')+'</td>'+
+      '<td>'+E(c.consumidor||'Consumidor não identificado')+'</td>'+
+      '<td>'+E(c.pagamento||'—')+'</td>'+
+      '<td><span style="color:'+corStatusCupom(c.status)+';font-weight:600">'+
+       E(nomeStatusCupom(c.status))+'</span></td>'+
+      '<td style="text-align:right"><b>R$ '+money(c.total)+'</b></td>'+
+      '<td><button class="rBtn" onclick="verCupom(\''+c.id+'\')" title="Ver">'+sv('eye',12)+'</button></td>'+
+     '</tr>';
+   }).join('')+'</tbody></table>'
+  :'<div class="entVazio"><b>Nenhum cupom no período</b>'+
+   '<span>As vendas da frente de caixa aparecem aqui assim que acontecerem.</span></div>')+
+  '</div></div></div>';
+  rodape(lst.length+' cupons · '+aut.length+' autorizados');
+}
+function buscarCupons(){
+  CF.de=$('cfDe').value;CF.ate=$('cfAte').value;CF.num=$('cfNum').value.trim();
+  CF.status=$('cfSt').value;CF.origem=$('cfOr').value;
+  telaCupons();
+}
+function verCupom(id){
+  var c=baseCupons().find(function(x){return x.id===id});
+  if(!c)return;
+  modal('Cupom '+(c.numero||'—'),
+  '<div class="mdB">'+
+   '<div class="linha"><span>Situação</span><b style="color:'+corStatusCupom(c.status)+'">'+
+    E(nomeStatusCupom(c.status))+'</b></div>'+
+   '<div class="linha"><span>Venda</span><b>#'+(c.pedidoNumero||'—')+' · '+
+    dataBR(String(c.data||'').slice(0,10))+' '+E(c.hora||'')+'</b></div>'+
+   '<div class="linha"><span>Origem</span><b>'+E(c.origem||'—')+'</b></div>'+
+   '<div class="linha"><span>Consumidor</span><b>'+E(c.consumidor||'não identificado')+
+    (c.doc?' ('+E(c.doc)+')':'')+'</b></div>'+
+   '<div class="linha"><span>Pagamento</span><b>'+E(c.pagamento||'—')+'</b></div>'+
+   '<div class="linha tot"><span>TOTAL</span><b>R$ '+money(c.total)+'</b></div>'+
+   (c.chave?'<div class="cbLinha"><span>'+E(c.chave)+'</span></div>'+
+     '<div class="hint">Chave de acesso — 44 dígitos</div>':'')+
+   (c.motivo?'<div class="fscPend" style="margin-top:10px">'+sv('help',14)+
+     '<div><b>'+E(nomeStatusCupom(c.status))+'</b>'+E(c.motivo)+'</div></div>':'')+
+  '</div>','Fechar',function(){return true;});
+}
+function explicaCupons(){
+  confirmar({titulo:'Como esta tela funciona',texto:'Cupons Gerados',
+   linhas:[['Pendente','venda registrada, ainda não enviada à Receita',''],
+           ['Autorizado','a SEFAZ aceitou — o cupom vale',''],
+           ['Contingência','emitido com a SEFAZ fora do ar, será transmitido depois',''],
+           ['Rejeitado','a SEFAZ recusou — o motivo aparece ao abrir',''],
+           ['Em NF-e agrupada','entrou numa nota única do período','']],
+   aviso:'Agrupar vendas numa NF-e única no fim do mês tem regra própria e varia por '+
+    'estado. Confirme com seu contador antes de usar em produção — o sistema faz o que '+
+    'você mandar, mas quem responde pela escrituração é você.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+async function converterAgrupada(){
+  var lst=filtrarCupons().filter(function(c){return CF.sel[c.id]});
+  if(!lst.length)return;
+  var tot=lst.reduce(function(a,c){return a+(Number(c.total)||0)},0);
+  var jaAut=lst.filter(function(c){return c.status==='autorizado'}).length;
+  var ok=await confirmar({
+    titulo:'Converter em NF-e agrupada',
+    texto:lst.length+' cupons — R$ '+money(tot),
+    aviso:(jaAut?('ATENÇÃO: '+jaAut+' desses cupons já estão autorizados na SEFAZ. '+
+      'Incluir nota já emitida numa NF-e agrupada gera dupla escrituração. ')
+      :'')+
+     'Esta operação depende do provedor estar ligado e das regras do seu estado. '+
+     'Confirme com seu contador.',
+    ok:'Marcar para agrupar',tipo:'perigo'});
+  if(!ok)return;
+  var ref=uid('nfa');
+  lst.forEach(function(c){c.status='agrupado';c.nfeAgrupada=ref;});
+  CF.sel={};salvar();telaCupons();
+  toast(lst.length+' cupons marcados para a NF-e agrupada.');
+  if(NUVEM.ligada)sincronizar();
+}
+function exportarCupons(){
+  var lst=filtrarCupons();
+  if(!lst.length){toast('Nada para exportar.');return;}
+  var l=[['Data','Hora','Origem','Cupom','Chave','Consumidor','Documento','Pagamento','Status','Total']];
+  lst.forEach(function(c){
+    l.push([dataBR(String(c.data||'').slice(0,10)),c.hora||'',c.origem||'',c.numero||'',
+      c.chave||'',c.consumidor||'',c.doc||'',c.pagamento||'',nomeStatusCupom(c.status),
+      String(c.total||0).replace('.',',')]);
+  });
+  baixarCSV(l,'cupons-fiscais');
+}
+/* toda venda vira um registro aqui, mesmo com a emissao desligada */
+function registrarCupom(ped){
+  baseCupons();
+  var f=fiscalCfg();
+  var origem=ped.canal==='mesa'?'mesa':(ped.tipo==='entrega'?'entrega':
+             (ped.origem==='online'?'online':'salao'));
+  DB.cupons_f.push({
+    id:uid('cf'),pedidoId:ped.id,pedidoNumero:ped.numero,origem:origem,
+    data:String(ped.data||hojeISO()).slice(0,10),hora:ped.hora||agoraHM(),
+    consumidor:(ped.cliente&&ped.cliente.nome)||ped.clienteNome||'',
+    doc:(ped.cliente&&ped.cliente.cpf)||'',
+    pagamento:(ped.pagamentos||[]).map(function(p){return p.nome||p.metodo||''})
+      .filter(Boolean).join(', '),
+    total:Number(ped.total)||0,desconto:Number(ped.desconto)||0,
+    entrega:Number(ped.taxa)||0,
+    status:'pendente',ambiente:f.ambiente,serie:f.serie
+  });
 }
 
 /* ==========================================================
@@ -16562,6 +17028,9 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   /* fecha as comandas e carimba a mesa no pedido, antes de ele ser gravado */
   if(PDV.mesaPag&&MESA_PAG)concluirMesa(ped);
   DB.pedidos.push(ped);
+  /* registra o cupom mesmo com a emissão desligada: no dia em que ligar,
+     o histórico não começa do zero */
+  try{ registrarCupom(ped); }catch(e){}
   if(_cupomAtivo){
     DB.cupomUsos=DB.cupomUsos||[];
     DB.cupomUsos.push({id:uid('cu'),cupomId:_cupomAtivo.id,clienteId:PDV.cliente?PDV.cliente.id:null,
