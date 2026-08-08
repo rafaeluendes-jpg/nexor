@@ -657,6 +657,14 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.cnTelas{display:flex;flex-direction:column;gap:9px;max-height:280px;overflow-y:auto;
+ border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:10px;background:var(--bg2,#faf7f0)}
+.cnTelaG{border-bottom:1px solid var(--lin,#e6e0d4);padding-bottom:8px}
+.cnTelaG:last-child{border-bottom:none;padding-bottom:0}
+.cnTelaH{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.cnTelaH b{flex:1;font-size:12px;color:var(--tx,#2f2a24)}
+.cnTelaH .rBtn{font-size:10px;padding:2px 7px;width:auto}
+.cnTelaG .chkMini{margin-right:12px}
 .blkLista{display:flex;flex-direction:column;gap:7px}
 .blkIt{border:1px solid var(--lin,#e6e0d4);border-radius:10px;background:var(--bg2,#faf7f0);overflow:hidden}
 .blkIt.off{opacity:.5}
@@ -11214,6 +11222,16 @@ function moduloContratado(mid){
   if(MODULOS_BASE.indexOf(mid)<0)return true;
   return c.modulos.indexOf(mid)>=0;
 }
+/* O contrato travava o modulo inteiro: ou o cliente tinha Relatorios, ou nao
+   tinha nenhum. Agora o dono do Nexor pode fechar telas soltas — o cliente
+   contrata Relatorios e o dono decide se Cancelamentos entra ou nao.
+   Lista de bloqueio, e nao de liberacao: contrato antigo continua valendo. */
+function recursoContratado(mid,iid){
+  if(ehPlataforma())return true;
+  var c=contratoDaRede();
+  if(!c||!c.bloqueados||!c.bloqueados.length)return true;
+  return c.bloqueados.indexOf(mid+'/'+iid)<0;
+}
 var SO_FRANQUEADORA=['loja/carga-inicial'];
 var MOD_PLATAFORMA=['tecnico'];   /* modulo inteiro: so o dono do Nexor */
 var ADM_MESTRE='rafael@uendes.com';
@@ -13119,7 +13137,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.3.1';
+var VERSAO='V19.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15197,13 +15215,10 @@ function moverPedido(id,fase){
   var p=DB.pedidos.find(function(x){return x.id===id});
   if(!p)return;
   var antes=p.fase;
+  /* Cancelar e cancelar, venha do botao, do arrasto ou da busca por numero.
+     Uma porta so: motivo do cadastro, quem cancelou e a senha dela. */
+  if(fase==='cancelado'&&antes!=='cancelado'){pedirCancelamento(id);return;}
   p.fase=fase;
-  if(fase==='cancelado'&&antes!=='cancelado'){
-    p.canceladoEm=new Date().toISOString();
-    p.canceladoPor=(caixaAberto()||{}).operador||'Administrador';
-    avisarGerente(p.sucursalId||lojaAtualId(),'cancelamento',
-      msgCancelamento(p,p.motivoCancelamento||''));
-  }
   try{
     if(fase==='cancelado'&&antes!=='cancelado')estornarEstoqueVenda(p);
     if(antes==='cancelado'&&fase!=='cancelado')baixarEstoqueVenda(p);
@@ -17743,8 +17758,25 @@ function modalCN(id){
    '<div class="cnMods">'+MOD.filter(function(m){return MODULOS_BASE.indexOf(m.id)>=0&&m.id!=='tecnico'})
      .map(function(m){
        var on=c&&(c.modulos||[]).indexOf(m.id)>=0;
-       return '<label class="chkL"><input type="checkbox" class="cnMod" value="'+m.id+'"'+
+       return '<label class="chkL"><input type="checkbox" class="cnMod" value="'+E(m.id)+'"'+
         (on?' checked':'')+'><span>'+E(m.n)+'</span></label>';
+     }).join('')+'</div>'+
+   '<div class="acTit" style="margin-top:14px">Telas liberadas</div>'+
+   '<div class="hint">Dentro de um modulo contratado, voce ainda escolhe tela a tela. '+
+    'O que estiver desmarcado <b>nao existe</b> para o cliente — nem a franqueadora dele '+
+    'consegue liberar para ninguem. Tudo marcado e o normal.</div>'+
+   '<div class="cnTelas">'+MOD.filter(function(m){return m.id!=='tecnico'&&m.id!=='teste'})
+     .map(function(m){
+       return '<div class="cnTelaG"><div class="cnTelaH"><b>'+E(m.n)+'</b>'+
+        '<button type="button" class="rBtn" onclick="cnTodasTelas(\''+E(m.id)+'\',true)">tudo</button>'+
+        '<button type="button" class="rBtn" onclick="cnTodasTelas(\''+E(m.id)+'\',false)">nada</button>'+
+        '</div>'+
+        (m.it||[]).map(function(i){
+          var ch=m.id+'/'+i.id;
+          var bloq=c&&(c.bloqueados||[]).indexOf(ch)>=0;
+          return '<label class="chkMini"><input type="checkbox" class="cnTela" data-mod="'+E(m.id)+'"'+
+           ' value="'+E(ch)+'"'+(bloq?'':' checked')+'><span>'+E(i.n)+'</span></label>';
+        }).join('')+'</div>';
      }).join('')+'</div>'+
    '<div class="fld2" style="margin-top:8px"><label>Identificador da loja no banco (loja_id)</label>'+
     '<input id="cnLoja" value="'+E(c?c.lojaId||'':'')+'" placeholder="cole aqui o id da loja do cliente">'+
@@ -17771,11 +17803,19 @@ function salvarCN(id){
     situacao:$('cnSit').value,inicio:$('cnIni').value,obs:$('cnObs').value.trim(),
     lojaId:($('cnLoja')?$('cnLoja').value.trim():''),
     modulos:Array.prototype.slice.call(document.querySelectorAll('.cnMod:checked'))
-      .map(function(x){return x.value})};
+      .map(function(x){return x.value}),
+    /* guarda o que esta FECHADO, nao o que esta aberto: assim uma tela nova
+       nasce liberada para quem ja e cliente, em vez de sumir sozinha */
+    bloqueados:Array.prototype.slice.call(document.querySelectorAll('.cnTela'))
+      .filter(function(x){return !x.checked}).map(function(x){return x.value})};
   var a=id?DB.clientesNexor.find(function(x){return x.id===id}):null;
   if(a)Object.assign(a,o);
   else DB.clientesNexor.push(Object.assign({id:uid('cnx'),cobrancas:[]},o));
   salvar();fecharModal();telaClientesNexor();toast('Cliente salvo.');
+}
+function cnTodasTelas(mid,marcar){
+  var cs=document.querySelectorAll('.cnTela[data-mod="'+mid+'"]');
+  for(var i=0;i<cs.length;i++)cs[i].checked=marcar;
 }
 function marcarPago(id){
   var c=DB.clientesNexor.find(function(x){return x.id===id});if(!c)return;
@@ -31086,6 +31126,23 @@ function cancelarVenda(){
   var i=$('cvNum');
   if(i){i.focus();i.oninput=function(){buscarParaCancelar(this.value)};}
 }
+/* abre direto no pedido, sem passar pela busca por numero */
+function pedirCancelamento(id){
+  var p=(DB.pedidos||[]).find(function(x){return x.id===id});
+  if(!p)return;
+  if(p.fase==='cancelado'){toast('Este pedido ja esta cancelado.');return;}
+  if(!motivosCancAtivos().length){
+    toast('Cadastre um motivo em Configuracao da Loja > Motivo de Cancelamento.');
+    return;
+  }
+  var ov=document.createElement('div');ov.className='mdOv';ov.id='mdOv';
+  ov.innerHTML='<div class="mdBox lg"><div class="mdH"><b>Cancelar venda #'+E(p.numero)+'</b>'+
+   '<button onclick="fecharModal()">&times;</button></div>'+
+   '<div class="mdB">'+cartaoCancelamento(p)+'</div>'+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+  document.body.appendChild(ov);
+  fecharSoForaDeVerdade(ov);
+}
 function buscarParaCancelar(num){
   var box=$('cvAchado');
   if(!box)return;
@@ -31102,11 +31159,17 @@ function buscarParaCancelar(num){
      '<span>O pedido <b>#'+E(num)+'</b> já está cancelado.</span></div>';
     return;
   }
+  box.innerHTML=cartaoCancelamento(p);
+}
+/* O cartao virou funcao para servir as duas portas: a busca por numero e
+   o cancelamento pelo Kanban. Antes o Kanban cancelava direto, sem motivo
+   e sem senha — e o cancelamento nao aparecia no relatorio. */
+function cartaoCancelamento(p){
   var pg=(p.pagamentos||[]).map(function(g){
-    var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId});
+    var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId||x.id===g.forma});
     return (f?f.nome:'—')+' R$ '+money(g.valor);
   }).join(' · ');
-  box.innerHTML='<div class="cvCard">'+
+  return '<div class="cvCard">'+
    '<div class="cvH"><b>#'+E(p.numero)+'</b>'+
     '<span>'+dataBR(String(p.data).slice(0,10))+' às '+E(p.hora||'')+'</span>'+
     '<span class="cidTag">'+(p.tipo==='entrega'?'Entrega':'Frente de caixa')+'</span></div>'+
@@ -31198,6 +31261,7 @@ async function confirmarCancelamento(id){
   salvar();
   fecharModal();
   if(PDV.aba==='pedidos')renderKanban();
+  avisarCliente(p,'cancelado');
   toast('Venda #'+p.numero+' cancelada por '+op.nome+'.');
   if(NUVEM.ligada)sincronizar();
   avisarGerente(p.sucursalId||lojaAtualId(),'cancelamento',
@@ -32514,6 +32578,7 @@ function podeVer(mid,iid){
   if(MOD_PLATAFORMA.indexOf(mid)>=0&&!ehPlataforma(u))return false;
   if(!u)return false;                       /* ninguem logado: nao mostra nada */
   if(!moduloContratado(mid))return false;   /* fora do contrato: some para todos */
+  if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono do Nexor */
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
   /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
@@ -32800,6 +32865,7 @@ function abaPermUsr(u){
     '<button class="btnMini" onclick="marcarTudoUsr(true)">liberar tudo</button>'+
     '<button class="btnMini" onclick="marcarTudoUsr(false)">bloquear tudo</button>'+
     '<button class="btnMini" onclick="aplicarModelo(\'franqueado\')">modelo franqueado</button>'+
+    '<button class="btnMini" onclick="aplicarModelo(\'gerente\')">modelo gerente</button>'+
     '<button class="btnMini" onclick="aplicarModelo(\'caixa\')">modelo caixa</button>'+
    '</div>'+
    '<div class="permLista">'+
@@ -32861,8 +32927,15 @@ var MODELOS={
    'estoque/historico-posicao','estoque/notas-entrada',
    'relatorios/faturamento-dia','relatorios/itens-vendidos','relatorios/vendas-periodo',
    'relatorios/itens-consumidos','relatorios/vendas-area-entrega','relatorios/vendas-forma-pagamento',
-   'dashboard/faturamento','dashboard/canais-venda','dashboard/venda-data-hora'],
- caixa:['pdv/pdv','pdv/pedidos-online','clientes/cadastro-clientes']
+   'dashboard/faturamento','dashboard/canais-venda','dashboard/venda-data-hora',
+   /* o franqueado ve os proprios cancelamentos, mas nao mexe no cadastro
+      de motivos: quem decide a lista e a franqueadora */
+   'relatorios/cancelamentos'],
+ caixa:['pdv/pdv','pdv/pedidos-online','clientes/cadastro-clientes'],
+ gerente:['pdv/pdv','pdv/pedidos-online','financeira/frente-caixa',
+   'relatorios/faturamento-dia','relatorios/itens-vendidos','relatorios/cancelamentos',
+   'estoque/posicao-estoque','estoque/contagem-estoque','clientes/cadastro-clientes',
+   'dashboard/faturamento']
 };
 function aplicarModelo(qual){
   var u=usrSel();if(!u)return;
