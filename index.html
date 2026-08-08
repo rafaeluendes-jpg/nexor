@@ -742,6 +742,9 @@ body.pdvFull .wTitle{display:none}
 .syHist{display:flex;align-items:center;gap:9px;background:var(--bg2,#faf7f0);
  border:1px solid var(--lin,#e6e0d4);border-radius:9px;padding:10px 13px;
  margin-bottom:14px;font-size:12.5px;color:var(--tx2,#7a7266)}
+.lbTag.mtz{background:#EAF5EE;color:#1B5E36;border-color:#BFE0CC}
+.lbOp.fixa{opacity:.75;cursor:default;background:#EAF5EE;border-color:#BFE0CC}
+.lbOp.fixa span{display:block;font-size:10.5px;color:#1B5E36}
 .fscPend{display:flex;gap:10px;background:#FFF6E8;border:1px solid #F0DCB8;border-radius:10px;
  padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#7A5320;line-height:1.5}
 .fscPend b{display:block;margin-bottom:2px}
@@ -13550,7 +13553,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.0.0';
+var VERSAO='V20.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15358,11 +15361,26 @@ var CADASTROS_LIB=[
  {col:'fichaCats', n:'Categorias de ficha', ic:'folder'},
  {col:'gruposIng', n:'Grupos de ingredientes',ic:'folder'}
 ];
+/* a unidade marcada como matriz na rede */
+function ehSucMatriz(id){
+  var s=baseSuc().find(function(x){return x.id===id});
+  return !!(s&&s.matriz);
+}
+/* REGRA DA REDE, e ela nao tem excecao:
+
+   1. A MATRIZ ENXERGA TUDO. E a franqueadora — nao existe cadastro de
+      unidade nenhuma que ela nao possa ver. A marcacao nem e consultada.
+   2. Unidade nao ve nada de outra unidade. Sabor regional de Jales nao
+      aparece em Santa Fe, nem o contrario. Cada uma e independente.
+   3. Sem marcacao = todas as unidades. E o padrao, para item novo chegar
+      em todo lugar sem ninguem precisar liberar. */
 function liberadoNa(item,suc){
   if(!item)return false;
+  suc=suc||lojaAtualId();
+  if(ehSucMatriz(suc))return true;       /* regra 1 — a matriz ve tudo */
   var l=item.sucursais;
-  if(!l||!l.length)return true;          /* sem marcacao = todas */
-  return l.indexOf(suc||lojaAtualId())>=0;
+  if(!l||!l.length)return true;          /* regra 3 — sem marcacao = todas */
+  return l.indexOf(suc)>=0;              /* regra 2 — so quem foi marcado */
 }
 /* usada pelas telas: so o que esta liberado nesta unidade */
 function soLiberados(lista,suc){
@@ -15396,7 +15414,8 @@ function telaLiberacao(){
     '<div>Item <b>sem marcação aparece em todas as unidades</b>. '+
     (restritos?('Hoje '+restritos+' item(ns) deste cadastro estão restritos.')
              :'Nenhum item deste cadastro está restrito — todos chegam em todas.')+
-    '</div></div>'+
+    '<br><b>A matriz enxerga tudo, sempre</b> — e uma unidade nunca vê o cadastro '+
+    'de outra.</div></div>'+
 
    '<div class="lbAbas">'+CADASTROS_LIB.map(function(c){
      var qt=(DB[c.col]||[]).length;
@@ -15429,7 +15448,9 @@ function telaLiberacao(){
         ' onchange="LB.sel[\''+x.id+'\']=this.checked;telaLiberacao()"></label></td>'+
        '<td><b>'+E(x.nome||'—')+'</b></td>'+
        '<td>'+(l.length
-         ?'<div class="lbTags">'+l.map(function(id){
+         ?'<div class="lbTags"><span class="lbTag mtz">'+
+           E(sucNome((baseSuc().find(function(z){return z.matriz})||{}).id))+'</span>'+
+           l.filter(function(id){return !ehSucMatriz(id)}).map(function(id){
             return '<span class="lbTag">'+E(sucNome(id))+'</span>';}).join('')+'</div>'
          :'<span class="lbTodas">todas as '+sucs.length+' unidades</span>')+'</td>'+
        '<td><button class="rBtn" onclick="editarLiberacao(\''+x.id+'\')" title="Definir">'+
@@ -15461,9 +15482,13 @@ function abrirEscolhaUnidades(itens,titulo){
     '<span><b>Todas as unidades</b> — inclusive as que forem criadas depois</span></label>'+
    '<div class="hint" style="margin:6px 0 12px">Desmarque acima para escolher unidade por unidade.</div>'+
    '<div class="lbGrade">'+sucs.map(function(s){
+     /* a matriz nao entra na escolha: ela ve tudo por regra da rede */
+     if(s.matriz)
+       return '<label class="lbOp fixa"><input type="checkbox" checked disabled>'+
+        '<b>'+E(s.nome)+'</b><span>matriz — vê sempre</span></label>';
      return '<label class="lbOp"><input type="checkbox" class="lbSuc" value="'+E(s.id)+'"'+
       (atual.indexOf(s.id)>=0?' checked':'')+(atual.length?'':' disabled')+'>'+
-      '<b>'+E(s.nome)+'</b>'+(s.matriz?'<span>matriz</span>':'')+'</label>';
+      '<b>'+E(s.nome)+'</b></label>';
    }).join('')+'</div>'+
   '</div>','Salvar',function(){
     var todas=$('lbTodas').checked;
