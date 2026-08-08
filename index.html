@@ -657,6 +657,37 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.msCfg{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card,#fff);
+ border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:12px 16px;margin-bottom:14px}
+.msCfg>b{font-size:11px;color:var(--tx2,#7a7266);text-transform:uppercase;letter-spacing:.04em}
+.msPct{display:flex;align-items:center;gap:5px}
+.msPct input{width:78px;border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:7px 9px;background:#fff}
+.msPct i{font-style:normal;color:var(--tx2,#7a7266);font-size:12px}
+.salaoWrap{padding:16px}
+.salaoGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px}
+.mesaBox{border:1px solid var(--lin,#e6e0d4);border-radius:12px;background:var(--card,#fff);
+ padding:15px 13px;cursor:pointer;text-align:center;transition:.12s;border-top:3px solid #C6D4E0}
+.mesaBox:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09)}
+.mesaBox.ocupada{border-top-color:var(--al,#B4542F);background:#FFF8F4}
+.mesaN{font-size:23px;font-weight:700;color:var(--tx,#2f2a24);line-height:1.1}
+.mesaLivre{font-size:11.5px;color:var(--tx2,#9a9288);margin-top:6px}
+.mesaC{font-size:11px;color:var(--tx2,#7a7266);margin-top:5px;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.mesaV{font-size:14px;font-weight:700;color:var(--al,#B4542F);margin-top:4px}
+.cmdLista{display:flex;flex-direction:column;gap:8px}
+.cmdIt{display:flex;align-items:center;gap:11px;border:1px solid var(--lin,#e6e0d4);
+ border-radius:10px;padding:10px 12px;background:var(--bg2,#faf7f0)}
+.cmdN{flex:1;min-width:0}
+.cmdN b{display:block;font-size:13.5px}
+.cmdN span{display:block;font-size:11px;color:var(--tx2,#7a7266)}
+.cmdV{font-weight:700;font-size:14px;white-space:nowrap}
+.cmdAc{display:flex;gap:5px}
+.cmdTot{border-top:1px solid var(--lin,#e6e0d4);margin-top:12px;padding-top:10px}
+.cmdTot .linha{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
+.cmdTot .linha.tot{font-size:15.5px;font-weight:700;border-top:1px solid var(--lin,#e6e0d4);
+ margin-top:5px;padding-top:8px}
+.cmdTag{font-style:normal;font-size:10px;background:var(--bg2,#f0ece2);border-radius:4px;
+ padding:1px 5px;color:var(--tx2,#7a7266);margin-left:5px}
 .msBarra{display:flex;gap:22px;flex-wrap:wrap;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 16px;margin-bottom:14px}
 .msGrupo{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
@@ -11637,6 +11668,12 @@ var MAPA=[
 
  /* Turno tem que vir antes de caixas no MAPA: o caixa aponta para o turno,
     e o vinculo so resolve se o turno ja subiu. */
+ {col:'comandas', tab:'mesa_comandas',
+  campos:function(x){return {mesa_ref:x.mesaId||null,mesa_numero:n(x.mesaNumero),
+    nome:x.nome,itens:x.itens||[],aberta:x.aberta!==false,
+    aberta_em:x.abertaEm||null,fechada_em:x.fechadaEm||null,
+    pedido_ref:x.pedidoRef||null,sucursal_id:x.sucursalId||null}}},
+
  {col:'mesas', espelha:true, tab:'mesas',
   campos:function(x){return {numero:n(x.numero),nome:x.nome||null,
     lugares:n(x.lugares)||4,ativa:x.ativa!==false,sucursal_id:x.sucursalId||null}}},
@@ -11714,7 +11751,8 @@ var MAPA=[
     entregador_id:fk('entregadores',x.entregadorId),caixa_id:fk('caixas',x.caixaId),
     total:n(x.total),taxa:n(x.taxa),desconto:n(x.desconto),fiscal:!!x.fiscal,
     hora:x.hora||null,data_venda:x.data||null,
-    mesa_id:fk('mesas',x.mesaId),mesa_numero:n(x.mesa)}},
+    mesa_id:fk('mesas',x.mesaId),mesa_numero:n(x.mesa),
+    comanda_nome:x.comandaNome||null,taxa_servico:n(x.taxaServico)}},
   filhos:[
    {lista:'itens',tab:'pedido_itens',pai:'pedido_id',
     campos:function(o){return {produto_id:fk('produtos',o.produtoId),nome:o.nome,
@@ -12246,7 +12284,7 @@ async function sincronizar(){
     await api('config_loja?on_conflict=loja_id','POST',[{loja_id:l,
       loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
       tempo_retirada:n(c.tempoRetirada),caixa_cego:!!c.caixaCego,
-      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},
+      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},
     cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
       mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}}],
       {'Prefer':'resolution=merge-duplicates,return=minimal'});
@@ -12430,6 +12468,7 @@ async function baixarDaNuvem(forcar){
     c3.tempoRetirada=cfgS[0].tempo_retirada;c3.caixaCego=!!cfgS[0].caixa_cego;
     c3.layout=cfgS[0].layout||'normal';c3.fases=cfgS[0].fases||c3.fases;
     if(cfgS[0].cfg_dre)DB.cfgDre=cfgS[0].cfg_dre;
+    if(cfgS[0].cfg_mesa)c3.mesa=cfgS[0].cfg_mesa;
     if(cfgS[0].cfg_pdv){var cp=cfgS[0].cfg_pdv;
       c3.colunas=cp.colunas;c3.mostraPreco=cp.mostraPreco;
       c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}}
@@ -12521,6 +12560,12 @@ async function baixarDaNuvem(forcar){
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
     ativo:x.ativo!==false}});
+
+  var cmd=await api('mesa_comandas'+qs+'&order=aberta_em.desc&limit=500');
+  DB.comandas=volta(cmd,function(x){return {id:x.ref_local||x.id,mesaId:x.mesa_ref||'',
+    mesaNumero:Number(x.mesa_numero)||0,nome:x.nome,itens:x.itens||[],
+    aberta:x.aberta!==false,abertaEm:x.aberta_em,fechadaEm:x.fechada_em,
+    pedidoRef:x.pedido_ref||'',sucursalId:x.sucursal_id||''}});
 
   var ms=await api('mesas'+qs+'&order=numero');
   var mapaMs={};ms.forEach(function(x){mapaMs[x.id]=x.ref_local||x.id});
@@ -13134,7 +13179,7 @@ function boot(){
   DB.cancelamentos=DB.cancelamentos||[];
   DB.modelosImp=DB.modelosImp||[];
   DB.statusVenda=DB.statusVenda||[];
-  DB.mesas=DB.mesas||[];
+  DB.mesas=DB.mesas||[];DB.comandas=DB.comandas||[];
   baseCanc();baseTurnos();baseImp();baseStatus();
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
@@ -13262,7 +13307,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.8.0';
+var VERSAO='V19.9.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14643,6 +14688,16 @@ function telaMesas(){
      '<button class="btnP2" onclick="imprimirQR(true)">Imprimir selecionados</button>'+
     '</div>'+
    '</div>'+
+   '<div class="msCfg">'+
+    '<b>Taxa de serviço</b>'+
+    '<label class="chkMini"><input type="checkbox" id="msTaxa" '+
+     (cfgMesa().taxaServico?'checked':'')+' onchange="salvarCfgMesa()">'+
+     '<span>Cobrar taxa de serviço na conta da mesa</span></label>'+
+    '<div class="msPct"><input type="number" id="msPct" min="0" max="30" step="0.5" '+
+     'value="'+(cfgMesa().taxaPct||10)+'" onchange="salvarCfgMesa()"><i>%</i></div>'+
+    '<span class="hint">A taxa aparece na hora de fechar a conta e pode ser retirada '+
+    'ali mesmo, se o cliente não quiser pagar.</span>'+
+   '</div>'+
    '<div id="msAviso"></div>'+
    '<div class="msGrade">'+(lst.length?lst.map(function(m){
      return '<div class="msCard'+(m.ativa===false?' off':'')+'">'+
@@ -14664,6 +14719,14 @@ function telaMesas(){
    '</div></div>';
   rodape(lst.length+' mesas · '+mesasAtivas().length+' ativas');
   pintarQRs();
+}
+function salvarCfgMesa(){
+  var cm=cfgMesa();
+  cm.taxaServico=$('msTaxa').checked;
+  cm.taxaPct=parseFloat($('msPct').value)||0;
+  salvar();
+  toast(cm.taxaServico?('Taxa de serviço de '+cm.taxaPct+'% ligada.'):'Taxa de serviço desligada.');
+  if(NUVEM.ligada)sincronizar();
 }
 function explicaMesas(){
   confirmar({titulo:'Como a mesa funciona',texto:'Mesas e QR Code',
@@ -14793,6 +14856,261 @@ async function imprimirQR(soSelecionadas){
    '.qrTx{font:12pt sans-serif;margin-top:6px;color:#444}}';
   document.head.appendChild(st);
   setTimeout(function(){window.print()},350);
+}
+
+
+/* ==========================================================
+   COMANDAS DA MESA
+   A conta e da mesa, mas cada pessoa tem a comanda dela dentro.
+   Dois casais na mesa 1: abre "Joao" e "Rodrigo" e o que cada um
+   pede nao se mistura. Na hora de pagar, ou junta tudo num
+   pagamento so, ou cada um paga a sua.
+   ========================================================== */
+function cfgMesa(){
+  var c=cfg();
+  c.mesa=c.mesa||{};
+  if(c.mesa.taxaServico===undefined)c.mesa.taxaServico=false;
+  if(c.mesa.taxaPct===undefined)c.mesa.taxaPct=10;
+  return c.mesa;
+}
+function baseComandas(){DB.comandas=DB.comandas||[];return DB.comandas;}
+function comandasDaMesa(mesaId){
+  baseComandas();
+  return DB.comandas.filter(function(c){return c.mesaId===mesaId&&c.aberta!==false});
+}
+function totalComanda(c){
+  return (c.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
+}
+function totalMesa(mesaId){
+  return comandasDaMesa(mesaId).reduce(function(a,c){return a+totalComanda(c)},0);
+}
+function mesaOcupada(mesaId){return comandasDaMesa(mesaId).length>0;}
+function comandaPorId(id){
+  baseComandas();
+  return DB.comandas.find(function(c){return c.id===id})||null;
+}
+function taxaSobre(v){
+  var cm=cfgMesa();
+  if(!cm.taxaServico)return 0;
+  return +(v*(Number(cm.taxaPct)||0)/100).toFixed(2);
+}
+
+/* ---------- o salão ---------- */
+function renderMesas(){
+  baseMesas();baseComandas();
+  var lst=mesasAtivas();
+  if(!lst.length){
+    $('pdvBody').innerHTML='<div class="vazio2" style="padding:40px">'+
+     'Nenhuma mesa cadastrada. Vá em <b>Configuração da Loja › Mesas e QR Code</b>.</div>';
+    return;
+  }
+  var h='<div class="salaoWrap"><div class="salaoGrade">'+lst.map(function(m){
+    var cs=comandasDaMesa(m.id);
+    var tot=totalMesa(m.id);
+    return '<div class="mesaBox'+(cs.length?' ocupada':'')+'" onclick="abrirMesa(\''+m.id+'\')">'+
+     '<div class="mesaN">'+E(m.nome||m.numero)+'</div>'+
+     (cs.length
+      ?'<div class="mesaC">'+cs.slice(0,3).map(function(c){return E(c.nome)}).join(' · ')+
+        (cs.length>3?' +'+(cs.length-3):'')+'</div>'+
+       '<div class="mesaV">R$ '+money(tot)+'</div>'
+      :'<div class="mesaLivre">livre</div>')+
+    '</div>';
+  }).join('')+'</div></div>';
+  $('pdvBody').innerHTML=h;
+}
+function abrirMesa(id){
+  var m=(DB.mesas||[]).find(function(x){return x.id===id});
+  if(!m)return;
+  var cs=comandasDaMesa(id);
+  var sub=totalMesa(id);
+  var tx=taxaSobre(sub);
+  var h='<div class="mdB">'+
+   (cs.length?'<div class="cmdLista">'+cs.map(function(c){
+     var t=totalComanda(c);
+     return '<div class="cmdIt">'+
+      '<div class="cmdN"><b>'+E(c.nome)+'</b>'+
+       '<span>'+(c.itens||[]).reduce(function(a,i){return a+(Number(i.qtd)||0)},0)+' itens</span></div>'+
+      '<div class="cmdV">R$ '+money(t)+'</div>'+
+      '<div class="cmdAc">'+
+       '<button class="btnP2" onclick="lancarNaComanda(\''+c.id+'\')">'+sv('plus',12)+' Lançar</button>'+
+       '<button class="btnP2" onclick="verComanda(\''+c.id+'\')">'+sv('eye',12)+'</button>'+
+       '<button class="btnP2 ok" onclick="fecharComanda(\''+c.id+'\')">Pagar</button>'+
+      '</div></div>';
+   }).join('')+'</div>'
+   :'<div class="entVazio"><b>Mesa livre</b><span>Abra uma comanda para começar.</span></div>')+
+   '<button class="btnP2" style="width:100%;justify-content:center;margin-top:10px" '+
+    'onclick="novaComanda(\''+id+'\')">'+sv('plus',13)+' Nova comanda nesta mesa</button>'+
+   (cs.length?'<div class="cmdTot">'+
+     '<div class="linha"><span>Soma das comandas</span><b>R$ '+money(sub)+'</b></div>'+
+     (tx?'<div class="linha"><span>Taxa de serviço ('+cfgMesa().taxaPct+'%)</span><b>R$ '+money(tx)+'</b></div>':'')+
+     '<div class="linha tot"><span>TOTAL DA MESA</span><b>R$ '+money(sub+tx)+'</b></div>'+
+    '</div>'+
+    (cs.length>1?'<button class="btnPag" style="width:100%;justify-content:center;margin-top:10px" '+
+      'onclick="fecharMesaUnificada(\''+id+'\')">'+sv('cash',15)+' Unificar pagamento das '+cs.length+' comandas</button>':'')
+   :'')+
+  '</div>';
+  var ov=document.createElement('div');ov.className='mdOv';ov.id='mdOv';
+  ov.innerHTML='<div class="mdBox lg"><div class="mdH"><b>Mesa '+E(m.nome||m.numero)+'</b>'+
+   '<button onclick="fecharModal()">&times;</button></div>'+h+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+  document.body.appendChild(ov);
+  fecharSoForaDeVerdade(ov);
+}
+function novaComanda(mesaId){
+  var m=(DB.mesas||[]).find(function(x){return x.id===mesaId});
+  if(!m)return;
+  fecharModal();
+  modal('Nova comanda na mesa '+E(m.nome||m.numero),
+  '<div class="mdB"><div class="fld2"><label>Nome de quem vai consumir *</label>'+
+   '<input id="cmNome" placeholder="João, Rodrigo, Casal 1..." autocomplete="off">'+
+   '<div class="hint">É por este nome que os itens ficam separados dentro da mesa.</div>'+
+   '</div></div>','Abrir comanda',function(){
+    var nome=$('cmNome').value.trim();
+    if(!nome){toast('Informe o nome.');return false;}
+    var rep=comandasDaMesa(mesaId).some(function(c){
+      return c.nome.toLowerCase()===nome.toLowerCase();});
+    if(rep){toast('Já existe uma comanda com este nome nesta mesa.');return false;}
+    baseComandas();
+    DB.comandas.push({id:uid('cm'),mesaId:mesaId,mesaNumero:m.numero,nome:nome,
+      itens:[],aberta:true,abertaEm:new Date().toISOString(),
+      sucursalId:m.sucursalId||''});
+    salvar();
+    if(PDV.aba==='mesas')renderMesas();
+    toast('Comanda de '+nome+' aberta.');
+    setTimeout(function(){abrirMesa(mesaId)},120);
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+  setTimeout(function(){var i=$('cmNome');if(i)i.focus();},80);
+}
+/* leva para a aba de venda, marcando que o que for lançado vai para esta comanda */
+function lancarNaComanda(id){
+  var c=comandaPorId(id);if(!c)return;
+  PDV.comandaId=id;PDV.comanda=[];PDV.aba='venda';PDV.tipo='loja';
+  fecharModal();telaPDV();
+  toast('Lançando para '+c.nome+' — mesa '+c.mesaNumero+'.');
+}
+function sairDaComanda(){
+  PDV.comandaId=null;PDV.comanda=[];
+  telaPDV();
+}
+/* manda o que está na tela para a comanda, sem cobrar nada ainda */
+function enviarParaComanda(){
+  var c=comandaPorId(PDV.comandaId);
+  if(!c){toast('Comanda não encontrada.');return;}
+  if(!PDV.comanda.length){toast('Nenhum item para lançar.');return;}
+  c.itens=(c.itens||[]).concat(JSON.parse(JSON.stringify(PDV.comanda)));
+  PDV.comanda=[];
+  salvar();
+  toast('Lançado na comanda de '+c.nome+'.');
+  renderVenda();
+  if(NUVEM.ligada)sincronizar();
+}
+function verComanda(id){
+  var c=comandaPorId(id);if(!c)return;
+  var tot=totalComanda(c);
+  fecharModal();
+  modal('Comanda de '+E(c.nome),
+  '<div class="mdB">'+
+   ((c.itens||[]).length?'<div class="cvItens">'+c.itens.map(function(i,k){
+     return '<div><span>'+i.qtd+'× '+E(i.nome)+'</span>'+
+      '<b>R$ '+money(i.total)+'</b>'+
+      '<button class="rBtn rd" onclick="tirarDaComanda(\''+id+'\','+k+')" title="Remover">'+
+      sv('trash',11)+'</button></div>';
+   }).join('')+'</div>'
+   :'<div class="entVazio"><b>Comanda vazia</b><span>Nada lançado ainda.</span></div>')+
+   '<div class="cmdTot"><div class="linha tot"><span>TOTAL</span><b>R$ '+money(tot)+'</b></div></div>'+
+  '</div>','Voltar à mesa',function(){
+    setTimeout(function(){abrirMesa(c.mesaId)},80);return true;});
+}
+function tirarDaComanda(id,k){
+  var c=comandaPorId(id);if(!c)return;
+  c.itens.splice(k,1);
+  salvar();fecharModal();
+  setTimeout(function(){verComanda(id)},60);
+  if(NUVEM.ligada)sincronizar();
+}
+
+/* ---------- fechar a conta ----------
+   Fechar comanda vira venda. Como o consumo ja aconteceu, ela nasce
+   concluida: nao passa por preparacao nem por entrega. */
+function fecharComanda(id){
+  var c=comandaPorId(id);if(!c)return;
+  if(!(c.itens||[]).length){toast('A comanda de '+c.nome+' está vazia.');return;}
+  fecharModal();
+  pagarComandas([c],'Mesa '+c.mesaNumero+' — '+c.nome);
+}
+function fecharMesaUnificada(mesaId){
+  var cs=comandasDaMesa(mesaId).filter(function(c){return (c.itens||[]).length});
+  if(!cs.length){toast('Nenhuma comanda com itens nesta mesa.');return;}
+  var m=(DB.mesas||[]).find(function(x){return x.id===mesaId})||{};
+  fecharModal();
+  pagarComandas(cs,'Mesa '+(m.nome||m.numero)+' — '+cs.length+' comandas');
+}
+/* junta os itens das comandas escolhidas e manda para o pagamento normal */
+function pagarComandas(cs,titulo){
+  if(!caixaAberto()){toast('Abra a frente de caixa antes de fechar a conta.');return;}
+  var itens=[];
+  cs.forEach(function(c){
+    (c.itens||[]).forEach(function(i){
+      var x=JSON.parse(JSON.stringify(i));
+      if(cs.length>1)x.comanda=c.nome;   /* pagamento unificado: quem pediu o que */
+      itens.push(x);
+    });
+  });
+  var sub=itens.reduce(function(a,i){return a+(Number(i.total)||0)},0);
+  MESA_PAG={comandas:cs.map(function(c){return c.id}),itens:itens,
+    sub:sub,taxa:taxaSobre(sub),titulo:titulo,
+    mesaId:cs[0].mesaId,mesaNumero:cs[0].mesaNumero,
+    nome:cs.length===1?cs[0].nome:''};
+  telaPagarMesa();
+}
+var MESA_PAG=null;
+function telaPagarMesa(){
+  var P=MESA_PAG;if(!P)return;
+  var cm=cfgMesa();
+  var total=P.sub+P.taxa;
+  modal(P.titulo,
+  '<div class="mdB">'+
+   '<div class="cvItens">'+P.itens.map(function(i){
+     return '<div><span>'+i.qtd+'× '+E(i.nome)+(i.comanda?' <em class="cmdTag">'+E(i.comanda)+'</em>':'')+
+      '</span><b>R$ '+money(i.total)+'</b></div>';
+   }).join('')+'</div>'+
+   '<div class="cmdTot">'+
+    '<div class="linha"><span>Consumo</span><b>R$ '+money(P.sub)+'</b></div>'+
+    (cm.taxaServico
+     ?'<div class="linha"><span><label class="chkMini" style="margin:0">'+
+       '<input type="checkbox" id="pmTaxa" checked onchange="MESA_PAG.taxa=this.checked?taxaSobre(MESA_PAG.sub):0;fecharModal();telaPagarMesa()">'+
+       '<span>Taxa de serviço '+cm.taxaPct+'%</span></label></span>'+
+       '<b>R$ '+money(P.taxa)+'</b></div>':'')+
+    '<div class="linha tot"><span>TOTAL</span><b>R$ '+money(total)+'</b></div>'+
+   '</div>'+
+   '<div class="hint" style="margin-top:10px">Ao confirmar, a venda entra concluída — '+
+   'não passa pelo preparo, porque o cliente já consumiu.</div>'+
+  '</div>','Ir para o pagamento',function(){
+    PDV.comanda=P.itens.map(function(i){return JSON.parse(JSON.stringify(i))});
+    PDV.tipo='loja';PDV.mesaPag=true;
+    setTimeout(irPagamento,120);
+    return true;
+  });
+}
+/* chamado depois que o pagamento da mesa e confirmado */
+function concluirMesa(ped){
+  var P=MESA_PAG;if(!P)return;
+  ped.mesaId=P.mesaId;ped.mesa=P.mesaNumero;
+  ped.comandaNome=P.nome||'';
+  ped.taxaServico=P.taxa;
+  ped.canal='mesa';
+  baseComandas();
+  P.comandas.forEach(function(cid){
+    var c=comandaPorId(cid);
+    if(!c)return;
+    c.aberta=false;c.fechadaEm=new Date().toISOString();c.pedidoRef=ped.id;
+  });
+  MESA_PAG=null;PDV.mesaPag=false;PDV.comandaId=null;
+  salvar();
+  PDV.aba='mesas';telaPDV();
+  if(NUVEM.ligada)sincronizar();
 }
 
 /* ==========================================================
@@ -15046,6 +15364,11 @@ function telaPDV(){
    '<button class="pdvTab'+(PDV.aba==='venda'?' on':'')+'" onclick="abaPDV(\'venda\')">'+sv('cart',15)+' Nova venda</button>'+
    '<button class="pdvTab'+(PDV.aba==='pedidos'?' on':'')+'" onclick="abaPDV(\'pedidos\')">'+sv('list',15)+' Pedidos'+
      (abertos?'<span class="bg2">'+abertos+'</span>':'')+'</button>'+
+   (mesasAtivas().length
+    ?'<button class="pdvTab'+(PDV.aba==='mesas'?' on':'')+'" onclick="abaPDV(\'mesas\')">'+
+      sv('store',15)+' Mesas'+
+      (function(){var o=(DB.mesas||[]).filter(function(m){return mesaOcupada(m.id)}).length;
+        return o?'<span class="bg2">'+o+'</span>':'';})()+'</button>':'')+
    '<div class="pdvGrow"></div>'+
    '<button class="pdvTab" onclick="painelWhats()" id="abaZap">'+sv('qr',15)+' WhatsApp'+
     '<span class="zapPt" id="zapPt"></span></button>'+
@@ -15064,6 +15387,7 @@ function telaPDV(){
   conferirZapPdv();
   if(PDV.aba==='venda')renderVenda();
   if(PDV.aba==='pedidos'){renderKanban();ligarBuscaKanban();}
+  if(PDV.aba==='mesas')renderMesas();
   rodape(DB.pedidos.length+' pedidos · '+DB.clientes.length+' clientes');
 }
 /* leva os tempos do PDV para o cardápio digital e para o robô */
@@ -15265,7 +15589,10 @@ function renderComanda(){
   '<div class="linha tot"><span>TOTAL</span><span>R$ '+money(tot)+'</span></div>'+
   '<div class="comBtns">'+
   '<button class="btnLinha" onclick="limparComanda()">Limpar</button>'+
-  '<button class="btnPag" onclick="irPagamento()">'+sv('cash',16)+' Pagamento</button></div>'+
+  /* lançando para uma mesa, o botão não cobra: manda para a comanda */
+  (PDV.comandaId
+   ?'<button class="btnPag" onclick="enviarParaComanda()">'+sv('cart',16)+' Lançar na comanda</button>'
+   :'<button class="btnPag" onclick="irPagamento()">'+sv('cash',16)+' Pagamento</button>')+'</div>'+
   '</div></div>';
   return h;
 }
@@ -15699,8 +16026,10 @@ function remPag(i){_pagos.splice(i,1);recalcPag();}
 
 function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado){
   var ag=new Date();
-  /* venda na frente de caixa já sai concluída — só delivery passa pelo fluxo */
-  var primeira=statusInicial(PDV.tipo);
+  /* venda na frente de caixa já sai concluída — só delivery passa pelo fluxo.
+     A conta da mesa também: o cliente já consumiu, não há o que preparar. */
+  var primeira=PDV.mesaPag?(statusDoPapel('finalizado')||statusInicial('loja'))
+                          :statusInicial(PDV.tipo);
   var ped={
     id:uid('ped'),numero:(DB.pedidos.length+1),
     tipo:PDV.tipo,fase:primeira,
@@ -15715,6 +16044,8 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
     data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id
   };
   if(_cupomAtivo)ped.cupom={id:_cupomAtivo.id,codigo:_cupomAtivo.codigo,valor:valorCupom(_cupomAtivo,total+desc-taxa)};
+  /* fecha as comandas e carimba a mesa no pedido, antes de ele ser gravado */
+  if(PDV.mesaPag&&MESA_PAG)concluirMesa(ped);
   DB.pedidos.push(ped);
   if(_cupomAtivo){
     DB.cupomUsos=DB.cupomUsos||[];
