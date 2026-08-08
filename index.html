@@ -11999,7 +11999,12 @@ async function sincronizar(){
     },15000);
     return;
   }
-  NUVEM.sincronizando=true;statusNuvem('enviando');pausaTempoReal(6000);
+  /* 6 segundos era um chute: enviar 45 tabelas passa disso, e os avisos das
+     MINHAS proprias gravacoes chegavam depois da pausa acabar — o sistema
+     reagia ao proprio barulho e redesenhava a tela. Agora a pausa dura o
+     envio inteiro e so e solta no fim. */
+  NUVEM.sincronizando=true;statusNuvem('enviando');
+  RT.pausa=true;clearTimeout(RT._t);
   await tokenAtual();
   logNuvem('enviando...');
   var etapa='';
@@ -12247,7 +12252,6 @@ async function sincronizar(){
     logNuvem('tudo enviado com sucesso');
     marcarVersaoAtual();
     backupDoDia();                 /* uma cópia por dia, sem travar nada */
-    pausaTempoReal(2500);
   }catch(e){
     console.error('[NEXOR sync]',etapa,e);
     statusNuvem('erro',etapa+': '+((e&&e.message)||'falha'));
@@ -12260,6 +12264,8 @@ async function sincronizar(){
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
+    /* rabicho: os avisos das minhas gravacoes ainda estao a caminho */
+    pausaTempoReal(4000);
     if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
   }
 }
@@ -13195,7 +13201,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.5.4';
+var VERSAO='V19.5.5';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -31477,15 +31483,7 @@ function telaStatusVendas(){
    '</div>'+
 
    '<div class="stPrev"><div class="stPrevH">Como o Kanban vai ficar</div>'+
-   '<div class="stCols">'+(ativos.length?ativos.map(function(x){
-     return '<div class="stCol" style="--sc:'+E(x.cor||'#8A8578')+'">'+
-      '<b>'+E(x.nome)+'</b>'+
-      '<span>'+E(nomePapel(x.papel))+'</span>'+
-      (x.minutos?'<i>'+sv('clock',10)+' '+x.minutos+' min</i>':'')+
-      (x.som?'<i>'+sv('bell',10)+' alerta</i>':'')+
-      '</div>';
-   }).join(''):'<div class="hint">Nenhum status ligado — o Kanban ficaria vazio.</div>')+
-   '</div></div>'+
+   '<div class="stCols" id="stPrevBox">'+previaStatusHTML()+'</div></div>'+
 
    '<div class="pnl2"><div class="pnl2H">Status cadastrados <span class="cnt2">'+lst.length+'</span></div>'+
    '<div class="pnl2B" style="padding:0">'+
@@ -31496,8 +31494,27 @@ function telaStatusVendas(){
     '<th style="width:96px;text-align:center">Tempo</th>'+
     '<th style="width:86px;text-align:center">Alerta</th>'+
     '<th style="width:88px;text-align:center">Ativo</th>'+
-    '<th style="width:112px"></th></tr></thead><tbody>'+
-   lst.map(function(x,i){
+    '<th style="width:112px"></th></tr></thead><tbody id="stCorpo">'+
+   linhasStatusHTML()+'</tbody></table>'+
+   '</div></div></div></div>';
+  rodape(ativos.length+' status ligados de '+lst.length);
+}
+function previaStatusHTML(){
+  var ativos=statusAtivos();
+  if(!ativos.length)return '<div class="hint">Nenhum status ligado — o Kanban ficaria vazio.</div>';
+  return ativos.map(function(x){
+    return '<div class="stCol" style="--sc:'+E(x.cor||'#8A8578')+'">'+
+     '<b>'+E(x.nome)+'</b>'+
+     '<span>'+E(nomePapel(x.papel))+'</span>'+
+     (x.minutos?'<i>'+sv('clock',10)+' '+x.minutos+' min</i>':'')+
+     (x.som?'<i>'+sv('bell',10)+' alerta</i>':'')+
+     '</div>';
+  }).join('');
+}
+function linhasStatusHTML(){
+  baseStatus();
+  var lst=DB.statusVenda.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+  return lst.map(function(x,i){
      var pedidos=(DB.pedidos||[]).filter(function(p){return p.fase===x.id}).length;
      return '<tr'+(x.ativo===false?' class="off"':'')+'>'+
       /* so o subir: com ele da para chegar a qualquer ordem, e a coluna
@@ -31518,9 +31535,18 @@ function telaStatusVendas(){
        '<button class="rBtn" onclick="formStatus(\''+x.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
        '<button class="rBtn rd" onclick="excluirStatus(\''+x.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
       '</div></td></tr>';
-   }).join('')+'</tbody></table>'+
-   '</div></div></div></div>';
-  rodape(ativos.length+' status ligados de '+lst.length);
+  }).join('');
+}
+/* Clicar na chave refazia a tela toda: o cabecalho, a previa e a tabela
+   eram destruidos e desenhados de novo, e o navegador piscava a cada
+   toque. Agora so a previa e as linhas mudam — o resto fica parado. */
+function redesenharStatus(){
+  var pv=$('stPrevBox'), tb=$('stCorpo');
+  if(!pv||!tb){telaStatusVendas();return;}
+  pv.innerHTML=previaStatusHTML();
+  tb.innerHTML=linhasStatusHTML();
+  var l=statusAtivos().length, t=(DB.statusVenda||[]).length;
+  rodape(l+' status ligados de '+t);
 }
 function explicaStatus(){
   confirmar({titulo:'Status de Vendas',texto:'O que o papel decide',
@@ -31576,7 +31602,7 @@ function formStatus(id){
     /* o ativo nao e mexido aqui: quem edita o nome nao perde o que ja estava ligado */
     if(x)Object.assign(x,o);
     else DB.statusVenda.push(Object.assign({id:uid('st'),ordem:DB.statusVenda.length,ativo:true},o));
-    salvar();telaStatusVendas();toast(x?'Status atualizado.':'Status criado.');
+    salvar();redesenharStatus();toast(x?'Status atualizado.':'Status criado.');
     if(NUVEM.ligada)sincronizar();
     return true;
   });
@@ -31587,11 +31613,11 @@ function togStatus(id){
     var sobra=statusAtivos().filter(function(y){return y.papel===x.papel&&y.id!==id});
     if(!sobra.length){
       toast('Precisa haver ao menos um status ativo com o papel '+nomePapel(x.papel)+'.');
-      telaStatusVendas();return;
+      redesenharStatus();return;
     }
   }
   x.ativo=(x.ativo===false);
-  salvar();comRolagem(telaStatusVendas);
+  salvar();redesenharStatus();
   if(NUVEM.ligada)sincronizar();
 }
 function moverStatus(id,d){
@@ -31601,7 +31627,7 @@ function moverStatus(id,d){
   if(i<0||i+d<0||i+d>=l.length)return;
   var t=l[i];l[i]=l[i+d];l[i+d]=t;
   l.forEach(function(x,k){x.ordem=k});
-  salvar();comRolagem(telaStatusVendas);
+  salvar();redesenharStatus();
   if(NUVEM.ligada)sincronizar();
 }
 async function excluirStatus(id){
@@ -31625,7 +31651,7 @@ async function excluirStatus(id){
     ok:'Excluir',tipo:'perigo'});
   if(!ok)return;
   DB.statusVenda=DB.statusVenda.filter(function(y){return y.id!==id});
-  salvar();telaStatusVendas();toast('Status excluido.');
+  salvar();redesenharStatus();toast('Status excluido.');
   if(NUVEM.ligada)sincronizar();
 }
 
