@@ -12174,8 +12174,19 @@ async function enviar(tab,linhas){
    uma tabela inteira é intenção, e não falha. Fora delas, a trava segura. */
 function autorizarEsvaziar(){NUVEM.podeEsvaziar=Date.now()+120000;}
 function podeEsvaziarAgora(){return !!(NUVEM.podeEsvaziar&&Date.now()<NUVEM.podeEsvaziar)}
+/* tabelas de cadastro da rede: so a matriz manda nelas */
+var TABS_CADASTRO_REDE=['insumos','fichas_tecnicas','produtos','categorias','ficha_grupos',
+ 'grupos_ingredientes','grupos_opcoes','motivos_movimentacao','motivos_cancelamento',
+ 'fornecedores','formas_pagamento','categorias_financeiras','contas_capital',
+ 'unidades_medida','turnos','status_venda','entregadores','modelos_impressao'];
 async function apagarRemovidos(tab,chave,idsAgora){
   try{
+    /* A unidade so BAIXA o cadastro que foi liberado para ela — entao a lista
+       dela e menor de proposito. Se ela pudesse espelhar exclusoes, apagaria
+       da nuvem tudo o que nao enxerga. Quem apaga cadastro e a matriz. */
+    if(TABS_CADASTRO_REDE.indexOf(tab)>=0&&!ehSucMatriz(lojaAtualId())){
+      return;
+    }
     /* Um aparelho que ainda nao baixou nesta sessao tem uma copia possivelmente
        velha. Deixar ele espelhar exclusoes e como deixar quem chegou atrasado
        decidir o que os outros fizeram. A trava existia no codigo mas nunca era
@@ -12748,6 +12759,11 @@ async function baixarDaNuvem(forcar){
         situacao:x.situacao||'ativo'}});
     }catch(e){}
   }
+
+  /* A partir daqui, a unidade fica so com o cadastro liberado para ela.
+     Filtrar aqui resolve as ~60 telas de uma vez, em vez de depender de
+     cada uma lembrar de filtrar. A matriz nunca e filtrada. */
+  filtrarCadastroDaUnidade();
 
   var eun=await api('estoque_unidade'+qs+'&limit=20000');
   DB.estoqueUn=volta(eun,function(x){return {id:x.ref_local||(x.sucursal_id+'|'+x.item_ref),
@@ -13412,6 +13428,7 @@ function boot(){
   DB.estoqueUn=DB.estoqueUn||[];
   lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
   migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
+  try{filtrarCadastroDaUnidade()}catch(e){}
   espelharEstoque();            /* a tela mostra o saldo DESTA unidade */
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
@@ -13546,6 +13563,16 @@ function trocarLoja(id){
   fecharSuc();
   /* o saldo mostrado na tela passa a ser o DESTA unidade */
   try{espelharEstoque()}catch(e){}
+  /* o cadastro tambem muda: cada unidade enxerga o seu. Como o filtro tira
+     itens da memoria, e preciso rebaixar da nuvem para nao "perder" o que a
+     outra unidade via. */
+  if(NUVEM.ligada){
+    toast('Carregando o cadastro de '+sucNome(id)+'...');
+    baixarDaNuvem(true).then(function(){
+      try{espelharEstoque()}catch(e){}
+      if(S.mod)abrir(S.mod,S.it);
+    }).catch(function(){});
+  }
   try{salvar()}catch(e){}
   var b=document.querySelector('#sucBtn span');
   if(b)b.textContent=nomeLojaAtual();
@@ -13553,7 +13580,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.0.1';
+var VERSAO='V20.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15353,14 +15380,36 @@ function migrarEstoqueParaUnidade(){
    e o unico jeito seguro de introduzir a regra num sistema que
    ja esta rodando.
    ========================================================== */
+/* TUDO que a matriz cadastra e a unidade consome. Cada um vira uma pasta
+   na tela, e dentro dela os itens aparecem UM A UM — porque restringir
+   "fichas tecnicas" inteiro nao serve para nada: o que se quer e escolher
+   qual ficha vai para qual unidade. */
 var CADASTROS_LIB=[
- {col:'insumos',   n:'Ingredientes',        ic:'box'},
- {col:'fichas',    n:'Fichas técnicas',     ic:'book'},
- {col:'produtos',  n:'Produtos',            ic:'cart'},
- {col:'categorias',n:'Categorias do cardápio',ic:'folder'},
- {col:'fichaCats', n:'Categorias de ficha', ic:'folder'},
- {col:'gruposIng', n:'Grupos de ingredientes',ic:'folder'}
+ {col:'insumos',    n:'Ingredientes',           ic:'box'},
+ {col:'fichas',     n:'Fichas técnicas',        ic:'book'},
+ {col:'produtos',   n:'Produtos',               ic:'cart'},
+ {col:'categorias', n:'Categorias do cardápio', ic:'folder'},
+ {col:'fichaCats',  n:'Categorias de ficha',    ic:'folder'},
+ {col:'gruposIng',  n:'Grupos de ingredientes', ic:'folder'},
+ {col:'grupos',     n:'Grupos de opções',       ic:'plu'},
+ {col:'motivosMov', n:'Motivos de baixa manual',ic:'dn4'},
+ {col:'motivosCanc',n:'Motivos de cancelamento',ic:'x2'},
+ {col:'fornec',     n:'Fornecedores',           ic:'tri', campo:'empresa'},
+ {col:'formasPag',  n:'Formas de pagamento',    ic:'cash'},
+ {col:'catfin',     n:'Categorias financeiras', ic:'chart'},
+ {col:'contas',     n:'Contas bancárias',       ic:'cash'},
+ {col:'unidExtra',  n:'Unidades de medida',     ic:'box'},
+ {col:'turnos',     n:'Turnos',                 ic:'clock'},
+ {col:'statusVenda',n:'Status de vendas',       ic:'list'},
+ {col:'entregadores',n:'Entregadores',          ic:'moto'},
+ {col:'modelosImp', n:'Modelos de impressão',   ic:'print2'}
 ];
+/* alguns cadastros nao guardam o nome em "nome" */
+function nomeDoCad(x,col){
+  var d=CADASTROS_LIB.find(function(c){return c.col===col});
+  var campo=(d&&d.campo)||'nome';
+  return x[campo]||x.nome||x.empresa||'—';
+}
 /* a unidade marcada como matriz na rede */
 function ehSucMatriz(id){
   var s=baseSuc().find(function(x){return x.id===id});
@@ -15387,6 +15436,21 @@ function soLiberados(lista,suc){
   var s=suc||lojaAtualId();
   return (lista||[]).filter(function(x){return liberadoNa(x,s)});
 }
+/* Tira da memoria desta unidade o cadastro que nao foi liberado para ela.
+   Nada e apagado da nuvem — a matriz continua com tudo. */
+function filtrarCadastroDaUnidade(){
+  var suc=lojaAtualId();
+  if(ehSucMatriz(suc))return 0;          /* a matriz ve tudo */
+  var n=0;
+  CADASTROS_LIB.forEach(function(c){
+    var antes=(DB[c.col]||[]).length;
+    if(!antes)return;
+    DB[c.col]=soLiberados(DB[c.col],suc);
+    n+=antes-DB[c.col].length;
+  });
+  if(n)logNuvem(n+' item(ns) de cadastro não liberados para '+sucNome(suc)+' ficaram de fora');
+  return n;
+}
 var LB={col:'insumos',busca:'',sel:{},grupo:''};
 function telaLiberacao(){
   if(!ehMatriz()){
@@ -15399,8 +15463,10 @@ function telaLiberacao(){
   var def=(CADASTROS_LIB.find(function(c){return c.col===LB.col})||CADASTROS_LIB[0]);
   var lista=(DB[LB.col]||[]).slice();
   var q=(LB.busca||'').toLowerCase();
-  if(q)lista=lista.filter(function(x){return String(x.nome||'').toLowerCase().indexOf(q)>=0});
-  lista.sort(function(a,b){return String(a.nome||'').localeCompare(String(b.nome||''))});
+  if(q)lista=lista.filter(function(x){
+    return nomeDoCad(x,LB.col).toLowerCase().indexOf(q)>=0;});
+  lista.sort(function(a,b){
+    return nomeDoCad(a,LB.col).localeCompare(nomeDoCad(b,LB.col));});
   var restritos=(DB[LB.col]||[]).filter(function(x){return x.sucursais&&x.sucursais.length}).length;
   var selN=Object.keys(LB.sel).filter(function(k){return LB.sel[k]}).length;
 
@@ -15429,9 +15495,12 @@ function telaLiberacao(){
      '<input id="lbQ" value="'+E(LB.busca)+'" placeholder="nome do item" '+
      'oninput="LB.busca=this.value;clearTimeout(window._lbT);'+
      'window._lbT=setTimeout(telaLiberacao,350)"></div>'+
-    (selN?'<div class="lbSel"><b>'+selN+' selecionado(s)</b>'+
-      '<button class="btnP2" onclick="LB.sel={};telaLiberacao()">Limpar</button>'+
-      '<button class="btnP2 ok" onclick="liberarEmLote()">Definir unidades</button></div>':'')+
+    '<div class="lbSel">'+
+     (selN?'<b>'+selN+' selecionado(s)</b>'+
+       '<button class="btnP2" onclick="LB.sel={};telaLiberacao()">Limpar</button>'+
+       '<button class="btnP2 ok" onclick="liberarEmLote()">Definir unidades</button>'
+      :'<button class="btnP2" onclick="marcarTodosLib()">Selecionar todos</button>')+
+    '</div>'+
    '</div>'+
 
    '<div class="pnl2"><div class="pnl2H">'+E(def.n)+
@@ -15446,7 +15515,7 @@ function telaLiberacao(){
       return '<tr>'+
        '<td><label class="flagBox"><input type="checkbox" '+(LB.sel[x.id]?'checked':'')+
         ' onchange="LB.sel[\''+x.id+'\']=this.checked;telaLiberacao()"></label></td>'+
-       '<td><b>'+E(x.nome||'—')+'</b></td>'+
+       '<td><b>'+E(nomeDoCad(x,LB.col))+'</b></td>'+
        '<td>'+(l.length
          ?'<div class="lbTags"><span class="lbTag mtz">'+
            E(sucNome((baseSuc().find(function(z){return z.matriz})||{}).id))+'</span>'+
@@ -15464,7 +15533,15 @@ function telaLiberacao(){
 function editarLiberacao(id){
   var x=(DB[LB.col]||[]).find(function(i){return i.id===id});
   if(!x)return;
-  abrirEscolhaUnidades([x],x.nome);
+  abrirEscolhaUnidades([x],nomeDoCad(x,LB.col));
+}
+function marcarTodosLib(){
+  var q=(LB.busca||'').toLowerCase();
+  (DB[LB.col]||[]).forEach(function(x){
+    if(q&&nomeDoCad(x,LB.col).toLowerCase().indexOf(q)<0)return;
+    LB.sel[x.id]=true;
+  });
+  telaLiberacao();
 }
 function liberarEmLote(){
   var itens=(DB[LB.col]||[]).filter(function(x){return LB.sel[x.id]});
