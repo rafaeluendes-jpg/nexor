@@ -657,6 +657,20 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.mdvBox{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:12px;
+ padding:14px 16px;margin-bottom:14px}
+.mdvH b{display:block;font-size:13px;color:var(--tx,#2f2a24)}
+.mdvH span{display:block;font-size:11.5px;color:var(--tx2,#7a7266);margin:2px 0 11px;line-height:1.4}
+.mdvGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px}
+.mdvOp{border:1px solid var(--lin,#e6e0d4);border-radius:10px;padding:10px 12px;cursor:pointer;
+ display:block;position:relative;background:var(--bg2,#faf7f0)}
+.mdvOp input{position:absolute;right:11px;top:11px;width:17px;height:17px;
+ accent-color:var(--pr,#0E5C3A);cursor:pointer}
+.mdvOp b{display:block;font-size:13px;padding-right:24px}
+.mdvOp span{display:block;font-size:11px;color:var(--tx2,#7a7266);margin-top:2px;line-height:1.35}
+.mdvOp.on{border-color:var(--pr,#0E5C3A);background:#fff}
+.mdvOp.on b{color:var(--pr,#0E5C3A)}
+.mdvOp.trv{opacity:.5;cursor:not-allowed}
 .cmdFaixa{display:flex;align-items:center;gap:10px;background:#FFF3E6;
  border-bottom:1px solid var(--lin,#e6e0d4);padding:8px 16px;font-size:13px;color:#8A4B1F}
 .cmdFaixa>div{flex:1}
@@ -12287,7 +12301,7 @@ async function sincronizar(){
     await api('config_loja?on_conflict=loja_id','POST',[{loja_id:l,
       loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
       tempo_retirada:n(c.tempoRetirada),caixa_cego:!!c.caixaCego,
-      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},
+      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},
     cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
       mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}}],
       {'Prefer':'resolution=merge-duplicates,return=minimal'});
@@ -12472,6 +12486,7 @@ async function baixarDaNuvem(forcar){
     c3.layout=cfgS[0].layout||'normal';c3.fases=cfgS[0].fases||c3.fases;
     if(cfgS[0].cfg_dre)DB.cfgDre=cfgS[0].cfg_dre;
     if(cfgS[0].cfg_mesa)c3.mesa=cfgS[0].cfg_mesa;
+    if(cfgS[0].cfg_modos)c3.modos=cfgS[0].cfg_modos;
     if(cfgS[0].cfg_pdv){var cp=cfgS[0].cfg_pdv;
       c3.colunas=cp.colunas;c3.mostraPreco=cp.mostraPreco;
       c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}}
@@ -13310,7 +13325,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.9.1';
+var VERSAO='V19.10.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14869,6 +14884,32 @@ async function imprimirQR(soSelecionadas){
    pede nao se mistura. Na hora de pagar, ou junta tudo num
    pagamento so, ou cada um paga a sua.
    ========================================================== */
+/* ==========================================================
+   MODOS DE VENDA
+   Nem toda loja vende do mesmo jeito. A Jolô nao tem mesa; uma
+   lanchonete tem. Em vez de a mesa aparecer para todo mundo, cada
+   loja liga o que usa — e o que esta desligado some do PDV, do menu
+   e dos relatorios, em vez de ficar ali atrapalhando.
+   ========================================================== */
+var MODOS=[
+ {id:'balcao', n:'Frente de caixa', d:'venda no balcão, o cliente leva na hora'},
+ {id:'entrega',n:'Entrega',         d:'delivery com endereço e taxa'},
+ {id:'mesa',   n:'Mesa',            d:'comanda por mesa, QR Code e taxa de serviço'}
+];
+function modos(){
+  var c=cfg();
+  c.modos=c.modos||{};
+  /* balcão e entrega já eram como o sistema funcionava: continuam ligados.
+     Mesa nasce DESLIGADA — quem não usa não deve nem ver que existe. */
+  if(c.modos.balcao===undefined)c.modos.balcao=true;
+  if(c.modos.entrega===undefined)c.modos.entrega=true;
+  if(c.modos.mesa===undefined)c.modos.mesa=false;
+  return c.modos;
+}
+function modoAtivo(id){
+  if(id==='mesa'&&!recursoContratado('loja','mesas'))return false;  /* fechado no contrato */
+  return modos()[id]!==false&&!!modos()[id];
+}
 function cfgMesa(){
   var c=cfg();
   c.mesa=c.mesa||{};
@@ -15372,7 +15413,7 @@ function telaPDV(){
    '<button class="pdvTab'+(PDV.aba==='venda'?' on':'')+'" onclick="abaPDV(\'venda\')">'+sv('cart',15)+' Nova venda</button>'+
    '<button class="pdvTab'+(PDV.aba==='pedidos'?' on':'')+'" onclick="abaPDV(\'pedidos\')">'+sv('list',15)+' Pedidos'+
      (abertos?'<span class="bg2">'+abertos+'</span>':'')+'</button>'+
-   (mesasAtivas().length
+   (modoAtivo('mesa')
     ?'<button class="pdvTab'+(PDV.aba==='mesas'?' on':'')+'" onclick="abaPDV(\'mesas\')">'+
       sv('store',15)+' Mesas'+
       (function(){var o=(DB.mesas||[]).filter(function(m){return mesaOcupada(m.id)}).length;
@@ -15498,8 +15539,8 @@ function renderVenda(){
   var h='<div class="pdvLeft">'+
    '<div class="pnlBar">'+
     '<div class="segm">'+
-     '<button class="'+(PDV.tipo==='loja'?'on':'')+'" onclick="setTipo(\'loja\')">'+sv('store',14)+' Pedido na loja</button>'+
-     '<button class="'+(PDV.tipo==='entrega'?'on':'')+'" onclick="setTipo(\'entrega\')">'+sv('moto',14)+' Entrega</button>'+
+     (modoAtivo('balcao')?'<button class="'+(PDV.tipo==='loja'?'on':'')+'" onclick="setTipo(\'loja\')">'+sv('store',14)+' Pedido na loja</button>':'')+
+     (modoAtivo('entrega')?'<button class="'+(PDV.tipo==='entrega'?'on':'')+'" onclick="setTipo(\'entrega\')">'+sv('moto',14)+' Entrega</button>':'')+
     '</div>'+
     '<div class="pdvBusca">'+sv('search',14)+
       '<input id="bPdv" placeholder="Buscar produto ou código..." value="'+E(PDV.busca)+'"></div>'+
@@ -28887,6 +28928,19 @@ function telaCfgPDV(){
     '<div style="flex:1"></div>'+
     '<button class="btnP2 ok" onclick="salvarCfgPDV()">'+sv('check',13)+' Salvar</button>'+
    '</div>'+
+   '<div class="mdvBox">'+
+    '<div class="mdvH"><b>Modos de venda</b>'+
+     '<span>O que esta loja usa. O que estiver desligado some do PDV, do menu e '+
+     'dos relatórios — em vez de ficar ali sem servir para nada.</span></div>'+
+    '<div class="mdvGrade">'+MODOS.map(function(m){
+      var travado=(m.id==='mesa'&&!recursoContratado('loja','mesas'));
+      var on=modos()[m.id]!==false&&!!modos()[m.id];
+      return '<label class="mdvOp'+(on?' on':'')+(travado?' trv':'')+'">'+
+       '<input type="checkbox" class="mdvCk" data-m="'+E(m.id)+'"'+(on?' checked':'')+
+       (travado?' disabled':'')+' onchange="salvarModos()">'+
+       '<b>'+E(m.n)+'</b><span>'+(travado?'não faz parte do seu contrato':E(m.d))+'</span></label>';
+    }).join('')+'</div>'+
+   '</div>'+
    '<div class="cfgDuas">'+
     '<div class="cfgCol">'+
      '<div class="colH">Aparência do cardápio</div>'+
@@ -28971,6 +29025,21 @@ function previaPDV(c){
     '<div class="pvCI"><span>1× Pote 500ml</span><b>R$ 32,00</b></div>'+
     '<div class="pvCT"><span>Total</span><b>R$ 56,00</b></div></div>'+
    '</div>';
+}
+function salvarModos(){
+  var md=modos();
+  var cs=document.querySelectorAll('.mdvCk');
+  var ligados=0;
+  for(var i=0;i<cs.length;i++)if(cs[i].checked)ligados++;
+  if(!ligados){
+    toast('A loja precisa de pelo menos um modo de venda ligado.');
+    telaCfgPDV();return;
+  }
+  for(var k=0;k<cs.length;k++)md[cs[k].getAttribute('data-m')]=cs[k].checked;
+  salvar();
+  telaCfgPDV();faixa();
+  toast('Modos de venda salvos — o PDV e o menu já mudaram.');
+  if(NUVEM.ligada)sincronizar();
 }
 function salvarCfgPDV(){
   var c=cfgPDV();
@@ -33759,6 +33828,8 @@ function podeVer(mid,iid){
   if(!u)return false;                       /* ninguem logado: nao mostra nada */
   if(!moduloContratado(mid))return false;   /* fora do contrato: some para todos */
   if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono do Nexor */
+  /* modo de venda desligado: a tela dele nao existe para esta loja */
+  if(iid==='mesas'&&typeof modoAtivo==='function'&&!modoAtivo('mesa'))return false;
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
   /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
