@@ -657,6 +657,42 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.blkLista{display:flex;flex-direction:column;gap:7px}
+.blkIt{border:1px solid var(--lin,#e6e0d4);border-radius:10px;background:var(--bg2,#faf7f0);overflow:hidden}
+.blkIt.off{opacity:.5}
+.blkH{display:flex;align-items:center;gap:10px;padding:9px 11px}
+.blkN{flex:1;min-width:0}
+.blkN b{display:block;font-size:13px;color:var(--tx,#2f2a24)}
+.blkN span{display:block;font-size:11px;color:var(--tx2,#7a7266);margin-top:1px;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blkAc{display:flex;gap:3px}
+.blkOp{padding:0 11px 10px 46px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.chkMini{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
+ color:var(--tx2,#7a7266);cursor:pointer}
+.chkMini input{width:14px;height:14px;accent-color:var(--pr,#0E5C3A)}
+.blkInp{width:100%;font:13px/1.4 inherit;border:1px solid var(--lin,#e6e0d4);
+ border-radius:6px;padding:7px 9px;background:#fff;color:var(--tx,#2f2a24)}
+.blkEsc{display:flex;gap:8px;width:100%}
+.blkOp2{flex:1;border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:7px 10px;
+ cursor:pointer;background:#fff}
+.blkOp2 input{display:none}
+.blkOp2 b{display:block;font-size:12px}
+.blkOp2 span{display:block;font-size:10.5px;color:var(--tx2,#7a7266)}
+.blkOp2.on{border-color:var(--pr,#0E5C3A);box-shadow:inset 0 0 0 1px var(--pr,#0E5C3A)}
+.blkOp2.on b{color:var(--pr,#0E5C3A)}
+.blkEsc2{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%}
+.blkAl{font-size:11px;border:1px solid var(--lin,#e6e0d4);background:#fff;border-radius:6px;
+ padding:5px 10px;cursor:pointer;color:var(--tx2,#7a7266)}
+.blkAl.on{border-color:var(--az,#1F5F8B);color:var(--az,#1F5F8B);font-weight:600}
+.blkAdd{display:flex;gap:8px;margin-top:10px}
+.blkAdd select{flex:1;border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:9px 10px;
+ background:#fff;font-size:12.5px}
+.impAvancado{display:block;margin:12px auto 0;background:none;border:none;cursor:pointer;
+ font-size:11.5px;color:var(--tx2,#7a7266);text-decoration:underline}
+.impAviso{display:flex;gap:9px;align-items:center;background:var(--bg2,#faf7f0);
+ border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:10px 12px;margin-bottom:10px;
+ font-size:12px;color:var(--tx2,#7a7266)}
+.impAviso>div{flex:1}
 .impAbas{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 14px}
 .impAba{text-align:left;background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);
  border-radius:12px;padding:11px 14px;cursor:pointer;display:block}
@@ -11497,7 +11533,7 @@ var MAPA=[
  {col:'modelosImp', espelha:true, tab:'modelos_impressao',
   campos:function(x){return {tipo:x.tipo,nome:x.nome,colunas:n(x.colunas)||48,
     vias:n(x.vias)||1,corte:x.corte!==false,gaveta:!!x.gaveta,
-    modelo:x.modelo||'',ativo:x.ativo!==false}}},
+    modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,ativo:x.ativo!==false}}},
 
  /* Turno tem que vir antes de caixas no MAPA: o caixa aponta para o turno,
     e o vinculo so resolve se o turno ja subiu. */
@@ -12358,7 +12394,8 @@ async function baixarDaNuvem(forcar){
   var mi=await api('modelos_impressao'+qs);
   DB.modelosImp=volta(mi,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
-    gaveta:!!x.gaveta,modelo:x.modelo||'',ativo:x.ativo!==false}});
+    gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
+    ativo:x.ativo!==false}});
 
   var tn=await api('turnos'+qs+'&order=ordem');
   var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
@@ -13082,7 +13119,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.2.0';
+var VERSAO='V19.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15082,7 +15119,7 @@ function imprimirVia(ped){
   var m=modeloImp(tipo)||modeloImp('ficha');
   if(!m){toast('Nenhum modelo de impressao cadastrado.');return;}
   var cols=m.colunas||48;
-  imprimirPapel(montarImp(m.modelo,ped,cols),cols,m.vias||1);
+  imprimirPapel(montarImp(textoDoModelo(m),ped,cols),cols,m.vias||1);
 }
 
 /* ---------- ABA: PEDIDOS (kanban) ---------- */
@@ -31280,18 +31317,158 @@ var IMP_PADRAO={
   '{corte}'
 };
 
+/* ==========================================================
+   O MODELO EM BLOCOS
+   A primeira versao desta tela pedia que o dono da loja aprendesse
+   uma linguagem de chaves para mexer no cupom. Errado: quem mexe
+   nisso quer ligar e desligar pedacos, nao programar. Agora o
+   modelo e uma lista de blocos; o texto com chaves continua vivo
+   por baixo, gerado a partir dos blocos, e so aparece para quem
+   pedir o modo avancado.
+   ========================================================== */
+var BLOCOS=[
+ {t:'loja',    n:'Cabecalho da loja', d:'nome, CNPJ e endereco'},
+ {t:'titulo',  n:'Titulo',            d:'FICHA, ENTREGA, MESA...'},
+ {t:'datahora',n:'Data e hora',       d:'quando o pedido saiu'},
+ {t:'senha',   n:'Senha de retirada', d:'numero grande para chamar o cliente'},
+ {t:'numero',  n:'Numero do pedido',  d:''},
+ {t:'cliente', n:'Cliente',           d:'nome e, se quiser, telefone'},
+ {t:'entrega', n:'Endereco de entrega',d:'rua, numero e bairro'},
+ {t:'mesa',    n:'Mesa',              d:'numero da mesa em destaque'},
+ {t:'obs',     n:'Observacao do pedido',d:'so sai se tiver observacao'},
+ {t:'itens',   n:'Lista de itens',    d:'com ou sem preco'},
+ {t:'qtd',     n:'Quantidade de itens',d:''},
+ {t:'totais',  n:'Totais',            d:'subtotal, taxa, desconto e total'},
+ {t:'pagam',   n:'Formas de pagamento',d:''},
+ {t:'barras',  n:'Codigo de barras',  d:'do numero do pedido'},
+ {t:'operador',n:'Operador',          d:'quem esta no caixa'},
+ {t:'texto',   n:'Texto livre',       d:'o que voce quiser escrever'},
+ {t:'linha',   n:'Traco divisorio',   d:''},
+ {t:'branco',  n:'Espaco em branco',  d:''},
+ {t:'corte',   n:'Cortar o papel',    d:'sempre por ultimo'}
+];
+function nomeBloco(t){var b=BLOCOS.find(function(x){return x.t===t});return b?b.n:t;}
+
+/* blocos -> texto com chaves. E este texto que o motor de impressao le,
+   entao a previa e a impressora continuam sendo as mesmas de antes. */
+function blocosParaModelo(bs){
+  var L=[];
+  (bs||[]).forEach(function(b){
+    if(b.on===false)return;
+    switch(b.t){
+      case 'loja':
+        if(b.nome!==false)L.push('{c}{n}{loja}{/n}');
+        if(b.cnpj!==false)L.push('{?cnpj}{c}{cnpj}');
+        if(b.endereco!==false)L.push('{?endereco}{c}{endereco}');
+        if(b.telefone)L.push('{?telefone}{c}Tel: {telefone}');
+        break;
+      case 'titulo':   L.push('{c}{g}'+(b.texto||'FICHA')+'{/g}'); break;
+      case 'datahora': L.push('{d}{data} - {hora}'); break;
+      case 'senha':    L.push('Senha: {n}{g}{senha}{/g}{/n}'); break;
+      case 'numero':   L.push('Pedido: {n}{numero}{/n}'); break;
+      case 'cliente':
+        L.push('Cliente: {cliente}');
+        if(b.telefone)L.push('{?fone_cliente}Telefone: {fone_cliente}');
+        break;
+      case 'entrega':
+        L.push('{n}{end_entrega}{/n}');
+        L.push('{?bairro}{bairro}');
+        break;
+      case 'mesa':     L.push('{c}{g}MESA {mesa}{/g}'); break;
+      case 'obs':      L.push('{?obs}Obs: {obs}'); break;
+      case 'itens':
+        if(b.cabecalho!==false){
+          L.push(b.preco===false?'Qt.Descricao':'Qt.Descricao|Valor');
+          L.push('{linha}');
+        }
+        L.push(b.preco===false?'{itens_sem_preco}':'{itens}');
+        break;
+      case 'qtd':      L.push('Quantidade de itens:|{qtd_itens}'); break;
+      case 'totais':
+        if(b.subtotal!==false)L.push('Total itens(=)|{subtotal}');
+        if(b.taxa!==false)L.push('{?taxa}Taxa de entrega(+)|{taxa}');
+        if(b.acrescimo!==false)L.push('{?acrescimo}Acrescimo(+)|{acrescimo}');
+        if(b.desconto!==false)L.push('{?desconto}Desconto(-)|{desconto}');
+        L.push('{n}TOTAL(=)|{total}{/n}');
+        break;
+      case 'pagam':    L.push('Forma de pagamento');L.push('{pagamentos}'); break;
+      case 'barras':   L.push('{c}{barras}');L.push('{c}Pedido {numero}'); break;
+      case 'operador':
+        L.push('{c}Op: {operador}'+(b.turno?' - {turno}':''));
+        break;
+      case 'texto':
+        (b.texto||'').split('\n').forEach(function(t){
+          L.push((b.al==='c'?'{c}':b.al==='d'?'{d}':'')+(b.peq?'{p}'+t+'{/p}':t));});
+        break;
+      case 'linha':    L.push('{linha}'); break;
+      case 'branco':   L.push('{branco}'); break;
+      case 'corte':    L.push('{corte}'); break;
+    }
+  });
+  /* Desligar um bloco deixava o traco dele orfao: quatro riscos seguidos no
+     papel. Aqui o traco repetido vira um so, e o que sobra no fim some. */
+  var lim=[];
+  L.forEach(function(l){
+    if(l==='{linha}'&&lim[lim.length-1]==='{linha}')return;
+    lim.push(l);
+  });
+  while(lim.length&&(lim[lim.length-1]==='{linha}'||lim[lim.length-1]==='{branco}'))lim.pop();
+  return lim.join('\n');
+}
+
+/* o que cada modelo traz de fabrica, ja em blocos */
+function blocosPadrao(tipo){
+  var b=[{t:'loja',on:true,nome:true,cnpj:true,endereco:true,telefone:false},
+         {t:'linha',on:true},
+         {t:'titulo',on:true,texto:tipo==='entrega'?'ENTREGA':tipo==='mesa'?'':'FICHA'},
+         {t:'datahora',on:true}];
+  if(tipo==='mesa'){b[2]={t:'mesa',on:true};}
+  if(tipo==='ficha')b.push({t:'senha',on:true});
+  b.push({t:'numero',on:true});
+  b.push({t:'cliente',on:true,telefone:tipo==='entrega'});
+  if(tipo==='entrega'){
+    b.push({t:'linha',on:true});
+    b.push({t:'entrega',on:true});
+    b.push({t:'obs',on:true});
+  }
+  b.push({t:'linha',on:true});
+  b.push({t:'itens',on:true,preco:true,cabecalho:true});
+  b.push({t:'linha',on:true});
+  b.push({t:'qtd',on:true});
+  b.push({t:'linha',on:true});
+  b.push({t:'totais',on:true,subtotal:true,taxa:tipo==='entrega',acrescimo:true,desconto:true});
+  b.push({t:'linha',on:true});
+  b.push({t:'pagam',on:tipo!=='mesa'});
+  if(tipo==='ficha'){b.push({t:'linha',on:true});b.push({t:'barras',on:true});}
+  b.push({t:'operador',on:true,turno:false});
+  b.push({t:'branco',on:true});
+  b.push({t:'texto',on:true,al:'c',peq:true,texto:'Sem valor fiscal'});
+  b.push({t:'corte',on:true});
+  return b;
+}
+
 function baseImp(){
   DB.modelosImp=DB.modelosImp||[];
   IMP_TIPOS.forEach(function(t,i){
     if(!DB.modelosImp.some(function(m){return m.tipo===t.id}))
       DB.modelosImp.push({id:uid('mi'),tipo:t.id,nome:t.n,colunas:48,vias:t.id==='ficha'?2:1,
-        corte:true,gaveta:false,modelo:IMP_PADRAO[t.id],ativo:true});
+        corte:true,gaveta:false,modelo:IMP_PADRAO[t.id],blocos:blocosPadrao(t.id),
+        manual:false,ativo:true});
+  });
+  /* modelo vindo de versao anterior nao tinha blocos */
+  DB.modelosImp.forEach(function(m){
+    if(!m.blocos||!m.blocos.length){m.blocos=blocosPadrao(m.tipo);m.manual=!!m.manual;}
   });
   return DB.modelosImp;
 }
 function modeloImp(tipo){
   baseImp();
   return DB.modelosImp.find(function(m){return m.tipo===tipo})||null;
+}
+/* o texto que vale para imprimir: montado dos blocos, ou o escrito a mao */
+function textoDoModelo(m){
+  if(!m)return '';
+  return m.manual?(m.modelo||''):blocosParaModelo(m.blocos||[]);
 }
 
 /* ---------- os dados que entram no lugar das chaves ---------- */
@@ -31468,20 +31645,20 @@ function pedidoExemplo(tipo){
     pagamentos:[{formaId:(DB.formasPag||[{}])[0].id,valor:tipo==='entrega'?94:91}]};
 }
 
-/* ---------- a tela ---------- */
+/* ---------- a tela, agora em blocos ---------- */
 function telaModeloImp(){
   baseImp();
   var m=modeloImp(IMP.tipo);
-  var texto=(IMP.rascunho!==null?IMP.rascunho:m.modelo);
+  if(!m.blocos||!m.blocos.length){m.blocos=blocosPadrao(m.tipo);salvar();}
   var cols=m.colunas||48;
+  var texto=m.manual?(IMP.rascunho!==null?IMP.rascunho:m.modelo):blocosParaModelo(m.blocos);
   var linhas=montarImp(texto,pedidoExemplo(IMP.tipo),cols);
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Modelo de Impressao</h1>'+
-    '<p>Cada linha do modelo e uma linha do papel. O que esta entre chaves e trocado pelo '+
-    'dado do pedido na hora de imprimir. A previa ao lado usa um pedido de exemplo e '+
-    'atualiza enquanto voce digita.</p></div>'+
+    '<p>Monte o cupom ligando e desligando os pedacos. A previa ao lado mostra como '+
+    'sai no papel, com um pedido de exemplo.</p></div>'+
     '<button class="infoBt" onclick="explicaImp()">'+sv('help',15)+'</button>'+
    '</div>'+
 
@@ -31494,39 +31671,202 @@ function telaModeloImp(){
     '<div class="impEdit">'+
      '<div class="impBarra">'+
       '<div class="fl"><label>Largura do papel</label><select id="impCols" onchange="salvarImpCampo()">'+
-       '<option value="32"'+(cols===32?' selected':'')+'>58 mm (32 colunas)</option>'+
-       '<option value="48"'+(cols===48?' selected':'')+'>80 mm (48 colunas)</option>'+
+       '<option value="32"'+(cols===32?' selected':'')+'>58 mm (bobina estreita)</option>'+
+       '<option value="48"'+(cols===48?' selected':'')+'>80 mm (bobina larga)</option>'+
       '</select></div>'+
-      '<div class="fl"><label>Vias</label>'+
+      '<div class="fl"><label>Quantas vias</label>'+
        '<input type="number" id="impVias" min="1" max="4" value="'+(m.vias||1)+'" onchange="salvarImpCampo()"></div>'+
       '<label class="chkL" style="margin:0"><input type="checkbox" id="impCorte" '+
        (m.corte!==false?'checked':'')+' onchange="salvarImpCampo()"><span>Cortar papel</span></label>'+
       '<label class="chkL" style="margin:0"><input type="checkbox" id="impGaveta" '+
        (m.gaveta?'checked':'')+' onchange="salvarImpCampo()"><span>Abrir gaveta</span></label>'+
      '</div>'+
-     '<div class="impCampos">'+
-      '<span class="impCH">Clique para inserir:</span>'+
-      IMP_CAMPOS.map(function(c){
-        return '<button class="impChip" title="'+E(c[1])+'" onclick="inserirImp(\''+c[0]+'\')">'+E(c[0])+'</button>';
-      }).join('')+
-     '</div>'+
-     '<textarea id="impTxt" class="impTxt" spellcheck="false" '+
-      'oninput="IMP.rascunho=this.value;previaImp()">'+E(texto)+'</textarea>'+
+
+     (m.manual
+      ? '<div class="impAviso">'+sv('help',14)+'<div>Este modelo esta no <b>modo texto</b>. '+
+        'Os blocos ficam desligados enquanto voce editar por aqui.</div>'+
+        '<button class="btnP2" onclick="voltarBlocos()">Voltar aos blocos</button></div>'+
+        '<textarea id="impTxt" class="impTxt" spellcheck="false" '+
+        'oninput="IMP.rascunho=this.value;previaImp()">'+E(texto)+'</textarea>'+
+        '<div class="impCampos"><span class="impCH">Inserir:</span>'+
+        IMP_CAMPOS.map(function(c){
+          return '<button class="impChip" title="'+E(c[1])+'" onclick="inserirImp(\''+c[0]+'\')">'+E(c[0])+'</button>';
+        }).join('')+'</div>'
+      : listaBlocosHTML(m))+
+
      '<div class="impAcoes">'+
       '<button class="btnP2 ok" onclick="salvarImp()">'+sv('nike',14)+' Salvar modelo</button>'+
       '<button class="btnP2" onclick="testarImp()">'+sv('file',14)+' Imprimir teste</button>'+
       '<div style="flex:1"></div>'+
       '<button class="btnP2 rdB" onclick="restaurarImp()">Restaurar padrao</button>'+
      '</div>'+
+     (m.manual?'':'<button class="impAvancado" onclick="modoTexto()">'+
+       'Editar como texto (avancado)</button>')+
     '</div>'+
     '<div class="impPrev">'+
-     '<div class="impPrevH">Previa — '+cols+' colunas'+
-      (m.vias>1?' · '+m.vias+' vias':'')+'</div>'+
+     '<div class="impPrevH">Previa'+(m.vias>1?' · '+m.vias+' vias':'')+'</div>'+
      '<div class="papel'+(cols===32?' p58':'')+'" id="impPapel">'+papelHTML(linhas,cols)+'</div>'+
     '</div>'+
    '</div>'+
    '</div></div>';
-  rodape('modelo de '+m.nome+(IMP.rascunho!==null?' — alteracoes nao salvas':''));
+  rodape('modelo de '+m.nome);
+}
+
+function listaBlocosHTML(m){
+  var usados={};
+  m.blocos.forEach(function(b){usados[b.t]=true});
+  var podeAdd=BLOCOS.filter(function(b){
+    /* traco, espaco e texto podem repetir; o resto nao faz sentido duas vezes */
+    if(['linha','branco','texto'].indexOf(b.t)>=0)return true;
+    return !usados[b.t];
+  });
+  return '<div class="blkLista">'+
+   m.blocos.map(function(b,i){
+     var op=opcoesBloco(b,i);
+     return '<div class="blkIt'+(b.on===false?' off':'')+'">'+
+      '<div class="blkH">'+
+       '<label class="miniSw"><input type="checkbox" '+(b.on!==false?'checked':'')+
+        ' onchange="togBloco('+i+')"><i></i></label>'+
+       '<div class="blkN"><b>'+E(nomeBloco(b.t))+'</b>'+
+        (resumoBloco(b)?'<span>'+E(resumoBloco(b))+'</span>':'')+'</div>'+
+       '<div class="blkAc">'+
+        (i>0?'<button class="rBtn" onclick="moverBloco('+i+',-1)" title="Subir">'+sv('up2',11)+'</button>':'')+
+        (i<m.blocos.length-1?'<button class="rBtn" onclick="moverBloco('+i+',1)" title="Descer">'+sv('dn4',11)+'</button>':'')+
+        '<button class="rBtn rd" onclick="tirarBloco('+i+')" title="Remover">'+sv('trash',11)+'</button>'+
+       '</div>'+
+      '</div>'+
+      (op?'<div class="blkOp">'+op+'</div>':'')+
+     '</div>';
+   }).join('')+
+   '</div>'+
+   '<div class="blkAdd">'+
+    '<select id="blkNovo"><option value="">+ Adicionar um pedaco...</option>'+
+     podeAdd.map(function(b){
+       return '<option value="'+b.t+'">'+E(b.n)+(b.d?' — '+E(b.d):'')+'</option>';
+     }).join('')+'</select>'+
+    '<button class="btnP2" onclick="addBloco()">Adicionar</button>'+
+   '</div>';
+}
+function resumoBloco(b){
+  if(b.t==='titulo')return b.texto||'';
+  if(b.t==='texto')return (b.texto||'').split('\n')[0];
+  if(b.t==='itens')return b.preco===false?'sem preco (via da producao)':'com preco';
+  if(b.t==='cliente')return b.telefone?'com telefone':'';
+  if(b.t==='loja'){
+    var p=[];if(b.nome!==false)p.push('nome');if(b.cnpj!==false)p.push('CNPJ');
+    if(b.endereco!==false)p.push('endereco');if(b.telefone)p.push('telefone');
+    return p.join(', ');
+  }
+  if(b.t==='totais'){
+    var q=[];if(b.subtotal!==false)q.push('subtotal');if(b.taxa!==false)q.push('taxa');
+    if(b.acrescimo!==false)q.push('acrescimo');if(b.desconto!==false)q.push('desconto');
+    return q.join(', ');
+  }
+  if(b.t==='operador')return b.turno?'com turno':'';
+  return '';
+}
+function ck(i,campo,rot,marcado){
+  return '<label class="chkMini"><input type="checkbox" '+(marcado?'checked':'')+
+   ' onchange="opBloco('+i+',\''+campo+'\',this.checked)"><span>'+rot+'</span></label>';
+}
+function opcoesBloco(b,i){
+  switch(b.t){
+    case 'loja':
+      return ck(i,'nome','Nome da loja',b.nome!==false)+ck(i,'cnpj','CNPJ',b.cnpj!==false)+
+             ck(i,'endereco','Endereco',b.endereco!==false)+ck(i,'telefone','Telefone',!!b.telefone);
+    case 'titulo':
+      return '<input class="blkInp" value="'+E(b.texto||'')+'" placeholder="FICHA" '+
+             'oninput="opBloco('+i+',\'texto\',this.value)">';
+    case 'cliente':
+      return ck(i,'telefone','Mostrar telefone do cliente',!!b.telefone);
+    case 'itens':
+      return '<div class="blkEsc">'+
+       '<label class="blkOp2'+(b.preco!==false?' on':'')+'"><input type="radio" name="bpr'+i+'"'+
+        (b.preco!==false?' checked':'')+' onchange="opBloco('+i+',\'preco\',true)">'+
+        '<b>Com preco</b><span>via do cliente</span></label>'+
+       '<label class="blkOp2'+(b.preco===false?' on':'')+'"><input type="radio" name="bpr'+i+'"'+
+        (b.preco===false?' checked':'')+' onchange="opBloco('+i+',\'preco\',false)">'+
+        '<b>Sem preco</b><span>via da producao</span></label>'+
+       '</div>'+ck(i,'cabecalho','Mostrar "Qt. Descricao / Valor"',b.cabecalho!==false);
+    case 'totais':
+      return ck(i,'subtotal','Soma dos itens',b.subtotal!==false)+
+             ck(i,'taxa','Taxa de entrega',b.taxa!==false)+
+             ck(i,'acrescimo','Acrescimo',b.acrescimo!==false)+
+             ck(i,'desconto','Desconto',b.desconto!==false);
+    case 'operador':
+      return ck(i,'turno','Mostrar o turno junto',!!b.turno);
+    case 'texto':
+      return '<textarea class="blkInp" rows="2" placeholder="Obrigado pela preferencia!" '+
+             'oninput="opBloco('+i+',\'texto\',this.value)">'+E(b.texto||'')+'</textarea>'+
+             '<div class="blkEsc2">'+
+             ['e','c','d'].map(function(a){
+               var nm={e:'Esquerda',c:'Centro',d:'Direita'}[a];
+               return '<button class="blkAl'+((b.al||'e')===a?' on':'')+'" '+
+                'onclick="opBloco('+i+',\'al\',\''+a+'\')">'+nm+'</button>';
+             }).join('')+
+             ck(i,'peq','Letra pequena',!!b.peq)+'</div>';
+  }
+  return '';
+}
+function togBloco(i){
+  var m=modeloImp(IMP.tipo);
+  m.blocos[i].on=(m.blocos[i].on===false);
+  salvar();telaModeloImp();
+}
+function moverBloco(i,d){
+  var m=modeloImp(IMP.tipo),b=m.blocos;
+  if(i+d<0||i+d>=b.length)return;
+  var x=b[i];b[i]=b[i+d];b[i+d]=x;
+  salvar();telaModeloImp();
+}
+function tirarBloco(i){
+  var m=modeloImp(IMP.tipo);
+  m.blocos.splice(i,1);
+  salvar();telaModeloImp();
+}
+function addBloco(){
+  var t=$('blkNovo').value;
+  if(!t){toast('Escolha o pedaco que quer acrescentar.');return;}
+  var m=modeloImp(IMP.tipo);
+  var novo={t:t,on:true};
+  if(t==='titulo')novo.texto='TITULO';
+  if(t==='texto'){novo.texto='';novo.al='c';}
+  if(t==='itens'){novo.preco=true;novo.cabecalho=true;}
+  /* o corte e sempre a ultima coisa do papel */
+  var iCorte=m.blocos.findIndex(function(b){return b.t==='corte'});
+  if(t!=='corte'&&iCorte>=0)m.blocos.splice(iCorte,0,novo);
+  else m.blocos.push(novo);
+  salvar();telaModeloImp();
+}
+/* mexer numa opcao nao pode redesenhar a tela inteira: o cursor pularia
+   para fora do campo a cada letra. So a previa se refaz. */
+function opBloco(i,campo,valor){
+  var m=modeloImp(IMP.tipo);
+  m.blocos[i][campo]=valor;
+  salvar();previaImp();
+  if(campo==='al'||typeof valor==='boolean')telaModeloImp();
+}
+async function modoTexto(){
+  var m=modeloImp(IMP.tipo);
+  var ok=await confirmar({titulo:'Editar como texto',texto:'Modelo de '+m.nome,
+    aviso:'No modo texto voce escreve o cupom linha a linha, com as chaves. E mais livre, '+
+     'mas os blocos param de valer para este modelo. Da para voltar depois — so que a '+
+     'volta refaz o modelo a partir dos blocos, e o texto que voce escrever se perde.',
+    ok:'Ir para o modo texto'});
+  if(!ok)return;
+  m.modelo=blocosParaModelo(m.blocos);
+  m.manual=true;IMP.rascunho=null;
+  salvar();telaModeloImp();
+}
+async function voltarBlocos(){
+  var m=modeloImp(IMP.tipo);
+  var ok=await confirmar({titulo:'Voltar aos blocos',texto:'Modelo de '+m.nome,
+    aviso:'O modelo volta a ser montado pelos blocos. O texto que voce escreveu se perde.',
+    ok:'Voltar aos blocos',tipo:'perigo'});
+  if(!ok)return;
+  m.manual=false;IMP.rascunho=null;
+  if(!m.blocos||!m.blocos.length)m.blocos=blocosPadrao(m.tipo);
+  salvar();telaModeloImp();
 }
 var IMP_CAMPOS=[
  ['{loja}','nome da loja'],['{cnpj}','CNPJ'],['{endereco}','endereco da loja'],
@@ -31548,20 +31888,15 @@ var IMP_CAMPOS=[
  ['{barras}','codigo de barras'],['{corte}','cortar o papel'],
  ['{?campo}','so imprime se o campo tiver conteudo']
 ];
-function trocarImp(t){
-  if(IMP.rascunho!==null&&IMP.rascunho!==modeloImp(IMP.tipo).modelo){
-    if(!confirm('Ha alteracoes nao salvas neste modelo. Trocar mesmo assim?'))return;
-  }
-  IMP.tipo=t;IMP.rascunho=null;telaModeloImp();
-}
+function trocarImp(t){IMP.tipo=t;IMP.rascunho=null;telaModeloImp();}
 function previaImp(){
   var m=modeloImp(IMP.tipo);
   var cols=parseInt(($('impCols')||{}).value||m.colunas||48,10);
   var el=$('impPapel');
   if(!el)return;
+  var txt=m.manual?(IMP.rascunho!==null?IMP.rascunho:m.modelo):blocosParaModelo(m.blocos);
   el.className='papel'+(cols===32?' p58':'');
-  el.innerHTML=papelHTML(montarImp(IMP.rascunho!==null?IMP.rascunho:m.modelo,
-    pedidoExemplo(IMP.tipo),cols),cols);
+  el.innerHTML=papelHTML(montarImp(txt,pedidoExemplo(IMP.tipo),cols),cols);
 }
 function inserirImp(txt){
   var ta=$('impTxt');if(!ta)return;
@@ -31581,7 +31916,8 @@ function salvarImpCampo(){
 }
 function salvarImp(){
   var m=modeloImp(IMP.tipo);
-  m.modelo=$('impTxt').value;
+  if(m.manual&&$('impTxt'))m.modelo=$('impTxt').value;
+  else m.modelo=blocosParaModelo(m.blocos);
   m.colunas=parseInt($('impCols').value,10)||48;
   m.vias=parseInt($('impVias').value,10)||1;
   m.corte=$('impCorte').checked;
@@ -31596,7 +31932,7 @@ async function restaurarImp(){
     aviso:'O modelo volta a ser o que veio de fabrica. O que voce escreveu se perde.',
     ok:'Restaurar',tipo:'perigo'});
   if(!ok)return;
-  m.modelo=IMP_PADRAO[m.tipo];IMP.rascunho=null;
+  m.modelo=IMP_PADRAO[m.tipo];m.blocos=blocosPadrao(m.tipo);m.manual=false;IMP.rascunho=null;
   salvar();telaModeloImp();toast('Modelo restaurado.');
   if(NUVEM.ligada)sincronizar();
 }
@@ -31614,8 +31950,8 @@ function explicaImp(){
 function testarImp(){
   var m=modeloImp(IMP.tipo);
   var cols=parseInt(($('impCols')||{}).value||m.colunas||48,10);
-  imprimirPapel(montarImp(IMP.rascunho!==null?IMP.rascunho:m.modelo,
-    pedidoExemplo(IMP.tipo),cols),cols,1);
+  var txt=m.manual?(IMP.rascunho!==null?IMP.rascunho:m.modelo):blocosParaModelo(m.blocos);
+  imprimirPapel(montarImp(txt,pedidoExemplo(IMP.tipo),cols),cols,1);
 }
 
 /* ---------- manda para a impressora ----------
