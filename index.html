@@ -11358,6 +11358,7 @@ var MOD=[
  {id:'cfg-loja',n:'Mapa do Sistema'},
  {id:'carga-inicial',n:'Importar Dados'},
  {id:'cfg-sucursais',n:'Sucursais da Franquia'},
+ {id:'liberacao',n:'Liberação por Unidade'},
 
  {id:'cfg-pdv',n:'Configuração do PDV'},
  {id:'cfg-movimentacao',n:'Motivos de Baixa de Estoque'},
@@ -11752,7 +11753,7 @@ var MAPA=[
 
  {col:'gruposIng', espelha:false,   tab:'grupos_ingredientes',
   campos:function(x){return {nome:x.nome,compoe_cmv:x.compoeCMV!==false,
-    categoria:x.categoria||null}}},
+    categoria:x.categoria||null,sucursais:x.sucursais||[]}}},
 
  {col:'insumos', espelha:false,     tab:'insumos',
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,unidade:x.unidade||'un',
@@ -11764,11 +11765,11 @@ var MAPA=[
     estoque_atual:n(x.estoqueAtual),
     fator:n(x.fator)||1,custo:n(x.custo),custo_ultima:n(x.custoUltima),modo_custo:normModo(x.modoCusto),
     fornecedor_id:fk('fornec',x.fornecedorId),descricao:x.descricao||null,
-    gelato_venda:!!x.gelatoVenda}}},
+    gelato_venda:!!x.gelatoVenda,sucursais:x.sucursais||[]}}},
 
  {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
   campos:function(x){return {nome:x.nome,
-    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null}}},
+    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null,sucursais:x.sucursais||[]}}},
 
  {col:'fichas', espelha:false,      tab:'fichas_tecnicas',
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,grupo_id:fk('fichaCats',x.categoriaId),
@@ -11781,7 +11782,7 @@ var MAPA=[
     destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null,
     destino_fator:n(x.destinoFator)||1,estoque_atual:n(x.estoqueAtual),
     custo_medio:n(x.custoMedio),destino_nome:x.destinoNome||null,
-    destino_modo:x.destinoModo||'igual'}},
+    destino_modo:x.destinoModo||'igual',sucursais:x.sucursais||[]}},
   filhos:[{lista:'itens',tab:'ficha_itens',pai:'ficha_id',
     campos:function(o){return {insumo_id:fk('insumos',o.insumoId),quantidade:n(o.qtd),
       unidade:o.unidade||'un',perda:n(o.perda)}}}]},
@@ -11840,8 +11841,14 @@ var MAPA=[
     observacao:x.obs||null,operador_id:x.operadorId||null,operador_nome:x.operador||null,
     caixa_ref:x.caixaId||null,turno_nome:x.turno||null}}},
 
+ {col:'estoqueUn', espelha:true, tab:'estoque_unidade',
+  campos:function(x){return {sucursal_id:x.sucursalId,item_ref:x.itemId,
+    tipo:x.tipo||'insumo',estoque:n(x.estoque),custo_medio:n(x.custoMedio),
+    atualizado_em:x.atualizadoEm||null}}},
+
  {col:'movEst',      tab:'movimentacoes_estoque',
   campos:function(x){return {data:x.data||null,hora:x.hora||null,
+    sucursal_id:x.sucursalId||null,
     motivo_id:fk('motivosMov',x.motivoId),identificacao:x.identificacao||null,
     observacao:x.obs||null,origem:x.origem||null,linhas:x.linhas||[]}}},
 
@@ -11851,7 +11858,7 @@ var MAPA=[
 
  {col:'categorias', espelha:true,  tab:'categorias',
   campos:function(x,i){return {nome:x.nome,impressao:x.impressao||null,imposto:x.imposto||null,
-    cor:x.cor||null,imagem:x.imagem||null,ativa:x.ativo!==false,ordem:ordemDe(x,i)}}},
+    cor:x.cor||null,imagem:x.imagem||null,ativa:x.ativo!==false,ordem:ordemDe(x,i),sucursais:x.sucursais||[]}}},
 
  {col:'grupos', espelha:true,      tab:'grupos_opcoes',
   campos:function(x,i){return {nome:x.nome,minimo:n(x.min),maximo:(x.max==null?1:Number(x.max)),
@@ -11870,7 +11877,7 @@ var MAPA=[
     origem_fiscal:x.origemFiscal||null,cest:x.cest||null,gtin:x.gtin||null,
     unidade_tributavel:x.unTrib||null,
     ficha_id:fk('fichas',x.fichaId),insumo_id:fk('insumos',x.insumoId),
-    insumo_qtd:n(x.insumoQtd),insumo_un:x.insumoUn||null}},
+    insumo_qtd:n(x.insumoQtd),insumo_un:x.insumoUn||null,sucursais:x.sucursais||[]}},
   vinculo:{tab:'produto_grupos',pai:'produto_id',campo:'grupo_id',lista:'grupos',ref:'grupos'}},
 
  {col:'clientes', espelha:true,    tab:'clientes',
@@ -12600,7 +12607,7 @@ async function baixarDaNuvem(forcar){
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
   var mapaGr={};rg.forEach(function(x){mapaGr[x.id]=x.ref_local||x.id});
   DB.categorias=volta(rc,function(x){return {id:x.ref_local||x.id,nome:x.nome,impressao:x.impressao,
-    imposto:x.imposto,cor:x.cor,imagem:x.imagem,ativo:x.ativa!==false,ordem:x.ordem||0}});
+    imposto:x.imposto,cor:x.cor,imagem:x.imagem,ativo:x.ativa!==false,ordem:x.ordem||0,sucursais:x.sucursais||[]}});
   DB.grupos=volta(rg,function(x){return {id:x.ref_local||x.id,nome:x.nome,min:x.minimo||0,max:x.maximo||1,
     forcado:!!x.forcado,ordem:x.ordem||0,
     opcoes:(x.opcoes||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
@@ -12615,7 +12622,7 @@ async function baixarDaNuvem(forcar){
       nomeOnline:x.nome_online,disponivel:x.disponivel||{},promocoes:x.promocoes||[],
       grupos:g,vinculaEstoque:!!x.vincula_estoque,
       _fichaUid:x.ficha_id||'',_insumoUid:x.insumo_id||'',
-      insumoQtd:Number(x.insumo_qtd)||0,insumoUn:x.insumo_un||''};});
+      insumoQtd:Number(x.insumo_qtd)||0,insumoUn:x.insumo_un||'',sucursais:x.sucursais||[]};});
   var cfgS=await api('config_loja?loja_id=eq.'+l+'&select=*');
   if(cfgS&&cfgS[0]){var c3=cfg();
     c3.lojaAberta=cfgS[0].loja_aberta!==false;c3.tempoEntrega=cfgS[0].tempo_entrega;
@@ -12636,7 +12643,7 @@ async function baixarDaNuvem(forcar){
   var gi=await api('grupos_ingredientes'+qs);
   var mapaGi={};gi.forEach(function(x){mapaGi[x.id]=x.ref_local||x.id});
   DB.gruposIng=volta(gi,function(x){return {id:x.ref_local||x.id,nome:x.nome,
-    compoeCMV:x.compoe_cmv!==false}});
+    compoeCMV:x.compoe_cmv!==false,sucursais:x.sucursais||[]}});
 
   var ins=await api('insumos'+qs);
   var mapaIns={};ins.forEach(function(x){mapaIns[x.id]=x.ref_local||x.id});
@@ -12651,12 +12658,12 @@ async function baixarDaNuvem(forcar){
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',fator:Number(x.fator)||1,
     fornecedorId:mapaFo[x.fornecedor_id]||'',descricao:x.descricao||'',
-    compras:x.compras||[],gelatoVenda:!!x.gelato_venda}});
+    compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}});
 
   var fg=await api('ficha_grupos'+qs);
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
-    destinoId:x.destino_id||''}});
+    destinoId:x.destino_id||'',sucursais:x.sucursais||[]}});
 
   var ft=await api('fichas_tecnicas'+q+'&select=*,ficha_itens(*)');
   var mapaFiRef={};ft.forEach(function(x){mapaFiRef[x.id]=x.ref_local||x.id});
@@ -12672,7 +12679,7 @@ async function baixarDaNuvem(forcar){
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',destinoModo:x.destino_modo||'igual',
     itens:(x.ficha_itens||[]).map(function(i2){return {insumoId:mapaIns[i2.insumo_id]||'',
-      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}})}});
+      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}});
   /* reconstrói os subgrupos a partir das fichas */
   (DB.fichas||[]).forEach(function(f){
     if(!f.subgrupoId)return;
@@ -12738,6 +12745,12 @@ async function baixarDaNuvem(forcar){
         situacao:x.situacao||'ativo'}});
     }catch(e){}
   }
+
+  var eun=await api('estoque_unidade'+qs+'&limit=20000');
+  DB.estoqueUn=volta(eun,function(x){return {id:x.ref_local||(x.sucursal_id+'|'+x.item_ref),
+    sucursalId:x.sucursal_id,itemId:x.item_ref,tipo:x.tipo||'insumo',
+    estoque:Number(x.estoque)||0,custoMedio:Number(x.custo_medio)||0,
+    atualizadoEm:x.atualizado_em}});
 
   var cpf=await api('cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
   DB.cupons_f=volta(cpf,function(x){return {id:x.ref_local||x.id,pedidoId:x.pedido_ref||'',
@@ -13393,6 +13406,10 @@ function boot(){
   DB.statusVenda=DB.statusVenda||[];
   DB.mesas=DB.mesas||[];DB.comandas=DB.comandas||[];DB.cupons_f=DB.cupons_f||[];
   baseCanc();baseTurnos();baseImp();baseStatus();
+  DB.estoqueUn=DB.estoqueUn||[];
+  lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
+  migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
+  espelharEstoque();            /* a tela mostra o saldo DESTA unidade */
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
   topo();faixa();abrir('cardapio','cfg-cardapio');
@@ -13489,14 +13506,23 @@ marcaIcones(S.mod);
 }
 function marcaIcones(mid){var b=$('bandRow').querySelectorAll('.mIco');
 for(var k=0;k<b.length;k++)b[k].classList.toggle('on',b[k].getAttribute('data-m')===mid);}
+/* Existiam DUAS listas de loja: "lojasFin", so no aparelho e usada pelo
+   seletor do topo, e "sucursais", sincronizada e usada pela operacao.
+   Trocar de loja no topo mexia numa e a operacao lia a outra — que nunca
+   mudava. Toda venda e todo estoque iam parar sempre na PRIMEIRA unidade,
+   independente do que estivesse escrito na tela.
+   Agora e uma lista so: sucursais. */
 function lojasCad(){
-  DB.lojasFin=DB.lojasFin||[{id:'lj_matriz',nome:'Matriz'}];
-  return DB.lojasFin;
+  var a=sucAtivas();
+  DB.lojasFin=a;                       /* compatibilidade com telas antigas */
+  return a;
 }
 function lojaAtual(){
-  lojasCad();
-  if(!S.loja||!DB.lojasFin.some(function(l){return l.id===S.loja}))S.loja=DB.lojasFin[0].id;
-  return S.loja;
+  var a=lojasCad();
+  if(!DB.lojaAtual||!a.some(function(l){return l.id===DB.lojaAtual}))
+    DB.lojaAtual=(a[0]||{}).id||'suc_matriz';
+  S.loja=DB.lojaAtual;                 /* as duas passam a apontar para o mesmo */
+  return DB.lojaAtual;
 }
 function nomeLojaAtual(){
   var l=lojasCad().find(function(x){return x.id===lojaAtual()});
@@ -13513,14 +13539,18 @@ lojasCad().map(function(l){
 '<div style="padding:9px 10px;font-size:11.5px;color:var(--ink-3)">Cadastre outras lojas em Configuração da Loja.</div></div>';
 }
 function trocarLoja(id){
-  S.loja=id;fecharSuc();
+  DB.lojaAtual=id;S.loja=id;
+  fecharSuc();
+  /* o saldo mostrado na tela passa a ser o DESTA unidade */
+  try{espelharEstoque()}catch(e){}
+  try{salvar()}catch(e){}
   var b=document.querySelector('#sucBtn span');
   if(b)b.textContent=nomeLojaAtual();
   if(S.mod)abrir(S.mod,S.it); else rodape();
-  toast('Loja: '+nomeLojaAtual());
+  toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.17.1';
+var VERSAO='V20.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13613,6 +13643,7 @@ if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='mesas')return telaMesas();
+if(mid==='loja'&&iid==='liberacao')return telaLiberacao();
 if(mid==='loja'&&iid==='fiscal')return telaFiscalCfg();
 /* o item existia no menu e nao tinha tela: clicar nele nao fazia nada */
 if(mid==='loja'&&iid==='dados-fiscais')return telaFiscalCfg();
@@ -14436,6 +14467,7 @@ function agendarRecarga(tabela){
       /* Baixar não é motivo para redesenhar. Antes a tela era refeita a cada
          recarga, mesmo quando voltava exatamente o que já estava aqui — era
          a tremida que não parava. */
+      try{espelharEstoque()}catch(e){}   /* o download troca os saldos */
       if(retratoDB()===antes){marcaNovidade(false);return;}
       /* se você está no meio de algo, a tela NÃO é trocada.
          Fica um aviso discreto e a atualização acontece quando você terminar. */
@@ -15212,6 +15244,258 @@ function checarCampoBoleto(idCampo,idAviso){
 }
 
 
+
+
+/* ==========================================================
+   ESTOQUE POR UNIDADE
+   O CADASTRO e da rede: acucar cadastrado na matriz e o mesmo
+   acucar em Jales e em Sorocaba — nome, unidade, ficha tecnica.
+   O SALDO e de cada uma: o que Jales tem no deposito nao tem
+   nada a ver com o que Sorocaba tem.
+
+   Antes, "estoqueAtual" morava no proprio item — um numero so para
+   as seis lojas. Vender em Jales baixava o estoque de Sorocaba.
+
+   Como foi resolvido sem reescrever os 45 lugares que leem o saldo:
+   o numero verdadeiro passa a viver em DB.estoqueUn, por unidade, e
+   o campo "estoqueAtual" do item vira um ESPELHO da unidade ativa.
+   Quem le continua lendo igual; quem escreve escreve no lugar certo.
+   ========================================================== */
+function baseEstUn(){DB.estoqueUn=DB.estoqueUn||[];return DB.estoqueUn;}
+
+function chaveEst(suc,itemId){return suc+'|'+itemId;}
+
+function regEstoque(itemId,suc,criar){
+  baseEstUn();
+  suc=suc||lojaAtualId();
+  var k=chaveEst(suc,itemId);
+  var r=DB.estoqueUn.find(function(x){return x.id===k});
+  if(!r&&criar){
+    r={id:k,sucursalId:suc,itemId:itemId,tipo:'insumo',estoque:0,custoMedio:0};
+    DB.estoqueUn.push(r);
+  }
+  return r||null;
+}
+/* saldo daquele item naquela unidade */
+function saldoUn(itemId,suc){
+  var r=regEstoque(itemId,suc,false);
+  return r?(Number(r.estoque)||0):0;
+}
+function custoMedioUn(itemId,suc){
+  var r=regEstoque(itemId,suc,false);
+  return r?(Number(r.custoMedio)||0):0;
+}
+function setSaldoUn(itemId,valor,suc){
+  var r=regEstoque(itemId,suc,true);
+  r.estoque=+((Number(valor)||0).toFixed(4));
+  r.atualizadoEm=new Date().toISOString();
+  return r.estoque;
+}
+function setCustoUn(itemId,valor,suc){
+  var r=regEstoque(itemId,suc,true);
+  r.custoMedio=+((Number(valor)||0).toFixed(6));
+  return r.custoMedio;
+}
+/* copia o saldo da unidade ativa para o campo do item, que e o que as
+   telas leem. Chamado ao abrir o sistema e ao trocar de unidade. */
+function espelharEstoque(){
+  baseEstUn();
+  var suc=lojaAtualId();
+  (DB.insumos||[]).forEach(function(i){
+    var r=regEstoque(i.id,suc,false);
+    i.estoqueAtual=r?(Number(r.estoque)||0):0;
+    i.custo=r?(Number(r.custoMedio)||0):0;
+  });
+  (DB.fichas||[]).forEach(function(f){
+    if(f.estocavel===false)return;
+    var r=regEstoque(f.id,suc,false);
+    f.estoqueAtual=r?(Number(r.estoque)||0):0;
+  });
+}
+/* Traz o saldo antigo — que era da rede — para a unidade matriz.
+   Roda uma vez so: depois disso o numero verdadeiro e o da tabela nova. */
+function migrarEstoqueParaUnidade(){
+  if(DB._estoqueMigrado)return;
+  baseEstUn();
+  var matriz=(baseSuc().find(function(s){return s.matriz})||sucAtivas()[0]||{}).id||'suc_matriz';
+  var n=0;
+  (DB.insumos||[]).forEach(function(i){
+    var q=Number(i.estoqueAtual)||0;
+    if(!q&&!Number(i.custo))return;
+    var r=regEstoque(i.id,matriz,true);
+    r.tipo='insumo';r.estoque=q;r.custoMedio=Number(i.custo)||0;n++;
+  });
+  (DB.fichas||[]).forEach(function(f){
+    var q=Number(f.estoqueAtual)||0;
+    if(!q)return;
+    var r=regEstoque(f.id,matriz,true);
+    r.tipo='ficha';r.estoque=q;n++;
+  });
+  DB._estoqueMigrado=true;
+  if(n){
+    logNuvem('estoque migrado para a unidade '+matriz+': '+n+' itens');
+    try{salvar()}catch(e){}
+  }
+}
+
+
+/* ==========================================================
+   LIBERACAO DE CADASTRO POR UNIDADE
+   O cadastro nasce na matriz e vale para a rede. Mas nem tudo
+   deve chegar em todas: ficha exclusiva da matriz, insumo que so
+   uma unidade usa, categoria de teste.
+
+   Regra: lista VAZIA = vale para todas. So restringe o que for
+   marcado. Assim, ligar isso hoje nao esconde nada de ninguem —
+   e o unico jeito seguro de introduzir a regra num sistema que
+   ja esta rodando.
+   ========================================================== */
+var CADASTROS_LIB=[
+ {col:'insumos',   n:'Ingredientes',        ic:'box'},
+ {col:'fichas',    n:'Fichas técnicas',     ic:'book'},
+ {col:'produtos',  n:'Produtos',            ic:'cart'},
+ {col:'categorias',n:'Categorias do cardápio',ic:'folder'},
+ {col:'fichaCats', n:'Categorias de ficha', ic:'folder'},
+ {col:'gruposIng', n:'Grupos de ingredientes',ic:'folder'}
+];
+function liberadoNa(item,suc){
+  if(!item)return false;
+  var l=item.sucursais;
+  if(!l||!l.length)return true;          /* sem marcacao = todas */
+  return l.indexOf(suc||lojaAtualId())>=0;
+}
+/* usada pelas telas: so o que esta liberado nesta unidade */
+function soLiberados(lista,suc){
+  var s=suc||lojaAtualId();
+  return (lista||[]).filter(function(x){return liberadoNa(x,s)});
+}
+var LB={col:'insumos',busca:'',sel:{},grupo:''};
+function telaLiberacao(){
+  if(!ehMatriz()){
+    $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
+     '<div class="construIc">'+sv('lock',30)+'</div><b>Tela da matriz</b>'+
+     '<p>Quem decide o que cada unidade enxerga é a franqueadora.</p></div></div>';
+    rodape('sem permissão');return;
+  }
+  var sucs=sucAtivas();
+  var def=(CADASTROS_LIB.find(function(c){return c.col===LB.col})||CADASTROS_LIB[0]);
+  var lista=(DB[LB.col]||[]).slice();
+  var q=(LB.busca||'').toLowerCase();
+  if(q)lista=lista.filter(function(x){return String(x.nome||'').toLowerCase().indexOf(q)>=0});
+  lista.sort(function(a,b){return String(a.nome||'').localeCompare(String(b.nome||''))});
+  var restritos=(DB[LB.col]||[]).filter(function(x){return x.sucursais&&x.sucursais.length}).length;
+  var selN=Object.keys(LB.sel).filter(function(k){return LB.sel[k]}).length;
+
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo"><div><h1>Liberação por Unidade</h1>'+
+   '<p>O cadastro é feito uma vez na matriz e vale para a rede inteira. Aqui você '+
+   'restringe o que <b>não</b> deve chegar em alguma unidade.</p></div>'+
+   '<button class="infoBt" onclick="explicaLiberacao()">'+sv('help',15)+'</button></div>'+
+
+   '<div class="lbAviso">'+sv('nike',15)+
+    '<div>Item <b>sem marcação aparece em todas as unidades</b>. '+
+    (restritos?('Hoje '+restritos+' item(ns) deste cadastro estão restritos.')
+             :'Nenhum item deste cadastro está restrito — todos chegam em todas.')+
+    '</div></div>'+
+
+   '<div class="lbAbas">'+CADASTROS_LIB.map(function(c){
+     var qt=(DB[c.col]||[]).length;
+     return '<button class="lbAba'+(LB.col===c.col?' on':'')+'" '+
+      'onclick="LB.col=\''+c.col+'\';LB.sel={};telaLiberacao()">'+
+      sv(c.ic,14)+' '+E(c.n)+'<span>'+qt+'</span></button>';
+   }).join('')+'</div>'+
+
+   '<div class="filtroCard">'+
+    '<div class="fl" style="flex:1"><label>Buscar</label>'+
+     '<input id="lbQ" value="'+E(LB.busca)+'" placeholder="nome do item" '+
+     'oninput="LB.busca=this.value;clearTimeout(window._lbT);'+
+     'window._lbT=setTimeout(telaLiberacao,350)"></div>'+
+    (selN?'<div class="lbSel"><b>'+selN+' selecionado(s)</b>'+
+      '<button class="btnP2" onclick="LB.sel={};telaLiberacao()">Limpar</button>'+
+      '<button class="btnP2 ok" onclick="liberarEmLote()">Definir unidades</button></div>':'')+
+   '</div>'+
+
+   '<div class="pnl2"><div class="pnl2H">'+E(def.n)+
+    ' <span class="cnt2">'+lista.length+'</span></div>'+
+   '<div class="pnl2B" style="padding:0">'+
+   (lista.length?'<table class="pTable"><thead><tr>'+
+    '<th style="width:34px"></th><th>Item</th>'+
+    '<th>Unidades que enxergam</th>'+
+    '<th style="width:60px"></th></tr></thead><tbody>'+
+    lista.map(function(x){
+      var l=x.sucursais||[];
+      return '<tr>'+
+       '<td><label class="flagBox"><input type="checkbox" '+(LB.sel[x.id]?'checked':'')+
+        ' onchange="LB.sel[\''+x.id+'\']=this.checked;telaLiberacao()"></label></td>'+
+       '<td><b>'+E(x.nome||'—')+'</b></td>'+
+       '<td>'+(l.length
+         ?'<div class="lbTags">'+l.map(function(id){
+            return '<span class="lbTag">'+E(sucNome(id))+'</span>';}).join('')+'</div>'
+         :'<span class="lbTodas">todas as '+sucs.length+' unidades</span>')+'</td>'+
+       '<td><button class="rBtn" onclick="editarLiberacao(\''+x.id+'\')" title="Definir">'+
+        sv('edit',12)+'</button></td>'+
+      '</tr>';
+    }).join('')+'</tbody></table>'
+   :'<div class="entVazio"><b>Nada encontrado</b><span>Ajuste a busca.</span></div>')+
+   '</div></div></div></div>';
+  rodape(lista.length+' itens · '+restritos+' restritos');
+}
+function editarLiberacao(id){
+  var x=(DB[LB.col]||[]).find(function(i){return i.id===id});
+  if(!x)return;
+  abrirEscolhaUnidades([x],x.nome);
+}
+function liberarEmLote(){
+  var itens=(DB[LB.col]||[]).filter(function(x){return LB.sel[x.id]});
+  if(!itens.length)return;
+  abrirEscolhaUnidades(itens,itens.length+' itens selecionados');
+}
+function abrirEscolhaUnidades(itens,titulo){
+  var sucs=sucAtivas();
+  /* marcacao inicial: o que TODOS os itens ja tem em comum */
+  var atual=(itens.length===1)?(itens[0].sucursais||[]):[];
+  modal('Quem enxerga: '+E(titulo),
+  '<div class="mdB">'+
+   '<label class="chkL"><input type="checkbox" id="lbTodas" '+(atual.length?'':'checked')+
+    ' onchange="document.querySelectorAll(\'.lbSuc\').forEach(function(c){c.disabled=this.checked},this)">'+
+    '<span><b>Todas as unidades</b> — inclusive as que forem criadas depois</span></label>'+
+   '<div class="hint" style="margin:6px 0 12px">Desmarque acima para escolher unidade por unidade.</div>'+
+   '<div class="lbGrade">'+sucs.map(function(s){
+     return '<label class="lbOp"><input type="checkbox" class="lbSuc" value="'+E(s.id)+'"'+
+      (atual.indexOf(s.id)>=0?' checked':'')+(atual.length?'':' disabled')+'>'+
+      '<b>'+E(s.nome)+'</b>'+(s.matriz?'<span>matriz</span>':'')+'</label>';
+   }).join('')+'</div>'+
+  '</div>','Salvar',function(){
+    var todas=$('lbTodas').checked;
+    var escolhidas=[];
+    document.querySelectorAll('.lbSuc').forEach(function(c){if(c.checked)escolhidas.push(c.value)});
+    if(!todas&&!escolhidas.length){
+      toast('Escolha ao menos uma unidade, ou marque Todas.');return false;
+    }
+    itens.forEach(function(x){ x.sucursais=todas?[]:escolhidas.slice(); });
+    LB.sel={};salvar();telaLiberacao();
+    toast(itens.length+' item(ns) atualizado(s).');
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+}
+function explicaLiberacao(){
+  confirmar({titulo:'Como a liberação funciona',texto:'Cadastro da rede',
+   linhas:[['O cadastro','é feito na matriz e já vale para todas',''],
+           ['Sem marcação','o item aparece em todas as unidades',''],
+           ['Com marcação','só aparece nas unidades escolhidas',''],
+           ['O saldo','é sempre de cada unidade, nunca compartilhado','']],
+   aviso:'Restringir não apaga nada: o item continua existindo e o histórico dele '+
+    'também. A unidade apenas deixa de vê-lo em novos lançamentos.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function ehMatriz(){
+  if(ehPlataforma&&ehPlataforma())return true;
+  var u=usuarioLogado()||{};
+  if(u.tudo||u.mestre)return true;
+  var s=baseSuc().find(function(x){return x.id===lojaAtualId()});
+  return !!(s&&s.matriz);
+}
 
 /* ==========================================================
    MODO OFFLINE
@@ -16862,7 +17146,7 @@ async function aplicarTempos(){
 }
 function lojaAtualId(){
   baseSuc();
-  return (DB.lojaAtual||(sucAtivas()[0]||{}).id||'suc_matriz');
+  return lojaAtual();
 }
 async function conferirZapPdv(){
   var pt=$('zapPt');
@@ -24448,26 +24732,40 @@ function avisoFalta(falta,contexto){
 }
 
 /* ---------- APLICAR NO ESTOQUE ---------- */
-function ajustaEstoque(ins,qtd,unidade,sinal){
+function ajustaEstoque(ins,qtd,unidade,sinal,suc){
   if(!ins)return 0;
   /* insumo respeita a chave; ficha estocável sempre movimenta */
   var eFicha=(ins.itens!==undefined&&ins.rendimento!==undefined);
   if(!eFicha&&!ins.controlaEstoque)return 0;
   var q=convUnid(qtd,unidade,ins.unidade);
   if(q===null)q=qtd;
-  ins.estoqueAtual=+(((Number(ins.estoqueAtual)||0)+sinal*q).toFixed(4));
-  /* sem estoque nao ha custo medio: ele renasce na proxima entrada */
-  if((Number(ins.estoqueAtual)||0)<=0.00001)ins.custo=0;
+  /* o saldo verdadeiro e o da unidade; o campo do item e so o espelho */
+  suc=suc||lojaAtualId();
+  var novo=+((saldoUn(ins.id,suc)+sinal*q).toFixed(4));
+  setSaldoUn(ins.id,novo,suc);
+  if(eFicha)regEstoque(ins.id,suc,true).tipo='ficha';
+  if(suc===lojaAtualId())ins.estoqueAtual=novo;
+  /* sem estoque nao ha custo medio: ele renasce na proxima entrada.
+     Vale para a unidade — zerar em Jales nao pode zerar o custo de Sorocaba. */
+  if(novo<=0.00001){
+    setCustoUn(ins.id,0,suc);
+    if(suc===lojaAtualId())ins.custo=0;
+  }
   return q;
 }
 /* monta as linhas de um lançamento e aplica no estoque */
 function aplicarMovimento(mov,desfazer){
   var mult=desfazer?-1:1;
+  /* Porta unica: todo movimento passa por aqui. Carimbar a unidade neste
+     ponto pega os nove lugares que criam movimento, em vez de depender de
+     cada um lembrar. Movimento antigo, sem unidade, fica com a ativa. */
+  var suc=mov.sucursalId||lojaAtualId();
+  if(!mov.sucursalId&&!desfazer)mov.sucursalId=suc;
   (mov.linhas||[]).forEach(function(l){
     var ins=itemEstoque(l.insumoId);
     if(!ins)return;
-    var antes=Number(ins.estoqueAtual)||0;
-    ajustaEstoque(ins,l.qtd,l.unidade,(l.direcao==='entrada'?1:-1)*mult);
+    var antes=saldoUn(ins.id,suc);
+    ajustaEstoque(ins,l.qtd,l.unidade,(l.direcao==='entrada'?1:-1)*mult,suc);
     /* entrada atualiza o custo médio ponderado do item */
     if(!desfazer&&l.direcao==='entrada'&&Number(l.custo)>0&&
        !(ins.itens!==undefined&&ins.rendimento!==undefined)){
@@ -24477,11 +24775,16 @@ function aplicarMovimento(mov,desfazer){
       custoUn=(custoUn===null)?Number(l.custo):Number(l.custo)*custoUn;
       /* (estoque anterior x custo medio anterior + qtd comprada x custo da compra)
          dividido por (estoque anterior + qtd comprada) */
-      var medioAnt=custoMedioPond(ins);
+      /* O custo medio e da UNIDADE: cada loja compra pelo seu preco.
+         Jales pagando mais caro no acucar nao encarece a ficha de Sorocaba. */
+      var medioAnt=custoMedioUn(ins.id,suc)||custoMedioPond(ins);
       var base=(antes>0&&medioAnt>0)?antes:0;   /* sem custo anterior, a compra manda */
       var novo=(base+q)>0?((base*medioAnt+q*custoUn)/(base+q)):custoUn;
-      ins.custo=+novo.toFixed(6);
-      ins.custoUltima=+custoUn.toFixed(6);
+      setCustoUn(ins.id,novo,suc);
+      if(suc===lojaAtualId()){
+        ins.custo=+novo.toFixed(6);
+        ins.custoUltima=+custoUn.toFixed(6);
+      }
       ins.modoCusto=normModo(ins.modoCusto);
     }
   });
@@ -28940,7 +29243,7 @@ function gerarVendasDemo(){
         linhas.push({insumoId:ins.id,nome:ins.nome,unidade:ins.unidade,qtd:q,
           custo:custoAtual(ins),direcao:'saida',origem:'venda'});
       }
-      DB.movEst.push({id:uid('mv'),data:p.data,hora:p.hora,motivoId:'mv_venda',
+      DB.movEst.push({id:uid('mv'),sucursalId:lojaAtualId(),data:p.data,hora:p.hora,motivoId:'mv_venda',
         identificacao:'Pedido #'+p.numero,obs:'',linhas:linhas,origem:'venda',
         pedidoId:p.id,demo:true});
       movs++;
