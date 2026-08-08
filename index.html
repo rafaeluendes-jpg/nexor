@@ -11290,12 +11290,25 @@ function ehPlataforma(u){
 function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||u.plataforma))}
 
 /* ===== BLOCO 3 — ARMAZENAMENTO ===== */
+/* Havia DUAS listas com este nome. A de baixo (dos cupons) apagava esta,
+   e o formulario do produto acabava gravando os identificadores da outra.
+   Agora e uma so, declarada aqui e usada tambem pelos cupons. */
 var CANAIS=[
- {id:'delivery',n:'Delivery'},
- {id:'salao',n:'Salão/ficha'},
- {id:'online',n:'Pedido online'},
- {id:'digital',n:'Cardápio digital'}
+ {id:'pdv',      n:'Frente de caixa', d:'venda no balcão e salão'},
+ {id:'delivery', n:'Delivery',        d:'pedidos de entrega'},
+ {id:'online',   n:'Pedido online',   d:'site e link de pedido'},
+ {id:'cardapio', n:'Cardápio digital',d:'cardápio pelo celular'}
 ];
+/* Onde este produto pode ser vendido. Produto sem nenhuma marcacao aparece
+   em todo lugar — senao, ao subir esta versao, o cardapio de quem nunca
+   preencheu isso ficaria vazio de uma hora para outra. */
+function disponivelNo(p,canal){
+  var d=(p&&p.disponivel)||{};
+  var algum=d.pdv||d.delivery||d.online||d.cardapio;
+  if(!algum)return true;
+  if(canal==='cardapio')return !!(d.cardapio||d.online||d.delivery);
+  return !!d[canal];
+}
 var IMPOSTOS=['Sem tributação','Tributado integralmente','Isento','Substituição tributária','Não tributado'];
 var IMPRESSAO=['Não imprimir','Impressora da cozinha','Impressora do bar','Impressora de expedição'];
 var CORES=['#00A08B','#2C6FD1','#7B5FD4','#E08A2E','#C94141','#0EA5A5','#8894A6','#D9A22B'];
@@ -13219,7 +13232,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.6.0';
+var VERSAO='V19.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13778,7 +13791,11 @@ function abaDados(){
   '<div class="fld2"><label>Categoria *</label><select id="pCat">'+
   (cats||'<option value="">— cadastre uma categoria primeiro —</option>')+'</select></div>'+
   '</div>'+
-  '<div class="blk"><h3>Onde o produto está disponível?</h3><div class="canais">'+
+  '<div class="blk"><h3>Onde o produto está disponível?</h3>'+
+  '<div class="hint" style="margin:-4px 0 10px">É daqui que sai o cardápio digital: '+
+  'marque Delivery, Pedido online ou Cardápio digital e o item aparece lá sozinho. '+
+  'Sem nenhuma marcação, o produto aparece em todos os canais.</div>'+
+  '<div class="canais">'+
   CANAIS.map(function(c){return '<label class="chkL"><input type="checkbox" class="pCan" data-c="'+c.id+'"'+
     ((p.disponivel||{})[c.id]?' checked':'')+'><span>'+c.n+'</span></label>'}).join('')+
   '</div></div>'+
@@ -14879,7 +14896,11 @@ function renderVenda(){
   var gr=' lay-'+(C.layout||'foto')+(C.botaoGrande?' gr':'');
   var cats=DB.categorias.filter(function(c){return c.ativo!==false}).sort(function(a,b){return a.ordem-b.ordem});
   var q=(PDV.busca||'').toLowerCase();
+  /* "Disponível em" passa a valer de verdade: produto marcado só para
+     cardápio digital não polui a tela de quem está no balcão. */
+  var canalPDV=(PDV.tipo==='entrega')?'delivery':'pdv';
   var prods=DB.produtos.filter(function(p){return p.ativo!==false})
+    .filter(function(p){return disponivelNo(p,canalPDV)})
     .filter(function(p){return !PDV.cat||p.categoriaId===PDV.cat})
     .filter(function(p){return !q||p.nome.toLowerCase().indexOf(q)>=0||String(p.codigo||'').toLowerCase().indexOf(q)>=0})
     .sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
@@ -20458,12 +20479,6 @@ function exportarClientes(){
    BLOCO 19 — CUPONS DE DESCONTO
    ========================================================== */
 var CP={aba:'ativos'};
-var CANAIS=[
- {id:'pdv',n:'Frente de caixa',d:'venda no balcão e salão'},
- {id:'delivery',n:'Delivery',d:'pedidos de entrega'},
- {id:'cardapio',n:'Cardápio digital',d:'cardápio pelo celular'},
- {id:'online',n:'Pedido online',d:'site e link de pedido'}
-];
 function nomeCanal(id){var c=CANAIS.find(function(x){return x.id===id});return c?c.n:id}
 function baseCupons(){DB.cupons=DB.cupons||[];DB.cupomUsos=DB.cupomUsos||[];}
 function cupomPorCodigo(cod){
