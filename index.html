@@ -11529,7 +11529,7 @@ var MAPA=[
  {col:'formasPag', espelha:true,   tab:'formas_pagamento',
   campos:function(x,i){return {nome:x.nome,tipo:x.tipo||'outro',bandeira:x.bandeira||null,
     taxa_pct:n(x.taxaPct),taxa_fixa:n(x.taxaFixa),dias_recebimento:n(x.dias),
-    conta_id:fk('contas',x.contaId),ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||i}}},
+    conta_id:fk('contas',x.contaId),ativa:x.ativa!==false,online:!!x.online,ordem:ordemDe(x,i)}}},
 
  {col:'unidExtra', espelha:true,   tab:'unidades_medida',
   campos:function(x){return {nome:x.n,sigla:x.ab,base:x.base,fator:n(x.f)}}},
@@ -11577,10 +11577,10 @@ var MAPA=[
  /* Motivo de cancelamento virou cadastro. Antes era uma lista fixa dentro do
     codigo: o dono da loja nao conseguia trocar sem mexer no sistema. */
  {col:'motivosCanc', espelha:true, tab:'motivos_cancelamento',
-  campos:function(x,i){return {nome:x.nome,ativo:x.ativo!==false,ordem:x.ordem||i}}},
+  campos:function(x,i){return {nome:x.nome,ativo:x.ativo!==false,ordem:ordemDe(x,i)}}},
 
  {col:'statusVenda', espelha:true, tab:'status_venda',
-  campos:function(x,i){return {nome:x.nome,papel:x.papel||'producao',ordem:x.ordem||i,
+  campos:function(x,i){return {nome:x.nome,papel:x.papel||'producao',ordem:ordemDe(x,i),
     ativo:x.ativo!==false,cor:x.cor||null,minutos:n(x.minutos),som:!!x.som,
     confere_pagamento:!!x.confPag}}},
 
@@ -11593,7 +11593,7 @@ var MAPA=[
     e o vinculo so resolve se o turno ja subiu. */
  {col:'turnos', espelha:true, tab:'turnos',
   campos:function(x,i){return {nome:x.nome,hora_inicio:x.ini||null,hora_fim:x.fim||null,
-    ativo:x.ativo!==false,ordem:x.ordem||i}}},
+    ativo:x.ativo!==false,ordem:ordemDe(x,i)}}},
 
  /* O cancelamento tem registro proprio, e nao so um campo no pedido. Assim o
     relatorio nasce de uma trilha, com quem fez, quando e por que. */
@@ -11615,18 +11615,18 @@ var MAPA=[
 
  {col:'categorias', espelha:true,  tab:'categorias',
   campos:function(x,i){return {nome:x.nome,impressao:x.impressao||null,imposto:x.imposto||null,
-    cor:x.cor||null,imagem:x.imagem||null,ativa:x.ativo!==false,ordem:x.ordem||i}}},
+    cor:x.cor||null,imagem:x.imagem||null,ativa:x.ativo!==false,ordem:ordemDe(x,i)}}},
 
  {col:'grupos', espelha:true,      tab:'grupos_opcoes',
   campos:function(x,i){return {nome:x.nome,minimo:n(x.min),maximo:x.max||1,
-    forcado:!!x.forcado,ordem:x.ordem||i}},
+    forcado:!!x.forcado,ordem:ordemDe(x,i)}},
   filhos:[{lista:'opcoes',tab:'opcoes',pai:'grupo_id',
     campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k}}}]},
 
  {col:'produtos', espelha:true,    tab:'produtos',
   campos:function(x,i){return {nome:x.nome,preco:n(x.preco),codigo:x.codigo||null,
     descricao:x.detalhes||x.descricao||null,categoria_id:fk('categorias',x.categoriaId),
-    ativo:x.ativo!==false,ordem:x.ordem||i,imagem_url:x.imagem||null,
+    ativo:x.ativo!==false,ordem:ordemDe(x,i),imagem_url:x.imagem||null,
     imagem:x.imagem||null,disponivel_delivery:x.delivery!==false,
     pesado:!!x.pesado,variacao:!!x.variacao,nome_online:x.nomeOnline||null,
     disponivel:x.disponivel||{},promocoes:x.promocoes||[],vincula_estoque:!!x.vinculaEstoque,
@@ -11761,6 +11761,14 @@ var MAPA=[
 
 function n(v){var x=Number(v);return isNaN(x)?0:x}
 var _ids={};                       /* ref_local -> uuid do banco */
+/* ordem ZERO e uma ordem valida. Usar "||" fazia o primeiro item da lista
+   subir com o indice no lugar da ordem: a nuvem devolvia outro numero, a
+   lista reordenava, o indice mudava e subia de novo — a tela ficava se
+   refazendo sozinha, sem parar. */
+function ordemDe(x,i){
+  var o=x&&x.ordem;
+  return (o===undefined||o===null||o==='')?i:(Number(o)||0);
+}
 function fk(col,ref){
   if(!ref)return null;
   if(_ids[ref])return _ids[ref];
@@ -13187,7 +13195,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.5.2';
+var VERSAO='V19.5.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14060,7 +14068,6 @@ function ocupado(){
   /* A tela se refazia de 2 em 2 segundos e meio sem perguntar nada: fechava
      menu aberto, jogava a rolagem para o topo e desfazia a categoria escolhida
      no PDV. Atualizar sozinho so vale quando a pessoa nao esta no meio de algo. */
-  if(document.getElementById('mdOv'))return true;               /* janela aberta */
   if(document.querySelector('.popMenu'))return true;            /* menu suspenso aberto */
   if(document.getElementById('sucMenu'))return true;            /* seletor de loja aberto */
   var rol=document.querySelector('.etScroll');
