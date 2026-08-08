@@ -13389,7 +13389,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.14.0';
+var VERSAO='V19.14.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13487,7 +13487,7 @@ if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
 if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
-if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCupons();
+if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -14083,6 +14083,14 @@ function lerFormProduto(){
   if(gs.length){p.grupos=[];for(var j=0;j<gs.length;j++)if(gs[j].checked)p.grupos.push(gs[j].value);}
   if($('pNomeOn'))p.nomeOnline=$('pNomeOn').value;
   if($('pDet'))p.detalhes=$('pDet').value;
+  /* fiscais: só existem na tela quando o fiscal está ligado */
+  if($('pdNcm'))p.ncm=soDigitos($('pdNcm').value);
+  if($('pdCfop'))p.cfop=soDigitos($('pdCfop').value);
+  if($('pdGtin'))p.gtin=soDigitos($('pdGtin').value);
+  if($('pdCst')){
+    if(fiscalCfg().regime==='simples')p.csosn=soDigitos($('pdCst').value);
+    else p.cst=soDigitos($('pdCst').value);
+  }
   var pp=document.querySelectorAll('.prPreco');
   for(var k=0;k<pp.length;k++)p.promocoes[pp[k].getAttribute('data-i')].preco=parseFloat(pp[k].value)||0;
   var pd=document.querySelectorAll('.prDe');
@@ -15283,9 +15291,9 @@ function corStatusCupom(id){
   var s=STATUS_CUPOM.find(function(x){return x.id===id});
   return s?s.cor:'#8A8578';
 }
-function baseCupons(){DB.cupons_f=DB.cupons_f||[];return DB.cupons_f;}
+function baseCuponsFiscais(){DB.cupons_f=DB.cupons_f||[];return DB.cupons_f;}
 function filtrarCupons(){
-  baseCupons();
+  baseCuponsFiscais();
   var q=(CF.consumidor||'').toLowerCase(), qp=(CF.pag||'').toLowerCase();
   return DB.cupons_f.filter(function(c){
     var d=String(c.data||'').slice(0,10);
@@ -15301,8 +15309,8 @@ function filtrarCupons(){
     return (b.data+' '+(b.hora||'')).localeCompare(a.data+' '+(a.hora||''));
   });
 }
-function telaCupons(){
-  baseCupons();
+function telaCuponsFiscais(){
+  baseCuponsFiscais();
   if(!CF.de){var d=new Date();
     CF.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     CF.ate=hojeISO();}
@@ -15354,7 +15362,7 @@ function telaCupons(){
 
   (selN?'<div class="cfSel">'+sv('nike',15)+
     '<div><b>'+selN+' cupom(ns) selecionado(s)</b> — R$ '+money(selV)+'</div>'+
-    '<button class="btnP2" onclick="CF.sel={};telaCupons()">Limpar</button>'+
+    '<button class="btnP2" onclick="CF.sel={};telaCuponsFiscais()">Limpar</button>'+
     '<button class="btnP2 ok" onclick="converterAgrupada()">Converter em NF-e agrupada</button>'+
    '</div>':'')+
 
@@ -15373,7 +15381,7 @@ function telaCupons(){
    lst.map(function(c){
      return '<tr>'+
       '<td><label class="flagBox"><input type="checkbox" '+(CF.sel[c.id]?'checked':'')+
-       ' onchange="CF.sel[\''+c.id+'\']=this.checked;telaCupons()"></label></td>'+
+       ' onchange="CF.sel[\''+c.id+'\']=this.checked;telaCuponsFiscais()"></label></td>'+
       '<td><b>'+E(c.origem==='salao'?'Salão':c.origem==='entrega'?'Entrega':
         c.origem==='mesa'?'Mesa':'Online')+'</b></td>'+
       '<td>'+dataBR(String(c.data||'').slice(0,10))+(c.hora?', '+E(c.hora):'')+'</td>'+
@@ -15394,10 +15402,10 @@ function telaCupons(){
 function buscarCupons(){
   CF.de=$('cfDe').value;CF.ate=$('cfAte').value;CF.num=$('cfNum').value.trim();
   CF.status=$('cfSt').value;CF.origem=$('cfOr').value;
-  telaCupons();
+  telaCuponsFiscais();
 }
 function verCupom(id){
-  var c=baseCupons().find(function(x){return x.id===id});
+  var c=baseCuponsFiscais().find(function(x){return x.id===id});
   if(!c)return;
   modal('Cupom '+(c.numero||'—'),
   '<div class="mdB">'+
@@ -15445,7 +15453,7 @@ async function converterAgrupada(){
   if(!ok)return;
   var ref=uid('nfa');
   lst.forEach(function(c){c.status='agrupado';c.nfeAgrupada=ref;});
-  CF.sel={};salvar();telaCupons();
+  CF.sel={};salvar();telaCuponsFiscais();
   toast(lst.length+' cupons marcados para a NF-e agrupada.');
   if(NUVEM.ligada)sincronizar();
 }
@@ -15462,7 +15470,7 @@ function exportarCupons(){
 }
 /* toda venda vira um registro aqui, mesmo com a emissao desligada */
 function registrarCupom(ped){
-  baseCupons();
+  baseCuponsFiscais();
   var f=fiscalCfg();
   var origem=ped.canal==='mesa'?'mesa':(ped.tipo==='entrega'?'entrega':
              (ped.origem==='online'?'online':'salao'));
