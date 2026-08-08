@@ -9,6 +9,16 @@
 <link rel="icon" type="image/png" sizes="192x192" href="nexor-icone-192.png">
 <link rel="apple-touch-icon" href="nexor-icone.png">
 <link rel="manifest" href="manifest.json">
+<script>
+/* Guarda o sistema no aparelho. Sem isso, recarregar a pagina com a
+   internet fora deixava a loja sem sistema — que era o unico momento
+   em que o Nexor realmente parava. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
 <meta name="theme-color" content="#0b8a93">
 <meta name="apple-mobile-web-app-title" content="Nexor">
 <meta name="application-name" content="Nexor">
@@ -707,6 +717,31 @@ body.pdvFull .wTitle{display:none}
 .cfCanc{opacity:.6}
 .cfCanc td b{text-decoration:line-through}
 .finTab td small{display:block;font-size:10.5px;color:var(--tx2,#9a9288);margin-top:1px}
+.netTag{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+ padding:4px 10px;border-radius:20px;cursor:pointer;letter-spacing:.02em}
+.netTag.pend{background:#FFF3E0;color:#8A5320;border:1px solid #F0D6AE}
+.netTag.off{background:#FDEEE8;color:#A8391A;border:1px solid #F0BCA8}
+.avisoNet{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:9000;
+ display:flex;align-items:center;gap:12px;max-width:560px;padding:14px 18px;
+ border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.2);font-size:13.5px;line-height:1.45}
+.avisoNet.off{background:#8A2E12;color:#fff}
+.avisoNet.on{background:#0E5C3A;color:#fff}
+.avisoNet>div{flex:1}
+.avisoNet button{background:none;border:none;color:inherit;font-size:20px;cursor:pointer;opacity:.7}
+.syBox{display:flex;align-items:center;gap:15px;border-radius:12px;padding:16px 18px;
+ margin-bottom:14px;border:1px solid var(--lin,#e6e0d4)}
+.syBox.on{background:#EAF5EE;border-color:#BFE0CC;color:#1B5E36}
+.syBox.off{background:#FDEEE8;border-color:#F0BCA8;color:#8A3A1A}
+.syBox>div{flex:1}
+.syBox b{display:block;font-size:15px}
+.syBox span{display:block;font-size:12.5px;margin-top:2px;line-height:1.45;opacity:.9}
+.syGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.syC{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:10px;padding:12px 14px}
+.syC span{display:block;font-size:11px;color:var(--tx2,#7a7266)}
+.syC b{display:block;font-size:17px;margin-top:2px}
+.syHist{display:flex;align-items:center;gap:9px;background:var(--bg2,#faf7f0);
+ border:1px solid var(--lin,#e6e0d4);border-radius:9px;padding:10px 13px;
+ margin-bottom:14px;font-size:12.5px;color:var(--tx2,#7a7266)}
 .fscPend{display:flex;gap:10px;background:#FFF6E8;border:1px solid #F0DCB8;border-radius:10px;
  padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#7A5320;line-height:1.5}
 .fscPend b{display:block;margin-bottom:2px}
@@ -11343,6 +11378,7 @@ var MOD=[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'clientes-nexor',n:'Clientes Nexor'},
  {id:'instalacao',n:'Assistente de Instalação'},
+ {id:'sincronizacao',n:'Sincronização'},
  {id:'backup',n:'Backup e Restauração'},
  {id:'layout-menu',n:'Layout do Menu'},
  {id:'reset-sistema',n:'Dados de Teste e Reinício'}]}
@@ -13360,6 +13396,7 @@ function boot(){
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
   topo();faixa();abrir('cardapio','cfg-cardapio');
+  try{pintarRede()}catch(e){}
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
 function topo(){
@@ -13483,7 +13520,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.16.0';
+var VERSAO='V19.17.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13596,6 +13633,7 @@ if(mid==='estoque'&&iid==='historico-posicao'){
 if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
 if(mid==='tecnico'&&iid==='reset-sistema')return telaReset();
 if(mid==='tecnico'&&iid==='central-tecnica')return telaCentralTecnica();
+if(mid==='tecnico'&&iid==='sincronizacao')return telaSincronizacao();
 if(mid==='tecnico'&&iid==='backup')return telaBackup();
 if(mid==='tecnico'&&iid==='layout-menu')return telaLayoutMenu();
 if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
