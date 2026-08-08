@@ -657,6 +657,30 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.stPrev{margin:0 0 14px}
+.stPrevH{font-size:11px;color:var(--tx2,#7a7266);text-transform:uppercase;
+ letter-spacing:.04em;margin-bottom:7px}
+.stCols{display:flex;gap:8px;flex-wrap:wrap}
+.stCol{border-top:3px solid var(--sc);background:var(--card,#fff);
+ border:1px solid var(--lin,#e6e0d4);border-top:3px solid var(--sc);
+ border-radius:8px;padding:9px 12px;min-width:135px}
+.stCol b{display:block;font-size:12.5px;color:var(--tx,#2f2a24)}
+.stCol span{display:block;font-size:10.5px;color:var(--tx2,#7a7266);margin-top:1px}
+.stCol i{display:inline-flex;align-items:center;gap:3px;font-style:normal;
+ font-size:10px;color:var(--tx2,#7a7266);margin-top:4px;margin-right:7px}
+.stOrd{display:flex;gap:2px}
+.stPt{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.stPap{font-size:11px;background:var(--bg2,#f6f2e9);border:1px solid var(--lin,#e6e0d4);
+ border-radius:5px;padding:3px 7px;color:var(--tx2,#7a7266)}
+.stCores{display:flex;gap:6px;flex-wrap:wrap}
+.stCor{width:26px;height:26px;border-radius:6px;cursor:pointer;display:block;
+ border:2px solid transparent}
+.stCor input{display:none}
+.stCor.on{border-color:var(--tx,#2f2a24);box-shadow:0 0 0 2px #fff inset}
+.kanCol .kanH{border-top:3px solid var(--kc,#8A8578)}
+.pedT{display:inline-block;margin-left:6px;font-size:10px;padding:1px 5px;border-radius:4px;
+ background:rgba(14,138,70,.12);color:#0E8A46}
+.pedT.vc{background:rgba(180,84,47,.15);color:#B4542F;font-weight:700}
 .cnTelas{display:flex;flex-direction:column;gap:9px;max-height:280px;overflow-y:auto;
  border:1px solid var(--lin,#e6e0d4);border-radius:8px;padding:10px;background:var(--bg2,#faf7f0)}
 .cnTelaG{border-bottom:1px solid var(--lin,#e6e0d4);padding-bottom:8px}
@@ -11073,6 +11097,7 @@ box:'<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2
 chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
 store:'<path d="M3 9l1.5-5h15L21 9M3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/>',
 bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
 help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/>',
 search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.6" y2="16.6"/>',
 dn:'<polyline points="6 9 12 15 18 9"/>',
@@ -11547,6 +11572,11 @@ var MAPA=[
     codigo: o dono da loja nao conseguia trocar sem mexer no sistema. */
  {col:'motivosCanc', espelha:true, tab:'motivos_cancelamento',
   campos:function(x,i){return {nome:x.nome,ativo:x.ativo!==false,ordem:x.ordem||i}}},
+
+ {col:'statusVenda', espelha:true, tab:'status_venda',
+  campos:function(x,i){return {nome:x.nome,papel:x.papel||'producao',ordem:x.ordem||i,
+    ativo:x.ativo!==false,cor:x.cor||null,minutos:n(x.minutos),som:!!x.som,
+    confere_pagamento:!!x.confPag}}},
 
  {col:'modelosImp', espelha:true, tab:'modelos_impressao',
   campos:function(x){return {tipo:x.tipo,nome:x.nome,colunas:n(x.colunas)||48,
@@ -12409,6 +12439,11 @@ async function baixarDaNuvem(forcar){
   DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ativo:x.ativo!==false,ordem:x.ordem||0}});
 
+  var stv=await api('status_venda'+qs+'&order=ordem');
+  DB.statusVenda=volta(stv,function(x){return {id:x.ref_local||x.id,nome:x.nome,
+    papel:x.papel||'producao',ordem:x.ordem||0,ativo:x.ativo!==false,cor:x.cor||'',
+    minutos:Number(x.minutos)||0,som:!!x.som,confPag:!!x.confere_pagamento}});
+
   var mi=await api('modelos_impressao'+qs);
   DB.modelosImp=volta(mi,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
@@ -13012,7 +13047,8 @@ function boot(){
   DB.motivosCanc=DB.motivosCanc||[];DB.turnos=DB.turnos||[];
   DB.cancelamentos=DB.cancelamentos||[];
   DB.modelosImp=DB.modelosImp||[];
-  baseCanc();baseTurnos();baseImp();
+  DB.statusVenda=DB.statusVenda||[];
+  baseCanc();baseTurnos();baseImp();baseStatus();
   topo();faixa();abrir('cardapio','cfg-cardapio');
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
@@ -13137,7 +13173,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.4.0';
+var VERSAO='V19.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13214,6 +13250,7 @@ if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
+if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
@@ -14381,6 +14418,82 @@ var FASES_DISP=[
  {id:'entregue',n:'Entregue / Concluído'},
  {id:'cancelado',n:'Cancelado'}
 ];
+
+/* ==========================================================
+   STATUS DE VENDA — as colunas do Kanban viraram cadastro
+   Antes as fases eram uma lista fixa dentro do codigo e o resto do
+   sistema perguntava pelo NOME da fase ("e igual a cancelado?").
+   Com status que o cliente cria, o nome deixa de servir: o que vale
+   e o PAPEL — o que aquele status faz. Cancelado estorna estoque e
+   sai do faturamento; finalizado conta a venda. O nome pode ser
+   qualquer um.
+   ========================================================== */
+var PAPEIS=[
+ {id:'aguardando',n:'Aguardando',   d:'pedido novo, ainda nao comecou'},
+ {id:'producao',  n:'Producao',     d:'esta sendo preparado'},
+ {id:'pronto',    n:'Pronto',       d:'aguardando retirada no balcao'},
+ {id:'entrega',   n:'Em entrega',   d:'saiu com o entregador'},
+ {id:'finalizado',n:'Finalizado',   d:'venda concluida — entra no faturamento'},
+ {id:'cancelado', n:'Cancelado',    d:'estorna o estoque e sai do faturamento'}
+];
+function nomePapel(id){var p=PAPEIS.find(function(x){return x.id===id});return p?p.n:id;}
+
+function baseStatus(){
+  DB.statusVenda=DB.statusVenda||[];
+  if(!DB.statusVenda.length){
+    /* nasce com o que ja existia, e com os MESMOS identificadores — assim os
+       pedidos gravados antes continuam apontando para o status certo */
+    var ativas=(cfg().fases||['aguardando','preparo','saiu','entregue','cancelado']);
+    [['aguardando','Aguardando preparacao','aguardando','#8A8578'],
+     ['preparo','Em preparacao','producao','#C9922F'],
+     ['pronto','Pronto para retirada','pronto','#1F5F8B'],
+     ['saiu','Saiu para entrega','entrega','#1F5F8B'],
+     ['entregue','Entregue / Concluido','finalizado','#0E8A46'],
+     ['cancelado','Cancelado','cancelado','#B4542F']]
+     .forEach(function(x,i){
+       DB.statusVenda.push({id:x[0],nome:x[1],papel:x[2],cor:x[3],ordem:i,
+         ativo:ativas.indexOf(x[0])>=0,minutos:0,som:false,confPag:false});
+     });
+  }
+  return DB.statusVenda;
+}
+function statusVenda(id){
+  baseStatus();
+  return DB.statusVenda.find(function(x){return x.id===id})||null;
+}
+function statusAtivos(){
+  baseStatus();
+  return DB.statusVenda.filter(function(x){return x.ativo!==false})
+    .sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+}
+/* O papel de um pedido. Se o status foi apagado, o proprio identificador
+   antigo ainda diz o que era — pedido velho nunca fica orfao. */
+function papelDaFase(fase){
+  var st=statusVenda(fase);
+  if(st)return st.papel;
+  if(fase==='cancelado')return 'cancelado';
+  if(fase==='entregue')return 'finalizado';
+  if(fase==='saiu')return 'entrega';
+  if(fase==='pronto')return 'pronto';
+  if(fase==='preparo')return 'producao';
+  return 'aguardando';
+}
+function ehCancelado(p){return papelDaFase(p&&p.fase)==='cancelado';}
+function ehFinalizado(p){return papelDaFase(p&&p.fase)==='finalizado';}
+/* qual status usar quando o sistema precisa escolher sozinho */
+function statusDoPapel(papel){
+  var l=statusAtivos().filter(function(x){return x.papel===papel});
+  return l.length?l[0].id:null;
+}
+function statusInicial(tipo){
+  /* venda de balcao nasce concluida; entrega comeca no inicio da fila */
+  if(tipo!=='entrega'){
+    return statusDoPapel('finalizado')||statusDoPapel('pronto')||(statusAtivos()[0]||{}).id||'entregue';
+  }
+  var l=statusAtivos().filter(function(x){return x.papel!=='cancelado'});
+  return l.length?l[0].id:'aguardando';
+}
+
 var PDV={aba:'venda',tipo:'loja',cat:null,comanda:[],cliente:null,busca:''};
 
 function cfg(){
@@ -14396,8 +14509,8 @@ function cfg(){
   return c;
 }
 function fasesAtivas(){
-  var ids=cfg().fases;
-  return FASES_DISP.filter(function(f){return ids.indexOf(f.id)>=0});
+  return statusAtivos().map(function(x){return {id:x.id,n:x.nome,cor:x.cor,
+    minutos:x.minutos,som:x.som,confPag:x.confPag,papel:x.papel};});
 }
 function caixaAberto(){
   DB.caixas=DB.caixas||[];
@@ -14410,7 +14523,7 @@ function telaPDV(){
   DB.clientes=DB.clientes||[];DB.pedidos=DB.pedidos||[];DB.caixas=DB.caixas||[];
   baseFormas();
   var c=cfg(),cx=caixaAberto();
-  var abertos=DB.pedidos.filter(function(p){return p.fase!=='entregue'&&p.fase!=='cancelado'}).length;
+  var abertos=DB.pedidos.filter(function(p){return !ehFinalizado(p)&&!ehCancelado(p)}).length;
 
   $('content').innerHTML=
   '<div class="pdvBar">'+
@@ -15079,14 +15192,8 @@ function remPag(i){_pagos.splice(i,1);recalcPag();}
 
 function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado){
   var ag=new Date();
-  var fs2=cfg().fases||[];
-  /* venda na frente de caixa já sai entregue — só delivery passa pelo fluxo */
-  var primeira;
-  if(PDV.tipo==='entrega'){
-    primeira=fs2[0]||'aguardando';
-  }else{
-    primeira=(fs2.indexOf('entregue')>=0)?'entregue':(fs2[fs2.length-1]||'entregue');
-  }
+  /* venda na frente de caixa já sai concluída — só delivery passa pelo fluxo */
+  var primeira=statusInicial(PDV.tipo);
   var ped={
     id:uid('ped'),numero:(DB.pedidos.length+1),
     tipo:PDV.tipo,fase:primeira,
@@ -15147,9 +15254,9 @@ var KAN={busca:''};
 function pedidosDoPeriodo(){
   var cx=caixaAberto();
   var lista=(DB.pedidos||[]).filter(function(p){
-    if(p.fase==='cancelado')return false;
+    if(ehCancelado(p))return false;
     /* pedido ainda não entregue aparece sempre, para não perder ninguém */
-    if(p.fase!=='entregue')return true;
+    if(!ehFinalizado(p))return true;
     /* entregues: só os do caixa aberto agora */
     return !!cx && p.caixaId===cx.id;
   });
@@ -15165,12 +15272,13 @@ function pedidosDoPeriodo(){
 function renderKanban(){
   var fases=fasesAtivas();
   var peds=pedidosDoPeriodo();
-  var abertos=peds.filter(function(p){return p.fase!=='entregue'&&p.fase!=='cancelado'});
+  var abertos=peds.filter(function(p){return !ehFinalizado(p)&&!ehCancelado(p)});
   var h='<div class="kanban">';
   fases.forEach(function(f){
     var lista=peds.filter(function(p){return p.fase===f.id});
     var soma=lista.reduce(function(a,p){return a+p.total},0);
-    h+='<div class="kanCol"><div class="kanH"><b>'+f.n+'</b><span class="n">'+lista.length+'</span></div>'+
+    h+='<div class="kanCol" style="--kc:'+E(f.cor||'#8A8578')+'">'+
+    '<div class="kanH"><b>'+E(f.n)+'</b><span class="n">'+lista.length+'</span></div>'+
     '<div class="kanB" data-fase="'+f.id+'">'+
     (lista.length?lista.map(function(p){
       return '<div class="ped" draggable="true" data-id="'+p.id+'" '+
@@ -15181,12 +15289,16 @@ function renderKanban(){
       '<div class="hr">'+
        (String(p.data||'').slice(0,10)!==hojeISO()
          ? dataBR(String(p.data).slice(0,10))+' · ' : '')+
-       p.hora+' · '+p.itens.length+' itens</div>'+
+       p.hora+' · '+p.itens.length+' itens'+
+       /* o relogio do status: verde dentro do prazo, vermelho passou */
+       (f.minutos?'<span class="pedT'+(atrasado(p)?' vc':'')+'">'+
+         minutosNoStatus(p)+'/'+f.minutos+' min</span>':'')+
+       '</div>'+
       '<div class="acts2">'+
       '<button class="btn sm" onclick="verPedido(\''+p.id+'\')" title="Ver o pedido">'+sv('eye',12)+'</button>'+
       '<button class="btn sm" onclick="imprimirPedido(\''+p.id+'\')">'+sv('print2',12)+'</button>'+(p.tipo==='entrega'?'<button class="btn sm" onclick="atribuirEntregador(\''+p.id+'\')" title="Entregador">'+sv('moto',12)+'</button>':'')+
       (f.id!=='cancelado'?'<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\'cancelado\')">Cancelar</button>':
-       '<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+(cfg().fases[0]||'aguardando')+'\')">Voltar</button>')+
+       '<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+(statusInicial('entrega'))+'\')">Voltar</button>')+
       '</div></div>';}).join('')
      :'<div class="kanVazio">arraste pedidos para cá</div>')+
     '</div>'+
@@ -15217,15 +15329,20 @@ function moverPedido(id,fase){
   var antes=p.fase;
   /* Cancelar e cancelar, venha do botao, do arrasto ou da busca por numero.
      Uma porta so: motivo do cadastro, quem cancelou e a senha dela. */
-  if(fase==='cancelado'&&antes!=='cancelado'){pedirCancelamento(id);return;}
+  var vaiCancelar=(papelDaFase(fase)==='cancelado');
+  var eraCancelado=(papelDaFase(antes)==='cancelado');
+  if(vaiCancelar&&!eraCancelado){pedirCancelamento(id);return;}
   p.fase=fase;
+  p.statusEm=new Date().toISOString();   /* o relogio do status recomeca aqui */
+  var stNovo=statusVenda(fase);
+  if(stNovo&&stNovo.som)bipe();
   try{
-    if(fase==='cancelado'&&antes!=='cancelado')estornarEstoqueVenda(p);
-    if(antes==='cancelado'&&fase!=='cancelado')baixarEstoqueVenda(p);
+    if(vaiCancelar&&!eraCancelado)estornarEstoqueVenda(p);
+    if(eraCancelado&&!vaiCancelar)baixarEstoqueVenda(p);
   }catch(e){console.error('estoque pedido',e);}
   salvar();renderKanban();
-  var f=FASES_DISP.find(function(x){return x.id===fase});
-  toast('Pedido #'+p.numero+' → '+(f?f.n:fase));
+  var f=statusVenda(fase);
+  toast('Pedido #'+p.numero+' → '+(f?f.nome:fase));
   if(antes!==fase)avisarCliente(p,fase);
 }
 function imprimirPedido(id){imprimirVia(DB.pedidos.find(function(x){return x.id===id}));}
@@ -15253,7 +15370,7 @@ function verPedido(id){
 
 /* ---------- ABA: CAIXA ---------- */
 function movimentoCaixa(id){
-  var ps=DB.pedidos.filter(function(p){return p.caixaId===id&&p.fase!=='cancelado'});
+  var ps=DB.pedidos.filter(function(p){return p.caixaId===id&&!ehCancelado(p)});
   var porForma={},qtdForma={};
   FORMAS.forEach(function(f){porForma[f.id]=0;qtdForma[f.id]=0});
   ps.forEach(function(p){(p.pagamentos||[]).forEach(function(x){
@@ -15716,7 +15833,7 @@ function ehEntrega(p){return p&&p.tipo==='entrega'&&!p.foraAcerto}
 function entregasDe(entId,de,ate,incluirAcertadas){
   return (DB.pedidos||[]).filter(function(p){
     if(!ehEntrega(p))return false;
-    if(p.fase==='cancelado')return false;
+    if(ehCancelado(p))return false;
     if(entId&&p.entregadorId!==entId)return false;
     if(!entId&&!p.entregadorId)return false;
     if(!incluirAcertadas&&p.acertoId)return false;
@@ -15870,7 +15987,7 @@ function limparFiltroAc(){AC={de:diasAtrasISO(7),ate:hojeISO(),ent:'',busca:''};
 
 function pendentesSemEntregador(){
   var lista=(DB.pedidos||[]).filter(function(p){
-    if(!ehEntrega(p)||p.fase==='cancelado'||p.acertoId)return false;
+    if(!ehEntrega(p)||ehCancelado(p)||p.acertoId)return false;
     if(p.entregadorId)return false;
     var d=(p.data||'').slice(0,10);
     if(AC.de&&d<AC.de)return false;
@@ -16108,7 +16225,7 @@ function taxaPorCidade(e,cidade){
 function vincularPendentes(entId){
   var e=ent(entId);var n=0;
   (DB.pedidos||[]).forEach(function(p){
-    if(!ehEntrega(p)||p.fase==='cancelado'||p.acertoId||p.entregadorId)return;
+    if(!ehEntrega(p)||ehCancelado(p)||p.acertoId||p.entregadorId)return;
     p.entregadorId=entId;n++;
     if(!p.cidade){
       var cli=(DB.clientes||[]).find(function(c){return c.id===p.clienteId})||{};
@@ -19765,7 +19882,7 @@ function baseCRM(){
   });
 }
 function pedidosDoCliente(id){
-  return (DB.pedidos||[]).filter(function(p){return p.clienteId===id&&p.fase!=='cancelado'})
+  return (DB.pedidos||[]).filter(function(p){return p.clienteId===id&&!ehCancelado(p)})
     .sort(function(a,b){return (b.data||'').localeCompare(a.data||'')});
 }
 function statsCliente(c){
@@ -25024,7 +25141,7 @@ function dadosAno(ano){
   for(var i=0;i<12;i++)m.push({fat:0,ped:0,loja:0,entrega:0,desc:0,taxa:0,
     cmv:0,clientes:{},itens:0});
   (DB.pedidos||[]).forEach(function(p){
-    if(p.fase==='cancelado')return;
+    if(ehCancelado(p))return;
     if(CA.sucs.length&&CA.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return;
     var d=String(p.data||'');
     if(d.slice(0,4)!==String(ano))return;
@@ -25066,7 +25183,7 @@ function dadosMes(ano,mes){
   for(var i=0;i<dias;i++)d.push({fat:0,ped:0,loja:0,entrega:0,desc:0,taxa:0,cmv:0,clientes:{},itens:0});
   var pref=ano+'-'+String(mes).padStart(2,'0');
   (DB.pedidos||[]).forEach(function(p){
-    if(p.fase==='cancelado')return;
+    if(ehCancelado(p))return;
     if(CA.sucs.length&&CA.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return;
     var s2=String(p.data||'');
     if(s2.slice(0,7)!==pref)return;
@@ -25388,7 +25505,7 @@ function telaFaturamentoDia(){
     var d=String(p.data||'').slice(0,10);
     porDia[d]=porDia[d]||{qtd:0,valor:0,itens:0,taxa:0,desc:0,acresc:0,canc:0,vcanc:0};
     var x=porDia[d];
-    if(p.fase==='cancelado'){x.canc++;x.vcanc+=Number(p.total)||0;return;}
+    if(ehCancelado(p)){x.canc++;x.vcanc+=Number(p.total)||0;return;}
     x.qtd++; x.valor+=Number(p.total)||0;
     x.itens+=(p.itens||[]).reduce(function(a,i){return a+(Number(i.qtd)||0)},0);
     x.taxa+=Number(p.taxa)||0; x.desc+=Number(p.desconto)||0;
@@ -25592,7 +25709,7 @@ function exportarFatDia(){
     var d=String(p.data||'').slice(0,10);
     porDia[d]=porDia[d]||{qtd:0,valor:0,itens:0,taxa:0,desc:0,canc:0,vcanc:0};
     var x=porDia[d];
-    if(p.fase==='cancelado'){x.canc++;x.vcanc+=Number(p.total)||0;return;}
+    if(ehCancelado(p)){x.canc++;x.vcanc+=Number(p.total)||0;return;}
     x.qtd++;x.valor+=Number(p.total)||0;
     x.itens+=(p.itens||[]).reduce(function(a,i){return a+(Number(i.qtd)||0)},0);
     x.taxa+=Number(p.taxa)||0;x.desc+=Number(p.desconto)||0;
@@ -25806,7 +25923,7 @@ function telaItensVendidos(){
   if(!IV.de){var d=new Date();
     IV.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     IV.ate=hojeISO();}
-  var peds=pedidosFiltrados(IV).filter(function(p){return p.fase!=='cancelado'});
+  var peds=pedidosFiltrados(IV).filter(function(p){return !ehCancelado(p)});
   var porCat={},adicionais={},totalFat=0,totalItens=0;
   peds.forEach(function(p){
     totalFat+=Number(p.total)||0;
@@ -25994,7 +26111,7 @@ function telaVendasArea(){
   if(!VA.de){var d=new Date();
     VA.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     VA.ate=hojeISO();}
-  var peds=pedidosFiltrados(VA).filter(function(p){return p.fase!=='cancelado'});
+  var peds=pedidosFiltrados(VA).filter(function(p){return !ehCancelado(p)});
   var totalFat=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var ents=peds.filter(function(p){return (p.tipo==='entrega')});
   var porCid={};
@@ -26015,7 +26132,7 @@ function telaVendasArea(){
   /* evolução mês a mês das entregas */
   var porMes={};
   (DB.pedidos||[]).forEach(function(p){
-    if(p.fase==='cancelado'||p.tipo!=='entrega')return;
+    if(ehCancelado(p)||p.tipo!=='entrega')return;
     var m=String(p.data||'').slice(0,7);
     if(!m)return;
     porMes[m]=porMes[m]||{qtd:0,valor:0};
@@ -26213,7 +26330,7 @@ function telaVendasFormaPag(){
   if(!VP.de){var d=new Date();
     VP.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     VP.ate=hojeISO();}
-  var peds=pedidosFiltrados(VP).filter(function(p){return p.fase!=='cancelado'});
+  var peds=pedidosFiltrados(VP).filter(function(p){return !ehCancelado(p)});
   var totalFat=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var porForma={},semForma=0;
   peds.forEach(function(p){
@@ -26676,8 +26793,8 @@ function telaVendasPeriodo(){
   if(VPE.formas.length)
     todos=todos.filter(function(p){
       return (p.pagamentos||[]).some(function(g){return VPE.formas.indexOf(g.formaId)>=0})});
-  var peds=todos.filter(function(p){return p.fase!=='cancelado'});
-  var canc=todos.filter(function(p){return p.fase==='cancelado'});
+  var peds=todos.filter(function(p){return !ehCancelado(p)});
+  var canc=todos.filter(function(p){return ehCancelado(p)});
 
   /* ---- indicadores ---- */
   function soma(arr,fn){return arr.reduce(function(a,p){return a+(fn(p)||0)},0)}
@@ -26795,7 +26912,7 @@ function telaVendasPeriodo(){
         var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId});
         return f?f.nome:'—';}).join(', ');
       var vi=(p.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
-      var canc2=(p.fase==='cancelado');
+      var canc2=(ehCancelado(p));
       return '<tr class="'+(canc2?'linCanc':'')+'" style="cursor:pointer" onclick="verPedidoRel(\''+p.id+'\')">'+
       '<td><b>#'+E(p.numero)+'</b></td>'+
       '<td>'+dataBR(p.data)+'</td><td>'+E(p.hora||'')+'</td>'+
@@ -26995,14 +27112,14 @@ function calcularDRE(ano){
   }
   /* 01.01 — vendas do PDV */
   (DB.pedidos||[]).forEach(function(p){
-    if(p.fase==='cancelado')return;
+    if(ehCancelado(p))return;
     var k=mesDe(p.data);
     if(k<0)return;
     m[k]['01.01']+=Number(p.total)||0;
   });
   /* 05 — taxas de cartão calculadas pelas formas de pagamento */
   (DB.pedidos||[]).forEach(function(p){
-    if(p.fase==='cancelado')return;
+    if(ehCancelado(p))return;
     var k=mesDe(p.data);
     if(k<0)return;
     (p.pagamentos||[]).forEach(function(g){
@@ -27424,7 +27541,7 @@ function periodoPadrao(o){
 function pedsPeriodo(o){
   baseSuc();
   return (DB.pedidos||[]).filter(function(p){
-    if(p.fase==='cancelado')return false;
+    if(ehCancelado(p))return false;
     var d=String(p.data||'').slice(0,10);
     if(o.de&&d<o.de)return false;
     if(o.ate&&d>o.ate)return false;
@@ -28372,8 +28489,6 @@ var AFAZER={
  'loja/dados-fiscais':['Dados Fiscais',
    'Regime tributário, CNPJ, certificado e a integração com o emissor de nota.'],
 
- 'loja/status-vendas':['Status de Vendas',
-   'As fases do kanban: nomes, cores e ordem.']
 };
 /* ==========================================================
    BUSCA E ORDENAÇÃO EM TODA TABELA
@@ -29549,12 +29664,11 @@ async function aceitarPedidoOnline(id){
         return {nome:o.nome,preco:Number(o.preco)||0}})};
   });
   /* 3) o pedido no PDV — já na fase inicial do fluxo de entrega */
-  var fs=(cfg().fases||['aguardando','preparo','saiu','entregue']);
   var ag=new Date();
   var ped={id:uid('ped'),numero:(DB.pedidos.length+1),
     tipo:(p.tipo==='entrega'?'entrega':'loja'),
     canal:'cardapio',
-    fase:(p.tipo==='entrega'?(fs[0]||'aguardando'):(fs.indexOf('entregue')>=0?'entregue':fs[fs.length-1])),
+    fase:statusInicial(p.tipo==='entrega'?'entrega':'loja'),
     itens:itens,clienteId:cli.id,clienteNome:cli.nome,
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
     sucursalId:p.sucursal_id||'suc_matriz',
@@ -30556,8 +30670,8 @@ function blocoRotinas() {
 function resumoDoCaixa(cx){
   baseFormas();
   var peds=(DB.pedidos||[]).filter(function(p){return p.caixaId===cx.id});
-  var ok=peds.filter(function(p){return p.fase!=='cancelado'});
-  var canc=peds.filter(function(p){return p.fase==='cancelado'});
+  var ok=peds.filter(function(p){return !ehCancelado(p)});
+  var canc=peds.filter(function(p){return ehCancelado(p)});
   var total=ok.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var porForma={};
   ok.forEach(function(p){
@@ -31130,7 +31244,7 @@ function cancelarVenda(){
 function pedirCancelamento(id){
   var p=(DB.pedidos||[]).find(function(x){return x.id===id});
   if(!p)return;
-  if(p.fase==='cancelado'){toast('Este pedido ja esta cancelado.');return;}
+  if(ehCancelado(p)){toast('Este pedido ja esta cancelado.');return;}
   if(!motivosCancAtivos().length){
     toast('Cadastre um motivo em Configuracao da Loja > Motivo de Cancelamento.');
     return;
@@ -31154,7 +31268,7 @@ function buscarParaCancelar(num){
      '<span>Nenhum pedido com o número <b>'+E(num)+'</b></span></div>';
     return;
   }
-  if(p.fase==='cancelado'){
+  if(ehCancelado(p)){
     box.innerHTML='<div class="cvVazio jaCanc">'+sv('help',20)+
      '<span>O pedido <b>#'+E(num)+'</b> já está cancelado.</span></div>';
     return;
@@ -31269,6 +31383,214 @@ async function confirmarCancelamento(id){
 }
 
 
+
+
+/* ---------- a tela do cadastro de status ---------- */
+function telaStatusVendas(){
+  baseStatus();
+  var lst=DB.statusVenda.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+  var ativos=lst.filter(function(x){return x.ativo!==false});
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Status de Vendas</h1>'+
+    '<p>Cada status ligado vira uma coluna no Kanban do PDV, na ordem daqui. '+
+    'O <b>papel</b> e o que o sistema entende do status — e por ele que o estoque volta '+
+    'no cancelamento e a venda entra no faturamento quando termina.</p></div>'+
+    '<button class="infoBt" onclick="explicaStatus()">'+sv('help',15)+'</button>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2 ok" onclick="formStatus()">'+sv('plus',14)+' Novo status</button>'+
+   '</div>'+
+
+   '<div class="stPrev"><div class="stPrevH">Como o Kanban vai ficar</div>'+
+   '<div class="stCols">'+(ativos.length?ativos.map(function(x){
+     return '<div class="stCol" style="--sc:'+E(x.cor||'#8A8578')+'">'+
+      '<b>'+E(x.nome)+'</b>'+
+      '<span>'+E(nomePapel(x.papel))+'</span>'+
+      (x.minutos?'<i>'+sv('clock',10)+' '+x.minutos+' min</i>':'')+
+      (x.som?'<i>'+sv('bell',10)+' alerta</i>':'')+
+      '</div>';
+   }).join(''):'<div class="hint">Nenhum status ligado — o Kanban ficaria vazio.</div>')+
+   '</div></div>'+
+
+   '<div class="pnl2"><div class="pnl2H">Status cadastrados <span class="cnt2">'+lst.length+'</span></div>'+
+   '<div class="pnl2B" style="padding:0">'+
+   '<table class="pTable finTab"><thead><tr>'+
+    '<th style="width:70px">Ordem</th>'+
+    '<th>Descricao</th>'+
+    '<th style="width:150px">Papel</th>'+
+    '<th style="width:96px;text-align:center">Tempo</th>'+
+    '<th style="width:86px;text-align:center">Alerta</th>'+
+    '<th style="width:88px;text-align:center">Ativo</th>'+
+    '<th style="width:112px"></th></tr></thead><tbody>'+
+   lst.map(function(x,i){
+     var pedidos=(DB.pedidos||[]).filter(function(p){return p.fase===x.id}).length;
+     return '<tr'+(x.ativo===false?' class="off"':'')+'>'+
+      '<td><div class="stOrd">'+
+       (i>0?'<button class="rBtn" onclick="moverStatus(\''+x.id+'\',-1)">'+sv('up2',10)+'</button>':'')+
+       (i<lst.length-1?'<button class="rBtn" onclick="moverStatus(\''+x.id+'\',1)">'+sv('dn4',10)+'</button>':'')+
+      '</div></td>'+
+      '<td><b><span class="stPt" style="background:'+E(x.cor||'#8A8578')+'"></span>'+E(x.nome)+'</b>'+
+       (pedidos?'<small>'+pedidos+' pedido(s) neste status</small>':'')+'</td>'+
+      '<td><span class="stPap">'+E(nomePapel(x.papel))+'</span></td>'+
+      '<td style="text-align:center">'+(x.minutos?x.minutos+' min':'—')+'</td>'+
+      '<td style="text-align:center">'+(x.som?sv('bell',13):'—')+'</td>'+
+      '<td style="text-align:center"><label class="miniSw">'+
+       '<input type="checkbox" '+(x.ativo!==false?'checked':'')+
+       ' onchange="togStatus(\''+x.id+'\')"><i></i></label></td>'+
+      '<td><div class="rowAct">'+
+       '<button class="rBtn" onclick="formStatus(\''+x.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
+       '<button class="rBtn rd" onclick="excluirStatus(\''+x.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
+      '</div></td></tr>';
+   }).join('')+'</tbody></table>'+
+   '</div></div></div></div>';
+  rodape(ativos.length+' status ligados de '+lst.length);
+}
+function explicaStatus(){
+  confirmar({titulo:'Status de Vendas',texto:'O que o papel decide',
+   linhas:[['Cancelado','o estoque volta e a venda sai do faturamento',''],
+           ['Finalizado','a venda conta como concluida nos relatorios',''],
+           ['Em entrega','o pedido aparece para acerto de entregador',''],
+           ['Os demais','sao etapas do caminho, sem efeito no dinheiro','']],
+   aviso:'O nome do status voce escolhe. O papel e o que o sistema entende — por isso '+
+    'precisa existir sempre um status de papel Cancelado e um de papel Finalizado ligados. '+
+    'Sem eles o PDV nao consegue concluir nem cancelar uma venda.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function formStatus(id){
+  baseStatus();
+  var x=id?statusVenda(id):null;
+  var cores=['#8A8578','#C9922F','#1F5F8B','#0E8A46','#B4542F','#7A4E9B','#00A08B'];
+  modal(x?'Editar status da venda':'Novo status da venda',
+  '<div class="mdB">'+
+   '<div class="fld2"><label>Descricao *</label>'+
+    '<input id="stNome" value="'+E(x?x.nome:'')+'" placeholder="Em preparacao, Pronto, Saiu..."></div>'+
+   '<div class="fld2"><label>O que este status significa *</label>'+
+    '<select id="stPapel">'+PAPEIS.map(function(p){
+      return '<option value="'+p.id+'"'+((x?x.papel:'producao')===p.id?' selected':'')+'>'+
+       E(p.n)+' — '+E(p.d)+'</option>';
+    }).join('')+'</select>'+
+    '<div class="hint">E por aqui que o sistema sabe o que fazer com o pedido. '+
+     'O nome acima pode ser o que voce quiser.</div></div>'+
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+    '<div class="fld2"><label>Tempo limite (minutos)</label>'+
+     '<input id="stMin" type="number" min="0" value="'+(x?x.minutos||0:0)+'">'+
+     '<div class="hint">0 = sem aviso. Passou disso, o cartao fica vermelho no Kanban.</div></div>'+
+    '<div class="fld2"><label>Cor da coluna</label>'+
+     '<div class="stCores">'+cores.map(function(c){
+       return '<label class="stCor'+((x?x.cor:cores[1])===c?' on':'')+'" style="background:'+c+'">'+
+        '<input type="radio" name="stCor" value="'+c+'"'+((x?x.cor:cores[1])===c?' checked':'')+'></label>';
+     }).join('')+'</div></div>'+
+   '</div>'+
+   '<label class="chkL"><input type="checkbox" id="stSom" '+(x&&x.som?'checked':'')+'>'+
+    '<span>Emitir alerta sonoro quando um pedido chegar neste status</span></label>'+
+   '<label class="chkL"><input type="checkbox" id="stConf" '+(x&&x.confPag?'checked':'')+'>'+
+    '<span>Conferir o pagamento antes de sair deste status</span></label>'+
+   '<label class="chkL"><input type="checkbox" id="stAtivo" '+(!x||x.ativo!==false?'checked':'')+'>'+
+    '<span>Ativo — aparece como coluna no Kanban</span></label>'+
+  '</div>','Salvar',function(){
+    var nome=$('stNome').value.trim();
+    if(!nome){toast('Informe a descricao do status.');return false;}
+    var papel=$('stPapel').value;
+    var cor='#C9922F';
+    var rs=document.querySelectorAll('input[name="stCor"]');
+    for(var i=0;i<rs.length;i++)if(rs[i].checked)cor=rs[i].value;
+    var o={nome:nome,papel:papel,cor:cor,minutos:parseInt($('stMin').value,10)||0,
+      som:$('stSom').checked,confPag:$('stConf').checked,ativo:$('stAtivo').checked};
+    /* desligar o ultimo Cancelado ou Finalizado deixaria o PDV sem saida */
+    if(!o.ativo&&x&&(x.papel==='cancelado'||x.papel==='finalizado')){
+      var sobra=statusAtivos().filter(function(y){return y.papel===x.papel&&y.id!==x.id});
+      if(!sobra.length){
+        toast('Precisa haver ao menos um status ativo com o papel '+nomePapel(x.papel)+'.');
+        return false;
+      }
+    }
+    if(x)Object.assign(x,o);
+    else DB.statusVenda.push(Object.assign({id:uid('st'),ordem:DB.statusVenda.length},o));
+    salvar();telaStatusVendas();toast(x?'Status atualizado.':'Status criado.');
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+}
+function togStatus(id){
+  var x=statusVenda(id);if(!x)return;
+  if(x.ativo!==false&&(x.papel==='cancelado'||x.papel==='finalizado')){
+    var sobra=statusAtivos().filter(function(y){return y.papel===x.papel&&y.id!==id});
+    if(!sobra.length){
+      toast('Precisa haver ao menos um status ativo com o papel '+nomePapel(x.papel)+'.');
+      telaStatusVendas();return;
+    }
+  }
+  x.ativo=(x.ativo===false);
+  salvar();telaStatusVendas();
+  if(NUVEM.ligada)sincronizar();
+}
+function moverStatus(id,d){
+  baseStatus();
+  var l=DB.statusVenda.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+  var i=l.findIndex(function(x){return x.id===id});
+  if(i<0||i+d<0||i+d>=l.length)return;
+  var t=l[i];l[i]=l[i+d];l[i+d]=t;
+  l.forEach(function(x,k){x.ordem=k});
+  salvar();telaStatusVendas();
+  if(NUVEM.ligada)sincronizar();
+}
+async function excluirStatus(id){
+  var x=statusVenda(id);if(!x)return;
+  var usados=(DB.pedidos||[]).filter(function(p){return p.fase===id}).length;
+  if(usados){
+    confirmar({titulo:'Nao da para excluir',texto:E(x.nome),
+     linhas:[['Pedidos neste status',String(usados),'vr']],
+     aviso:'Ha pedidos parados neste status. Se ele sumisse, esses pedidos ficariam sem '+
+      'coluna no Kanban. Mova os pedidos primeiro, ou apenas desative o status.',
+     ok:'Entendi',cancelar:null}).then(function(){});
+    return;
+  }
+  var sobra=DB.statusVenda.filter(function(y){return y.papel===x.papel&&y.id!==id});
+  if((x.papel==='cancelado'||x.papel==='finalizado')&&!sobra.length){
+    toast('Este e o unico status com papel '+nomePapel(x.papel)+'. Sem ele o PDV trava.');
+    return;
+  }
+  var ok=await confirmar({titulo:'Excluir status',texto:E(x.nome),
+    aviso:'A coluna some do Kanban. Nenhum pedido esta neste status.',
+    ok:'Excluir',tipo:'perigo'});
+  if(!ok)return;
+  DB.statusVenda=DB.statusVenda.filter(function(y){return y.id!==id});
+  salvar();telaStatusVendas();toast('Status excluido.');
+  if(NUVEM.ligada)sincronizar();
+}
+
+/* ---------- alerta sonoro ----------
+   Sem arquivo de som: o proprio navegador gera o bipe. Assim funciona
+   offline e nao depende de nada hospedado. */
+var _audioCtx=null;
+function bipe(){
+  try{
+    _audioCtx=_audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    var t=_audioCtx.currentTime;
+    [880,1180].forEach(function(hz,i){
+      var o=_audioCtx.createOscillator(),g=_audioCtx.createGain();
+      o.type='sine';o.frequency.value=hz;
+      g.gain.setValueAtTime(0.0001,t+i*0.16);
+      g.gain.exponentialRampToValueAtTime(0.22,t+i*0.16+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+i*0.16+0.14);
+      o.connect(g);g.connect(_audioCtx.destination);
+      o.start(t+i*0.16);o.stop(t+i*0.16+0.16);
+    });
+  }catch(e){}
+}
+/* quanto tempo o pedido esta parado no status atual, em minutos */
+function minutosNoStatus(p){
+  var q=p.statusEm||p.data;
+  if(!q)return 0;
+  var d=new Date(q);
+  if(isNaN(d))return 0;
+  return Math.floor((Date.now()-d.getTime())/60000);
+}
+function atrasado(p){
+  var st=statusVenda(p.fase);
+  if(!st||!st.minutos)return false;
+  return minutosNoStatus(p)>st.minutos;
+}
 
 /* ==========================================================
    MODELO DE IMPRESSAO
