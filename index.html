@@ -13520,7 +13520,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.17.0';
+var VERSAO='V19.17.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15211,6 +15211,215 @@ function checarCampoBoleto(idCampo,idAviso){
   }
 }
 
+
+
+/* ==========================================================
+   MODO OFFLINE
+   O Nexor sempre grava no aparelho primeiro e sobe depois — a venda
+   nunca dependeu da internet. O que faltava era a pessoa SABER em que
+   estado esta, e ter onde conferir o que ainda nao subiu.
+
+   Nao existe "PDV de contingencia" separado de proposito: duas listas
+   de venda dariam duas numeracoes e estoque baixado duas vezes. E o
+   mesmo PDV, com a rede sendo um detalhe.
+   ========================================================== */
+var NET={online:true,caiuEm:null,voltouEm:null};
+
+function estaOnline(){
+  return (typeof navigator!=='undefined'&&navigator.onLine!==false);
+}
+function pintarRede(){
+  var el=document.getElementById('netTag');
+  if(!el){
+    var hdr=document.getElementById('hdr');
+    if(!hdr)return;
+    el=document.createElement('span');
+    el.id='netTag';el.className='netTag';
+    var rt=document.getElementById('rtTag');
+    if(rt&&rt.parentNode)rt.parentNode.insertBefore(el,rt);
+    else hdr.appendChild(el);
+  }
+  var pend=pendentesDeEnvio();
+  if(NET.online){
+    el.className='netTag'+(pend?' pend':'');
+    el.innerHTML=pend?(sv('cloud',13)+' '+pend+' a enviar'):'';
+    el.onclick=pend?function(){abrir('tecnico','sincronizacao')}:null;
+    el.style.display=pend?'':'none';
+  }else{
+    el.className='netTag off';
+    el.innerHTML=sv('cloud',13)+' SEM INTERNET — vendendo normal';
+    el.style.display='';
+    el.onclick=function(){abrir('tecnico','sincronizacao')};
+  }
+}
+/* quanta coisa ainda nao subiu */
+function pendentesDeEnvio(){
+  if(!NUVEM.ligada)return 0;
+  if(!NUVEM.sujo&&!DB._sujo)return 0;
+  var n=0;
+  try{
+    MAPA.forEach(function(m){ n+=((DB[m.col]||[]).length?1:0); });
+  }catch(e){}
+  return NUVEM.sujo||DB._sujo?1:0;   /* 1 = ha algo pendente */
+}
+function caiuARede(){
+  if(!NET.online)return;
+  NET.online=false;NET.caiuEm=new Date().toISOString();
+  pintarRede();
+  avisoRede('A internet caiu. <b>Pode continuar vendendo normalmente</b> — tudo fica '+
+    'guardado neste aparelho e sobe sozinho quando a conexão voltar.','off');
+  logNuvem('internet caiu — operando no aparelho');
+}
+function voltouARede(){
+  if(NET.online)return;
+  NET.online=true;NET.voltouEm=new Date().toISOString();
+  pintarRede();
+  logNuvem('internet voltou — enviando pendências');
+  /* quantas vendas sairam enquanto estava fora, para poder confirmar no fim:
+     aviso que some sem dizer se deu certo nao serve para nada */
+  var desde=NET.caiuEm||'';
+  var offline=(DB.pedidos||[]).filter(function(p){
+    return desde&&String(p.data||'')>=desde;}).length;
+  avisoRede('Internet de volta. Enviando'+
+    (offline?' <b>'+offline+' venda'+(offline>1?'s':'')+'</b> feita'+(offline>1?'s':'')+
+     ' sem conexão':' o que ficou para trás')+'...','on',true);
+  setTimeout(async function(){
+    if(!NUVEM.ligada){
+      avisoRede('Internet de volta, mas a nuvem está desligada. '+
+        'Entre em <b>Banco de dados</b> para enviar.','off');
+      return;
+    }
+    try{
+      await sincronizar();
+      if(NUVEM.sujo||DB._sujo){
+        avisoRede('A conexão voltou, mas <b>ainda ficou coisa para enviar</b>. '+
+          'Abra Administração &rsaquo; Sincronização e toque em Enviar agora.','off');
+      }else{
+        avisoRede('Pronto — '+(offline?offline+' venda'+(offline>1?'s':'')+' enviada'+
+          (offline>1?'s':''):'tudo enviado')+'. <b>Está tudo no sistema, normal.</b>','on');
+      }
+    }catch(e){
+      avisoRede('A conexão voltou, mas o envio falhou: '+
+        E((e&&e.message)||'tente de novo em Sincronização')+'. '+
+        '<b>Nada foi perdido</b> — está tudo guardado no aparelho.','off');
+    }
+    pintarRede();
+  },1200);
+}
+function avisoRede(txt,tipo,segurar){
+  var v=document.getElementById('avisoNet');
+  if(v)v.remove();
+  var d=document.createElement('div');
+  d.id='avisoNet';d.className='avisoNet '+tipo;
+  d.innerHTML=sv('cloud',18)+'<div>'+txt+'</div>'+
+   '<button onclick="this.parentNode.remove()">&times;</button>';
+  document.body.appendChild(d);
+  /* "enviando..." fica ate a resposta chegar; o resultado some sozinho.
+     Aviso vermelho NAO some: exige que a pessoa veja e feche. */
+  if(tipo==='on'&&!segurar)
+    setTimeout(function(){
+      var x=document.getElementById('avisoNet');
+      if(x&&x.className.indexOf('on')>=0)x.remove();
+    },8000);
+}
+(function vigiarRede(){
+  try{
+    NET.online=estaOnline();
+    window.addEventListener('offline',caiuARede);
+    window.addEventListener('online',voltouARede);
+    /* navigator.onLine mente em algumas redes de loja: confere de verdade */
+    setInterval(async function(){
+      if(!NUVEM.ligada)return;
+      var vivo=estaOnline();
+      if(vivo&&!NET.online)voltouARede();
+      if(!vivo&&NET.online)caiuARede();
+      pintarRede();
+    },15000);
+  }catch(e){}
+})();
+
+/* ---------- a tela de conferência ---------- */
+function telaSincronizacao(){
+  var pend=(NUVEM.sujo||DB._sujo);
+  var ultimo=NUVEM.ultimoEnvio||'—';
+  var contas={};
+  try{ MAPA.forEach(function(m){ contas[m.col]=(DB[m.col]||[]).length; }); }catch(e){}
+  var vendasHoje=(DB.pedidos||[]).filter(function(p){
+    return String(p.data||'').slice(0,10)===hojeISO();}).length;
+
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo"><div><h1>Sincronização</h1>'+
+   '<p>O Nexor grava tudo no aparelho primeiro. A nuvem recebe depois — por isso a '+
+   'venda nunca para quando a internet cai.</p></div>'+
+   '<button class="infoBt" onclick="explicaOffline()">'+sv('help',15)+'</button></div>'+
+
+   '<div class="syBox '+(NET.online?'on':'off')+'">'+
+    sv('cloud',26)+
+    '<div><b>'+(NET.online?'Conectado':'Sem internet — modo offline')+'</b>'+
+    '<span>'+(NET.online
+      ?(pend?'Há alterações esperando para subir.':'Tudo enviado para a nuvem.')
+      :'Continue vendendo. Nada se perde: tudo está guardado neste aparelho e sobe '+
+       'sozinho quando a conexão voltar.')+'</span></div>'+
+    (NET.online&&pend?'<button class="btnP2 ok" onclick="enviarAgora()">'+
+      sv('cloud',14)+' Enviar agora</button>':'')+
+   '</div>'+
+
+   '<div class="syGrade">'+
+    '<div class="syC"><span>Situação da nuvem</span><b>'+
+      (NUVEM.ligada?(pend?'pendente':'em dia'):'desligada')+'</b></div>'+
+    '<div class="syC"><span>Último envio</span><b>'+E(ultimo)+'</b></div>'+
+    '<div class="syC"><span>Vendas de hoje neste aparelho</span><b>'+vendasHoje+'</b></div>'+
+    '<div class="syC"><span>Cópia local</span><b>'+
+      (localStorage.getItem('nexor_dados')?
+        Math.round(localStorage.getItem('nexor_dados').length/1024)+' KB':'—')+'</b></div>'+
+   '</div>'+
+
+   (NET.caiuEm?'<div class="syHist">'+sv('clock',14)+
+     '<div>Última queda: <b>'+E(String(NET.caiuEm).slice(11,16))+'</b>'+
+     (NET.voltouEm?' · voltou às <b>'+E(String(NET.voltouEm).slice(11,16))+'</b>':
+      ' — ainda fora')+'</div></div>':'')+
+
+   '<div class="pnl2"><div class="pnl2H">O que está guardado neste aparelho</div>'+
+   '<div class="pnl2B" style="padding:0">'+
+   '<table class="pTable"><thead><tr><th>Tipo</th>'+
+   '<th style="width:120px;text-align:right">Registros</th></tr></thead><tbody>'+
+   Object.keys(contas).filter(function(k){return contas[k]>0})
+    .sort(function(a,b){return contas[b]-contas[a]})
+    .map(function(k){
+      return '<tr><td>'+E(nomeAmigavel(k))+'</td>'+
+       '<td style="text-align:right"><b>'+contas[k]+'</b></td></tr>';
+    }).join('')+
+   '</tbody></table></div></div>'+
+   '</div></div>';
+  rodape(NET.online?'conectado':'modo offline');
+}
+function nomeAmigavel(col){
+  var m={pedidos:'Vendas',produtos:'Produtos',insumos:'Ingredientes',clientes:'Clientes',
+   lancFin:'Lançamentos financeiros',movEst:'Movimentações de estoque',caixas:'Caixas',
+   fichas:'Fichas técnicas',notas:'Notas de entrada',comandas:'Comandas de mesa',
+   mesas:'Mesas',cupons_f:'Cupons fiscais',cancelamentos:'Cancelamentos',
+   ordensProd:'Ordens de produção',contagens:'Contagens de estoque'};
+  return m[col]||col;
+}
+async function enviarAgora(){
+  if(!NUVEM.ligada){toast('A nuvem está desligada.');return;}
+  if(!NET.online){toast('Sem internet — o envio acontece sozinho quando voltar.');return;}
+  toast('Enviando...');
+  try{ await sincronizar(); }catch(e){}
+  telaSincronizacao();
+}
+function explicaOffline(){
+  confirmar({titulo:'Como o Nexor funciona sem internet',texto:'Modo offline',
+   linhas:[['A venda','é gravada no aparelho, não na nuvem',''],
+           ['O estoque','baixa na hora, normalmente',''],
+           ['O financeiro','lança na hora, normalmente',''],
+           ['A nuvem','recebe tudo quando a conexão voltar',''],
+           ['Você precisa fazer','nada — é automático','']],
+   aviso:'Não existe um PDV separado para quando a internet cai, e isso é de propósito: '+
+    'duas listas de venda dariam duas numerações e estoque baixado duas vezes. '+
+    'É o mesmo PDV — a internet é só um detalhe.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
 
 /* ==========================================================
    FISCAL — NFC-e (modelo 65)
