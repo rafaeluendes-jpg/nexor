@@ -657,6 +657,9 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.mdvIr{display:flex;align-items:center;gap:10px;margin-top:11px;padding:10px 12px;
+ background:#EAF5EE;border:1px solid #BFE0CC;border-radius:9px;font-size:12.5px;color:#1B5E36}
+.mdvIr>div{flex:1}
 .mdvBox{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:12px;
  padding:14px 16px;margin-bottom:14px}
 .mdvH b{display:block;font-size:13px;color:var(--tx,#2f2a24)}
@@ -13331,7 +13334,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.11.0';
+var VERSAO='V19.11.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -28947,6 +28950,14 @@ function telaCfgPDV(){
        (travado?' disabled':'')+' onchange="salvarModos()">'+
        '<b>'+E(m.n)+'</b><span>'+(travado?'não faz parte do seu contrato':E(m.d))+'</span></label>';
     }).join('')+'</div>'+
+   /* Ligar o modo Mesa faz aparecer telas em outros lugares do menu. Sem
+      dizer isso aqui, a pessoa liga e nao sabe para onde ir. */
+   (modoAtivo('mesa')
+    ?'<div class="mdvIr">'+sv('nike',13)+'<div>Mesa ligada — o cadastro das mesas, '+
+     'o QR Code e a taxa de serviço ficam em <b>Mesas e QR Code</b>.</div>'+
+     '<button class="btnP2 ok" onclick="abrir(\'loja\',\'mesas\')">Ir para Mesas e QR Code</button></div>'
+    :'<div class="hint" style="margin-top:9px">Ligando <b>Mesa</b>, aparecem no menu o cadastro '+
+     'das mesas com QR Code, a aba Mesas no PDV e o relatório de vendas por mesa.</div>')+
    '</div>'+
    '<div class="cfgDuas">'+
     '<div class="cfgCol">'+
