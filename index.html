@@ -2166,7 +2166,7 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .ctTab tbody tr.menos td{background:#FCF0F0}
 .ctTab tbody tr.ok4 td{background:#F7F9FA}
 
-.etScroll{flex:1;overflow-y:auto;overflow-x:hidden}
+.etScroll{flex:1;overflow-y:scroll;overflow-x:hidden;scrollbar-gutter:stable}
 .etScroll::-webkit-scrollbar{width:10px}
 .etScroll::-webkit-scrollbar-thumb{background:#CDD9E4;border-radius:6px}
 .etTabW.plano2{overflow:visible}
@@ -7043,7 +7043,7 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .ctTab tbody tr.menos td{background:#FCF0F0}
 .ctTab tbody tr.ok4 td{background:#F7F9FA}
 
-.etScroll{flex:1;overflow-y:auto;overflow-x:hidden}
+.etScroll{flex:1;overflow-y:scroll;overflow-x:hidden;scrollbar-gutter:stable}
 .etScroll::-webkit-scrollbar{width:10px}
 .etScroll::-webkit-scrollbar-thumb{background:#CDD9E4;border-radius:6px}
 .etTabW.plano2{overflow:visible}
@@ -13195,7 +13195,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.5.3';
+var VERSAO='V19.5.4';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14020,6 +14020,11 @@ function ligarTempoReal(){
     RT.canal=NUVEM.cli.channel('nexor-loja-'+NUVEM.loja)
       .on('postgres_changes',{event:'*',schema:'public'},function(msg){
         if(RT.pausa)return;                       /* mudança feita por mim */
+        /* O canal escutava as 63 tabelas. O robô do WhatsApp e a Assistente
+           escrevem sozinhos o tempo todo — cada gravação deles derrubava e
+           redesenhava a tela de quem estava trabalhando. Só interessa o que
+           o sistema realmente mostra. */
+        if(!tabelaDeTela(msg&&msg.table))return;
         agendarRecarga(msg&&msg.table);
       })
       .subscribe(function(st){
@@ -14038,14 +14043,35 @@ function desligarTempoReal(){
   try{ if(RT.canal&&NUVEM.cli)NUVEM.cli.removeChannel(RT.canal); }catch(e){}
   RT.canal=null;RT.ligado=false;pintaTempoReal();
 }
+/* As tabelas que alimentam alguma tela. O resto — conversa de WhatsApp,
+   sessão do robô, contador de versão, fila da assistente — muda sozinho e
+   não tem nada a ver com o que está desenhado. */
+var _TABS_TELA=null;
+function tabelaDeTela(tab){
+  if(!tab)return false;
+  if(!_TABS_TELA){
+    _TABS_TELA={};
+    MAPA.forEach(function(m){
+      _TABS_TELA[m.tab]=true;
+      (m.filhos||[]).forEach(function(f){_TABS_TELA[f.tab]=true});
+    });
+    ['config_loja','cardapio_config','pedidos_online'].forEach(function(t){_TABS_TELA[t]=true});
+  }
+  return !!_TABS_TELA[tab];
+}
 /* junta várias mudanças seguidas numa só recarga */
 function agendarRecarga(tabela){
   clearTimeout(RT.recarga);
   RT.recarga=setTimeout(async function(){
     try{
       statusNuvem('baixando');
+      var antes=retratoDB();
       await baixarDaNuvem();
       statusNuvem('ok');
+      /* Baixar não é motivo para redesenhar. Antes a tela era refeita a cada
+         recarga, mesmo quando voltava exatamente o que já estava aqui — era
+         a tremida que não parava. */
+      if(retratoDB()===antes){marcaNovidade(false);return;}
       /* se você está no meio de algo, a tela NÃO é trocada.
          Fica um aviso discreto e a atualização acontece quando você terminar. */
       if(ocupado()){
@@ -14128,6 +14154,9 @@ function retratoDB(){
     _COLS_NOME.forEach(function(c){
       r+=c+'='+((DB[c]||[]).map(function(x){return (x&&x.nome)||''}).join('|'))+';';
     });
+    /* status muda de nome, ordem e liga/desliga — e isso reordena o Kanban */
+    r+='sv='+((DB.statusVenda||[]).map(function(x){
+      return x.id+x.ordem+(x.ativo!==false?'1':'0')+x.papel;}).join('|'))+';';
   }catch(e){}
   return r;
 }
