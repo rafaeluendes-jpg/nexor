@@ -657,6 +657,13 @@ body.pdvFull .wTitle{display:none}
 .cfgCard>.h span{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
 .cfgCard>.b{padding:20px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.rcRank{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.rcRank .rcRankIt{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);
+ border-radius:10px;padding:9px 14px;display:flex;align-items:baseline;gap:8px;min-width:130px}
+.rcRank .rcRankIt b{font-size:19px;color:var(--al,#B4542F);line-height:1}
+.rcRank .rcRankIt span{font-size:11.5px;color:var(--tx2,#7a7266)}
+tr.off{opacity:.5}
+
 .faseList{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:9px}
 .faseIt{display:flex;align-items:center;gap:11px;padding:14px 15px;border:1px solid var(--line-2);
   border-radius:10px;cursor:pointer;font-size:13px;background:#fff}
@@ -11069,6 +11076,7 @@ var MOD=[
  {id:'vendas-periodo',n:'Vendas por Período'},
  {id:'dre',n:'DRE'},
  {id:'cmv-mercadoria',n:'CMV por Mercadoria'},
+ {id:'cancelamentos',n:'Cancelamentos'},
  {id:'cupons',n:'Cupons'}]},
 {id:'dashboard',n:'Gestão e Dashboard',ic:'chart',it:[
  {id:'canais-venda',n:'Canais de Venda'},
@@ -11444,6 +11452,26 @@ var MAPA=[
   campos:function(x){return {nome:x.nome,tipo:x.tipo,sistema:!!x.sistema,
     ativo:x.ativo!==false,lojas_visiveis:x.lojas||[]}}},
 
+ /* Motivo de cancelamento virou cadastro. Antes era uma lista fixa dentro do
+    codigo: o dono da loja nao conseguia trocar sem mexer no sistema. */
+ {col:'motivosCanc', espelha:true, tab:'motivos_cancelamento',
+  campos:function(x,i){return {nome:x.nome,ativo:x.ativo!==false,ordem:x.ordem||i}}},
+
+ /* Turno tem que vir antes de caixas no MAPA: o caixa aponta para o turno,
+    e o vinculo so resolve se o turno ja subiu. */
+ {col:'turnos', espelha:true, tab:'turnos',
+  campos:function(x,i){return {nome:x.nome,hora_inicio:x.ini||null,hora_fim:x.fim||null,
+    ativo:x.ativo!==false,ordem:x.ordem||i}}},
+
+ /* O cancelamento tem registro proprio, e nao so um campo no pedido. Assim o
+    relatorio nasce de uma trilha, com quem fez, quando e por que. */
+ {col:'cancelamentos', tab:'cancelamentos',
+  campos:function(x){return {pedido_ref:x.pedidoId||null,pedido_numero:n(x.numero),
+    valor:n(x.valor),data:x.data||null,hora:x.hora||null,
+    motivo_id:fk('motivosCanc',x.motivoId),motivo_nome:x.motivo||null,
+    observacao:x.obs||null,operador_id:x.operadorId||null,operador_nome:x.operador||null,
+    caixa_ref:x.caixaId||null,turno_nome:x.turno||null}}},
+
  {col:'movEst',      tab:'movimentacoes_estoque',
   campos:function(x){return {data:x.data||null,hora:x.hora||null,
     motivo_id:fk('motivosMov',x.motivoId),identificacao:x.identificacao||null,
@@ -11490,6 +11518,7 @@ var MAPA=[
 
  {col:'caixas',      tab:'caixas',
   campos:function(x){return {operador:x.operador||null,valor_inicial:n(x.inicial),
+    turno_id:fk('turnos',x.turnoId),turno_nome:x.turno||null,operador_id:x.operadorId||null,
     aberto_txt:x.aberto||null,fechado_txt:x.fechadoEm||null,
     esperado:n(x.esperado),contado:n(x.contado),total_informado:n(x.totalInformado),
     vendas:n(x.vendas),qtd_pedidos:n(x.qtd),conferencia:x.conferencia||{},observacao:x.obs||null}},
@@ -12279,6 +12308,23 @@ async function baixarDaNuvem(forcar){
   DB.motivosMov=volta(mv,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,
     sistema:!!x.sistema,ativo:x.ativo!==false,lojas:x.lojas_visiveis||[]}});
 
+  var mc=await api('motivos_cancelamento'+qs+'&order=ordem');
+  var mapaMc={};mc.forEach(function(x){mapaMc[x.id]=x.ref_local||x.id});
+  DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
+    ativo:x.ativo!==false,ordem:x.ordem||0}});
+
+  var tn=await api('turnos'+qs+'&order=ordem');
+  var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
+  DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
+    ini:x.hora_inicio||'',fim:x.hora_fim||'',ativo:x.ativo!==false,ordem:x.ordem||0}});
+
+  var cnc=await api('cancelamentos'+qs+'&order=criado_em.desc&limit=2000');
+  DB.cancelamentos=volta(cnc,function(x){return {id:x.ref_local||x.id,
+    pedidoId:x.pedido_ref||'',numero:x.pedido_numero||0,valor:Number(x.valor)||0,
+    data:x.data||'',hora:x.hora||'',motivoId:mapaMc[x.motivo_id]||'',
+    motivo:x.motivo_nome||'',obs:x.observacao||'',operadorId:x.operador_id||'',
+    operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||''}});
+
   var me=await api('movimentacoes_estoque'+qs+'&order=data.desc&limit=3000');
   DB.movEst=volta(me,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     motivoId:mapaMt[x.motivo_id]||'',identificacao:x.identificacao||'',obs:x.observacao||'',
@@ -12387,6 +12433,7 @@ async function baixarDaNuvem(forcar){
     /* se aqui já estava fechado, mantém — fechamento nunca é desfeito */
     fechadoEm:x.fechado_txt||fechadosAqui[ref]||null,
     operador:x.operador,inicial:Number(x.valor_inicial)||0,
+    turnoId:mapaTn[x.turno_id]||'',turno:x.turno_nome||'',operadorId:x.operador_id||'',
     vendas:Number(x.vendas)||0,esperado:Number(x.esperado)||0,contado:Number(x.contado)||0,
     totalInformado:Number(x.total_informado)||0,qtd:x.qtd_pedidos||0,
     conferencia:x.conferencia||{},obs:x.observacao||'',
@@ -12859,7 +12906,11 @@ try{
 }catch(e){}
 
 /* ===== BLOCO 6 — INTERFACE ===== */
-function boot(){topo();faixa();abrir('cardapio','cfg-cardapio');
+function boot(){
+  DB.motivosCanc=DB.motivosCanc||[];DB.turnos=DB.turnos||[];
+  DB.cancelamentos=DB.cancelamentos||[];
+  baseCanc();baseTurnos();
+  topo();faixa();abrir('cardapio','cfg-cardapio');
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
 function topo(){
@@ -12983,7 +13034,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.0.0';
+var VERSAO='V19.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13057,6 +13108,9 @@ if(mid==='pdv'&&iid==='pdv')return telaPDV();
 if(mid==='pdv'&&iid==='pedidos-online'){limparSeloPedidos();return telaPedidosOnline();}
 if(mid==='loja'&&iid==='cfg-pdv')return telaCfgPDV();
 if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
+if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
+if(mid==='loja'&&iid==='turnos')return telaTurnos();
+if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -15234,9 +15288,22 @@ function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
   toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
 function abrirCaixa(){
   if(caixaAberto()){toast('Já existe um caixa aberto. Feche-o antes de abrir outro.');return;}
-  baseOper();
+  baseOper();baseTurnos();
   var ops=operAtivos();
+  var tns=turnosAtivos();
+  var sug=turnoDoRelogio();
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
+  /* O turno vem primeiro: e ele que define a que periodo pertence tudo o que
+     for lancado neste caixa. Sem isso o relatorio nao consegue separar. */
+  (tns.length?'<div class="fld2"><label>Turno *</label>'+
+   '<div class="tipoEsc">'+tns.map(function(t){
+     return '<label class="tipoOp'+(t.id===sug?' on':'')+'">'+
+      '<input type="radio" name="cxTurno" value="'+E(t.id)+'"'+(t.id===sug?' checked':'')+'>'+
+      '<b>'+E(t.nome)+'</b><span>'+(t.ini&&t.fim?E(t.ini)+' as '+E(t.fim):'sem horario')+'</span></label>';
+   }).join('')+'</div>'+
+   '<div class="hint">Sugerido pelo horario. Se estiver assumindo outro turno, troque aqui.</div></div>'
+  :'<div class="hint" style="margin-bottom:10px">Nenhum turno cadastrado. '+
+   'Cadastre em Configuracao da Loja &rsaquo; Turnos para separar os caixas por periodo.</div>')+
   '<div class="fld2"><label>Quem está abrindo o caixa *</label>'+
    (ops.length>1
     ?'<select id="cxOp" onchange="pedeSenhaCaixa(\'cx\')">'+
@@ -15263,13 +15330,19 @@ function abrirCaixa(){
       var s1=($('cxSenha')||{}).value||'';
       if(s1!==op.senha){toast('Senha incorreta.');return false;}
     }
+    var turnoId='';
+    var rt=document.querySelectorAll('input[name="cxTurno"]');
+    for(var ti=0;ti<rt.length;ti++)if(rt[ti].checked)turnoId=rt[ti].value;
+    if(rt.length&&!turnoId){toast('Escolha o turno.');return false;}
     DB.caixas=DB.caixas||[];
     var ag=new Date();
     var novoCx={id:uid('cx'),inicial:parseFloat($('cxIni').value)||0,
       operador:op.nome,operadorId:op.id,funcao:op.funcao,
+      turnoId:turnoId,turno:nomeTurno(turnoId),
       movimentos:[],aberto:ag.toLocaleDateString('pt-BR')+' '+agoraHM()};
     DB.caixas.push(novoCx);
-    salvar();telaPDV();toast('Caixa aberto por '+op.nome+'.');
+    salvar();telaPDV();
+    toast('Caixa aberto por '+op.nome+(novoCx.turno?' — '+novoCx.turno:'')+'.');
     if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'abertura',msgAbertura(novoCx));
     return true;
@@ -19320,9 +19393,9 @@ async function excluirForn(id){
 /* ==========================================================
    BLOCO 17 — FRENTE DE CAIXA (financeiro)
    ========================================================== */
-var FC={de:'',ate:''};
+var FC={de:'',ate:'',turno:''};
 function telaFrenteCaixa(){
-  baseLanc();
+  baseLanc();baseTurnos();
   DB.caixas=DB.caixas||[];
   if(!FC.de){var d=new Date();
     FC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
@@ -19330,6 +19403,7 @@ function telaFrenteCaixa(){
   var aberto=caixaAberto();
   var fechados=(DB.caixas||[]).filter(function(c){
     if(!c.fechadoEm)return false;
+    if(FC.turno&&c.turnoId!==FC.turno)return false;
     var d=isoDoCaixa(c.aberto);
     return (!FC.de||d>=FC.de)&&(!FC.ate||d<=FC.ate);
   }).sort(function(a,b){return isoDoCaixa(b.aberto).localeCompare(isoDoCaixa(a.aberto))});
@@ -19346,7 +19420,7 @@ function telaFrenteCaixa(){
    ?'<div class="fcAberto">'+
      '<div class="fcIco">'+sv('cash',26)+'</div>'+
      '<div class="fcInfo">'+
-      '<span class="fcTag">CAIXA ABERTO</span>'+
+      '<span class="fcTag">CAIXA ABERTO'+(aberto.turno?' · '+E(aberto.turno).toUpperCase():'')+'</span>'+
       '<b>Aberto em '+E(aberto.aberto)+'</b>'+
       '<span>Operador: '+E(aberto.operador||'—')+' · '+movimentoCaixa(aberto.id).qtd+' pedidos no turno</span>'+
      '</div>'+
@@ -19362,8 +19436,13 @@ function telaFrenteCaixa(){
   '<div class="filtroCard" style="margin-top:4px">'+
    '<div class="fl"><label>De</label><input type="date" id="fcDe" value="'+FC.de+'"></div>'+
    '<div class="fl"><label>Até</label><input type="date" id="fcAte" value="'+FC.ate+'"></div>'+
+   '<div class="fl"><label>Turno</label><select id="fcTurno">'+
+    '<option value="">Todos os turnos</option>'+
+    (DB.turnos||[]).map(function(t){
+      return '<option value="'+E(t.id)+'"'+(FC.turno===t.id?' selected':'')+'>'+E(t.nome)+'</option>';
+    }).join('')+'</select></div>'+
    '<button class="btnP2 ok" onclick="buscarCaixas()">'+sv('search',14)+' Buscar</button>'+
-   '<button class="btnP2" onclick="FC.de=\'\';FC.ate=\'\';telaFrenteCaixa()">Limpar</button>'+
+   '<button class="btnP2" onclick="FC.de=\'\';FC.ate=\'\';FC.turno=\'\';telaFrenteCaixa()">Limpar</button>'+
    '<div style="flex:1"></div>'+
    '<div class="fcResumo">'+
     '<div><span>Turnos</span><b>'+fechados.length+'</b></div>'+
@@ -19386,7 +19465,7 @@ function telaFrenteCaixa(){
      var dif=(Number(c.contado)||0)-(Number(c.esperado)||0);
      var trava=caixaConciliado(c.id);
      return '<tr style="cursor:pointer" onclick="verCaixa(\''+c.id+'\')">'+
-     '<td><b>'+E(c.aberto)+'</b>'+
+     '<td><b>'+E(c.aberto)+(c.turno?' <span class="cidTag">'+E(c.turno)+'</span>':'')+'</b>'+
       '<small>fechou '+E(c.fechadoEm)+' · '+E(c.operador||'sem operador')+
       (trava?' <span class="concTag">'+sv('nike',11)+'</span>':'')+'</small></td>'+
      '<td style="text-align:center">'+(c.qtd||0)+'</td>'+
@@ -19410,7 +19489,11 @@ function isoDoCaixa(txt){
   if(p.length!==3)return hojeISO();
   return p[2]+'-'+p[1]+'-'+p[0];
 }
-function buscarCaixas(){FC.de=$('fcDe').value;FC.ate=$('fcAte').value;telaFrenteCaixa();}
+function buscarCaixas(){
+  FC.de=$('fcDe').value;FC.ate=$('fcAte').value;
+  FC.turno=($('fcTurno')||{}).value||'';
+  telaFrenteCaixa();
+}
 function caixaConciliado(id){
   return (DB.lancFin||[]).some(function(l){return l.ref===id&&l.origem==='fechamento-caixa'&&l.conciliado});
 }
@@ -30963,10 +31046,27 @@ function buscarParaCancelar(num){
    '<div class="fld2" style="margin:14px 0 0"><label>Motivo do cancelamento *</label>'+
     '<select id="cvMot">'+
     '<option value="">Escolha o motivo</option>'+
-    MOTIVOS_CANC.map(function(m){return '<option value="'+E(m)+'">'+E(m)+'</option>'}).join('')+
-    '</select></div>'+
+    motivosCancAtivos().map(function(m){
+      return '<option value="'+E(m.id)+'">'+E(m.nome)+'</option>'}).join('')+
+    '</select>'+
+    (motivosCancAtivos().length?''
+     :'<div class="hint">Nenhum motivo ativo. Cadastre em Configuracao da Loja &rsaquo; Motivo de Cancelamento.</div>')+
+   '</div>'+
    '<div class="fld2" style="margin:10px 0 0"><label>Observação</label>'+
     '<input id="cvObs" placeholder="detalhe, se precisar"></div>'+
+   /* Quem cancela assina. Antes ia como "Administrador" ou o nome de quem
+      abriu o caixa, mesmo que outra pessoa estivesse na maquina. */
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 0">'+
+    '<div class="fld2" style="margin:0"><label>Quem esta cancelando *</label>'+
+     '<select id="cvOp" onchange="pedeSenhaCancel()">'+
+     '<option value="">Selecione</option>'+
+     operAtivos().map(function(o){
+       return '<option value="'+E(o.id)+'">'+E(o.nome)+'</option>'}).join('')+
+     '</select></div>'+
+    '<div class="fld2" style="margin:0"><label>Senha *</label>'+
+     '<input id="cvSenha" type="password" inputmode="numeric" placeholder="senha do caixa" autocomplete="off">'+
+     '</div>'+
+   '</div>'+
    '<div class="cvAviso">'+sv('help',14)+
     '<div>Ao cancelar: o estoque volta, o valor sai do faturamento e '+
     'o gerente é avisado no WhatsApp.</div></div>'+
@@ -30974,34 +31074,489 @@ function buscarParaCancelar(num){
     'onclick="confirmarCancelamento(\''+p.id+'\')">'+sv('x2',13)+' Cancelar a venda #'+E(p.numero)+'</button>'+
   '</div>';
 }
+/* mostra a senha so quando o operador escolhido tem senha cadastrada */
+function pedeSenhaCancel(){
+  var i=$('cvSenha');
+  if(i){i.value='';i.focus();}
+}
 async function confirmarCancelamento(id){
   var p=(DB.pedidos||[]).find(function(x){return x.id===id});
   if(!p)return;
-  var motivo=($('cvMot')||{}).value||'';
-  if(!motivo){toast('Escolha o motivo do cancelamento.');return;}
+  var motId=($('cvMot')||{}).value||'';
+  if(!motId){toast('Escolha o motivo do cancelamento.');return;}
+  var mot=(DB.motivosCanc||[]).find(function(m){return m.id===motId});
+  var motivo=mot?mot.nome:'';
   var obs=($('cvObs')||{}).value||'';
+
+  /* quem cancela se identifica com a mesma senha que usa para abrir o caixa */
+  var opId=($('cvOp')||{}).value||'';
+  if(!opId){toast('Selecione quem esta cancelando.');return;}
+  var op=operAtivos().find(function(o){return o.id===opId});
+  if(!op){toast('Operador nao encontrado.');return;}
+  if(op.senha){
+    var sn=($('cvSenha')||{}).value||'';
+    if(sn!==op.senha){toast('Senha incorreta.');return;}
+  }
   var ok=await confirmar({
     titulo:'Cancelar a venda #'+p.numero,
     texto:E(p.clienteNome||'Consumidor'),
     linhas:[['Valor','R$ '+money(p.total),'vr'],
             ['Itens',String((p.itens||[]).length),''],
-            ['Motivo',motivo,'']],
+            ['Motivo',motivo,''],
+            ['Quem cancela',op.nome,'']],
     aviso:'O estoque volta, o valor sai do faturamento e o gerente é avisado. '+
       'Esta ação fica registrada e não pode ser desfeita.',
     ok:'Confirmar cancelamento',tipo:'perigo'});
   if(!ok)return;
   var antes=p.fase;
+  var cx=caixaAberto();
   p.fase='cancelado';
   p.canceladoEm=new Date().toISOString();
   p.motivoCancelamento=motivo+(obs?' — '+obs:'');
-  p.canceladoPor=(caixaAberto()||{}).operador||'Administrador';
+  p.canceladoPor=op.nome;
+  /* registro proprio: e dele que o relatorio de Cancelamentos vive */
+  DB.cancelamentos=DB.cancelamentos||[];
+  DB.cancelamentos.push({id:uid('cn'),pedidoId:p.id,numero:p.numero,
+    valor:Number(p.total)||0,data:hojeISO(),hora:agoraHM(),
+    motivoId:motId,motivo:motivo,obs:obs,
+    operadorId:op.id,operador:op.nome,
+    caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''});
   try{ if(antes!=='cancelado')estornarEstoqueVenda(p); }catch(e){}
   salvar();
   fecharModal();
   if(PDV.aba==='pedidos')renderKanban();
-  toast('Venda #'+p.numero+' cancelada.');
+  toast('Venda #'+p.numero+' cancelada por '+op.nome+'.');
+  if(NUVEM.ligada)sincronizar();
   avisarGerente(p.sucursalId||lojaAtualId(),'cancelamento',
     msgCancelamento(p,p.motivoCancelamento));
+}
+
+
+/* ==========================================================
+   MOTIVOS DE CANCELAMENTO — cadastro
+   O motivo era uma lista fixa dentro do codigo. Virou cadastro:
+   a loja inclui, desativa e apaga sem depender de atualizacao.
+   ========================================================== */
+function baseCanc(){
+  DB.motivosCanc=DB.motivosCanc||[];
+  /* primeira vez: entra com a lista que ja era usada, para nao perder o que
+     estava em uso nos cancelamentos antigos */
+  if(!DB.motivosCanc.length){
+    MOTIVOS_CANC.forEach(function(nome,i){
+      DB.motivosCanc.push({id:uid('mc'),nome:nome,ativo:true,ordem:i});
+    });
+  }
+  return DB.motivosCanc;
+}
+function motivosCancAtivos(){
+  baseCanc();
+  return DB.motivosCanc.filter(function(m){return m.ativo!==false})
+    .sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+}
+function telaMotivosCanc(){
+  baseCanc();
+  var lst=DB.motivosCanc.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Motivo de Cancelamento</h1>'+
+    '<p>O que voce cadastrar aqui aparece na hora no PDV, quando o operador cancela uma '+
+    'venda. Ele e obrigado a escolher um destes motivos e a confirmar com a propria senha — '+
+    'o que fica registrado no relatorio de Cancelamentos.</p></div>'+
+    '<button class="infoBt" onclick="explicaCanc()">'+sv('help',15)+'</button>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2 ok" onclick="formMotivoCanc()">'+sv('plus',14)+' Cadastrar motivo</button>'+
+   '</div>'+
+   '<div class="pnl2"><div class="pnl2H">Motivos cadastrados <span class="cnt2">'+lst.length+'</span></div>'+
+   '<div class="pnl2B" style="padding:0">'+
+   (lst.length?'<table class="pTable finTab"><thead><tr>'+
+     '<th>Motivo</th>'+
+     '<th style="width:120px;text-align:center">Usos</th>'+
+     '<th style="width:96px;text-align:center">Ativo</th>'+
+     '<th style="width:86px"></th></tr></thead><tbody>'+
+     lst.map(function(m){
+       var usos=(DB.cancelamentos||[]).filter(function(c){return c.motivoId===m.id}).length;
+       return '<tr'+(m.ativo===false?' class="off"':'')+'>'+
+        '<td><b>'+E(m.nome)+'</b></td>'+
+        '<td style="text-align:center">'+usos+'</td>'+
+        '<td style="text-align:center"><label class="miniSw">'+
+         '<input type="checkbox" '+(m.ativo!==false?'checked':'')+
+         ' onchange="togMotivoCanc(\''+m.id+'\')"><i></i></label></td>'+
+        '<td><div class="rowAct">'+
+         '<button class="rBtn" onclick="formMotivoCanc(\''+m.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
+         '<button class="rBtn rd" onclick="excluirMotivoCanc(\''+m.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
+        '</div></td></tr>';
+     }).join('')+'</tbody></table>'
+   :'<div class="entVazio"><b>Nenhum motivo cadastrado</b>'+
+    '<span>Clique em Cadastrar motivo para incluir o primeiro.</span></div>')+
+   '</div></div></div></div>';
+  rodape(lst.length+' motivos de cancelamento');
+}
+function explicaCanc(){
+  confirmar({titulo:'Motivo de Cancelamento',
+   texto:'De onde vem e para onde vai',
+   linhas:[['Onde aparece','PDV > Cancelar uma venda',''],
+           ['Quem escolhe','o operador, na hora do cancelamento',''],
+           ['O que exige','motivo + senha do proprio operador',''],
+           ['Onde fica','Relatorios > Cancelamentos','']],
+   aviso:'Desativar um motivo tira ele da lista do PDV mas mantem os cancelamentos '+
+    'que ja usaram esse motivo. Excluir so e permitido enquanto o motivo nao tiver uso.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function formMotivoCanc(id){
+  baseCanc();
+  var m=id?DB.motivosCanc.find(function(x){return x.id===id}):null;
+  modal(m?'Editar motivo':'Cadastrar motivo',
+  '<div class="mdB">'+
+   '<div class="fld2"><label>Motivo do cancelamento *</label>'+
+    '<input id="mcNome" value="'+E(m?m.nome:'')+'" placeholder="Cliente desistiu, Erro do operador...">'+
+    '<div class="hint">Escreva como o operador vai ler na tela do PDV.</div></div>'+
+   '<label class="chkL"><input type="checkbox" id="mcAtivo" '+(!m||m.ativo!==false?'checked':'')+'>'+
+    '<span>Motivo ativo — aparece na lista ao cancelar uma venda</span></label>'+
+  '</div>','Salvar',function(){
+    var nome=$('mcNome').value.trim();
+    if(!nome){toast('Informe o motivo.');return false;}
+    var rep=DB.motivosCanc.some(function(x){
+      return x.nome.trim().toLowerCase()===nome.toLowerCase()&&(!m||x.id!==m.id);});
+    if(rep){toast('Ja existe um motivo com este nome.');return false;}
+    if(m){m.nome=nome;m.ativo=$('mcAtivo').checked;}
+    else DB.motivosCanc.push({id:uid('mc'),nome:nome,ativo:$('mcAtivo').checked,
+      ordem:DB.motivosCanc.length});
+    salvar();telaMotivosCanc();toast(m?'Motivo atualizado.':'Motivo cadastrado.');
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+}
+function togMotivoCanc(id){
+  var m=(DB.motivosCanc||[]).find(function(x){return x.id===id});
+  if(!m)return;
+  m.ativo=(m.ativo===false);
+  salvar();telaMotivosCanc();
+  if(NUVEM.ligada)sincronizar();
+}
+async function excluirMotivoCanc(id){
+  var m=(DB.motivosCanc||[]).find(function(x){return x.id===id});
+  if(!m)return;
+  var usos=(DB.cancelamentos||[]).filter(function(c){return c.motivoId===id}).length;
+  if(usos){
+    /* apagar o motivo apagaria a explicacao de cancelamentos ja feitos */
+    confirmar({titulo:'Nao da para excluir',texto:E(m.nome),
+     linhas:[['Cancelamentos com este motivo',String(usos),'vr']],
+     aviso:'Este motivo ja explica cancelamentos registrados. Se excluir, o relatorio '+
+      'perde a razao daquelas vendas. Desative em vez de excluir — ele some do PDV e '+
+      'o historico continua de pe.',ok:'Entendi',cancelar:null}).then(function(){});
+    return;
+  }
+  var ok=await confirmar({titulo:'Excluir motivo',texto:E(m.nome),
+    aviso:'O motivo sai da lista do PDV. Nenhum cancelamento usa este motivo.',
+    ok:'Excluir',tipo:'perigo'});
+  if(!ok)return;
+  DB.motivosCanc=DB.motivosCanc.filter(function(x){return x.id!==id});
+  salvar();telaMotivosCanc();toast('Motivo excluido.');
+  if(NUVEM.ligada)sincronizar();
+}
+
+/* ==========================================================
+   TURNOS — cadastro e ligacao com a abertura de caixa
+   ========================================================== */
+function baseTurnos(){
+  DB.turnos=DB.turnos||[];
+  if(!DB.turnos.length){
+    DB.turnos.push({id:uid('tn'),nome:'Turno 1',ini:'08:00',fim:'15:00',ativo:true,ordem:0});
+    DB.turnos.push({id:uid('tn'),nome:'Turno 2',ini:'15:00',fim:'23:00',ativo:true,ordem:1});
+  }
+  return DB.turnos;
+}
+function turnosAtivos(){
+  baseTurnos();
+  return DB.turnos.filter(function(t){return t.ativo!==false})
+    .sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+}
+function nomeTurno(id){
+  var t=(DB.turnos||[]).find(function(x){return x.id===id});
+  return t?t.nome:'';
+}
+/* sugere o turno pelo relogio, mas quem decide e quem abre o caixa */
+function turnoDoRelogio(){
+  var ts=turnosAtivos();
+  var agora=agoraHM();
+  for(var i=0;i<ts.length;i++){
+    var t=ts[i];
+    if(!t.ini||!t.fim)continue;
+    if(t.ini<=t.fim){ if(agora>=t.ini&&agora<t.fim)return t.id; }
+    else { if(agora>=t.ini||agora<t.fim)return t.id; }   /* turno que vira a noite */
+  }
+  return ts.length?ts[0].id:'';
+}
+function telaTurnos(){
+  baseTurnos();
+  var lst=DB.turnos.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo">'+
+    '<div><h1>Turnos</h1>'+
+    '<p>Quem abre a frente de caixa escolhe o turno. A partir dai todo pedido, sangria e '+
+    'fechamento daquele caixa pertencem ao turno escolhido — e o relatorio de Frente de '+
+    'Caixa pode ser filtrado por ele.</p></div>'+
+    '<button class="infoBt" onclick="explicaTurnos()">'+sv('help',15)+'</button>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2 ok" onclick="formTurno()">'+sv('plus',14)+' Cadastrar turno</button>'+
+   '</div>'+
+   '<div class="pnl2"><div class="pnl2H">Turnos cadastrados <span class="cnt2">'+lst.length+'</span></div>'+
+   '<div class="pnl2B" style="padding:0">'+
+   (lst.length?'<table class="pTable finTab"><thead><tr>'+
+     '<th>Turno</th>'+
+     '<th style="width:150px">Horario</th>'+
+     '<th style="width:120px;text-align:center">Caixas</th>'+
+     '<th style="width:96px;text-align:center">Ativo</th>'+
+     '<th style="width:86px"></th></tr></thead><tbody>'+
+     lst.map(function(t){
+       var qtd=(DB.caixas||[]).filter(function(c){return c.turnoId===t.id}).length;
+       return '<tr'+(t.ativo===false?' class="off"':'')+'>'+
+        '<td><b>'+E(t.nome)+'</b></td>'+
+        '<td>'+(t.ini&&t.fim?E(t.ini)+' as '+E(t.fim):'<span class="hint">sem horario</span>')+'</td>'+
+        '<td style="text-align:center">'+qtd+'</td>'+
+        '<td style="text-align:center"><label class="miniSw">'+
+         '<input type="checkbox" '+(t.ativo!==false?'checked':'')+
+         ' onchange="togTurno(\''+t.id+'\')"><i></i></label></td>'+
+        '<td><div class="rowAct">'+
+         '<button class="rBtn" onclick="formTurno(\''+t.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
+         '<button class="rBtn rd" onclick="excluirTurno(\''+t.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
+        '</div></td></tr>';
+     }).join('')+'</tbody></table>'
+   :'<div class="entVazio"><b>Nenhum turno cadastrado</b>'+
+    '<span>Clique em Cadastrar turno para incluir o primeiro.</span></div>')+
+   '</div></div></div></div>';
+  rodape(lst.length+' turnos cadastrados');
+}
+function explicaTurnos(){
+  confirmar({titulo:'Turnos',texto:'Como o turno se liga ao caixa',
+   linhas:[['Onde se escolhe','na abertura da frente de caixa',''],
+           ['O que fica preso ao turno','pedidos, sangrias e o fechamento',''],
+           ['Onde se consulta','Financeiro > Frente de Caixa','']],
+   aviso:'O horario cadastrado serve so para sugerir o turno na hora de abrir. '+
+    'Quem abre o caixa pode escolher outro — o sistema nao impede, so registra.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function formTurno(id){
+  baseTurnos();
+  var t=id?DB.turnos.find(function(x){return x.id===id}):null;
+  modal(t?'Editar turno':'Cadastrar turno',
+  '<div class="mdB">'+
+   '<div class="fld2"><label>Nome do turno *</label>'+
+    '<input id="tnNome" value="'+E(t?t.nome:'')+'" placeholder="Turno 1, Turno da manha..."></div>'+
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+    '<div class="fld2"><label>Comeca as</label>'+
+     '<input id="tnIni" type="time" value="'+E(t?t.ini:'')+'"></div>'+
+    '<div class="fld2"><label>Termina as</label>'+
+     '<input id="tnFim" type="time" value="'+E(t?t.fim:'')+'"></div>'+
+   '</div>'+
+   '<div class="hint">O horario so sugere o turno na abertura do caixa. Quem abre confirma.</div>'+
+   '<label class="chkL" style="margin-top:10px"><input type="checkbox" id="tnAtivo" '+
+    (!t||t.ativo!==false?'checked':'')+'>'+
+    '<span>Turno ativo — aparece na abertura da frente de caixa</span></label>'+
+  '</div>','Salvar',function(){
+    var nome=$('tnNome').value.trim();
+    if(!nome){toast('Informe o nome do turno.');return false;}
+    var rep=DB.turnos.some(function(x){
+      return x.nome.trim().toLowerCase()===nome.toLowerCase()&&(!t||x.id!==t.id);});
+    if(rep){toast('Ja existe um turno com este nome.');return false;}
+    var ini=$('tnIni').value||'',fim=$('tnFim').value||'';
+    if(t){t.nome=nome;t.ini=ini;t.fim=fim;t.ativo=$('tnAtivo').checked;}
+    else DB.turnos.push({id:uid('tn'),nome:nome,ini:ini,fim:fim,
+      ativo:$('tnAtivo').checked,ordem:DB.turnos.length});
+    salvar();telaTurnos();toast(t?'Turno atualizado.':'Turno cadastrado.');
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+}
+function togTurno(id){
+  var t=(DB.turnos||[]).find(function(x){return x.id===id});
+  if(!t)return;
+  t.ativo=(t.ativo===false);
+  salvar();telaTurnos();
+  if(NUVEM.ligada)sincronizar();
+}
+async function excluirTurno(id){
+  var t=(DB.turnos||[]).find(function(x){return x.id===id});
+  if(!t)return;
+  var qtd=(DB.caixas||[]).filter(function(c){return c.turnoId===id}).length;
+  if(qtd){
+    confirmar({titulo:'Nao da para excluir',texto:E(t.nome),
+     linhas:[['Caixas neste turno',String(qtd),'vr']],
+     aviso:'Ha frentes de caixa registradas neste turno. Se excluir, o relatorio perde o '+
+      'filtro daqueles caixas. Desative em vez de excluir.',
+     ok:'Entendi',cancelar:null}).then(function(){});
+    return;
+  }
+  var ok=await confirmar({titulo:'Excluir turno',texto:E(t.nome),
+    aviso:'O turno sai da abertura de caixa. Nenhum caixa usa este turno.',
+    ok:'Excluir',tipo:'perigo'});
+  if(!ok)return;
+  DB.turnos=DB.turnos.filter(function(x){return x.id!==id});
+  salvar();telaTurnos();toast('Turno excluido.');
+  if(NUVEM.ligada)sincronizar();
+}
+
+/* ==========================================================
+   RELATORIO DE CANCELAMENTOS
+   Ve e apaga. Nao edita: um cancelamento e um fato registrado,
+   e reescrever o motivo depois destruiria a serventia da trilha.
+   ========================================================== */
+var RC={de:'',ate:'',motivo:'',oper:''};
+function telaRelCancel(){
+  baseCanc();
+  DB.cancelamentos=DB.cancelamentos||[];
+  if(!RC.de){var d=new Date();
+    RC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+    RC.ate=hojeISO();}
+  var lst=DB.cancelamentos.filter(function(c){
+    if(RC.de&&c.data<RC.de)return false;
+    if(RC.ate&&c.data>RC.ate)return false;
+    if(RC.motivo&&c.motivoId!==RC.motivo)return false;
+    if(RC.oper&&c.operadorId!==RC.oper)return false;
+    return true;
+  }).sort(function(a,b){
+    return (b.data+' '+b.hora).localeCompare(a.data+' '+a.hora);});
+
+  var total=lst.reduce(function(a,c){return a+(Number(c.valor)||0)},0);
+  /* qual motivo mais cancela: e a informacao que o dono da loja procura aqui */
+  var porMot={};
+  lst.forEach(function(c){var k=c.motivo||'sem motivo';porMot[k]=(porMot[k]||0)+1});
+  var ranking=Object.keys(porMot).map(function(k){return [k,porMot[k]]})
+    .sort(function(a,b){return b[1]-a[1]}).slice(0,4);
+
+  var opers={};
+  (DB.cancelamentos||[]).forEach(function(c){if(c.operadorId)opers[c.operadorId]=c.operador});
+
+  $('content').innerHTML='<div class="finWrap">'+
+  '<div class="finTop"><div><h1>Cancelamentos</h1>'+
+  '<p>Toda venda cancelada no PDV, com o motivo, o horario e quem confirmou com a propria senha.</p></div>'+
+  '<div class="finActs">'+
+   '<button class="infoBt" onclick="explicaRelCancel()">'+sv('help',15)+'</button>'+
+   '<button class="btnP2" onclick="exportarCancel()">'+sv('file',14)+' Exportar CSV</button>'+
+  '</div></div>'+
+
+  '<div class="filtroCard">'+
+   '<div class="fl"><label>De</label><input type="date" id="rcDe" value="'+RC.de+'"></div>'+
+   '<div class="fl"><label>Ate</label><input type="date" id="rcAte" value="'+RC.ate+'"></div>'+
+   '<div class="fl"><label>Motivo</label><select id="rcMot">'+
+    '<option value="">Todos os motivos</option>'+
+    DB.motivosCanc.map(function(m){
+      return '<option value="'+E(m.id)+'"'+(RC.motivo===m.id?' selected':'')+'>'+E(m.nome)+'</option>';
+    }).join('')+'</select></div>'+
+   '<div class="fl"><label>Quem cancelou</label><select id="rcOper">'+
+    '<option value="">Todos</option>'+
+    Object.keys(opers).map(function(k){
+      return '<option value="'+E(k)+'"'+(RC.oper===k?' selected':'')+'>'+E(opers[k])+'</option>';
+    }).join('')+'</select></div>'+
+   '<button class="btnP2 ok" onclick="buscarCancel()">'+sv('search',14)+' Buscar</button>'+
+   '<button class="btnP2" onclick="RC={de:\'\',ate:\'\',motivo:\'\',oper:\'\'};telaRelCancel()">Limpar</button>'+
+   '<div style="flex:1"></div>'+
+   '<div class="fcResumo">'+
+    '<div><span>Cancelamentos</span><b>'+lst.length+'</b></div>'+
+    '<div><span>Valor cancelado</span><b class="vr">R$ '+money(total)+'</b></div>'+
+   '</div>'+
+  '</div>'+
+
+  (ranking.length?'<div class="rcRank">'+ranking.map(function(r){
+    return '<div class="rcRankIt"><b>'+r[1]+'</b><span>'+E(r[0])+'</span></div>';
+  }).join('')+'</div>':'')+
+
+  '<div class="pnl2"><div class="pnl2H">Vendas canceladas <span class="cnt2">'+lst.length+'</span></div>'+
+  '<div class="pnl2B" style="padding:0">'+
+  (lst.length?'<table class="pTable finTab"><thead><tr>'+
+   '<th style="width:88px">Pedido</th>'+
+   '<th style="width:150px">Quando</th>'+
+   '<th>Motivo</th>'+
+   '<th style="width:170px">Quem cancelou</th>'+
+   '<th style="width:110px;text-align:right">Valor</th>'+
+   '<th style="width:86px"></th></tr></thead><tbody>'+
+   lst.map(function(c){
+     return '<tr style="cursor:pointer" onclick="verCancel(\''+c.id+'\')">'+
+     '<td><b>#'+E(c.numero)+'</b></td>'+
+     '<td>'+dataBR(c.data)+'<small>as '+E(c.hora||'')+(c.turno?' · '+E(c.turno):'')+'</small></td>'+
+     '<td><b>'+E(c.motivo||'—')+'</b>'+(c.obs?'<small>'+E(c.obs)+'</small>':'')+'</td>'+
+     '<td>'+E(c.operador||'—')+'</td>'+
+     '<td style="text-align:right"><b class="vr">R$ '+money(c.valor)+'</b></td>'+
+     '<td onclick="event.stopPropagation()"><div class="rowAct">'+
+      '<button class="rBtn" onclick="verCancel(\''+c.id+'\')" title="Visualizar">'+sv('eye',12)+'</button>'+
+      '<button class="rBtn rd" onclick="excluirCancel(\''+c.id+'\')" title="Apagar registro">'+sv('trash',12)+'</button>'+
+     '</div></td></tr>';
+   }).join('')+'</tbody></table>'
+  :'<div class="entVazio"><b>Nenhum cancelamento no periodo</b>'+
+   '<span>Ajuste os filtros acima e clique em Buscar.</span></div>')+
+  '</div></div></div>';
+  rodape(lst.length+' cancelamentos no periodo');
+}
+function buscarCancel(){
+  RC.de=$('rcDe').value;RC.ate=$('rcAte').value;
+  RC.motivo=$('rcMot').value;RC.oper=$('rcOper').value;
+  telaRelCancel();
+}
+function explicaRelCancel(){
+  confirmar({titulo:'Como este relatorio e montado',texto:'Cancelamentos',
+   linhas:[['De onde vem','cada cancelamento feito no PDV',''],
+           ['O que entra','pedido, motivo, observacao, operador, turno e valor',''],
+           ['O que nao entra','pedidos excluidos antes de virar venda','']],
+   aviso:'O registro pode ser apagado, mas nunca editado. Um cancelamento e um fato: '+
+    'reescrever o motivo depois acabaria com a serventia da trilha. Apagar o registro '+
+    'nao desfaz o cancelamento — a venda continua cancelada no PDV.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+function verCancel(id){
+  var c=(DB.cancelamentos||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  var p=(DB.pedidos||[]).find(function(x){return x.id===c.pedidoId});
+  var itens=p?(p.itens||[]):[];
+  modal('Cancelamento do pedido #'+E(c.numero),
+  '<div class="mdB">'+
+   '<div class="cvCard" style="margin:0">'+
+    '<div class="cvH"><b>#'+E(c.numero)+'</b>'+
+     '<span>'+dataBR(c.data)+' as '+E(c.hora||'')+'</span>'+
+     (c.turno?'<span class="cidTag">'+E(c.turno)+'</span>':'')+'</div>'+
+    (p?'<div class="cvCli">'+E(p.clienteNome||'Consumidor')+'</div>':'')+
+    (itens.length?'<div class="cvItens">'+itens.map(function(i){
+      return '<div><span>'+i.qtd+'x '+E(i.nome)+'</span><b>R$ '+money(i.total)+'</b></div>';
+     }).join('')+'</div>'
+     :'<div class="hint" style="padding:8px 0">Os itens deste pedido nao estao mais neste aparelho.</div>')+
+    '<div class="cvTot"><span>Valor cancelado</span><b>R$ '+money(c.valor)+'</b></div>'+
+   '</div>'+
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">'+
+    '<div class="fld2"><label>Motivo</label><input value="'+E(c.motivo||'—')+'" readonly></div>'+
+    '<div class="fld2"><label>Quem cancelou</label><input value="'+E(c.operador||'—')+'" readonly></div>'+
+   '</div>'+
+   (c.obs?'<div class="fld2"><label>Observacao</label><input value="'+E(c.obs)+'" readonly></div>':'')+
+  '</div>','Fechar',function(){return true;});
+}
+async function excluirCancel(id){
+  var c=(DB.cancelamentos||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  var ok=await confirmar({titulo:'Apagar o registro',
+    texto:'Pedido #'+E(c.numero)+' — '+E(c.motivo||''),
+    linhas:[['Valor','R$ '+money(c.valor),'vr'],
+            ['Quem cancelou',c.operador||'—',''],
+            ['Quando',dataBR(c.data)+' as '+(c.hora||''),'']],
+    aviso:'Isto apaga a linha do relatorio, e nao o cancelamento: a venda #'+E(c.numero)+
+     ' continua cancelada no PDV e fora do faturamento. Depois de apagada, a linha nao volta.',
+    ok:'Apagar registro',tipo:'perigo'});
+  if(!ok)return;
+  DB.cancelamentos=DB.cancelamentos.filter(function(x){return x.id!==id});
+  salvar();telaRelCancel();toast('Registro apagado.');
+  if(NUVEM.ligada)sincronizar();
+}
+function exportarCancel(){
+  var lst=(DB.cancelamentos||[]).filter(function(c){
+    if(RC.de&&c.data<RC.de)return false;
+    if(RC.ate&&c.data>RC.ate)return false;
+    if(RC.motivo&&c.motivoId!==RC.motivo)return false;
+    if(RC.oper&&c.operadorId!==RC.oper)return false;
+    return true;});
+  if(!lst.length){toast('Nada para exportar no periodo.');return;}
+  var l=[['Pedido','Data','Hora','Turno','Motivo','Observacao','Quem cancelou','Valor']];
+  lst.forEach(function(c){
+    l.push([c.numero,dataBR(c.data),c.hora||'',c.turno||'',c.motivo||'',c.obs||'',
+      c.operador||'',String(c.valor||0).replace('.',',')]);
+  });
+  baixarCSV(l,'cancelamentos');
 }
 
 /* ==========================================================
