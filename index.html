@@ -13035,7 +13035,11 @@ function comRolagem(fn){
   var r2=document.querySelector('.etScroll');
   if(y){ if(r2)r2.scrollTop=y; else window.scrollTo(0,y); }
 }
-function fecharPops(){var p=document.querySelectorAll('.popMenu');for(var i=0;i<p.length;i++)p[i].remove();}
+function fecharPops(){
+  var p=document.querySelectorAll('.popMenu');
+  for(var i=0;i<p.length;i++)p[i].remove();
+  _popDono=null;
+}
 document.addEventListener('click',function(e){
   if(!e.target.closest('.popMenu')&&!e.target.closest('[data-pop]'))fecharPops();
   if(!e.target.closest('.band')){fecharDrop();fecharSuc();}
@@ -13437,7 +13441,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.15.0';
+var VERSAO='V19.15.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13801,7 +13805,7 @@ function toggleProd(id){
   toast('Produto '+(p.ativo?'ativado':'inativado')+'.');
 }
 function menuCanais(ev,id){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   var p=DB.produtos.find(function(x){return x.id===id});
   p.disponivel=p.disponivel||{};
   var h=CANAIS.map(function(c){
@@ -13812,7 +13816,7 @@ function menuCanais(ev,id){
     p.disponivel[this.getAttribute('data-c')]=this.checked;salvar();renderProdutos();};
 }
 function menuProd(ev,id){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   pop(ev,'<button onclick="formProduto(\''+id+'\');fecharPops()">'+sv('edit',15)+' Editar produto</button>'+
   '<button onclick="vincularFicha(\''+id+'\');fecharPops()">'+sv('link',15)+' Vincular ficha técnica</button>'+
   '<button onclick="duplicarProd(\''+id+'\');fecharPops()">'+sv('copy',15)+' Duplicar</button>'+
@@ -17424,7 +17428,7 @@ function movCaixa(tipo){
 }
 
 function menuCaixa(ev){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   pop(ev,'<button onclick="movCaixa(\'sangria\');fecharPops()">'+sv('minus',15)+' Sangria (retirar dinheiro)</button>'+
   '<button onclick="movCaixa(\'suprimento\');fecharPops()">'+sv('plus',15)+' Suprimento (colocar dinheiro)</button>'+
   '<button onclick="painelCaixa();fecharPops()">'+sv('list',15)+' Movimentações do turno</button>'+
@@ -18023,7 +18027,7 @@ function historicoAcertos(){
 }
 
 function menuEntregador(ev,id){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   var e=ent(id);
   pop(ev,'<button onclick="modalEntregador(\''+id+'\');fecharPops()">'+sv('edit',15)+' Editar cadastro</button>'+
   '<button onclick="verEntregador(\''+id+'\');fecharPops()">'+sv('eye',15)+' Ver ficha completa</button>'+
@@ -19248,7 +19252,7 @@ function rodapeCaixa(){
 }
 function setLF(k,v){LF[k]=v;telaLancamentos();}
 function menuCatFiltro(ev){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   var h='<div class="arvPop">'+
    '<button class="apLinha" onclick="LF.categoria=\'\';LF.subcat=\'\';LF.subcatNome=\'\';fecharPops();telaLancamentos()">'+
     sv('folder',14)+' Todas as categorias</button>';
@@ -20668,7 +20672,7 @@ function ctSocorro(){
 
 /* ---------- MENU DO + ---------- */
 function menuNovo(ev){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   pop(ev,'<button onclick="modalLanc(null,\'despesa\');fecharPops()">'+
    '<span class="mnIc" style="background:#FCEBEB;color:#C94141">'+sv('dn4',14)+'</span> Nova despesa</button>'+
    '<button onclick="modalLanc(null,\'receita\');fecharPops()">'+
@@ -20938,7 +20942,7 @@ function escolheCatLanc(id){
   if(box)box.style.display='none';
 }
 function menuCatForm(ev){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   CF.abertas=CF.abertas||{};
   var h='<div class="arvPop">';
   (DB.catfin||[]).forEach(function(p){
@@ -24607,7 +24611,7 @@ function atualizaTotaisMov(){
   if(f)f.innerHTML='<b>'+money(total)+'</b>';
 }
 function abrirPickItem(ev,k){
-  fecharPops();ev.stopPropagation();
+  ev.stopPropagation();
   guardarCabMov();
   _pickLinha=k;
   _pickAbertas=_pickAbertas||{};
@@ -35574,7 +35578,19 @@ async function excluirUsuario(){
 }
 
 /* ---------- POPUP E MODAL ---------- */
+/* Clicar de novo no MESMO botao fecha o menu.
+   Antes, quem abria chamava fecharPops() e logo em seguida abria outro —
+   entao o menu fechava e reabria no mesmo clique, e parecia que nunca
+   fechava. So saia clicando fora, o que nao e o que a pessoa espera. */
+var _popDono=null;
 function pop(ev,html){
+  var dono=ev.currentTarget;
+  if(_popDono===dono&&document.querySelector('.popMenu')){
+    fecharPops();
+    return document.createElement('div');   /* solto: quem chama nao quebra */
+  }
+  fecharPops();
+  _popDono=dono;
   var el=document.createElement('div');
   el.className='popMenu';el.innerHTML=html;
   document.body.appendChild(el);
