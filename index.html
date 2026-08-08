@@ -11330,7 +11330,7 @@ var MOD=[
  {id:'canais-integracao',n:'Canais de Venda e Integração'},
  {id:'cfg-gerente',n:'Assistente Nexor'},
  {id:'cfg-dre',n:'Configuração do DRE'},
- {id:'dados-fiscais',n:'Dados Fiscais'},
+ {id:'dados-fiscais',n:'Dados Fiscais da Empresa'},
  {id:'modelo-impressao',n:'Modelo de Impressão'},
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
  {id:'status-vendas',n:'Status de Vendas'},
@@ -11818,7 +11818,7 @@ var MAPA=[
     cor:x.cor||null,imagem:x.imagem||null,ativa:x.ativo!==false,ordem:ordemDe(x,i)}}},
 
  {col:'grupos', espelha:true,      tab:'grupos_opcoes',
-  campos:function(x,i){return {nome:x.nome,minimo:n(x.min),maximo:x.max||1,
+  campos:function(x,i){return {nome:x.nome,minimo:n(x.min),maximo:(x.max==null?1:Number(x.max)),
     forcado:!!x.forcado,ordem:ordemDe(x,i)}},
   filhos:[{lista:'opcoes',tab:'opcoes',pai:'grupo_id',
     campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k}}}]},
@@ -12681,6 +12681,28 @@ async function baixarDaNuvem(forcar){
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
     ativo:x.ativo!==false}});
 
+  /* Estas duas subiam e nunca voltavam: trocar de aparelho ou limpar o
+     navegador perdia os usuarios e a carteira de clientes Nexor. */
+  try{
+    var us=await api('usuarios_sistema'+qs+'&order=nome');
+    if(us&&us.length)DB.usuarios=volta(us,function(x){return {id:x.ref_local||x.id,
+      nome:x.nome,login:x.login||'',senha:x.senha||'',
+      ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
+      sucursais:x.sucursais||[],permissoes:x.permissoes||{}}});
+  }catch(e){ logNuvem('não consegui baixar os usuários: '+((e&&e.message)||''),true); }
+  if(ehPlataforma&&ehPlataforma()){
+    try{
+      var cnx=await api('clientes_nexor?order=rede');
+      DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
+        responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
+        documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',
+        unidades:Number(x.unidades)||1,plano:x.plano||'',
+        mensalidade:Number(x.mensalidade)||0,lojaId:x.loja_id||'',
+        modulos:x.modulos||[],diaVenc:Number(x.dia_vencimento)||10,
+        situacao:x.situacao||'ativo'}});
+    }catch(e){}
+  }
+
   var cpf=await api('cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
   DB.cupons_f=volta(cpf,function(x){return {id:x.ref_local||x.id,pedidoId:x.pedido_ref||'',
     pedidoNumero:Number(x.pedido_numero)||0,origem:x.origem||'',serie:Number(x.serie)||0,
@@ -13035,6 +13057,26 @@ function comRolagem(fn){
   var r2=document.querySelector('.etScroll');
   if(y){ if(r2)r2.scrollTop=y; else window.scrollTo(0,y); }
 }
+/* Duas abas do mesmo sistema gravavam uma por cima da outra, e a ultima a
+   salvar apagava o trabalho da primeira. Agora a aba antiga percebe e avisa,
+   em vez de continuar gravando por cima. */
+var _minhaAba=String(Date.now())+'-'+Math.random().toString(36).slice(2,7);
+(function vigiarAbas(){
+  try{
+    localStorage.setItem('nexor_aba',_minhaAba);
+    window.addEventListener('storage',function(e){
+      if(e.key==='nexor_aba'&&e.newValue&&e.newValue!==_minhaAba){
+        alertaGravacao('O Nexor foi aberto em outra aba ou janela. Para não gravar '+
+          'um por cima do outro, use apenas uma — feche esta ou recarregue depois '+
+          'de fechar a outra.');
+      }
+      if(e.key==='nexor_dados'&&!NUVEM.sincronizando){
+        /* outra aba gravou: avisa que o que esta na tela pode estar velho */
+        marcaNovidade(true);
+      }
+    });
+  }catch(e){}
+})();
 function fecharPops(){
   var p=document.querySelectorAll('.popMenu');
   for(var i=0;i<p.length;i++)p[i].remove();
@@ -13441,7 +13483,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.15.1';
+var VERSAO='V19.16.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13535,6 +13577,8 @@ if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='mesas')return telaMesas();
 if(mid==='loja'&&iid==='fiscal')return telaFiscalCfg();
+/* o item existia no menu e nao tinha tela: clicar nele nao fazia nada */
+if(mid==='loja'&&iid==='dados-fiscais')return telaFiscalCfg();
 if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
 if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
@@ -14056,7 +14100,7 @@ function abaOpcoes(){
     DB.grupos.map(function(g){
       return '<label><input type="checkbox" class="pGrp" value="'+g.id+'"'+((p.grupos||[]).indexOf(g.id)>=0?' checked':'')+'>'+
       '<span><b>'+E(g.nome)+'</b>'+(g.forcado?' <span class="tagF">pergunta forçada</span>':'')+
-      '<div style="font-size:11px;color:var(--ink-3)">mín '+(g.min||0)+' · máx '+(g.max||1)+' · '+
+      '<div style="font-size:11px;color:var(--ink-3)">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+' · '+
       (g.opcoes||[]).length+' opções</div></span>'+
       '<small><button class="btn sm" onclick="event.preventDefault();formGrupo(\''+g.id+'\')">editar</button></small></label>';
     }).join('')+'</div>';
@@ -14069,7 +14113,7 @@ function abaOpcoes(){
     marcados.forEach(function(g){
       h+='<div class="grpCard"><div class="grpTop"><b>'+E(g.nome)+'</b>'+
       (g.forcado?'<span class="tagF">obrigatório perguntar</span>':'')+
-      '<span class="grpMeta">mín '+(g.min||0)+' · máx '+(g.max||1)+'</span></div>'+
+      '<span class="grpMeta">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+'</span></div>'+
       '<div class="grpOps">'+((g.opcoes||[]).length?g.opcoes.map(function(o){
         return '<span class="opChip">'+E(o.nome)+(o.preco?' +R$ '+money(o.preco):'')+'</span>'}).join(''):
         '<span class="grpMeta">sem opções cadastradas</span>')+'</div></div>';
@@ -14180,7 +14224,7 @@ function abrirGrupos(){
   DB.grupos.forEach(function(g){
     h+='<div class="grpCard"><div class="grpTop"><b>'+E(g.nome)+'</b>'+
     (g.forcado?'<span class="tagF">pergunta forçada</span>':'')+
-    '<span class="grpMeta">mín '+(g.min||0)+' · máx '+(g.max||1)+'</span>'+
+    '<span class="grpMeta">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+'</span>'+
     '<button class="btn sm" onclick="formGrupo(\''+g.id+'\')">'+sv('edit',13)+'</button>'+
     '<button class="btn sm" onclick="excluirGrupo(\''+g.id+'\')">'+sv('trash',13)+'</button></div>'+
     '<div class="grpOps">'+((g.opcoes||[]).length?g.opcoes.map(function(o){
@@ -14199,7 +14243,7 @@ function formGrupo(id){
   '<div class="fld2"><label>Nome do grupo *</label><input id="gNome" value="'+E(g?g.nome:'')+'" placeholder="Ex.: Bordas, Sabores, Adicionais"></div>'+
   '<div class="row3">'+
   '<div class="fld2"><label>Mínimo de escolhas</label><input id="gMin" type="number" value="'+(g?(g.min||0):0)+'"></div>'+
-  '<div class="fld2"><label>Máximo de escolhas</label><input id="gMax" type="number" value="'+(g?(g.max||1):1)+'"></div>'+
+  '<div class="fld2"><label>Máximo de escolhas</label><input id="gMax" type="number" value="'+(g?((g.max==null?1:Number(g.max))):1)+'"></div>'+
   '<div class="fld2"><label>&nbsp;</label><label class="chkL"><input type="checkbox" id="gForc" '+(g&&g.forcado?'checked':'')+'>'+
   '<span>Pergunta forçada</span></label></div></div>'+
   '<div class="hint">Com <b>pergunta forçada</b>, ao lançar o produto na frente de caixa o sistema abre estas opções antes de fechar o item — o caixa é obrigado a perguntar (ex.: "aceita borda?").</div>'+
@@ -15769,6 +15813,31 @@ function explicaMesas(){
     'Mesa com conta aberta não pode ser excluída.',
    ok:'Entendi',cancelar:null}).then(function(){});
 }
+/* A numeracao vinha de DB.pedidos.length+1 — a CONTAGEM da lista. Com duas
+   lojas na rede, as duas geravam o mesmo numero no mesmo dia, porque a lista
+   traz os pedidos de todas as sucursais. E excluir um pedido fazia o numero
+   voltar atras. Agora e o maior numero DAQUELA loja, mais um. */
+function proxNumPedido(){
+  var suc=lojaAtualId?lojaAtualId():'';
+  var max=0;
+  (DB.pedidos||[]).forEach(function(p){
+    if(suc&&(p.sucursalId||'suc_matriz')!==suc)return;
+    var n2=Number(p.numero)||0;
+    if(n2>max)max=n2;
+  });
+  return max+1;
+}
+/* Clique duplo no botao de pagamento gerava DUAS vendas iguais: estoque
+   baixado duas vezes e faturamento contado duas vezes. A trava solta
+   sozinha depois de 8 segundos, para nunca deixar o caixa preso. */
+var _fechandoVenda=false;
+function travarFecharVenda(){
+  if(_fechandoVenda)return false;
+  _fechandoVenda=true;
+  setTimeout(function(){_fechandoVenda=false},8000);
+  return true;
+}
+function liberarFecharVenda(){_fechandoVenda=false;}
 function proximoNumeroMesa(){
   baseMesas();
   var max=0;
@@ -16465,7 +16534,7 @@ function caixaAberto(){
   DB.caixas=DB.caixas||[];
   return DB.caixas.find(function(c){return !c.fechadoEm})||null;
 }
-function agoraHM(){var a=new Date();return ('0'+a.getHours()).slice(-2)+':'+('0'+a.getMinutes()).slice(-2)}
+function agoraHM(){return agoraSP().hora}
 
 /* ---------- TELA PRINCIPAL ---------- */
 function telaPDV(){
@@ -16763,7 +16832,7 @@ function modalOpcoes(p,grupos){
   grupos.forEach(function(g,gi){
     h+='<div class="blk" style="margin:0 0 11px;max-width:none">'+
     '<h3>'+E(g.nome)+(g.forcado?' <span class="tagF">obrigatório</span>':'')+
-    '<small>escolha de '+(g.min||0)+' a '+(g.max||1)+'</small></h3>';
+    '<small>escolha de '+(g.min||0)+' a '+((g.max==null?1:Number(g.max)))+'</small></h3>';
     if(!(g.opcoes||[]).length)h+='<div class="hint">Sem opções cadastradas neste grupo.</div>';
     /* a pergunta é obrigatória responder, mas a resposta pode ser "não quero" */
     if(g.forcado)
@@ -16771,7 +16840,7 @@ function modalOpcoes(p,grupos){
       'data-g="'+g.id+'" checked><span><b>Não quero</b>'+
       '<small style="display:block;color:var(--ink-3)">nada é acrescentado ao pedido</small></span></label>';
     (g.opcoes||[]).forEach(function(o,oi){
-      h+='<label class="chkL"><input type="'+((g.max||1)>1?'checkbox':'radio')+'" name="g'+gi+'" '+
+      h+='<label class="chkL"><input type="'+(((g.max==null?1:Number(g.max)))>1?'checkbox':'radio')+'" name="g'+gi+'" '+
       'class="opSel" data-g="'+g.id+'" data-i="'+oi+'">'+
       '<span>'+E(o.nome)+(o.preco?' <b style="color:var(--acc-d)">+ R$ '+money(o.preco)+'</b>':'')+'</span></label>';
     });
@@ -17084,21 +17153,23 @@ function irPagamento(){
   '<label class="chkL"><input type="checkbox" id="pgImp" checked><span>Imprimir via ao finalizar</span></label>'+
   '</div></div>';
   modal('Pagamento',h,'Finalizar venda',function(){
+    /* uma venda por vez: clique duplo nao gera dois pedidos */
+    if(!travarFecharVenda()){toast('Aguarde — a venda está sendo fechada.');return false;}
     var taxa=parseFloat($('pgTaxa').value)||0,desc=valorDesconto();
     var final=tot+taxa-desc;
     var somaPg=_pagos.reduce(function(a,p){return a+p.valor},0);
-    if(!_pagos.length){toast('Selecione ao menos uma forma de pagamento.');return false;}
-    if(Math.abs(somaPg-final)>0.01){toast('Pagamentos somam R$ '+money(somaPg)+' e o total é R$ '+money(final)+'.');return false;}
+    if(!_pagos.length){toast('Selecione ao menos uma forma de pagamento.');liberarFecharVenda();return false;}
+    if(Math.abs(somaPg-final)>0.01){toast('Pagamentos somam R$ '+money(somaPg)+' e o total é R$ '+money(final)+'.');liberarFecharVenda();return false;}
     var pcs=$('pgCidade');
     _cidadeVenda=pcs?pcs.value:((PDV.cliente&&PDV.cliente.cidade)||'');
     var entSel=document.querySelector('input[name=pgEnt]:checked');
     var fiado=_pagos.filter(function(p){var f=formaPag(p.forma);return f&&f.tipo==='fiado'})
       .reduce(function(a,p){return a+p.valor},0);
     if(fiado>0){
-      if(!PDV.cliente){toast('Venda no fiado exige cliente identificado.');return false;}
+      if(!PDV.cliente){toast('Venda no fiado exige cliente identificado.');liberarFecharVenda();return false;}
       var lim=Number(PDV.cliente.limiteFiado)||0;
       var novo=(Number(PDV.cliente.saldoFiado)||0)+fiado;
-      if(lim<=0){toast(PDV.cliente.nome+' não tem limite de fiado liberado.');return false;}
+      if(lim<=0){toast(PDV.cliente.nome+' não tem limite de fiado liberado.');liberarFecharVenda();return false;}
       if(novo>lim+0.01){
         toast('Limite de fiado excedido. Saldo ficaria R$ '+money(novo)+' e o limite é R$ '+money(lim)+'.');
         return false;
@@ -17166,7 +17237,7 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   var primeira=PDV.mesaPag?(statusDoPapel('finalizado')||statusInicial('loja'))
                           :statusInicial(PDV.tipo);
   var ped={
-    id:uid('ped'),numero:(DB.pedidos.length+1),
+    id:uid('ped'),numero:proxNumPedido(),
     tipo:PDV.tipo,fase:primeira,
     itens:JSON.parse(JSON.stringify(PDV.comanda)),
     clienteId:PDV.cliente?PDV.cliente.id:null,
@@ -17799,8 +17870,29 @@ function baseFin(){
     ];
   }
 }
-function hojeISO(){var d=new Date();return d.toISOString().slice(0,10)}
-function diasAtrasISO(n){var d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)}
+/* toISOString devolve a data em UTC. No Brasil, das 21h em diante o UTC ja
+   virou o dia seguinte — e toda venda da noite caia no dia errado, quebrando
+   o fechamento de caixa e o faturamento do dia. Agora vale o horario de
+   Brasilia, independente do relogio do computador da loja. */
+function agoraSP(){
+  try{
+    var f=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',
+      year:'numeric',month:'2-digit',day:'2-digit',
+      hour:'2-digit',minute:'2-digit',hour12:false});
+    var p={};f.formatToParts(new Date()).forEach(function(x){p[x.type]=x.value});
+    return {data:p.year+'-'+p.month+'-'+p.day,hora:p.hour+':'+p.minute};
+  }catch(e){
+    var d=new Date();
+    return {data:new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10),
+            hora:('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
+  }
+}
+function hojeISO(){return agoraSP().data}
+function diasAtrasISO(n){
+  var d=new Date(hojeISO()+'T12:00:00');
+  d.setDate(d.getDate()-n);
+  return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
 function dataBR(iso){if(!iso)return '—';var p=iso.slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
 function ent(id){return (DB.entregadores||[]).find(function(x){return x.id===id})||null}
 
@@ -24061,17 +24153,8 @@ function modalMotivo(id){
     salvar();telaCfgMovimentacao();toast('Motivo salvo.');return true;
   },'sm2');
 }
-async function excluirMotivo(id){
-  var m=motivo(id);
-  var q=(DB.movEst||[]).filter(function(x){return x.motivoId===id}).length;
-  if(q){toast('Este motivo tem '+q+' lançamento(s). Inative em vez de excluir.');return;}
-  if(m&&m.sistema){
-    if(!await pergunta('"'+m.nome+'" é usado automaticamente pelas vendas do PDV.\n\n'+
-      'Excluindo, as vendas deixam de gerar baixa de estoque. Continuar?'))return;
-  }else if(!await pergunta('Excluir o motivo "'+nomeMotivo(id)+'"?'))return;
-  DB.motivosMov=DB.motivosMov.filter(function(x){return x.id!==id});
-  salvar();telaCfgMovimentacao();toast('Motivo excluído.');
-}
+/* removida: era a versao antiga do motivo de estoque, substituida pela
+   de baixo e sem nenhuma chamada apontando para ela */
 
 /* ----------------------------------------------------------
    CONFERENCIA DE SALDO
@@ -25043,15 +25126,15 @@ function exportarEstoque(){
 }
 
 /* ---------- CONTAGEM DE ESTOQUE ---------- */
-var CT={aba:'hist',busca:'',grupo:'',cont:{},de:'',ate:''};
+var CT2={aba:'hist',busca:'',grupo:'',cont:{},de:'',ate:''};
 function telaContagem(){
   baseMov();
-  if(CT.aba==='nova')return telaContagemNova();
-  if(!CT.de){var d=new Date();
-    CT.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-    CT.ate=hojeISO();}
+  if(CT2.aba==='nova')return telaContagemNova();
+  if(!CT2.de){var d=new Date();
+    CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+    CT2.ate=hojeISO();}
   var lista=(DB.contagens||[]).filter(function(c){
-    return (!CT.de||c.data>=CT.de)&&(!CT.ate||c.data<=CT.ate);
+    return (!CT2.de||c.data>=CT2.de)&&(!CT2.ate||c.data<=CT2.ate);
   }).sort(function(a,b){return (b.data+b.hora).localeCompare(a.data+a.hora)});
   var tGanho=lista.reduce(function(a,c){return a+(Number(c.ganho)||0)},0);
   var tPerda=lista.reduce(function(a,c){return a+Math.abs(Number(c.perda)||0)},0);
@@ -25068,8 +25151,8 @@ function telaContagem(){
     '<button class="btnP2 ok" onclick="novaContagem()">'+sv('plus',14)+' Realizar nova contagem</button>'+
    '</div>'+
    '<div class="etFiltros">'+
-    '<div class="f2" style="max-width:150px"><label>De</label><input type="date" id="ctDe" value="'+CT.de+'"></div>'+
-    '<div class="f2" style="max-width:150px"><label>Até</label><input type="date" id="ctAte" value="'+CT.ate+'"></div>'+
+    '<div class="f2" style="max-width:150px"><label>De</label><input type="date" id="ctDe" value="'+CT2.de+'"></div>'+
+    '<div class="f2" style="max-width:150px"><label>Até</label><input type="date" id="ctAte" value="'+CT2.ate+'"></div>'+
     '<button class="btnP2 ok" onclick="filtrarContagens()">'+sv('search',13)+' Buscar</button>'+
     '<button class="btnP2" onclick="mesAtualCT()">Este mês</button>'+
     '<button class="btnP2" onclick="verTodasContagens()">Todas</button>'+
@@ -25105,15 +25188,15 @@ function telaContagem(){
    '</div></div></div>';
   rodape(lista.length+' contagens no período');
 }
-function filtrarContagens(){CT.de=$('ctDe').value;CT.ate=$('ctAte').value;telaContagem();}
+function filtrarContagens(){CT2.de=$('ctDe').value;CT2.ate=$('ctAte').value;telaContagem();}
 function mesAtualCT(){
   var d=new Date();
-  CT.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-  CT.ate=hojeISO();telaContagem();
+  CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+  CT2.ate=hojeISO();telaContagem();
 }
-function verTodasContagens(){CT.de='';CT.ate='';telaContagem();}
-function voltarContagem(){CT.aba='hist';telaContagem();}
-function novaContagem(){CT.aba='nova';CT.cont={};CT.busca='';CT.grupo='';telaContagem();}
+function verTodasContagens(){CT2.de='';CT2.ate='';telaContagem();}
+function voltarContagem(){CT2.aba='hist';telaContagem();}
+function novaContagem(){CT2.aba='nova';CT2.cont={};CT2.busca='';CT2.grupo='';telaContagem();}
 function verDivergencias(id,tipo){
   var c=(DB.contagens||[]).find(function(x){return x.id===id});
   if(!c)return;
@@ -25155,9 +25238,9 @@ function verDivergencias(id,tipo){
 /* ---------- folha de contagem ---------- */
 function telaContagemNova(){
   var lista=itensEstoque().filter(function(i){
-    if(CT.grupo&&i.grupoId!==CT.grupo)return false;
-    if(CT.busca){
-      var q=CT.busca.toLowerCase();
+    if(CT2.grupo&&i.grupoId!==CT2.grupo)return false;
+    if(CT2.busca){
+      var q=CT2.busca.toLowerCase();
       if((i.nome||'').toLowerCase().indexOf(q)<0&&String(i.codigo||'').indexOf(q)<0)return false;
     }
     return true;
@@ -25171,13 +25254,13 @@ function telaContagemNova(){
     '<button class="btnP2 ok" onclick="fecharContagem()">'+sv('check',13)+' Finalizar contagem</button>'+
    '</div>'+
    '<div class="etFiltros" style="flex:none">'+
-    '<div class="f2 gw2"><label>Buscar</label><input id="ctB" value="'+E(CT.busca)+'" placeholder="nome ou código"></div>'+
-    '<div class="f2"><label>Grupo</label><select onchange="CT.grupo=this.value;telaContagem()">'+
+    '<div class="f2 gw2"><label>Buscar</label><input id="ctB" value="'+E(CT2.busca)+'" placeholder="nome ou código"></div>'+
+    '<div class="f2"><label>Grupo</label><select onchange="CT2.grupo=this.value;telaContagem()">'+
      '<option value="">Todos</option>'+
-     (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(CT.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
+     (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(CT2.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
     '</select></div>'+
     '<button class="btnP2" onclick="preencherContagem()">Preencher com o sistema</button>'+
-    '<button class="btnP2" onclick="CT.cont={};telaContagem()">Limpar</button>'+
+    '<button class="btnP2" onclick="CT2.cont={};telaContagem()">Limpar</button>'+
    '</div>'+
    '<div class="etTabW">'+
    (lista.length?'<table class="etTab ctTab"><thead><tr>'+
@@ -25194,7 +25277,7 @@ function telaContagemNova(){
     '<td style="text-align:right" id="ctRes">—</td></tr></tfoot></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum item para contar</b></div>')+
    '</div></div>';
-  if($('ctB'))$('ctB').oninput=function(){CT.busca=this.value;var p=this.selectionStart;telaContagem();
+  if($('ctB'))$('ctB').oninput=function(){CT2.busca=this.value;var p=this.selectionStart;telaContagem();
     var n2=$('ctB');if(n2){n2.focus();n2.setSelectionRange(p,p);}};
   ligarContagem();
   atualizaContagem();
@@ -25202,7 +25285,7 @@ function telaContagemNova(){
 function linhaContagem(i){
   var g=grupoIng(i.grupoId);
   var sis=Number(i.estoqueAtual)||0;
-  var c=CT.cont[i.id];
+  var c=CT2.cont[i.id];
   var tem=(c!==undefined&&c!=='');
   var d=tem?((parseFloat(c)||0)-sis):0;
   var v=d*custoAtual(i);
@@ -25222,7 +25305,7 @@ function linhaContagem(i){
 function resumoContagem(lista){
   var perda=0,ganho=0,conf=0;
   (lista||itensEstoque()).forEach(function(i){
-    var c=CT.cont[i.id];
+    var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
     conf++;
     var d=(parseFloat(c)||0)-(Number(i.estoqueAtual)||0);
@@ -25239,7 +25322,7 @@ function atualizaLinhaCont(id){
   var i=itemEstoque(id);if(!i)return;
   var tr=document.getElementById('lc-'+id);if(!tr)return;
   var sis=Number(i.estoqueAtual)||0;
-  var c=CT.cont[id];
+  var c=CT2.cont[id];
   var tem=(c!==undefined&&c!=='');
   var d=tem?((parseFloat(c)||0)-sis):0;
   var v=d*custoAtual(i);
@@ -25256,7 +25339,7 @@ function atualizaContagem(){
   if(box)box.innerHTML=resumoContagem(itensEstoque());
   var perda=0,ganho=0;
   itensEstoque().forEach(function(i){
-    var c=CT.cont[i.id];
+    var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
     var d=(parseFloat(c)||0)-(Number(i.estoqueAtual)||0);
     var v=d*custoAtual(i);
@@ -25270,7 +25353,7 @@ function ligarContagem(){
   var ins=document.querySelectorAll('.ctIn');
   for(var i=0;i<ins.length;i++){
     ins[i].oninput=function(){
-      CT.cont[this.getAttribute('data-id')]=this.value;
+      CT2.cont[this.getAttribute('data-id')]=this.value;
       atualizaLinhaCont(this.getAttribute('data-id'));
     };
     ins[i].onkeydown=function(e){
@@ -25284,7 +25367,7 @@ function ligarContagem(){
   }
 }
 function preencherContagem(){
-  itensEstoque().forEach(function(i){CT.cont[i.id]=String(Number(i.estoqueAtual)||0)});
+  itensEstoque().forEach(function(i){CT2.cont[i.id]=String(Number(i.estoqueAtual)||0)});
   telaContagem();
   toast('Preenchido com o estoque do sistema — ajuste o que estiver diferente.');
 }
@@ -25292,7 +25375,7 @@ async function fecharContagem(){
   baseMov();
   var linhas=[],det=[],perda=0,ganho=0;
   itensEstoque().forEach(function(i){
-    var c=CT.cont[i.id];
+    var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
     var sis=Number(i.estoqueAtual)||0;
     var conf=parseFloat(c)||0;
@@ -25319,7 +25402,7 @@ async function fecharContagem(){
   DB.contagens.push({id:uid('ct'),data:hojeISO(),hora:agoraHM(),movId:mov.id,
     itens:det,perda:+perda.toFixed(2),ganho:+ganho.toFixed(2),
     resultado:+(ganho+perda).toFixed(2),loja:lojaAtual()});
-  CT.cont={};CT.aba='hist';salvar();telaContagem();
+  CT2.cont={};CT2.aba='hist';salvar();telaContagem();
   toast('Contagem finalizada. Estoque ajustado e lançado na movimentação.');
 }
 function verContagem(id){
@@ -27162,7 +27245,7 @@ function dadosAno(ano){
   });
   return m;
 }
-var MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+var MESES_CURTO=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 /* junta tudo de um mês, dia a dia */
 function dadosMes(ano,mes){
   var dias=new Date(ano,mes,0).getDate();
@@ -27214,7 +27297,7 @@ function mesesComVenda(){
 }
 function nomeMes(ym){
   var p=String(ym).split('-');
-  return MESES[Number(p[1])-1]+'/'+p[0];
+  return MESES_CURTO[Number(p[1])-1]+'/'+p[0];
 }
 var METRICAS=[
  {id:'fat',      n:'Faturamento',        fmt:'money', dica:'soma dos pedidos não cancelados'},
@@ -27257,7 +27340,7 @@ function telaComparativo(){
     tit1=nomeMes(CA.m1); tit2=nomeMes(CA.m2);
   }else{
     d1=dadosAno(CA.a1); d2=dadosAno(CA.a2);
-    rot=MESES.slice(); tit1=String(CA.a1); tit2=String(CA.a2);
+    rot=MESES_CURTO.slice(); tit1=String(CA.a1); tit2=String(CA.a2);
   }
   var met=METRICAS.find(function(x){return x.id===CA.metrica})||METRICAS[0];
 
@@ -27411,7 +27494,7 @@ function exportarComparativo(){
     rot=[];for(var r=1;r<=Math.max(d1.length,d2.length);r++)rot.push('Dia '+r);
     t1=nomeMes(CA.m1); t2=nomeMes(CA.m2);
   }else{
-    d1=dadosAno(CA.a1); d2=dadosAno(CA.a2); rot=MESES.slice();
+    d1=dadosAno(CA.a1); d2=dadosAno(CA.a2); rot=MESES_CURTO.slice();
     t1=String(CA.a1); t2=String(CA.a2);
   }
   var l=[['Indicador','Período'].concat(rot).concat(['Total'])];
@@ -29637,11 +29720,11 @@ function limpaLinha(box){
 /* ==========================================================
    CANAIS DE VENDA
    ========================================================== */
-var CV={de:'',ate:'',sucs:[]};
+var CV2={de:'',ate:'',sucs:[]};
 function telaCanaisVenda(){
   baseMov();baseSuc();
-  periodoPadrao(CV);
-  var peds=pedsPeriodo(CV);
+  periodoPadrao(CV2);
+  var peds=pedsPeriodo(CV2);
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var canais=[
    {id:'entrega', n:'Delivery',      cor:'#E8574A', fn:function(p){return p.tipo==='entrega'&&(p.canal||'')!=='whatsapp'&&(p.canal||'')!=='cardapio'}},
@@ -29655,7 +29738,7 @@ function telaCanaisVenda(){
     c.pct=total?(c.valor/total*100):0;
     return c;
   });
-  var dias=diasEntre(CV.de,CV.ate);
+  var dias=diasEntre(CV2.de,CV2.ate);
   var porDia=dias.map(function(d){
     return peds.filter(function(p){return String(p.data).slice(0,10)===d})
       .reduce(function(a,p){return a+(Number(p.total)||0)},0);
@@ -29672,10 +29755,10 @@ function telaCanaisVenda(){
     '<button class="btnP2" onclick="imprimirRel(\'Canais de Venda\')">'+sv('print2',13)+' PDF</button>'+
    '</div>'+
    '<div class="barraF">'+
-    '<div class="bfCampo"><label>Data inicial</label><input type="date" id="cvDe" value="'+CV.de+'"></div>'+
-    '<div class="bfCampo"><label>Data final</label><input type="date" id="cvAte" value="'+CV.ate+'"></div>'+
-    seletorSuc('cvSuc',CV.sucs,'togCV','togTodosCV()')+
-    '<button class="btnP2 ok" onclick="CV.de=$(\'cvDe\').value;CV.ate=$(\'cvAte\').value;telaCanaisVenda()">'+
+    '<div class="bfCampo"><label>Data inicial</label><input type="date" id="cvDe" value="'+CV2.de+'"></div>'+
+    '<div class="bfCampo"><label>Data final</label><input type="date" id="cvAte" value="'+CV2.ate+'"></div>'+
+    seletorSuc('cvSuc',CV2.sucs,'togCV','togTodosCV()')+
+    '<button class="btnP2 ok" onclick="CV2.de=$(\'cvDe\').value;CV2.ate=$(\'cvAte\').value;telaCanaisVenda()">'+
      sv('search',13)+' Buscar</button>'+
     '<div class="bfAtalhos">'+
      '<button onclick="perCV(0)">Mês</button><button onclick="perCV(-1)">Anterior</button>'+
@@ -29695,7 +29778,7 @@ function telaCanaisVenda(){
     '</div>'+
     '<div class="cvCentro">'+
      '<div class="grafH"><div><b>Evolução no período</b>'+
-      '<span>'+dias.length+' dias · '+dataBR(CV.de)+' a '+dataBR(CV.ate)+'</span></div></div>'+
+      '<span>'+dias.length+' dias · '+dataBR(CV2.de)+' a '+dataBR(CV2.ate)+'</span></div></div>'+
      grafLinha(porDia,rot,{cor:'#7FB3D5',altura:300})+
     '</div>'+
     '<aside class="cvRank">'+
@@ -29710,14 +29793,14 @@ function telaCanaisVenda(){
    '</div></div></div>';
   rodape('R$ '+money(total)+' em '+peds.length+' pedidos');
 }
-function togCV(s){togFiltro(CV.sucs,s);telaCanaisVenda();}
-function togTodosCV(){CV.sucs=CV.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaCanaisVenda();}
+function togCV(s){togFiltro(CV2.sucs,s);telaCanaisVenda();}
+function togTodosCV(){CV2.sucs=CV2.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaCanaisVenda();}
 function perCV(n){
   var d=new Date();
-  if(n===0){CV.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);CV.ate=hojeISO();}
-  else if(n===-1){CV.de=new Date(d.getFullYear(),d.getMonth()-1,1).toISOString().slice(0,10);
-    CV.ate=new Date(d.getFullYear(),d.getMonth(),0).toISOString().slice(0,10);}
-  else {CV.de=diasAtrasISO(n);CV.ate=hojeISO();}
+  if(n===0){CV2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);CV2.ate=hojeISO();}
+  else if(n===-1){CV2.de=new Date(d.getFullYear(),d.getMonth()-1,1).toISOString().slice(0,10);
+    CV2.ate=new Date(d.getFullYear(),d.getMonth(),0).toISOString().slice(0,10);}
+  else {CV2.de=diasAtrasISO(n);CV2.ate=hojeISO();}
   telaCanaisVenda();
 }
 function explicaCanais(){
@@ -30733,7 +30816,7 @@ var CANAIS_LISTA=[
   d:'link e pixel de conversão', pronto:true, semInt:true,
   det:'Use o link do cardápio e configure o Pixel na aba API de Dados.'}
 ];
-var CN={aba:'canais',busca:'',filtro:'todos'};
+var CN2={aba:'canais',busca:'',filtro:'todos'};
 
 function telaCanaisIntegracao(){
   baseMov();baseSuc();
@@ -30751,18 +30834,18 @@ function telaCanaisIntegracao(){
      ['app','Aplicativo Nexor','chart'],
      ['dados','API de dados','chart'],
      ['tef','Integração TEF','cash']].map(function(a){
-      return '<button class="abaCN'+(CN.aba===a[0]?' on':'')+'" onclick="CN.aba=\''+a[0]+'\';telaCanaisIntegracao()">'+
+      return '<button class="abaCN'+(CN2.aba===a[0]?' on':'')+'" onclick="CN2.aba=\''+a[0]+'\';telaCanaisIntegracao()">'+
       sv(a[2],14)+' '+a[1]+'</button>';}).join('')+
    '</div>'+
-   (CN.aba==='canais'?blocoCanais(c):
-    CN.aba==='dados'?blocoDados(c):
-    CN.aba==='tef'?blocoTEF(c):
-    CN.aba==='app'?blocoApp():'<div id="subCfg"></div>')+
+   (CN2.aba==='canais'?blocoCanais(c):
+    CN2.aba==='dados'?blocoDados(c):
+    CN2.aba==='tef'?blocoTEF(c):
+    CN2.aba==='app'?blocoApp():'<div id="subCfg"></div>')+
    '</div></div>';
-  if(CN.aba==='cardapio'){telaCfgCardapio(true);return;}
-  if(CN.aba==='whatsapp'){telaZap(true);return;}
+  if(CN2.aba==='cardapio'){telaCfgCardapio(true);return;}
+  if(CN2.aba==='whatsapp'){telaZap(true);return;}
   ligarCN();
-  if(CN.aba==='canais'&&ESTADO_REAL.whatsapp===undefined)conferirCanais();
+  if(CN2.aba==='canais'&&ESTADO_REAL.whatsapp===undefined)conferirCanais();
   rodape();
 }
 var ESTADO_REAL={};
@@ -30781,23 +30864,23 @@ async function conferirCanais(){
   /* aplicativo: alguém com acesso publicado */
   baseUsr();
   ESTADO_REAL.appgestao=(DB.usuarios||[]).some(function(u){return u.publicadoEm});
-  if(CN.aba==='canais')telaCanaisIntegracao();
+  if(CN2.aba==='canais')telaCanaisIntegracao();
 }
 function blocoCanais(c){
-  var q=(CN.busca||'').toLowerCase();
+  var q=(CN2.busca||'').toLowerCase();
   var lista=CANAIS_LISTA.filter(function(k){
     if(q&&k.n.toLowerCase().indexOf(q)<0)return false;
-    if(CN.filtro==='ativos')return c.cfg[k.id].ativo||k.fixo;
-    if(CN.filtro==='inativos')return !(c.cfg[k.id].ativo||k.fixo);
+    if(CN2.filtro==='ativos')return c.cfg[k.id].ativo||k.fixo;
+    if(CN2.filtro==='inativos')return !(c.cfg[k.id].ativo||k.fixo);
     return true;
   });
   var grupos=[['proprio','Seus canais'],['market','Marketplaces'],['social','Redes sociais']];
   return '<div class="barraF">'+
    '<div class="bfCampo cresce"><label>Buscar</label>'+
-    '<input id="cnB" value="'+E(CN.busca)+'" placeholder="nome do canal"></div>'+
+    '<input id="cnB" value="'+E(CN2.busca)+'" placeholder="nome do canal"></div>'+
    '<div class="bfAtalhos">'+
     [['todos','Todos'],['ativos','Ativos'],['inativos','Inativos']].map(function(f){
-      return '<button class="'+(CN.filtro===f[0]?'on2':'')+'" onclick="CN.filtro=\''+f[0]+'\';telaCanaisIntegracao()">'+
+      return '<button class="'+(CN2.filtro===f[0]?'on2':'')+'" onclick="CN2.filtro=\''+f[0]+'\';telaCanaisIntegracao()">'+
       f[1]+'</button>';}).join('')+
    '</div></div>'+
    grupos.map(function(g){
@@ -30832,13 +30915,13 @@ function blocoCanais(c){
                :'<span class="cnTag verde">'+sv('check',10)+' com integração</span>')
             :'<span class="cnTag amarelo">a construir</span>')+
           (k.id==='appgestao'
-            ?'<button class="btnP2" onclick="CN.aba=\'app\';telaCanaisIntegracao()">'+
+            ?'<button class="btnP2" onclick="CN2.aba=\'app\';telaCanaisIntegracao()">'+
              sv('gear2',12)+' Configurar</button>'
             :k.id==='cardapio'
-            ?'<button class="btnP2" onclick="CN.aba=\'cardapio\';telaCanaisIntegracao()">'+
+            ?'<button class="btnP2" onclick="CN2.aba=\'cardapio\';telaCanaisIntegracao()">'+
              sv('gear2',12)+' Configurar</button>'
             :k.id==='whatsapp'
-            ?'<button class="btnP2" onclick="CN.aba=\'whatsapp\';telaCanaisIntegracao()">'+
+            ?'<button class="btnP2" onclick="CN2.aba=\'whatsapp\';telaCanaisIntegracao()">'+
              sv('gear2',12)+' Configurar</button>'
             :k.pronto&&!k.semInt&&!k.fixo
               ?'<button class="btnP2" onclick="cfgCanal(\''+k.id+'\')">'+sv('gear2',12)+' Configurar</button>':'')+
@@ -30979,7 +31062,7 @@ function cfgCanal(id){
   var k=CANAIS_LISTA.find(function(x){return x.id===id});
   avisar((k?k.n:'Canal'),(k?k.det:''),'info');
 }
-function abrirCfgCardapio(){ CN.aba='cardapio'; abrir('loja','canais-integracao'); }
+function abrirCfgCardapio(){ CN2.aba='cardapio'; abrir('loja','canais-integracao'); }
 function salvarPixels(){
   var c=baseCanais();
   ['fbPixel','fbToken','ga4','gtm','tiktok','googleAds'].forEach(function(k){
@@ -30991,7 +31074,7 @@ function salvarPixels(){
 }
 function ligarCN(){
   var b=$('cnB');
-  if(b)b.oninput=function(){CN.busca=this.value;var p=this.selectionStart;telaCanaisIntegracao();
+  if(b)b.oninput=function(){CN2.busca=this.value;var p=this.selectionStart;telaCanaisIntegracao();
     var n=$('cnB');if(n){n.focus();n.setSelectionRange(p,p);}};
 }
 
@@ -31034,7 +31117,7 @@ function telaCfgCardapio(dentro){
   var link='https://rafaeluendes-jpg.github.io/delivery/';
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
-    (dentro?'<button class="btnP2" onclick="CN.aba=\'canais\';telaCanaisIntegracao()">'+
+    (dentro?'<button class="btnP2" onclick="CN2.aba=\'canais\';telaCanaisIntegracao()">'+
       sv('cr2',13)+' Canais</button>':'')+
     '<div><h1>Configuração do Cardápio Digital</h1>'+
     '<p>A página que seus clientes acessam para pedir.</p></div>'+
@@ -31899,7 +31982,7 @@ function telaZap(dentro){
   var c=zapAtual();
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
-    (dentro?'<button class="btnP2" onclick="CN.aba=\'canais\';telaCanaisIntegracao()">'+
+    (dentro?'<button class="btnP2" onclick="CN2.aba=\'canais\';telaCanaisIntegracao()">'+
       sv('cr2',13)+' Canais</button>':'')+
     '<div><h1>Robô do WhatsApp</h1>'+
     '<p>Atende os clientes sozinho e avisa cada etapa do pedido.</p></div>'+
@@ -32547,7 +32630,7 @@ function msgSangria(valor,motivo){
 
 var ROT = { lista: [], carregando: false, edit: null };
 
-var DIAS_SEM = [
+var DIAS_SEM2 = [
   { n: 1, curto: 'Seg' }, { n: 2, curto: 'Ter' }, { n: 3, curto: 'Qua' },
   { n: 4, curto: 'Qui' }, { n: 5, curto: 'Sex' }, { n: 6, curto: 'Sáb' },
   { n: 0, curto: 'Dom' }
@@ -32560,7 +32643,7 @@ function rotDias(d) {
   var seg = [1, 2, 3, 4, 5].every(function (x) { return a.indexOf(x) >= 0; });
   if (seg && a.length === 5) return 'de segunda a sexta';
   if (seg && a.length === 6 && a.indexOf(6) >= 0) return 'de segunda a sábado';
-  return DIAS_SEM.filter(function (x) { return a.indexOf(x.n) >= 0; })
+  return DIAS_SEM2.filter(function (x) { return a.indexOf(x.n) >= 0; })
     .map(function (x) { return x.curto; }).join(', ');
 }
 
@@ -32649,7 +32732,7 @@ function modalRotina(id) {
 
     '<div class="cfgSep" style="margin:14px 0 8px">Dias da semana</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">' +
-     DIAS_SEM.map(function (d) {
+     DIAS_SEM2.map(function (d) {
        return '<label class="chkDia"><input type="checkbox" class="rtDia" value="' + d.n + '"' +
          (dias.indexOf(d.n) >= 0 ? ' checked' : '') + '><span>' + d.curto + '</span></label>';
      }).join('') +
@@ -32903,7 +32986,7 @@ function telaGerente(){
 /* Um botão só para a tela inteira: confere, grava no aparelho e publica em
    whatsapp_config — é de lá que o robô lê para saber de quem é o número que
    escreveu e para onde mandar o relatório. */
-function soDigitos(t){ return String(t||'').replace(/\D/g,''); }
+
 function salvarAssistente(){
   baseGerente();
   if(!GE.suc){toast('Escolha a loja primeiro.');return;}
