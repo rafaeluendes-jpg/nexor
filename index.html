@@ -668,6 +668,9 @@ body.pdvFull .wTitle{display:none}
 .stCol span{display:block;font-size:10.5px;color:var(--tx2,#7a7266);margin-top:1px}
 .stCol i{display:inline-flex;align-items:center;gap:3px;font-style:normal;
  font-size:10px;color:var(--tx2,#7a7266);margin-top:4px;margin-right:7px}
+.flagBox{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+ width:22px;height:22px}
+.flagBox input{width:18px;height:18px;cursor:pointer;accent-color:var(--pr,#0E5C3A);margin:0}
 .stTopo{font-size:11px;color:var(--tx2,#7a7266)}
 .stOrd{display:flex;gap:2px}
 .stPt{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
@@ -12777,6 +12780,14 @@ function toast(m){var o=$('ts');if(o)o.remove();var d=document.createElement('di
 d.className='toast';d.id='ts';d.textContent=m;document.body.appendChild(d);
 setTimeout(function(){if(d.parentNode)d.remove()},2400);}
 function dev(){toast('Este módulo será construído na próxima etapa.');}
+/* redesenha sem perder o lugar em que a pessoa estava lendo */
+function comRolagem(fn){
+  var r=document.querySelector('.etScroll');
+  var y=r?r.scrollTop:(window.scrollY||0);
+  fn();
+  var r2=document.querySelector('.etScroll');
+  if(y){ if(r2)r2.scrollTop=y; else window.scrollTo(0,y); }
+}
 function fecharPops(){var p=document.querySelectorAll('.popMenu');for(var i=0;i<p.length;i++)p[i].remove();}
 document.addEventListener('click',function(e){
   if(!e.target.closest('.popMenu')&&!e.target.closest('[data-pop]'))fecharPops();
@@ -13176,7 +13187,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.5.1';
+var VERSAO='V19.5.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13230,7 +13241,23 @@ $('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada
 }
 
 /* ===== BLOCO 7 — ROTEADOR ===== */
+/* Redesenhar a mesma tela nao pode jogar a pessoa para o topo. Tela nova
+   comeca no comeco, como deve; a mesma tela volta onde estava. */
 function abrir(mid,iid){
+  var mesma=(S.mod===mid&&S.it===iid);
+  var ant=0;
+  if(mesma){
+    var r=document.querySelector('.etScroll');
+    ant=r?r.scrollTop:(window.scrollY||0);
+  }
+  var v=_abrirTela(mid,iid);
+  if(mesma&&ant){
+    var r2=document.querySelector('.etScroll');
+    if(r2)r2.scrollTop=ant; else window.scrollTo(0,ant);
+  }
+  return v;
+}
+function _abrirTela(mid,iid){
   if(iid&&!podeVer(mid,iid)){
     $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
      '<div class="construIc">'+sv('lock',30)+'</div>'+
@@ -14030,6 +14057,15 @@ function ocupado(){
   var a=document.activeElement;
   if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))return true;  /* digitando */
   if(typeof PDV!=='undefined'&&PDV.comanda&&PDV.comanda.length)return true; /* venda em andamento */
+  /* A tela se refazia de 2 em 2 segundos e meio sem perguntar nada: fechava
+     menu aberto, jogava a rolagem para o topo e desfazia a categoria escolhida
+     no PDV. Atualizar sozinho so vale quando a pessoa nao esta no meio de algo. */
+  if(document.getElementById('mdOv'))return true;               /* janela aberta */
+  if(document.querySelector('.popMenu'))return true;            /* menu suspenso aberto */
+  if(document.getElementById('sucMenu'))return true;            /* seletor de loja aberto */
+  var rol=document.querySelector('.etScroll');
+  if(rol&&rol.scrollTop>8)return true;                          /* leu ate o meio da tela */
+  if((window.scrollY||0)>8)return true;
   return false;
 }
 /* avisa que tem novidade, sem atrapalhar */
@@ -31439,9 +31475,9 @@ function telaStatusVendas(){
       '<td><span class="stPap">'+E(nomePapel(x.papel))+'</span></td>'+
       '<td style="text-align:center">'+(x.minutos?x.minutos+' min':'—')+'</td>'+
       '<td style="text-align:center">'+(x.som?sv('bell',13):'—')+'</td>'+
-      '<td style="text-align:center"><label class="miniSw">'+
+      '<td style="text-align:center"><label class="flagBox">'+
        '<input type="checkbox" '+(x.ativo!==false?'checked':'')+
-       ' onchange="togStatus(\''+x.id+'\')"><i></i></label></td>'+
+       ' onchange="togStatus(\''+x.id+'\')"></label></td>'+
       '<td><div class="rowAct">'+
        '<button class="rBtn" onclick="formStatus(\''+x.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
        '<button class="rBtn rd" onclick="excluirStatus(\''+x.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
@@ -31519,7 +31555,7 @@ function togStatus(id){
     }
   }
   x.ativo=(x.ativo===false);
-  salvar();telaStatusVendas();
+  salvar();comRolagem(telaStatusVendas);
   if(NUVEM.ligada)sincronizar();
 }
 function moverStatus(id,d){
@@ -31529,7 +31565,7 @@ function moverStatus(id,d){
   if(i<0||i+d<0||i+d>=l.length)return;
   var t=l[i];l[i]=l[i+d];l[i+d]=t;
   l.forEach(function(x,k){x.ordem=k});
-  salvar();telaStatusVendas();
+  salvar();comRolagem(telaStatusVendas);
   if(NUVEM.ligada)sincronizar();
 }
 async function excluirStatus(id){
@@ -32425,9 +32461,9 @@ function telaMotivosCanc(){
        return '<tr'+(m.ativo===false?' class="off"':'')+'>'+
         '<td><b>'+E(m.nome)+'</b></td>'+
         '<td style="text-align:center">'+usos+'</td>'+
-        '<td style="text-align:center"><label class="miniSw">'+
+        '<td style="text-align:center"><label class="flagBox">'+
          '<input type="checkbox" '+(m.ativo!==false?'checked':'')+
-         ' onchange="togMotivoCanc(\''+m.id+'\')"><i></i></label></td>'+
+         ' onchange="togMotivoCanc(\''+m.id+'\')"></label></td>'+
         '<td><div class="rowAct">'+
          '<button class="rBtn" onclick="formMotivoCanc(\''+m.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
          '<button class="rBtn rd" onclick="excluirMotivoCanc(\''+m.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
@@ -32477,7 +32513,7 @@ function togMotivoCanc(id){
   var m=(DB.motivosCanc||[]).find(function(x){return x.id===id});
   if(!m)return;
   m.ativo=(m.ativo===false);
-  salvar();telaMotivosCanc();
+  salvar();comRolagem(telaMotivosCanc);
   if(NUVEM.ligada)sincronizar();
 }
 async function excluirMotivoCanc(id){
@@ -32561,9 +32597,9 @@ function telaTurnos(){
         '<td><b>'+E(t.nome)+'</b></td>'+
         '<td>'+(t.ini&&t.fim?E(t.ini)+' as '+E(t.fim):'<span class="hint">sem horario</span>')+'</td>'+
         '<td style="text-align:center">'+qtd+'</td>'+
-        '<td style="text-align:center"><label class="miniSw">'+
+        '<td style="text-align:center"><label class="flagBox">'+
          '<input type="checkbox" '+(t.ativo!==false?'checked':'')+
-         ' onchange="togTurno(\''+t.id+'\')"><i></i></label></td>'+
+         ' onchange="togTurno(\''+t.id+'\')"></label></td>'+
         '<td><div class="rowAct">'+
          '<button class="rBtn" onclick="formTurno(\''+t.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
          '<button class="rBtn rd" onclick="excluirTurno(\''+t.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
@@ -32619,7 +32655,7 @@ function togTurno(id){
   var t=(DB.turnos||[]).find(function(x){return x.id===id});
   if(!t)return;
   t.ativo=(t.ativo===false);
-  salvar();telaTurnos();
+  salvar();comRolagem(telaTurnos);
   if(NUVEM.ligada)sincronizar();
 }
 async function excluirTurno(id){
