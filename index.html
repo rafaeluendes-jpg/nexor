@@ -13119,7 +13119,7 @@ function trocarLoja(id){
   toast('Loja: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V19.3.0';
+var VERSAO='V19.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -31648,6 +31648,8 @@ function pedidoExemplo(tipo){
 /* ---------- a tela, agora em blocos ---------- */
 function telaModeloImp(){
   baseImp();
+  var rol=document.querySelector('.etScroll');
+  var topo=rol?rol.scrollTop:0;
   var m=modeloImp(IMP.tipo);
   if(!m.blocos||!m.blocos.length){m.blocos=blocosPadrao(m.tipo);salvar();}
   var cols=m.colunas||48;
@@ -31692,7 +31694,7 @@ function telaModeloImp(){
         IMP_CAMPOS.map(function(c){
           return '<button class="impChip" title="'+E(c[1])+'" onclick="inserirImp(\''+c[0]+'\')">'+E(c[0])+'</button>';
         }).join('')+'</div>'
-      : listaBlocosHTML(m))+
+      : '<div id="blkBox">'+listaBlocosHTML(m)+'</div>')+
 
      '<div class="impAcoes">'+
       '<button class="btnP2 ok" onclick="salvarImp()">'+sv('nike',14)+' Salvar modelo</button>'+
@@ -31709,6 +31711,8 @@ function telaModeloImp(){
     '</div>'+
    '</div>'+
    '</div></div>';
+  var novoRol=document.querySelector('.etScroll');
+  if(novoRol&&topo)novoRol.scrollTop=topo;
   rodape('modelo de '+m.nome);
 }
 
@@ -31808,21 +31812,32 @@ function opcoesBloco(b,i){
   }
   return '';
 }
+/* Mexer num bloco redesenhava a tela inteira, e o navegador jogava a
+   rolagem de volta para o topo: quem estava mexendo la embaixo era
+   arrancado do lugar a cada clique. Agora so a lista e a previa se
+   refazem, e a posicao da tela fica onde estava. */
+function redesenharBlocos(){
+  var m=modeloImp(IMP.tipo);
+  var box=$('blkBox');
+  if(!box){telaModeloImp();return;}
+  box.innerHTML=listaBlocosHTML(m);
+  previaImp();
+}
 function togBloco(i){
   var m=modeloImp(IMP.tipo);
   m.blocos[i].on=(m.blocos[i].on===false);
-  salvar();telaModeloImp();
+  salvar();redesenharBlocos();
 }
 function moverBloco(i,d){
   var m=modeloImp(IMP.tipo),b=m.blocos;
   if(i+d<0||i+d>=b.length)return;
   var x=b[i];b[i]=b[i+d];b[i+d]=x;
-  salvar();telaModeloImp();
+  salvar();redesenharBlocos();
 }
 function tirarBloco(i){
   var m=modeloImp(IMP.tipo);
   m.blocos.splice(i,1);
-  salvar();telaModeloImp();
+  salvar();redesenharBlocos();
 }
 function addBloco(){
   var t=$('blkNovo').value;
@@ -31836,15 +31851,17 @@ function addBloco(){
   var iCorte=m.blocos.findIndex(function(b){return b.t==='corte'});
   if(t!=='corte'&&iCorte>=0)m.blocos.splice(iCorte,0,novo);
   else m.blocos.push(novo);
-  salvar();telaModeloImp();
+  salvar();redesenharBlocos();
 }
 /* mexer numa opcao nao pode redesenhar a tela inteira: o cursor pularia
    para fora do campo a cada letra. So a previa se refaz. */
 function opBloco(i,campo,valor){
   var m=modeloImp(IMP.tipo);
   m.blocos[i][campo]=valor;
-  salvar();previaImp();
-  if(campo==='al'||typeof valor==='boolean')telaModeloImp();
+  salvar();
+  /* digitando: so a previa, senao o cursor sairia do campo a cada letra */
+  if(campo==='texto'){previaImp();return;}
+  redesenharBlocos();
 }
 async function modoTexto(){
   var m=modeloImp(IMP.tipo);
