@@ -11914,7 +11914,11 @@ var MAPA=[
     total:n(x.total),taxa:n(x.taxa),desconto:n(x.desconto),fiscal:!!x.fiscal,
     hora:x.hora||null,data_venda:x.data||null,
     mesa_id:fk('mesas',x.mesaId),mesa_numero:n(x.mesa),
-    comanda_nome:x.comandaNome||null,taxa_servico:n(x.taxaServico)}},
+    comanda_nome:x.comandaNome||null,taxa_servico:n(x.taxaServico),
+    /* Sem isto, o relatorio de canais so funcionava no aparelho que fez a
+       venda: o dado subia sem o canal e voltava em branco. Com totem e mesa
+       entrando, saber de ONDE veio a venda passa a ser essencial. */
+    canal:x.canal||null,origem_venda:x.origem||null}},
   filhos:[
    {lista:'itens',tab:'pedido_itens',pai:'pedido_id',
     campos:function(o){return {produto_id:fk('produtos',o.produtoId),nome:o.nome,
@@ -12944,6 +12948,9 @@ async function baixarDaNuvem(forcar){
     cidade:x.cidade||'',total:Number(x.total)||0,taxa:Number(x.taxa)||0,
     desconto:Number(x.desconto)||0,cupomCodigo:x.cupom_codigo||'',
     cupomValor:Number(x.cupom_valor)||0,fiscal:!!x.fiscal,hora:x.hora,data:x.data_venda,
+    canal:x.canal||'',origem:x.origem_venda||'',
+    mesaId:x.mesa_id||'',mesa:Number(x.mesa_numero)||0,
+    comandaNome:x.comanda_nome||'',taxaServico:Number(x.taxa_servico)||0,
     itens:(x.pedido_itens||[]).map(function(i3){return {produtoId:mapaPr[i3.produto_id]||'',
       nome:i3.nome,qtd:Number(i3.quantidade)||0,unitario:Number(i3.unitario)||0,
       total:Number(i3.total)||0,obs:i3.observacao||'',opcoes:i3.opcoes||[]}}),
@@ -13580,7 +13587,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.1.0';
+var VERSAO='V20.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30380,9 +30387,15 @@ function telaCanaisVenda(){
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var canais=[
    {id:'entrega', n:'Delivery',      cor:'#E8574A', fn:function(p){return p.tipo==='entrega'&&(p.canal||'')!=='whatsapp'&&(p.canal||'')!=='cardapio'}},
-   {id:'loja',    n:'Loja física',   cor:'#4CAF50', fn:function(p){return p.tipo!=='entrega'}},
+   /* antes isto engolia mesa e totem: tudo que nao era entrega virava "loja
+      fisica", e a venda do totem sumia dentro do balcao */
+   {id:'loja',    n:'Balcão',        cor:'#4CAF50', fn:function(p){
+     var c=(p.canal||'');
+     return p.tipo!=='entrega'&&c!=='mesa'&&c!=='totem'&&c!=='cardapio'&&c!=='whatsapp';}},
    {id:'whatsapp',n:'WhatsApp',      cor:'#7E57C2', fn:function(p){return (p.canal||'')==='whatsapp'}},
-   {id:'cardapio',n:'Cardápio digital',cor:'#F5A623',fn:function(p){return (p.canal||'')==='cardapio'}}
+   {id:'cardapio',n:'Cardápio digital',cor:'#F5A623',fn:function(p){return (p.canal||'')==='cardapio'}},
+   {id:'mesa',    n:'Mesa (QR Code)',  cor:'#B4542F',fn:function(p){return (p.canal||'')==='mesa'}},
+   {id:'totem',   n:'Totem',           cor:'#1F5F8B',fn:function(p){return (p.canal||'')==='totem'}}
   ].map(function(c){
     var lista=peds.filter(c.fn);
     c.valor=lista.reduce(function(a,p){return a+(Number(p.total)||0)},0);
