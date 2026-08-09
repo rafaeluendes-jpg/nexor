@@ -12471,6 +12471,22 @@ async function sincronizar(){
       logNuvem('ERRO em config_loja: '+((eC&&eC.message)||'falha'),true);
     }
 
+    /* Estas seis viviam SO no navegador de quem cadastrou: nao subiam nem
+       desciam. Trocar de aparelho, limpar o navegador ou abrir em outra
+       maquina perdia o telefone dos gestores, a conexao da Carla e os
+       operadores de caixa — sem nenhum aviso. */
+    etapa='config_operacao';
+    try{
+      await api('config_operacao?on_conflict=loja_id','POST',[{loja_id:l,
+        gerente:DB.gerente||{}, zap:DB.zap||{}, canais:DB.canais||{},
+        ass_plat:DB.assPlat||{}, redes:DB.redes||[], operadores:DB.operadores||[],
+        atualizado_em:new Date().toISOString()}],
+        {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }catch(eO){
+      NUVEM.erros.push({tab:'config_operacao',msg:(eO&&eO.message)||'falha'});
+      logNuvem('ERRO em config_operacao: '+((eO&&eO.message)||'falha'),true);
+    }
+
     /* vínculo de produção que aponta para outra ficha só existe depois
        que todas as fichas subiram — por isso é gravado agora, no fim */
     var pend=[];
@@ -12652,7 +12668,44 @@ async function baixarDaNuvem(forcar){
     if(cfgS[0].cfg_fiscal)c3.fiscal=cfgS[0].cfg_fiscal;
     if(cfgS[0].cfg_pdv){var cp=cfgS[0].cfg_pdv;
       c3.colunas=cp.colunas;c3.mostraPreco=cp.mostraPreco;
-      c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}}
+      c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}
+  }
+  /* As seis que viviam so no navegador. Objeto vazio nao sobrescreve o que
+     ja existe aqui: aparelho novo recebe tudo, aparelho antigo nao perde
+     nada se a nuvem ainda estiver em branco. */
+  /* Configuracao do cardapio por unidade: subia e nunca voltava. Aparelho
+     novo mostrava o cardapio sem cor, sem logo e sem horario. */
+  try{
+    var cc=await api('cardapio_config'+qs);
+    if(cc&&cc.length){
+      DB.cardapio=DB.cardapio||{};
+      cc.forEach(function(x){
+        var sid=x.ref_local?String(x.ref_local).replace(/^cc_/,''):null;
+        if(!sid)return;
+        DB.cardapio[sid]=Object.assign(DB.cardapio[sid]||{},{
+          ativo:x.ativo!==false,titulo:x.titulo||'',slogan:x.slogan||'',
+          logo:x.logo||'',capa:x.capa||'',
+          corPrincipal:x.cor_principal||'#2F4A32',corFundo:x.cor_fundo||'#F7F3EA',
+          whatsapp:x.whatsapp||'',instagram:x.instagram||'',endereco:x.endereco||'',
+          pedidoMinimo:Number(x.pedido_minimo)||0,
+          tempoEntrega:x.tempo_entrega||'',tempoRetirada:x.tempo_retirada||'',
+          aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false});
+      });
+    }
+  }catch(ec2){ logNuvem('não consegui baixar a configuração do cardápio',true); }
+
+  try{
+    var co=await api('config_operacao'+qs+'&limit=1');
+    if(co&&co[0]){
+      var o=co[0];
+      if(o.gerente&&Object.keys(o.gerente).length)DB.gerente=o.gerente;
+      if(o.zap&&Object.keys(o.zap).length)DB.zap=o.zap;
+      if(o.canais&&Object.keys(o.canais).length)DB.canais=o.canais;
+      if(o.ass_plat&&Object.keys(o.ass_plat).length)DB.assPlat=o.ass_plat;
+      if(o.redes&&o.redes.length)DB.redes=o.redes;
+      if(o.operadores&&o.operadores.length)DB.operadores=o.operadores;
+    }
+  }catch(eo){ logNuvem('não consegui baixar a configuração de operação',true); }
   /* ---------- ESTOQUE ---------- */
   var ue=await api('unidades_medida'+qs);
   DB.unidExtra=volta(ue,function(x){return {id:x.ref_local||x.id,n:x.nome,ab:x.sigla,
@@ -13587,7 +13640,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.2.0';
+var VERSAO='V20.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
