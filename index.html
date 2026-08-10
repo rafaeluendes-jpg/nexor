@@ -13891,7 +13891,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.1.0';
+var VERSAO='V21.1.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -32794,6 +32794,12 @@ function blocoCanais(c){
             :k.id==='whatsapp'
             ?'<button class="btnP2" onclick="CN2.aba=\'whatsapp\';telaCanaisIntegracao()">'+
              sv('gear2',12)+' Configurar</button>'
+            :k.tela
+            /* canal com tela propria vai direto para ela. Antes caia no
+               cfgCanal, que so mostra a explicacao — o botao "Configurar"
+               abria um aviso e nao configurava nada. */
+            ?'<button class="btnP2" onclick="abrir(\''+k.tela[0]+'\',\''+k.tela[1]+'\')">'+
+             sv('gear2',12)+' Configurar</button>'
             :k.pronto&&!k.semInt&&!k.fixo
               ?'<button class="btnP2" onclick="cfgCanal(\''+k.id+'\')">'+sv('gear2',12)+' Configurar</button>':'')+
          '</div></div>';
@@ -32931,6 +32937,7 @@ function togCanal(id){
 }
 function cfgCanal(id){
   var k=CANAIS_LISTA.find(function(x){return x.id===id});
+  if(k&&k.tela){abrir(k.tela[0],k.tela[1]);return;}
   avisar((k?k.n:'Canal'),(k?k.det:''),'info');
 }
 function abrirCfgCardapio(){ CN2.aba='cardapio'; abrir('loja','canais-integracao'); }
