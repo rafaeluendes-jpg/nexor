@@ -13385,6 +13385,54 @@ function toast(m){var o=$('ts');if(o)o.remove();var d=document.createElement('di
 d.className='toast';d.id='ts';d.textContent=m;document.body.appendChild(d);
 setTimeout(function(){if(d.parentNode)d.remove()},2400);}
 function dev(){toast('Este módulo será construído na próxima etapa.');}
+/* ==========================================================
+   A TELA NAO SOBE MAIS SOZINHA
+   Existem 333 lugares no sistema que redesenham a propria tela depois
+   de salvar alguma coisa. Cada um deles jogava a pessoa para o topo, e
+   tapar um a um seria garantir esquecer algum.
+
+   Em vez disso: o sistema anota onde a pessoa estava em cada tela e,
+   sempre que o conteudo e refeito SEM trocar de tela, devolve a
+   posicao. Trocou de tela de verdade, comeca do topo — que e o certo.
+   ========================================================== */
+var _rolTela={}, _rolChave=null, _rolTrava=false;
+function chaveTela(){return (S.mod||'')+'/'+(S.it||'')}
+function areaRolagem(){return document.querySelector('.etScroll')||document.querySelector('.finWrap');}
+(function guardarRolagem(){
+  /* captura na fase de captura porque a barra e de um elemento interno */
+  document.addEventListener('scroll',function(e){
+    if(_rolTrava)return;
+    var el=e.target;
+    if(el&&el.classList&&(el.classList.contains('etScroll')||el.classList.contains('finWrap')))
+      _rolTela[chaveTela()]=el.scrollTop;
+  },true);
+  window.addEventListener('scroll',function(){
+    if(_rolTrava||areaRolagem())return;
+    _rolTela[chaveTela()]=window.scrollY||0;
+  });
+})();
+function devolverRolagem(){
+  var k=chaveTela();
+  if(k!==_rolChave){_rolChave=k;return;}    /* tela nova: comeca no topo */
+  var y=_rolTela[k]||0;
+  if(!y)return;
+  _rolTrava=true;
+  var el=areaRolagem();
+  if(el){ if(Math.abs(el.scrollTop-y)>2)el.scrollTop=y; }
+  else if(Math.abs((window.scrollY||0)-y)>2)window.scrollTo(0,y);
+  setTimeout(function(){_rolTrava=false},60);
+}
+/* ligado no arranque: aqui em cima o #content ainda nao existe */
+var _obsRol=null;
+function vigiarConteudo(){
+  try{
+    if(_obsRol)return;
+    var alvo=document.getElementById('content');
+    if(!alvo||!window.MutationObserver)return;
+    _obsRol=new MutationObserver(function(){ devolverRolagem(); });
+    _obsRol.observe(alvo,{childList:true});
+  }catch(e){}
+}
 /* redesenha sem perder o lugar em que a pessoa estava lendo */
 function comRolagem(fn){
   var r=document.querySelector('.etScroll');
@@ -13707,7 +13755,9 @@ function boot(){
   espelharEstoque();            /* a tela mostra o saldo DESTA unidade */
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
-  topo();faixa();abrir('cardapio','cfg-cardapio');
+  topo();faixa();
+  try{vigiarConteudo()}catch(e){}   /* a tela para de subir sozinha */
+  abrir('cardapio','cfg-cardapio');
   try{pintarRede()}catch(e){}
   try{pintarTravaUnidade()}catch(e){}
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
@@ -13891,7 +13941,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.1.1';
+var VERSAO='V21.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13954,6 +14004,7 @@ function abrir(mid,iid){
     var r=document.querySelector('.etScroll');
     ant=r?r.scrollTop:(window.scrollY||0);
   }
+  if(!mesma)_rolChave=(mid||'')+'/'+(iid||'');   /* tela nova: comeca no topo */
   var v=_abrirTela(mid,iid);
   if(mesma&&ant){
     var r2=document.querySelector('.etScroll');
