@@ -791,6 +791,15 @@ body.pdvFull .wTitle{display:none}
 .unOp.fixa{opacity:.75;cursor:default;background:#EAF5EE;border-color:#BFE0CC}
 .unOp span{font-size:10px;color:#1B5E36}
 .unOp input{width:16px;height:16px;accent-color:var(--pr,#0E5C3A)}
+.tcAtr.claro .tcLogo{background:rgba(0,0,0,.07);border-color:rgba(0,0,0,.26)}
+.tcAtr.claro .tcGp{background:rgba(0,0,0,.10);border-color:rgba(0,0,0,.16)}
+.tmFoto{padding:12px 0 4px}
+.tmFotoPrev{width:100%;aspect-ratio:16/7;border-radius:11px;background-size:cover;
+ background-position:center;border:1px solid var(--lin,#e6e0d4)}
+.tmFotoVazio{width:100%;aspect-ratio:16/7;border-radius:11px;border:1.5px dashed var(--lin,#e6e0d4);
+ background:var(--bg2,#faf7f0);display:grid;place-items:center;color:var(--tx2,#9a9288);gap:6px}
+.tmFotoVazio span{font-size:11.5px}
+.tmFotoAc{display:flex;gap:8px;margin-top:9px}
 .tmLiga{display:flex;align-items:center;gap:14px;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 17px;margin-bottom:14px}
 .tmDuas{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
@@ -12542,11 +12551,31 @@ async function sincronizar(){
         }
         vistosId[x.id]=true;
         (E3.filhos||[]).forEach(function(F2){
+          /* Duas travas. A primeira tira a repeticao de VERDADE: duas opcoes
+             com o mesmo nome e preco no mesmo grupo sao a mesma opcao, e
+             manter as duas foi o que encheu o banco.
+             A segunda garante identificador estavel — e NUNCA aleatorio,
+             porque id sorteado a cada envio cria linha nova toda vez. */
+          var lst2=x[F2.lista]||[];
+          if(lst2.length){
+            var visto={}, limpo=[];
+            lst2.forEach(function(o){
+              if(!o)return;
+              var ch=String(o.nome||'').trim().toLowerCase()+'|'+(Number(o.preco)||0);
+              if(visto[ch])return;
+              visto[ch]=true;limpo.push(o);
+            });
+            if(limpo.length!==lst2.length)
+              logNuvem(F2.tab+' em "'+(x.nome||'')+'": '+(lst2.length-limpo.length)+
+                ' repetido(s) descartado(s)');
+            x[F2.lista]=limpo;lst2=limpo;
+          }
           var vf={};
-          (x[F2.lista]||[]).forEach(function(o,j){
+          lst2.forEach(function(o,j){
             if(!o)return;
             if(!o.id)o.id=x.id+'_'+j;
-            if(vf[o.id])o.id=x.id+'_'+j+'_'+Math.random().toString(36).slice(2,6);
+            /* id repetido: desempata pela posicao, nao por sorteio */
+            while(vf[o.id])o.id=x.id+'_'+j+'_'+Object.keys(vf).length;
             vf[o.id]=true;
           });
         });
@@ -12867,8 +12896,14 @@ async function baixarDaNuvem(forcar){
     imposto:x.imposto,cor:x.cor,imagem:x.imagem,ativo:x.ativa!==false,ordem:x.ordem||0,sucursais:x.sucursais||[]}});
   DB.grupos=volta(rg,function(x){return {id:x.ref_local||x.id,nome:x.nome,min:x.minimo||0,max:x.maximo||1,
     forcado:!!x.forcado,ordem:x.ordem||0,
+    /* A opcao voltava da nuvem SEM identificador. No envio seguinte ela era
+       renumerada pela posicao, entao qualquer reordenacao criava linha nova
+       em vez de atualizar a existente. Duas bordas viraram 2.000 linhas.
+       Trazendo o ref_local de volta, a opcao mantem a mesma identidade em
+       todas as voltas. */
     opcoes:(x.opcoes||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
-      .map(function(o){return {nome:o.nome,preco:Number(o.preco_adicional)||0}})}});
+      .map(function(o){return {id:o.ref_local||null,nome:o.nome,
+        preco:Number(o.preco_adicional)||0}})}});
   DB.produtos=volta(rp,function(x){
     var g=(rv||[]).filter(function(v){return v.produto_id===x.id}).map(function(v){return mapaGr[v.grupo_id]}).filter(Boolean);
     return {id:x.ref_local||x.id,nome:x.nome,preco:Number(x.preco)||0,codigo:x.codigo,
@@ -13957,7 +13992,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.3.1';
+var VERSAO='V21.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16069,7 +16104,32 @@ function cfgTotem(){
   if(t.voltaFim===undefined)t.voltaFim=12;
   if(t.pagaNoTotem===undefined)t.pagaNoTotem=false;
   if(t.unidades===undefined)t.unidades=[];   /* vazio = todas */
+  /* fundo: cor chapada ou foto. Com foto, a escrita precisa de contraste —
+     por isso o veu e a opcao de texto escuro andam junto. */
+  if(t.fundoTipo===undefined)t.fundoTipo='cor';
+  if(t.fundoFoto===undefined)t.fundoFoto='';
+  if(t.textoEscuro===undefined)t.textoEscuro=true;
+  if(t.veu===undefined)t.veu=25;
   return t;
+}
+/* O fundo da tela de descanso, montado uma vez e usado na previa e no
+   totem de verdade — para o que voce ve ser o que o cliente ve. */
+function fundoTotem(){
+  var t=cfgTotem();
+  if(t.fundoTipo!=='foto'||!t.fundoFoto)
+    return {css:'background:'+t.fundo,texto:'#fff',sombra:'0 2px 12px rgba(0,0,0,.35)'};
+  var claro=t.textoEscuro;
+  /* o veu e branco quando a escrita e escura e preto quando e clara:
+     em qualquer foto, a palavra continua legivel */
+  var cor=claro?'255,255,255':'0,0,0';
+  var a=(Number(t.veu)||0)/100;
+  return {
+    css:'background-image:linear-gradient(rgba('+cor+','+a+'),rgba('+cor+','+
+        Math.min(a+0.12,0.92)+')),url("'+t.fundoFoto+'");'+
+        'background-size:cover;background-position:center',
+    texto:claro?'#241F1A':'#fff',
+    sombra:claro?'0 1px 10px rgba(255,255,255,.5)':'0 2px 12px rgba(0,0,0,.45)'
+  };
 }
 function totemLigadoNa(suc){
   var t=cfgTotem();
@@ -16125,12 +16185,38 @@ function telaTotem(){
      '</div>'+
 
      '<div class="tmBox"><div class="tmT">Marca e frases</div>'+
-      '<div class="tmLin"><div class="tmR"><b>Cor de fundo</b>'+
-       '<span>domina a tela de descanso e o topo</span></div>'+
-       '<div class="tmCores">'+FUNDOS_TOTEM.map(function(c){
-         return '<div class="tmCor'+(t.fundo===c?' on':'')+'" style="background:'+c+'" '+
-          'onclick="cfgTotem().fundo=\''+c+'\';salvarTotem()"></div>';
-       }).join('')+'</div></div>'+
+      '<div class="tmLin"><div class="tmR"><b>Fundo da tela de descanso</b>'+
+       '<span>o que o cliente vê de longe, antes de tocar</span></div>'+
+       tmSeg('fundoTipo',[['cor','Cor'],['foto','Foto']])+'</div>'+
+      (t.fundoTipo==='foto'
+       ?'<div class="tmFoto">'+
+         (t.fundoFoto
+          ?'<div class="tmFotoPrev" style="background-image:url(\''+E(t.fundoFoto)+'\')"></div>'
+          :'<div class="tmFotoVazio">'+sv('img',26)+'<span>nenhuma foto escolhida</span></div>')+
+         '<div class="tmFotoAc">'+
+          '<input type="file" id="tmArq" accept="image/*" style="display:none" '+
+           'onchange="lerFundoTotem(this)">'+
+          '<button class="btnP2" onclick="document.getElementById(\'tmArq\').click()">'+
+           sv('img',13)+' Escolher foto</button>'+
+          (t.fundoFoto?'<button class="btnP2 rd" onclick="cfgTotem().fundoFoto=\'\';salvarTotem()">Remover</button>':'')+
+         '</div>'+
+         '<div class="hint">Uma foto clara e sem muito detalhe no meio funciona melhor — '+
+         'a escrita fica por cima. Deitada, pelo menos 1600 de largura.</div>'+
+        '</div>'+
+        '<div class="tmLin"><div class="tmR"><b>Cor da escrita</b>'+
+         '<span>escolha o contrário do fundo</span></div>'+
+         tmSeg('textoEscuro',[[true,'Escura'],[false,'Clara']],false,true)+'</div>'+
+        '<div class="tmLin"><div class="tmR"><b>Véu sobre a foto</b>'+
+         '<span>clareia ou escurece para a escrita não sumir</span></div>'+
+         '<input class="tmNum" type="range" min="0" max="70" step="5" value="'+(t.veu||0)+'" '+
+         'style="width:130px" oninput="cfgTotem().veu=+this.value;pintarTotem()" '+
+         'onchange="salvarTotem()"><b style="width:38px;text-align:right">'+(t.veu||0)+'%</b></div>'
+       :'<div class="tmLin"><div class="tmR"><b>Cor de fundo</b>'+
+         '<span>domina a tela de descanso e o topo</span></div>'+
+         '<div class="tmCores">'+FUNDOS_TOTEM.map(function(c){
+           return '<div class="tmCor'+(t.fundo===c?' on':'')+'" style="background:'+c+'" '+
+            'onclick="cfgTotem().fundo=\''+c+'\';salvarTotem()"></div>';
+         }).join('')+'</div></div>')+
       '<div class="tmLin"><div class="tmR"><b>Cor do botão</b>'+
        '<span>a cor da ação principal</span></div>'+
        '<div class="tmCores">'+BOTOES_TOTEM.map(function(c){
@@ -16198,12 +16284,36 @@ function telaTotem(){
 
 /* ---------- peças da tela ---------- */
 var TM={aba:'descanso'};
-function tmSeg(campo,ops,largo){
+function tmSeg(campo,ops,largo,bool){
   var t=cfgTotem();
   return '<div class="tmSeg'+(largo?' largo':'')+'">'+ops.map(function(o){
+    var v=bool?String(o[0]):("'"+o[0]+"'");
     return '<button class="'+(t[campo]===o[0]?'on':'')+'" '+
-     'onclick="cfgTotem().'+campo+'=\''+o[0]+'\';salvarTotem()">'+E(o[1])+'</button>';
+     'onclick="cfgTotem().'+campo+'='+v+';salvarTotem()">'+E(o[1])+'</button>';
   }).join('')+'</div>';
+}
+/* A foto entra REDUZIDA. Uma imagem de 4 MB no fundo trava o tablet e enche
+   a memoria do navegador — o mesmo problema das fotos de produto. */
+function lerFundoTotem(input){
+  var f=input.files&&input.files[0];
+  if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    var img=new Image();
+    img.onload=function(){
+      var L=1600, esc=Math.min(1,L/img.width);
+      var c=document.createElement('canvas');
+      c.width=Math.round(img.width*esc);c.height=Math.round(img.height*esc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      var url=c.toDataURL('image/jpeg',0.82);
+      cfgTotem().fundoFoto=url;
+      salvarTotem();
+      toast('Foto aplicada — '+Math.round(url.length/1024)+' KB.');
+    };
+    img.onerror=function(){toast('Não consegui ler essa imagem.')};
+    img.src=String(r.result||'');
+  };
+  r.readAsDataURL(f);
 }
 function tmChave(campo,titulo,desc){
   var t=cfgTotem();
@@ -16279,7 +16389,9 @@ function pintarTotem(){
   var cats=(DB.categorias||[]).filter(function(c){return c.ativo!==false}).slice(0,4);
   if(!cats.length)cats=[{nome:'Todos'}];
   if(TM.aba==='descanso'){
-    el.innerHTML='<div style="flex:1;background:'+t.fundo+';color:#fff;display:flex;'+
+    var F=fundoTotem();
+    var claro=(t.fundoTipo==='foto'&&t.textoEscuro);
+    el.innerHTML='<div style="flex:1;'+F.css+';color:'+F.texto+';display:flex;'+
      'flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px">'+
      (t.descanso==='produtos'
       ?'<div style="display:flex;gap:6px;margin-bottom:12px">'+ps.slice(0,3).map(function(p,i){
@@ -16287,12 +16399,15 @@ function pintarTotem(){
           miniFoto(p,i)+
           '<div style="font-size:7px;padding:3px 2px;font-weight:700">'+E((p.nome||'').slice(0,11))+'</div></div>';
        }).join('')+'</div>'
-      :'<div style="width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.16);'+
-       'border:2px solid rgba(255,255,255,.5);display:grid;place-items:center;font-size:19px;'+
-       'font-weight:800;margin-bottom:12px">'+E((nomeLojaAtual()||'N')[0])+'</div>')+
+      :'<div style="width:44px;height:44px;border-radius:11px;background:'+
+       (claro?'rgba(0,0,0,.07)':'rgba(255,255,255,.16)')+';border:2px solid '+
+       (claro?'rgba(0,0,0,.26)':'rgba(255,255,255,.5)')+';display:grid;place-items:center;'+
+       'font-size:19px;font-weight:800;margin-bottom:12px">'+E((nomeLojaAtual()||'N')[0])+'</div>')+
      (t.descanso!=='logo'
-      ?'<div style="font-size:18px;font-weight:800;line-height:1.12">'+E(t.titulo)+'</div>'+
-       '<div style="font-size:9px;opacity:.82;margin-top:6px;max-width:155px">'+E(t.sub)+'</div>':'')+
+      ?'<div style="font-size:18px;font-weight:800;line-height:1.12;text-shadow:'+F.sombra+'">'+
+        E(t.titulo)+'</div>'+
+       '<div style="font-size:9px;opacity:.88;margin-top:6px;max-width:155px;text-shadow:'+F.sombra+
+       '">'+E(t.sub)+'</div>':'')+
      '<div style="margin-top:16px;background:'+t.botao+';color:#241F1A;font-size:10px;'+
      'font-weight:800;padding:9px 18px;border-radius:8px">'+E(t.cta)+'</div></div>';
   }else if(TM.aba==='cardapio'){
@@ -16392,14 +16507,19 @@ function pintarCheio(){
   var t=cfgTotem(), ps=produtosTotem();
   var tot=TMC.sacola.reduce(function(a,p){return a+(Number(p.preco)||0)},0);
   if(TMC.passo===1){
-    el.innerHTML='<div class="tcAtr" style="background:'+t.fundo+'" onclick="irTotem(2)">'+
+    var F=fundoTotem();
+    var claro=(t.fundoTipo==='foto'&&t.textoEscuro);
+    el.innerHTML='<div class="tcAtr'+(claro?' claro':'')+'" style="'+F.css+';color:'+F.texto+
+     '" onclick="irTotem(2)">'+
      (t.descanso==='produtos'
       ?'<div class="tcGira">'+ps.slice(0,4).map(function(p,i){
          return '<div class="tcGp"><div class="tcGf">'+fotoProd(p,i,'1')+'</div>'+
           '<div class="tcGn">'+E(p.nome)+'</div><div class="tcGv">R$ '+money(p.preco)+'</div></div>';
         }).join('')+'</div>'
       :'<div class="tcLogo">'+E((nomeLojaAtual()||'N')[0])+'</div>')+
-     (t.descanso!=='logo'?'<h1>'+E(t.titulo)+'</h1><div class="tcSb">'+E(t.sub)+'</div>':'')+
+     (t.descanso!=='logo'
+      ?'<h1 style="text-shadow:'+F.sombra+'">'+E(t.titulo)+'</h1>'+
+       '<div class="tcSb" style="text-shadow:'+F.sombra+'">'+E(t.sub)+'</div>':'')+
      '<div class="tcCta" style="background:'+t.botao+'">'+E(t.cta)+'</div></div>';
   }else if(TMC.passo===2){
     var alt=t.foto==='grande'?'1':t.foto==='media'?'1.2':'1.7';
