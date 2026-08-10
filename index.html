@@ -13677,7 +13677,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.4.0';
+var VERSAO='V20.4.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20947,7 +20947,7 @@ var CARGA_SFS=null;   /* os dados vem de arquivo, nunca escritos no codigo */
    Aceita planilha salva como CSV, que e o que sai de qualquer
    sistema. Nada e aplicado sem voce ver antes o que vai entrar.
    ========================================================== */
-var IMP={area:'insumos',linhas:null,cols:[],mapa:{},arquivo:'',erros:[],modo:'somar'};
+var IMPC={area:'insumos',linhas:null,cols:[],mapa:{},arquivo:'',erros:[],modo:'somar'};
 
 var AREAS_IMP=[
  {id:'insumos', n:'Ingredientes e mercadorias', ic:'box',
@@ -20979,7 +20979,7 @@ var AREAS_IMP=[
    {k:'tel',     n:'Telefone', obr:false, ex:'(17) 99999-0000'},
    {k:'email',   n:'E-mail',   obr:false, ex:'contato@lacto.com'}]}
 ];
-function areaImp(){return AREAS_IMP.find(function(a){return a.id===IMP.area})||AREAS_IMP[0]}
+function areaImp(){return AREAS_IMP.find(function(a){return a.id===IMPC.area})||AREAS_IMP[0]}
 
 /* ---------- leitura do CSV ----------
    Separador vem diferente conforme quem exportou: ponto e virgula no
@@ -21046,7 +21046,7 @@ function telaCarga(){
    '<button class="infoBt" onclick="explicaImport()">'+sv('help',15)+'</button></div>'+
 
    '<div class="impAbas">'+AREAS_IMP.map(function(x){
-     return '<button class="impAba'+(IMP.area===x.id?' on':'')+'" '+
+     return '<button class="impAba'+(IMPC.area===x.id?' on':'')+'" '+
       'onclick="trocarAreaImp(\''+x.id+'\')">'+sv(x.ic,15)+
       '<div><b>'+E(x.n)+'</b><span>'+E(x.d)+'</span></div></button>';
    }).join('')+'</div>'+
@@ -21071,46 +21071,46 @@ function telaCarga(){
     '</div>'+
    '</div>'+
 
-   (IMP.linhas?blocoConferir():'')+
+   (IMPC.linhas?blocoConferir():'')+
    '</div></div>';
-  rodape(IMP.linhas?(IMP.linhas.length-1)+' linhas carregadas':'nenhum arquivo');
+  rodape(IMPC.linhas?(IMPC.linhas.length-1)+' linhas carregadas':'nenhum arquivo');
 }
 function trocarAreaImp(id){
-  IMP.area=id;IMP.linhas=null;IMP.mapa={};IMP.erros=[];IMP.arquivo='';
+  IMPC.area=id;IMPC.linhas=null;IMPC.mapa={};IMPC.erros=[];IMPC.arquivo='';
   telaCarga();
 }
 function lerArquivoImp(input){
   var f=input.files&&input.files[0];
   if(!f)return;
-  IMP.arquivo=f.name;
+  IMPC.arquivo=f.name;
   var r=new FileReader();
   r.onload=function(){
     try{
       var l=lerCSV(String(r.result||''));
       if(l.length<2){toast('O arquivo precisa ter o cabeçalho e ao menos uma linha.');return;}
-      IMP.linhas=l;IMP.cols=l[0].map(function(x){return String(x).trim()});
-      IMP.mapa=adivinharMapa(IMP.cols);
+      IMPC.linhas=l;IMPC.cols=l[0].map(function(x){return String(x).trim()});
+      IMPC.mapa=adivinharMapa(IMPC.cols);
       telaCarga();
-      var faltam=areaImp().campos.filter(function(c){return c.obr&&IMP.mapa[c.k]===undefined});
+      var faltam=areaImp().campos.filter(function(c){return c.obr&&IMPC.mapa[c.k]===undefined});
       if(faltam.length)toast('Confira as colunas: '+faltam.map(function(c){return c.n}).join(', '));
-      else toast(IMP.cols.length+' colunas reconhecidas.');
+      else toast(IMPC.cols.length+' colunas reconhecidas.');
     }catch(e){ toast('Não consegui ler o arquivo: '+((e&&e.message)||'')); }
   };
   r.readAsText(f,'UTF-8');
 }
 function blocoConferir(){
-  var a=areaImp(), dados=IMP.linhas.slice(1);
-  var faltam=a.campos.filter(function(c){return c.obr&&IMP.mapa[c.k]===undefined});
+  var a=areaImp(), dados=IMPC.linhas.slice(1);
+  var faltam=a.campos.filter(function(c){return c.obr&&IMPC.mapa[c.k]===undefined});
   var prev=montarPrevia();
   return '<div class="impBox">'+
-   '<div class="impPasso"><b>2.</b> Confira as colunas <span class="impArq">'+E(IMP.arquivo)+'</span></div>'+
+   '<div class="impPasso"><b>2.</b> Confira as colunas <span class="impArq">'+E(IMPC.arquivo)+'</span></div>'+
    '<div class="hint">O sistema tentou reconhecer sozinho. Corrija o que estiver trocado.</div>'+
    '<div class="impMapa">'+a.campos.map(function(c){
      return '<div class="impM"><label>'+E(c.n)+(c.obr?' <i>*</i>':'')+'</label>'+
-      '<select onchange="IMP.mapa[\''+c.k+'\']=(this.value===\'\'?undefined:+this.value);telaCarga()">'+
+      '<select onchange="IMPC.mapa[\''+c.k+'\']=(this.value===\'\'?undefined:+this.value);telaCarga()">'+
       '<option value="">— não usar —</option>'+
-      IMP.cols.map(function(col,i){
-        return '<option value="'+i+'"'+(IMP.mapa[c.k]===i?' selected':'')+'>'+E(col||('coluna '+(i+1)))+'</option>';
+      IMPC.cols.map(function(col,i){
+        return '<option value="'+i+'"'+(IMPC.mapa[c.k]===i?' selected':'')+'>'+E(col||('coluna '+(i+1)))+'</option>';
       }).join('')+'</select></div>';
    }).join('')+'</div>'+
 
@@ -21121,7 +21121,7 @@ function blocoConferir(){
     :'<div class="impPasso" style="margin-top:18px"><b>3.</b> Confira o resultado</div>'+
      '<div class="impResumo">'+
       '<div><span>Linhas no arquivo</span><b>'+dados.length+'</b></div>'+
-      '<div><span>'+(IMP.area==='fichas'?'Fichas':'Itens')+' que vão entrar</span><b>'+prev.novos+'</b></div>'+
+      '<div><span>'+(IMPC.area==='fichas'?'Fichas':'Itens')+' que vão entrar</span><b>'+prev.novos+'</b></div>'+
       '<div><span>Já existem — serão atualizados</span><b>'+prev.exist+'</b></div>'+
       (prev.ruins?'<div class="ruim"><span>Linhas com problema</span><b>'+prev.ruins+'</b></div>':'')+
      '</div>'+
@@ -21131,10 +21131,10 @@ function blocoConferir(){
      '<div class="impPrev"><div class="impColsT">Primeiras linhas, do jeito que vão entrar</div>'+
      prev.html+'</div>'+
      '<div class="impModo">'+
-      '<label class="chkL"><input type="radio" name="impModo" '+(IMP.modo==='somar'?'checked':'')+
-       ' onchange="IMP.modo=\'somar\'"><span><b>Acrescentar e atualizar</b> — mantém o que já existe</span></label>'+
-      '<label class="chkL"><input type="radio" name="impModo" '+(IMP.modo==='trocar'?'checked':'')+
-       ' onchange="IMP.modo=\'trocar\'"><span><b>Substituir tudo desta área</b> — apaga o que existe antes</span></label>'+
+      '<label class="chkL"><input type="radio" name="impModo" '+(IMPC.modo==='somar'?'checked':'')+
+       ' onchange="IMPC.modo=\'somar\'"><span><b>Acrescentar e atualizar</b> — mantém o que já existe</span></label>'+
+      '<label class="chkL"><input type="radio" name="impModo" '+(IMPC.modo==='trocar'?'checked':'')+
+       ' onchange="IMPC.modo=\'trocar\'"><span><b>Substituir tudo desta área</b> — apaga o que existe antes</span></label>'+
      '</div>'+
      '<button class="btnP2 ok" style="margin-top:14px" onclick="aplicarImport()">'+
      sv('nike',14)+' Aplicar a importação</button>')+
@@ -21143,12 +21143,12 @@ function blocoConferir(){
 
 /* ---------- previa: mostra o que vai entrar, antes de mexer em nada ---------- */
 function valDe(l,k){
-  var i=IMP.mapa[k];
+  var i=IMPC.mapa[k];
   return (i===undefined)?'':String(l[i]===undefined?'':l[i]).trim();
 }
 function montarPrevia(){
-  var dados=IMP.linhas.slice(1), avisos=[], ruins=0, novos=0, exist=0, html='';
-  if(IMP.area==='insumos'){
+  var dados=IMPC.linhas.slice(1), avisos=[], ruins=0, novos=0, exist=0, html='';
+  if(IMPC.area==='insumos'){
     var vistos={};
     var linhas=dados.map(function(l){
       var nome=valDe(l,'nome');
@@ -21172,7 +21172,7 @@ function montarPrevia(){
         '<td>'+E(o.unidade)+'</td><td style="text-align:right">R$ '+money(o.custo)+'</td>'+
         '<td style="text-align:right">'+o.estoque+'</td></tr>';
      }).join('')+'</tbody></table>';
-  }else if(IMP.area==='fichas'){
+  }else if(IMPC.area==='fichas'){
     var fichas={};
     dados.forEach(function(l){
       var fn=valDe(l,'ficha'), it=valDe(l,'item');
@@ -21204,7 +21204,7 @@ function montarPrevia(){
           return i.qtd+(i.unidade?i.unidade:'')+' '+i.nome}).join(' · '))+
         (f.itens.length>3?' …':'')+'</td></tr>';
      }).join('')+'</tbody></table>';
-    IMP._fichas=lista;
+    IMPC._fichas=lista;
   }else{
     var lf=dados.map(function(l){
       var em=valDe(l,'empresa');
@@ -21221,7 +21221,7 @@ function montarPrevia(){
        return '<tr><td><b>'+E(o.empresa)+'</b></td><td>'+E(o.nome||'—')+'</td>'+
         '<td>'+E(o.cnpj||'—')+'</td><td>'+E(o.tel||'—')+'</td></tr>';
      }).join('')+'</tbody></table>';
-    IMP._fornec=lf;
+    IMPC._fornec=lf;
   }
   /* aviso repetido nao ajuda ninguem */
   var unicos=[];avisos.forEach(function(x){if(unicos.indexOf(x)<0)unicos.push(x)});
@@ -21230,29 +21230,29 @@ function montarPrevia(){
 
 /* ---------- aplicar ---------- */
 async function aplicarImport(){
-  var a=areaImp(), dados=IMP.linhas.slice(1);
+  var a=areaImp(), dados=IMPC.linhas.slice(1);
   var prev=montarPrevia();
   var ok=await confirmar({
     titulo:'Importar '+a.n.toLowerCase(),
     texto:prev.novos+' novos · '+prev.exist+' atualizados',
-    linhas:[['Arquivo',E(IMP.arquivo),''],
-            ['Modo',IMP.modo==='trocar'?'substituir tudo':'acrescentar e atualizar',''],
+    linhas:[['Arquivo',E(IMPC.arquivo),''],
+            ['Modo',IMPC.modo==='trocar'?'substituir tudo':'acrescentar e atualizar',''],
             ['Unidade do estoque',sucNome(lojaAtualId()),'']],
-    aviso:(IMP.modo==='trocar'
+    aviso:(IMPC.modo==='trocar'
       ?'ATENÇÃO: tudo que existe nesta área será APAGADO antes. '
       :'')+
-     (IMP.area==='insumos'
+     (IMPC.area==='insumos'
       ?'O estoque entra na unidade '+sucNome(lojaAtualId())+' — cada unidade tem o seu saldo. '+
        'Se este arquivo é de outra unidade, troque a unidade no topo antes de aplicar.'
       :'Faça um backup antes, em Administração › Backup e Restauração.'),
-    ok:'Importar agora',tipo:IMP.modo==='trocar'?'perigo':'check'});
+    ok:'Importar agora',tipo:IMPC.modo==='trocar'?'perigo':'check'});
   if(!ok)return;
 
   var suc=lojaAtualId(), n=0;
   try{
-    if(IMP.area==='insumos'){
+    if(IMPC.area==='insumos'){
       baseMov();
-      if(IMP.modo==='trocar')DB.insumos=[];
+      if(IMPC.modo==='trocar')DB.insumos=[];
       dados.forEach(function(l){
         var nome=valDe(l,'nome'); if(!nome)return;
         var ins=(DB.insumos||[]).find(function(x){
@@ -21283,9 +21283,9 @@ async function aplicarImport(){
         n++;
       });
       espelharEstoque();
-    }else if(IMP.area==='fichas'){
-      if(IMP.modo==='trocar')DB.fichas=[];
-      (IMP._fichas||[]).forEach(function(f){
+    }else if(IMPC.area==='fichas'){
+      if(IMPC.modo==='trocar')DB.fichas=[];
+      (IMPC._fichas||[]).forEach(function(f){
         var fc=(DB.fichas||[]).find(function(x){
           return String(x.nome||'').toLowerCase()===f.nome.toLowerCase()});
         if(!fc){fc={id:uid('fc'),nome:f.nome,sucursais:[]};DB.fichas.push(fc);}
@@ -21301,8 +21301,8 @@ async function aplicarImport(){
         n++;
       });
     }else{
-      if(IMP.modo==='trocar')DB.fornec=[];
-      (IMP._fornec||[]).forEach(function(o){
+      if(IMPC.modo==='trocar')DB.fornec=[];
+      (IMPC._fornec||[]).forEach(function(o){
         var f=(DB.fornec||[]).find(function(x){
           return String(x.empresa||'').toLowerCase()===o.empresa.toLowerCase()});
         if(!f){f={id:uid('fo'),empresa:o.empresa};DB.fornec.push(f);}
@@ -21314,12 +21314,12 @@ async function aplicarImport(){
       });
     }
     salvar();
-    var soltos=(IMP.area==='fichas')
+    var soltos=(IMPC.area==='fichas')
       ?(DB.fichas||[]).reduce(function(t,f){
          return t+((f.itens||[]).filter(function(i){return i._semVinculo}).length)},0):0;
-    IMP.linhas=null;IMP.arquivo='';
+    IMPC.linhas=null;IMPC.arquivo='';
     telaCarga();
-    toast(n+' '+(IMP.area==='fichas'?'ficha(s)':'item(ns)')+' importado(s).'+
+    toast(n+' '+(IMPC.area==='fichas'?'ficha(s)':'item(ns)')+' importado(s).'+
       (soltos?' '+soltos+' ingrediente(s) sem vínculo — importe os ingredientes e refaça.':''));
     if(NUVEM.ligada)sincronizar();
   }catch(e){
