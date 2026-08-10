@@ -14083,7 +14083,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.8.0';
+var VERSAO='V21.8.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -32290,6 +32290,13 @@ function pedsPeriodo(o){
   });
 }
 /* o seletor que entra nas telas de relatorio */
+/* os seletores chamam por nome; sem estas, o clique no canal nao fazia nada */
+function togCanCV(id){togCanalRel(CV2,id,'telaCanaisVenda')}
+function togTodosCanCV(){togTodosCanais(CV2,'telaCanaisVenda')}
+function togCanFT(id){togCanalRel(FTP,id,'telaFaturamento')}
+function togTodosCanFT(){togTodosCanais(FTP,'telaFaturamento')}
+function togCanVD(id){togCanalRel(VDH,id,'telaVendaDataHora')}
+function togTodosCanVD(){togTodosCanais(VDH,'telaVendaDataHora')}
 function togCanalRel(estado,id,tela){
   var a=estado.canais||[];
   var i=a.indexOf(id);
