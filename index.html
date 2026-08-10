@@ -883,6 +883,47 @@ body.pdvFull .wTitle{display:none}
 .tmAba.on{background:var(--do,#B08422);color:#241F1A;font-weight:700}
 .tmTela{aspect-ratio:9/16;background:var(--bg2,#FBF8F1);border-radius:9px;overflow:hidden;
  display:flex;flex-direction:column}
+/* ---- fundo com foto no totem inteiro ---- */
+.tmCheio.comFoto .tmC{background:rgba(251,248,241,.90);backdrop-filter:blur(2px)}
+.tmCheio.comFoto .tcGrade,.tmCheio.comFoto .tcLista,.tmCheio.comFoto .tcId2{background:transparent}
+.tmCheio.comFoto .tcCard,.tmCheio.comFoto .tcLI{background:rgba(255,255,255,.96)}
+.tmCheio.comFoto .tcAtr{background:transparent!important}
+/* ---- teclado na tela ---- */
+.tcId2{flex:1;display:flex;flex-direction:column;padding:22px 26px 0;overflow:hidden}
+.tcAbasC{display:flex;gap:9px;margin-bottom:18px;flex-wrap:wrap}
+.tcAbaC{background:#fff;border:2px solid #E6E0D4;border-radius:24px;padding:11px 20px;
+ font-size:15px;font-weight:600;cursor:pointer;color:#7A7266;display:flex;align-items:center;gap:6px}
+.tcAbaC.on{border-color:#241F1A;color:#241F1A}
+.tcAbaC.feito{border-color:#0E8A46;color:#0E8A46}
+.tcAbaC i{font-style:normal;color:#B4542F;font-weight:800}
+.tcPerg{font-size:clamp(24px,3.2vw,38px);font-weight:800;letter-spacing:-.02em}
+.tcPerg em{font-style:normal;font-size:.45em;font-weight:600;color:#7A7266;
+ background:#F0ECE2;padding:4px 12px;border-radius:20px;vertical-align:middle;margin-left:8px}
+.tcDica{font-size:15px;color:#7A7266;margin-top:5px}
+.tcEntrada{background:#fff;border:3px solid #E6E0D4;border-radius:16px;padding:20px 24px;
+ margin:18px 0 20px;font-size:clamp(26px,3.6vw,42px);font-weight:700;min-height:84px;
+ display:flex;align-items:center;letter-spacing:.01em}
+.tcEntrada.cheio{border-color:#0E5C3A}
+.tcEntrada span{color:#C4BCB0;font-size:.5em;font-weight:500}
+.tcCursor{width:3px;height:1em;background:#0E5C3A;margin-left:4px;animation:pisca 1.1s steps(2) infinite}
+@keyframes pisca{0%,50%{opacity:1}51%,100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.tcCursor{animation:none}}
+.tecl{display:flex;flex-direction:column;gap:9px;margin-top:auto;padding-bottom:18px}
+.teclL{display:flex;gap:9px;justify-content:center}
+.tecK{flex:1;max-width:104px;min-height:clamp(56px,7vh,78px);border-radius:12px;border:1px solid #E0D8CA;
+ background:#fff;font-size:clamp(19px,2.2vw,26px);font-weight:600;cursor:pointer;
+ display:grid;place-items:center;box-shadow:0 2px 0 #D8D0C2}
+.tecK:active{transform:translateY(2px);box-shadow:none;background:#F5F1E8}
+.tecK.esp{background:#EFEAE0;font-size:clamp(14px,1.5vw,18px);font-weight:700;max-width:120px}
+.tecK.espaco{max-width:340px;font-size:16px;color:#7A7266}
+.tecK.vazio{background:transparent;border:none;box-shadow:none;cursor:default}
+.tecl.num{max-width:420px;margin:auto auto 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.tecl.num .tecK{max-width:none;min-height:clamp(62px,8vh,86px)}
+.tcT2{font-size:15px;opacity:.8}
+.tcAviso{flex:1;display:flex;align-items:center;gap:8px;font-size:15px;color:#8A5320;
+ background:#FFF6E8;border:1px solid #F0DCB8;border-radius:11px;padding:12px 15px}
+.tcBtn.fant{background:transparent!important;border:2px solid #E6E0D4;color:#7A7266;flex:0 0 auto}
+.tcBtn.off{cursor:not-allowed;color:#8A8578}
 .tmCheio{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column}
 .tmSair{position:fixed;top:14px;right:14px;z-index:10001;background:rgba(0,0,0,.55);color:#fff;
  border:1px solid rgba(255,255,255,.3);padding:9px 16px;border-radius:20px;font-size:13px;
@@ -13992,7 +14033,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.4.0';
+var VERSAO='V21.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16125,7 +16166,9 @@ function fundoTotem(){
   var a=(Number(t.veu)||0)/100;
   return {
     css:'background-image:linear-gradient(rgba('+cor+','+a+'),rgba('+cor+','+
-        Math.min(a+0.12,0.92)+')),url("'+t.fundoFoto+'");'+
+        /* aspas SIMPLES: o endereco da foto vai dentro de style="...", e aspas
+           duplas aqui fechavam o atributo e apagavam a tela inteira */
+        Math.min(a+0.12,0.92)+')),url(\''+t.fundoFoto+'\');'+
         'background-size:cover;background-position:center',
     texto:claro?'#241F1A':'#fff',
     sombra:claro?'0 1px 10px rgba(255,255,255,.5)':'0 2px 12px rgba(0,0,0,.45)'
@@ -16185,8 +16228,8 @@ function telaTotem(){
      '</div>'+
 
      '<div class="tmBox"><div class="tmT">Marca e frases</div>'+
-      '<div class="tmLin"><div class="tmR"><b>Fundo da tela de descanso</b>'+
-       '<span>o que o cliente vê de longe, antes de tocar</span></div>'+
+      '<div class="tmLin"><div class="tmR"><b>Fundo do totem</b>'+
+       '<span>fica atrás de todas as telas, do começo ao fim do pedido</span></div>'+
        tmSeg('fundoTipo',[['cor','Cor'],['foto','Foto']])+'</div>'+
       (t.fundoTipo==='foto'
        ?'<div class="tmFoto">'+
@@ -16481,6 +16524,90 @@ function explicaTotem(){
    ok:'Entendi',cancelar:null}).then(function(){});
 }
 
+
+/* ==========================================================
+   TECLADO NA TELA
+   Campo pequeno com teclado do sistema nao existe em totem: nao ha
+   teclado. O que o mercado faz e mostrar o que foi digitado GRANDE e
+   um teclado de dedo embaixo, ocupando metade da tela.
+   ========================================================== */
+var TEC={campo:'',valor:{},maiusc:true};
+var LINHAS_QWERTY=[
+ ['Q','W','E','R','T','Y','U','I','O','P'],
+ ['A','S','D','F','G','H','J','K','L'],
+ ['Z','X','C','V','B','N','M']
+];
+function tecladoLetras(){
+  return '<div class="tecl">'+LINHAS_QWERTY.map(function(l,i){
+    return '<div class="teclL">'+
+     (i===2?'<button class="tecK esp" onclick="tecMaiusc()">'+(TEC.maiusc?'abc':'ABC')+'</button>':'')+
+     l.map(function(k){
+       var v=TEC.maiusc?k:k.toLowerCase();
+       return '<button class="tecK" onclick="tecDigita(\''+v+'\')">'+v+'</button>';
+     }).join('')+
+     (i===2?'<button class="tecK esp" onclick="tecApaga()">'+sv('cr2',20)+'</button>':'')+
+     '</div>';
+  }).join('')+
+  '<div class="teclL"><button class="tecK espaco" onclick="tecDigita(\' \')">espaço</button></div>'+
+  '</div>';
+}
+function tecladoNumeros(){
+  var ks=['1','2','3','4','5','6','7','8','9','','0','apaga'];
+  return '<div class="tecl num">'+ks.map(function(k){
+    if(k==='')return '<button class="tecK vazio" disabled></button>';
+    if(k==='apaga')return '<button class="tecK" onclick="tecApaga()">'+sv('cr2',22)+'</button>';
+    return '<button class="tecK" onclick="tecDigita(\''+k+'\')">'+k+'</button>';
+  }).join('')+'</div>';
+}
+function tecDigita(c){
+  var v=TEC.valor[TEC.campo]||'';
+  if(TEC.campo==='celular'&&soDigitos(v).length>=11)return;
+  if(TEC.campo==='cpf'&&soDigitos(v).length>=11)return;
+  if(TEC.campo==='nome'&&v.length>=24)return;
+  TEC.valor[TEC.campo]=v+c;
+  pintarCheio();
+}
+function tecApaga(){
+  var v=TEC.valor[TEC.campo]||'';
+  TEC.valor[TEC.campo]=v.slice(0,-1);
+  pintarCheio();
+}
+function tecMaiusc(){TEC.maiusc=!TEC.maiusc;pintarCheio();}
+function tecCampo(c){TEC.campo=c;pintarCheio();}
+/* mascara na hora: o numero aparece formatado enquanto e digitado */
+function mostraValor(campo,v){
+  if(!v)return '';
+  if(campo==='celular'){
+    var d=soDigitos(v);
+    if(d.length<=2)return '('+d;
+    if(d.length<=7)return '('+d.slice(0,2)+') '+d.slice(2);
+    return '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7,11);
+  }
+  if(campo==='cpf'){
+    var c=soDigitos(v);
+    if(c.length<=3)return c;
+    if(c.length<=6)return c.slice(0,3)+'.'+c.slice(3);
+    if(c.length<=9)return c.slice(0,3)+'.'+c.slice(3,6)+'.'+c.slice(6);
+    return c.slice(0,3)+'.'+c.slice(3,6)+'.'+c.slice(6,9)+'-'+c.slice(9,11);
+  }
+  return v;
+}
+function camposTotem(){
+  var t=cfgTotem(),l=[];
+  if(t.nome!=='nao')l.push({k:'nome',n:'Seu nome',dica:'para chamarmos quando ficar pronto',
+    obr:t.nome==='obrigatorio',tipo:'letras'});
+  if(t.celular!=='nao')l.push({k:'celular',n:'Celular',dica:'avisamos por WhatsApp',
+    obr:t.celular==='obrigatorio',tipo:'numeros'});
+  if(t.cpf!=='nao')l.push({k:'cpf',n:'CPF na nota',dica:'',
+    obr:t.cpf==='obrigatorio',tipo:'numeros'});
+  return l;
+}
+function faltaPreencher(){
+  return camposTotem().filter(function(c){
+    return c.obr&&!String(TEC.valor[c.k]||'').trim();
+  });
+}
+
 /* ---------- teste em tela cheia ---------- */
 function abrirTotemCheio(){
   var t=cfgTotem(), ps=produtosTotem();
@@ -16569,19 +16696,42 @@ function pintarCheio(){
      '<b>R$ '+money(tot)+'</b></div>'+
      '<button class="tcBtn" style="background:'+t.botao+'" onclick="irTotem(3)">Continuar</button></div>';
   }else if(TMC.passo===3){
-    var campos=[];
-    if(t.nome!=='nao')campos.push(['Seu nome','Rafael',t.nome==='obrigatorio']);
-    if(t.celular!=='nao')campos.push(['Celular','(  )       -',t.celular==='obrigatorio']);
-    if(t.cpf!=='nao')campos.push(['CPF na nota','___.___.___-__',t.cpf==='obrigatorio']);
+    /* Uma pergunta por vez, o que foi digitado em letra grande, e o teclado
+       ocupando a metade de baixo — que e onde o dedo alcanca. Antes eram
+       tres campos apertados sem teclado nenhum. */
+    var cps=camposTotem();
+    if(!cps.length){irTotem(4);return;}
+    if(!TEC.campo||!cps.some(function(c){return c.k===TEC.campo}))TEC.campo=cps[0].k;
+    var atual=cps.find(function(c){return c.k===TEC.campo})||cps[0];
+    var val=TEC.valor[atual.k]||'';
+    var falta=faltaPreencher();
     el.innerHTML='<div class="tcTopo" style="background:'+t.fundo+'">'+
-     '<button class="tcVb" onclick="irTotem(2)">‹</button><div class="tcT1">Quase lá</div></div>'+
-     '<div class="tcId">'+
-     (campos.length?campos.map(function(c){
-       return '<div class="tcCampo"><label>'+E(c[0])+(c[2]?'<span class="tcObr">obrigatório</span>':'')+
-        '</label><div class="tcVl">'+E(c[1])+'</div></div>';}).join('')
-      :'<div class="tcCampo"><div class="tcVl">Nada é pedido ao cliente</div></div>')+
-     '</div><div class="tcRod"><button class="tcBtn" style="background:'+t.botao+';width:100%" '+
-     'onclick="irTotem(4)">Fechar pedido · R$ '+money(tot)+'</button></div>';
+     '<button class="tcVb" onclick="irTotem(2)">‹</button>'+
+     '<div class="tcT1">Quase lá</div>'+
+     '<div class="tcT2">'+TMC.sacola.length+' itens · R$ '+money(tot)+'</div></div>'+
+     '<div class="tcId2">'+
+      (cps.length>1?'<div class="tcAbasC">'+cps.map(function(c){
+        var v=TEC.valor[c.k]||'';
+        return '<button class="tcAbaC'+(TEC.campo===c.k?' on':'')+(v?' feito':'')+'" '+
+         'onclick="tecCampo(\''+c.k+'\')">'+(v?sv('check',13)+' ':'')+E(c.n)+
+         (c.obr?'<i>*</i>':'')+'</button>';
+      }).join('')+'</div>':'')+
+      '<div class="tcPerg">'+E(atual.n)+(atual.obr?'':' <em>opcional</em>')+'</div>'+
+      (atual.dica?'<div class="tcDica">'+E(atual.dica)+'</div>':'')+
+      '<div class="tcEntrada'+(val?' cheio':'')+'">'+
+       (val?E(mostraValor(atual.k,val)):'<span>toque nas teclas abaixo</span>')+
+       '<b class="tcCursor"></b></div>'+
+      (atual.tipo==='letras'?tecladoLetras():tecladoNumeros())+
+     '</div>'+
+     '<div class="tcRod">'+
+      (falta.length
+       ?'<div class="tcAviso">'+sv('help',15)+' Falta preencher: '+
+         falta.map(function(c){return E(c.n)}).join(', ')+'</div>'
+       :'<button class="tcBtn fant" onclick="irTotem(2)">Voltar ao cardápio</button>')+
+      '<button class="tcBtn'+(falta.length?' off':'')+'" style="background:'+
+       (falta.length?'#D8D0C2':t.botao)+';flex:1" '+
+       (falta.length?'':'onclick="irTotem(4)"')+'>Fechar pedido · R$ '+money(tot)+'</button>'+
+     '</div>';
   }else{
     el.innerHTML='<div class="tcFim" style="background:'+t.fundo+'">'+
      '<div class="tcTk"><div class="tcTk1">Sua senha</div>'+
