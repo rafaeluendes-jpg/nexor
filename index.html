@@ -745,6 +745,43 @@ body.pdvFull .wTitle{display:none}
 .lbTag.mtz{background:#EAF5EE;color:#1B5E36;border-color:#BFE0CC}
 .lbOp.fixa{opacity:.75;cursor:default;background:#EAF5EE;border-color:#BFE0CC}
 .lbOp.fixa span{display:block;font-size:10.5px;color:#1B5E36}
+.impAbas{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:16px}
+.impAba{display:flex;align-items:flex-start;gap:11px;background:var(--card,#fff);
+ border:2px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 15px;cursor:pointer;text-align:left}
+.impAba.on{border-color:var(--pr,#0E5C3A);background:#F1F8F3}
+.impAba b{display:block;font-size:13.5px;color:var(--tx,#2f2a24)}
+.impAba span{display:block;font-size:11px;color:var(--tx2,#7a7266);margin-top:2px;line-height:1.4}
+.impAba.on b{color:var(--pr,#0E5C3A)}
+.impBox{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:13px;
+ padding:17px;margin-bottom:16px}
+.impPasso{font-size:14px;font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.impPasso b{background:var(--pr,#0E5C3A);color:#fff;width:23px;height:23px;border-radius:50%;
+ display:grid;place-items:center;font-size:12px}
+.impArq{font-size:11px;background:var(--bg2,#f0ece2);color:var(--tx2,#7a7266);padding:2px 9px;
+ border-radius:20px;font-weight:400}
+.impCols{margin-top:18px;border-top:1px solid var(--lin,#e6e0d4);padding-top:14px}
+.impColsT{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+ color:var(--tx2,#7a7266);margin-bottom:9px}
+.impObr{font-size:10.5px;background:#FDEEE8;color:#A8391A;padding:2px 8px;border-radius:20px;font-weight:700}
+.impOpc{font-size:10.5px;color:var(--tx2,#9a9288)}
+.impEx{font-size:12px;color:var(--tx2,#7a7266);font-style:italic}
+.impMapa{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:12px}
+.impM label{display:block;font-size:11.5px;font-weight:600;margin-bottom:4px}
+.impM label i{color:#C94141;font-style:normal}
+.impM select{width:100%;border:1.5px solid var(--lin,#e6e0d4);border-radius:8px;padding:8px 10px;
+ font-size:13px;background:#fff}
+.impErro{display:flex;gap:10px;background:#FFF6E8;border:1px solid #F0DCB8;border-radius:10px;
+ padding:12px 14px;margin-top:14px;font-size:12.5px;color:#7A5320;line-height:1.55}
+.impErro b{display:block;margin-bottom:3px}
+.impResumo{display:flex;gap:22px;flex-wrap:wrap;background:var(--bg2,#faf7f0);
+ border:1px solid var(--lin,#e6e0d4);border-radius:11px;padding:13px 17px;margin:12px 0}
+.impResumo span{display:block;font-size:11px;color:var(--tx2,#7a7266)}
+.impResumo b{display:block;font-size:19px;margin-top:2px}
+.impResumo .ruim b{color:#C94141}
+.impPrev{margin-top:14px;border:1px solid var(--lin,#e6e0d4);border-radius:11px;padding:13px;
+ overflow-x:auto}
+.impModo{display:flex;flex-direction:column;gap:8px;margin-top:16px;border-top:1px solid var(--lin,#e6e0d4);
+ padding-top:14px}
 .fscPend{display:flex;gap:10px;background:#FFF6E8;border:1px solid #F0DCB8;border-radius:10px;
  padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#7A5320;line-height:1.5}
 .fscPend b{display:block;margin-bottom:2px}
@@ -13640,7 +13677,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.3.0';
+var VERSAO='V20.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20900,7 +20937,416 @@ async function apagarUnidade(redeId,sucId){
    ========================================================== */
 var CARGA_SFS=null;   /* os dados vem de arquivo, nunca escritos no codigo */
 
+
+/* ==========================================================
+   IMPORTACAO POR AREA
+   Um campo unico que engolia tudo obrigava o sistema a adivinhar o
+   que era ficha e o que era insumo — e adivinhar e onde ele erra.
+   Agora cada area tem a sua porta, com as colunas que ela espera.
+
+   Aceita planilha salva como CSV, que e o que sai de qualquer
+   sistema. Nada e aplicado sem voce ver antes o que vai entrar.
+   ========================================================== */
+var IMP={area:'insumos',linhas:null,cols:[],mapa:{},arquivo:'',erros:[],modo:'somar'};
+
+var AREAS_IMP=[
+ {id:'insumos', n:'Ingredientes e mercadorias', ic:'box',
+  d:'nome, unidade, custo e estoque de cada item',
+  campos:[
+   {k:'nome',    n:'Nome',            obr:true,  ex:'Açúcar refinado'},
+   {k:'grupo',   n:'Grupo',           obr:false, ex:'Secos'},
+   {k:'unidade', n:'Unidade',         obr:true,  ex:'kg'},
+   {k:'custo',   n:'Custo unitário',  obr:false, ex:'4,50'},
+   {k:'estoque', n:'Estoque atual',   obr:false, ex:'120'},
+   {k:'minimo',  n:'Estoque mínimo',  obr:false, ex:'20'},
+   {k:'codigo',  n:'Código',          obr:false, ex:'INS-001'}]},
+ {id:'fichas',  n:'Fichas técnicas', ic:'book',
+  d:'uma linha por ingrediente da ficha — o sistema agrupa pelo nome',
+  campos:[
+   {k:'ficha',     n:'Nome da ficha',      obr:true,  ex:'Gelato de creme'},
+   {k:'rendimento',n:'Rendimento',         obr:false, ex:'5'},
+   {k:'unidRend',  n:'Unidade do rendimento',obr:false,ex:'kg'},
+   {k:'item',      n:'Ingrediente',        obr:true,  ex:'Leite integral'},
+   {k:'qtd',       n:'Quantidade',         obr:true,  ex:'2,5'},
+   {k:'unidade',   n:'Unidade',            obr:false, ex:'L'},
+   {k:'preparo',   n:'Modo de preparo',    obr:false, ex:'Bater por 8 min'}]},
+ {id:'fornec',  n:'Fornecedores', ic:'tri',
+  d:'empresa, contato e documento',
+  campos:[
+   {k:'empresa', n:'Empresa',  obr:true,  ex:'Lacto Nutri'},
+   {k:'contato', n:'Contato',  obr:false, ex:'Marcos'},
+   {k:'cnpj',    n:'CNPJ',     obr:false, ex:'12.345.678/0001-90'},
+   {k:'tel',     n:'Telefone', obr:false, ex:'(17) 99999-0000'},
+   {k:'email',   n:'E-mail',   obr:false, ex:'contato@lacto.com'}]}
+];
+function areaImp(){return AREAS_IMP.find(function(a){return a.id===IMP.area})||AREAS_IMP[0]}
+
+/* ---------- leitura do CSV ----------
+   Separador vem diferente conforme quem exportou: ponto e virgula no
+   Excel brasileiro, virgula no resto. Descobrimos pela primeira linha. */
+function separadorDe(txt){
+  var l=txt.split(/\r?\n/)[0]||'';
+  var pv=(l.match(/;/g)||[]).length, vg=(l.match(/,/g)||[]).length, tb=(l.match(/\t/g)||[]).length;
+  if(tb>pv&&tb>vg)return '\t';
+  return pv>=vg?';':',';
+}
+function lerCSV(txt){
+  var sep=separadorDe(txt), linhas=[], atual=[], campo='', aspas=false;
+  for(var i=0;i<txt.length;i++){
+    var c=txt[i];
+    if(aspas){
+      if(c==='"'&&txt[i+1]==='"'){campo+='"';i++;}
+      else if(c==='"')aspas=false;
+      else campo+=c;
+    }else{
+      if(c==='"')aspas=true;
+      else if(c===sep){atual.push(campo);campo='';}
+      else if(c==='\n'){atual.push(campo);linhas.push(atual);atual=[];campo='';}
+      else if(c!=='\r')campo+=c;
+    }
+  }
+  if(campo!==''||atual.length){atual.push(campo);linhas.push(atual);}
+  return linhas.filter(function(l){return l.some(function(x){return String(x).trim()!==''})});
+}
+/* numero brasileiro: 1.234,56 */
+function numBR(t){
+  if(t===undefined||t===null)return 0;
+  var s=String(t).replace(/[^\d,.\-]/g,'').trim();
+  if(!s)return 0;
+  if(s.indexOf(',')>=0)s=s.replace(/\./g,'').replace(',','.');
+  return Number(s)||0;
+}
+/* tenta casar sozinho o cabeçalho da planilha com os campos esperados */
+function adivinharMapa(cols){
+  var m={},usados={};
+  areaImp().campos.forEach(function(cp){
+    var alvo=cp.n.toLowerCase(), chave=cp.k.toLowerCase();
+    for(var i=0;i<cols.length;i++){
+      if(usados[i])continue;
+      var c=String(cols[i]||'').toLowerCase().trim()
+        .replace(/[áàâã]/g,'a').replace(/[éê]/g,'e').replace(/í/g,'i')
+        .replace(/[óôõ]/g,'o').replace(/ú/g,'u').replace(/ç/g,'c');
+      var a=alvo.replace(/[áàâã]/g,'a').replace(/[éê]/g,'e').replace(/í/g,'i')
+        .replace(/[óôõ]/g,'o').replace(/ú/g,'u').replace(/ç/g,'c');
+      if(c===a||c===chave||c.indexOf(a)>=0||a.indexOf(c)>=0){
+        m[cp.k]=i;usados[i]=true;break;
+      }
+    }
+  });
+  return m;
+}
+
+/* ---------- a tela ---------- */
 function telaCarga(){
+  var a=areaImp();
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo"><div><h1>Importar Dados</h1>'+
+   '<p>Traz para o Nexor os cadastros de um sistema anterior. Cada tipo de dado tem a sua '+
+   'área — assim o sistema não precisa adivinhar o que é ficha e o que é ingrediente.</p></div>'+
+   '<button class="infoBt" onclick="explicaImport()">'+sv('help',15)+'</button></div>'+
+
+   '<div class="impAbas">'+AREAS_IMP.map(function(x){
+     return '<button class="impAba'+(IMP.area===x.id?' on':'')+'" '+
+      'onclick="trocarAreaImp(\''+x.id+'\')">'+sv(x.ic,15)+
+      '<div><b>'+E(x.n)+'</b><span>'+E(x.d)+'</span></div></button>';
+   }).join('')+'</div>'+
+
+   '<div class="impBox">'+
+    '<div class="impPasso"><b>1.</b> Escolha o arquivo</div>'+
+    '<input type="file" id="impArq" accept=".csv,.txt,text/csv" onchange="lerArquivoImp(this)">'+
+    '<div class="hint">Planilha salva como <b>CSV</b>. No Excel: Arquivo › Salvar como › '+
+    'CSV. Aceita ponto e vírgula, vírgula ou tabulação como separador.</div>'+
+
+    '<div class="impCols">'+
+     '<div class="impColsT">Colunas que esta área espera</div>'+
+     '<table class="pTable"><thead><tr><th>Coluna</th><th style="width:88px">Obrigatória</th>'+
+     '<th>Exemplo</th></tr></thead><tbody>'+
+     a.campos.map(function(c){
+       return '<tr><td><b>'+E(c.n)+'</b></td>'+
+        '<td>'+(c.obr?'<span class="impObr">sim</span>':'<span class="impOpc">não</span>')+'</td>'+
+        '<td class="impEx">'+E(c.ex)+'</td></tr>';
+     }).join('')+'</tbody></table>'+
+     '<button class="btnP2" style="margin-top:10px" onclick="baixarModeloImp()">'+
+     sv('file',13)+' Baixar planilha modelo</button>'+
+    '</div>'+
+   '</div>'+
+
+   (IMP.linhas?blocoConferir():'')+
+   '</div></div>';
+  rodape(IMP.linhas?(IMP.linhas.length-1)+' linhas carregadas':'nenhum arquivo');
+}
+function trocarAreaImp(id){
+  IMP.area=id;IMP.linhas=null;IMP.mapa={};IMP.erros=[];IMP.arquivo='';
+  telaCarga();
+}
+function lerArquivoImp(input){
+  var f=input.files&&input.files[0];
+  if(!f)return;
+  IMP.arquivo=f.name;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var l=lerCSV(String(r.result||''));
+      if(l.length<2){toast('O arquivo precisa ter o cabeçalho e ao menos uma linha.');return;}
+      IMP.linhas=l;IMP.cols=l[0].map(function(x){return String(x).trim()});
+      IMP.mapa=adivinharMapa(IMP.cols);
+      telaCarga();
+      var faltam=areaImp().campos.filter(function(c){return c.obr&&IMP.mapa[c.k]===undefined});
+      if(faltam.length)toast('Confira as colunas: '+faltam.map(function(c){return c.n}).join(', '));
+      else toast(IMP.cols.length+' colunas reconhecidas.');
+    }catch(e){ toast('Não consegui ler o arquivo: '+((e&&e.message)||'')); }
+  };
+  r.readAsText(f,'UTF-8');
+}
+function blocoConferir(){
+  var a=areaImp(), dados=IMP.linhas.slice(1);
+  var faltam=a.campos.filter(function(c){return c.obr&&IMP.mapa[c.k]===undefined});
+  var prev=montarPrevia();
+  return '<div class="impBox">'+
+   '<div class="impPasso"><b>2.</b> Confira as colunas <span class="impArq">'+E(IMP.arquivo)+'</span></div>'+
+   '<div class="hint">O sistema tentou reconhecer sozinho. Corrija o que estiver trocado.</div>'+
+   '<div class="impMapa">'+a.campos.map(function(c){
+     return '<div class="impM"><label>'+E(c.n)+(c.obr?' <i>*</i>':'')+'</label>'+
+      '<select onchange="IMP.mapa[\''+c.k+'\']=(this.value===\'\'?undefined:+this.value);telaCarga()">'+
+      '<option value="">— não usar —</option>'+
+      IMP.cols.map(function(col,i){
+        return '<option value="'+i+'"'+(IMP.mapa[c.k]===i?' selected':'')+'>'+E(col||('coluna '+(i+1)))+'</option>';
+      }).join('')+'</select></div>';
+   }).join('')+'</div>'+
+
+   (faltam.length
+    ?'<div class="impErro">'+sv('help',15)+'<div><b>Falta indicar: '+
+      faltam.map(function(c){return E(c.n)}).join(', ')+'</b>'+
+      'Sem essas colunas não dá para importar.</div></div>'
+    :'<div class="impPasso" style="margin-top:18px"><b>3.</b> Confira o resultado</div>'+
+     '<div class="impResumo">'+
+      '<div><span>Linhas no arquivo</span><b>'+dados.length+'</b></div>'+
+      '<div><span>'+(IMP.area==='fichas'?'Fichas':'Itens')+' que vão entrar</span><b>'+prev.novos+'</b></div>'+
+      '<div><span>Já existem — serão atualizados</span><b>'+prev.exist+'</b></div>'+
+      (prev.ruins?'<div class="ruim"><span>Linhas com problema</span><b>'+prev.ruins+'</b></div>':'')+
+     '</div>'+
+     (prev.avisos.length?'<div class="impErro">'+sv('help',15)+'<div><b>Confira antes de aplicar</b>'+
+       prev.avisos.slice(0,6).map(function(x){return '<div>· '+E(x)+'</div>'}).join('')+
+       (prev.avisos.length>6?'<div>· e mais '+(prev.avisos.length-6)+'</div>':'')+'</div></div>':'')+
+     '<div class="impPrev"><div class="impColsT">Primeiras linhas, do jeito que vão entrar</div>'+
+     prev.html+'</div>'+
+     '<div class="impModo">'+
+      '<label class="chkL"><input type="radio" name="impModo" '+(IMP.modo==='somar'?'checked':'')+
+       ' onchange="IMP.modo=\'somar\'"><span><b>Acrescentar e atualizar</b> — mantém o que já existe</span></label>'+
+      '<label class="chkL"><input type="radio" name="impModo" '+(IMP.modo==='trocar'?'checked':'')+
+       ' onchange="IMP.modo=\'trocar\'"><span><b>Substituir tudo desta área</b> — apaga o que existe antes</span></label>'+
+     '</div>'+
+     '<button class="btnP2 ok" style="margin-top:14px" onclick="aplicarImport()">'+
+     sv('nike',14)+' Aplicar a importação</button>')+
+   '</div>';
+}
+
+/* ---------- previa: mostra o que vai entrar, antes de mexer em nada ---------- */
+function valDe(l,k){
+  var i=IMP.mapa[k];
+  return (i===undefined)?'':String(l[i]===undefined?'':l[i]).trim();
+}
+function montarPrevia(){
+  var dados=IMP.linhas.slice(1), avisos=[], ruins=0, novos=0, exist=0, html='';
+  if(IMP.area==='insumos'){
+    var vistos={};
+    var linhas=dados.map(function(l){
+      var nome=valDe(l,'nome');
+      if(!nome){ruins++;return null;}
+      var un=valDe(l,'unidade')||'un';
+      var o={nome:nome,grupo:valDe(l,'grupo'),unidade:un,
+        custo:numBR(valDe(l,'custo')),estoque:numBR(valDe(l,'estoque')),
+        minimo:numBR(valDe(l,'minimo')),codigo:valDe(l,'codigo')};
+      if(vistos[nome.toLowerCase()])avisos.push('"'+nome+'" aparece mais de uma vez no arquivo');
+      vistos[nome.toLowerCase()]=true;
+      var ja=(DB.insumos||[]).find(function(x){
+        return String(x.nome||'').toLowerCase()===nome.toLowerCase()});
+      if(ja)exist++; else novos++;
+      if(o.custo<=0&&o.estoque>0)avisos.push('"'+nome+'" tem estoque mas não tem custo');
+      return o;
+    }).filter(Boolean);
+    html='<table class="pTable"><thead><tr><th>Nome</th><th>Grupo</th><th>Un</th>'+
+     '<th style="text-align:right">Custo</th><th style="text-align:right">Estoque</th></tr></thead><tbody>'+
+     linhas.slice(0,6).map(function(o){
+       return '<tr><td><b>'+E(o.nome)+'</b></td><td>'+E(o.grupo||'—')+'</td>'+
+        '<td>'+E(o.unidade)+'</td><td style="text-align:right">R$ '+money(o.custo)+'</td>'+
+        '<td style="text-align:right">'+o.estoque+'</td></tr>';
+     }).join('')+'</tbody></table>';
+  }else if(IMP.area==='fichas'){
+    var fichas={};
+    dados.forEach(function(l){
+      var fn=valDe(l,'ficha'), it=valDe(l,'item');
+      if(!fn||!it){ruins++;return;}
+      if(!fichas[fn])fichas[fn]={nome:fn,rendimento:numBR(valDe(l,'rendimento')),
+        unidRend:valDe(l,'unidRend')||'un',preparo:valDe(l,'preparo'),itens:[]};
+      if(!fichas[fn].preparo&&valDe(l,'preparo'))fichas[fn].preparo=valDe(l,'preparo');
+      var q=numBR(valDe(l,'qtd'));
+      if(q<=0)avisos.push('"'+fn+'" · "'+it+'" está sem quantidade');
+      var achou=(DB.insumos||[]).some(function(x){
+        return String(x.nome||'').toLowerCase()===it.toLowerCase()});
+      if(!achou)avisos.push('"'+it+'" não existe nos ingredientes — importe os ingredientes antes');
+      fichas[fn].itens.push({nome:it,qtd:q,unidade:valDe(l,'unidade')||''});
+    });
+    var lista=Object.keys(fichas).map(function(k){return fichas[k]});
+    lista.forEach(function(f){
+      var ja=(DB.fichas||[]).find(function(x){
+        return String(x.nome||'').toLowerCase()===f.nome.toLowerCase()});
+      if(ja)exist++; else novos++;
+      if(!f.rendimento)avisos.push('"'+f.nome+'" está sem rendimento');
+    });
+    html='<table class="pTable"><thead><tr><th>Ficha</th><th style="width:96px">Rendimento</th>'+
+     '<th style="width:88px">Itens</th><th>Composição</th></tr></thead><tbody>'+
+     lista.slice(0,6).map(function(f){
+       return '<tr><td><b>'+E(f.nome)+'</b></td>'+
+        '<td>'+(f.rendimento||'—')+' '+E(f.unidRend)+'</td>'+
+        '<td>'+f.itens.length+'</td>'+
+        '<td class="impEx">'+E(f.itens.slice(0,3).map(function(i){
+          return i.qtd+(i.unidade?i.unidade:'')+' '+i.nome}).join(' · '))+
+        (f.itens.length>3?' …':'')+'</td></tr>';
+     }).join('')+'</tbody></table>';
+    IMP._fichas=lista;
+  }else{
+    var lf=dados.map(function(l){
+      var em=valDe(l,'empresa');
+      if(!em){ruins++;return null;}
+      var ja=(DB.fornec||[]).find(function(x){
+        return String(x.empresa||'').toLowerCase()===em.toLowerCase()});
+      if(ja)exist++; else novos++;
+      return {empresa:em,nome:valDe(l,'contato'),cnpj:valDe(l,'cnpj'),
+        tel:valDe(l,'tel'),email:valDe(l,'email')};
+    }).filter(Boolean);
+    html='<table class="pTable"><thead><tr><th>Empresa</th><th>Contato</th><th>CNPJ</th>'+
+     '<th>Telefone</th></tr></thead><tbody>'+
+     lf.slice(0,6).map(function(o){
+       return '<tr><td><b>'+E(o.empresa)+'</b></td><td>'+E(o.nome||'—')+'</td>'+
+        '<td>'+E(o.cnpj||'—')+'</td><td>'+E(o.tel||'—')+'</td></tr>';
+     }).join('')+'</tbody></table>';
+    IMP._fornec=lf;
+  }
+  /* aviso repetido nao ajuda ninguem */
+  var unicos=[];avisos.forEach(function(x){if(unicos.indexOf(x)<0)unicos.push(x)});
+  return {novos:novos,exist:exist,ruins:ruins,avisos:unicos,html:html};
+}
+
+/* ---------- aplicar ---------- */
+async function aplicarImport(){
+  var a=areaImp(), dados=IMP.linhas.slice(1);
+  var prev=montarPrevia();
+  var ok=await confirmar({
+    titulo:'Importar '+a.n.toLowerCase(),
+    texto:prev.novos+' novos · '+prev.exist+' atualizados',
+    linhas:[['Arquivo',E(IMP.arquivo),''],
+            ['Modo',IMP.modo==='trocar'?'substituir tudo':'acrescentar e atualizar',''],
+            ['Unidade do estoque',sucNome(lojaAtualId()),'']],
+    aviso:(IMP.modo==='trocar'
+      ?'ATENÇÃO: tudo que existe nesta área será APAGADO antes. '
+      :'')+
+     (IMP.area==='insumos'
+      ?'O estoque entra na unidade '+sucNome(lojaAtualId())+' — cada unidade tem o seu saldo. '+
+       'Se este arquivo é de outra unidade, troque a unidade no topo antes de aplicar.'
+      :'Faça um backup antes, em Administração › Backup e Restauração.'),
+    ok:'Importar agora',tipo:IMP.modo==='trocar'?'perigo':'check'});
+  if(!ok)return;
+
+  var suc=lojaAtualId(), n=0;
+  try{
+    if(IMP.area==='insumos'){
+      baseMov();
+      if(IMP.modo==='trocar')DB.insumos=[];
+      dados.forEach(function(l){
+        var nome=valDe(l,'nome'); if(!nome)return;
+        var ins=(DB.insumos||[]).find(function(x){
+          return String(x.nome||'').toLowerCase()===nome.toLowerCase()});
+        var grupoId='';
+        var gn=valDe(l,'grupo');
+        if(gn){
+          var g=(DB.gruposIng||[]).find(function(x){
+            return String(x.nome||'').toLowerCase()===gn.toLowerCase()});
+          if(!g){g={id:uid('gi'),nome:gn,compoeCMV:true,sucursais:[]};DB.gruposIng.push(g);}
+          grupoId=g.id;
+        }
+        if(!ins){
+          ins={id:uid('ins'),nome:nome,controlaEstoque:true,sucursais:[]};
+          DB.insumos.push(ins);
+        }
+        ins.unidade=valDe(l,'unidade')||ins.unidade||'un';
+        if(grupoId)ins.grupoId=grupoId;
+        if(valDe(l,'codigo'))ins.codigo=valDe(l,'codigo');
+        var mn=numBR(valDe(l,'minimo')); if(mn)ins.estoqueMin=mn;
+        /* saldo e custo entram na UNIDADE ativa, nunca no item */
+        var q=numBR(valDe(l,'estoque'));
+        var c=numBR(valDe(l,'custo'));
+        if(q||c){
+          setSaldoUn(ins.id,q,suc);
+          if(c)setCustoUn(ins.id,c,suc);
+        }
+        n++;
+      });
+      espelharEstoque();
+    }else if(IMP.area==='fichas'){
+      if(IMP.modo==='trocar')DB.fichas=[];
+      (IMP._fichas||[]).forEach(function(f){
+        var fc=(DB.fichas||[]).find(function(x){
+          return String(x.nome||'').toLowerCase()===f.nome.toLowerCase()});
+        if(!fc){fc={id:uid('fc'),nome:f.nome,sucursais:[]};DB.fichas.push(fc);}
+        fc.rendimento=f.rendimento||fc.rendimento||1;
+        fc.unidade=f.unidRend||fc.unidade||'un';
+        if(f.preparo)fc.preparo=f.preparo;
+        fc.itens=f.itens.map(function(i){
+          var ins=(DB.insumos||[]).find(function(x){
+            return String(x.nome||'').toLowerCase()===i.nome.toLowerCase()});
+          return {insumoId:ins?ins.id:'',nome:i.nome,qtd:i.qtd,
+            unidade:i.unidade||(ins?ins.unidade:'un'),_semVinculo:!ins};
+        });
+        n++;
+      });
+    }else{
+      if(IMP.modo==='trocar')DB.fornec=[];
+      (IMP._fornec||[]).forEach(function(o){
+        var f=(DB.fornec||[]).find(function(x){
+          return String(x.empresa||'').toLowerCase()===o.empresa.toLowerCase()});
+        if(!f){f={id:uid('fo'),empresa:o.empresa};DB.fornec.push(f);}
+        if(o.nome)f.nome=o.nome;
+        if(o.cnpj)f.cnpj=o.cnpj;
+        if(o.tel)f.tel=o.tel;
+        if(o.email)f.email=o.email;
+        n++;
+      });
+    }
+    salvar();
+    var soltos=(IMP.area==='fichas')
+      ?(DB.fichas||[]).reduce(function(t,f){
+         return t+((f.itens||[]).filter(function(i){return i._semVinculo}).length)},0):0;
+    IMP.linhas=null;IMP.arquivo='';
+    telaCarga();
+    toast(n+' '+(IMP.area==='fichas'?'ficha(s)':'item(ns)')+' importado(s).'+
+      (soltos?' '+soltos+' ingrediente(s) sem vínculo — importe os ingredientes e refaça.':''));
+    if(NUVEM.ligada)sincronizar();
+  }catch(e){
+    toast('Falhou no meio: '+((e&&e.message)||'erro')+'. Restaure o backup.');
+  }
+}
+function baixarModeloImp(){
+  var a=areaImp();
+  var l=[a.campos.map(function(c){return c.n}), a.campos.map(function(c){return c.ex})];
+  if(a.id==='fichas')
+    l.push(['Gelato de creme','5','kg','Açúcar refinado','1,2','kg','']);
+  baixarCSV(l,'modelo-'+a.id);
+}
+function explicaImport(){
+  confirmar({titulo:'Como importar sem errar',texto:'Importação por área',
+   linhas:[['1º','importe os ingredientes',''],
+           ['2º','depois as fichas técnicas',''],
+           ['3º','por último os fornecedores',''],
+           ['Estoque','entra na unidade que está aberta no topo','']],
+   aviso:'A ordem importa: a ficha técnica aponta para ingredientes. Se você importar as fichas '+
+    'antes, elas ficam sem vínculo e o custo não calcula. E lembre que o saldo é de cada unidade — '+
+    'importar com Jales aberto coloca o estoque em Jales.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+
+/* a importacao por arquivo unico continua existindo como opcao avancada */
+function telaCargaJSON(){
   var r=(CARGA_SFS&&CARGA_SFS.resumo)||null;
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo"><h1>Importar Dados</h1>'+
