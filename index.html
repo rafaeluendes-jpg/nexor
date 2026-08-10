@@ -782,6 +782,8 @@ body.pdvFull .wTitle{display:none}
  overflow-x:auto}
 .impModo{display:flex;flex-direction:column;gap:8px;margin-top:16px;border-top:1px solid var(--lin,#e6e0d4);
  padding-top:14px}
+.sucBtn.travado,#sucBtn.travado{opacity:.75;cursor:default}
+.sucBtn.travado svg,#sucBtn.travado svg{display:none}
 .tmLiga{display:flex;align-items:center;gap:14px;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 17px;margin-bottom:14px}
 .tmDuas{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
@@ -13500,7 +13502,8 @@ async function entrarPeloAuth(lg,sn){
     return {ok:false,motivo:'rede'};
   }
   var ses=r.data&&r.data.session?r.data.session:null;
-  var rp=await cli.from('perfis').select('id,nome,cargo,loja_id,empresa_id')
+  var rp=await cli.from('perfis')
+    .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
     .eq('id',r.data.user.id).maybeSingle();
   if(rp.error||!rp.data){
     try{cli.auth.signOut()}catch(e){}
@@ -13509,6 +13512,12 @@ async function entrarPeloAuth(lg,sn){
   /* daqui em diante o aparelho esta ligado na nuvem — sem passar por
      Banco de dados. Era isso que deixava o socio lancando no vazio. */
   NUVEM.cli=cli;NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;
+  /* A unidade vem do perfil, nao da escolha da pessoa: o gerente de Jales
+     entra em Jales. Sem isto, ele caia sempre na primeira da lista. */
+  if(rp.data.sucursal_ref){
+    DB.lojaAtual=rp.data.sucursal_ref;
+    S.loja=rp.data.sucursal_ref;
+  }
   NUVEM.token=ses?ses.access_token:null;NUVEM.ligada=true;
   setModo('nuvem');
   /* as permissoes continuam vindo de usuarios_sistema, agora com RLS de verdade */
@@ -13693,6 +13702,7 @@ function boot(){
   baixarLayoutMenu();
   topo();faixa();abrir('cardapio','cfg-cardapio');
   try{pintarRede()}catch(e){}
+  try{pintarTravaUnidade()}catch(e){}
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
 function topo(){
@@ -13796,8 +13806,25 @@ function lojasCad(){
   DB.lojasFin=a;                       /* compatibilidade com telas antigas */
   return a;
 }
+/* a unidade a que a pessoa pertence, vinda do login */
+function unidadeDoPerfil(){
+  return (NUVEM.perfil&&NUVEM.perfil.sucursal_ref)||'';
+}
+function podeTrocarUnidade(){
+  if(ehPlataforma&&ehPlataforma())return true;
+  var u=usuarioLogado()||{};
+  if(u.tudo||u.mestre)return true;
+  var s=unidadeDoPerfil();
+  if(!s)return true;                       /* perfil antigo, sem unidade */
+  return ehSucMatriz(s);
+}
 function lojaAtual(){
   var a=lojasCad();
+  /* quem tem unidade no perfil e nao pode trocar fica presa a ela */
+  var fixa=unidadeDoPerfil();
+  if(fixa&&!podeTrocarUnidade()&&a.some(function(l){return l.id===fixa})){
+    DB.lojaAtual=fixa;S.loja=fixa;return fixa;
+  }
   if(!DB.lojaAtual||!a.some(function(l){return l.id===DB.lojaAtual}))
     DB.lojaAtual=(a[0]||{}).id||'suc_matriz';
   S.loja=DB.lojaAtual;                 /* as duas passam a apontar para o mesmo */
@@ -13807,7 +13834,19 @@ function nomeLojaAtual(){
   var l=lojasCad().find(function(x){return x.id===lojaAtual()});
   return l?l.nome:'Matriz';
 }
+/* deixa visivel que a unidade e fixa, em vez de o clique nao fazer nada */
+function pintarTravaUnidade(){
+  var b=document.getElementById('sucBtn');
+  if(!b)return;
+  var travado=!podeTrocarUnidade();
+  b.classList.toggle('travado',travado);
+  b.title=travado?('Seu acesso é da unidade '+nomeLojaAtual()):'Trocar de unidade';
+}
 function toggleSuc(){
+if(!podeTrocarUnidade()){
+  toast('Seu acesso é da unidade '+sucNome(unidadeDoPerfil())+'.');
+  return;
+}
 if($('sucMenu')){fecharSuc();return;}
 fecharDrop();
 lojaAtual();
@@ -13818,6 +13857,12 @@ lojasCad().map(function(l){
 '<div style="padding:9px 10px;font-size:11.5px;color:var(--ink-3)">Cadastre outras lojas em Configuração da Loja.</div></div>';
 }
 function trocarLoja(id){
+  /* So quem e da matriz circula entre unidades. Gerente de loja fica na dele —
+     senao a separacao de estoque e de cadastro nao vale nada. */
+  if(!podeTrocarUnidade()){
+    toast('Seu acesso é da unidade '+sucNome(unidadeDoPerfil())+'.');
+    fecharSuc();return;
+  }
   DB.lojaAtual=id;S.loja=id;
   fecharSuc();
   /* o saldo mostrado na tela passa a ser o DESTA unidade */
@@ -13839,7 +13884,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.5.0';
+var VERSAO='V21.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
