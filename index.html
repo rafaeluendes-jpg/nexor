@@ -824,6 +824,8 @@ body.pdvFull .wTitle{display:none}
 .tmCh::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;
  top:3px;left:3px;transition:.15s}
 .tmCh.on::after{left:21px}
+.tmSel{border:1.5px solid var(--lin,#e6e0d4);border-radius:8px;padding:8px 10px;
+ font-size:13px;background:#fff;max-width:200px}
 .tmNum{width:70px;border:1.5px solid var(--lin,#e6e0d4);border-radius:8px;padding:8px;
  font-size:14px;font-weight:600;text-align:center;background:#fff}
 .tmTx{padding:9px 0;border-bottom:1px dashed var(--lin,#e6e0d4)}
@@ -889,6 +891,47 @@ body.pdvFull .wTitle{display:none}
 .tmCheio.comFoto .tcCard,.tmCheio.comFoto .tcLI{background:rgba(255,255,255,.96)}
 .tmCheio.comFoto .tcAtr{background:transparent!important}
 /* ---- teclado na tela ---- */
+/* ---- pergunta sim ou não ---- */
+.tcSimNao{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ padding:4vh 6vw;text-align:center;gap:0}
+.tcSNfoto{width:min(560px,80%);border-radius:22px;overflow:hidden;margin-bottom:30px;
+ box-shadow:0 12px 36px rgba(0,0,0,.14)}
+.tcSimNao h2{font-size:clamp(30px,4.4vw,54px);font-weight:800;letter-spacing:-.025em;line-height:1.1}
+.tcSNsub{font-size:clamp(16px,1.9vw,22px);color:#7A7266;margin-top:10px}
+.tcSNbt{display:flex;gap:16px;margin-top:40px;width:100%;max-width:680px}
+.tcSNn,.tcSNs{flex:1;border:none;border-radius:18px;padding:26px 20px;
+ font-size:clamp(18px,2.1vw,25px);font-weight:800;cursor:pointer}
+.tcSNn{background:#fff;border:2px solid #E6E0D4;color:#7A7266}
+.tcSNs{color:#241F1A}
+.tcSNn:active,.tcSNs:active{transform:scale(.97)}
+/* ---- lista de opções ---- */
+.tcOpc{flex:1;overflow-y:auto;padding:24px 26px}
+.tcOpcH{margin-bottom:18px}
+.tcOpcH h2{font-size:clamp(24px,3vw,36px);font-weight:800;letter-spacing:-.02em}
+.tcOpcH span{font-size:15px;color:#7A7266;background:#F0ECE2;padding:5px 14px;
+ border-radius:20px;display:inline-block;margin-top:8px}
+.tcOpcG{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.tcOp{background:#fff;border:2px solid #E6E0D4;border-radius:16px;padding:20px 22px;
+ display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;font-family:inherit}
+.tcOp.on{border-color:#0E5C3A;background:#F1F8F3}
+.tcOp:active{transform:scale(.985)}
+.tcOpM{width:28px;height:28px;border-radius:50%;border:2.5px solid #D8D0C2;flex-shrink:0}
+.tcOp.on .tcOpM{border-color:#0E5C3A;background:#0E5C3A;box-shadow:inset 0 0 0 5px #fff}
+.tcOpN{flex:1;font-size:clamp(17px,1.8vw,22px);font-weight:600}
+.tcOpP{font-size:clamp(15px,1.6vw,19px);font-weight:800;color:#B08422;white-space:nowrap}
+.tcOpP.zero{color:#9A9288;font-weight:600}
+/* ---- leve também ---- */
+.tcLeve{flex:1;overflow-y:auto;padding:26px;text-align:center}
+.tcLeve h2{font-size:clamp(26px,3.4vw,42px);font-weight:800;letter-spacing:-.02em}
+.tcLeveS{font-size:clamp(15px,1.7vw,20px);color:#7A7266;margin-top:8px;margin-bottom:26px}
+.tcLeveG{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;
+ max-width:980px;margin:0 auto}
+.tcLeveC{background:#fff;border:2px solid #E6E0D4;border-radius:20px;overflow:hidden;
+ cursor:pointer;padding:0;font-family:inherit;text-align:center}
+.tcLeveC:active{transform:scale(.98)}
+.tcLeveI{padding:16px 14px 18px}
+.tcLeveB{display:block;margin-top:12px;padding:13px;border-radius:12px;color:#241F1A;
+ font-size:16px;font-weight:800}
 .tcId2{flex:1;display:flex;flex-direction:column;padding:22px 26px 0;overflow:hidden}
 .tcAbasC{display:flex;gap:9px;margin-bottom:18px;flex-wrap:wrap}
 .tcAbaC{background:#fff;border:2px solid #E6E0D4;border-radius:24px;padding:11px 20px;
@@ -14033,7 +14076,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.5.0';
+var VERSAO='V21.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16151,6 +16194,9 @@ function cfgTotem(){
   if(t.fundoFoto===undefined)t.fundoFoto='';
   if(t.textoEscuro===undefined)t.textoEscuro=true;
   if(t.veu===undefined)t.veu=25;
+  /* categoria oferecida no "Leve tambem". Vazio = o sistema escolhe os
+     produtos mais baratos que ainda nao estao na sacola. */
+  if(t.catLeve===undefined)t.catLeve='';
   return t;
 }
 /* O fundo da tela de descanso, montado uma vez e usado na previa e no
@@ -16304,7 +16350,16 @@ function telaTotem(){
 
      '<div class="tmBox"><div class="tmT">Venda adicional</div>'+
       tmChave('turbinar','"Quer turbinar?" no produto','complementos enquanto monta o item')+
-      tmChave('leveTambem','"Leve também" na sacola','bebida e sobremesa antes de fechar')+
+      tmChave('leveTambem','"Leve também" antes de fechar','oferece bebida ou sobremesa numa tela própria')+
+      (cfgTotem().leveTambem
+       ?'<div class="tmLin"><div class="tmR"><b>O que oferecer</b>'+
+         '<span>a categoria de onde saem as sugestões</span></div>'+
+         '<select class="tmSel" onchange="cfgTotem().catLeve=this.value;salvarTotem()">'+
+         '<option value="">— os mais baratos —</option>'+
+         (DB.categorias||[]).filter(function(c){return c.ativo!==false}).map(function(c){
+           return '<option value="'+E(c.id)+'"'+(cfgTotem().catLeve===c.id?' selected':'')+'>'+
+            E(c.nome)+'</option>';
+         }).join('')+'</select></div>':'')+
       '<div class="tmLin"><div class="tmR"><b>Quantos itens oferecer</b>'+
        '<span>mais que 3 vira ruído e o cliente ignora</span></div>'+tmNum('qtdUpsell')+'</div>'+
      '</div>'+
@@ -16608,6 +16663,210 @@ function faltaPreencher(){
   });
 }
 
+
+/* ==========================================================
+   OPCOES DO PRODUTO NO TOTEM
+   Nada de cadastro novo: os grupos de opcoes ja existem em Gestao de
+   Cardapio e ja sao ligados ao produto na aba Opcoes. O totem so usa.
+
+   A diferenca esta em COMO perguntar:
+   - grupo obrigatorio (minimo 1) -> mostra as opcoes direto
+   - grupo opcional  (minimo 0)  -> pergunta SIM ou NAO primeiro
+     "Quer adicionar borda?" e so entao mostra os sabores. Perguntar
+     antes evita que a pessoa role uma lista que talvez nem queira.
+   ========================================================== */
+function gruposDoProduto(p){
+  if(!p||!p.grupos||!p.grupos.length)return [];
+  return (DB.grupos||[]).filter(function(g){
+    return p.grupos.indexOf(g.id)>=0&&(g.opcoes||[]).length;
+  });
+}
+function grupoObrigatorio(g){return (Number(g.min)||0)>0;}
+function maxDoGrupo(g){return (g.max==null?1:Number(g.max))||1;}
+
+/* estado de quem esta montando um item */
+var MON={produto:null,idx:0,escolhas:{},pulados:{},perguntou:{}};
+
+/* o que oferecer no "Leve tambem": da categoria escolhida, ou os mais
+   baratos — e nunca o que a pessoa ja colocou na sacola */
+function sugestoesTotem(){
+  var t=cfgTotem();
+  var naSacola={};
+  TMC.sacola.forEach(function(x){naSacola[x.nome]=true});
+  var l=produtosTotem().filter(function(p){
+    if(naSacola[p.nome])return false;
+    if(t.catLeve)return p.categoriaId===t.catLeve;
+    return true;
+  });
+  if(!t.catLeve)l=l.sort(function(a,b){return (a.preco||0)-(b.preco||0)});
+  return l.slice(0,Math.max(1,Number(t.qtdUpsell)||3));
+}
+function addSugestao(i){
+  var p=sugestoesTotem()[i];
+  if(!p)return;
+  TMC.sacola.push({nome:p.nome,preco:Number(p.preco)||0,opcoes:[]});
+  pintarCheio();
+}
+function telaLeveTambem(){
+  var t=cfgTotem(), sug=sugestoesTotem();
+  var tot=TMC.sacola.reduce(function(a,p){return a+(Number(p.preco)||0)},0);
+  if(!sug.length){TMC.passo=3;return pintarCheio();}
+  return '<div class="tcTopo" style="background:'+t.fundo+'">'+
+   '<button class="tcVb" onclick="TMC.passo=2;pintarCheio()">‹</button>'+
+   '<div class="tcT1">Antes de fechar</div>'+
+   '<div class="tcT2">'+TMC.sacola.length+' itens · R$ '+money(tot)+'</div></div>'+
+   '<div class="tcLeve">'+
+    '<h2>Que tal levar junto?</h2>'+
+    '<div class="tcLeveS">Combina com o que você pediu</div>'+
+    '<div class="tcLeveG">'+sug.map(function(p,i){
+      return '<button class="tcLeveC" onclick="addSugestao('+i+')">'+
+       fotoProd(p,i,'1')+
+       '<div class="tcLeveI"><div class="tcNm">'+E(p.nome)+'</div>'+
+       '<div class="tcPr" style="color:'+t.fundo+'">R$ '+money(p.preco)+'</div>'+
+       '<span class="tcLeveB" style="background:'+t.botao+'">+ Adicionar</span></div></button>';
+    }).join('')+'</div>'+
+   '</div>'+
+   '<div class="tcRod">'+
+    '<button class="tcBtn fant" onclick="TMC.passo=3;pintarCheio()">Não, obrigado</button>'+
+    '<button class="tcBtn" style="background:'+t.botao+';flex:1" '+
+     'onclick="TMC.passo=3;pintarCheio()">Continuar · R$ '+money(tot)+'</button>'+
+   '</div>';
+}
+function comecarMontagem(i){
+  var p=produtosTotem()[i];
+  if(!p)return;
+  var gs=gruposDoProduto(p);
+  if(!gs.length){                       /* produto simples: entra direto */
+    TMC.sacola.push({nome:p.nome,preco:Number(p.preco)||0,opcoes:[]});
+    pintarCheio();return;
+  }
+  MON={produto:p,idx:0,escolhas:{},pulados:{},perguntou:{}};
+  TMC.passo='monta';
+  pintarCheio();
+}
+function grupoAtual(){
+  var gs=gruposDoProduto(MON.produto);
+  return gs[MON.idx]||null;
+}
+function precoMontagem(){
+  var t=Number(MON.produto&&MON.produto.preco)||0;
+  Object.keys(MON.escolhas).forEach(function(gid){
+    (MON.escolhas[gid]||[]).forEach(function(o){t+=Number(o.preco)||0});
+  });
+  return t;
+}
+function respondeGrupo(sim){
+  var g=grupoAtual();if(!g)return;
+  MON.perguntou[g.id]=true;
+  if(!sim){MON.pulados[g.id]=true;proximoGrupo();}
+  else pintarCheio();
+}
+function escolherOpcao(gid,k){
+  var g=(DB.grupos||[]).find(function(x){return x.id===gid});
+  if(!g)return;
+  var o=(g.opcoes||[])[k];if(!o)return;
+  var atual=MON.escolhas[gid]||[];
+  var max=maxDoGrupo(g);
+  var ja=atual.findIndex(function(x){return x.nome===o.nome});
+  if(ja>=0)atual.splice(ja,1);
+  else{
+    if(max===1)atual=[o];
+    else if(atual.length<max)atual.push(o);
+    else{toast('Você já escolheu '+max+'.');return;}
+  }
+  MON.escolhas[gid]=atual;
+  pintarCheio();
+  /* escolha unica e obrigatoria: avanca sozinho, sem pedir confirmacao */
+  if(max===1&&grupoObrigatorio(g))setTimeout(proximoGrupo,240);
+}
+function proximoGrupo(){
+  var gs=gruposDoProduto(MON.produto);
+  if(MON.idx<gs.length-1){MON.idx++;pintarCheio();return;}
+  fecharMontagem();
+}
+function voltarGrupo(){
+  if(MON.idx>0){MON.idx--;pintarCheio();}
+  else{TMC.passo=2;pintarCheio();}
+}
+function fecharMontagem(){
+  var p=MON.produto;
+  var ops=[];
+  Object.keys(MON.escolhas).forEach(function(gid){
+    (MON.escolhas[gid]||[]).forEach(function(o){ops.push(o.nome)});
+  });
+  TMC.sacola.push({nome:p.nome,preco:precoMontagem(),opcoes:ops});
+  TMC.passo=2;MON={produto:null,idx:0,escolhas:{},pulados:{},perguntou:{}};
+  pintarCheio();
+}
+
+/* a tela: pergunta antes, opcoes depois */
+function telaMontagem(){
+  var t=cfgTotem(), p=MON.produto, g=grupoAtual();
+  if(!p||!g)return '';
+  var gs=gruposDoProduto(p);
+  var obr=grupoObrigatorio(g);
+  var max=maxDoGrupo(g);
+  var sel=MON.escolhas[g.id]||[];
+  var perguntar=(!obr&&!MON.perguntou[g.id]);
+  var falta=(obr&&!sel.length);
+
+  var cab='<div class="tcTopo" style="background:'+t.fundo+'">'+
+   '<button class="tcVb" onclick="voltarGrupo()">‹</button>'+
+   '<div class="tcT1">'+E(p.nome)+'</div>'+
+   '<div class="tcT2">'+(MON.idx+1)+' de '+gs.length+'</div></div>';
+
+  if(perguntar){
+    /* SIM ou NAO, duas escolhas do tamanho da mão. O nome do grupo vira a
+       pergunta: "Bordas" -> "Quer adicionar borda?" */
+    var barato=(g.opcoes||[]).reduce(function(m,o){
+      var v=Number(o.preco)||0;return (m===null||v<m)?v:m;},null);
+    return cab+
+     '<div class="tcSimNao">'+
+      '<div class="tcSNfoto">'+fotoProd(p,0,'16/9')+'</div>'+
+      '<h2>'+E(perguntaDoGrupo(g))+'</h2>'+
+      (barato?'<div class="tcSNsub">a partir de R$ '+money(barato)+'</div>':'')+
+      '<div class="tcSNbt">'+
+       '<button class="tcSNn" onclick="respondeGrupo(false)">Não, obrigado</button>'+
+       '<button class="tcSNs" style="background:'+t.botao+'" onclick="respondeGrupo(true)">'+
+        'Sim, quero</button>'+
+      '</div>'+
+     '</div>';
+  }
+
+  return cab+
+   '<div class="tcOpc">'+
+    '<div class="tcOpcH"><h2>'+E(g.nome)+'</h2>'+
+     '<span>'+(obr
+       ?(max>1?'escolha até '+max:'escolha 1')
+       :(max>1?'até '+max+' · opcional':'opcional'))+'</span></div>'+
+    '<div class="tcOpcG">'+(g.opcoes||[]).map(function(o,k){
+      var on=sel.some(function(x){return x.nome===o.nome});
+      return '<button class="tcOp'+(on?' on':'')+'" onclick="escolherOpcao(\''+g.id+'\','+k+')">'+
+       '<span class="tcOpM"></span>'+
+       '<span class="tcOpN">'+E(o.nome)+'</span>'+
+       (Number(o.preco)?'<span class="tcOpP">+ R$ '+money(o.preco)+'</span>':
+         '<span class="tcOpP zero">incluso</span>')+
+      '</button>';
+    }).join('')+'</div>'+
+   '</div>'+
+   '<div class="tcRod">'+
+    '<div class="tcRv"><span>'+E(p.nome)+'</span><b>R$ '+money(precoMontagem())+'</b></div>'+
+    (!obr?'<button class="tcBtn fant" onclick="respondeGrupo(false)">Pular</button>':'')+
+    '<button class="tcBtn'+(falta?' off':'')+'" style="background:'+
+     (falta?'#D8D0C2':t.botao)+'" '+(falta?'':'onclick="proximoGrupo()"')+'>'+
+     ((MON.idx<gs.length-1)?'Continuar':'Adicionar ao pedido')+'</button>'+
+   '</div>';
+}
+/* "Bordas" vira "Quer adicionar borda?"; se o grupo ja for uma pergunta,
+   usa como esta */
+function perguntaDoGrupo(g){
+  var n=String(g.nome||'').trim();
+  if(/\?$/.test(n))return n;
+  var s=n.toLowerCase();
+  if(/s$/.test(s)&&s.length>3)s=s.slice(0,-1);   /* Bordas -> borda */
+  return 'Quer adicionar '+s+'?';
+}
+
 /* ---------- teste em tela cheia ---------- */
 function abrirTotemCheio(){
   var t=cfgTotem(), ps=produtosTotem();
@@ -16633,6 +16892,8 @@ function pintarCheio(){
   if(!el)return;
   var t=cfgTotem(), ps=produtosTotem();
   var tot=TMC.sacola.reduce(function(a,p){return a+(Number(p.preco)||0)},0);
+  if(TMC.passo==='monta'){ el.innerHTML=telaMontagem(); return; }
+  if(TMC.passo==='leve'){ el.innerHTML=telaLeveTambem(); return; }
   if(TMC.passo===1){
     var F=fundoTotem();
     var claro=(t.fundoTipo==='foto'&&t.textoEscuro);
@@ -16694,7 +16955,9 @@ function pintarCheio(){
      corpo+
      '<div class="tcRod"><div class="tcRv"><span>'+TMC.sacola.length+' itens</span>'+
      '<b>R$ '+money(tot)+'</b></div>'+
-     '<button class="tcBtn" style="background:'+t.botao+'" onclick="irTotem(3)">Continuar</button></div>';
+     '<button class="tcBtn" style="background:'+t.botao+'" onclick="'+
+     (cfgTotem().leveTambem&&TMC.sacola.length?'TMC.passo=\'leve\';pintarCheio()':'irTotem(3)')+
+     '">Continuar</button></div>';
   }else if(TMC.passo===3){
     /* Uma pergunta por vez, o que foi digitado em letra grande, e o teclado
        ocupando a metade de baixo — que e onde o dedo alcanca. Antes eram
@@ -16749,9 +17012,7 @@ function pintarCheio(){
   }
 }
 function addTotem(i){
-  var p=produtosTotem()[i];
-  if(p)TMC.sacola.push(p);
-  pintarCheio();
+  comecarMontagem(i);
 }
 function passaTotem(d){
   var ps=produtosTotem();
