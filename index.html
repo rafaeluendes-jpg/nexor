@@ -892,6 +892,10 @@ body.pdvFull .wTitle{display:none}
 .tmCheio.comFoto .tcAtr{background:transparent!important}
 /* ---- teclado na tela ---- */
 /* ---- pergunta sim ou não ---- */
+.tcPague{background:#FFF6E8;border:1px solid #F0DCB8;color:#7A5320;border-radius:14px;
+ padding:16px 22px;margin-top:22px;font-size:clamp(16px,1.9vw,21px);font-weight:700}
+.tcPago{background:#0E8A46;color:#fff;border-radius:14px;padding:16px 22px;margin-top:22px;
+ font-size:clamp(16px,1.9vw,21px);font-weight:800;letter-spacing:.03em}
 .tcSimNao{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
  padding:4vh 6vw;text-align:center;gap:0}
 .tcSNfoto{width:min(560px,80%);border-radius:22px;overflow:hidden;margin-bottom:30px;
@@ -12234,14 +12238,16 @@ var MAPA=[
     /* Sem isto, o relatorio de canais so funcionava no aparelho que fez a
        venda: o dado subia sem o canal e voltava em branco. Com totem e mesa
        entrando, saber de ONDE veio a venda passa a ser essencial. */
-    canal:x.canal||null,origem_venda:x.origem||null}},
+    canal:x.canal||null,origem_venda:x.origem||null,
+    equipamento:x.equipamento||null,senha_totem:n(x.senha)}},
   filhos:[
    {lista:'itens',tab:'pedido_itens',pai:'pedido_id',
     campos:function(o){return {produto_id:fk('produtos',o.produtoId),nome:o.nome,
       quantidade:n(o.qtd),unitario:n(o.unit),total:n(o.total),
       opcoes:o.opcoes||[],observacao:o.obs||null}}},
    {lista:'pagamentos',tab:'pedido_pagamentos',pai:'pedido_id',
-    campos:function(o){return {forma_id:fk('formasPag',o.forma),valor:n(o.valor)}}}]},
+    campos:function(o){return {forma_id:fk('formasPag',o.forma),valor:n(o.valor),
+      equipamento:o.equipamento||null}}}]},
 
  {col:'acertos',     tab:'acertos',
   campos:function(x){return {entregador_id:fk('entregadores',x.entregadorId),
@@ -13345,6 +13351,7 @@ async function baixarDaNuvem(forcar){
     desconto:Number(x.desconto)||0,cupomCodigo:x.cupom_codigo||'',
     cupomValor:Number(x.cupom_valor)||0,fiscal:!!x.fiscal,hora:x.hora,data:x.data_venda,
     canal:x.canal||'',origem:x.origem_venda||'',
+    equipamento:x.equipamento||'',senha:Number(x.senha_totem)||0,
     mesaId:x.mesa_id||'',mesa:Number(x.mesa_numero)||0,
     comandaNome:x.comanda_nome||'',taxaServico:Number(x.taxa_servico)||0,
     itens:(x.pedido_itens||[]).map(function(i3){return {produtoId:mapaPr[i3.produto_id]||'',
@@ -14076,7 +14083,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.6.0';
+var VERSAO='V21.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16867,6 +16874,80 @@ function perguntaDoGrupo(g){
   return 'Quer adicionar '+s+'?';
 }
 
+
+/* ==========================================================
+   O TOTEM VIRA VENDA DE VERDADE
+   Ate aqui o totem era so ensaio: a sacola vivia numa lista temporaria
+   e sumia ao fechar a tela. Agora ele cria pedido com numero, entra no
+   caixa aberto, baixa estoque e aparece no PDV — igual a venda do
+   balcao. O que muda e so o canal.
+   ========================================================== */
+function fecharPedidoTotem(){
+  var t=cfgTotem();
+  if(!TMC.sacola.length){toast('Sacola vazia.');return null;}
+
+  var cx=caixaAberto();
+  if(!cx){
+    toast('O caixa da loja está fechado — o totem não pode registrar venda.');
+    return null;
+  }
+  if(!travarFecharVenda()){toast('Aguarde...');return null;}
+
+  var itens=TMC.sacola.map(function(x){
+    return {produtoId:x.produtoId||'',nome:x.nome+(x.opcoes&&x.opcoes.length
+              ?' ('+x.opcoes.join(', ')+')':''),
+            qtd:1,unitario:Number(x.preco)||0,total:Number(x.preco)||0,
+            opcoes:x.opcoes||[]};
+  });
+  var total=itens.reduce(function(a,i){return a+i.total},0);
+  var ag=new Date();
+
+  /* pagamento: no totem sem maquininha, a venda nasce aguardando o caixa.
+     Com maquininha ligada, ela ja nasce paga. */
+  var pago=!!t.pagaNoTotem;
+  var ped={
+    id:uid('ped'),numero:proxNumPedido(),
+    tipo:'loja',canal:'totem',origem:'totem',
+    fase:pago?(statusDoPapel('finalizado')||statusInicial('loja'))
+             :(statusDoPapel('aguardando')||statusInicial('loja')),
+    clienteNome:TEC.valor.nome||'',
+    itens:itens,
+    pagamentos:pago?[{forma:TMC.forma||'credito',
+      nome:nomeForma(TMC.forma||'credito'),valor:total,equipamento:'totem'}]:[],
+    total:total,taxa:0,desconto:0,
+    caixaId:cx.id,sucursalId:lojaAtualId(),
+    data:hojeISO(),hora:agoraHM(),
+    senha:TMC.senha||proxSenhaTotem(),
+    equipamento:'totem'
+  };
+  if(TEC.valor.cpf)ped.cpfNota=soDigitos(TEC.valor.cpf);
+  if(TEC.valor.celular)ped.clienteTel=soDigitos(TEC.valor.celular);
+
+  DB.pedidos.push(ped);
+  try{ baixarEstoqueVenda(ped); }catch(e){ console.error('estoque totem',e); }
+  try{ registrarCupom(ped); }catch(e){}
+  salvar();
+  liberarFecharVenda();
+  if(NUVEM.ligada)sincronizar();
+  return ped;
+}
+/* a senha e por dia e por unidade: reinicia a cada abertura de caixa */
+function proxSenhaTotem(){
+  var hoje=hojeISO(), suc=lojaAtualId(), max=0;
+  (DB.pedidos||[]).forEach(function(p){
+    if(p.canal!=='totem')return;
+    if(String(p.data||'').slice(0,10)!==hoje)return;
+    if((p.sucursalId||'')!==suc)return;
+    var s=Number(p.senha)||0;
+    if(s>max)max=s;
+  });
+  return max+1;
+}
+function nomeForma(id){
+  var f=(typeof FORMAS!=='undefined'?FORMAS:[]).find(function(x){return x.id===id});
+  return f?f.n:id;
+}
+
 /* ---------- teste em tela cheia ---------- */
 function abrirTotemCheio(){
   var t=cfgTotem(), ps=produtosTotem();
@@ -16879,6 +16960,11 @@ function abrirTotemCheio(){
   TMC={passo:1,sacola:[]};
   pintarCheio();
   try{ if(d.requestFullscreen)d.requestFullscreen().catch(function(){}); }catch(e){}
+}
+function reiniciarTotem(){
+  TMC={passo:1,sacola:[],pedido:null,senha:null};
+  TEC={campo:'',valor:{},maiusc:true};
+  pintarCheio();
 }
 function fecharTotemCheio(){
   var d=document.getElementById('tmCheio');
@@ -16993,13 +17079,15 @@ function pintarCheio(){
        :'<button class="tcBtn fant" onclick="irTotem(2)">Voltar ao cardápio</button>')+
       '<button class="tcBtn'+(falta.length?' off':'')+'" style="background:'+
        (falta.length?'#D8D0C2':t.botao)+';flex:1" '+
-       (falta.length?'':'onclick="irTotem(4)"')+'>Fechar pedido · R$ '+money(tot)+'</button>'+
+       (falta.length?'':'onclick="concluirTotem()"')+'>Fechar pedido · R$ '+money(tot)+'</button>'+
      '</div>';
   }else{
+    var pd=TMC.pedido||{};
     el.innerHTML='<div class="tcFim" style="background:'+t.fundo+'">'+
      '<div class="tcTk"><div class="tcTk1">Sua senha</div>'+
-     '<div class="tcTkN" style="color:'+t.fundo+'">47</div>'+
-     (t.nome!=='nao'?'<div class="tcTk1">Rafael</div>':'')+
+     '<div class="tcTkN" style="color:'+t.fundo+'">'+(pd.senha||TMC.senha||'—')+'</div>'+
+     (pd.numero?'<div class="tcTk1" style="opacity:.6">pedido #'+pd.numero+'</div>':'')+
+     ((TEC.valor.nome||'')?'<div class="tcTk1">'+E(TEC.valor.nome)+'</div>':'')+
      '<div class="tcTkD">'+TMC.sacola.slice(0,4).map(function(p){
        return '<div class="tcTkR"><span>'+E(p.nome)+'</span><b>'+money(p.preco)+'</b></div>';
       }).join('')+
@@ -17007,12 +17095,22 @@ function pintarCheio(){
      '<b>R$ '+money(tot)+'</b></div></div></div>'+
      '<div class="tcFm">'+E(t.msgFim)+'</div>'+
      '<div class="tcFs">'+E(t.msgFim2)+'</div>'+
+     (!cfgTotem().pagaNoTotem
+      ?'<div class="tcPague">Leve a senha ao caixa para pagar</div>'
+      :'<div class="tcPago">PAGO — não precisa ir ao caixa</div>')+
      '<button class="tcBtn" style="background:'+t.botao+';margin-top:30px" '+
-     'onclick="TMC.sacola=[];irTotem(1)">Fazer outro pedido</button></div>';
+     'onclick="reiniciarTotem()">Fazer outro pedido</button></div>';
   }
 }
 function addTotem(i){
   comecarMontagem(i);
+}
+/* fecha de verdade: cria o pedido e so entao mostra a senha */
+function concluirTotem(){
+  var ped=fecharPedidoTotem();
+  if(!ped)return;
+  TMC.pedido=ped;TMC.senha=ped.senha;
+  irTotem(4);
 }
 function passaTotem(d){
   var ps=produtosTotem();
@@ -19304,6 +19402,9 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
     data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id
   };
   if(_cupomAtivo)ped.cupom={id:_cupomAtivo.id,codigo:_cupomAtivo.codigo,valor:valorCupom(_cupomAtivo,total+desc-taxa)};
+  /* de qual aparelho saiu o pagamento — o fechamento separa por isso */
+  ped.equipamento=(ped.canal==='totem')?'totem':(ped.canal==='mesa'?'mesa':'balcao');
+  (ped.pagamentos||[]).forEach(function(x){ if(!x.equipamento)x.equipamento=ped.equipamento; });
   /* fecha as comandas e carimba a mesa no pedido, antes de ele ser gravado */
   if(PDV.mesaPag&&MESA_PAG)concluirMesa(ped);
   DB.pedidos.push(ped);
@@ -19472,15 +19573,22 @@ function verPedido(id){
 /* ---------- ABA: CAIXA ---------- */
 function movimentoCaixa(id){
   var ps=DB.pedidos.filter(function(p){return p.caixaId===id&&!ehCancelado(p)});
-  var porForma={},qtdForma={};
+  var porForma={},qtdForma={},porEquip={};
   FORMAS.forEach(function(f){porForma[f.id]=0;qtdForma[f.id]=0});
   ps.forEach(function(p){(p.pagamentos||[]).forEach(function(x){
     porForma[x.forma]=(porForma[x.forma]||0)+x.valor;
-    qtdForma[x.forma]=(qtdForma[x.forma]||0)+1;})});
+    qtdForma[x.forma]=(qtdForma[x.forma]||0)+1;
+    /* De qual APARELHO veio o dinheiro. Sem isso, o fechamento junta a
+       maquininha do balcao com a do totem e o operador nao consegue
+       bater com o extrato de cada uma. */
+    var eq=x.equipamento||p.equipamento||(p.canal==='totem'?'totem':'balcao');
+    porEquip[x.forma]=porEquip[x.forma]||{};
+    porEquip[x.forma][eq]=(porEquip[x.forma][eq]||0)+x.valor;
+  })});
   var idDin=(FORMAS.find(function(f){return f.tipo==='dinheiro'})||{}).id;
   return {qtd:ps.length,total:ps.reduce(function(a,p){return a+p.total},0),
           dinheiro:(idDin?porForma[idDin]:0)||porForma.dinheiro||0,
-          porForma:porForma,qtdForma:qtdForma};
+          porForma:porForma,qtdForma:qtdForma,porEquip:porEquip};
 }
 /* ao fechar o caixa, cada forma vira um lançamento na conta dela, já com a taxa descontada */
 function lancarFechamento(cx,mov){
@@ -19684,9 +19792,20 @@ function fecharCaixa(){
     esp[f.id]=(f.id==='dinheiro')?esperadoGaveta:(mov.porForma[f.id]||0);
   });
 
+  var NOME_EQ={balcao:'balcão',totem:'totem',mesa:'mesa',entrega:'entrega'};
   var linhas=FORMAS.map(function(f){
+    /* quebra por aparelho: e o que permite bater com o extrato de cada
+       maquininha na hora de fechar */
+    var eqs=(mov.porEquip&&mov.porEquip[f.id])||{};
+    var kEq=Object.keys(eqs).filter(function(k){return eqs[k]>0.001});
+    var det=(kEq.length>1)
+      ?'<small style="display:block;color:var(--ink-3);margin-top:3px">'+
+        kEq.map(function(k){return (NOME_EQ[k]||k)+' R$ '+money(eqs[k])}).join(' · ')+'</small>'
+      :(kEq.length===1&&kEq[0]!=='balcao'
+        ?'<small style="display:block;color:var(--ink-3);margin-top:3px">'+
+          (NOME_EQ[kEq[0]]||kEq[0])+'</small>':'');
     return '<tr'+(f.id==='dinheiro'?' class="dest"':'')+'>'+
-    '<td><b>'+f.n+'</b>'+(f.id==='dinheiro'?'<small style="display:block;color:var(--ink-3)">conferência física da gaveta</small>':'')+'</td>'+
+    '<td><b>'+f.n+'</b>'+(f.id==='dinheiro'?'<small style="display:block;color:var(--ink-3)">conferência física da gaveta</small>':det)+'</td>'+
     '<td class="cSis" style="text-align:right">'+(cego?'<span style="color:var(--ink-3)">oculto</span>':'R$ '+money(esp[f.id]))+'</td>'+
     '<td style="width:150px"><div class="cur"><span>R$</span>'+
     '<input type="number" step="0.01" class="cfV" data-f="'+f.id+'" value=""></div></td>'+
