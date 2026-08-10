@@ -782,6 +782,161 @@ body.pdvFull .wTitle{display:none}
  overflow-x:auto}
 .impModo{display:flex;flex-direction:column;gap:8px;margin-top:16px;border-top:1px solid var(--lin,#e6e0d4);
  padding-top:14px}
+.tmLiga{display:flex;align-items:center;gap:14px;background:var(--card,#fff);
+ border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 17px;margin-bottom:14px}
+.tmDuas{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
+@media(max-width:960px){.tmDuas{grid-template-columns:1fr}}
+.tmBox{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:12px;
+ padding:15px;margin-bottom:14px}
+.tmT{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+ color:var(--tx2,#7a7266);margin-bottom:11px;padding-bottom:7px;border-bottom:1px solid var(--lin,#e6e0d4)}
+.tmLin{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px dashed var(--lin,#e6e0d4)}
+.tmLin:last-child{border-bottom:none}
+.tmR{flex:1;min-width:0}
+.tmR b{display:block;font-size:13px}
+.tmR span{display:block;font-size:11px;color:var(--tx2,#7a7266);margin-top:2px;line-height:1.4}
+.tmSeg{display:flex;background:var(--bg2,#faf7f0);border-radius:8px;padding:3px;gap:2px;flex-shrink:0}
+.tmSeg.largo{width:100%}
+.tmSeg.largo button{flex:1}
+.tmSeg button{border:none;background:none;font-size:11.5px;font-weight:600;padding:7px 11px;
+ border-radius:6px;cursor:pointer;color:var(--tx2,#7a7266);white-space:nowrap}
+.tmSeg button.on{background:#fff;color:var(--pr,#0E5C3A);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tmCh{width:42px;height:24px;border-radius:20px;background:#D8D0C2;position:relative;cursor:pointer;flex-shrink:0}
+.tmCh.on{background:var(--pr,#0E5C3A)}
+.tmCh::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;
+ top:3px;left:3px;transition:.15s}
+.tmCh.on::after{left:21px}
+.tmNum{width:70px;border:1.5px solid var(--lin,#e6e0d4);border-radius:8px;padding:8px;
+ font-size:14px;font-weight:600;text-align:center;background:#fff}
+.tmTx{padding:9px 0;border-bottom:1px dashed var(--lin,#e6e0d4)}
+.tmTx:last-child{border-bottom:none}
+.tmTx label{display:block;font-size:12px;font-weight:600;margin-bottom:5px}
+.tmTx label i{font-style:normal;font-weight:400;color:var(--tx2,#9a9288);font-size:11px}
+.tmTx input{width:100%;border:1.5px solid var(--lin,#e6e0d4);border-radius:8px;padding:9px 11px;
+ font-size:13.5px;background:#fff}
+.tmCores{display:flex;gap:7px;flex-shrink:0}
+.tmCor{width:32px;height:32px;border-radius:9px;cursor:pointer;border:3px solid transparent}
+.tmCor.on{border-color:var(--tx,#2f2a24)}
+.tmLays{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px}
+@media(max-width:620px){.tmLays{grid-template-columns:1fr}}
+.tmLay{border:2px solid var(--lin,#e6e0d4);border-radius:11px;padding:10px;cursor:pointer;
+ background:var(--bg2,#faf7f0);position:relative}
+.tmLay.on{border-color:var(--pr,#0E5C3A);background:#F1F8F3}
+.tmChk{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;
+ border:2px solid var(--lin,#e6e0d4);background:#fff}
+.tmLay.on .tmChk{border-color:var(--pr,#0E5C3A);background:var(--pr,#0E5C3A);box-shadow:inset 0 0 0 3px #fff}
+.tmLay h4{font-size:13.5px;font-weight:800;margin-top:8px}
+.tmLay p{font-size:10.5px;color:var(--tx2,#7a7266);line-height:1.4;margin-top:2px}
+.tmQ{font-size:10px;color:var(--pr,#0E5C3A);font-weight:700;margin-top:5px}
+.tmMini{aspect-ratio:3/4;background:#fff;border:1px solid var(--lin,#e6e0d4);border-radius:6px;
+ padding:5px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.tmMB{height:9px;background:var(--pr,#0E5C3A);border-radius:3px;flex-shrink:0}
+.tmMC{display:flex;gap:2px;flex-shrink:0}
+.tmMC i{height:6px;flex:1;background:var(--bg2,#f0ece2);border-radius:4px}
+.tmMC i.on{background:var(--pr,#0E5C3A)}
+.tmMG{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.tmMK{background:var(--bg2,#f0ece2);border-radius:3px;display:flex;flex-direction:column;overflow:hidden}
+.tmMF{flex:1;background:linear-gradient(135deg,#E8D3A8,#C99A4E)}
+.tmMK u,.tmMCol u{display:block;height:2.5px;background:#D8D0C2;margin:2px 3px;border-radius:2px}
+.tmMK u.p,.tmMCol u.p{width:45%;background:var(--pr,#0E5C3A)}
+.tmML{flex:1;display:flex;flex-direction:column;gap:3px}
+.tmMI{background:var(--bg2,#f0ece2);border-radius:3px;display:flex;gap:3px;padding:2px;align-items:center}
+.tmMT{width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#E8D3A8,#C99A4E);flex-shrink:0}
+.tmMCol{flex:1}
+.tmMD{flex:1;display:flex;flex-direction:column;gap:3px}
+.tmMBig{flex:1;background:linear-gradient(135deg,#E8D3A8,#C99A4E);border-radius:4px}
+.tmMS{display:flex;justify-content:space-between;align-items:center}
+.tmMS s{width:10px;height:10px;border-radius:50%;background:var(--bg2,#f0ece2)}
+.tmMP{display:flex;gap:2px}
+.tmMP em{width:3px;height:3px;border-radius:50%;background:#D8D0C2}
+.tmMP em.on{background:var(--pr,#0E5C3A);width:9px;border-radius:2px}
+.tmSucs{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.tmSuc{border:1.5px solid var(--lin,#e6e0d4);border-radius:9px;padding:10px 12px;cursor:pointer;
+ display:flex;align-items:center;gap:8px;background:#fff;font-size:13px}
+.tmSuc.fixa{opacity:.75;cursor:default;background:#EAF5EE;border-color:#BFE0CC}
+.tmSuc span{font-size:10px;color:#1B5E36}
+.tmPrev{background:#2A2622;border-radius:13px;padding:13px;margin-bottom:14px;position:sticky;top:14px}
+.tmPrevT{color:#C8C0B4;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+ margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.tmPt{width:6px;height:6px;border-radius:50%;background:#5FD48E}
+.tmAbas{display:flex;gap:4px;margin-bottom:8px}
+.tmAba{flex:1;background:#3D3833;border:none;color:#C8C0B4;font-size:10px;padding:6px;
+ border-radius:6px;cursor:pointer}
+.tmAba.on{background:var(--do,#B08422);color:#241F1A;font-weight:700}
+.tmTela{aspect-ratio:9/16;background:var(--bg2,#FBF8F1);border-radius:9px;overflow:hidden;
+ display:flex;flex-direction:column}
+.tmCheio{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column}
+.tmSair{position:fixed;top:14px;right:14px;z-index:10001;background:rgba(0,0,0,.55);color:#fff;
+ border:1px solid rgba(255,255,255,.3);padding:9px 16px;border-radius:20px;font-size:13px;
+ cursor:pointer;font-weight:600}
+.tmC{flex:1;display:flex;flex-direction:column;background:#FBF8F1;overflow:hidden}
+.tcAtr{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ text-align:center;padding:5vh 6vw;cursor:pointer;color:#fff}
+.tcLogo{width:120px;height:120px;border-radius:28px;background:rgba(255,255,255,.14);
+ border:3px solid rgba(255,255,255,.5);display:grid;place-items:center;font-size:52px;
+ font-weight:800;margin-bottom:30px}
+.tcAtr h1{font-size:clamp(36px,7vw,74px);line-height:1.04;font-weight:800;letter-spacing:-.03em}
+.tcSb{font-size:clamp(15px,2vw,23px);opacity:.85;margin-top:16px;max-width:640px}
+.tcCta{margin-top:42px;color:#241F1A;font-size:clamp(17px,2.2vw,24px);font-weight:800;
+ padding:22px 50px;border-radius:16px}
+.tcGira{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap;justify-content:center}
+.tcGp{width:130px;background:rgba(255,255,255,.12);border-radius:14px;overflow:hidden;
+ border:1px solid rgba(255,255,255,.22)}
+.tcGf{aspect-ratio:1}
+.tcGn{font-size:13px;padding:8px 6px 2px;font-weight:700}
+.tcGv{font-size:15px;font-weight:800;padding:0 6px 9px}
+.tcTopo{color:#fff;padding:20px 26px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.tcVb{background:rgba(255,255,255,.18);border:none;color:#fff;width:46px;height:46px;
+ border-radius:13px;font-size:24px;cursor:pointer}
+.tcT1{flex:1;font-size:22px;font-weight:700}
+.tcCats{display:flex;gap:10px;padding:16px 22px;overflow-x:auto;flex-shrink:0;background:#fff;
+ border-bottom:1px solid #E6E0D4}
+.tcCat{flex-shrink:0;padding:13px 24px;border-radius:26px;border:2px solid #E6E0D4;
+ background:#FBF8F1;font-size:17px;font-weight:600;white-space:nowrap}
+.tcGrade{flex:1;overflow-y:auto;padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;
+ gap:16px;align-content:start}
+.tcCard{background:#fff;border:1px solid #E6E0D4;border-radius:18px;overflow:hidden;cursor:pointer}
+.tcCard:active{transform:scale(.985)}
+.tcInf{padding:14px 15px 16px}
+.tcNm{font-size:19px;font-weight:700;line-height:1.25}
+.tcDs{font-size:14px;color:#7A7266;margin-top:4px}
+.tcPr{font-size:24px;font-weight:800;margin-top:9px}
+.tcLista{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+.tcLI{background:#fff;border:1px solid #E6E0D4;border-radius:16px;padding:14px;display:flex;
+ gap:16px;align-items:center;cursor:pointer}
+.tcDest{flex:1;display:flex;flex-direction:column;padding:22px;gap:16px}
+.tcDf{flex:1;border-radius:22px}
+.tcDi{text-align:center}
+.tcDn{font-size:34px;font-weight:800;letter-spacing:-.02em}
+.tcDd{font-size:17px;color:#7A7266;margin-top:5px}
+.tcDp{font-size:40px;font-weight:800;margin-top:9px}
+.tcDnav{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.tcSeta{width:62px;height:62px;border-radius:50%;background:#fff;border:2px solid #E6E0D4;
+ display:grid;place-items:center;font-size:28px;cursor:pointer;flex-shrink:0}
+.tcRod{background:#fff;border-top:1px solid #E6E0D4;padding:18px 22px;display:flex;
+ align-items:center;gap:16px;flex-shrink:0}
+.tcRv{flex:1}
+.tcRv span{display:block;font-size:13px;color:#7A7266}
+.tcRv b{display:block;font-size:30px;font-weight:800;letter-spacing:-.02em}
+.tcBtn{color:#241F1A;border:none;font-size:20px;font-weight:800;padding:20px 34px;
+ border-radius:15px;cursor:pointer}
+.tcId{flex:1;padding:26px;display:flex;flex-direction:column;gap:16px;overflow-y:auto}
+.tcCampo{background:#fff;border:2px solid #E6E0D4;border-radius:15px;padding:16px 18px}
+.tcCampo label{display:block;font-size:12px;font-weight:800;letter-spacing:.07em;color:#7A7266;
+ text-transform:uppercase;margin-bottom:5px}
+.tcVl{font-size:24px;font-weight:700;min-height:30px;color:#C4BCB0}
+.tcObr{font-size:11px;background:#B4542F;color:#fff;padding:2px 8px;border-radius:20px;margin-left:7px}
+.tcFim{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ padding:6vh 8vw;text-align:center}
+.tcTk{background:#fff;border-radius:24px;padding:40px 34px;width:100%;max-width:520px;
+ box-shadow:0 14px 44px rgba(0,0,0,.12)}
+.tcTk1{font-size:14px;font-weight:800;letter-spacing:.13em;color:#7A7266;text-transform:uppercase}
+.tcTkN{font-size:clamp(76px,12vw,132px);font-weight:800;line-height:1;letter-spacing:-.05em;margin:8px 0}
+.tcTkD{border-top:2px dashed #E6E0D4;margin:18px 0 0;padding-top:18px;text-align:left}
+.tcTkR{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;color:#7A7266}
+.tcTkR b{color:#241F1A}
+.tcFm{color:#fff;font-size:clamp(19px,2.6vw,27px);font-weight:700;margin-top:26px;line-height:1.35}
+.tcFs{color:#fff;opacity:.88;font-size:16px;margin-top:10px;max-width:520px}
 .fscPend{display:flex;gap:10px;background:#FFF6E8;border:1px solid #F0DCB8;border-radius:10px;
  padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#7A5320;line-height:1.5}
 .fscPend b{display:block;margin-bottom:2px}
@@ -11411,6 +11566,7 @@ var MOD=[
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
  {id:'status-vendas',n:'Status de Vendas'},
  {id:'mesas',n:'Mesas e QR Code'},
+ {id:'totem',n:'Totem de Autoatendimento'},
  {id:'fiscal',n:'Configuração Fiscal'},
  {id:'turnos',n:'Turnos'},
  {id:'usuarios-permissoes',n:'Usuários e Permissões'}]},
@@ -11482,23 +11638,28 @@ function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||
 /* Havia DUAS listas com este nome. A de baixo (dos cupons) apagava esta,
    e o formulario do produto acabava gravando os identificadores da outra.
    Agora e uma so, declarada aqui e usada tambem pelos cupons. */
+/* "Pedido online" e "Cardapio digital" eram a mesma coisa com dois nomes:
+   o mesmo cardapio, o mesmo link, o mesmo pedido. Ter os dois so criava
+   duvida na hora de marcar. Ficou um so. */
 var CANAIS=[
- {id:'pdv',      n:'Frente de caixa', d:'venda no balcão e salão'},
- {id:'delivery', n:'Delivery',        d:'pedidos de entrega'},
- {id:'online',   n:'Pedido online',   d:'site e link de pedido'},
- {id:'cardapio', n:'Cardápio digital',d:'cardápio pelo celular'},
- {id:'mesa',     n:'Mesa (QR Code)',   d:'quem está sentado na loja'}
+ {id:'pdv',      n:'Frente de caixa',  d:'venda no balcão e salão'},
+ {id:'delivery', n:'Delivery',         d:'pedidos de entrega'},
+ {id:'cardapio', n:'Cardápio digital', d:'cardápio pelo celular, no link'},
+ {id:'mesa',     n:'Mesa (QR Code)',   d:'quem está sentado na loja'},
+ {id:'totem',    n:'Totem',            d:'autoatendimento na loja'}
 ];
 /* Onde este produto pode ser vendido. Produto sem nenhuma marcacao aparece
    em todo lugar — senao, ao subir esta versao, o cardapio de quem nunca
    preencheu isso ficaria vazio de uma hora para outra. */
 function disponivelNo(p,canal){
   var d=(p&&p.disponivel)||{};
-  var algum=d.pdv||d.delivery||d.online||d.cardapio||d.mesa;
+  var algum=d.pdv||d.delivery||d.online||d.cardapio||d.mesa||d.totem;
   if(!algum)return true;
+  /* "online" some da tela mas continua valendo para quem ja marcou antes */
   if(canal==='cardapio')return !!(d.cardapio||d.online||d.delivery);
-  /* a mesa vende o que se vende no balcão, não o que sai para entrega */
-  if(canal==='mesa')return !!(d.mesa||d.pdv);
+  /* mesa e totem vendem o que se vende no balcao, nao o que sai para entrega */
+  if(canal==='mesa') return !!(d.mesa||d.pdv);
+  if(canal==='totem')return !!(d.totem||d.pdv);
   return !!d[canal];
 }
 var IMPOSTOS=['Sem tributação','Tributado integralmente','Isento','Substituição tributária','Não tributado'];
@@ -12499,7 +12660,7 @@ async function sincronizar(){
     await api('config_loja?on_conflict=loja_id','POST',[{loja_id:l,
       loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
       tempo_retirada:n(c.tempoRetirada),caixa_cego:!!c.caixaCego,
-      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},cfg_fiscal:c.fiscal||{},
+      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},cfg_fiscal:c.fiscal||{},cfg_totem:c.totem||{},
     cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
       mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}}],
       {'Prefer':'resolution=merge-duplicates,return=minimal'});
@@ -12703,6 +12864,7 @@ async function baixarDaNuvem(forcar){
     if(cfgS[0].cfg_mesa)c3.mesa=cfgS[0].cfg_mesa;
     if(cfgS[0].cfg_modos)c3.modos=cfgS[0].cfg_modos;
     if(cfgS[0].cfg_fiscal)c3.fiscal=cfgS[0].cfg_fiscal;
+    if(cfgS[0].cfg_totem)c3.totem=cfgS[0].cfg_totem;
     if(cfgS[0].cfg_pdv){var cp=cfgS[0].cfg_pdv;
       c3.colunas=cp.colunas;c3.mostraPreco=cp.mostraPreco;
       c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}
@@ -13677,7 +13839,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V20.4.1';
+var VERSAO='V20.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13770,6 +13932,7 @@ if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='mesas')return telaMesas();
+if(mid==='loja'&&iid==='totem')return telaTotem();
 if(mid==='loja'&&iid==='liberacao')return telaLiberacao();
 if(mid==='loja'&&iid==='fiscal')return telaFiscalCfg();
 /* o item existia no menu e nao tinha tela: clicar nele nao fazia nada */
@@ -15694,6 +15857,444 @@ function ehMatriz(){
   if(u.tudo||u.mestre)return true;
   var s=baseSuc().find(function(x){return x.id===lojaAtualId()});
   return !!(s&&s.matriz);
+}
+
+
+/* ==========================================================
+   TOTEM — autoatendimento
+   Extensao do mesmo sistema: mesmos produtos, mesmo pedido, mesmo
+   estoque, mesmo Kanban. Muda so a porta de entrada e a roupa.
+   Quem decide o que cada unidade tem e a matriz, como no resto.
+   ========================================================== */
+var LAYOUTS_TOTEM=[
+ {id:'vitrine', n:'Vitrine',  d:'Duas colunas, foto quadrada grande. O cliente escolhe pelo olho.',
+  q:'para cardápio com foto boa'},
+ {id:'lista',   n:'Lista',    d:'Uma coluna, foto pequena e descrição ao lado. Cabe muito mais item.',
+  q:'para cardápio grande'},
+ {id:'destaque',n:'Destaque', d:'Um produto por vez, foto enorme, avança com a seta.',
+  q:'para poucos itens'}
+];
+var FUNDOS_TOTEM=['#0E5C3A','#1A3A5C','#5C1A2E','#3D2B1F','#1F1F23','#7A4A0F'];
+var BOTOES_TOTEM=['#B08422','#D9A83D','#C25A2E','#1F5F8B','#0E8A46','#8B5CF6'];
+
+function cfgTotem(){
+  var c=cfg();
+  c.totem=c.totem||{};
+  var t=c.totem;
+  if(t.ativo===undefined)t.ativo=false;
+  if(t.layout===undefined)t.layout='vitrine';
+  if(t.foto===undefined)t.foto='media';
+  if(t.descanso===undefined)t.descanso='frase';
+  if(t.fundo===undefined)t.fundo='#0E5C3A';
+  if(t.botao===undefined)t.botao='#B08422';
+  if(t.titulo===undefined)t.titulo='Monte seu pedido';
+  if(t.sub===undefined)t.sub='Escolha com calma. Sem fila, no seu tempo.';
+  if(t.cta===undefined)t.cta='Toque para começar';
+  if(t.msgFim===undefined)t.msgFim='Obrigado pela preferência!';
+  if(t.msgFim2===undefined)t.msgFim2='Leve sua senha ao balcão. Volte sempre!';
+  if(t.nome===undefined)t.nome='obrigatorio';
+  if(t.celular===undefined)t.celular='opcional';
+  if(t.cpf===undefined)t.cpf='opcional';
+  if(t.mostraDesc===undefined)t.mostraDesc=true;
+  if(t.selo===undefined)t.selo=true;
+  if(t.escondeSemEstoque===undefined)t.escondeSemEstoque=false;
+  if(t.turbinar===undefined)t.turbinar=true;
+  if(t.leveTambem===undefined)t.leveTambem=true;
+  if(t.qtdUpsell===undefined)t.qtdUpsell=3;
+  if(t.perguntaLocal===undefined)t.perguntaLocal=true;
+  if(t.inatividade===undefined)t.inatividade=45;
+  if(t.avisaAntes===undefined)t.avisaAntes=true;
+  if(t.voltaFim===undefined)t.voltaFim=12;
+  if(t.pagaNoTotem===undefined)t.pagaNoTotem=false;
+  if(t.unidades===undefined)t.unidades=[];   /* vazio = todas */
+  return t;
+}
+function totemLigadoNa(suc){
+  var t=cfgTotem();
+  if(!t.ativo)return false;
+  if(ehSucMatriz(suc||lojaAtualId()))return true;
+  if(!t.unidades.length)return true;
+  return t.unidades.indexOf(suc||lojaAtualId())>=0;
+}
+
+/* ---------- a tela de configuração ---------- */
+function telaTotem(){
+  var t=cfgTotem(), sucs=sucAtivas();
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo"><div><h1>Totem de autoatendimento</h1>'+
+   '<p>Os produtos, preços e fotos vêm da Gestão de Cardápio — marque <b>Totem</b> em '+
+   '"Disponível em" e o item aparece aqui. Nesta tela você define só a roupa.</p></div>'+
+   '<button class="infoBt" onclick="explicaTotem()">'+sv('help',15)+'</button></div>'+
+
+   '<div class="tmLiga">'+
+    '<label class="chkMini"><input type="checkbox" '+(t.ativo?'checked':'')+
+     ' onchange="cfgTotem().ativo=this.checked;salvarTotem()">'+
+     '<span><b>Totem ligado</b> — libera a tela de autoatendimento</span></label>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2" onclick="abrirTotemCheio()">'+sv('eye',14)+' Testar em tela cheia</button>'+
+   '</div>'+
+
+   (ehMatriz()&&sucs.length>1
+    ?'<div class="tmBox"><div class="tmT">Em quais unidades</div>'+
+      '<div class="hint" style="margin-bottom:10px">A matriz decide. Nenhuma marcada = todas.</div>'+
+      '<div class="tmSucs">'+sucs.map(function(s){
+        if(s.matriz)return '<label class="tmSuc fixa"><input type="checkbox" checked disabled>'+
+          '<b>'+E(s.nome)+'</b><span>matriz</span></label>';
+        return '<label class="tmSuc"><input type="checkbox" value="'+E(s.id)+'" class="tmSucCk"'+
+         (t.unidades.indexOf(s.id)>=0?' checked':'')+' onchange="salvarUnidadesTotem()">'+
+         '<b>'+E(s.nome)+'</b></label>';
+      }).join('')+'</div></div>':'')+
+
+   '<div class="tmDuas">'+
+    '<div>'+
+     '<div class="tmBox"><div class="tmT">Layout do cardápio</div>'+
+      '<div class="tmLays">'+LAYOUTS_TOTEM.map(function(l){
+        return '<div class="tmLay'+(t.layout===l.id?' on':'')+'" '+
+         'onclick="cfgTotem().layout=\''+l.id+'\';salvarTotem()">'+
+         '<div class="tmChk"></div>'+miniTotem(l.id)+
+         '<h4>'+E(l.n)+'</h4><p>'+E(l.d)+'</p><div class="tmQ">'+E(l.q)+'</div></div>';
+      }).join('')+'</div>'+
+      '<div class="tmLin"><div class="tmR"><b>Tamanho da foto</b>'+
+       '<span>maior vende mais, mas cabe menos por tela</span></div>'+
+       tmSeg('foto',[['pequena','Pequena'],['media','Média'],['grande','Grande']])+'</div>'+
+      tmChave('mostraDesc','Mostrar descrição','o texto curto abaixo do nome')+
+      tmChave('selo','Selo "mais pedido"','marca os campeões do mês, automático')+
+      tmChave('escondeSemEstoque','Esconder item sem estoque','em vez de mostrar esgotado')+
+     '</div>'+
+
+     '<div class="tmBox"><div class="tmT">Marca e frases</div>'+
+      '<div class="tmLin"><div class="tmR"><b>Cor de fundo</b>'+
+       '<span>domina a tela de descanso e o topo</span></div>'+
+       '<div class="tmCores">'+FUNDOS_TOTEM.map(function(c){
+         return '<div class="tmCor'+(t.fundo===c?' on':'')+'" style="background:'+c+'" '+
+          'onclick="cfgTotem().fundo=\''+c+'\';salvarTotem()"></div>';
+       }).join('')+'</div></div>'+
+      '<div class="tmLin"><div class="tmR"><b>Cor do botão</b>'+
+       '<span>a cor da ação principal</span></div>'+
+       '<div class="tmCores">'+BOTOES_TOTEM.map(function(c){
+         return '<div class="tmCor'+(t.botao===c?' on':'')+'" style="background:'+c+'" '+
+          'onclick="cfgTotem().botao=\''+c+'\';salvarTotem()"></div>';
+       }).join('')+'</div></div>'+
+      tmTexto('titulo','Chamada grande','o que a pessoa lê de longe')+
+      tmTexto('sub','Linha de apoio','o convite, em letra menor')+
+      tmTexto('cta','Botão de começar','')+
+     '</div>'+
+
+     '<div class="tmBox"><div class="tmT">Tela de descanso</div>'+
+      '<div class="hint" style="margin-bottom:9px">O que aparece quando ninguém está usando — '+
+      'é o que chama a pessoa a se aproximar.</div>'+
+      tmSeg('descanso',[['frase','Frase e logo'],['produtos','Produtos girando'],['logo','Só a logo']],true)+
+      '<div class="tmLin" style="margin-top:12px"><div class="tmR"><b>Voltar ao início sem toque</b>'+
+       '<span>segundos parados até descartar o pedido</span></div>'+
+       tmNum('inatividade')+'</div>'+
+      tmChave('avisaAntes','Avisar antes de descartar','pergunta "ainda está aí?" 10 segundos antes')+
+     '</div>'+
+    '</div>'+
+
+    '<div>'+
+     '<div class="tmPrev">'+
+      '<div class="tmPrevT"><span class="tmPt"></span>Prévia</div>'+
+      '<div class="tmAbas">'+
+       ['descanso','cardapio','senha'].map(function(a,i){
+         return '<button class="tmAba'+(TM.aba===a?' on':'')+'" onclick="TM.aba=\''+a+'\';pintarTotem()">'+
+          (a==='descanso'?'Descanso':a==='cardapio'?'Cardápio':'Senha')+'</button>';
+       }).join('')+'</div>'+
+      '<div class="tmTela" id="tmTela"></div>'+
+     '</div>'+
+
+     '<div class="tmBox"><div class="tmT">Identificação do cliente</div>'+
+      '<div class="tmLin"><div class="tmR"><b>Nome</b><span>para chamar quando ficar pronto</span></div>'+
+       tmSeg('nome',[['nao','Não pedir'],['opcional','Opcional'],['obrigatorio','Obrigatório']])+'</div>'+
+      '<div class="tmLin"><div class="tmR"><b>Celular</b><span>avisa por WhatsApp quando ficar pronto</span></div>'+
+       tmSeg('celular',[['nao','Não pedir'],['opcional','Opcional'],['obrigatorio','Obrigatório']])+'</div>'+
+      '<div class="tmLin"><div class="tmR"><b>CPF na nota</b></div>'+
+       tmSeg('cpf',[['nao','Não pedir'],['opcional','Opcional'],['obrigatorio','Obrigatório']])+'</div>'+
+     '</div>'+
+
+     '<div class="tmBox"><div class="tmT">Venda adicional</div>'+
+      tmChave('turbinar','"Quer turbinar?" no produto','complementos enquanto monta o item')+
+      tmChave('leveTambem','"Leve também" na sacola','bebida e sobremesa antes de fechar')+
+      '<div class="tmLin"><div class="tmR"><b>Quantos itens oferecer</b>'+
+       '<span>mais que 3 vira ruído e o cliente ignora</span></div>'+tmNum('qtdUpsell')+'</div>'+
+     '</div>'+
+
+     '<div class="tmBox"><div class="tmT">Depois de fechar</div>'+
+      tmTexto('msgFim','Mensagem de agradecimento','o que a pessoa lê junto com a senha')+
+      tmTexto('msgFim2','Linha de apoio','a instrução prática')+
+      '<div class="tmLin"><div class="tmR"><b>Voltar ao início depois de</b>'+
+       '<span>segundos com a senha na tela</span></div>'+tmNum('voltaFim')+'</div>'+
+      tmChave('perguntaLocal','Pergunta comer aqui ou levar','desligue se a loja só atende de um jeito')+
+      tmChave('pagaNoTotem','Pagamento no próprio totem',
+       'exige maquininha e emissão fiscal — deixe desligado enquanto não estiver ligado')+
+     '</div>'+
+    '</div>'+
+   '</div>'+
+   '</div></div>';
+  rodape(t.ativo?('totem ligado · layout '+t.layout):'totem desligado');
+  pintarTotem();
+}
+
+/* ---------- peças da tela ---------- */
+var TM={aba:'descanso'};
+function tmSeg(campo,ops,largo){
+  var t=cfgTotem();
+  return '<div class="tmSeg'+(largo?' largo':'')+'">'+ops.map(function(o){
+    return '<button class="'+(t[campo]===o[0]?'on':'')+'" '+
+     'onclick="cfgTotem().'+campo+'=\''+o[0]+'\';salvarTotem()">'+E(o[1])+'</button>';
+  }).join('')+'</div>';
+}
+function tmChave(campo,titulo,desc){
+  var t=cfgTotem();
+  return '<div class="tmLin"><div class="tmR"><b>'+E(titulo)+'</b>'+
+   (desc?'<span>'+E(desc)+'</span>':'')+'</div>'+
+   '<div class="tmCh'+(t[campo]?' on':'')+'" onclick="cfgTotem().'+campo+
+   '=!cfgTotem().'+campo+';salvarTotem()"></div></div>';
+}
+function tmNum(campo){
+  var t=cfgTotem();
+  return '<input class="tmNum" type="number" value="'+(t[campo]||0)+'" '+
+   'onchange="cfgTotem().'+campo+'=parseInt(this.value,10)||0;salvarTotem()">';
+}
+function tmTexto(campo,titulo,desc){
+  var t=cfgTotem();
+  return '<div class="tmTx"><label>'+E(titulo)+(desc?' <i>'+E(desc)+'</i>':'')+'</label>'+
+   '<input value="'+E(t[campo]||'')+'" oninput="cfgTotem().'+campo+
+   '=this.value;pintarTotem()" onchange="salvarTotem()"></div>';
+}
+function miniTotem(l){
+  var b='<div class="tmMB"></div><div class="tmMC"><i class="on"></i><i></i><i></i></div>';
+  if(l==='vitrine')
+    return '<div class="tmMini">'+b+'<div class="tmMG">'+
+     '<div class="tmMK"><div class="tmMF"></div><u></u><u class="p"></u></div>'.repeat(4)+'</div></div>';
+  if(l==='lista')
+    return '<div class="tmMini">'+b+'<div class="tmML">'+
+     '<div class="tmMI"><div class="tmMT"></div><div class="tmMCol"><u></u><u class="p"></u></div></div>'.repeat(5)+
+     '</div></div>';
+  return '<div class="tmMini">'+b+'<div class="tmMD"><div class="tmMBig"></div>'+
+   '<div class="tmMS"><s></s><div class="tmMP"><em class="on"></em><em></em><em></em></div><s></s></div>'+
+   '</div></div>';
+}
+/* produtos de verdade, os que estão marcados para o totem */
+function produtosTotem(){
+  var l=(DB.produtos||[]).filter(function(p){
+    return p.ativo!==false&&disponivelNo(p,'totem');});
+  return l.length?l:(DB.produtos||[]).filter(function(p){return p.ativo!==false});
+}
+function corProd(p,i){
+  var g=['linear-gradient(135deg,#F3E0BC,#C99A4E)','linear-gradient(135deg,#F6C6CF,#C25A72)',
+   'linear-gradient(135deg,#B79279,#5B3B27)','linear-gradient(135deg,#CFE8D2,#5B9E6E)',
+   'linear-gradient(135deg,#FBE3B0,#E0A02C)','linear-gradient(135deg,#E4D6F2,#8F6BB5)'];
+  if(p&&p.imagem)return 'url('+p.imagem+') center/cover';
+  return g[i%g.length];
+}
+function pintarTotem(){
+  var el=document.getElementById('tmTela');
+  if(!el)return;
+  var t=cfgTotem(), ps=produtosTotem().slice(0,6);
+  var cats=(DB.categorias||[]).filter(function(c){return c.ativo!==false}).slice(0,4);
+  if(!cats.length)cats=[{nome:'Todos'}];
+  if(TM.aba==='descanso'){
+    el.innerHTML='<div style="flex:1;background:'+t.fundo+';color:#fff;display:flex;'+
+     'flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px">'+
+     (t.descanso==='produtos'
+      ?'<div style="display:flex;gap:6px;margin-bottom:12px">'+ps.slice(0,3).map(function(p,i){
+         return '<div style="width:46px;background:rgba(255,255,255,.14);border-radius:7px;overflow:hidden">'+
+          '<div style="aspect-ratio:1;background:'+corProd(p,i)+'"></div>'+
+          '<div style="font-size:7px;padding:3px 2px;font-weight:700">'+E((p.nome||'').slice(0,11))+'</div></div>';
+       }).join('')+'</div>'
+      :'<div style="width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.16);'+
+       'border:2px solid rgba(255,255,255,.5);display:grid;place-items:center;font-size:19px;'+
+       'font-weight:800;margin-bottom:12px">'+E((nomeLojaAtual()||'N')[0])+'</div>')+
+     (t.descanso!=='logo'
+      ?'<div style="font-size:18px;font-weight:800;line-height:1.12">'+E(t.titulo)+'</div>'+
+       '<div style="font-size:9px;opacity:.82;margin-top:6px;max-width:155px">'+E(t.sub)+'</div>':'')+
+     '<div style="margin-top:16px;background:'+t.botao+';color:#241F1A;font-size:10px;'+
+     'font-weight:800;padding:9px 18px;border-radius:8px">'+E(t.cta)+'</div></div>';
+  }else if(TM.aba==='cardapio'){
+    var alt=t.foto==='grande'?'1':t.foto==='media'?'1.25':'1.7';
+    var corpo='';
+    if(t.layout==='vitrine'){
+      corpo='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+ps.slice(0,4).map(function(p,i){
+        return '<div style="background:#fff;border:1px solid var(--lin,#e6e0d4);border-radius:7px;overflow:hidden">'+
+         '<div style="aspect-ratio:'+alt+';background:'+corProd(p,i)+'"></div>'+
+         '<div style="padding:5px 6px 7px"><div style="font-size:9px;font-weight:700">'+E(p.nome)+'</div>'+
+         (t.mostraDesc&&p.detalhes?'<div style="font-size:7px;color:var(--tx2,#7a7266)">'+E(p.detalhes.slice(0,22))+'</div>':'')+
+         '<div style="font-size:11px;font-weight:800;color:'+t.fundo+';margin-top:2px">R$ '+money(p.preco)+'</div>'+
+         '</div></div>';}).join('')+'</div>';
+    }else if(t.layout==='lista'){
+      var tam=t.foto==='grande'?42:t.foto==='media'?32:24;
+      corpo='<div style="display:flex;flex-direction:column;gap:5px">'+ps.map(function(p,i){
+        return '<div style="background:#fff;border:1px solid var(--lin,#e6e0d4);border-radius:7px;padding:5px;'+
+         'display:flex;gap:6px;align-items:center"><div style="width:'+tam+'px;aspect-ratio:1;'+
+         'border-radius:5px;background:'+corProd(p,i)+'"></div>'+
+         '<div style="flex:1"><div style="font-size:9px;font-weight:700">'+E(p.nome)+'</div></div>'+
+         '<div style="font-size:10px;font-weight:800;color:'+t.fundo+'">R$ '+money(p.preco)+'</div></div>';
+        }).join('')+'</div>';
+    }else{
+      var p0=ps[0]||{nome:'—',preco:0};
+      corpo='<div style="height:100%;display:flex;flex-direction:column;gap:7px">'+
+       '<div style="flex:1;background:'+corProd(p0,0)+';border-radius:9px"></div>'+
+       '<div style="text-align:center"><div style="font-size:12px;font-weight:800">'+E(p0.nome)+'</div>'+
+       '<div style="font-size:15px;font-weight:800;color:'+t.fundo+'">R$ '+money(p0.preco)+'</div></div></div>';
+    }
+    el.innerHTML='<div style="background:'+t.fundo+';color:#fff;padding:8px 10px;font-size:10px;'+
+     'font-weight:700">Escolha seu pedido</div>'+
+     '<div style="display:flex;gap:4px;padding:7px 8px;background:#fff;border-bottom:1px solid var(--lin,#e6e0d4);'+
+     'overflow:hidden">'+cats.map(function(c,i){
+       return '<div style="font-size:8px;padding:4px 8px;border-radius:12px;white-space:nowrap;'+
+        (i===0?'background:'+t.fundo+';color:#fff':'background:var(--bg2,#faf7f0);border:1px solid var(--lin,#e6e0d4)')+
+        '">'+E(c.nome)+'</div>';}).join('')+'</div>'+
+     '<div style="flex:1;overflow:hidden;padding:8px">'+corpo+'</div>'+
+     '<div style="background:#fff;border-top:1px solid var(--lin,#e6e0d4);padding:7px 9px;display:flex;'+
+     'align-items:center;gap:7px"><div style="flex:1"><div style="font-size:7px;color:var(--tx2,#7a7266)">2 ITENS</div>'+
+     '<div style="font-size:13px;font-weight:800">R$ 32,00</div></div>'+
+     '<div style="background:'+t.botao+';color:#241F1A;font-size:9px;font-weight:800;padding:8px 12px;'+
+     'border-radius:7px">Ver sacola</div></div>';
+  }else{
+    el.innerHTML='<div style="flex:1;background:'+t.fundo+';display:flex;flex-direction:column;'+
+     'align-items:center;justify-content:center;padding:18px;text-align:center;color:#fff">'+
+     '<div style="background:#fff;border-radius:14px;padding:22px 18px;width:100%">'+
+     '<div style="font-size:8px;font-weight:800;letter-spacing:.12em;color:var(--tx2,#7a7266)">SUA SENHA</div>'+
+     '<div style="font-size:46px;font-weight:800;color:'+t.fundo+';line-height:1;margin:4px 0">47</div>'+
+     (t.nome!=='nao'?'<div style="font-size:8px;color:var(--tx2,#7a7266)">Rafael</div>':'')+'</div>'+
+     '<div style="font-size:12px;font-weight:700;margin-top:14px;line-height:1.35">'+E(t.msgFim)+'</div>'+
+     '<div style="font-size:8.5px;opacity:.85;margin-top:6px">'+E(t.msgFim2)+'</div></div>';
+  }
+}
+function salvarTotem(){salvar();telaTotem();if(NUVEM.ligada)sincronizar();}
+function salvarUnidadesTotem(){
+  var l=[];
+  document.querySelectorAll('.tmSucCk').forEach(function(c){if(c.checked)l.push(c.value)});
+  cfgTotem().unidades=l;
+  salvar();telaTotem();
+  if(NUVEM.ligada)sincronizar();
+}
+function explicaTotem(){
+  confirmar({titulo:'Como o totem se liga ao resto',texto:'Totem de autoatendimento',
+   linhas:[['Os produtos','vêm da Gestão de Cardápio, marcados como Totem',''],
+           ['O pedido','entra no mesmo PDV, mesma numeração',''],
+           ['O estoque','baixa na unidade do totem, normalmente',''],
+           ['O relatório','aparece em Canais de Venda, separado',''],
+           ['Quem libera','a matriz, por unidade','']],
+   aviso:'Não existe cadastro próprio do totem, e isso é de propósito: dois cadastros do mesmo '+
+    'produto acabam divergindo, e o cliente do totem pagaria diferente do cliente do balcão.',
+   ok:'Entendi',cancelar:null}).then(function(){});
+}
+
+/* ---------- teste em tela cheia ---------- */
+function abrirTotemCheio(){
+  var t=cfgTotem(), ps=produtosTotem();
+  if(!ps.length){toast('Nenhum produto ativo para mostrar.');return;}
+  var d=document.createElement('div');
+  d.id='tmCheio';d.className='tmCheio';
+  d.innerHTML='<button class="tmSair" onclick="fecharTotemCheio()">Sair do teste ✕</button>'+
+   '<div class="tmC" id="tmC"></div>';
+  document.body.appendChild(d);
+  TMC={passo:1,sacola:[]};
+  pintarCheio();
+  try{ if(d.requestFullscreen)d.requestFullscreen().catch(function(){}); }catch(e){}
+}
+function fecharTotemCheio(){
+  var d=document.getElementById('tmCheio');
+  if(d)d.remove();
+  try{ if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(function(){}); }catch(e){}
+}
+var TMC={passo:1,sacola:[]};
+function irTotem(n){TMC.passo=n;pintarCheio();}
+function pintarCheio(){
+  var el=document.getElementById('tmC');
+  if(!el)return;
+  var t=cfgTotem(), ps=produtosTotem();
+  var tot=TMC.sacola.reduce(function(a,p){return a+(Number(p.preco)||0)},0);
+  if(TMC.passo===1){
+    el.innerHTML='<div class="tcAtr" style="background:'+t.fundo+'" onclick="irTotem(2)">'+
+     (t.descanso==='produtos'
+      ?'<div class="tcGira">'+ps.slice(0,4).map(function(p,i){
+         return '<div class="tcGp"><div class="tcGf" style="background:'+corProd(p,i)+'"></div>'+
+          '<div class="tcGn">'+E(p.nome)+'</div><div class="tcGv">R$ '+money(p.preco)+'</div></div>';
+        }).join('')+'</div>'
+      :'<div class="tcLogo">'+E((nomeLojaAtual()||'N')[0])+'</div>')+
+     (t.descanso!=='logo'?'<h1>'+E(t.titulo)+'</h1><div class="tcSb">'+E(t.sub)+'</div>':'')+
+     '<div class="tcCta" style="background:'+t.botao+'">'+E(t.cta)+'</div></div>';
+  }else if(TMC.passo===2){
+    var alt=t.foto==='grande'?'1':t.foto==='media'?'1.2':'1.7';
+    var cats=(DB.categorias||[]).filter(function(c){return c.ativo!==false});
+    var corpo='';
+    if(t.layout==='vitrine'){
+      corpo='<div class="tcGrade">'+ps.map(function(p,i){
+        return '<div class="tcCard" onclick="addTotem('+i+')">'+
+         '<div class="tcFoto" style="aspect-ratio:'+alt+';background:'+corProd(p,i)+'"></div>'+
+         '<div class="tcInf"><div class="tcNm">'+E(p.nome)+'</div>'+
+         (t.mostraDesc&&p.detalhes?'<div class="tcDs">'+E(p.detalhes)+'</div>':'')+
+         '<div class="tcPr" style="color:'+t.fundo+'">R$ '+money(p.preco)+'</div></div></div>';
+       }).join('')+'</div>';
+    }else if(t.layout==='lista'){
+      var tam=t.foto==='grande'?120:t.foto==='media'?90:64;
+      corpo='<div class="tcLista">'+ps.map(function(p,i){
+        return '<div class="tcLI" onclick="addTotem('+i+')">'+
+         '<div style="width:'+tam+'px;height:'+tam+'px;border-radius:13px;flex-shrink:0;background:'+corProd(p,i)+'"></div>'+
+         '<div style="flex:1"><div class="tcNm">'+E(p.nome)+'</div>'+
+         (t.mostraDesc&&p.detalhes?'<div class="tcDs">'+E(p.detalhes)+'</div>':'')+'</div>'+
+         '<div class="tcPr" style="color:'+t.fundo+';margin:0">R$ '+money(p.preco)+'</div></div>';
+       }).join('')+'</div>';
+    }else{
+      var p0=ps[TMC.i||0]||ps[0];
+      corpo='<div class="tcDest"><div class="tcDf" style="background:'+corProd(p0,TMC.i||0)+'"></div>'+
+       '<div class="tcDi"><div class="tcDn">'+E(p0.nome)+'</div>'+
+       (t.mostraDesc&&p0.detalhes?'<div class="tcDd">'+E(p0.detalhes)+'</div>':'')+
+       '<div class="tcDp" style="color:'+t.fundo+'">R$ '+money(p0.preco)+'</div></div>'+
+       '<div class="tcDnav"><div class="tcSeta" onclick="passaTotem(-1)">‹</div>'+
+       '<button class="tcBtn" style="background:'+t.botao+'" onclick="addTotem('+(TMC.i||0)+')">Adicionar</button>'+
+       '<div class="tcSeta" onclick="passaTotem(1)">›</div></div></div>';
+    }
+    el.innerHTML='<div class="tcTopo" style="background:'+t.fundo+'">'+
+     '<button class="tcVb" onclick="irTotem(1)">‹</button><div class="tcT1">Escolha seu pedido</div></div>'+
+     (cats.length?'<div class="tcCats">'+cats.map(function(c,i){
+       return '<div class="tcCat"'+(i===0?' style="background:'+t.fundo+';color:#fff;border-color:'+t.fundo+'"':'')+
+        '>'+E(c.nome)+'</div>';}).join('')+'</div>':'')+
+     corpo+
+     '<div class="tcRod"><div class="tcRv"><span>'+TMC.sacola.length+' itens</span>'+
+     '<b>R$ '+money(tot)+'</b></div>'+
+     '<button class="tcBtn" style="background:'+t.botao+'" onclick="irTotem(3)">Continuar</button></div>';
+  }else if(TMC.passo===3){
+    var campos=[];
+    if(t.nome!=='nao')campos.push(['Seu nome','Rafael',t.nome==='obrigatorio']);
+    if(t.celular!=='nao')campos.push(['Celular','(  )       -',t.celular==='obrigatorio']);
+    if(t.cpf!=='nao')campos.push(['CPF na nota','___.___.___-__',t.cpf==='obrigatorio']);
+    el.innerHTML='<div class="tcTopo" style="background:'+t.fundo+'">'+
+     '<button class="tcVb" onclick="irTotem(2)">‹</button><div class="tcT1">Quase lá</div></div>'+
+     '<div class="tcId">'+
+     (campos.length?campos.map(function(c){
+       return '<div class="tcCampo"><label>'+E(c[0])+(c[2]?'<span class="tcObr">obrigatório</span>':'')+
+        '</label><div class="tcVl">'+E(c[1])+'</div></div>';}).join('')
+      :'<div class="tcCampo"><div class="tcVl">Nada é pedido ao cliente</div></div>')+
+     '</div><div class="tcRod"><button class="tcBtn" style="background:'+t.botao+';width:100%" '+
+     'onclick="irTotem(4)">Fechar pedido · R$ '+money(tot)+'</button></div>';
+  }else{
+    el.innerHTML='<div class="tcFim" style="background:'+t.fundo+'">'+
+     '<div class="tcTk"><div class="tcTk1">Sua senha</div>'+
+     '<div class="tcTkN" style="color:'+t.fundo+'">47</div>'+
+     (t.nome!=='nao'?'<div class="tcTk1">Rafael</div>':'')+
+     '<div class="tcTkD">'+TMC.sacola.slice(0,4).map(function(p){
+       return '<div class="tcTkR"><span>'+E(p.nome)+'</span><b>'+money(p.preco)+'</b></div>';
+      }).join('')+
+     '<div class="tcTkR" style="font-size:17px;margin-top:8px"><span><b>Total</b></span>'+
+     '<b>R$ '+money(tot)+'</b></div></div></div>'+
+     '<div class="tcFm">'+E(t.msgFim)+'</div>'+
+     '<div class="tcFs">'+E(t.msgFim2)+'</div>'+
+     '<button class="tcBtn" style="background:'+t.botao+';margin-top:30px" '+
+     'onclick="TMC.sacola=[];irTotem(1)">Fazer outro pedido</button></div>';
+  }
+}
+function addTotem(i){
+  var p=produtosTotem()[i];
+  if(p)TMC.sacola.push(p);
+  pintarCheio();
+}
+function passaTotem(d){
+  var ps=produtosTotem();
+  TMC.i=((TMC.i||0)+d+ps.length)%ps.length;
+  pintarCheio();
 }
 
 /* ==========================================================
@@ -31963,6 +32564,11 @@ var CANAIS_LISTA=[
  {id:'appgestao',n:'Aplicativo Nexor Gestão', g:'proprio', ic:'chart',
   d:'painel no celular para você e os franqueados', pronto:true,
   det:'Cada pessoa entra com o próprio login e vê apenas a loja dela: faturamento, pedidos, ticket médio e mais vendidos.'},
+ {id:'totem',    n:'Totem de Autoatendimento', g:'proprio', ic:'store',
+  d:'a pessoa faz o próprio pedido na tela', pronto:true,
+  det:'Uma tela em pé na loja. O cliente monta o pedido sozinho e recebe uma senha. '+
+   'Mesmos produtos, mesmo estoque e mesmo PDV — muda só a porta de entrada.',
+  tela:['loja','totem']},
  {id:'balcao',   n:'Frente de Caixa',  g:'proprio', ic:'store',
   d:'vendas no salão e balcão', pronto:true, fixo:true,
   det:'Sempre ativo — é o PDV que você já usa.'},
