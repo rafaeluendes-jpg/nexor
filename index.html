@@ -784,6 +784,13 @@ body.pdvFull .wTitle{display:none}
  padding-top:14px}
 .sucBtn.travado,#sucBtn.travado{opacity:.75;cursor:default}
 .sucBtn.travado svg,#sucBtn.travado svg{display:none}
+.unBlk{background:#F7FAF8;border:1px solid #CFE3D6!important}
+.unGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:8px;margin-top:10px}
+.unOp{border:1.5px solid var(--lin,#e6e0d4);border-radius:9px;padding:10px 12px;cursor:pointer;
+ display:flex;align-items:center;gap:8px;background:#fff;font-size:13px}
+.unOp.fixa{opacity:.75;cursor:default;background:#EAF5EE;border-color:#BFE0CC}
+.unOp span{font-size:10px;color:#1B5E36}
+.unOp input{width:16px;height:16px;accent-color:var(--pr,#0E5C3A)}
 .tmLiga{display:flex;align-items:center;gap:14px;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 17px;margin-bottom:14px}
 .tmDuas{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
@@ -13884,7 +13891,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.0.0';
+var VERSAO='V21.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14472,6 +14479,7 @@ function abaDados(){
       '<input id="pdGtin" value="'+E(p?(p.gtin||''):'')+'" placeholder="opcional"></div>'+
     '</div>'+
    '</div>':'')+
+  blocoUnidades(p,'pdUn')+
   '<div class="blk"><h3>Onde o produto está disponível?</h3>'+
   '<div class="hint" style="margin:-4px 0 10px">É daqui que sai o cardápio digital: '+
   'marque Delivery, Pedido online ou Cardápio digital e o item aparece lá sozinho. '+
@@ -14584,6 +14592,7 @@ function lerFormProduto(){
   if($('pNomeOn'))p.nomeOnline=$('pNomeOn').value;
   if($('pDet'))p.detalhes=$('pDet').value;
   /* fiscais: só existem na tela quando o fiscal está ligado */
+  lerUnidades('pdUn',p);           /* quem enxerga este produto */
   if($('pdNcm'))p.ncm=soDigitos($('pdNcm').value);
   if($('pdCfop'))p.cfop=soDigitos($('pdCfop').value);
   if($('pdGtin'))p.gtin=soDigitos($('pdGtin').value);
@@ -15728,6 +15737,47 @@ function ehSucMatriz(id){
       aparece em Santa Fe, nem o contrario. Cada uma e independente.
    3. Sem marcacao = todas as unidades. E o padrao, para item novo chegar
       em todo lugar sem ninguem precisar liberar. */
+/* O mesmo bloco em todo formulario de cadastro: quem enxerga este item.
+   Decidir na hora de criar e melhor do que criar e depois lembrar de ir
+   na tela de liberacao — que e onde as coisas ficam esquecidas. */
+function blocoUnidades(item,pref){
+  var sucs=sucAtivas();
+  if(sucs.length<2)return '';              /* loja unica nao tem o que liberar */
+  if(!ehMatriz())return '';                /* so a matriz decide */
+  var l=(item&&item.sucursais)||[];
+  var todas=!l.length;
+  return '<div class="blk unBlk" style="margin:0 0 11px;max-width:none">'+
+   '<h3>Quem enxerga este item</h3>'+
+   '<label class="chkL"><input type="checkbox" id="'+pref+'Todas" '+(todas?'checked':'')+
+    ' onchange="togTodasUn(\''+pref+'\')">'+
+    '<span><b>Todas as unidades</b> — inclusive as que forem criadas depois</span></label>'+
+   '<div class="unGrade" id="'+pref+'Grade" style="'+(todas?'opacity:.45':'')+'">'+
+    sucs.map(function(x){
+      if(x.matriz)return '<label class="unOp fixa"><input type="checkbox" checked disabled>'+
+        '<b>'+E(x.nome)+'</b><span>matriz — vê sempre</span></label>';
+      return '<label class="unOp"><input type="checkbox" class="'+pref+'Suc" value="'+E(x.id)+'"'+
+       (l.indexOf(x.id)>=0?' checked':'')+(todas?' disabled':'')+'>'+
+       '<b>'+E(x.nome)+'</b></label>';
+    }).join('')+'</div>'+
+   '<div class="hint">Sem marcação, o item chega em todas. A matriz enxerga sempre.</div>'+
+  '</div>';
+}
+function togTodasUn(pref){
+  var t=document.getElementById(pref+'Todas');
+  var g=document.getElementById(pref+'Grade');
+  if(!t)return;
+  document.querySelectorAll('.'+pref+'Suc').forEach(function(c){c.disabled=t.checked});
+  if(g)g.style.opacity=t.checked?'.45':'1';
+}
+/* le o bloco de volta na hora de salvar */
+function lerUnidades(pref,item){
+  var t=document.getElementById(pref+'Todas');
+  if(!t)return;                            /* bloco nao esta na tela */
+  if(t.checked){item.sucursais=[];return;}
+  var l=[];
+  document.querySelectorAll('.'+pref+'Suc').forEach(function(c){if(c.checked)l.push(c.value)});
+  item.sucursais=l;
+}
 function liberadoNa(item,suc){
   if(!item)return false;
   suc=suc||lojaAtualId();
@@ -24666,7 +24716,9 @@ function modalInsumo(id,copia){
    '</select></div>'+
    '<div class="fld2" style="margin:0"><label>Descrição complementar</label>'+
     '<input id="isD" value="'+E(i?i.descricao:'')+'" placeholder="marca, tipo, observação"></div>'+
-  '</div></div></div>';
+  '</div></div>'+
+  blocoUnidades(copia?null:i,'insUn')+
+  '</div>';
 
   var titulo=i?(copia?'Novo ingrediente (cópia)':'Editar ingrediente'):'Novo ingrediente';
   var o2=document.getElementById('mdOv');if(o2)o2.remove();
@@ -24764,6 +24816,7 @@ function salvarInsumo(id,copia){
   var alvo=alvoPrev;
   if(alvo)Object.assign(alvo,o);
   else{o.id=uid('ins');o.compras=[];DB.insumos.push(o);alvo=o;}
+  lerUnidades('insUn',alvo);       /* quem enxerga este item */
   salvar();
   fecharModal();
   if(copia)setTimeout(function(){modalInsumo(alvo.id,1)},120);
@@ -25341,7 +25394,9 @@ function modalFicha(id){
      var marc=f?((f.lojas||[]).indexOf(l.id)>=0):true;
      return '<label class="contaBox"><input type="checkbox" class="ftL" value="'+l.id+'"'+(marc?' checked':'')+'>'+
      '<span><b>'+E(l.nome)+'</b></span></label>';}).join('')+'</div></div>'+
-  '</div></div>';
+  '</div>'+
+  blocoUnidades(f,'ftUn')+
+  '</div>';
   modal(f?'Produto — edição':'Produto — inclusão',h,'Confirmar',function(){
     var nome=$('ftN').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
@@ -25364,6 +25419,7 @@ function modalFicha(id){
       destinoFator:parseFloat(($('ftFat')||{}).value)||1};
     if(f)Object.assign(f,o);
     else{o.id=uid('fi');o.itens=[];o.rendimento=1;o.rendUnidade=o.unidade;DB.fichas.push(o);FT.sel=o.id;}
+    lerUnidades('ftUn',f||o);        /* quem enxerga esta ficha */
     FT.mostrar=true;FT.cat=o.categoriaId;FT.sub=o.subgrupoId||'';
     if(FT.cat)FT.abertas[FT.cat]=true;
     salvar();telaFichaTecnica();toast('Produto salvo em "'+E((catFicha(o.categoriaId)||{}).nome||'')+'".');
