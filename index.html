@@ -891,7 +891,8 @@ body.pdvFull .wTitle{display:none}
 .tcGira{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap;justify-content:center}
 .tcGp{width:130px;background:rgba(255,255,255,.12);border-radius:14px;overflow:hidden;
  border:1px solid rgba(255,255,255,.22)}
-.tcGf{aspect-ratio:1}
+.tcGf{overflow:hidden}
+.tcGf .tcIm{border-radius:0}
 .tcGn{font-size:13px;padding:8px 6px 2px;font-weight:700}
 .tcGv{font-size:15px;font-weight:800;padding:0 6px 9px}
 .tcTopo{color:#fff;padding:20px 26px;display:flex;align-items:center;gap:16px;flex-shrink:0}
@@ -13956,7 +13957,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.3.0';
+var VERSAO='V21.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16283,7 +16284,7 @@ function pintarTotem(){
      (t.descanso==='produtos'
       ?'<div style="display:flex;gap:6px;margin-bottom:12px">'+ps.slice(0,3).map(function(p,i){
          return '<div style="width:46px;background:rgba(255,255,255,.14);border-radius:7px;overflow:hidden">'+
-          '<div style="aspect-ratio:1;background:'+corProd(p,i)+'"></div>'+
+          miniFoto(p,i)+
           '<div style="font-size:7px;padding:3px 2px;font-weight:700">'+E((p.nome||'').slice(0,11))+'</div></div>';
        }).join('')+'</div>'
       :'<div style="width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.16);'+
@@ -16394,7 +16395,7 @@ function pintarCheio(){
     el.innerHTML='<div class="tcAtr" style="background:'+t.fundo+'" onclick="irTotem(2)">'+
      (t.descanso==='produtos'
       ?'<div class="tcGira">'+ps.slice(0,4).map(function(p,i){
-         return '<div class="tcGp"><div class="tcGf" style="background:'+corProd(p,i)+'"></div>'+
+         return '<div class="tcGp"><div class="tcGf">'+fotoProd(p,i,'1')+'</div>'+
           '<div class="tcGn">'+E(p.nome)+'</div><div class="tcGv">R$ '+money(p.preco)+'</div></div>';
         }).join('')+'</div>'
       :'<div class="tcLogo">'+E((nomeLojaAtual()||'N')[0])+'</div>')+
