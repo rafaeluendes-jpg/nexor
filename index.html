@@ -14083,7 +14083,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.7.0';
+var VERSAO='V21.8.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16922,6 +16922,18 @@ function fecharPedidoTotem(){
   };
   if(TEC.valor.cpf)ped.cpfNota=soDigitos(TEC.valor.cpf);
   if(TEC.valor.celular)ped.clienteTel=soDigitos(TEC.valor.celular);
+  /* O cliente do totem entra no MESMO cadastro do balcao e do delivery.
+     Sem isso, quem compra sozinho na tela ficaria invisivel — e e
+     justamente quem a loja mais quer reconhecer depois. */
+  var cli=clienteDoTotem();
+  if(cli){
+    ped.clienteId=cli.id;
+    ped.clienteNome=cli.nome;
+    cli.compras=(cli.compras||0)+1;
+    cli.gasto=+((Number(cli.gasto)||0)+total).toFixed(2);
+    cli.ultima=dataBR(hojeISO())+' '+ped.hora;
+    if(!cli.origem)cli.origem='totem';
+  }
 
   DB.pedidos.push(ped);
   try{ baixarEstoqueVenda(ped); }catch(e){ console.error('estoque totem',e); }
@@ -16930,6 +16942,31 @@ function fecharPedidoTotem(){
   liberarFecharVenda();
   if(NUVEM.ligada)sincronizar();
   return ped;
+}
+/* Acha ou cria o cliente pelo telefone; sem telefone, pelo CPF. So com o
+   nome nao da: dois "Joao" seriam a mesma pessoa. */
+function clienteDoTotem(){
+  var tel=soDigitos(TEC.valor.celular||'');
+  var cpf=soDigitos(TEC.valor.cpf||'');
+  var nome=String(TEC.valor.nome||'').trim();
+  if(!tel&&!cpf)return null;              /* sem identificacao, sem cadastro */
+  DB.clientes=DB.clientes||[];
+  var achou=DB.clientes.find(function(c){
+    if(tel&&soDigitos(c.tel||'')===tel)return true;
+    if(cpf&&soDigitos(c.cpf||'')===cpf)return true;
+    return false;
+  });
+  if(achou){
+    /* completa o que faltava, sem sobrescrever o que ja existe */
+    if(nome&&!achou.nome)achou.nome=nome;
+    if(tel&&!achou.tel)achou.tel=tel;
+    if(cpf&&!achou.cpf)achou.cpf=cpf;
+    return achou;
+  }
+  var novo={id:uid('cli'),nome:nome||'Cliente do totem',tel:tel,cpf:cpf,
+    compras:0,gasto:0,origem:'totem',criadoEm:hojeISO()};
+  DB.clientes.push(novo);
+  return novo;
 }
 /* a senha e por dia e por unidade: reinicia a cada abertura de caixa */
 function proxSenhaTotem(){
@@ -32215,6 +32252,31 @@ function periodoPadrao(o){
     o.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     o.ate=hojeISO();}
 }
+/* De qual porta a venda entrou. E uma so por pedido, e ela e a base de
+   todo relatorio que separa balcao, entrega, totem e mesa. */
+function canalDoPedido(p){
+  var c=String(p.canal||'').toLowerCase();
+  if(c==='totem')return 'totem';
+  if(c==='mesa')return 'mesa';
+  if(c==='cardapio'||c==='online')return 'cardapio';
+  if(c==='whatsapp')return 'whatsapp';
+  if(p.tipo==='entrega')return 'entrega';
+  return 'balcao';
+}
+var CANAIS_REL=[
+ {id:'balcao',  n:'Balcão',          cor:'#0E8A46'},
+ {id:'totem',   n:'Totem',           cor:'#1F5F8B'},
+ {id:'mesa',    n:'Mesa',            cor:'#B4542F'},
+ {id:'entrega', n:'Entrega',         cor:'#E8574A'},
+ {id:'cardapio',n:'Cardápio digital',cor:'#F5A623'},
+ {id:'whatsapp',n:'WhatsApp',        cor:'#7E57C2'}
+];
+function nomeCanalRel(id){
+  var c=CANAIS_REL.find(function(x){return x.id===id});
+  return c?c.n:id;
+}
+/* Porta unica dos relatorios: filtrar o canal AQUI faz o filtro valer em
+   todas as telas de uma vez, em vez de cada uma ter a sua regra. */
 function pedsPeriodo(o){
   baseSuc();
   return (DB.pedidos||[]).filter(function(p){
@@ -32223,8 +32285,25 @@ function pedsPeriodo(o){
     if(o.de&&d<o.de)return false;
     if(o.ate&&d>o.ate)return false;
     if(o.sucs&&o.sucs.length&&o.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return false;
+    if(o.canais&&o.canais.length&&o.canais.indexOf(canalDoPedido(p))<0)return false;
     return true;
   });
+}
+/* o seletor que entra nas telas de relatorio */
+function togCanalRel(estado,id,tela){
+  var a=estado.canais||[];
+  var i=a.indexOf(id);
+  if(i>=0)a.splice(i,1); else a.push(id);
+  estado.canais=a;
+  if(typeof window[tela]==='function')window[tela]();
+}
+function togTodosCanais(estado,tela){
+  estado.canais=[];
+  if(typeof window[tela]==='function')window[tela]();
+}
+function seletorCanal(id,arr,onTog,onTodos){
+  return selMulti(id,'Canais',
+    CANAIS_REL.map(function(c){return {id:c.id,nome:c.n}}),arr,onTog,onTodos);
 }
 function seletorSuc(id,arr,onTog,onTodos){
   return selMulti(id,'Sucursais',
@@ -32327,7 +32406,7 @@ function limpaLinha(box){
 /* ==========================================================
    CANAIS DE VENDA
    ========================================================== */
-var CV2={de:'',ate:'',sucs:[]};
+var CV2={de:'',ate:'',sucs:[],canais:[]};
 function telaCanaisVenda(){
   baseMov();baseSuc();
   periodoPadrao(CV2);
@@ -32371,6 +32450,7 @@ function telaCanaisVenda(){
     '<div class="bfCampo"><label>Data inicial</label><input type="date" id="cvDe" value="'+CV2.de+'"></div>'+
     '<div class="bfCampo"><label>Data final</label><input type="date" id="cvAte" value="'+CV2.ate+'"></div>'+
     seletorSuc('cvSuc',CV2.sucs,'togCV','togTodosCV()')+
+    seletorCanal('cvCan',CV2.canais,'togCanCV','togTodosCanCV()')+
     '<button class="btnP2 ok" onclick="CV2.de=$(\'cvDe\').value;CV2.ate=$(\'cvAte\').value;telaCanaisVenda()">'+
      sv('search',13)+' Buscar</button>'+
     '<div class="bfAtalhos">'+
@@ -32432,7 +32512,7 @@ function explicaCanais(){
 /* ==========================================================
    FATURAMENTO
    ========================================================== */
-var FTP={de:'',ate:'',sucs:[]};
+var FTP={de:'',ate:'',sucs:[],canais:[]};
 function telaFaturamento(){
   baseMov();baseSuc();
   periodoPadrao(FTP);
@@ -32476,6 +32556,7 @@ function telaFaturamento(){
     '<div class="bfCampo"><label>Data inicial</label><input type="date" id="ftDe" value="'+FTP.de+'"></div>'+
     '<div class="bfCampo"><label>Data final</label><input type="date" id="ftAte" value="'+FTP.ate+'"></div>'+
     seletorSuc('ftSuc',FTP.sucs,'togFT','togTodosFT()')+
+    seletorCanal('ftCan',FTP.canais,'togCanFT','togTodosCanFT()')+
     '<button class="btnP2 ok" onclick="FTP.de=$(\'ftDe\').value;FTP.ate=$(\'ftAte\').value;telaFaturamento()">'+
      sv('search',13)+' Buscar</button>'+
     '<div class="bfAtalhos">'+
@@ -32568,7 +32649,7 @@ function explicaFaturamento(){
 /* ==========================================================
    VENDA POR DATA E HORA
    ========================================================== */
-var VDH={de:'',ate:'',sucs:[],aba:'hora'};
+var VDH={de:'',ate:'',sucs:[],canais:[],aba:'hora'};
 function telaVendaDataHora(){
   baseMov();baseSuc();
   periodoPadrao(VDH);
@@ -32610,6 +32691,7 @@ function telaVendaDataHora(){
     '<div class="bfCampo"><label>Data inicial</label><input type="date" id="vdDe" value="'+VDH.de+'"></div>'+
     '<div class="bfCampo"><label>Data final</label><input type="date" id="vdAte" value="'+VDH.ate+'"></div>'+
     seletorSuc('vdSuc',VDH.sucs,'togVDH','togTodosVDH()')+
+    seletorCanal('vdCan',VDH.canais,'togCanVD','togTodosCanVD()')+
     '<button class="btnP2 ok" onclick="VDH.de=$(\'vdDe\').value;VDH.ate=$(\'vdAte\').value;telaVendaDataHora()">'+
      sv('search',13)+' Buscar</button>'+
     '<div class="bfAtalhos">'+
