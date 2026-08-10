@@ -898,23 +898,38 @@ body.pdvFull .wTitle{display:none}
 .tcVb{background:rgba(255,255,255,.18);border:none;color:#fff;width:46px;height:46px;
  border-radius:13px;font-size:24px;cursor:pointer}
 .tcT1{flex:1;font-size:22px;font-weight:700}
-.tcCats{display:flex;gap:10px;padding:16px 22px;overflow-x:auto;flex-shrink:0;background:#fff;
+.tcCats{display:flex;gap:10px;padding:16px 26px;overflow-x:auto;flex-shrink:0;background:#fff;
  border-bottom:1px solid #E6E0D4}
+.tcCats::-webkit-scrollbar{display:none}
 .tcCat{flex-shrink:0;padding:13px 24px;border-radius:26px;border:2px solid #E6E0D4;
  background:#FBF8F1;font-size:17px;font-weight:600;white-space:nowrap}
-.tcGrade{flex:1;overflow-y:auto;padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;
- gap:16px;align-content:start}
-.tcCard{background:#fff;border:1px solid #E6E0D4;border-radius:18px;overflow:hidden;cursor:pointer}
+.tcGrade{flex:1;overflow-y:auto;padding:22px 26px 26px;display:grid;gap:18px;align-content:start}
+.tcCard{background:#fff;border:1px solid #E6E0D4;border-radius:20px;overflow:hidden;cursor:pointer;
+ display:flex;flex-direction:column;transition:transform .12s,box-shadow .12s}
+.tcCard:hover{box-shadow:0 8px 26px rgba(0,0,0,.1);transform:translateY(-2px)}
 .tcCard:active{transform:scale(.985)}
-.tcInf{padding:14px 15px 16px}
-.tcNm{font-size:19px;font-weight:700;line-height:1.25}
-.tcDs{font-size:14px;color:#7A7266;margin-top:4px}
-.tcPr{font-size:24px;font-weight:800;margin-top:9px}
-.tcLista{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+/* a foto e uma moldura: a imagem preenche e o excedente e cortado nas
+   bordas, nunca no meio do produto */
+.tcIm{width:100%;position:relative;overflow:hidden;background:#F2EDE3;flex-shrink:0}
+.tcIm img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+.tcIm.semFoto{display:grid;place-items:center}
+.tcIm.semFoto span{font-size:clamp(30px,4vw,58px);font-weight:800;color:rgba(255,255,255,.85);
+ text-shadow:0 2px 8px rgba(0,0,0,.18)}
+.tcInf{padding:14px 16px 17px;flex:1;display:flex;flex-direction:column}
+.tcNm{font-size:clamp(16px,1.5vw,21px);font-weight:700;line-height:1.25}
+.tcDs{font-size:clamp(12px,1.1vw,14.5px);color:#7A7266;margin-top:4px;line-height:1.4}
+.tcPr{font-size:clamp(19px,1.9vw,27px);font-weight:800;margin-top:auto;padding-top:10px;
+ letter-spacing:-.02em}
+.tcLista{flex:1;overflow-y:auto;padding:20px 26px 26px;display:flex;flex-direction:column;gap:12px}
 .tcLI{background:#fff;border:1px solid #E6E0D4;border-radius:16px;padding:14px;display:flex;
- gap:16px;align-items:center;cursor:pointer}
-.tcDest{flex:1;display:flex;flex-direction:column;padding:22px;gap:16px}
-.tcDf{flex:1;border-radius:22px}
+ gap:18px;align-items:center;cursor:pointer}
+.tcLI:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.tcLIf{flex-shrink:0}
+.tcLIf .tcIm{border-radius:13px}
+.tcDest{flex:1;display:flex;flex-direction:column;padding:26px;gap:18px;min-height:0}
+.tcDf{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.tcDf .tcIm{border-radius:22px;max-height:100%;width:auto;max-width:min(760px,92%)}
+.tcDf .tcIm img{border-radius:22px}
 .tcDi{text-align:center}
 .tcDn{font-size:34px;font-weight:800;letter-spacing:-.02em}
 .tcDd{font-size:17px;color:#7A7266;margin-top:5px}
@@ -13941,7 +13956,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.2.0';
+var VERSAO='V21.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16226,12 +16241,35 @@ function produtosTotem(){
     return p.ativo!==false&&disponivelNo(p,'totem');});
   return l.length?l:(DB.produtos||[]).filter(function(p){return p.ativo!==false});
 }
-function corProd(p,i){
-  var g=['linear-gradient(135deg,#F3E0BC,#C99A4E)','linear-gradient(135deg,#F6C6CF,#C25A72)',
-   'linear-gradient(135deg,#B79279,#5B3B27)','linear-gradient(135deg,#CFE8D2,#5B9E6E)',
-   'linear-gradient(135deg,#FBE3B0,#E0A02C)','linear-gradient(135deg,#E4D6F2,#8F6BB5)'];
-  if(p&&p.imagem)return 'url('+p.imagem+') center/cover';
-  return g[i%g.length];
+var CORES_SEM_FOTO=['linear-gradient(140deg,#F3E0BC,#C99A4E)','linear-gradient(140deg,#F6C6CF,#C25A72)',
+ 'linear-gradient(140deg,#B79279,#5B3B27)','linear-gradient(140deg,#CFE8D2,#5B9E6E)',
+ 'linear-gradient(140deg,#FBE3B0,#E0A02C)','linear-gradient(140deg,#E4D6F2,#8F6BB5)'];
+/* A foto como <img> em vez de fundo de CSS. Com fundo, a proporcao dependia
+   da largura do cartao e a imagem virava uma tarja cortada no meio do
+   produto. Com <img> e recorte quadrado, o gelato aparece inteiro.
+   Produto sem foto ganha a inicial numa cor da paleta — melhor que um
+   retangulo vazio do tamanho da tela. */
+function fotoProd(p,i,alt){
+  var r=alt||'1';
+  if(p&&p.imagem)
+    return '<div class="tcIm" style="aspect-ratio:'+r+'">'+
+      '<img src="'+E(p.imagem)+'" alt="'+E(p.nome||'')+'" loading="lazy"></div>';
+  var ini=String(p&&p.nome||'?').trim().charAt(0).toUpperCase();
+  return '<div class="tcIm semFoto" style="aspect-ratio:'+r+';background:'+
+    CORES_SEM_FOTO[i%CORES_SEM_FOTO.length]+'"><span>'+E(ini)+'</span></div>';
+}
+/* mesma logica da tela grande, em miniatura: a previa tem que mostrar o
+   que o cliente vai ver, nao uma aproximacao */
+function miniFoto(p,i,raio,alturaCheia){
+  var est='width:100%;'+(alturaCheia?'height:100%;':'aspect-ratio:1;')+
+    'overflow:hidden;'+(raio?'border-radius:'+raio+';':'');
+  if(p&&p.imagem)
+    return '<div style="'+est+'"><img src="'+E(p.imagem)+'" '+
+      'style="width:100%;height:100%;object-fit:cover;display:block"></div>';
+  var ini=String(p&&p.nome||'?').trim().charAt(0).toUpperCase();
+  return '<div style="'+est+'background:'+CORES_SEM_FOTO[i%CORES_SEM_FOTO.length]+
+    ';display:grid;place-items:center"><span style="font-size:15px;font-weight:800;'+
+    'color:rgba(255,255,255,.9)">'+E(ini)+'</span></div>';
 }
 function pintarTotem(){
   var el=document.getElementById('tmTela');
@@ -16262,7 +16300,7 @@ function pintarTotem(){
     if(t.layout==='vitrine'){
       corpo='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+ps.slice(0,4).map(function(p,i){
         return '<div style="background:#fff;border:1px solid var(--lin,#e6e0d4);border-radius:7px;overflow:hidden">'+
-         '<div style="aspect-ratio:'+alt+';background:'+corProd(p,i)+'"></div>'+
+         miniFoto(p,i)+
          '<div style="padding:5px 6px 7px"><div style="font-size:9px;font-weight:700">'+E(p.nome)+'</div>'+
          (t.mostraDesc&&p.detalhes?'<div style="font-size:7px;color:var(--tx2,#7a7266)">'+E(p.detalhes.slice(0,22))+'</div>':'')+
          '<div style="font-size:11px;font-weight:800;color:'+t.fundo+';margin-top:2px">R$ '+money(p.preco)+'</div>'+
@@ -16271,15 +16309,15 @@ function pintarTotem(){
       var tam=t.foto==='grande'?42:t.foto==='media'?32:24;
       corpo='<div style="display:flex;flex-direction:column;gap:5px">'+ps.map(function(p,i){
         return '<div style="background:#fff;border:1px solid var(--lin,#e6e0d4);border-radius:7px;padding:5px;'+
-         'display:flex;gap:6px;align-items:center"><div style="width:'+tam+'px;aspect-ratio:1;'+
-         'border-radius:5px;background:'+corProd(p,i)+'"></div>'+
+         'display:flex;gap:6px;align-items:center"><div style="width:'+tam+'px;flex-shrink:0">'+
+         miniFoto(p,i,'5px')+'</div>'+
          '<div style="flex:1"><div style="font-size:9px;font-weight:700">'+E(p.nome)+'</div></div>'+
          '<div style="font-size:10px;font-weight:800;color:'+t.fundo+'">R$ '+money(p.preco)+'</div></div>';
         }).join('')+'</div>';
     }else{
       var p0=ps[0]||{nome:'—',preco:0};
       corpo='<div style="height:100%;display:flex;flex-direction:column;gap:7px">'+
-       '<div style="flex:1;background:'+corProd(p0,0)+';border-radius:9px"></div>'+
+       '<div style="flex:1;overflow:hidden;border-radius:9px">'+miniFoto(p0,0,'9px','100%')+'</div>'+
        '<div style="text-align:center"><div style="font-size:12px;font-weight:800">'+E(p0.nome)+'</div>'+
        '<div style="font-size:15px;font-weight:800;color:'+t.fundo+'">R$ '+money(p0.preco)+'</div></div></div>';
     }
@@ -16367,25 +16405,32 @@ function pintarCheio(){
     var cats=(DB.categorias||[]).filter(function(c){return c.ativo!==false});
     var corpo='';
     if(t.layout==='vitrine'){
-      corpo='<div class="tcGrade">'+ps.map(function(p,i){
+      /* A grade se ajusta ao tamanho da tela: num monitor grande cabem
+         cinco por linha, no tablet cabem duas. Antes era fixo em duas
+         colunas, e num monitor de 32 polegadas cada cartao ficava do
+         tamanho de uma folha. */
+      var largo=t.foto==='grande'?330:t.foto==='media'?250:190;
+      corpo='<div class="tcGrade" style="grid-template-columns:repeat(auto-fill,minmax('+
+       largo+'px,1fr))">'+ps.map(function(p,i){
         return '<div class="tcCard" onclick="addTotem('+i+')">'+
-         '<div class="tcFoto" style="aspect-ratio:'+alt+';background:'+corProd(p,i)+'"></div>'+
+         fotoProd(p,i,'1')+
          '<div class="tcInf"><div class="tcNm">'+E(p.nome)+'</div>'+
          (t.mostraDesc&&p.detalhes?'<div class="tcDs">'+E(p.detalhes)+'</div>':'')+
          '<div class="tcPr" style="color:'+t.fundo+'">R$ '+money(p.preco)+'</div></div></div>';
        }).join('')+'</div>';
     }else if(t.layout==='lista'){
-      var tam=t.foto==='grande'?120:t.foto==='media'?90:64;
+      var tam=t.foto==='grande'?128:t.foto==='media'?96:68;
       corpo='<div class="tcLista">'+ps.map(function(p,i){
         return '<div class="tcLI" onclick="addTotem('+i+')">'+
-         '<div style="width:'+tam+'px;height:'+tam+'px;border-radius:13px;flex-shrink:0;background:'+corProd(p,i)+'"></div>'+
-         '<div style="flex:1"><div class="tcNm">'+E(p.nome)+'</div>'+
+         '<div class="tcLIf" style="width:'+tam+'px">'+fotoProd(p,i,'1')+'</div>'+
+         '<div style="flex:1;min-width:0"><div class="tcNm">'+E(p.nome)+'</div>'+
          (t.mostraDesc&&p.detalhes?'<div class="tcDs">'+E(p.detalhes)+'</div>':'')+'</div>'+
-         '<div class="tcPr" style="color:'+t.fundo+';margin:0">R$ '+money(p.preco)+'</div></div>';
+         '<div class="tcPr" style="color:'+t.fundo+';margin:0;white-space:nowrap">R$ '+
+         money(p.preco)+'</div></div>';
        }).join('')+'</div>';
     }else{
       var p0=ps[TMC.i||0]||ps[0];
-      corpo='<div class="tcDest"><div class="tcDf" style="background:'+corProd(p0,TMC.i||0)+'"></div>'+
+      corpo='<div class="tcDest"><div class="tcDf">'+fotoProd(p0,TMC.i||0,'4/3')+'</div>'+
        '<div class="tcDi"><div class="tcDn">'+E(p0.nome)+'</div>'+
        (t.mostraDesc&&p0.detalhes?'<div class="tcDd">'+E(p0.detalhes)+'</div>':'')+
        '<div class="tcDp" style="color:'+t.fundo+'">R$ '+money(p0.preco)+'</div></div>'+
