@@ -12540,12 +12540,24 @@ function igualarChaves(linhas){
     return novo;
   });
 }
+/* A chave que identifica a linha na nuvem. Era so "ref_local", mas ela
+   passou a ser unica POR LOJA — sem isso o banco recusa a gravacao inteira
+   dizendo que nao existe restricao correspondente.
+   Tabela filha (item de ficha, item de pedido) nao tem loja_id: nela a
+   chave continua sendo so o ref_local, porque o pai ja isola. */
+var _TABS_SEM_LOJA=['ficha_itens','opcoes','produto_grupos','pedido_itens',
+ 'pedido_pagamentos','entregador_taxas','caixa_movimentos','areas_zonas',
+ 'subcategorias_financeiras','usuario_permissoes','usuario_sucursais',
+ 'sucursal_permissoes'];
+function chaveConflito(tab){
+  return (_TABS_SEM_LOJA.indexOf(tab)>=0)?'ref_local':'loja_id,ref_local';
+}
 async function enviar(tab,linhas){
   if(!linhas.length)return [];
   var out=[];
   for(var i=0;i<linhas.length;i+=200){
     var lote=igualarChaves(linhas.slice(i,i+200));
-    var r=await api(tab+'?on_conflict=ref_local','POST',lote,
+    var r=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',lote,
       {'Prefer':'resolution=merge-duplicates,return=representation'});
     out=out.concat(r||[]);
   }
@@ -14152,7 +14164,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.0.0';
+var VERSAO='V22.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15244,11 +15256,24 @@ function avisoTabelaComErro(erros){
         'e sobe assim que você entrar de novo.</span></div>'+
         '<button class="btnP2 ok" onclick="sair()">Entrar de novo</button>';
     }else{
-      el.innerHTML='<div><b>'+erros.length+' tabela(s) não subiram para a nuvem</b>'+
-        '<span>'+E(erros.map(function(x){
-          return x.tab.replace(/_/g,' ')+' — '+x.msg;}).join(' · '))+
-        '<br>O resto do sistema continua sincronizando normalmente.</span></div>'+
+      /* Despejar 31 mensagens tecnicas do banco tomava a tela inteira e nao
+         dizia o que fazer. Quando o erro e o mesmo em todas, a causa e uma
+         so — entao mostra uma frase, e o detalhe fica no log para quem for
+         investigar. */
+      var msgs={};
+      erros.forEach(function(x){ msgs[String(x.msg||'').slice(0,60)]=true; });
+      var umaCausa=(Object.keys(msgs).length===1);
+      var tabs=erros.map(function(x){return x.tab.replace(/_/g,' ')});
+      el.innerHTML='<div><b>'+erros.length+' tabela(s) não subiram agora</b>'+
+        '<span>'+(umaCausa
+          ?'Mesmo motivo em todas: '+E(erros[0].msg)+'. '
+          :E(tabs.slice(0,4).join(', '))+(tabs.length>4?' e mais '+(tabs.length-4)+'. ':'. '))+
+        'Nada foi perdido — está guardado neste aparelho e sobe na próxima '+
+        'sincronização.</span></div>'+
+        '<button class="btnP2" onclick="verDiagnostico()">Ver detalhes</button>'+
         '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+      erros.forEach(function(x){
+        logNuvem('não subiu — '+x.tab+': '+x.msg,true); });
     }
     barraAvisos().appendChild(el);
   }catch(e){}
