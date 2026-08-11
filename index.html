@@ -13718,8 +13718,15 @@ function abrirSessao(){
         setTimeout(ligarTempoReal,400);
         setTimeout(async function(){
           try{
-            if(temDadosLocais()){ await sincronizar(); }
-            statusNuvem('baixando'); await baixarDaNuvem(); statusNuvem('ok');
+            /* Enviar antes de baixar so vale se o que esta no aparelho for
+               DESTE cliente. Depois de trocar de login, o local foi limpo —
+               subir aqui mandaria a base de um cliente para dentro do outro.
+               Nesse caso: baixa primeiro, e o envio vem depois. */
+            var mesmoCliente=false;
+            try{ mesmoCliente=(localStorage.getItem('nexor_loja_dados')===NUVEM.loja
+                               && temDadosLocais()); }catch(e){}
+            if(mesmoCliente){ await sincronizar(); }
+            statusNuvem('baixando'); await baixarDaNuvem(true); statusNuvem('ok');
             if(S.mod&&S.it)abrir(S.mod,S.it);
             /* a fila da assistente entra assim que a nuvem estiver de pé */
             try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){}
@@ -13788,6 +13795,28 @@ async function entrarPeloAuth(lg,sn){
   }
   /* daqui em diante o aparelho esta ligado na nuvem — sem passar por
      Banco de dados. Era isso que deixava o socio lancando no vazio. */
+  /* ==========================================================
+     TROCOU DE CLIENTE: O APARELHO COMECA DO ZERO
+     O sistema guarda tudo no navegador. Ate aqui, entrar com outro
+     cliente NAO limpava nada — e a pessoa via os dados de quem usou o
+     computador antes. Nao era vazamento da nuvem: era sobra local.
+     Agora o aparelho lembra de QUEM sao os dados guardados. Se o cliente
+     que entrou e outro, tudo e apagado antes de qualquer coisa aparecer.
+     ========================================================== */
+  var lojaAnterior=null;
+  try{ lojaAnterior=localStorage.getItem('nexor_loja_dados'); }catch(e){}
+  if(lojaAnterior&&lojaAnterior!==rp.data.loja_id){
+    try{
+      localStorage.removeItem('nexor_dados');
+      localStorage.removeItem('nexor_respaldo');
+      localStorage.removeItem('nexor_respaldo_info');
+    }catch(e){}
+    DB={};
+    try{ semear(); }catch(e){}
+    logNuvem('outro cliente entrou neste aparelho: dados locais limpos');
+  }
+  try{ localStorage.setItem('nexor_loja_dados',rp.data.loja_id); }catch(e){}
+
   NUVEM.cli=cli;NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;
   /* A unidade vem do perfil, nao da escolha da pessoa: o gerente de Jales
      entra em Jales. Sem isto, ele caia sempre na primeira da lista. */
@@ -14164,7 +14193,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.0.1';
+var VERSAO='V22.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
