@@ -12646,6 +12646,27 @@ async function apagar(tab,campo,valor){
 /* ---- sincronização completa ---- */
 async function sincronizar(){
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
+  /* ==========================================================
+     TRAVA DE DONO — a ultima linha de defesa
+     O envio manda o que esta no navegador para a loja de quem esta
+     logado. Se o aparelho ainda tiver dados de OUTRO cliente, isso
+     copia a base inteira de um para dentro do outro. Foi exatamente
+     o que aconteceu: 425 insumos da Jolo foram parar na Rafaelos.
+     Aqui o envio confere de quem sao os dados ANTES de subir. Na
+     duvida, nao envia: dado que nao subiu se recupera; dado que
+     subiu para o cliente errado, nao.
+     ========================================================== */
+  var _dono=null;
+  try{ _dono=localStorage.getItem('nexor_loja_dados'); }catch(e){}
+  if(_dono&&NUVEM.loja&&_dono!==NUVEM.loja){
+    logNuvem('ENVIO BLOQUEADO: os dados deste aparelho são de outro cliente',true);
+    alertaGravacao('Este aparelho ainda tem dados de outro cliente. Nada foi enviado, '+
+      'para não misturar as bases. Saia e entre de novo para carregar os dados certos.');
+    return;
+  }
+  if(!_dono&&NUVEM.loja){
+    try{ localStorage.setItem('nexor_loja_dados',NUVEM.loja); }catch(e){}
+  }
   if(NUVEM.sincronizando){
     NUVEM.pendente=true;
     logNuvem('envio adiado: já havia um em andamento');
@@ -14193,7 +14214,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.2.0';
+var VERSAO='V22.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
