@@ -12043,7 +12043,7 @@ function agendarSync(){
 }
 async function conectarNuvem(email,senha){
   if(!window.supabase)throw new Error('Biblioteca da nuvem não carregou. Verifique a internet.');
-  NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave);
+  clienteNuvem();
   var r=await NUVEM.cli.auth.signInWithPassword({email:email,password:senha});
   if(r.error)throw r.error;
   var rp=await NUVEM.cli.from('perfis').select('id,nome,cargo,loja_id,empresa_id').eq('id',r.data.user.id).maybeSingle();
@@ -12067,11 +12067,27 @@ function temDadosLocais(){
     return MAPA.some(function(E4){ return (DB[E4.col]||[]).length>0; });
   }catch(e){return false}
 }
+/* ==========================================================
+   UM CLIENTE SO
+   Existiam TRES createClient no sistema — um no login, um na religacao e
+   um no painel. Cada um criava uma instancia nova, e a instancia nova nao
+   herdava a sessao da anterior. Resultado: a pessoa entrava, o sistema
+   trocava de instancia e a sessao "expirava" segundos depois.
+   Aqui existe um cliente unico, com a sessao guardada e renovada sozinha.
+   ========================================================== */
+function clienteNuvem(){
+  if(NUVEM.cli)return NUVEM.cli;
+  if(!window.supabase)return null;
+  NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,
+          storageKey:'nexor_auth'}
+  });
+  return NUVEM.cli;
+}
 async function religarNuvem(){
-  if(modo()!=='nuvem')return false;
   if(!window.supabase)return false;
   try{
-    NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave);
+    if(!clienteNuvem())return false;
     var r=await NUVEM.cli.auth.getSession();
     var ses=r&&r.data?r.data.session:null;
     if(!ses){NUVEM.cli=null;return false;}
@@ -12474,9 +12490,23 @@ async function tokenValido(forcar){
       if(NUVEM.cli.realtime&&NUVEM.cli.realtime.setAuth)
         NUVEM.cli.realtime.setAuth(NUVEM.token);
     }else{
-      /* a sessão acabou de verdade: parar de fingir que está ligado */
-      NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;
-      try{conferirNuvem();rodape();}catch(e){}
+      /* Antes o sistema so desligava e ficava esperando alguem clicar em
+         "Ligar agora". Agora ele tenta voltar sozinho: a sessao guardada
+         costuma estar la, so precisava ser lida de novo. */
+      var voltou=false;
+      try{
+        var r2=await NUVEM.cli.auth.getSession();
+        if(r2&&r2.data&&r2.data.session){
+          NUVEM.token=r2.data.session.access_token;
+          _tokenAte=Date.now()+600000;
+          NUVEM.ligada=true;voltou=true;
+          logNuvem('sessão recuperada sozinha');
+        }
+      }catch(e3){}
+      if(!voltou){
+        NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;
+        try{conferirNuvem();rodape();}catch(e){}
+      }
     }
   }catch(e){}
   return NUVEM.token;
@@ -13807,6 +13837,12 @@ async function abrirSessao(){
   carregar();
   $('login').classList.add('hide');$('app').classList.remove('hide');
   boot();
+  /* A nuvem tem de estar de pe ANTES de a pessoa comecar a mexer. Deixar
+     para depois e o que fazia o sistema abrir dizendo "somente neste
+     aparelho" e so ligar mais tarde — ou nunca. */
+  if(!NUVEM.ligada){
+    try{ statusNuvem('ligando'); await religarNuvem(); }catch(e){}
+  }
   /* a entrada pelo Auth ja deixou o aparelho ligado: aqui so falta buscar
      o que mudou. Quem voltou por sessao guardada ainda precisa religar. */
   setTimeout(async function(){
@@ -13829,14 +13865,10 @@ async function abrirSessao(){
           }catch(e){ statusNuvem('erro',(e&&e.message)||''); }
         },900);
       }else{
-        /* Voltar por sessao guardada tem de religar a nuvem SOZINHO. Sem
-           isto, a pessoa entrava e ficava lancando fora do banco ate
-           reparar na faixa vermelha e clicar em "Ligar agora". */
         var ok=await religarNuvem();
         if(!ok){
-          /* a sessao do Auth caducou: tenta renovar antes de desistir */
           try{
-            if(NUVEM.cli){
+            if(clienteNuvem()){
               var rr=await NUVEM.cli.auth.refreshSession();
               if(rr&&rr.data&&rr.data.session)ok=await religarNuvem();
             }
@@ -13881,9 +13913,8 @@ function redeDoUsuario(u){
    ---------------------------------------------------------- */
 async function entrarPeloAuth(lg,sn){
   if(!window.supabase||!NUVEM.url||!NUVEM.chave)return {ok:false,motivo:'rede'};
-  var cli;
-  try{ cli=window.supabase.createClient(NUVEM.url,NUVEM.chave); }
-  catch(e){ return {ok:false,motivo:'rede'}; }
+  var cli=clienteNuvem();
+  if(!cli)return {ok:false,motivo:'rede'};
   var r;
   try{ r=await cli.auth.signInWithPassword({email:lg,password:sn}); }
   catch(e){ return {ok:false,motivo:'rede'}; }
@@ -14340,7 +14371,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.6.0';
+var VERSAO='V22.7.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
