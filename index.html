@@ -14454,7 +14454,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V29.1.3';
+var VERSAO='V30.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20240,12 +20240,60 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
     PDV.cliente.gasto=(PDV.cliente.gasto||0)+total;
     PDV.cliente.ultima=ag.toLocaleDateString('pt-BR')+' '+ped.hora;
   }
+  _ultimoMovVenda=null;
   try{baixarEstoqueVenda(ped);}catch(e){console.error('estoque venda',e);}
   salvar();
+  /* a venda sobe INTEIRA numa transacao — pedido, itens, movimentacao e
+     saldo juntos. Se a rede cair, ela fica na fila normal e sobe depois;
+     o que nao pode e chegar pela metade na nuvem. */
+  try{ enviarVendaAtomica(ped,_ultimoMovVenda); }catch(e){console.error('venda atomica',e);}
   PDV.comanda=[];PDV.cliente=null;PDV.tipo='loja';_cidadeVenda='';
   if(imprimir)imprimirVia(ped);
   PDV.aba='pedidos';telaPDV();
   toast('Venda finalizada — pedido #'+ped.numero+'.');
+}
+var _ultimoMovVenda=null;
+/* A trava de clique duplo ja existe desde antes: travarFecharVenda(), usada
+   na linha que fecha o pagamento e no fluxo da mesa. Na auditoria eu a dei
+   como ausente porque procurei por "disabled" no botao, e ela e feita por
+   variavel. Nao criei uma segunda: duas travas para a mesma coisa e pior
+   que nenhuma, porque uma solta e a outra prende. */
+/* sobe a venda numa transacao so. Idempotente: reenviar nao duplica,
+   porque a chave e loja + identificador do pedido. */
+async function enviarVendaAtomica(ped,mov){
+  if(!NUVEM.ligada||NUVEM.plataforma)return;
+  try{
+    var suc=lojaAtualId();
+    var pacote={
+      ref_local:ped.id,numero:ped.numero,tipo:ped.tipo,fase:ped.fase,
+      cliente_nome:ped.clienteNome||'',cidade:ped.cidade||'',
+      total:ped.total,taxa:ped.taxa,desconto:ped.desconto,fiscal:!!ped.fiscal,
+      hora:ped.hora,data_venda:ped.data,canal:ped.canal||'',equipamento:ped.equipamento||'',
+      cupom_codigo:(ped.cupom||{}).codigo||'',cupom_valor:(ped.cupom||{}).valor||null,
+      itens:(ped.itens||[]).map(function(it,i){
+        return {ref_local:(it.id||(ped.id+'_'+i)),nome:it.nome||'',
+          produto_id:it.produtoId||'',           /* identificador local; o banco resolve */
+          quantidade:it.qtd||1,unitario:it.preco||0,total:it.total||0,
+          opcoes:it.opcoes||[],observacao:it.obs||''};
+      }),
+      movimentacoes:mov?[{ref_local:mov.id,data:mov.data,hora:mov.hora,
+        motivo_id:mov.motivoId,identificacao:mov.identificacao,
+        observacao:mov.obs||'',origem:'venda',linhas:mov.linhas||[],
+        sucursal_id:suc}]:[],
+      saldos:(mov&&mov.linhas?mov.linhas:[]).map(function(l){
+        var e=(DB.estoqueUn||[]).find(function(x){
+          return x.itemRef===l.insumoId&&x.sucursalRef===suc;});
+        return e?{item_ref:l.insumoId,estoque:e.estoque,custo_medio:e.custoMedio,
+                  tipo:e.tipo||'insumo',ref_local:e.id,sucursal_id:suc}:null;
+      }).filter(Boolean)
+    };
+    var r=await api('rpc/venda_registrar','POST',{p:pacote});
+    logNuvem('venda #'+ped.numero+' gravada inteira na nuvem'+
+      ((r&&r.ja_existia)?' (já existia — não duplicou)':''));
+  }catch(e){
+    /* nao e falha: a venda esta gravada aqui e sobe pela fila normal */
+    logNuvem('venda #'+ped.numero+' ficou na fila: '+((e&&e.message)||''),true);
+  }
 }
 /* A via do pedido sai pelo modelo cadastrado em Configuracao da Loja >
    Modelo de Impressao. Antes o cupom estava escrito dentro desta funcao:
@@ -28930,6 +28978,7 @@ function baixarEstoqueVenda(ped){
     obs:ped.clienteNome||'',linhas:linhas,origem:'venda',pedidoId:ped.id};
   DB.movEst.push(mov);
   aplicarMovimento(mov);
+  _ultimoMovVenda=mov;      /* a venda atomica precisa subir este junto */
   return linhas.length;
 }
 
