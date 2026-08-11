@@ -14428,7 +14428,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V28.3.0';
+var VERSAO='V28.3.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -39257,6 +39257,8 @@ function telaUsuarios(){
        });
        var aberta=buscando||US.abertas[nomeEmp]!==false;
        var totalAc=resto.length;
+       /* alguem com acesso total alcanca todas as unidades da empresa */
+       var cobreTudo=resto.some(function(u){return u.tudo||u.mestre});
        h+='<div class="usrSec">Empresa<span class="usrLn"></span></div>'+
         '<div class="usrPasta'+(aberta?' ab':'')+'">'+
         '<button class="usrPastaH" onclick="US.abertas[\''+
@@ -39278,6 +39280,10 @@ function telaUsuarios(){
              Unidade SEM acesso continua aparecendo — foi para isso que a
              arvore passou a nascer das sucursais. */
           if(us.length)return us.map(function(u){return linha(u,true)}).join('');
+          /* Unidade coberta por um acesso de empresa inteira NAO esta sem
+             acesso: alguem ja chega nela. Mostrar "sem acesso criado" ali
+             era informacao falsa, e ainda parecia uma linha para excluir. */
+          if(cobreTudo)return '';
           return '<div class="usrIt semAcesso">'+
             '<div class="usrAv" style="background:'+(sc.cor||'#00A08B')+';color:#fff;opacity:.45">'+
               E(String(sc.nome||'?').charAt(0).toUpperCase())+'</div>'+
