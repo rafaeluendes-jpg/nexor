@@ -13859,6 +13859,13 @@ async function abrirSessao(){
             var mesmoCliente=(DB._dono===NUVEM.loja && temDadosLocais());
             if(mesmoCliente){ await sincronizar(); }
             statusNuvem('baixando'); await baixarDaNuvem(true); statusNuvem('ok');
+            /* devolve a venda offline que ficou guardada na limpeza */
+            if(DB._pendOffline&&DB._pendOffline.length){
+              DB.pedidos=(DB.pedidos||[]).concat(DB._pendOffline);
+              logNuvem(DB._pendOffline.length+' venda(s) offline devolvida(s) e reenviada(s)');
+              DB._pendOffline=[];
+              salvar(); await sincronizar();
+            }
             if(S.mod&&S.it)abrir(S.mod,S.it);
             /* a fila da assistente entra assim que a nuvem estiver de pé */
             try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){}
@@ -13948,41 +13955,37 @@ async function entrarPeloAuth(lg,sn){
   var lojaAnterior=DB._dono||null;
   if(!lojaAnterior){ try{ lojaAnterior=localStorage.getItem('nexor_loja_dados'); }catch(e){} }
 
-  /* Dado gravado antes da marca de dono existir nao tem dono nenhum — e a
-     trava so agia quando a marca existia. Aqui a duvida e resolvida
-     perguntando ao banco: se a loja de quem entrou esta VAZIA na nuvem e o
-     aparelho esta cheio, esses dados sao de outro cliente. Cliente novo
-     comeca zerado, sempre. */
-  if(!lojaAnterior){
-    try{
-      var temAqui=false;
-      try{ temAqui=((DB.insumos||[]).length+(DB.produtos||[]).length)>0; }catch(e){}
-      if(temAqui){
-        var cn=await cli.from('insumos').select('id',{count:'exact',head:true})
-                 .eq('loja_id',rp.data.loja_id);
-        var cp=await cli.from('produtos').select('id',{count:'exact',head:true})
-                 .eq('loja_id',rp.data.loja_id);
-        var naNuvem=(cn&&cn.count||0)+(cp&&cp.count||0);
-        if(naNuvem===0){
-          lojaAnterior='__desconhecido__';   /* forca a limpeza abaixo */
-          logNuvem('aparelho com dados sem dono e loja vazia na nuvem: limpando');
-        }
-      }
-    }catch(e){}
-  }
-  if(lojaAnterior&&lojaAnterior!==rp.data.loja_id){
-    try{
-      localStorage.removeItem('nexor_dados');
-      localStorage.removeItem('nexor_respaldo');
-      localStorage.removeItem('nexor_respaldo_info');
-    }catch(e){}
-    DB={};
-    try{ semear(); }catch(e){}
-    DB._snap={};DB._hash={};DB._uuid={};
-    logNuvem('outro cliente entrou neste aparelho: dados locais limpos');
-  }
+  /* ==========================================================
+     A NUVEM MANDA. SEMPRE.
+     Eu vinha tentando adivinhar QUANDO limpar o aparelho — por marca de
+     dono, por loja vazia, por comparacao. Cada regra deixava um caso de
+     fora, e o caso de fora significa a base de um cliente dentro do outro.
+     A regra passa a ser uma so: ao ENTRAR, o que esta no aparelho e
+     descartado e tudo vem do banco. O aparelho vira uma janela para a
+     nuvem, nao um lugar onde os dados moram entre uma sessao e outra.
+     ========================================================== */
+  /* Unica excecao: venda feita offline que ainda nao subiu. Descartar isso
+     seria perder dinheiro de verdade — entao ela e guardada, reenviada
+     depois, e so o resto e limpo. */
+  var pendentesOffline=[];
+  try{
+    if(lojaAnterior===rp.data.loja_id)
+      pendentesOffline=(DB.pedidos||[]).filter(function(p){return p&&p._naSubiu});
+  }catch(e){}
+
+  try{
+    localStorage.removeItem('nexor_dados');
+    localStorage.removeItem('nexor_respaldo');
+    localStorage.removeItem('nexor_respaldo_info');
+  }catch(e){}
+  DB={};
+  try{ semear(); }catch(e){}
+  DB._snap={};DB._hash={};DB._uuid={};
   DB._dono=rp.data.loja_id;
+  DB._pendOffline=pendentesOffline;
   try{ localStorage.setItem('nexor_loja_dados',rp.data.loja_id); }catch(e){}
+  logNuvem('aparelho limpo no login — os dados vêm todos da nuvem'+
+    (pendentesOffline.length?' ('+pendentesOffline.length+' venda(s) offline guardada(s))':''));
 
   NUVEM.cli=cli;NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;
   /* A unidade vem do perfil, nao da escolha da pessoa: o gerente de Jales
@@ -14371,7 +14374,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.7.0';
+var VERSAO='V23.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
