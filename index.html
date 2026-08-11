@@ -14405,7 +14405,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V28.0.0';
+var VERSAO='V28.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23094,7 +23094,7 @@ function telaRedeAberta(id){
   }
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo">'+
-    '<button class="btnP2" onclick="INS.rede=null;INS.und=null;telaInstalacao()">‹ todas as empresas</button>'+
+    '<button class="btnP2" onclick="INS.rede=null;INS.und=null;ACS.edit=null;telaInstalacao()">‹ todas as empresas</button>'+
     '<h1 style="margin-top:10px">'+E(l.nome)+'</h1>'+
     '<p>'+E((m&&(m.cidade||''))||'')+(m&&m.uf?'/'+E(m.uf):'')+
       ' · '+x.unidades.length+' unidade(s) · '+moeda(x.total)+'/mês</p></div>'+
@@ -23124,10 +23124,20 @@ function telaRedeAberta(id){
 
    '<div class="blk" style="max-width:900px;margin-top:12px">'+
     '<div class="acTit">Acessos ('+x.perfis.length+')</div>'+
-    (x.perfis.length?x.perfis.map(function(p){
-      return ctLinha(E(p.nome||'—'),E(p.cargo||'—')+(p.unidade?' · '+E(p.unidade):' · empresa inteira'));
-    }).join(''):'<div class="hint vr">Nenhum acesso criado. Esta empresa ainda não consegue entrar.</div>')+
-    '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">'+
+    (x.perfis.length?'<div class="etTabW plano2"><table class="etTab semBusca"><thead><tr>'+
+      '<th>Nome</th><th style="width:230px">Login</th><th style="width:150px">Papel</th>'+
+      '<th style="width:170px">Unidade</th><th style="width:60px"></th></tr></thead><tbody>'+
+      x.perfis.map(function(p){
+        return '<tr><td><b>'+E(p.nome||'—')+'</b></td>'+
+         '<td>'+E(p.email||'—')+'</td>'+
+         '<td>'+E(p.cargo==='admin'?'Administrador':(p.cargo||'—'))+'</td>'+
+         '<td>'+E(p.unidade||'empresa inteira')+'</td>'+
+         '<td><button class="rBtn" title="Editar acesso" '+
+          'onclick="ACS.edit=\''+p.id+'\';telaInstalacao()">'+sv('edit',12)+'</button></td></tr>';
+      }).join('')+'</tbody></table></div>'
+     :'<div class="hint vr">Nenhum acesso criado. Esta empresa ainda não consegue entrar.</div>')+
+    (ACS.edit?formEditarAcesso(x):'')+
+    (ACS.edit?'':'<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">'+
      '<b style="font-size:13px">Criar acesso</b>'+
      '<p class="hint" style="margin:4px 0 10px">O administrador enxerga a empresa inteira; '+
      'o gerente, só a unidade escolhida. A senha é trocada pela pessoa depois.</p>'+
@@ -23145,7 +23155,7 @@ function telaRedeAberta(id){
      '</div>'+
      '<div style="margin-top:10px"><button class="btnP2 ok" onclick="criarAcessoEmpresa(\''+l.id+'\')">'+
       'Criar acesso</button></div>'+
-    '</div>'+
+    '</div>')+
    '</div>'+
    '<div style="max-width:900px;margin:12px 0 40px">'+
     '<button class="btnP2" onclick="PRM.loja=\''+l.id+'\';abrir(\'tecnico\',\'permissoes-nexor\')">'+
@@ -23345,6 +23355,49 @@ async function salvarUnidade(){
 }
 
 /* ---------- 5. ACESSOS ---------- */
+var ACS={edit:null};
+function formEditarAcesso(x){
+  var p=(x.perfis||[]).find(function(y){return y.id===ACS.edit});
+  if(!p){ACS.edit=null;return '';}
+  var ult=p.ultimo_acesso?new Date(p.ultimo_acesso).toLocaleString('pt-BR'):'nunca entrou';
+  return '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">'+
+   '<b style="font-size:13px">Editar acesso — '+E(p.nome||'')+'</b>'+
+   '<p class="hint" style="margin:4px 0 10px">Último acesso: '+E(ult)+'. '+
+   '<b>A senha atual não pode ser mostrada</b> — o sistema guarda só o resumo dela, '+
+   'e nem o banco consegue lê-la de volta. Para trocar, digite uma nova; deixando em '+
+   'branco, a senha continua a mesma.</p>'+
+   '<div class="grid2">'+
+    cmp('Nome','edNome',p.nome)+
+    cmp('E-mail (login)','edMail',p.email)+
+    cmp('Nova senha','edSenha','','deixe em branco para não trocar')+
+    '<div class="fld2"><label>Papel</label><select id="edCargo">'+
+     ['admin','gerente','operador','caixa'].map(function(c){
+       return '<option value="'+c+'"'+(p.cargo===c?' selected':'')+'>'+
+        (c==='admin'?'Administrador da empresa':c==='gerente'?'Gerente de unidade':c)+'</option>';
+     }).join('')+'</select></div>'+
+    '<div class="fld2"><label>Unidade</label><select id="edSuc">'+
+     '<option value=""'+(!p.sucursal_ref?' selected':'')+'>A empresa inteira</option>'+
+     (x.unidades||[]).map(function(s2){
+       return '<option value="'+E(s2.ref_local||'')+'"'+
+        (p.sucursal_ref===s2.ref_local?' selected':'')+'>'+E(s2.nome)+'</option>';
+     }).join('')+'</select></div>'+
+   '</div>'+
+   '<div style="margin-top:10px;display:flex;gap:8px">'+
+    '<button class="btnP2 ok" onclick="salvarAcesso(\'' + x.loja.id + '\',\'' + p.id + '\')">Salvar acesso</button>'+
+    '<button class="btnP2" onclick="ACS.edit=null;telaInstalacao()">Cancelar</button>'+
+   '</div></div>';
+}
+async function salvarAcesso(lojaId,perfilId){
+  var email=vlr('edMail').toLowerCase(), senha=vlr('edSenha');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){painelErro('Informe um e-mail válido.');return;}
+  if(senha&&senha.length<6){painelErro('A nova senha precisa ter ao menos 6 caracteres.');return;}
+  var er=await criarAcesso(lojaId,{perfil_id:perfilId,nome:vlr('edNome')||email,email:email,
+    senha:senha,cargo:vlr('edCargo'),sucursal_ref:vlr('edSuc')});
+  if(er){painelErro('Não consegui salvar o acesso.',er);return;}
+  ACS.edit=null;INS.nuvem=null;await carregarEmpresas(true);
+  toast(senha?'Acesso salvo e senha trocada.':'Acesso salvo.');telaInstalacao();
+}
+
 /* devolve null quando deu certo, ou o texto do erro */
 async function criarAcesso(lojaId,dados){
   try{
@@ -23353,7 +23406,8 @@ async function criarAcesso(lojaId,dados){
       headers:{'apikey':NUVEM.chave,'Authorization':'Bearer '+(await tokenValido()),
                'Content-Type':'application/json'},
       body:JSON.stringify({email:dados.email,senha:dados.senha,nome:dados.nome,
-        cargo:dados.cargo,loja_id:lojaId,sucursal_ref:dados.sucursal_ref||null})});
+        cargo:dados.cargo,loja_id:lojaId,sucursal_ref:dados.sucursal_ref||null,
+        perfil_id:dados.perfil_id||null})});
     var d=null; try{ d=await r.json(); }catch(e){}
     if(!r.ok)return (d&&d.erro)||('o servidor respondeu '+r.status);
     return null;
