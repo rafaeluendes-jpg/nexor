@@ -14245,7 +14245,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V25.0.0';
+var VERSAO='V25.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22832,27 +22832,20 @@ function apelidoLogin(n){return semAcento(n).toLowerCase().replace(/[^a-z0-9]/g,
 async function carregarEmpresas(recarregar){
   if(INS.nuvem&&!recarregar)return INS.nuvem;
   if(!NUVEM.ligada)throw new Error('sem conexão com a nuvem');
-  var lojas=await api('lojas?select=id,nome,empresa_id,cidade,ativa,matriz,codigo&order=nome');
-  var sucs =await api('sucursais?select=id,loja_id,nome,apelido,cidade,uf,matriz,ativa,cor,ref_local');
-  var contratos=[];
-  try{ contratos=await api('clientes_nexor?select=id,loja_id,rede,responsavel,email,documento,plano,mensalidade,situacao,dia_vencimento'); }
-  catch(e){ contratos=[]; }
-  var perfis=[];
-  try{ perfis=await api('perfis?select=id,loja_id,nome,cargo,sucursal_ref,nome_unidade'); }
-  catch(e){ perfis=[]; }
-  INS.nuvem={lojas:lojas||[],sucursais:sucs||[],contratos:contratos||[],perfis:perfis||[]};
+  /* Uma porta so, que confere o cargo no servidor antes de devolver qualquer
+     coisa. Nao da para ler as tabelas direto: elas sao sincronizadas, e abrir
+     a leitura nelas faz o aparelho BAIXAR as linhas das outras empresas e
+     misturar tudo — foi exatamente o que quebrou o sistema na V25.0.0. */
+  var r=await api('rpc/painel_empresas','POST',{});
+  INS.nuvem={lista:Array.isArray(r)?r:[]};
   return INS.nuvem;
 }
 function empresasDaNuvem(){
-  var n=INS.nuvem||{lojas:[],sucursais:[],contratos:[],perfis:[]};
-  return n.lojas.map(function(l){
-    var unid=n.sucursais.filter(function(s){return s.loja_id===l.id});
-    var ct=n.contratos.find(function(c){return c.loja_id===l.id&&
-      String(c.rede||'').toLowerCase()===String(l.nome||'').toLowerCase()})||
-      n.contratos.find(function(c){return c.loja_id===l.id})||null;
-    var ps=n.perfis.filter(function(p){return p.loja_id===l.id});
-    var adm=ps.find(function(p){return p.cargo==='admin'})||null;
-    return {loja:l,unidades:unid,contrato:ct,perfis:ps,admin:adm};
+  return ((INS.nuvem||{}).lista||[]).map(function(l){
+    var ct=l.contrato||null;
+    var ps=l.acessos||[];
+    return {loja:l,unidades:l.unidades||[],contrato:ct,perfis:ps,
+      admin:ps.find(function(p){return p.cargo==='admin'})||null};
   });
 }
 function telaInstalacao(){
@@ -22917,19 +22910,16 @@ async function novaEmpresa(){
   var un=prompt('Nome da unidade matriz:','Matriz')||'Matriz';
   try{
     toast('Criando '+nome+'…');
-    var emp=await api('empresas','POST',[{nome:nome}],{'Prefer':'return=representation'});
-    var empId=(emp&&emp[0]||{}).id;
-    if(!empId)throw new Error('a empresa não foi criada');
-    var lj=await api('lojas','POST',[{empresa_id:empId,nome:nome,matriz:true,ativa:true}],
-      {'Prefer':'return=representation'});
-    var ljId=(lj&&lj[0]||{}).id;
-    if(!ljId)throw new Error('a loja não foi criada');
-    await api('sucursais','POST',[{loja_id:ljId,empresa_id:empId,nome:un.trim(),
-      apelido:un.trim(),matriz:true,ativa:true,ref_local:'suc_matriz'}]);
+    /* empresa, loja propria e unidade matriz numa operacao so, no servidor.
+       O navegador nao escreve em loja que nao e a dele — e isso que impede o
+       cliente novo de nascer dentro de outro, como a Rafaelos nasceu. */
+    var r=await api('rpc/painel_criar_empresa','POST',{p_nome:nome,p_unidade:un.trim()});
+    var ljId=(r&&(r.loja_id||(r[0]||{}).loja_id))||null;
     INS.nuvem=null;INS.erro='';
     await carregarEmpresas(true);
     toast(nome+' criada. Falta o acesso do administrador.');
-    INS.rede=ljId;telaInstalacao();
+    if(ljId)INS.rede=ljId;
+    telaInstalacao();
   }catch(e){
     alert('Não consegui criar a empresa: '+((e&&e.message)||'erro desconhecido'));
   }
