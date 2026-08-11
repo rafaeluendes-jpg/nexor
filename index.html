@@ -14245,7 +14245,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V24.2.0';
+var VERSAO='V25.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22792,7 +22792,7 @@ async function excluirCN(id){
    O Nexor nasce vazio. Aqui a rede e criada a partir do que
    o cliente digita — nenhum nome de empresa vive no codigo.
    ========================================================== */
-var INS={rede:null};
+var INS={rede:null,carregando:false,erro:'',nuvem:null};
 function baseRedes(){
   DB.redes=DB.redes||[];
   /* redes antigas: adota as sucursais soltas na primeira rede */
@@ -22818,127 +22818,163 @@ function soDom(t){ t=String(t||'').trim(); if(t.indexOf('@')>=0)t=t.split('@').p
 function semAcento(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function apelidoLogin(n){return semAcento(n).toLowerCase().replace(/[^a-z0-9]/g,'')}
 
+/* ==========================================================
+   PAINEL DA PLATAFORMA — as empresas que compram o Nexor
+   Antes esta tela lia DB.redes: uma lista que (1) morava DENTRO dos dados
+   de um cliente e (2) nem subia para a nuvem, entao sumia ao limpar o
+   navegador. Por isso a Rafaelos nunca aparecia aqui: ela e outra LOJA, e
+   quem entra na Jolo baixa so as linhas da Jolo.
+   Agora a tela le a tabela de lojas direto da nuvem. Cada loja e uma
+   empresa cliente, com as unidades dela dentro. Uma nao enxerga a outra —
+   quem enxerga todas e so quem tem cargo 'plataforma', e por permissao
+   escrita nas regras do banco, nunca por falta de isolamento.
+   ========================================================== */
+async function carregarEmpresas(recarregar){
+  if(INS.nuvem&&!recarregar)return INS.nuvem;
+  if(!NUVEM.ligada)throw new Error('sem conexão com a nuvem');
+  var lojas=await api('lojas?select=id,nome,empresa_id,cidade,ativa,matriz,codigo&order=nome');
+  var sucs =await api('sucursais?select=id,loja_id,nome,apelido,cidade,uf,matriz,ativa,cor,ref_local');
+  var contratos=[];
+  try{ contratos=await api('clientes_nexor?select=id,loja_id,rede,responsavel,email,documento,plano,mensalidade,situacao,dia_vencimento'); }
+  catch(e){ contratos=[]; }
+  var perfis=[];
+  try{ perfis=await api('perfis?select=id,loja_id,nome,cargo,sucursal_ref,nome_unidade'); }
+  catch(e){ perfis=[]; }
+  INS.nuvem={lojas:lojas||[],sucursais:sucs||[],contratos:contratos||[],perfis:perfis||[]};
+  return INS.nuvem;
+}
+function empresasDaNuvem(){
+  var n=INS.nuvem||{lojas:[],sucursais:[],contratos:[],perfis:[]};
+  return n.lojas.map(function(l){
+    var unid=n.sucursais.filter(function(s){return s.loja_id===l.id});
+    var ct=n.contratos.find(function(c){return c.loja_id===l.id&&
+      String(c.rede||'').toLowerCase()===String(l.nome||'').toLowerCase()})||
+      n.contratos.find(function(c){return c.loja_id===l.id})||null;
+    var ps=n.perfis.filter(function(p){return p.loja_id===l.id});
+    var adm=ps.find(function(p){return p.cargo==='admin'})||null;
+    return {loja:l,unidades:unid,contrato:ct,perfis:ps,admin:adm};
+  });
+}
 function telaInstalacao(){
   baseSuc();baseUsr();baseRedes();
   if(INS.rede)return telaRedeAberta(INS.rede);
+  /* quem nao e dono da plataforma nao tem o que fazer aqui */
+  if(!ehPlataforma()){
+    $('content').innerHTML='<div class="ctWrap"><div class="ctTopo">'+
+     '<h1>Assistente de Instalação</h1>'+
+     '<p>Esta tela pertence à administração do Nexor.</p></div>'+
+     '<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
+      '<b>Área restrita</b><span>Só o administrador da plataforma cadastra empresas clientes.</span>'+
+     '</div></div>';
+    rodape();return;
+  }
+  if(!INS.nuvem&&!INS.carregando&&!INS.erro){
+    INS.carregando=true;
+    carregarEmpresas().then(function(){INS.carregando=false;telaInstalacao();})
+      .catch(function(e){INS.carregando=false;INS.erro=(e&&e.message)||'falha ao ler';telaInstalacao();});
+  }
+  var lista=INS.nuvem?empresasDaNuvem():[];
   $('content').innerHTML='<div class="ctWrap">'+
-   '<div class="ctTopo"><h1>Assistente de Instalação</h1>'+
-    '<p>Cada rede cliente é uma pasta. Clique para abrir e ver as unidades dela, criar acessos '+
-    'e editar. O Nexor não vem com rede nenhuma dentro — tudo é criado aqui.</p></div>'+
+   '<div class="ctTopo"><h1>Empresas Clientes</h1>'+
+    '<p>Cada empresa que usa o Nexor é um card, com as unidades dela dentro. '+
+    'Uma empresa nunca enxerga os dados da outra.</p></div>'+
+   (INS.erro?'<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
+      '<b>Não consegui ler as empresas</b><span>'+E(INS.erro)+'</span>'+
+      '<div style="margin-top:12px"><button class="btnP2" onclick="INS.erro=\'\';INS.nuvem=null;telaInstalacao()">'+
+      'Tentar de novo</button></div></div>':'')+
+   (INS.carregando?'<div class="usrVazio"><b>Carregando as empresas…</b></div>':'')+
    '<div class="ctGrade">'+
-    DB.redes.map(function(r){
-      var u=unidadesDaRede(r.id);
-      return '<div class="ctCard rdCard" onclick="INS.rede=\''+r.id+'\';telaInstalacao()">'+
-       '<div class="ctCardH"><b>'+E(r.nome)+'</b><span>'+(r.dominio?E(r.dominio):'sem domínio')+'</span></div>'+
+    lista.map(function(x){
+      var l=x.loja,ct=x.contrato||{};
+      var ativa=l.ativa!==false;
+      var nUn=x.unidades.filter(function(s){return s.ativa!==false}).length;
+      return '<div class="ctCard rdCard'+(ativa?'':' off')+'" onclick="INS.rede=\''+l.id+'\';telaInstalacao()">'+
+       '<div class="ctCardH"><b>'+E(l.nome)+'</b>'+
+        '<span>'+(ct.documento?E(ct.documento):(l.cidade?E(l.cidade):'sem CNPJ informado'))+'</span></div>'+
        '<div class="ctCardB">'+
-        ctLinha('Unidades',String(u.length))+
-        ctLinha('Acesso da matriz',r.login?E(r.login):'<span class="vr">não criado</span>')+
+        ctLinha('Unidades',String(nUn))+
+        ctLinha('Acessos',String(x.perfis.length))+
+        ctLinha('Administrador',x.admin?E(x.admin.nome):'<span class="vr">não criado</span>')+
+        ctLinha('Assinatura',ativa
+          ?'<span class="badge2">'+E(ct.situacao||'ativa')+'</span>'
+          :'<span class="badge2 rd">bloqueada</span>')+
         '<div class="hint" style="margin-top:8px">clique para abrir</div>'+
        '</div></div>';
     }).join('')+
-    '<div class="ctCard rdCard rdNova" onclick="novaRede()"><div class="ctCardB" '+
+    (INS.nuvem?'<div class="ctCard rdCard rdNova" onclick="novaEmpresa()"><div class="ctCardB" '+
      'style="display:flex;align-items:center;justify-content:center;min-height:120px;gap:8px">'+
-     sv('plus',16)+'<b>Nova rede cliente</b></div></div>'+
+     sv('plus',16)+'<b>Nova empresa cliente</b></div></div>':'')+
    '</div></div>';
-  rodape(DB.redes.length+' rede(s)');
+  rodape(INS.nuvem?lista.length+' empresa(s) cadastrada(s)':'');
 }
-function novaRede(){
-  var n=prompt('Nome da rede cliente:','');
-  if(!n||!n.trim())return;
-  var d=prompt('Domínio dos acessos (só o domínio, ex.: jologelato.com):','')||'';
-  baseRedes();
-  var id='rede_'+Date.now().toString(36);
-  DB.redes.push({id:id,nome:n.trim(),dominio:soDom(d),login:'',senha:'123'});
-  salvar();INS.rede=id;telaInstalacao();
+/* cria a empresa cliente: empresa + loja propria + unidade matriz.
+   Tudo carimbado com a loja NOVA — nunca com a loja de quem esta criando.
+   E o que impede o cliente novo de nascer dentro da Jolo, como aconteceu. */
+async function novaEmpresa(){
+  var nome=prompt('Nome da empresa cliente (ex.: Rafaello\'s Gelato):','');
+  if(!nome||!nome.trim())return;
+  nome=nome.trim();
+  var un=prompt('Nome da unidade matriz:','Matriz')||'Matriz';
+  try{
+    toast('Criando '+nome+'…');
+    var emp=await api('empresas','POST',[{nome:nome}],{'Prefer':'return=representation'});
+    var empId=(emp&&emp[0]||{}).id;
+    if(!empId)throw new Error('a empresa não foi criada');
+    var lj=await api('lojas','POST',[{empresa_id:empId,nome:nome,matriz:true,ativa:true}],
+      {'Prefer':'return=representation'});
+    var ljId=(lj&&lj[0]||{}).id;
+    if(!ljId)throw new Error('a loja não foi criada');
+    await api('sucursais','POST',[{loja_id:ljId,empresa_id:empId,nome:un.trim(),
+      apelido:un.trim(),matriz:true,ativa:true,ref_local:'suc_matriz'}]);
+    INS.nuvem=null;INS.erro='';
+    await carregarEmpresas(true);
+    toast(nome+' criada. Falta o acesso do administrador.');
+    INS.rede=ljId;telaInstalacao();
+  }catch(e){
+    alert('Não consegui criar a empresa: '+((e&&e.message)||'erro desconhecido'));
+  }
 }
 function telaRedeAberta(id){
-  var r=DB.redes.find(function(x){return x.id===id});
-  if(!r){INS.rede=null;return telaInstalacao();}
-  var u=unidadesDaRede(id);
-  var sug=r.dominio?('franqueadora@'+r.dominio):'';
+  var x=empresasDaNuvem().find(function(y){return y.loja.id===id});
+  if(!x){INS.rede=null;return telaInstalacao();}
+  var l=x.loja,ct=x.contrato||{};
+  var unid=x.unidades.slice().sort(function(a,b){
+    if(!!b.matriz!==!!a.matriz)return b.matriz?1:-1;
+    return String(a.nome||'').localeCompare(String(b.nome||''));});
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo">'+
-    '<button class="btnP2" onclick="INS.rede=null;telaInstalacao()">‹ todas as redes</button>'+
-    '<h1 style="margin-top:10px">'+E(r.nome)+'</h1>'+
-    '<p>A matriz manda na rede e cria os acessos das unidades. '+
-    'Aqui você define a matriz; os franqueados podem ser criados por ela depois.</p></div>'+
-   '<div class="blk" style="max-width:760px">'+
-    '<div class="acTit">A matriz</div>'+
-    '<div class="row3">'+
-     '<div class="fld2" style="flex:2"><label>Nome da rede</label>'+
-      '<input id="rdN" value="'+E(r.nome)+'"></div>'+
-     '<div class="fld2"><label>Domínio</label>'+
-      '<input id="rdD" value="'+E(r.dominio)+'" placeholder="jologelato.com">'+
-      '<div class="hint">só o domínio, sem @</div></div>'+
-    '</div>'+
-    '<div class="row3">'+
-     '<div class="fld2" style="flex:2"><label>Login da matriz</label>'+
-      '<input id="rdL" value="'+E(r.login)+'" placeholder="'+E(sug||'franqueadora@dominio')+'"></div>'+
-     '<div class="fld2"><label>Senha</label><input id="rdS" value="'+E(r.senha||'123')+'"></div>'+
-    '</div>'+
-    '<button class="btnP2 ok" style="margin-top:8px" onclick="salvarMatriz(\''+id+'\')">Salvar matriz</button>'+
+    '<button class="btnP2" onclick="INS.rede=null;telaInstalacao()">‹ todas as empresas</button>'+
+    '<h1 style="margin-top:10px">'+E(l.nome)+'</h1>'+
+    '<p>As unidades desta empresa e quem tem acesso a ela. '+
+    'Nada aqui é visível para as outras empresas.</p></div>'+
+   '<div class="blk" style="max-width:820px">'+
+    '<div class="acTit">Contrato</div>'+
+    ctLinha('Responsável',ct.responsavel?E(ct.responsavel):'—')+
+    ctLinha('Documento',ct.documento?E(ct.documento):'—')+
+    ctLinha('Plano',ct.plano?E(ct.plano):'—')+
+    ctLinha('Situação',E(ct.situacao||(l.ativa!==false?'ativa':'bloqueada')))+
    '</div>'+
-   '<div class="blk" style="max-width:900px">'+
-    '<div class="acTit">Unidades ('+u.length+')</div>'+
-    (u.length?'<table class="acTab"><thead><tr><th>Unidade</th><th style="width:150px">Cidade</th>'+
-     '<th style="width:56px">UF</th><th style="width:190px">Acesso</th><th style="width:80px"></th></tr></thead><tbody>'+
-     u.map(function(x){
-       var lg=(DB.usuarios||[]).find(function(z){return (z.sucursais||[]).indexOf(x.id)>=0});
-       return '<tr><td><b>'+E(x.nome)+'</b></td><td>'+E(x.cidade||'—')+'</td><td>'+E(x.uf||'—')+'</td>'+
-       '<td><small>'+(lg?E(lg.login):'<span class="vr">sem acesso</span>')+'</small></td>'+
-       '<td><button class="rBtn" onclick="editarUnidade(\''+id+'\',\''+x.id+'\')">'+sv('edit',12)+'</button>'+
-        '<button class="rBtn rd" onclick="apagarUnidade(\''+id+'\',\''+x.id+'\')">'+sv('trash',12)+'</button></td></tr>';
-     }).join('')+'</tbody></table>'
-    :'<div class="hint" style="padding:14px">Nenhuma unidade ainda.</div>')+
-    '<button class="btnP2" style="margin-top:10px" onclick="editarUnidade(\''+id+'\')">'+
-     sv('plus',12)+' Adicionar unidade</button>'+
+   '<div class="blk" style="max-width:820px;margin-top:12px">'+
+    '<div class="acTit">Unidades ('+unid.length+')</div>'+
+    (unid.length?unid.map(function(s){
+      return ctLinha((s.matriz?'★ ':'')+E(s.nome),
+        (s.cidade?E(s.cidade)+(s.uf?'/'+E(s.uf):''):'—')+
+        (s.ativa===false?' · <span class="vr">inativa</span>':''));
+    }).join(''):'<div class="hint">Nenhuma unidade cadastrada.</div>')+
+   '</div>'+
+   '<div class="blk" style="max-width:820px;margin-top:12px">'+
+    '<div class="acTit">Acessos ('+x.perfis.length+')</div>'+
+    (x.perfis.length?x.perfis.slice().sort(function(a,b){
+      return String(a.cargo||'').localeCompare(String(b.cargo||''));
+    }).map(function(p){
+      return ctLinha(E(p.nome||'—'),E(p.cargo||'—')+
+        (p.nome_unidade?' · '+E(p.nome_unidade):''));
+    }).join(''):'<div class="hint vr">Nenhum acesso criado. Esta empresa ainda não consegue entrar.</div>')+
+    '<div class="hint" style="margin-top:10px">Criar o acesso do administrador desta empresa '+
+    'ainda está em construção — depende da função do servidor, que é a única com a chave de '+
+    'administrador. Por enquanto o acesso é criado por mim, no banco.</div>'+
    '</div></div>';
-  rodape(E(r.nome)+' · '+u.length+' unidade(s)');
-}
-async function salvarMatriz(id){
-  var r=DB.redes.find(function(x){return x.id===id});if(!r)return;
-  r.nome=$('rdN').value.trim()||r.nome;
-  r.dominio=soDom($('rdD').value);
-  r.senha=$('rdS').value.trim()||'123';
-  var lg=($('rdL').value.trim()||(r.dominio?'franqueadora@'+r.dominio:'')).toLowerCase();
-  if(lg){
-    var ant=r.login;
-    r.login=lg;
-    var u=(DB.usuarios||[]).find(function(z){return (z.login||'').toLowerCase()===(ant||'').toLowerCase()});
-    if(u){u.login=lg;u.senha=r.senha;u.nome=r.nome+' — Matriz';}
-    else if(!(DB.usuarios||[]).some(function(z){return (z.login||'').toLowerCase()===lg}))
-      DB.usuarios.push({id:uid('usr'),nome:r.nome+' — Matriz',login:lg,senha:r.senha,
-        mestre:false,plataforma:false,ativo:true,tudo:true,sucursais:[],permissoes:{},
-        criadoEm:new Date().toISOString()});
-  }
-  var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
-  if(mz&&DB.redes.length===1){mz.nome=r.nome;mz.apelido='Matriz';}
-  salvar();
-
-  /* O acesso so existia na lista local — a senha nunca chegava ao banco,
-     e a pessoa nao conseguia entrar. Era preciso refazer em Usuarios e
-     Permissoes, o que nao faz sentido num assistente de instalacao. */
-  if(lg&&NUVEM.ligada){
-    toast('Criando o acesso...');
-    try{
-      var res=await criarAcessoNoBanco(lg,r.senha,r.nome+' — Matriz');
-      if(res&&res.erro){
-        if(/existe|already|registered/i.test(String(res.erro)))
-          toast('O login '+lg+' já existia — a senha não foi trocada.');
-        else
-          toast('Rede salva, mas o acesso falhou: '+res.erro);
-      }else{
-        toast('Matriz salva. '+lg+' já pode entrar.');
-      }
-    }catch(e){
-      toast('Rede salva, mas não consegui criar o acesso: '+((e&&e.message)||'falha'));
-    }
-  }else if(lg){
-    toast('Matriz salva. Ligue a nuvem para liberar o acesso de '+lg+'.');
-  }else{
-    toast('Matriz salva.');
-  }
-  telaInstalacao();
+  rodape(E(l.nome)+' · '+unid.length+' unidade(s)');
 }
 function editarUnidade(redeId,sucId){
   var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
