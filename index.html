@@ -14476,7 +14476,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V30.1.0';
+var VERSAO='V31.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -32612,14 +32612,13 @@ function gerarVendasDemo(){
   ['pedidos','produtos','categorias','clientes','entregadores','movEst','formasPag','sucursais']
     .forEach(function(k){ DB[k]=DB[k]||[]; });
   baseSuc();
-  if(DB.sucursais.length<2){
-    [['Rafaellos Centro','Centro','Santa Fé do Sul'],
-     ['Rafaellos Shopping','Shopping','Jales'],
-     ['Jolô Rubinéia','Rubinéia','Rubinéia'],
-     ['Jolô Três Fronteiras','3 Fronteiras','Três Fronteiras']].forEach(function(x,i){
-      DB.sucursais.push({id:'suc_d'+i,nome:x[0],apelido:x[1],cidade:x[2],uf:'SP',
-        ativa:true,matriz:false,demo:true,cor:CORES_SUC[(i+1)%CORES_SUC.length]});
-    });
+  /* Nao inventa mais unidade nenhuma. Antes criava "Jolô Três Fronteiras",
+     "Rafaellos Shopping" e outras duas — fixas, com nome de cliente real —
+     em QUALQUER empresa que clicasse em gerar demonstracao. A demonstracao
+     usa as unidades que a propria loja tem. */
+  if(!DB.sucursais.length){
+    toast('Cadastre ao menos uma unidade antes de gerar a demonstração.');
+    return;
   }
   var meses=parseInt($('gdMeses').value)||6;
   var porDia=parseInt($('gdDia').value)||18;
@@ -39927,7 +39926,8 @@ async function excluirUsuario(){
   var u=usrSel();
   if(!u||u.mestre)return;
   var ok=await confirmar({titulo:'Excluir '+E(u.nome),
-    texto:'O acesso "'+E(u.login)+'" sai desta lista e da nuvem.',
+    texto:'O acesso "'+E(u.login)+'" deixa de entrar no sistema.\n\n'+
+      'O histórico do que essa pessoa fez é preservado.',
     ok:'Excluir',tipo:'perigo'});
   if(!ok)return;
   /* ------------------------------------------------------------------
@@ -39943,11 +39943,12 @@ async function excluirUsuario(){
      ------------------------------------------------------------------ */
   if(NUVEM.ligada&&NUVEM.loja){
     try{
-      await api('usuarios_sistema?ref_local=eq.'+encodeURIComponent(u.id)+
-                '&loja_id=eq.'+encodeURIComponent(NUVEM.loja),'DELETE');
+      /* Desativa em vez de apagar: o login para de entrar na hora, mas o
+         registro fica no banco com data e responsavel. Sem isso nao ha como
+         saber depois de quem era o acesso que abriu aquele caixa. */
+      await api('rpc/usuario_excluir','POST',{p_ref:u.id});
     }catch(e){
-      alert('Não consegui excluir na nuvem: '+((e&&e.message)||'erro')+
-            '\n\nO acesso continua na lista para você tentar de novo.');
+      painelErro('Não consegui excluir na nuvem.',detalheErro(e));
       return;
     }
   }
