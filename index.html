@@ -11929,12 +11929,12 @@ function cliente(){
     _cli.auth.onAuthStateChange(function(ev,ses){
       if(ses&&ses.access_token){
         NUVEM.token=ses.access_token;
-        try{ if(_cli.realtime&&_cli.realtime.setAuth)_cli.realtime.setAuth(NUVEM.token); }catch(e){}
+        try{ if(_cli.realtime&&_cli.realtime.setAuth)_cli.realtime.setAuth(NUVEM.token); }catch(e){_quieto(e,'cliente')}
         if(ev==='TOKEN_REFRESHED')logNuvem('sessão renovada automaticamente');
       }
       if(ev==='SIGNED_OUT'){NUVEM.token=null;NUVEM.ligada=false;estadoNuvem('offline');}
     });
-  }catch(e){}
+  }catch(e){_quieto(e,'cliente')}
   return _cli;
 }
 /* ==========================================================
@@ -11953,10 +11953,10 @@ function estadoNuvem(e,msg){
     else if(e==='erro')el.innerHTML='<i style="background:#C94141"></i>'+(msg||'erro de sincronização');
     else el.innerHTML='<i style="background:#8A8578"></i>Offline — as alterações sobem quando a conexão voltar';
   }
-  try{conferirNuvem();}catch(e2){}
+  try{conferirNuvem();}catch(e2){_quieto(e2,'estadoNuvem')}
 }
 function modo(){try{return localStorage.getItem('nexor_modo')||'local'}catch(e){return 'local'}}
-function setModo(m){try{localStorage.setItem('nexor_modo',m)}catch(e){}}
+function setModo(m){try{localStorage.setItem('nexor_modo',m)}catch(e){_quieto(e,'setModo')}}
 
 function carregar(){
   try{
@@ -11979,7 +11979,7 @@ function liberarEspacoLocal(){
     try{
       var v=localStorage.getItem(k);
       if(v){liberou+=v.length;localStorage.removeItem(k);}
-    }catch(e){}
+    }catch(e){_quieto(e,'liberarEspacoLocal')}
   });
   return liberou;
 }
@@ -12003,7 +12003,7 @@ function gravarLocal(){
         logNuvem('espaço apertado: descartei a cópia local ('+Math.round(lib/1024)+
           ' KB) para conseguir salvar');
         return true;
-      }catch(e2){}
+      }catch(e2){_quieto(e2,'gravarLocal')}
     }
     /* memoria do navegador cheia: a gravacao falha e o proximo F5 volta ao estado antigo.
        Isso NAO pode passar como um toast que some em tres segundos. */
@@ -12051,7 +12051,7 @@ function conferirNuvem(){
       '<span>Você pode continuar trabalhando: o que for lançado fica guardado aqui '+
       'e sobe sozinho assim que a conexão voltar.</span></div>';
     barraAvisos().appendChild(el);
-  }catch(e){}
+  }catch(e){_quieto(e,'conferirNuvem')}
 }
 setInterval(conferirNuvem,20000);
 /* aviso fixo na tela: some so quando a gravacao voltar a funcionar */
@@ -12066,7 +12066,7 @@ function alertaGravacao(msg){
     el.innerHTML='<div><b>Atenção: o sistema não está conseguindo salvar</b>'+
       '<span>'+E(msg)+'</span></div>'+
       '<button onclick="abrir(\'tecnico\',\'backup\')">Abrir backup</button>';
-  }catch(e){}
+  }catch(e){_quieto(e,'alertaGravacao')}
 }
 function limparAlertaGravacao(){
   var el=document.getElementById('avisoGrav');if(el)el.remove();
@@ -12081,7 +12081,7 @@ function respaldoLocal(motivo){
        o sistema para de salvar, que e muito pior do que ficar sem a copia. */
     if(raw.length>1600000){
       try{localStorage.removeItem('nexor_respaldo');
-          localStorage.removeItem('nexor_respaldo_info');}catch(e0){}
+          localStorage.removeItem('nexor_respaldo_info');}catch(e0){_quieto(e0,'respaldoLocal')}
       logNuvem('base grande ('+Math.round(raw.length/1024)+' KB): cópia local '+
         'desligada para não faltar espaço. O backup da nuvem continua normal.');
       return false;
@@ -12103,7 +12103,7 @@ function infoRespaldo(){
 /* volta o aparelho para a ultima copia boa, antes do ultimo download */
 async function restaurarRespaldo(){
   var raw=null;
-  try{ raw=localStorage.getItem('nexor_respaldo'); }catch(e){}
+  try{ raw=localStorage.getItem('nexor_respaldo'); }catch(e){_quieto(e,'restaurarRespaldo')}
   if(!raw){alert('Não há cópia local guardada neste aparelho.');return;}
   var i=infoRespaldo()||{};
   if(!await pergunta('Voltar este aparelho para a cópia de '+
@@ -12128,6 +12128,28 @@ function salvar(){
   else logNuvem('mudança salva aqui (nuvem desligada)');
 }
 /* registro do que acontece na sincronização, para diagnóstico */
+/* ==========================================================
+   ERRO SILENCIOSO
+   Havia 103 blocos `catch(e){_quieto(e,'salvar')}` — o erro era capturado e jogado fora. O
+   sistema seguia como se nada tivesse acontecido, e quando algo quebrava
+   nao havia rastro nenhum. Foi o que escondeu o botao "Salvar unidade" por
+   horas.
+   Estes catch nao devem QUEBRAR o sistema (por isso existem: sao coisas
+   nao-essenciais, como pintar um icone ou ler uma preferencia). Mas o erro
+   passa a ficar registrado, com o lugar onde aconteceu, no diagnostico
+   tecnico. Ninguem e incomodado; quem procura, encontra.
+   ========================================================== */
+var FALHAS=[];
+function _quieto(e,onde){
+  try{
+    if(!e)return;
+    FALHAS.unshift({h:new Date().toLocaleTimeString('pt-BR'),
+      onde:onde||'',msg:(e&&e.message)||String(e),
+      loja:(NUVEM&&NUVEM.loja)||'',cargo:(NUVEM&&NUVEM.perfil&&NUVEM.perfil.cargo)||''});
+    if(FALHAS.length>120)FALHAS.pop();
+    if(window.console&&console.debug)console.debug('[nexor:'+(onde||'?')+']',e);
+  }catch(x){_quieto(x,'_quieto')}
+}
 function logNuvem(txt,erro){
   NUVEM.log=NUVEM.log||[];
   NUVEM.log.unshift({h:new Date().toLocaleTimeString('pt-BR'),t:txt,e:!!erro});
@@ -12162,7 +12184,7 @@ async function conectarNuvem(email,senha){
   return true;
 }
 function desconectarNuvem(){
-  try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){}
+  try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){_quieto(e,'desconectarNuvem')}
   desligarTempoReal();
   NUVEM.ligada=false;NUVEM.cli=null;NUVEM.token=null;NUVEM.perfil=null;NUVEM.loja=null;
   setModo('local');rodape();conferirNuvem();
@@ -12210,7 +12232,7 @@ async function religarNuvem(){
         if(temDadosLocais()&&DB._sujo){ await sincronizar(); }
         estadoNuvem('online');
         if(S.mod&&S.it)abrir(S.mod,S.it);
-        try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){}
+        try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){_quieto(e,'religarNuvem')}
       }catch(e){ estadoNuvem('erro',(e&&e.message)||''); }
     },700);
     return true;
@@ -12569,7 +12591,7 @@ async function tokenAtual(forcar){
     }
     if(NUVEM.token&&NUVEM.cli.realtime&&NUVEM.cli.realtime.setAuth)
       NUVEM.cli.realtime.setAuth(NUVEM.token);
-  }catch(e){}
+  }catch(e){_quieto(e,'tokenAtual')}
   return NUVEM.token;
 }
 /* O token do Supabase vence em uma hora. Antes, api() mandava o que estivesse
@@ -12600,9 +12622,9 @@ async function tokenValido(forcar){
     }else{
       /* a sessão acabou de verdade: parar de fingir que está ligado */
       NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;
-      try{conferirNuvem();rodape();}catch(e){}
+      try{conferirNuvem();rodape();}catch(e){_quieto(e,'tokenValido')}
     }
-  }catch(e){}
+  }catch(e){_quieto(e,'tokenValido')}
   return NUVEM.token;
 }
 async function api(caminho,metodo,corpo,extra,_repetiu){
@@ -12657,10 +12679,10 @@ async function api(caminho,metodo,corpo,extra,_repetiu){
          So vira offline se a reconexao tambem falhar. */
       logNuvem('token recusado em '+tab+' — tentando reconectar',true);
       var voltou=false;
-      try{ voltou=await religarNuvem(); }catch(e3){}
+      try{ voltou=await religarNuvem(); }catch(e3){_quieto(e3,'api')}
       if(voltou&&!_repetiu)return api(caminho,metodo,corpo,extra,true);
       NUVEM.ligada=false;estadoNuvem('offline');
-      try{rodape();}catch(e){}
+      try{rodape();}catch(e){_quieto(e,'api')}
       var eS=new Error('sem conexão com a nuvem');
       eS.tabela=tab;eS.status=r.status;eS.sessao=true;
       throw eS;
@@ -13152,7 +13174,7 @@ async function sincronizar(){
     /* o envio parou no meio: a partir daqui NADA pode ser baixado por cima,
        senao o que ficou de fora e apagado do aparelho. */
     NUVEM.sujo=true;DB._sujo=true;
-    try{gravarLocal()}catch(e2){}
+    try{gravarLocal()}catch(e2){_quieto(e2,'sincronizar')}
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
@@ -13171,7 +13193,7 @@ async function baixarDaNuvem(forcar){
   /* NUNCA sobrescreve o aparelho enquanto houver algo esperando subir */
   if(NUVEM.sujo&&!forcar){
     logNuvem('há mudanças pendentes — enviando antes de baixar');
-    try{ await sincronizar(); }catch(e){}
+    try{ await sincronizar(); }catch(e){_quieto(e,'baixarDaNuvem')}
     if(NUVEM.sujo){ logNuvem('download cancelado: envio não concluiu',true); return; }
   }
   var antesCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
@@ -13434,7 +13456,7 @@ async function baixarDaNuvem(forcar){
         mensalidade:Number(x.mensalidade)||0,lojaId:x.loja_id||'',
         modulos:x.modulos||[],diaVenc:Number(x.dia_vencimento)||10,
         situacao:x.situacao||'ativo'}});
-    }catch(e){}
+    }catch(e){_quieto(e,'baixarDaNuvem')}
   }
 
   /* A partir daqui, a unidade fica so com o cadastro liberado para ela.
@@ -13569,12 +13591,12 @@ async function baixarDaNuvem(forcar){
       });
       DB.usuarios=locais;
     }
-  }catch(e){}
+  }catch(e){_quieto(e,'baixarDaNuvem')}
   try{
     var meu=await api('clientes_nexor?select=rede,modulos,situacao,plano&loja_id=eq.'+NUVEM.loja+'&limit=1');
     DB._contrato=(meu&&meu[0])?{rede:meu[0].rede,modulos:meu[0].modulos||[],
       situacao:meu[0].situacao,plano:meu[0].plano}:null;
-  }catch(e){}
+  }catch(e){_quieto(e,'baixarDaNuvem')}
   try{
     var cnx=await api('clientes_nexor'+qs+'&order=rede.asc&limit=500');
     if(cnx&&cnx.length)  /* so substitui a carteira se a nuvem realmente devolveu algo */
@@ -13584,7 +13606,7 @@ async function baixarDaNuvem(forcar){
       plano:x.plano||'',mensalidade:Number(x.mensalidade)||0,diaVenc:x.dia_vencimento||10,
       situacao:x.situacao||'ativo',inicio:x.inicio||'',obs:x.observacao||'',
       lojaId:x.loja_id||'',modulos:x.modulos||[],cobrancas:x.cobrancas||[]}});
-  }catch(e){}
+  }catch(e){_quieto(e,'baixarDaNuvem')}
   var csvw=await api('compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
   DB.comprasSemVinc=volta(csvw,function(x){return {id:x.ref_local||x.id,
     notaId:x.nota_id||'',notaNumero:x.nota_numero||'',fornecedor:x.fornecedor_nome||'',
@@ -13810,7 +13832,7 @@ function avisoSinc(msg){
       '<button onclick="restaurarRespaldo()">Voltar a cópia local</button>'+
       '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
     barraAvisos().appendChild(el);
-  }catch(e){}
+  }catch(e){_quieto(e,'avisoSinc')}
 }
 
 function ehUuid(v){return typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)}
@@ -13882,7 +13904,7 @@ function vigiarConteudo(){
     if(!alvo||!window.MutationObserver)return;
     _obsRol=new MutationObserver(function(){ devolverRolagem(); });
     _obsRol.observe(alvo,{childList:true});
-  }catch(e){}
+  }catch(e){_quieto(e,'vigiarConteudo')}
 }
 /* redesenha sem perder o lugar em que a pessoa estava lendo */
 function comRolagem(fn){
@@ -13910,7 +13932,7 @@ var _minhaAba=String(Date.now())+'-'+Math.random().toString(36).slice(2,7);
         marcaNovidade(true);
       }
     });
-  }catch(e){}
+  }catch(e){_quieto(e,'comRolagem')}
 })();
 function fecharPops(){
   var p=document.querySelectorAll('.popMenu');
@@ -13925,7 +13947,7 @@ document.addEventListener('click',function(e){
 
 /* rede de seguranca: qualquer falha inesperada avisa em vez de travar a tela */
 window.onerror=function(msg,arq,lin){
-  try{toast('Ocorreu um erro na tela ('+msg+'). Nada foi perdido — seus dados estão salvos.');}catch(e){}
+  try{toast('Ocorreu um erro na tela ('+msg+'). Nada foi perdido — seus dados estão salvos.');}catch(e){_quieto(e,'fecharPops')}
   return false;
 };
 /* ===== BLOCO 5 — LOGIN ===== */
@@ -13947,7 +13969,7 @@ function abrirSessao(){
         setTimeout(ligarTempoReal,400);
         if(NUVEM.plataforma){
           statusNuvem('ok');
-          try{ abrir('tecnico','instalacao'); }catch(e){}
+          try{ abrir('tecnico','instalacao'); }catch(e){_quieto(e,'abrirSessao')}
           return;
         }
         setTimeout(async function(){
@@ -13955,7 +13977,7 @@ function abrirSessao(){
             statusNuvem('baixando'); await baixarDaNuvem(true); statusNuvem('ok');
             if(S.mod&&S.it)abrir(S.mod,S.it);
             /* a fila da assistente entra assim que a nuvem estiver de pé */
-            try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){}
+            try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){_quieto(e,'abrirSessao')}
           }catch(e){ statusNuvem('erro',(e&&e.message)||''); }
         },900);
       }else religarNuvem();
@@ -13981,7 +14003,7 @@ function redeDoUsuario(u){
     }
     var dom=String(u.login||'').split('@')[1]||'';
     if(dom)return (DB.redes||[]).find(function(r){return chaveCliente(r.dominio)===chaveCliente(dom)})||null;
-  }catch(e){}
+  }catch(e){_quieto(e,'redeDoUsuario')}
   return null;
 }
 /* ----------------------------------------------------------
@@ -14016,7 +14038,7 @@ async function entrarPeloAuth(lg,sn){
     .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
     .eq('id',r.data.user.id).maybeSingle();
   if(rp.error||!rp.data){
-    try{cli.auth.signOut()}catch(e){}
+    try{cli.auth.signOut()}catch(e){_quieto(e,'entrarPeloAuth')}
     return {ok:false,motivo:'perfil'};
   }
   /* daqui em diante o aparelho esta ligado na nuvem — sem passar por
@@ -14031,9 +14053,9 @@ async function entrarPeloAuth(lg,sn){
     localStorage.removeItem('nexor_dados');
     localStorage.removeItem('nexor_respaldo');
     localStorage.removeItem('nexor_respaldo_info');
-  }catch(eL){}
+  }catch(eL){_quieto(eL,'entrarPeloAuth')}
   DB={};
-  try{ semear(); }catch(eS2){}
+  try{ semear(); }catch(eS2){_quieto(eS2,'entrarPeloAuth')}
   /* deixa as listas basicas de pe: quem chamar logo depois nao pode
      encontrar o DB pela metade */
   DB.usuarios=[];DB.sucursais=[];DB.insumos=[];DB.produtos=[];
@@ -14089,7 +14111,7 @@ async function entrarPeloAuth(lg,sn){
       if(lst.length>1)logNuvem('atenção: '+lst.length+' cadastros para o login '+lg+
         ' nesta empresa — usei o mais completo',true);
     }
-  }catch(e){}
+  }catch(e){_quieto(e,'entrarPeloAuth')}
   return {ok:true,perfil:rp.data,linha:linha};
 }
 /* a linha da nuvem no formato do cadastro local */
@@ -14101,7 +14123,7 @@ function usuarioDaNuvem(x,lg,sn){
     sucursais:(x&&x.sucursais)||[],permissoes:(x&&x.permissoes)||{}};
 }
 async function entrar(){
-  try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
+  try{ if(!DB||!DB.usuarios)carregar(); }catch(e){_quieto(e,'entrar')}
   baseUsr();
   var lg=$('lgU').value.trim().toLowerCase();
   var sn=$('lgP').value;
@@ -14171,7 +14193,7 @@ async function entrar(){
         localStorage.removeItem('nexor_sessao');
         sessionStorage.setItem('nexor_sessao',SESSAO.login);
       }
-    }catch(e){}
+    }catch(e){_quieto(e,'entrar')}
     abrirSessao();
     return;
   }
@@ -14193,7 +14215,7 @@ function travaRolagem(){
   try{
     var lg=document.getElementById('login');
     document.body.classList.toggle('semRolagem',!!lg&&!lg.classList.contains('hide'));
-  }catch(e){}
+  }catch(e){_quieto(e,'travaRolagem')}
 }
 travaRolagem();
 window.addEventListener('resize',travaRolagem);
@@ -14213,10 +14235,10 @@ document.addEventListener('keydown',function(e){
 });
 async function sair(){
   if(!await pergunta('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
-  try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){}
+  try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){_quieto(e,'sair')}
   /* a entrada e uma so, entao a saida tambem: deixar a sessao do Auth de pe
      manteria o token valido no aparelho depois de sair */
-  try{ desconectarNuvem(); }catch(e){}
+  try{ desconectarNuvem(); }catch(e){_quieto(e,'sair')}
   SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');travaRolagem();
   /* Os avisos são da operação, não da entrada. Deixá-los pendurados fazia a
@@ -14228,21 +14250,21 @@ async function sair(){
     });
     var b=document.getElementById('barraAvisos');
     if(b)b.innerHTML='';
-  }catch(e){}
+  }catch(e){_quieto(e,'sair')}
   lgAviso('');
 }
 /* se ja tinha entrado antes, volta direto para o sistema */
 try{
   var _ses=localStorage.getItem('nexor_sessao');
-  try{ if(!_ses)_ses=sessionStorage.getItem('nexor_sessao'); }catch(e){}
+  try{ if(!_ses)_ses=sessionStorage.getItem('nexor_sessao'); }catch(e){_quieto(e,'sair')}
   try{
     var _mk=localStorage.getItem('nexor_manter');
     if(_mk==='0'){var _c=document.getElementById('lgK');if(_c)_c.checked=false;}
-  }catch(e){}
+  }catch(e){_quieto(e,'sair')}
   if(_ses){
-    try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
+    try{ if(!DB||!DB.usuarios)carregar(); }catch(e){_quieto(e,'sair')}
     baseUsr();
-    if(_ses==='1'){try{localStorage.removeItem('nexor_sessao')}catch(e){}}
+    if(_ses==='1'){try{localStorage.removeItem('nexor_sessao')}catch(e){_quieto(e,'sair')}}
     else{
       var _k=String(_ses).toLowerCase();
       var _u=(DB.usuarios||[]).find(function(x){return String(x.login||'').toLowerCase()===_k})
@@ -14250,7 +14272,7 @@ try{
       if(_u&&_u.ativo!==false){SESSAO.usuarioId=_u.id;SESSAO.login=String(_u.login||'').toLowerCase();abrirSessao();}
     }
   }
-}catch(e){}
+}catch(e){_quieto(e,'sair')}
 
 /* ===== BLOCO 6 — INTERFACE ===== */
 function boot(){
@@ -14264,15 +14286,15 @@ function boot(){
   DB.estoqueUn=DB.estoqueUn||[];
   lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
   migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
-  try{filtrarCadastroDaUnidade()}catch(e){}
+  try{filtrarCadastroDaUnidade()}catch(e){_quieto(e,'boot')}
   espelharEstoque();            /* a tela mostra o saldo DESTA unidade */
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
   topo();faixa();
-  try{vigiarConteudo()}catch(e){}   /* a tela para de subir sozinha */
+  try{vigiarConteudo()}catch(e){_quieto(e,'boot')}   /* a tela para de subir sozinha */
   abrir('cardapio','cfg-cardapio');
-  try{pintarRede()}catch(e){}
-  try{pintarTravaUnidade()}catch(e){}
+  try{pintarRede()}catch(e){_quieto(e,'boot')}
+  try{pintarTravaUnidade()}catch(e){_quieto(e,'boot')}
 if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava ligada: entre novamente em Banco de dados.')},900);}
 
 function topo(){
@@ -14436,31 +14458,31 @@ function trocarLoja(id){
   DB.lojaAtual=id;S.loja=id;
   fecharSuc();
   /* o saldo mostrado na tela passa a ser o DESTA unidade */
-  try{espelharEstoque()}catch(e){}
+  try{espelharEstoque()}catch(e){_quieto(e,'trocarLoja')}
   /* o cadastro tambem muda: cada unidade enxerga o seu. Como o filtro tira
      itens da memoria, e preciso rebaixar da nuvem para nao "perder" o que a
      outra unidade via. */
   if(NUVEM.ligada){
     toast('Carregando o cadastro de '+sucNome(id)+'...');
     baixarDaNuvem(true).then(function(){
-      try{espelharEstoque()}catch(e){}
+      try{espelharEstoque()}catch(e){_quieto(e,'trocarLoja')}
       if(S.mod)abrir(S.mod,S.it);
     }).catch(function(){});
   }
-  try{salvar()}catch(e){}
+  try{salvar()}catch(e){_quieto(e,'trocarLoja')}
   var b=document.querySelector('#sucBtn span');
   if(b)b.textContent=nomeLojaAtual();
   if(S.mod)abrir(S.mod,S.it); else rodape();
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V30.0.0';
+var VERSAO='V30.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
    novo é o que realmente traz a versão publicada. */
 function aplicarAtualizacao(){
-  try{ gravarLocal(); }catch(e){}
+  try{ gravarLocal(); }catch(e){_quieto(e,'aplicarAtualizacao')}
   location.replace(location.pathname+'?v='+Date.now());
 }
 var _checando=false;
@@ -14483,7 +14505,7 @@ async function checarVersao(){
         '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
       document.body.appendChild(d);
     }
-  }catch(e){}
+  }catch(e){_quieto(e,'checarVersao')}
   finally{ _checando=false; }
 }
 setTimeout(checarVersao,1500);
@@ -15345,7 +15367,7 @@ function ligarTempoReal(){
   }catch(e){console.error('tempo real',e);}
 }
 function desligarTempoReal(){
-  try{ if(RT.canal&&NUVEM.cli)NUVEM.cli.removeChannel(RT.canal); }catch(e){}
+  try{ if(RT.canal&&NUVEM.cli)NUVEM.cli.removeChannel(RT.canal); }catch(e){_quieto(e,'desligarTempoReal')}
   RT.canal=null;RT.ligado=false;pintaTempoReal();
 }
 /* As tabelas que alimentam alguma tela. O resto — conversa de WhatsApp,
@@ -15376,7 +15398,7 @@ function agendarRecarga(tabela){
       /* Baixar não é motivo para redesenhar. Antes a tela era refeita a cada
          recarga, mesmo quando voltava exatamente o que já estava aqui — era
          a tremida que não parava. */
-      try{espelharEstoque()}catch(e){}   /* o download troca os saldos */
+      try{espelharEstoque()}catch(e){_quieto(e,'agendarRecarga')}   /* o download troca os saldos */
       if(retratoDB()===antes){marcaNovidade(false);return;}
       /* se você está no meio de algo, a tela NÃO é trocada.
          Fica um aviso discreto e a atualização acontece quando você terminar. */
@@ -15463,7 +15485,7 @@ function retratoDB(){
     /* status muda de nome, ordem e liga/desliga — e isso reordena o Kanban */
     r+='sv='+((DB.statusVenda||[]).map(function(x){
       return x.id+x.ordem+(x.ativo!==false?'1':'0')+x.papel;}).join('|'))+';';
-  }catch(e){}
+  }catch(e){_quieto(e,'retratoDB')}
   return r;
 }
 var _puxadasPresas=0;
@@ -15475,7 +15497,7 @@ async function conferirNuvemAgora(){
     /* ha coisa daqui esperando subir. Tenta subir; se travar, avisa em vez de
        ficar em silencio achando que esta tudo certo. */
     _puxadasPresas++;
-    try{ await sincronizar(); }catch(e){}
+    try{ await sincronizar(); }catch(e){_quieto(e,'conferirNuvemAgora')}
     if(NUVEM.sujo&&_puxadasPresas>=3)avisoEnvioPreso();
     return;
   }
@@ -15522,7 +15544,7 @@ async function conferirVersaoLoja(){
       if(ocupado()){RT.pendenteTela=true;marcaNovidade(true);}
       else if(S.mod&&S.it){abrir(S.mod,S.it);marcaNovidade(false);}
     }
-  }catch(e){}
+  }catch(e){_quieto(e,'conferirVersaoLoja')}
   _verOcupado=false;
 }
 setInterval(conferirVersaoLoja,6000);
@@ -15571,7 +15593,7 @@ function avisoTabelaComErro(erros){
         logNuvem('não subiu — '+x.tab+': '+x.msg,true); });
     }
     barraAvisos().appendChild(el);
-  }catch(e){}
+  }catch(e){_quieto(e,'avisoTabelaComErro')}
 }
 function avisoEnvioPreso(){
   try{
@@ -15584,7 +15606,7 @@ function avisoEnvioPreso(){
       '<button onclick="painelNuvem()">Abrir diagnóstico</button>'+
       '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
     barraAvisos().appendChild(el);
-  }catch(e){}
+  }catch(e){_quieto(e,'avisoEnvioPreso')}
 }
 
 /* ---------- DIAGNÓSTICO DA CONEXÃO ---------- */
@@ -15767,7 +15789,17 @@ function verDiagnostico(){
 }
 function copiarDiagnostico(){
   var t=(NUVEM.log||[]).map(function(x){return x.h+'  '+(x.e?'[ERRO] ':'')+x.t}).join('\n');
-  t='NEXOR — diagnóstico\nLoja: '+(NUVEM.loja||'-')+'\nPendente: '+(NUVEM.sujo?'sim':'nao')+'\n\n'+t;
+  /* as falhas que nao quebram nada tambem entram: sao as mais dificeis de
+     achar justamente porque ninguem percebe que aconteceram */
+  if(FALHAS.length){
+    t+='\n\n--- falhas silenciosas ('+FALHAS.length+') ---\n'+
+      FALHAS.slice(0,40).map(function(f){
+        return f.h+'  '+f.onde+': '+f.msg;
+      }).join('\n');
+  }
+  t='NEXOR — diagnóstico\nVersão: '+VERSAO+'\nLoja: '+(NUVEM.loja||'-')+
+    '\nCargo: '+((NUVEM.perfil||{}).cargo||'-')+
+    '\nConexão: '+CONEXAO+'\nPendente: '+(NUVEM.sujo?'sim':'nao')+'\n\n'+t;
   try{navigator.clipboard.writeText(t);toast('Diagnóstico copiado. Cole no chat.');}
   catch(e){prompt('Copie o texto abaixo:',t);}
 }
@@ -16261,7 +16293,7 @@ function migrarEstoqueParaUnidade(){
   DB._estoqueMigrado=true;
   if(n){
     logNuvem('estoque migrado para a unidade '+matriz+': '+n+' itens');
-    try{salvar()}catch(e){}
+    try{salvar()}catch(e){_quieto(e,'migrarEstoqueParaUnidade')}
   }
 }
 
@@ -17327,7 +17359,7 @@ function fecharPedidoTotem(){
 
   DB.pedidos.push(ped);
   try{ baixarEstoqueVenda(ped); }catch(e){ console.error('estoque totem',e); }
-  try{ registrarCupom(ped); }catch(e){}
+  try{ registrarCupom(ped); }catch(e){_quieto(e,'fecharPedidoTotem')}
   salvar();
   liberarFecharVenda();
   if(NUVEM.ligada)sincronizar();
@@ -17386,7 +17418,7 @@ function abrirTotemCheio(){
   document.body.appendChild(d);
   TMC={passo:1,sacola:[]};
   pintarCheio();
-  try{ if(d.requestFullscreen)d.requestFullscreen().catch(function(){}); }catch(e){}
+  try{ if(d.requestFullscreen)d.requestFullscreen().catch(function(){}); }catch(e){_quieto(e,'abrirTotemCheio')}
 }
 function reiniciarTotem(){
   TMC={passo:1,sacola:[],pedido:null,senha:null};
@@ -17396,7 +17428,7 @@ function reiniciarTotem(){
 function fecharTotemCheio(){
   var d=document.getElementById('tmCheio');
   if(d)d.remove();
-  try{ if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(function(){}); }catch(e){}
+  try{ if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(function(){}); }catch(e){_quieto(e,'fecharTotemCheio')}
 }
 var TMC={passo:1,sacola:[]};
 function irTotem(n){TMC.passo=n;pintarCheio();}
@@ -17975,7 +18007,7 @@ function pendentesDeEnvio(){
   var n=0;
   try{
     MAPA.forEach(function(m){ n+=((DB[m.col]||[]).length?1:0); });
-  }catch(e){}
+  }catch(e){_quieto(e,'pendentesDeEnvio')}
   return NUVEM.sujo||DB._sujo?1:0;   /* 1 = ha algo pendente */
 }
 function caiuARede(){
@@ -18051,7 +18083,7 @@ function avisoRede(txt,tipo,segurar){
       if(!vivo&&NET.online)caiuARede();
       pintarRede();
     },15000);
-  }catch(e){}
+  }catch(e){_quieto(e,'avisoRede')}
 })();
 
 /* ---------- a tela de conferência ---------- */
@@ -18059,7 +18091,7 @@ function telaSincronizacao(){
   var pend=(NUVEM.sujo||DB._sujo);
   var ultimo=NUVEM.ultimoEnvio||'—';
   var contas={};
-  try{ MAPA.forEach(function(m){ contas[m.col]=(DB[m.col]||[]).length; }); }catch(e){}
+  try{ MAPA.forEach(function(m){ contas[m.col]=(DB[m.col]||[]).length; }); }catch(e){_quieto(e,'telaSincronizacao')}
   var vendasHoje=(DB.pedidos||[]).filter(function(p){
     return String(p.data||'').slice(0,10)===hojeISO();}).length;
 
@@ -18121,7 +18153,7 @@ async function enviarAgora(){
   if(!NUVEM.ligada){toast('A nuvem está desligada.');return;}
   if(!NET.online){toast('Sem internet — o envio acontece sozinho quando voltar.');return;}
   toast('Enviando...');
-  try{ await sincronizar(); }catch(e){}
+  try{ await sincronizar(); }catch(e){_quieto(e,'enviarAgora')}
   telaSincronizacao();
 }
 function explicaOffline(){
@@ -19315,8 +19347,8 @@ async function baixarLayoutMenu(){
     DB._layoutMenu={mods:r.data.mods||[],itens:r.data.itens||{}};
     aplicarLayoutMenu();
     gravarLocal();
-    try{faixa()}catch(e){}
-  }catch(e){}
+    try{faixa()}catch(e){_quieto(e,'baixarLayoutMenu')}
+  }catch(e){_quieto(e,'baixarLayoutMenu')}
 }
 var LM={mod:null};
 function telaLayoutMenu(){
@@ -19573,7 +19605,7 @@ async function aplicarTempos(){
         tempo_retirada:cd?cd.tempoRetirada:null,
         ativo:c.lojaAberta!==false
       });
-    }catch(e){}
+    }catch(e){_quieto(e,'aplicarTempos')}
   }
 }
 function lojaAtualId(){
@@ -20221,7 +20253,7 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   DB.pedidos.push(ped);
   /* registra o cupom mesmo com a emissão desligada: no dia em que ligar,
      o histórico não começa do zero */
-  try{ registrarCupom(ped); }catch(e){}
+  try{ registrarCupom(ped); }catch(e){_quieto(e,'finalizarVenda')}
   if(_cupomAtivo){
     DB.cupomUsos=DB.cupomUsos||[];
     DB.cupomUsos.push({id:uid('cu'),cupomId:_cupomAtivo.id,clienteId:PDV.cliente?PDV.cliente.id:null,
@@ -23505,7 +23537,7 @@ async function criarAcesso(lojaId,dados){
       body:JSON.stringify({email:dados.email,senha:dados.senha,nome:dados.nome,
         cargo:dados.cargo,loja_id:lojaId,sucursal_ref:dados.sucursal_ref||null,
         perfil_id:dados.perfil_id||null})});
-    var d=null; try{ d=await r.json(); }catch(e){}
+    var d=null; try{ d=await r.json(); }catch(e){_quieto(e,'criarAcesso')}
     if(!r.ok)return (d&&d.erro)||('o servidor respondeu '+r.status);
     return null;
   }catch(e){ return (e&&e.message)||'falha de rede'; }
@@ -23801,7 +23833,7 @@ function painelErro(msg,detalhe){
   el.innerHTML='<b>'+E(msg)+'</b>'+(detalhe?'<div style="margin-top:6px;font-size:12px;'+
     'opacity:.9;word-break:break-word">'+E(detalhe)+'</div>':'')+
     '<div style="margin-top:8px"><button class="btnP2" onclick="var n=document.getElementById(\'painelAviso\');if(n)n.remove()">Fechar</button></div>';
-  try{el.scrollIntoView({block:'center'});}catch(e){}
+  try{el.scrollIntoView({block:'center'});}catch(e){_quieto(e,'painelErro')}
 }
 function detalheErro(e){
   if(!e)return '';
@@ -24386,7 +24418,7 @@ function backupDoDia(){
       DB._ultimoBackup='';                   /* falhou: tenta de novo na próxima */
       logNuvem('backup do dia falhou: '+((e&&e.message)||'erro'),true);
     });
-  }catch(e){}
+  }catch(e){_quieto(e,'backupDoDia')}
 }
 async function criarBackup(origem){
   if(!NUVEM.ligada)throw new Error('A nuvem precisa estar ligada para guardar o backup.');
@@ -24408,7 +24440,7 @@ async function limparBackupsAntigos(){
     var sobra=l.slice(30).map(function(x){return x.id});
     for(var i=0;i<sobra.length;i++)
       await api('backups?id=eq.'+sobra[i],'DELETE',null,{'Prefer':'return=minimal'});
-  }catch(e){}
+  }catch(e){_quieto(e,'limparBackupsAntigos')}
 }
 async function carregarBackups(){
   BK.carregando=true;BK.erro='';telaBackup();
@@ -25588,7 +25620,7 @@ function abrirNotaDoLanc(id){
      por um instante para a nota nascer separada e virar a camada de cima. */
   var base=document.getElementById('mdOv');
   if(base)base.id='mdOvBase';
-  try{ verNota(id); }catch(e){}
+  try{ verNota(id); }catch(e){_quieto(e,'abrirNotaDoLanc')}
   var nova=document.getElementById('mdOv');
   if(base)base.id='mdOv';
   if(!nova||nova===base){toast('Não consegui abrir a nota.');return;}
@@ -26659,7 +26691,7 @@ function renumerarCodigos(){
    identificador ao mesmo tempo. Zera a marca para ela nascer certa. */
 function arrumarEspelhoCardapio(){
   if(DB._espelhoOk)return;
-  try{ if(DB._snap)delete DB._snap.cardapioL; }catch(e){}
+  try{ if(DB._snap)delete DB._snap.cardapioL; }catch(e){_quieto(e,'arrumarEspelhoCardapio')}
   DB._espelhoOk=true;
 }
 function arrumarCodigos(){
@@ -26668,8 +26700,8 @@ function arrumarCodigos(){
   if(!q)return;
   renumerarCodigos();
   DB._codOk=true;
-  try{ salvar(); }catch(e){ try{gravarLocal()}catch(e2){} }
-  try{ logNuvem(q+' códigos arrumados: 1 a '+q+' em ordem alfabética'); }catch(e){}
+  try{ salvar(); }catch(e){ try{gravarLocal()}catch(e2){_quieto(e2,'arrumarCodigos')} }
+  try{ logNuvem(q+' códigos arrumados: 1 a '+q+' em ordem alfabética'); }catch(e){_quieto(e,'arrumarCodigos')}
 }
 async function pedirRenumerar(){
   var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
@@ -28465,7 +28497,7 @@ function telaMovimentacao(){
   var mb=document.getElementById('mvBusca');
   if(mb){
     if(_focoBusca==='mvBusca'){mb.focus();
-      try{mb.setSelectionRange(mb.value.length,mb.value.length)}catch(e){}}
+      try{mb.setSelectionRange(mb.value.length,mb.value.length)}catch(e){_quieto(e,'telaMovimentacao')}}
     mb.oninput=mb.onchange=function(){
       _focoBusca='mvBusca';
       var t=String(this.value||'').trim(), tl=t.toLowerCase();
@@ -29614,7 +29646,7 @@ function telaHistPosicao(){
     hb.oninput=function(){_focoBusca='hpBusca';escolheItemHP(this.value)};
     hb.onchange=function(){escolheItemHP(this.value)};
     if(_focoBusca==='hpBusca'){hb.focus();
-      try{hb.setSelectionRange(hb.value.length,hb.value.length)}catch(e){}}
+      try{hb.setSelectionRange(hb.value.length,hb.value.length)}catch(e){_quieto(e,'telaHistPosicao')}}
   }
   rodape();
 }
@@ -29952,7 +29984,7 @@ async function zerarMovimento(){
 async function resetTotal(){
   if(!await pergunta('REINICIAR O SISTEMA?\n\nTudo será apagado: cardápio, fichas, estoque, financeiro, clientes e configurações.'))return;
   if(!await pergunta('Tem certeza absoluta?\n\nEsta ação não pode ser desfeita.'))return;
-  try{localStorage.removeItem('nexor_dados');}catch(e){}
+  try{localStorage.removeItem('nexor_dados');}catch(e){_quieto(e,'resetTotal')}
   location.reload();
 }
 
@@ -30099,7 +30131,7 @@ async function rodarCaixaAssistente(silencioso){
       }catch(e){
         /* erro de dado não melhora tentando de novo: marca e segue,
            senão a fila trava no primeiro item defeituoso */
-        try{ await marcarPendente(p,'erro',(e&&e.message)||'falha'); }catch(e2){}
+        try{ await marcarPendente(p,'erro',(e&&e.message)||'falha'); }catch(e2){_quieto(e2,'rodarCaixaAssistente')}
         falhos++;
       }
     }
@@ -30614,7 +30646,7 @@ async function vincularFornecedor(n){
     novos.forEach(function(i){i.fornecedorId=n.fornecedorId});
     salvar();
     toast(novos.length+' insumo(s) vinculado(s) a '+n.fornecedorNome+'.');
-  }catch(e){}
+  }catch(e){_quieto(e,'vincularFornecedor')}
 }
 
 /* ---------- VER / EXCLUIR ---------- */
@@ -32726,7 +32758,7 @@ async function apagarVendasDemo(){
   if(!await pergunta('Apagar '+q+' venda(s) e '+m+' movimentação(ões) de demonstração?\n\n'+
     'Os cadastros criados junto (produtos, clientes) também serão removidos.'))return;
   (DB.movEst||[]).filter(function(x){return x.demo}).forEach(function(x){
-    try{aplicarMovimento(x,true);}catch(e){}
+    try{aplicarMovimento(x,true);}catch(e){_quieto(e,'apagarVendasDemo')}
   });
   DB.movEst=(DB.movEst||[]).filter(function(x){return !x.demo});
   DB.pedidos=(DB.pedidos||[]).filter(function(p){return !p.demo});
@@ -34770,7 +34802,7 @@ function telaPronta(mid,iid){
     try{
       var src=String(abrir),re2=/iid===['"]([a-z0-9-]+)['"]/g,m2;
       while((m2=re2.exec(src)))_rotasProntas[m2[1]]=true;
-    }catch(e){}
+    }catch(e){_quieto(e,'telaPronta')}
   }
   if(_rotasProntas[iid])return true;
   return !AFAZER[mid+'/'+iid];
@@ -35564,7 +35596,7 @@ async function buscarPedidosOnline(){
     if(!novos.length)return;
     novos.forEach(function(p){PO.vistos[p.id]=true});
     avisarPedidoNovo(novos);
-  }catch(e){}
+  }catch(e){_quieto(e,'buscarPedidosOnline')}
 }
 function avisarPedidoNovo(lista){
   tocarSino();
@@ -35608,7 +35640,7 @@ function tocarSino(){
       g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+t+.35);
       o.start(ac.currentTime+t);o.stop(ac.currentTime+t+.4);
     });
-  }catch(e){}
+  }catch(e){_quieto(e,'tocarSino')}
 }
 /* ---------- tela dos pedidos online ---------- */
 var PON={lista:[],carregando:false};
@@ -35856,7 +35888,7 @@ async function aceitarPedidoOnline(id){
     origemOnline:p.id};
   DB.pedidos.push(ped);
   /* 4) estoque e histórico do cliente */
-  try{ baixarEstoqueVenda(ped); }catch(e){}
+  try{ baixarEstoqueVenda(ped); }catch(e){_quieto(e,'aceitarPedidoOnline')}
   cli.compras=(cli.compras||0)+1;
   cli.gasto=(cli.gasto||0)+(Number(p.total)||0);
   cli.ultima=ag.toLocaleDateString('pt-BR');
@@ -35864,7 +35896,7 @@ async function aceitarPedidoOnline(id){
   /* 5) marca como aceito na nuvem */
   try{
     await api('pedidos_online?id=eq.'+id,'PATCH',{situacao:'aceito',pedido_id:ped.id});
-  }catch(e){}
+  }catch(e){_quieto(e,'aceitarPedidoOnline')}
   if(NUVEM.ligada)sincronizar();
   PON.lista=PON.lista.map(function(x){
     if(x.id===id)x.situacao='aceito';return x;});
@@ -35958,7 +35990,7 @@ async function aceitarPedidoMesa(p){
   salvar();
   try{
     await api('pedidos_online?id=eq.'+p.id,'PATCH',{situacao:'aceito'});
-  }catch(e){}
+  }catch(e){_quieto(e,'aceitarPedidoMesa')}
   PON.lista=PON.lista.map(function(x){if(x.id===p.id)x.situacao='aceito';return x;});
   desenhaPedidosOnline();
   toast('Lançado na comanda de '+nome+' — mesa '+num+'.');
@@ -35970,7 +36002,7 @@ async function recusarPedidoOnline(id){
     texto:'O cliente não será avisado automaticamente — ligue para ele.',
     ok:'Recusar',tipo:'perigo'});
   if(!ok)return;
-  try{ await api('pedidos_online?id=eq.'+id,'PATCH',{situacao:'recusado'}); }catch(e){}
+  try{ await api('pedidos_online?id=eq.'+id,'PATCH',{situacao:'recusado'}); }catch(e){_quieto(e,'recusarPedidoOnline')}
   PON.lista=PON.lista.map(function(x){if(x.id===id)x.situacao='recusado';return x;});
   desenhaPedidosOnline();
 }
@@ -35990,7 +36022,7 @@ function gravarZapChave(v){
   try{
     if(v)localStorage.setItem('nexor_zap_chave',String(v).trim());
     else localStorage.removeItem('nexor_zap_chave');
-  }catch(e){}
+  }catch(e){_quieto(e,'gravarZapChave')}
 }
 var ZP={suc:'',aba:'conexao',estado:{},buscando:false};
 
@@ -36483,7 +36515,7 @@ async function lojaConectada(){
     var d=await zapApi('/diagnostico');
     var s=(d.sessoes||[]).find(function(x){return x.estado==='conectado'});
     if(s)return s.loja;
-  }catch(e){}
+  }catch(e){_quieto(e,'lojaConectada')}
   return null;
 }
 async function avisarCliente(ped,fase){
@@ -37224,7 +37256,7 @@ function pdfRespostas(){
    'com data e hora de cada resposta, e não pode ser alterado.</p>'+
    '</body></html>');
   w.document.close();
-  setTimeout(function(){ try{w.print();}catch(e){} },400);
+  setTimeout(function(){ try{w.print();}catch(e){_quieto(e,'pdfRespostas')} },400);
 }
 
 /* respostas gravadas pela assistente, para conferência e relatório */
@@ -37589,7 +37621,7 @@ async function confirmarCancelamento(id){
     motivoId:motId,motivo:motivo,obs:obs,
     operadorId:op.id,operador:op.nome,
     caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''});
-  try{ if(antes!=='cancelado')estornarEstoqueVenda(p); }catch(e){}
+  try{ if(antes!=='cancelado')estornarEstoqueVenda(p); }catch(e){_quieto(e,'confirmarCancelamento')}
   salvar();
   fecharModal();
   if(PDV.aba==='pedidos')renderKanban();
@@ -37809,7 +37841,7 @@ function bipe(){
       o.connect(g);g.connect(_audioCtx.destination);
       o.start(t+i*0.16);o.stop(t+i*0.16+0.16);
     });
-  }catch(e){}
+  }catch(e){_quieto(e,'bipe')}
 }
 /* quanto tempo o pedido esta parado no status atual, em minutos */
 function minutosNoStatus(p){
@@ -39203,7 +39235,7 @@ function baseUsr(){
         var n=chv(x.nome);return n.indexOf(alvo)>=0||alvo.indexOf(chv(x.apelido||x.nome))>=0;});
       if(sc)u.sucursais=[sc.id];
     });
-  }catch(e){}
+  }catch(e){_quieto(e,'baseUsr')}
   /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
   DB.usuarios.forEach(function(u){
     if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
@@ -39700,7 +39732,7 @@ function semPular(fn){
       var e=todos[k];
       if(e.scrollTop>0)marcas.push({c:caminho(e),y:e.scrollTop});
     }
-  }catch(err){}
+  }catch(err){_quieto(err,'semPular')}
 
   fn();
 
@@ -39717,7 +39749,7 @@ function semPular(fn){
         var el=mapa[m.c];
         if(el&&Math.abs(el.scrollTop-m.y)>1)el.scrollTop=m.y;
       });
-    }catch(err){}
+    }catch(err){_quieto(err,'semPular')}
   }
   devolve();
   requestAnimationFrame(function(){ devolve(); requestAnimationFrame(devolve); });
@@ -39887,7 +39919,7 @@ async function criarAcessoNoBanco(login,senha,nome){
              'Content-Type':'application/json'},
     body:JSON.stringify({email:login,senha:senha,nome:nome,cargo:'gerente'})});
   var d=null;
-  try{ d=await r.json(); }catch(e){}
+  try{ d=await r.json(); }catch(e){_quieto(e,'criarAcessoNoBanco')}
   if(!r.ok)return {erro:(d&&d.erro)||('o servidor recusou ('+r.status+')')};
   return d;
 }
