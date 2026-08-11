@@ -3861,13 +3861,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .swPerm::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;
   border-radius:50%;background:#fff;transition:left .16s}
 .swPerm.on::after{left:18px}
-/* unidade dentro da arvore de usuarios */
-.usrUnid{margin:4px 0 2px}
-.usrUnidH{display:flex;align-items:center;gap:7px;padding:6px 10px 4px;font-size:11px;
-  font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.03em}
-.usrUnidH .tagFicha{text-transform:none;letter-spacing:0}
-.usrUnid .usrIt{padding-left:18px}
-.usrUnid .usrVaz{padding-left:18px}
+/* unidade que ainda nao tem acesso: mesma forma das outras linhas,
+   so que apagada — fica visivel sem parecer um usuario */
+.usrIt.semAcesso{cursor:default;opacity:.7}
+.usrIt.semAcesso:hover{background:none}
+.usrIt.semAcesso .usrN b{font-weight:600;color:var(--ink-2)}
 .usrSec{display:flex;align-items:center;gap:7px;padding:12px 10px 5px;font-size:10px;
   font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
 .usrLn{flex:1;height:1px;background:var(--line-2)}
@@ -14412,7 +14410,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V28.2.0';
+var VERSAO='V28.2.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -39256,13 +39254,18 @@ function telaUsuarios(){
         semUn.map(function(u){return linha(u,true)}).join('')+
         sucs.map(function(sc){
           var us=porUn[sc.id]||[];
-          return '<div class="usrUnid">'+
-           '<div class="usrUnidH"><span class="pontoSuc" style="background:'+(sc.cor||'#00A08B')+'"></span>'+
-            '<b>'+E(sc.nome)+'</b>'+(sc.matriz?'<span class="tagFicha">matriz</span>':'')+
-            (sc.ativa===false?'<span class="badge2 rd">inativa</span>':'')+'</div>'+
-           (us.length?us.map(function(u){return linha(u,true)}).join('')
-             :'<div class="usrVaz">Sem acesso criado — use “Novo usuário”.</div>')+
-          '</div>';
+          /* Unidade COM acesso mostra so o acesso: o nome da unidade ja vem
+             na propria linha dele, e repetir logo acima era a mesma coisa
+             escrita duas vezes.
+             Unidade SEM acesso continua aparecendo — foi para isso que a
+             arvore passou a nascer das sucursais. */
+          if(us.length)return us.map(function(u){return linha(u,true)}).join('');
+          return '<div class="usrIt semAcesso">'+
+            '<div class="usrAv" style="background:'+(sc.cor||'#00A08B')+';color:#fff;opacity:.45">'+
+              E(String(sc.nome||'?').charAt(0).toUpperCase())+'</div>'+
+            '<div class="usrN"><b>'+E(sc.nome)+'</b>'+
+             '<span>sem acesso criado'+(sc.matriz?' · matriz':'')+
+             (sc.ativa===false?' · inativa':'')+'</span></div></div>';
         }).join('')+
         '</div></div>';
        if(!h)h='<div class="usrVaz" style="padding:20px 12px">Nenhum acesso encontrado.</div>';
