@@ -11800,7 +11800,6 @@ var MOD=[
 
 {id:'tecnico',n:'Administração',ic:'gear2',it:[
  {id:'central-tecnica',n:'Mapa do Sistema'},
- {id:'clientes-nexor',n:'Clientes Nexor'},
  {id:'instalacao',n:'Empresas Clientes'},
  {id:'financeiro-nexor',n:'Financeiro da Nexor'},
  {id:'sincronizacao',n:'Sincronização'},
@@ -11817,7 +11816,7 @@ var MOD=[
    FRANQUEADORA— o cliente que contratou. Manda na propria rede:
                  unidades, usuarios, dados, backup e importacao.
    ---------------------------------------------------------- */
-var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/clientes-nexor',
+var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao',
   'tecnico/backup','tecnico/reset-sistema'];
 /* ----------------------------------------------------------
    MODULOS CONTRATADOS
@@ -14455,7 +14454,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V29.0.1';
+var VERSAO='V29.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14575,7 +14574,6 @@ if(mid==='tecnico'&&iid==='central-tecnica')return telaCentralTecnica();
 if(mid==='tecnico'&&iid==='sincronizacao')return telaSincronizacao();
 if(mid==='tecnico'&&iid==='backup')return telaBackup();
 if(mid==='tecnico'&&iid==='layout-menu')return telaLayoutMenu();
-if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
 if(mid==='tecnico'&&iid==='financeiro-nexor')return telaFinanceiroNexor();
 if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
@@ -23588,7 +23586,33 @@ async function salvarPermissoes(){
     painelErro('Não consegui salvar as permissões.',detalheErro(e)); }
 }
 
-/* ---------- 7. FINANCEIRO DA NEXOR ---------- */
+/* ==========================================================
+   FINANCEIRO DA NEXOR
+   Substitui a antiga tela "Clientes Nexor", que mostrava a mesma coisa a
+   partir de uma lista paralela (DB.clientesNexor) — duas telas com o mesmo
+   assunto e numeros que podiam divergir. Agora e uma so, lendo as UNIDADES
+   direto da nuvem, que e onde a cobranca mora desde que ela passou a ser
+   por unidade.
+   ========================================================== */
+var FN={busca:'',situacao:'',mes:null};
+function fnMesAtual(){
+  if(FN.mes)return FN.mes;
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function fnPago(s,mes){
+  return (s.cobrancas||[]).some(function(b){return b.mes===mes&&b.pago});
+}
+function fnLinhas(){
+  var out=[];
+  empresasDaNuvem().forEach(function(x){
+    (x.unidades||[]).forEach(function(s){
+      out.push({emp:x.loja.nome,empId:x.loja.id,s:s,
+        sit:(s.ativa===false)?'inativo':(s.cobranca_situacao||'ativo')});
+    });
+  });
+  return out;
+}
 function telaFinanceiroNexor(){
   if(!ehPlataforma())return telaRestrita('Financeiro da Nexor');
   if(!INS.nuvem&&!INS.carregando){
@@ -23598,47 +23622,117 @@ function telaFinanceiroNexor(){
     $('content').innerHTML='<div class="ctWrap"><div class="usrVazio"><b>Carregando…</b></div></div>';
     return;
   }
-  var linhas=[],totAtivo=0,totPend=0;
-  empresasDaNuvem().forEach(function(x){
-    (x.unidades||[]).forEach(function(s){
-      var v=Number(s.mensalidade)||0;
-      var sit=(s.ativa===false)?'inativo':(s.cobranca_situacao||'ativo');
-      if(sit==='ativo')totAtivo+=v; else if(sit==='inadimplente')totPend+=v;
-      linhas.push({emp:x.loja.nome,un:s.nome,matriz:!!s.matriz,cnpj:s.cnpj||'—',
-        plano:s.plano||'—',valor:v,venc:s.dia_vencimento,sit:sit});
+  var mes=fnMesAtual();
+  var todas=fnLinhas();
+  var L=todas.slice();
+  if(FN.situacao)L=L.filter(function(l){return l.sit===FN.situacao});
+  if(FN.busca){
+    var q=FN.busca.toLowerCase();
+    L=L.filter(function(l){
+      return (l.emp||'').toLowerCase().indexOf(q)>=0||
+             (l.s.nome||'').toLowerCase().indexOf(q)>=0||
+             (l.s.responsavel||'').toLowerCase().indexOf(q)>=0||
+             (l.s.cnpj||'').toLowerCase().indexOf(q)>=0;
     });
-  });
-  linhas.sort(function(a,b){
+  }
+  L.sort(function(a,b){
     if(a.emp!==b.emp)return a.emp.localeCompare(b.emp);
-    return (b.matriz?1:0)-(a.matriz?1:0);
+    return (b.s.matriz?1:0)-(a.s.matriz?1:0);
   });
-  var cor={ativo:'',teste:'',inadimplente:' rd',inativo:' rd'};
-  $('content').innerHTML='<div class="ctWrap">'+
+
+  var ativas=todas.filter(function(l){return l.sit==='ativo'});
+  var mrr=ativas.reduce(function(a,l){return a+(Number(l.s.mensalidade)||0)},0);
+  var recebido=ativas.filter(function(l){return fnPago(l.s,mes)})
+                     .reduce(function(a,l){return a+(Number(l.s.mensalidade)||0)},0);
+  var aRec=mrr-recebido;
+  var empresas={};todas.forEach(function(l){empresas[l.empId]=1});
+
+  var mesesOpc=[];
+  for(var i=0;i<12;i++){
+    var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);
+    mesesOpc.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  function mesBR(m){
+    var p=String(m).split('-');
+    return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][Number(p[1])-1]+'/'+p[0];
+  }
+
+  $('content').innerHTML='<div class="ctWrap" style="max-width:none">'+
    '<div class="ctTopo"><h1>Financeiro da Nexor</h1>'+
-    '<p>Quanto os clientes pagam pelo uso do sistema. A cobrança é por unidade — '+
-    'o valor de cada uma é o que foi digitado no cadastro dela.</p></div>'+
-   '<div class="ctGrade" style="margin-bottom:12px">'+
-    '<div class="ctCard"><div class="ctCardB">'+
-     ctLinha('Receita ativa','<b>'+moeda(totAtivo)+'</b>')+
-     ctLinha('Em atraso','<b class="vr">'+moeda(totPend)+'</b>')+
-     ctLinha('Unidades cobradas',String(linhas.filter(function(l){return l.sit==='ativo'}).length))+
-    '</div></div></div>'+
-   '<div class="blk"><div class="etTabW plano2"><table class="etTab semBusca"><thead><tr>'+
-    '<th>Empresa</th><th>Unidade</th><th style="width:150px">CNPJ</th>'+
-    '<th style="width:130px">Plano</th><th style="width:120px;text-align:right">Mensalidade</th>'+
-    '<th style="width:110px;text-align:center">Vencimento</th>'+
-    '<th style="width:110px;text-align:center">Situação</th></tr></thead><tbody>'+
-   (linhas.length?linhas.map(function(l){
-     return '<tr'+(l.sit==='inativo'?' style="opacity:.55"':'')+'>'+
-      '<td>'+E(l.emp)+'</td>'+
-      '<td><b>'+E(l.un)+'</b>'+(l.matriz?selo('MATRIZ','#1F5F8B'):'')+'</td>'+
-      '<td>'+E(l.cnpj)+'</td><td>'+E(l.plano)+'</td>'+
-      '<td style="text-align:right"><b>'+moeda(l.valor)+'</b></td>'+
-      '<td style="text-align:center">'+(l.venc?'dia '+l.venc:'—')+'</td>'+
-      '<td style="text-align:center"><span class="badge2'+(cor[l.sit]||'')+'">'+E(l.sit)+'</span></td></tr>';
-   }).join(''):'<tr><td colspan="7" class="hint">Nenhuma unidade cobrada ainda.</td></tr>')+
-   '</tbody></table></div></div></div>';
-  rodape(moeda(totAtivo)+' por mês');
+    '<p>O que cada unidade paga pelo uso do sistema e o que já entrou no mês. '+
+    'Esta tela é sua — nenhum cliente tem acesso a ela.</p></div>'+
+
+   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px">'+
+    '<div class="hpN"><span>Empresas</span><b>'+Object.keys(empresas).length+'</b></div>'+
+    '<div class="hpN"><span>Unidades cobradas</span><b>'+ativas.length+'</b></div>'+
+    '<div class="hpN dest4"><span>Receita recorrente</span><b>R$ '+money(mrr)+'</b></div>'+
+    '<div class="hpN"><span>Recebido em '+mesBR(mes)+'</span><b class="vg">R$ '+money(recebido)+'</b></div>'+
+    '<div class="hpN"><span>A receber</span><b class="'+(aRec>0?'vr':'')+'">R$ '+money(aRec)+'</b></div>'+
+   '</div>'+
+
+   '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'+
+    '<div class="f2" style="max-width:260px"><label>Buscar</label>'+
+     '<input id="fnB" value="'+E(FN.busca)+'" placeholder="empresa, unidade, CNPJ" '+
+     'oninput="FN.busca=this.value;clearTimeout(window._tfn);'+
+     'window._tfn=setTimeout(telaFinanceiroNexor,300)"></div>'+
+    '<div class="f2"><label>Situação</label>'+
+     '<select onchange="FN.situacao=this.value;telaFinanceiroNexor()">'+
+      '<option value="">todas</option>'+
+      ['ativo','teste','inadimplente','inativo'].map(function(v){
+        return '<option value="'+v+'"'+(FN.situacao===v?' selected':'')+'>'+v+'</option>';
+      }).join('')+'</select></div>'+
+    '<div class="f2"><label>Mês</label>'+
+     '<select onchange="FN.mes=this.value;telaFinanceiroNexor()">'+
+      mesesOpc.map(function(m){
+        return '<option value="'+m+'"'+(m===mes?' selected':'')+'>'+mesBR(m)+'</option>';
+      }).join('')+'</select></div>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2 ok" style="height:30px" onclick="INS.nova=true;INS.rede=null;'+
+     'abrir(\'tecnico\',\'instalacao\')">'+sv('plus',12)+' Nova empresa</button>'+
+   '</div>'+
+
+   '<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
+    '<table class="fmTab"><thead><tr>'+
+     '<th>Empresa</th><th style="width:200px">Unidade</th>'+
+     '<th style="width:150px">CNPJ</th><th style="width:150px">Responsável</th>'+
+     '<th style="width:110px">Plano</th>'+
+     '<th style="width:110px;text-align:right">Mensalidade</th>'+
+     '<th style="width:70px;text-align:center">Venc.</th>'+
+     '<th style="width:110px">Situação</th><th style="width:120px">'+mesBR(mes)+'</th>'+
+     '<th style="width:60px"></th></tr></thead><tbody>'+
+    (L.length?L.map(function(l){
+      var s=l.s,pg=fnPago(s,mes);
+      return '<tr><td><b>'+E(l.emp)+'</b></td>'+
+       '<td>'+E(s.nome)+(s.matriz?selo('MATRIZ','#1F5F8B'):'')+
+         (s.cidade?'<small>'+E(s.cidade)+(s.uf?'/'+E(s.uf):'')+'</small>':'')+'</td>'+
+       '<td>'+E(s.cnpj||'—')+'</td>'+
+       '<td>'+E(s.responsavel||'—')+'</td>'+
+       '<td>'+E(s.plano||'—')+'</td>'+
+       '<td style="text-align:right"><b>R$ '+money(s.mensalidade)+'</b></td>'+
+       '<td style="text-align:center">'+(s.dia_vencimento?'dia '+s.dia_vencimento:'—')+'</td>'+
+       '<td><span class="pill '+(l.sit==='ativo'?'ok':(l.sit==='inadimplente'||l.sit==='inativo'?'rd':''))+
+         '">'+E(l.sit)+'</span></td>'+
+       '<td>'+(l.sit!=='ativo'?'—':(pg
+         ?'<b class="vg">pago</b> <button class="btnMini" onclick="marcarPagoUnidade(\''+s.id+'\',false)">desfazer</button>'
+         :'<button class="btnMini" onclick="marcarPagoUnidade(\''+s.id+'\',true)">marcar pago</button>'))+'</td>'+
+       '<td><button class="rBtn" title="Abrir a unidade" onclick="INS.rede=\''+l.empId+'\';'+
+         'INS.und={loja:\''+l.empId+'\',suc:\''+s.id+'\'};abrir(\'tecnico\',\'instalacao\')">'+
+         sv('edit',12)+'</button></td></tr>';
+    }).join('')
+    :'<tr><td colspan="10" class="fmVazio">Nenhuma unidade cobrada ainda. '+
+      'Cadastre uma empresa em Empresas Clientes.</td></tr>')+
+   '</tbody></table></div></div>';
+  rodape(L.length+' unidade(s) · recorrente R$ '+money(mrr));
+}
+async function marcarPagoUnidade(sucId,pago){
+  try{
+    await api('rpc/painel_marcar_pago','POST',
+      {p_sucursal_id:sucId,p_mes:fnMesAtual(),p_pago:!!pago});
+    INS.nuvem=null;await carregarEmpresas(true);
+    toast(pago?'Recebimento registrado.':'Recebimento desfeito.');
+    telaFinanceiroNexor();
+  }catch(e){ console.error('marcarPagoUnidade',e);
+    painelErro('Não consegui registrar o recebimento.',detalheErro(e)); }
 }
 
 function vlr(id){var e=$(id);return e?String(e.value||'').trim():'';}
