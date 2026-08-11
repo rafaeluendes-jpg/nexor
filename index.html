@@ -12074,10 +12074,21 @@ async function religarNuvem(){
     var ses=r&&r.data?r.data.session:null;
     if(!ses){NUVEM.cli=null;return false;}
     var rp=await NUVEM.cli.from('perfis')
-      .select('id,nome,cargo,loja_id,empresa_id').eq('id',ses.user.id).maybeSingle();
+      .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
+      .eq('id',ses.user.id).maybeSingle();
     if(rp.error||!rp.data){NUVEM.cli=null;return false;}
     NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
     NUVEM.token=ses.access_token;
+    if(rp.data.sucursal_ref){DB.lojaAtual=rp.data.sucursal_ref;S.loja=rp.data.sucursal_ref;}
+    /* Ao voltar por sessao guardada, o aparelho pode ter dados de outro
+       cliente. Aqui e o mesmo tratamento do login: joga fora e baixa os
+       certos, sem perguntar nada. */
+    if(DB._dono&&DB._dono!==NUVEM.loja){
+      logNuvem('sessao restaurada com dados de outro cliente — recarregando',true);
+      await trocarDeCliente(NUVEM.loja);
+      return true;
+    }
+    DB._dono=NUVEM.loja;
     if(DB._sujo)NUVEM.sujo=true;     /* ficou algo por enviar da sessao anterior */
     statusNuvem('ok');rodape();
     setTimeout(ligarTempoReal,400);
@@ -13774,13 +13785,13 @@ $('tg').onclick=function(){
   i.type=v?'password':'text';
   this.setAttribute('aria-label',v?'Mostrar senha':'Ocultar senha');
 };
-function abrirSessao(){
+async function abrirSessao(){
   carregar();
   $('login').classList.add('hide');$('app').classList.remove('hide');
   boot();
   /* a entrada pelo Auth ja deixou o aparelho ligado: aqui so falta buscar
      o que mudou. Quem voltou por sessao guardada ainda precisa religar. */
-  setTimeout(function(){
+  setTimeout(async function(){
     try{
       if(NUVEM.ligada){
         statusNuvem('ok');rodape();
@@ -13791,9 +13802,7 @@ function abrirSessao(){
                DESTE cliente. Depois de trocar de login, o local foi limpo —
                subir aqui mandaria a base de um cliente para dentro do outro.
                Nesse caso: baixa primeiro, e o envio vem depois. */
-            var mesmoCliente=false;
-            try{ mesmoCliente=(localStorage.getItem('nexor_loja_dados')===NUVEM.loja
-                               && temDadosLocais()); }catch(e){}
+            var mesmoCliente=(DB._dono===NUVEM.loja && temDadosLocais());
             if(mesmoCliente){ await sincronizar(); }
             statusNuvem('baixando'); await baixarDaNuvem(true); statusNuvem('ok');
             if(S.mod&&S.it)abrir(S.mod,S.it);
@@ -13801,7 +13810,22 @@ function abrirSessao(){
             try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){}
           }catch(e){ statusNuvem('erro',(e&&e.message)||''); }
         },900);
-      }else religarNuvem();
+      }else{
+        /* Voltar por sessao guardada tem de religar a nuvem SOZINHO. Sem
+           isto, a pessoa entrava e ficava lancando fora do banco ate
+           reparar na faixa vermelha e clicar em "Ligar agora". */
+        var ok=await religarNuvem();
+        if(!ok){
+          /* a sessao do Auth caducou: tenta renovar antes de desistir */
+          try{
+            if(NUVEM.cli){
+              var rr=await NUVEM.cli.auth.refreshSession();
+              if(rr&&rr.data&&rr.data.session)ok=await religarNuvem();
+            }
+          }catch(e2){}
+        }
+        if(!ok)logNuvem('não consegui religar sozinho: a sessão expirou',true);
+      }
     }catch(e){console.error('religar',e);}
   },500);
   /* e confere: aparelho fora da nuvem numa loja tem de gritar, nao sussurrar */
@@ -14275,7 +14299,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.4.0';
+var VERSAO='V22.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
