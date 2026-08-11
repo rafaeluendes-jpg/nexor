@@ -14245,7 +14245,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V25.1.0';
+var VERSAO='V25.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22792,7 +22792,7 @@ async function excluirCN(id){
    O Nexor nasce vazio. Aqui a rede e criada a partir do que
    o cliente digita — nenhum nome de empresa vive no codigo.
    ========================================================== */
-var INS={rede:null,carregando:false,erro:'',nuvem:null};
+var INS={rede:null,und:null,carregando:false,erro:'',nuvem:null};
 function baseRedes(){
   DB.redes=DB.redes||[];
   /* redes antigas: adota as sucursais soltas na primeira rede */
@@ -22850,6 +22850,7 @@ function empresasDaNuvem(){
 }
 function telaInstalacao(){
   baseSuc();baseUsr();baseRedes();
+  if(INS.und)return formUnidade(INS.und.loja,INS.und.suc);
   if(INS.rede)return telaRedeAberta(INS.rede);
   /* quem nao e dono da plataforma nao tem o que fazer aqui */
   if(!ehPlataforma()){
@@ -22928,43 +22929,126 @@ function telaRedeAberta(id){
   var x=empresasDaNuvem().find(function(y){return y.loja.id===id});
   if(!x){INS.rede=null;return telaInstalacao();}
   var l=x.loja,ct=x.contrato||{};
-  var unid=x.unidades.slice().sort(function(a,b){
-    if(!!b.matriz!==!!a.matriz)return b.matriz?1:-1;
-    return String(a.nome||'').localeCompare(String(b.nome||''));});
+  var unid=(x.unidades||[]).slice();
+  function fld(rot,idc,val,ph,tipo){
+    return '<div class="fld2"><label>'+rot+'</label>'+
+      '<input id="'+idc+'" type="'+(tipo||'text')+'" value="'+E(val==null?'':String(val))+'" '+
+      'placeholder="'+E(ph||'')+'"></div>';
+  }
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo">'+
-    '<button class="btnP2" onclick="INS.rede=null;telaInstalacao()">‹ todas as empresas</button>'+
+    '<button class="btnP2" onclick="INS.rede=null;INS.und=null;telaInstalacao()">‹ todas as empresas</button>'+
     '<h1 style="margin-top:10px">'+E(l.nome)+'</h1>'+
-    '<p>As unidades desta empresa e quem tem acesso a ela. '+
-    'Nada aqui é visível para as outras empresas.</p></div>'+
-   '<div class="blk" style="max-width:820px">'+
-    '<div class="acTit">Contrato</div>'+
-    ctLinha('Responsável',ct.responsavel?E(ct.responsavel):'—')+
-    ctLinha('Documento',ct.documento?E(ct.documento):'—')+
-    ctLinha('Plano',ct.plano?E(ct.plano):'—')+
-    ctLinha('Situação',E(ct.situacao||(l.ativa!==false?'ativa':'bloqueada')))+
+    '<p>Os dados desta empresa e as unidades dela. Nada aqui é visível para as outras.</p></div>'+
+
+   '<div class="blk" style="max-width:860px">'+
+    '<div class="acTit">Dados da empresa</div>'+
+    '<div class="grid2">'+
+     fld('Nome / razão social *','emNome',l.nome)+
+     fld('CNPJ','emDoc',ct.documento,'00.000.000/0000-00')+
+     fld('Responsável','emResp',ct.responsavel)+
+     fld('E-mail','emMail',ct.email)+
+     fld('Telefone','emTel',ct.telefone)+
+     fld('Cidade','emCid',ct.cidade||l.cidade)+
+     fld('UF','emUf',ct.uf,'SP')+
+     fld('Plano','emPlano',ct.plano,'Ex.: Franquia')+
+     fld('Mensalidade','emMens',ct.mensalidade,'0,00')+
+     fld('Dia do vencimento','emVenc',ct.dia_vencimento,'10')+
+     '<div class="fld2"><label>Situação da assinatura</label><select id="emSit">'+
+      ['ativo','teste','inadimplente','cancelado'].map(function(v){
+        return '<option value="'+v+'"'+((ct.situacao||'ativo')===v?' selected':'')+'>'+v+'</option>';
+      }).join('')+'</select></div>'+
+     '<div class="fld2"><label>Empresa liberada</label><select id="emAtiva">'+
+      '<option value="1"'+(l.ativa!==false?' selected':'')+'>Sim — pode entrar no sistema</option>'+
+      '<option value="0"'+(l.ativa===false?' selected':'')+'>Não — acesso bloqueado</option>'+
+      '</select></div>'+
+    '</div>'+
+    '<div style="margin-top:12px"><button class="btnP2 ok" onclick="salvarEmpresa(\''+l.id+'\')">'+
+      'Salvar dados da empresa</button></div>'+
    '</div>'+
-   '<div class="blk" style="max-width:820px;margin-top:12px">'+
+
+   '<div class="blk" style="max-width:860px;margin-top:12px">'+
     '<div class="acTit">Unidades ('+unid.length+')</div>'+
+    '<div class="etTabW plano2"><table class="etTab semBusca"><thead><tr>'+
+     '<th>Nome</th><th style="width:170px">CNPJ</th><th style="width:180px">Cidade</th>'+
+     '<th style="width:90px;text-align:center">Situação</th><th style="width:70px"></th>'+
+    '</tr></thead><tbody>'+
     (unid.length?unid.map(function(s){
-      return ctLinha((s.matriz?'★ ':'')+E(s.nome),
-        (s.cidade?E(s.cidade)+(s.uf?'/'+E(s.uf):''):'—')+
-        (s.ativa===false?' · <span class="vr">inativa</span>':''));
-    }).join(''):'<div class="hint">Nenhuma unidade cadastrada.</div>')+
+      return '<tr><td><b>'+E(s.nome)+'</b>'+(s.matriz?'<span class="tagFicha">matriz</span>':'')+'</td>'+
+       '<td>'+E(s.cnpj||'—')+'</td>'+
+       '<td>'+E(s.cidade||'—')+(s.uf?' / '+E(s.uf):'')+'</td>'+
+       '<td style="text-align:center">'+(s.ativa!==false?'<span class="badge2">Ativa</span>'
+         :'<span class="badge2 rd">Inativa</span>')+'</td>'+
+       '<td><button class="rBtn" onclick="formUnidade(\''+l.id+'\',\''+s.id+'\')">'+sv('edit',12)+'</button></td></tr>';
+    }).join(''):'<tr><td colspan="5" class="hint">Nenhuma unidade cadastrada.</td></tr>')+
+    '</tbody></table></div>'+
+    '<div style="margin-top:12px"><button class="btnP2 ok" onclick="formUnidade(\''+l.id+'\')">'+
+      sv('plus',13)+' Cadastrar unidade</button></div>'+
    '</div>'+
-   '<div class="blk" style="max-width:820px;margin-top:12px">'+
-    '<div class="acTit">Acessos ('+x.perfis.length+')</div>'+
-    (x.perfis.length?x.perfis.slice().sort(function(a,b){
-      return String(a.cargo||'').localeCompare(String(b.cargo||''));
-    }).map(function(p){
-      return ctLinha(E(p.nome||'—'),E(p.cargo||'—')+
-        (p.nome_unidade?' · '+E(p.nome_unidade):''));
+
+   '<div class="blk" style="max-width:860px;margin-top:12px">'+
+    '<div class="acTit">Acessos ('+(x.perfis||[]).length+')</div>'+
+    ((x.perfis||[]).length?x.perfis.map(function(p){
+      return ctLinha(E(p.nome||'—'),E(p.cargo||'—')+(p.unidade?' · '+E(p.unidade):''));
     }).join(''):'<div class="hint vr">Nenhum acesso criado. Esta empresa ainda não consegue entrar.</div>')+
-    '<div class="hint" style="margin-top:10px">Criar o acesso do administrador desta empresa '+
-    'ainda está em construção — depende da função do servidor, que é a única com a chave de '+
-    'administrador. Por enquanto o acesso é criado por mim, no banco.</div>'+
+    '<div class="hint" style="margin-top:10px">Criar o login do administrador desta empresa é a '+
+    'próxima obra: depende da função do servidor, a única que tem a chave de administrador.</div>'+
    '</div></div>';
   rodape(E(l.nome)+' · '+unid.length+' unidade(s)');
+}
+function vlr(id){var e=$(id);return e?String(e.value||'').trim():'';}
+async function salvarEmpresa(lojaId){
+  var d={nome:vlr('emNome'),documento:vlr('emDoc'),responsavel:vlr('emResp'),
+    email:vlr('emMail'),telefone:vlr('emTel'),cidade:vlr('emCid'),uf:vlr('emUf'),
+    plano:vlr('emPlano'),mensalidade:vlr('emMens').replace(/\./g,'').replace(',','.'),
+    dia_vencimento:vlr('emVenc'),situacao:vlr('emSit'),ativa:vlr('emAtiva')==='1'};
+  if(!d.nome){alert('Informe o nome da empresa.');return;}
+  try{
+    await api('rpc/painel_salvar_empresa','POST',{p_loja_id:lojaId,p_d:d});
+    INS.nuvem=null;await carregarEmpresas(true);
+    toast('Dados da empresa salvos.');telaInstalacao();
+  }catch(e){ alert('Não consegui salvar: '+((e&&e.message)||'erro')); }
+}
+function formUnidade(lojaId,sucId){
+  var x=empresasDaNuvem().find(function(y){return y.loja.id===lojaId})||{unidades:[]};
+  var s=(x.unidades||[]).find(function(y){return y.id===sucId})||{};
+  INS.und={loja:lojaId,suc:sucId||null};
+  function fld(rot,idc,val,ph){
+    return '<div class="fld2"><label>'+rot+'</label><input id="'+idc+'" value="'+
+      E(val==null?'':String(val))+'" placeholder="'+E(ph||'')+'"></div>';
+  }
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo">'+
+    '<button class="btnP2" onclick="INS.und=null;telaInstalacao()">‹ voltar para '+E(x.loja.nome)+'</button>'+
+    '<h1 style="margin-top:10px">'+(sucId?'Editar unidade':'Nova unidade')+'</h1>'+
+    '<p>'+(s.matriz?'Esta é a matriz da empresa.':'Uma loja desta empresa.')+'</p></div>'+
+   '<div class="blk" style="max-width:760px"><div class="grid2">'+
+    fld('Nome da unidade *','unNome',s.nome)+
+    fld('Apelido','unApe',s.apelido,'como aparece nos relatórios')+
+    fld('CNPJ','unCnpj',s.cnpj,'00.000.000/0000-00')+
+    fld('Telefone','unTel',s.telefone)+
+    fld('Endereço','unEnd',s.endereco)+
+    fld('Cidade','unCid',s.cidade)+
+    fld('UF','unUf',s.uf,'SP')+
+    '<div class="fld2"><label>Situação</label><select id="unAtiva">'+
+     '<option value="1"'+(s.ativa!==false?' selected':'')+'>Ativa</option>'+
+     '<option value="0"'+(s.ativa===false?' selected':'')+'>Inativa</option></select></div>'+
+   '</div>'+
+   '<div style="margin-top:12px"><button class="btnP2 ok" onclick="salvarUnidade()">Salvar unidade</button>'+
+   '</div></div></div>';
+  rodape();
+}
+async function salvarUnidade(){
+  var c=INS.und||{};
+  var d={nome:vlr('unNome'),apelido:vlr('unApe'),cnpj:vlr('unCnpj'),telefone:vlr('unTel'),
+    endereco:vlr('unEnd'),cidade:vlr('unCid'),uf:vlr('unUf'),ativa:vlr('unAtiva')==='1'};
+  if(!d.nome){alert('Informe o nome da unidade.');return;}
+  try{
+    await api('rpc/painel_salvar_unidade','POST',
+      {p_loja_id:c.loja,p_sucursal_id:c.suc||null,p_d:d});
+    INS.nuvem=null;await carregarEmpresas(true);
+    INS.und=null;toast('Unidade salva.');telaInstalacao();
+  }catch(e){ alert('Não consegui salvar a unidade: '+((e&&e.message)||'erro')); }
 }
 function editarUnidade(redeId,sucId){
   var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
