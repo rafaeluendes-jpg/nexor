@@ -13276,7 +13276,7 @@ async function baixarDaNuvem(forcar){
   }catch(e){ logNuvem('não consegui baixar os usuários: '+((e&&e.message)||''),true); }
   if(ehPlataforma&&ehPlataforma()){
     try{
-      var cnx=await api('clientes_nexor?order=rede');
+      var cnx=await api('clientes_nexor'+q+'&order=rede');
       DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
         responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
         documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',
@@ -13395,10 +13395,20 @@ async function baixarDaNuvem(forcar){
     diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}});
 
   try{
-    var us=await api('usuarios_sistema?select=*&order=nome.asc&limit=500');
+    /* ------------------------------------------------------------------
+       ESTA CONSULTA E A ORIGEM DA MISTURA ENTRE EMPRESAS.
+       Ela baixava usuarios_sistema SEM filtro de loja, confiando so no RLS, e
+       fundia o resultado na lista local por login. Bastava uma linha de outra
+       empresa entrar aqui para, no envio seguinte, ela ser regravada com o
+       loja_id de QUEM ESTA LOGADO — e a empresa A brotava dentro da empresa B.
+       Era esse o ciclo: limpava a nuvem, o aparelho devolvia.
+       Agora ela pede so a propria loja, como todas as outras consultas.
+       ------------------------------------------------------------------ */
+    var us=await api('usuarios_sistema'+qs+'&order=nome.asc&limit=500');
     if(us&&us.length){
       var locais=DB.usuarios||[];
       (us||[]).forEach(function(x){
+        if(x.loja_id&&NUVEM.loja&&x.loja_id!==NUVEM.loja)return;  /* nunca de outra empresa */
         var lg=String(x.login||'').toLowerCase();
         if(!lg)return;
         var ja=locais.find(function(u){return String(u.login||'').toLowerCase()===lg});
@@ -13416,7 +13426,7 @@ async function baixarDaNuvem(forcar){
       situacao:meu[0].situacao,plano:meu[0].plano}:null;
   }catch(e){}
   try{
-    var cnx=await api('clientes_nexor?select=*&order=rede.asc&limit=500');
+    var cnx=await api('clientes_nexor'+qs+'&order=rede.asc&limit=500');
     if(cnx&&cnx.length)  /* so substitui a carteira se a nuvem realmente devolveu algo */
     DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
       responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
@@ -14245,7 +14255,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V25.3.0';
+var VERSAO='V25.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
