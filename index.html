@@ -3861,6 +3861,13 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .swPerm::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;
   border-radius:50%;background:#fff;transition:left .16s}
 .swPerm.on::after{left:18px}
+/* unidade dentro da arvore de usuarios */
+.usrUnid{margin:4px 0 2px}
+.usrUnidH{display:flex;align-items:center;gap:7px;padding:6px 10px 4px;font-size:11px;
+  font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.03em}
+.usrUnidH .tagFicha{text-transform:none;letter-spacing:0}
+.usrUnid .usrIt{padding-left:18px}
+.usrUnid .usrVaz{padding-left:18px}
 .usrSec{display:flex;align-items:center;gap:7px;padding:12px 10px 5px;font-size:10px;
   font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
 .usrLn{flex:1;height:1px;background:var(--line-2)}
@@ -14405,7 +14412,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V28.1.0';
+var VERSAO='V28.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -39165,10 +39172,14 @@ function telaUsuarios(){
        }
        /* nome da empresa desta rede, para quando o usuario nao resolve sozinho */
        function empresaPadrao(){
+         /* o nome vem do contrato com a Nexor — e o nome real da empresa.
+            "Minha rede" era o rotulo de emergencia de uma lista local que
+            nao existe mais. */
+         if(DB._contrato&&DB._contrato.rede)return DB._contrato.rede;
+         var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
+         if(mz&&mz.nome)return mz.nome;
          var r0=(DB.redes||[])[0];
          if(r0&&r0.nome)return r0.nome;
-         var comRede=(DB.sucursais||[]).find(function(x){return x.redeNome});
-         if(comRede)return comRede.redeNome;
          return 'Minha empresa';
        }
        function empresaDe(u){
@@ -39198,57 +39209,62 @@ function telaUsuarios(){
          '</button>';
        }
 
+       /* ------------------------------------------------------------------
+          A ARVORE MOSTRA AS UNIDADES, NAO SO OS USUARIOS.
+          Antes ela era montada a partir da lista de acessos: unidade sem
+          login criado simplesmente nao existia na tela. A franqueadora
+          cadastrava Jales e nao encontrava Jales em lugar nenhum para
+          liberar permissao. Agora a estrutura vem das SUCURSAIS — que e a
+          empresa de verdade — e os acessos aparecem dentro da unidade a que
+          pertencem. Unidade sem acesso aparece assim mesmo, dizendo que
+          ainda nao tem login.
+          ------------------------------------------------------------------ */
        var donos=lista.filter(ehDono);
        var resto=lista.filter(function(u){return !ehDono(u)});
-
-       /* agrupa mantendo a ordem de aparicao das empresas */
-       var pastas=[],mapa={};
-       resto.forEach(function(u){
-         var e=empresaDe(u);
-         if(!mapa[e]){mapa[e]={nome:e,itens:[]};pastas.push(mapa[e]);}
-         mapa[e].itens.push(u);
-       });
-       pastas.forEach(function(p){
-         p.itens.sort(function(a,b){
-           var pa=(a.mestre||a.tudo)?0:1, pb=(b.mestre||b.tudo)?0:1;
-           if(pa!==pb)return pa-pb;                       /* matriz sempre em cima */
-           return unidadeDe(a).localeCompare(unidadeDe(b));
-         });
-       });
-       pastas.sort(function(a,b){return a.nome.localeCompare(b.nome)});
-
-       /* pasta fechada por padrao; a busca abre todas, senao esconderia o achado */
        var buscando=!!q;
        var h='';
        if(donos.length){
          h+='<div class="usrSec">Plataforma<span class="usrLn"></span></div>'+
             donos.map(function(u){return linha(u,false)}).join('');
        }
-       if(pastas.length){
-         h+='<div class="usrSec">'+(pastas.length>1?'Empresas':'Empresa')+
-            '<span class="usrLn"></span></div>';
-         h+=pastas.map(function(p){
-           var aberta=buscando||US.abertas[p.nome]!==false;
-           var nUn={};
-           p.itens.forEach(function(u){var n=unidadeDe(u);if(n)nUn[n]=1});
-           var resumo=Object.keys(nUn).length+' unidade'+(Object.keys(nUn).length===1?'':'s')+
-             ' · '+p.itens.length+' acesso'+(p.itens.length===1?'':'s');
-           return '<div class="usrPasta'+(aberta?' ab':'')+'">'+
-            '<button class="usrPastaH" onclick="US.abertas[\''+
-              String(p.nome).replace(/'/g,"\\'")+'\']='+(aberta?'false':'true')+';telaUsuarios()">'+
-             '<span class="usrSeta"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" '+
-               'stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">'+
-               '<path d="M9 5l7 7-7 7"/></svg></span>'+
-             '<div class="usrAv" style="background:var(--deep);color:#fff">'+
-               E((p.nome||'?').charAt(0).toUpperCase())+'</div>'+
-             '<div class="usrN"><b>'+E(p.nome)+'</b><span>'+resumo+'</span></div>'+
-            '</button>'+
-            '<div class="usrFilhos">'+
-              (p.itens.length?p.itens.map(function(u){return linha(u,true)}).join('')
-                :'<div class="usrVaz">Nenhum acesso nesta empresa ainda.</div>')+
-            '</div></div>';
-         }).join('');
-       }
+       var nomeEmp=empresaPadrao();
+       var sucs=(DB.sucursais||[]).slice().sort(function(a,b){
+         if(!!b.matriz!==!!a.matriz)return b.matriz?1:-1;
+         return String(a.nome||'').localeCompare(String(b.nome||''));
+       });
+       /* cada acesso vai para a unidade dele; sem unidade = empresa inteira */
+       var porUn={},semUn=[];
+       resto.forEach(function(u){
+         var sid=(u.sucursais||[])[0];
+         if(sid&&sucs.some(function(x){return x.id===sid})){(porUn[sid]=porUn[sid]||[]).push(u);}
+         else semUn.push(u);
+       });
+       var aberta=buscando||US.abertas[nomeEmp]!==false;
+       var totalAc=resto.length;
+       h+='<div class="usrSec">Empresa<span class="usrLn"></span></div>'+
+        '<div class="usrPasta'+(aberta?' ab':'')+'">'+
+        '<button class="usrPastaH" onclick="US.abertas[\''+
+          String(nomeEmp).replace(/'/g,"\\'")+'\']='+(aberta?'false':'true')+';telaUsuarios()">'+
+         '<span class="usrSeta"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" '+
+           'stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">'+
+           '<path d="M9 5l7 7-7 7"/></svg></span>'+
+         '<div class="usrAv" style="background:var(--deep);color:#fff">'+
+           E(String(nomeEmp||'?').charAt(0).toUpperCase())+'</div>'+
+         '<div class="usrN"><b>'+E(nomeEmp)+'</b><span>'+sucs.length+' unidade'+
+          (sucs.length===1?'':'s')+' · '+totalAc+' acesso'+(totalAc===1?'':'s')+'</span></div>'+
+        '</button><div class="usrFilhos">'+
+        semUn.map(function(u){return linha(u,true)}).join('')+
+        sucs.map(function(sc){
+          var us=porUn[sc.id]||[];
+          return '<div class="usrUnid">'+
+           '<div class="usrUnidH"><span class="pontoSuc" style="background:'+(sc.cor||'#00A08B')+'"></span>'+
+            '<b>'+E(sc.nome)+'</b>'+(sc.matriz?'<span class="tagFicha">matriz</span>':'')+
+            (sc.ativa===false?'<span class="badge2 rd">inativa</span>':'')+'</div>'+
+           (us.length?us.map(function(u){return linha(u,true)}).join('')
+             :'<div class="usrVaz">Sem acesso criado — use “Novo usuário”.</div>')+
+          '</div>';
+        }).join('')+
+        '</div></div>';
        if(!h)h='<div class="usrVaz" style="padding:20px 12px">Nenhum acesso encontrado.</div>';
        return h;
      })()+
