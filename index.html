@@ -14245,7 +14245,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V25.0.1';
+var VERSAO='V25.0.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -38331,6 +38331,15 @@ function baseUsr(){
   });
   /* garante um unico dono do Nexor */
   var donos=DB.usuarios.filter(function(u){return String(u.login||'').toLowerCase()===ADM_MESTRE});
+  /* ------------------------------------------------------------------
+     O dono do Nexor NUNCA fica sem acesso.
+     As permissoes vinham inteiras da tabela usuarios_sistema. Quando o
+     download dela falhava — rede, token vencido, qualquer motivo — o registro
+     era remontado sem 'tudo' nem 'mestre', e o dono entrava no proprio sistema
+     sem enxergar tela nenhuma. Permissao de quem administra a plataforma nao
+     pode depender de uma requisicao dar certo.
+     ------------------------------------------------------------------ */
+  donos.forEach(function(u){ u.tudo=true;u.mestre=true;u.ativo=true; });
   if(donos.length>1){
     var manter=donos[0];
     DB.usuarios=DB.usuarios.filter(function(u){
