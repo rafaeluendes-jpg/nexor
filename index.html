@@ -14245,7 +14245,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V25.2.0';
+var VERSAO='V25.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22792,7 +22792,7 @@ async function excluirCN(id){
    O Nexor nasce vazio. Aqui a rede e criada a partir do que
    o cliente digita — nenhum nome de empresa vive no codigo.
    ========================================================== */
-var INS={rede:null,und:null,carregando:false,erro:'',nuvem:null};
+var INS={rede:null,und:null,nova:false,carregando:false,erro:'',nuvem:null};
 function baseRedes(){
   DB.redes=DB.redes||[];
   /* redes antigas: adota as sucursais soltas na primeira rede */
@@ -22850,6 +22850,7 @@ function empresasDaNuvem(){
 }
 function telaInstalacao(){
   baseSuc();baseUsr();baseRedes();
+  if(INS.nova)return formEmpresaNova();
   if(INS.und)return formUnidade(INS.und.loja,INS.und.suc);
   if(INS.rede)return telaRedeAberta(INS.rede);
   /* quem nao e dono da plataforma nao tem o que fazer aqui */
@@ -22904,26 +22905,93 @@ function telaInstalacao(){
 /* cria a empresa cliente: empresa + loja propria + unidade matriz.
    Tudo carimbado com a loja NOVA — nunca com a loja de quem esta criando.
    E o que impede o cliente novo de nascer dentro da Jolo, como aconteceu. */
-async function novaEmpresa(){
-  var nome=prompt('Nome da empresa cliente (ex.: Rafaello\'s Gelato):','');
-  if(!nome||!nome.trim())return;
-  nome=nome.trim();
-  var un=prompt('Nome da unidade matriz:','Matriz')||'Matriz';
-  try{
-    toast('Criando '+nome+'…');
-    /* empresa, loja propria e unidade matriz numa operacao so, no servidor.
-       O navegador nao escreve em loja que nao e a dele — e isso que impede o
-       cliente novo de nascer dentro de outro, como a Rafaelos nasceu. */
-    var r=await api('rpc/painel_criar_empresa','POST',{p_nome:nome,p_unidade:un.trim()});
-    var ljId=(r&&(r.loja_id||(r[0]||{}).loja_id))||null;
-    INS.nuvem=null;INS.erro='';
-    await carregarEmpresas(true);
-    toast(nome+' criada. Falta o acesso do administrador.');
-    if(ljId)INS.rede=ljId;
-    telaInstalacao();
-  }catch(e){
-    alert('Não consegui criar a empresa: '+((e&&e.message)||'erro desconhecido'));
+/* tela de cadastro de cliente novo — era um prompt do navegador, que nao cabe
+   num sistema que se vende para outras empresas */
+function novaEmpresa(){ INS.nova=true;INS.rede=null;INS.und=null;telaInstalacao(); }
+function formEmpresaNova(){
+  function fld(rot,idc,ph,larg){
+    return '<div class="fld2"'+(larg?' style="grid-column:1/-1"':'')+'><label>'+rot+'</label>'+
+      '<input id="'+idc+'" value="" placeholder="'+E(ph||'')+'"></div>';
   }
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo">'+
+    '<button class="btnP2" onclick="INS.nova=false;telaInstalacao()">‹ todas as empresas</button>'+
+    '<h1 style="margin-top:10px">Nova empresa cliente</h1>'+
+    '<p>A empresa nasce com o ambiente dela, separado de todas as outras. '+
+    'Nada do que ela cadastrar será visto por outro cliente, e ela não verá nada dos demais.</p></div>'+
+
+   '<div class="blk" style="max-width:860px">'+
+    '<div class="acTit">Identificação</div>'+
+    '<div class="grid2">'+
+     fld('Razão social *','nvNome','Ex.: Rafaello\'s Gelato e Açaí Ltda',true)+
+     fld('Nome fantasia','nvFant','como o cliente é conhecido')+
+     fld('CNPJ','nvDoc','00.000.000/0000-00')+
+     fld('Cidade','nvCid','')+
+     fld('UF','nvUf','SP')+
+    '</div></div>'+
+
+   '<div class="blk" style="max-width:860px;margin-top:12px">'+
+    '<div class="acTit">Responsável</div>'+
+    '<div class="grid2">'+
+     fld('Nome do responsável','nvResp','quem assina o contrato')+
+     fld('E-mail','nvMail','')+
+     fld('Telefone','nvTel','')+
+    '</div></div>'+
+
+   '<div class="blk" style="max-width:860px;margin-top:12px">'+
+    '<div class="acTit">Assinatura</div>'+
+    '<div class="grid2">'+
+     fld('Plano','nvPlano','Ex.: Franquia, Loja única')+
+     fld('Mensalidade','nvMens','0,00')+
+     fld('Dia do vencimento','nvVenc','10')+
+     '<div class="fld2"><label>Situação</label><select id="nvSit">'+
+      '<option value="ativo">Ativo</option><option value="teste">Em teste</option>'+
+      '<option value="inadimplente">Inadimplente</option></select></div>'+
+    '</div></div>'+
+
+   '<div class="blk" style="max-width:860px;margin-top:12px">'+
+    '<div class="acTit">Unidade matriz</div>'+
+    '<p class="hint" style="margin:0 0 10px">Toda empresa nasce com uma unidade. '+
+    'Se for loja única, é só esta; as filiais você cadastra depois, dentro da empresa. '+
+    'Deixando em branco, repete os dados da identificação.</p>'+
+    '<div class="grid2">'+
+     fld('Nome da unidade','nvUnNome','Matriz')+
+     fld('CNPJ da unidade','nvUnCnpj','se for diferente do da empresa')+
+     fld('Endereço','nvUnEnd','',true)+
+     fld('Cidade','nvUnCid','')+
+     fld('UF','nvUnUf','')+
+     fld('Telefone','nvUnTel','')+
+    '</div></div>'+
+
+   '<div class="blk" style="max-width:860px;margin-top:12px">'+
+    '<div class="acTit">Acesso do administrador</div>'+
+    '<p class="hint vr" style="margin:0">Criar o login desta empresa é a próxima obra. '+
+    'Depende da função do servidor, a única que tem a chave de administrador — ela nunca '+
+    'pode passar pelo navegador. Até lá, a empresa é cadastrada e eu crio o acesso.</p></div>'+
+
+   '<div style="max-width:860px;margin:14px 0 40px;display:flex;gap:8px">'+
+    '<button class="btnP2 ok" onclick="salvarEmpresaNova()">Cadastrar empresa</button>'+
+    '<button class="btnP2" onclick="INS.nova=false;telaInstalacao()">Cancelar</button>'+
+   '</div></div>';
+  rodape('nova empresa cliente');
+}
+async function salvarEmpresaNova(){
+  var emp={nome:vlr('nvNome'),nome_fantasia:vlr('nvFant'),documento:vlr('nvDoc'),
+    cidade:vlr('nvCid'),uf:vlr('nvUf'),responsavel:vlr('nvResp'),email:vlr('nvMail'),
+    telefone:vlr('nvTel'),plano:vlr('nvPlano'),
+    mensalidade:vlr('nvMens').replace(/\./g,'').replace(',','.'),
+    dia_vencimento:vlr('nvVenc'),situacao:vlr('nvSit'),ativa:true};
+  var und={nome:vlr('nvUnNome'),cnpj:vlr('nvUnCnpj'),endereco:vlr('nvUnEnd'),
+    cidade:vlr('nvUnCid'),uf:vlr('nvUnUf'),telefone:vlr('nvUnTel')};
+  if(!emp.nome){alert('Informe a razão social da empresa.');var e=$('nvNome');if(e)e.focus();return;}
+  try{
+    toast('Cadastrando '+emp.nome+'…');
+    var r=await api('rpc/painel_criar_empresa_completa','POST',{p_emp:emp,p_und:und});
+    var ljId=(r&&(r.loja_id||(r[0]||{}).loja_id))||null;
+    INS.nuvem=null;await carregarEmpresas(true);
+    INS.nova=false;INS.rede=ljId;
+    toast(emp.nome+' cadastrada.');telaInstalacao();
+  }catch(e){ alert('Não consegui cadastrar: '+((e&&e.message)||'erro desconhecido')); }
 }
 function telaRedeAberta(id){
   var x=empresasDaNuvem().find(function(y){return y.loja.id===id});
