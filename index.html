@@ -13807,6 +13807,10 @@ async function entrarPeloAuth(lg,sn){
   }catch(eL){}
   DB={};
   try{ semear(); }catch(eS2){}
+  /* deixa as listas basicas de pe: quem chamar logo depois nao pode
+     encontrar o DB pela metade */
+  DB.usuarios=[];DB.sucursais=[];DB.insumos=[];DB.produtos=[];
+  DB.categorias=[];DB.fichas=[];DB.pedidos=[];DB.clientes=[];
   DB._snap={};DB._hash={};DB._uuid={};
   DB._dono=rp.data.loja_id;
   logNuvem('aparelho limpo no login — os dados vêm todos da nuvem');
@@ -13849,6 +13853,10 @@ async function entrar(){
     var res=await entrarPeloAuth(lg,sn);
     lgAviso('');
     if(res.ok){
+      /* A limpeza do login zera o DB — entao a lista de usuarios precisa ser
+         refeita ANTES de mexer nela. Sem isto o sistema quebrava aqui e a
+         pessoa nao conseguia entrar de jeito nenhum. */
+      baseUsr();
       var nu=usuarioDaNuvem(res.linha,lg,sn);
       var ja=(DB.usuarios||[]).find(function(x){
         return String(x.login||'').toLowerCase()===String(nu.login||'').toLowerCase();});
@@ -14188,7 +14196,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V23.2.0';
+var VERSAO='V23.2.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
