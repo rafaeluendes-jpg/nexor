@@ -14245,7 +14245,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V25.0.2';
+var VERSAO='V25.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -38984,11 +38984,33 @@ async function excluirUsuario(){
   var u=usrSel();
   if(!u||u.mestre)return;
   var ok=await confirmar({titulo:'Excluir '+E(u.nome),
-    texto:'O login "'+E(u.login)+'" deixa de funcionar.',
+    texto:'O acesso "'+E(u.login)+'" sai desta lista e da nuvem.',
     ok:'Excluir',tipo:'perigo'});
   if(!ok)return;
+  /* ------------------------------------------------------------------
+     A exclusao precisa CHEGAR na nuvem.
+     usuarios_sistema esta no MAPA com espelha:false — de proposito, para
+     uma unidade nao apagar da nuvem os acessos que ela nem enxerga. So que
+     isso valia tambem para quem PODE apagar: o registro saia daqui, o
+     download seguinte trazia de volta, e a pessoa apagava o mesmo acesso
+     dez vezes sem entender por que ele voltava.
+     Agora a exclusao vai direto na tabela, pela linha daquele acesso nesta
+     loja. Se a nuvem recusar, o registro NAO some daqui — mentir que apagou
+     e pior do que avisar que nao deu.
+     ------------------------------------------------------------------ */
+  if(NUVEM.ligada&&NUVEM.loja){
+    try{
+      await api('usuarios_sistema?ref_local=eq.'+encodeURIComponent(u.id)+
+                '&loja_id=eq.'+encodeURIComponent(NUVEM.loja),'DELETE');
+    }catch(e){
+      alert('Não consegui excluir na nuvem: '+((e&&e.message)||'erro')+
+            '\n\nO acesso continua na lista para você tentar de novo.');
+      return;
+    }
+  }
   DB.usuarios=DB.usuarios.filter(function(x){return x.id!==u.id});
   US.sel=null;salvar();telaUsuarios();
+  toast('Acesso excluído.');
 }
 
 /* ---------- POPUP E MODAL ---------- */
