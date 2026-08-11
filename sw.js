@@ -6,10 +6,11 @@
    arquivo no servidor e nao achava. A loja parava por causa de um F5.
    Este arquivo guarda o sistema no proprio aparelho.
    ========================================================== */
-var CACHE = 'nexor-v1';
+var CACHE = 'nexor-v2';
 var ESSENCIAIS = [
   './',
   './index.html',
+  './supabase.js',
   './manifest.json',
   './nexor-n.png',
   './nexor-icone-192.png'
