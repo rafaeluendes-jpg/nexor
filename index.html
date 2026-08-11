@@ -11882,6 +11882,8 @@ function liberarEspacoLocal(){
   });
   return liberou;
 }
+/* A marca de dono viaja junto com os dados. Se ela se perdesse ao gravar,
+   toda a protecao contra misturar clientes cairia junto. */
 function gravarLocal(){
   var txt;
   try{ txt=JSON.stringify(DB); }
@@ -12682,6 +12684,22 @@ async function apagar(tab,campo,valor){
 /* Quando o aparelho esta com dados de outro cliente, nao ha o que perguntar:
    o certo e jogar fora e trazer da nuvem. Antes isso virava um aviso pedindo
    para a pessoa sair e entrar — no meio de uma operacao, ninguem faz isso. */
+/* Botao de emergencia: joga fora tudo que esta no aparelho e traz da nuvem.
+   Existe porque nenhuma protecao automatica cobre 100% dos casos — e quando
+   nao cobre, a pessoa precisa de uma saida que nao dependa de mim. */
+async function recarregarDaNuvem(){
+  if(!NUVEM.ligada){toast('Ligue a nuvem primeiro.');return;}
+  var ok=await confirmar({
+    titulo:'Recarregar tudo da nuvem',
+    texto:'Descarta o que está neste computador e traz do banco',
+    linhas:[['Loja',E(nomeLojaAtual()),''],
+            ['Usuário',E((usuarioLogado()||{}).login||''),'']],
+    aviso:'Use quando o aparelho estiver mostrando dados de outro cliente. '+
+     'O que ainda não subiu para a nuvem será perdido.',
+    ok:'Recarregar',tipo:'perigo'});
+  if(!ok)return;
+  await trocarDeCliente(NUVEM.loja);
+}
 async function trocarDeCliente(lojaCerta){
   try{
     localStorage.removeItem('nexor_dados');
@@ -13898,6 +13916,29 @@ async function entrarPeloAuth(lg,sn){
      ========================================================== */
   var lojaAnterior=DB._dono||null;
   if(!lojaAnterior){ try{ lojaAnterior=localStorage.getItem('nexor_loja_dados'); }catch(e){} }
+
+  /* Dado gravado antes da marca de dono existir nao tem dono nenhum — e a
+     trava so agia quando a marca existia. Aqui a duvida e resolvida
+     perguntando ao banco: se a loja de quem entrou esta VAZIA na nuvem e o
+     aparelho esta cheio, esses dados sao de outro cliente. Cliente novo
+     comeca zerado, sempre. */
+  if(!lojaAnterior){
+    try{
+      var temAqui=false;
+      try{ temAqui=((DB.insumos||[]).length+(DB.produtos||[]).length)>0; }catch(e){}
+      if(temAqui){
+        var cn=await cli.from('insumos').select('id',{count:'exact',head:true})
+                 .eq('loja_id',rp.data.loja_id);
+        var cp=await cli.from('produtos').select('id',{count:'exact',head:true})
+                 .eq('loja_id',rp.data.loja_id);
+        var naNuvem=(cn&&cn.count||0)+(cp&&cp.count||0);
+        if(naNuvem===0){
+          lojaAnterior='__desconhecido__';   /* forca a limpeza abaixo */
+          logNuvem('aparelho com dados sem dono e loja vazia na nuvem: limpando');
+        }
+      }
+    }catch(e){}
+  }
   if(lojaAnterior&&lojaAnterior!==rp.data.loja_id){
     try{
       localStorage.removeItem('nexor_dados');
@@ -14299,7 +14340,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.5.0';
+var VERSAO='V22.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15503,8 +15544,12 @@ function painelNuvem(){
   '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
   '<button class="btnP2" onclick="exportarDados()">'+sv('down2',14)+' Baixar cópia dos dados</button>'+
   '<button class="btnP2" onclick="document.getElementById(\'impFile\').click()">'+sv('up2',14)+' Restaurar de um arquivo</button>'+
+  '<button class="btnP2 rd" onclick="fecharModal();recarregarDaNuvem()">'+sv('ref',14)+
+   ' Recarregar tudo da nuvem</button>'+
   '<input type="file" id="impFile" accept=".json,application/json" style="display:none" onchange="importarDados(this)">'+
   '</div>'+
+  '<div class="hint" style="margin-top:8px">Use <b>Recarregar tudo da nuvem</b> se este '+
+  'computador estiver mostrando dados de outro cliente.</div>'+
   '<div class="hint" style="margin-top:10px">Resumo atual: '+
   (DB.categorias||[]).length+' categorias · '+(DB.produtos||[]).length+' produtos · '+
   (DB.grupos||[]).length+' grupos · '+((DB.clientes||[]).length)+' clientes · '+((DB.pedidos||[]).length)+' pedidos</div>'+
