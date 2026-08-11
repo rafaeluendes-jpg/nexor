@@ -14454,7 +14454,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V29.1.0';
+var VERSAO='V29.1.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -39505,12 +39505,12 @@ function togCartao(id){
   u.cartoes=u.cartoes||[];
   var i=u.cartoes.indexOf(id);
   if(i>=0)u.cartoes.splice(i,1); else u.cartoes.push(id);
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 function todosCartoes(marcar){
   var u=usrSel();if(!u)return;
   u.cartoes=marcar?[]:CARTOES_APP.map(function(k){return k.id});
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 function copiarLinkApp(){
   var l='https://rafaeluendes-jpg.github.io/nexor-app/';
@@ -39608,12 +39608,39 @@ function abaPermUsr(u){
 }
 /* ---------- ações ---------- */
 function usrSel(){return DB.usuarios.find(function(x){return x.id===US.sel})}
+/* ==========================================================
+   REDESENHAR SEM PULAR PARA O TOPO
+   Cada clique numa permissao redesenha a tela inteira (innerHTML), e a barra
+   de rolagem volta ao inicio. Quem esta liberando 60 telas rola ate embaixo,
+   clica, e e jogado de volta la em cima a cada clique.
+   O guardiao geral de rolagem existe, mas ele age no MutationObserver, no
+   mesmo instante em que o HTML e trocado — as vezes antes de o navegador
+   recalcular a altura, e ai o scrollTop e cortado para zero.
+   Aqui a posicao e guardada ANTES, e devolvida tres vezes: logo apos,
+   no proximo quadro e no seguinte. Uma delas pega a altura ja certa.
+   ========================================================== */
+function semPular(fn){
+  var el=document.querySelector('.etScroll');
+  var y=el?el.scrollTop:(window.scrollY||0);
+  var esq=document.querySelector('.usrRol');
+  var y2=esq?esq.scrollTop:0;
+  fn();
+  function devolve(){
+    var e2=document.querySelector('.etScroll');
+    if(e2){ if(Math.abs(e2.scrollTop-y)>1)e2.scrollTop=y; }
+    else if(Math.abs((window.scrollY||0)-y)>1)window.scrollTo(0,y);
+    var l2=document.querySelector('.usrRol');
+    if(l2&&y2&&Math.abs(l2.scrollTop-y2)>1)l2.scrollTop=y2;
+  }
+  devolve();
+  requestAnimationFrame(function(){ devolve(); requestAnimationFrame(devolve); });
+}
 function togPermUsr(chave){
   var u=usrSel();if(!u)return;
   u.permissoes=u.permissoes||{};
   u.permissoes[chave]=!u.permissoes[chave];
   if(!u.permissoes[chave])delete u.permissoes[chave];
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 function togModUsr(mid,marcar){
   var u=usrSel();if(!u)return;
@@ -39623,7 +39650,7 @@ function togModUsr(mid,marcar){
     if(marcar)u.permissoes[mid+'/'+i.id]=true;
     else delete u.permissoes[mid+'/'+i.id];
   });
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 function marcarTudoUsr(marcar){
   var u=usrSel();if(!u)return;
@@ -39631,7 +39658,7 @@ function marcarTudoUsr(marcar){
   if(marcar)MOD.filter(function(m){return m.id!=='teste'}).forEach(function(m){
     (m.it||[]).forEach(function(i){u.permissoes[m.id+'/'+i.id]=true});
   });
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 var MODELOS={
  franqueado:['pdv/pdv','pdv/pedidos-online','cardapio/cfg-cardapio',
@@ -39657,7 +39684,7 @@ function aplicarModelo(qual){
   var u=usrSel();if(!u)return;
   u.permissoes={};
   (MODELOS[qual]||[]).forEach(function(k){u.permissoes[k]=true});
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
   toast('Modelo aplicado — ajuste o que precisar.');
 }
 function togLojaUsr(sid){
@@ -39665,17 +39692,17 @@ function togLojaUsr(sid){
   u.sucursais=u.sucursais||[];
   var i=u.sucursais.indexOf(sid);
   if(i>=0)u.sucursais.splice(i,1); else u.sucursais.push(sid);
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 function todasLojasUsr(marcar){
   var u=usrSel();if(!u)return;
   u.sucursais=marcar?[]:sucAtivas().map(function(s){return s.id});
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 function togAtivoUsr(){
   var u=usrSel();if(!u)return;
   u.ativo=(u.ativo===false);
-  salvar();telaUsuarios();
+  salvar();semPular(telaUsuarios);
 }
 function novoUsuario(){US.novaSuc=null;formUsuario();}
 function novoUsuarioNa(sucId){
