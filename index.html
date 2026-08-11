@@ -22,7 +22,17 @@ if('serviceWorker' in navigator){
 <meta name="theme-color" content="#0b8a93">
 <meta name="apple-mobile-web-app-title" content="Nexor">
 <meta name="application-name" content="Nexor">
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- A biblioteca vem do PROPRIO repositorio, nao de CDN. O Edge bloqueava o
+     unpkg como rastreador e o sistema simplesmente nao abria — e numa loja
+     que voce nao controla, o antivirus ou a rede fariam o mesmo. Mesma
+     licao do QR Code: dependencia externa e ponto de falha na loja.
+     A CDN fica como segunda tentativa, caso o arquivo local falte. -->
+<script src="supabase.js"></script>
+<script>
+if(!window.supabase){
+  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -14178,7 +14188,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V23.1.0';
+var VERSAO='V23.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
