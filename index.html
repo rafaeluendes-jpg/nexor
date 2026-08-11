@@ -14193,7 +14193,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.1.0';
+var VERSAO='V22.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22843,6 +22843,19 @@ function telaRedeAberta(id){
    '</div></div>';
   rodape(E(r.nome)+' · '+u.length+' unidade(s)');
 }
+/* todas as telas do sistema, marcadas — usado ao criar a matriz de um
+   cliente novo, que por definicao manda em tudo dentro da rede dela */
+function todasAsTelas(){
+  var p={};
+  MOD.forEach(function(m){
+    (m.it||[]).forEach(function(t){
+      /* Administracao e do dono do Nexor, nao do cliente */
+      if(m.id==='tecnico')return;
+      p[m.id+'/'+t.id]=true;
+    });
+  });
+  return p;
+}
 async function salvarMatriz(id){
   var r=DB.redes.find(function(x){return x.id===id});if(!r)return;
   r.nome=$('rdN').value.trim()||r.nome;
@@ -22855,8 +22868,12 @@ async function salvarMatriz(id){
     var u=(DB.usuarios||[]).find(function(z){return (z.login||'').toLowerCase()===(ant||'').toLowerCase()});
     if(u){u.login=lg;u.senha=r.senha;u.nome=r.nome+' — Matriz';}
     else if(!(DB.usuarios||[]).some(function(z){return (z.login||'').toLowerCase()===lg}))
+      /* "tudo:true" ja daria acesso total, mas o sistema tambem consulta a
+         lista de permissoes em alguns pontos — e vazia ela bloqueava tela por
+         tela. A matriz nasce com TUDO liberado, que e o papel dela. */
       DB.usuarios.push({id:uid('usr'),nome:r.nome+' — Matriz',login:lg,senha:r.senha,
-        mestre:false,plataforma:false,ativo:true,tudo:true,sucursais:[],permissoes:{},
+        mestre:false,plataforma:false,ativo:true,tudo:true,sucursais:[],
+        permissoes:todasAsTelas(),
         criadoEm:new Date().toISOString()});
   }
   var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
@@ -38416,6 +38433,12 @@ function podeVer(mid,iid){
   if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono do Nexor */
   /* modo de venda desligado: a tela dele nao existe para esta loja */
   if((iid==='mesas'||iid==='vendas-mesa')&&typeof modoAtivo==='function'&&!modoAtivo('mesa'))return false;
+  /* "Acesso total" e acesso total. Sem isto, um usuario com tudo:true mas
+     lista de permissoes vazia era barrado tela por tela — foi o que fez a
+     matriz de um cliente novo entrar e nao enxergar nada.
+     Vem DEPOIS das travas de contrato e de modo de venda: acesso total nao
+     desliga regra da rede, so dispensa a lista de permissoes. */
+  if(u.tudo||u.mestre)return true;
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
   /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
