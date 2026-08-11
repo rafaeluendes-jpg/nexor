@@ -12804,7 +12804,15 @@ async function sincronizar(){
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
   /* o dono nao tem loja: nao ha dado dele para subir, e subir com loja vazia
      carimbaria o cadastro de alguem sem dono */
-  if(NUVEM.plataforma){logNuvem('modo plataforma: nada a enviar');return;}
+  if(NUVEM.plataforma){
+    /* O dono nao tem loja: nao existe dado dele para subir. Sem limpar as
+       marcas de pendencia aqui, o download seguinte via "tem coisa para
+       enviar", chamava o envio, o envio nao fazia nada, e o download se
+       cancelava — em laco, a cada 30 segundos, enchendo o diagnostico. */
+    NUVEM.sujo=false;DB._sujo=false;
+    logNuvem('modo plataforma: não há loja para sincronizar');
+    return;
+  }
   /* ==========================================================
      NADA SOBE ANTES DE BAIXAR
      Entre o login e a chegada dos dados da nuvem existe uma janela de alguns
@@ -12927,6 +12935,15 @@ async function sincronizar(){
     for(var m=0;m<MAPA.length;m++){
       var E2=MAPA[m];
       etapa=E2.tab;
+      /* ------------------------------------------------------------------
+         A CARTEIRA DE CLIENTES E DA PLATAFORMA, NAO DA LOJA.
+         clientes_nexor guarda o contrato de cada empresa com a Nexor, e so
+         o dono grava nela. Mas a tabela estava no MAPA como qualquer outra,
+         entao TODA loja tentava reenviar a propria linha a cada
+         sincronizacao — e levava um "sem permissao" do banco, corretamente,
+         a cada vez. O erro era do sistema tentando, nao da regra.
+         ------------------------------------------------------------------ */
+      if(E2.tab==='clientes_nexor'&&!ehPlataforma())continue;
       /* Cada tabela é enviada por conta própria. Antes, um único registro
          recusado pelo banco parava a fila inteira e as 40 tabelas seguintes
          nunca subiam — o aparelho ficava "travado" sem dizer onde. */
@@ -13118,6 +13135,11 @@ async function sincronizar(){
       var av=document.getElementById('avisoTab');if(av)av.remove();
     }
     DB._snapOk=true;
+    /* A marca de "tem coisa para enviar" era ligada a cada gravacao e NUNCA
+       desligada. Resultado: o sistema achava que havia pendencia para sempre,
+       e o download vivia sendo adiado por um envio que ja tinha acontecido.
+       Se alguma tabela falhou, a marca fica — ai a pendencia e real. */
+    if(!NUVEM.erros||!NUVEM.erros.length){ NUVEM.sujo=false;DB._sujo=false; }
     gravarLocal();
     statusNuvem('ok');
     logNuvem('tudo enviado com sucesso');
@@ -13143,6 +13165,10 @@ async function sincronizar(){
 
 /* ---- trazer da nuvem ---- */
 async function baixarDaNuvem(forcar){
+  if(NUVEM.plataforma){
+    NUVEM.sujo=false;DB._sujo=false;
+    return true;                       /* o dono nao baixa dados de loja */
+  }
   /* NUNCA sobrescreve o aparelho enquanto houver algo esperando subir */
   if(NUVEM.sujo&&!forcar){
     logNuvem('há mudanças pendentes — enviando antes de baixar');
@@ -14429,7 +14455,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V29.0.0';
+var VERSAO='V29.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
