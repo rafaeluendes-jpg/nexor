@@ -12040,7 +12040,11 @@ function logNuvem(txt,erro){
   if(NUVEM.log.length>60)NUVEM.log.pop();
 }
 function semear(){
-  DB={categorias:[],produtos:[],grupos:[],fichas:[{id:'f1',nome:'Ficha padrão — exemplo'}]};
+  /* Cliente novo nasce VAZIO. Sem ficha de exemplo, sem insumo de demonstracao,
+     sem nada. O Nexor e vendido para empresas diferentes: o que aparecer na tela
+     tem de ter sido cadastrado por aquela empresa, nunca inventado pelo sistema.
+     Era a ficha 'f1' daqui que abria a porta para os semeadores de exemplo. */
+  DB={categorias:[],produtos:[],grupos:[],fichas:[]};
 }
 
 /* ---- sincronizacao com a nuvem ---- */
@@ -12653,6 +12657,21 @@ async function apagar(tab,campo,valor){
 /* ---- sincronização completa ---- */
 async function sincronizar(){
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
+  /* ==========================================================
+     NADA SOBE ANTES DE BAIXAR
+     Entre o login e a chegada dos dados da nuvem existe uma janela de alguns
+     segundos em que o aparelho esta vazio. Qualquer coisa que apareca no DB
+     nessa janela nao veio do cliente — veio do proprio sistema. Foi por essa
+     porta que 27 insumos e 10 fichas de exemplo subiram como se fossem da
+     Rafaelos. Os semeadores foram desligados; esta trava garante que, se
+     algum dia nascer outro, ele nao chega na nuvem.
+     O envio nao e perdido: fica pendente e sai assim que o download terminar.
+     ========================================================== */
+  if(NUVEM.zerado&&!NUVEM.baixou){
+    NUVEM.pendente=true;
+    logNuvem('envio adiado: este aparelho ainda não baixou da nuvem');
+    return;
+  }
   if(NUVEM.sincronizando){
     NUVEM.pendente=true;
     logNuvem('envio adiado: já havia um em andamento');
@@ -13570,6 +13589,9 @@ async function baixarDaNuvem(forcar){
   /* o que veio da nuvem ja esta na nuvem: registra a impressao para nao reenviar tudo */
   DB._hash={};
   NUVEM.baixou=true;   /* daqui em diante este aparelho pode espelhar exclusões */
+  NUVEM.zerado=false;  /* ja tem os dados do dono: pode enviar */
+  /* alguem tentou enviar durante o download e foi segurado: agora pode ir */
+  if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   logNuvem('download concluído — itens de categorias: '+antesCat+' -> '+depoisCat,
     depoisCat<antesCat);
@@ -13813,6 +13835,11 @@ async function entrarPeloAuth(lg,sn){
   DB.categorias=[];DB.fichas=[];DB.pedidos=[];DB.clientes=[];
   DB._snap={};DB._hash={};DB._uuid={};
   DB._dono=rp.data.loja_id;
+  /* Aparelho recem-zerado: nada sobe ate o download chegar. E 'baixou' volta a
+     ser falso porque, em troca de usuario sem recarregar a pagina, ela ficava
+     ligada do usuario ANTERIOR — e o novo ja entrava podendo espelhar exclusoes
+     de uma base que nunca viu. */
+  NUVEM.zerado=true;NUVEM.baixou=false;
   logNuvem('aparelho limpo no login — os dados vêm todos da nuvem');
 
   NUVEM.cli=cli;NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;
@@ -14196,7 +14223,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V23.2.1';
+var VERSAO='V24.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -26306,12 +26333,14 @@ function baseFicha(){
   DB.fichas=(DB.fichas||[]).filter(function(f){
     return !(/Ficha padrão/i.test(f.nome||'')&&!(f.itens||[]).length);
   });
-  if(!DB.fichaCats.length||!DB.fichaCats[0].subs){
+  /* Produzido e Vendas sao estruturais: a producao depende de um grupo que
+     case com /produz/. Ja os subgrupos (Artesanal, Base de Gelato, Cascao,
+     Sorbet, Zero Acucar) sao do ramo de gelato e nasciam em TODA loja nova —
+     uma padaria abria o sistema e encontrava Sorbet cadastrado. Cada empresa
+     cria os seus. */
+  if(!DB.fichaCats.length){
     DB.fichaCats=[
-      {id:'fc_prod',nome:'Produzido',subs:[
-        {id:'fs_art',nome:'Artesanal'},{id:'fs_base',nome:'Base de Gelato'},
-        {id:'fs_casc',nome:'Cascão'},{id:'fs_rech',nome:'Recheio'},
-        {id:'fs_sorb',nome:'Sorbet'},{id:'fs_zero',nome:'Zero Açúcar'}]},
+      {id:'fc_prod',nome:'Produzido',subs:[]},
       {id:'fc_venda',nome:'Vendas',subs:[]}
     ];
   }
@@ -26323,25 +26352,13 @@ function baseFicha(){
     if(f.rendimento===undefined)f.rendimento=1;
     if(!f.rendUnidade)f.rendUnidade=f.unidade;
   });
-  semearInsumos();
-  if(typeof semearDemo==='function')semearDemo();
 }
-/* alguns insumos de exemplo para o sistema não nascer vazio */
-function semearInsumos(){
-  if((DB.insumos||[]).length)return;
-  var g=(DB.gruposIng||[])[0]||{id:'gi_ins'};
-  [['Agua Filtrada','l',0.01],['Acucar','kg',2.80],['Dextrose','kg',10.00],
-   ['Glucose','kg',7.60],['Neutro','kg',70.00],['Polidextrose','kg',15.72],
-   ['Leite Integral','l',4.20],['Creme de Leite','l',12.50],['Leite em Po','kg',28.90],
-   ['Amora Fruta','kg',18.00],['Abacaxi Fruta','kg',4.50],['Morango Fruta','kg',14.00],
-   ['Chocolate 50%','kg',42.00],['Pasta de Avela','kg',68.00],['Pote 100ml','un',0.38]
-  ].forEach(function(x){
-    DB.insumos.push({id:uid('ins'),codigo:proxCodInsumo(),nome:x[0],unidade:x[1],custo:x[2],
-      grupoId:g.id,subgrupoId:'',controlaEstoque:true,compoeCMV:true,
-      estoqueMin:0,estoqueAtual:0,fator:1,custoUltima:x[2],compras:[]});
-  });
-  salvar();
-}
+/* DESATIVADA. Criava 15 insumos de gelato em toda loja que abrisse a tela de
+   fichas com o estoque vazio — inclusive em cliente novo, que via 27 insumos
+   sem nunca ter cadastrado nada. A funcao continua existindo, e vazia, porque
+   ha chamadas dela espalhadas; botao que aponta para funcao inexistente quebra
+   a tela. Cadastro de insumo agora so nasce de quem cadastrou. */
+function semearInsumos(){ return; }
 
 /* ---------- LISTA ---------- */
 function telaFichaTecnica(){
@@ -27117,17 +27134,14 @@ function baseMov(){
   });
   lojasCad();
   DB.motivosMov.forEach(function(m){if(!m.lojas)m.lojas=[]});
-  /* item de estoque que recebe a produção de gelato */
+  /* Quem JA tem o item de gelato continua com ele marcado — a Jolô depende
+     dele como destino de produção e nada muda para ela. O que saiu foi a
+     criação automática: 'Gelato Venda' nascia sozinho em qualquer empresa,
+     inclusive nas que não vendem gelato. Quem precisar de um destino de
+     produção cadastra o seu. */
   var jaTem=(DB.insumos||[]).find(function(i){
     return i.gelatoVenda||String(i.nome||'').toLowerCase()==='gelato venda';});
   if(jaTem&&!jaTem.gelatoVenda)jaTem.gelatoVenda=true;
-  if(!jaTem){
-    var g=(DB.gruposIng||[])[0]||{id:'gi_ins'};
-    DB.insumos.push({id:'ins_gelato_venda',codigo:'900001',nome:'Gelato Venda',unidade:'kg',
-      custo:15,modoCusto:'media',grupoId:g.id,controlaEstoque:true,compoeCMV:true,
-      estoqueMin:0,estoqueAtual:0,fator:1,custoUltima:15,compras:[],gelatoVenda:true,
-      descricao:'Estoque único de gelato pronto para venda'});
-  }
   /* grupo Produzido aponta para Gelato Venda por padrão */
   var gvId=((DB.insumos||[]).find(function(i){return i.gelatoVenda;})||{}).id;
   (DB.fichaCats||[]).forEach(function(c){
@@ -28646,80 +28660,11 @@ var _focoBusca='';
 
 /* dados de demonstração: bases e sabores */
 var _semeando=false;
-function semearDemo(){
-  if(_semeando||DB._demo3)return;
-  _semeando=true;
-  DB._demo3=true;
-  try{
-
-  /* grupo Produzido com apenas os subgrupos que usamos */
-  var gp=(DB.fichaCats||[]).find(function(c){return /produz/i.test(c.nome)});
-  if(!gp){gp={id:uid('fc'),nome:'Produzido',subs:[]};DB.fichaCats.push(gp);}
-  gp.subs=gp.subs||[];
-  /* remove subgrupos vazios criados automaticamente */
-  gp.subs=gp.subs.filter(function(sg){
-    var usados=(DB.fichas||[]).some(function(f){return f.subgrupoId===sg.id});
-    return usados||/artesanal|zero/i.test(sg.nome);
-  });
-  function subg(nome){
-    var sg=gp.subs.find(function(x){return x.nome.toLowerCase()===nome.toLowerCase()});
-    if(!sg){sg={id:uid('fs'),nome:nome};gp.subs.push(sg);}
-    return sg;
-  }
-  var art=subg('Artesanal'), zero=subg('Zero Açúcar');
-
-  /* insumos usados nas receitas */
-  var g=(DB.gruposIng||[])[0]||{id:'gi_ins'};
-  function garanteInsumo(nome,unid,custo){
-    var i=(DB.insumos||[]).find(function(x){return x.nome===nome});
-    if(i)return i;
-    i={id:uid('ins'),codigo:proxCodInsumo(),nome:nome,unidade:unid,custo:custo,modoCusto:'media',
-      grupoId:g.id,controlaEstoque:true,compoeCMV:true,estoqueMin:2,estoqueAtual:0,
-      fator:1,custoUltima:custo,compras:[],demo:true};
-    DB.insumos.push(i);
-    return i;
-  }
-  [['Leite Integral','l',4.20],['Açúcar','kg',2.80],['Água Filtrada','l',0.01],
-   ['Creme de Leite','l',12.50],['Leite em Pó','kg',28.90],['Chocolate ao Leite','kg',42.00],
-   ['Polpa de Coco','kg',16.40],['Iogurte Natural','kg',11.90],['Adoçante Culinário','kg',54.00],
-   ['Neutro','kg',70.00],['Base Iogurte','kg',36.20],['Base Belga','kg',38.90],
-   ['Base Ninho','kg',44.50],['Base Limão','kg',29.80]
-  ].forEach(function(x){garanteInsumo(x[0],x[1],x[2])});
-  function ins(nome){return (DB.insumos||[]).find(function(i){return i.nome===nome})}
-
-  /* fichas: bases e sabores */
-  function garanteFicha(nome,sgId,receita){
-    var f=(DB.fichas||[]).find(function(x){return x.nome===nome});
-    var itens=receita.map(function(x){
-      var i2=ins(x[0]);
-      return i2?{insumoId:i2.id,qtd:x[1],unidade:i2.unidade,perda:0}:null;
-    }).filter(Boolean);
-    if(f){f.categoriaId=gp.id;f.subgrupoId=sgId;if(!(f.itens||[]).length)f.itens=itens;return f;}
-    DB.fichas.push({id:uid('fi'),codigo:proxCodFicha(),nome:nome,categoriaId:gp.id,
-      subgrupoId:sgId,unidade:'kg',estocavel:true,disponivelVenda:false,itens:itens,
-      rendimento:4.5,rendUnidade:'kg',unidadesVenda:4.5,preco:0,lojas:[],demo:true});
-  }
-  /* bases */
-  garanteFicha('Base Iogurte',  art.id,[['Leite Integral',2.4],['Iogurte Natural',1.2],['Açúcar',0.8],['Neutro',0.02]]);
-  garanteFicha('Base Belga',    art.id,[['Leite Integral',2.2],['Chocolate ao Leite',1.0],['Açúcar',0.7],['Neutro',0.02]]);
-  garanteFicha('Base Ninho',    art.id,[['Leite Integral',2.3],['Leite em Pó',0.9],['Açúcar',0.75],['Neutro',0.02]]);
-  /* sabores artesanais */
-  garanteFicha('Abacaxi Gelato',     art.id,[['Base Limão',1.2],['Açúcar',0.45],['Água Filtrada',2.1]]);
-  garanteFicha('Morango Gelato',     art.id,[['Base Iogurte',1.4],['Açúcar',0.5],['Água Filtrada',1.9]]);
-  garanteFicha('Leite Ninho Gelato', art.id,[['Base Ninho',1.8],['Açúcar',0.4],['Leite Integral',1.6]]);
-  garanteFicha('Iogurte Gelato',     art.id,[['Base Iogurte',1.7],['Açúcar',0.42],['Leite Integral',1.5]]);
-  garanteFicha('Belga Gelato',       art.id,[['Base Belga',1.6],['Chocolate ao Leite',0.5],['Leite Integral',1.7]]);
-  /* sabores zero açúcar */
-  garanteFicha('Chocolate Zero Açúcar', zero.id,
-    [['Leite Integral',2.1],['Chocolate ao Leite',0.9],['Adoçante Culinário',0.18],['Neutro',0.02]]);
-  garanteFicha('Coco Zero Açúcar', zero.id,
-    [['Leite Integral',2.0],['Polpa de Coco',1.1],['Adoçante Culinário',0.16],['Neutro',0.02]]);
-
-  if(typeof FT!=='undefined'&&FT.abertas)FT.abertas[gp.id]=true;
-  salvar();
-  }catch(e){console.error('semearDemo',e);}
-  finally{_semeando=false;}
-}
+/* DESATIVADA. Criava 11 insumos e 10 fichas de gelato (Base Iogurte, Base Belga,
+   Morango Gelato, Coco Zero Acucar...) em qualquer loja com o cadastro vazio.
+   Foi o que encheu a Rafaelos de dados que nao eram dela — nao vieram da Jolo,
+   nasceram aqui. Mantida vazia porque varias telas ainda a chamam. */
+function semearDemo(){ return; }
 
 /* todas as linhas de movimento, achatadas */
 function linhasHist(filtro){
@@ -28746,7 +28691,6 @@ function destinoLinha(x){
 }
 
 function telaHistPosicao(){
-  semearDemo();
   if(!HP.de){HP.de=diasAtrasISO(60);HP.ate=hojeISO();}
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
