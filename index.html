@@ -14272,7 +14272,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V26.0.2';
+var VERSAO='V26.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23092,8 +23092,25 @@ function telaRedeAberta(id){
     ((x.perfis||[]).length?x.perfis.map(function(p){
       return ctLinha(E(p.nome||'—'),E(p.cargo||'—')+(p.unidade?' · '+E(p.unidade):''));
     }).join(''):'<div class="hint vr">Nenhum acesso criado. Esta empresa ainda não consegue entrar.</div>')+
-    '<div class="hint" style="margin-top:10px">Criar o login do administrador desta empresa é a '+
-    'próxima obra: depende da função do servidor, a única que tem a chave de administrador.</div>'+
+    '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">'+
+     '<b style="font-size:13px">Criar acesso</b>'+
+     '<p class="hint" style="margin:4px 0 10px">A senha é criada por você e trocada pela pessoa depois. '+
+     'O administrador enxerga a empresa inteira; o gerente, só a unidade escolhida.</p>'+
+     '<div class="grid2">'+
+      '<div class="fld2"><label>Nome</label><input id="acNome" placeholder="Ex.: Jolô — Matriz"></div>'+
+      '<div class="fld2"><label>E-mail (login) *</label><input id="acMail" placeholder="nome@empresa.com"></div>'+
+      '<div class="fld2"><label>Senha *</label><input id="acSenha" type="text" placeholder="mínimo 6 caracteres"></div>'+
+      '<div class="fld2"><label>Papel</label><select id="acCargo">'+
+       '<option value="admin">Administrador da empresa</option>'+
+       '<option value="gerente">Gerente de unidade</option></select></div>'+
+      '<div class="fld2"><label>Unidade</label><select id="acSuc">'+
+       '<option value="">A empresa inteira</option>'+
+       unid.map(function(s2){return '<option value="'+E(s2.ref_local||'')+'">'+E(s2.nome)+'</option>'}).join('')+
+      '</select></div>'+
+     '</div>'+
+     '<div style="margin-top:10px"><button class="btnP2 ok" onclick="criarAcessoEmpresa(\''+l.id+'\')">'+
+      'Criar acesso</button></div>'+
+    '</div>'+
    '</div></div>';
   rodape(E(l.nome)+' · '+unid.length+' unidade(s)');
 }
@@ -23117,6 +23134,26 @@ function painelErro(msg,detalhe){
     'opacity:.9;word-break:break-word">'+E(detalhe)+'</div>':'')+
     '<div style="margin-top:8px"><button class="btnP2" onclick="var n=document.getElementById(\'painelAviso\');if(n)n.remove()">Fechar</button></div>';
   try{el.scrollIntoView({block:'center'});}catch(e){}
+}
+async function criarAcessoEmpresa(lojaId){
+  var nome=vlr('acNome'),email=vlr('acMail').toLowerCase(),senha=vlr('acSenha'),
+      cargo=vlr('acCargo'),suc=vlr('acSuc');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){painelErro('Informe um e-mail válido para o login.');return;}
+  if(senha.length<6){painelErro('A senha precisa ter ao menos 6 caracteres.');return;}
+  try{
+    /* a chave de administrador vive so no servidor: o navegador nunca a ve */
+    var r=await fetch(NUVEM.url+'/functions/v1/criar-usuario',{
+      method:'POST',
+      headers:{'apikey':NUVEM.chave,'Authorization':'Bearer '+(await tokenValido()),
+               'Content-Type':'application/json'},
+      body:JSON.stringify({email:email,senha:senha,nome:nome||email,cargo:cargo,
+                           loja_id:lojaId,sucursal_ref:suc||null})});
+    var d=null; try{ d=await r.json(); }catch(e){}
+    if(!r.ok){painelErro('Não consegui criar o acesso.',(d&&d.erro)||('o servidor respondeu '+r.status));return;}
+    INS.nuvem=null;await carregarEmpresas(true);
+    toast('Acesso criado: '+email);telaInstalacao();
+  }catch(e){ console.error('criarAcessoEmpresa',e);
+    painelErro('Não consegui criar o acesso.',detalheErro(e)); }
 }
 function detalheErro(e){
   if(!e)return '';
