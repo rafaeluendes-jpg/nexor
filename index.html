@@ -14272,7 +14272,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V26.1.0';
+var VERSAO='V26.1.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23218,60 +23218,17 @@ async function salvarUnidade(){
   }catch(e){ console.error('salvarUnidade',e);
     painelErro('Não consegui salvar a unidade.',detalheErro(e)); }
 }
-function editarUnidade(redeId,sucId){
-  var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
-  var x=sucId?(DB.sucursais||[]).find(function(z){return z.id===sucId}):null;
-  var lg=x?(DB.usuarios||[]).find(function(z){return (z.sucursais||[]).indexOf(x.id)>=0}):null;
-  var h='<div class="mdB">'+
-   '<div class="row3"><div class="fld2" style="flex:2"><label>Nome da unidade</label>'+
-    '<input id="unN" value="'+E(x?x.nome:'')+'" placeholder="ex.: '+E(r.nome)+' Jales"></div>'+
-    '<div class="fld2"><label>Cidade</label><input id="unC" value="'+E(x?x.cidade:'')+'"></div>'+
-    '<div class="fld2"><label>UF</label><input id="unU" maxlength="2" value="'+E(x?x.uf:'')+'"></div></div>'+
-   '<div class="row3"><div class="fld2" style="flex:2"><label>Login do franqueado</label>'+
-    '<input id="unL" value="'+E(lg?lg.login:'')+'" placeholder="'+(r.dominio?'gerado a partir do nome':'defina o domínio na matriz')+'"></div>'+
-    '<div class="fld2"><label>Senha</label><input id="unS" value="'+E(lg?lg.senha:'123')+'"></div></div>'+
-   '<div class="hint">Deixe o login em branco para o sistema montar como <b>unidade@'+(E(r.dominio)||'domínio')+'</b>.</div>'+
-  '</div>';
-  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
-  o.innerHTML='<div class="mdBox"><div class="mdH"><b>'+(x?'Editar unidade':'Nova unidade')+'</b>'+
-   '<button class="mdX" onclick="fecharModal()">&times;</button></div>'+h+
-   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Cancelar</button>'+
-   '<button class="btnP2 ok" onclick="salvarUnidade(\''+redeId+'\','+(x?"'"+x.id+"'":'null')+')">Salvar</button></div></div>';
-  document.body.appendChild(o);
-}
-function salvarUnidade(redeId,sucId){
-  var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
-  var nome=$('unN').value.trim();
-  if(!nome){toast('Informe o nome da unidade.');return;}
-  var x=sucId?(DB.sucursais||[]).find(function(z){return z.id===sucId}):null;
-  if(!x){
-    x={id:'suc_'+apelidoLogin(nome).slice(0,14)+'_'+Date.now().toString(36).slice(-4),
-       nome:nome,apelido:nome,cnpj:'',telefone:'',cidade:'',uf:'',matriz:false,ativa:true,
-       redeId:redeId,redeNome:r.nome,cor:CORES_SUC[(DB.sucursais.length)%CORES_SUC.length]};
-    DB.sucursais.push(x);
-  }
-  x.nome=nome;x.apelido=nome;x.cidade=$('unC').value.trim();x.uf=$('unU').value.trim().toUpperCase();
-  x.redeId=redeId;x.redeNome=r.nome;
-  var lg=($('unL').value.trim()||(r.dominio?apelidoLogin(nome)+'@'+r.dominio:'')).toLowerCase();
-  var sn=$('unS').value.trim()||'123';
-  if(lg){
-    var u=(DB.usuarios||[]).find(function(z){return (z.sucursais||[]).indexOf(x.id)>=0});
-    if(u){u.login=lg;u.senha=sn;u.nome=nome;}
-    else if(!(DB.usuarios||[]).some(function(z){return (z.login||'').toLowerCase()===lg})){
-      var perm={};(MODELOS.franqueado||[]).forEach(function(k){perm[k]=true});
-      DB.usuarios.push({id:uid('usr'),nome:nome,login:lg,senha:sn,mestre:false,plataforma:false,
-        ativo:true,tudo:false,sucursais:[x.id],permissoes:perm,criadoEm:new Date().toISOString()});
-    }
-  }
-  salvar();fecharModal();telaInstalacao();toast('Unidade salva.');
-}
-async function apagarUnidade(redeId,sucId){
-  var x=(DB.sucursais||[]).find(function(z){return z.id===sucId});if(!x)return;
-  if(!await pergunta('Excluir a unidade "'+x.nome+'" e o acesso dela?\n\nOs dados já lançados nela não são apagados.'))return;
-  DB.sucursais=DB.sucursais.filter(function(z){return z.id!==sucId});
-  DB.usuarios=(DB.usuarios||[]).filter(function(z){return (z.sucursais||[]).indexOf(sucId)<0});
-  salvar();telaInstalacao();toast('Unidade removida.');
-}
+/* ----------------------------------------------------------
+   REMOVIDAS: editarUnidade / salvarUnidade(redeId,sucId) / apagarUnidade
+   Eram as telas da versao anterior, que trabalhavam sobre DB.redes — a lista
+   local que nao existe mais. Nao estavam so obsoletas: a salvarUnidade delas
+   tinha o MESMO NOME da nova e, por vir depois no arquivo, sobrescrevia a
+   nova. O clique em "Salvar unidade" caia nesta aqui, que abria com
+   `DB.redes.find(...); if(!r) return;` e desistia em silencio na primeira
+   linha — sem gravar, sem erro, sem mensagem.
+   Falha de varredura minha: funcao duplicada e a primeira coisa a conferir
+   antes de publicar num arquivo unico.
+   ---------------------------------------------------------- */
 
 /* ==========================================================
    CARGA INICIAL — dados vindos das planilhas da Jolo Santa Fe
