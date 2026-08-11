@@ -11882,8 +11882,6 @@ function liberarEspacoLocal(){
   });
   return liberou;
 }
-/* A marca de dono viaja junto com os dados. Se ela se perdesse ao gravar,
-   toda a protecao contra misturar clientes cairia junto. */
 function gravarLocal(){
   var txt;
   try{ txt=JSON.stringify(DB); }
@@ -12043,7 +12041,7 @@ function agendarSync(){
 }
 async function conectarNuvem(email,senha){
   if(!window.supabase)throw new Error('Biblioteca da nuvem não carregou. Verifique a internet.');
-  clienteNuvem();
+  NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave);
   var r=await NUVEM.cli.auth.signInWithPassword({email:email,password:senha});
   if(r.error)throw r.error;
   var rp=await NUVEM.cli.from('perfis').select('id,nome,cargo,loja_id,empresa_id').eq('id',r.data.user.id).maybeSingle();
@@ -12058,7 +12056,6 @@ async function conectarNuvem(email,senha){
 function desconectarNuvem(){
   try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){}
   desligarTempoReal();
-  /* aqui SIM o cliente e descartado: sair tem de derrubar a sessao */
   NUVEM.ligada=false;NUVEM.cli=null;NUVEM.token=null;NUVEM.perfil=null;NUVEM.loja=null;
   setModo('local');rodape();conferirNuvem();
 }
@@ -12068,49 +12065,19 @@ function temDadosLocais(){
     return MAPA.some(function(E4){ return (DB[E4.col]||[]).length>0; });
   }catch(e){return false}
 }
-/* ==========================================================
-   UM CLIENTE SO
-   Existiam TRES createClient no sistema — um no login, um na religacao e
-   um no painel. Cada um criava uma instancia nova, e a instancia nova nao
-   herdava a sessao da anterior. Resultado: a pessoa entrava, o sistema
-   trocava de instancia e a sessao "expirava" segundos depois.
-   Aqui existe um cliente unico, com a sessao guardada e renovada sozinha.
-   ========================================================== */
-function clienteNuvem(){
-  if(NUVEM.cli)return NUVEM.cli;
-  if(!window.supabase)return null;
-  NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave,{
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,
-          storageKey:'nexor_auth'}
-  });
-  return NUVEM.cli;
-}
 async function religarNuvem(){
+  if(modo()!=='nuvem')return false;
   if(!window.supabase)return false;
   try{
-    if(!clienteNuvem())return false;
+    NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave);
     var r=await NUVEM.cli.auth.getSession();
     var ses=r&&r.data?r.data.session:null;
-    /* Nao destruir o cliente: agora ele e unico e o login precisa dele.
-       Antes cada funcao criava o seu, entao zerar aqui nao fazia falta —
-       com o cliente unico, zerar aqui deixava o sistema sem como entrar. */
-    if(!ses){NUVEM.ligada=false;return false;}
+    if(!ses){NUVEM.cli=null;return false;}
     var rp=await NUVEM.cli.from('perfis')
-      .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
-      .eq('id',ses.user.id).maybeSingle();
-    if(rp.error||!rp.data){NUVEM.ligada=false;return false;}
+      .select('id,nome,cargo,loja_id,empresa_id').eq('id',ses.user.id).maybeSingle();
+    if(rp.error||!rp.data){NUVEM.cli=null;return false;}
     NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
     NUVEM.token=ses.access_token;
-    if(rp.data.sucursal_ref){DB.lojaAtual=rp.data.sucursal_ref;S.loja=rp.data.sucursal_ref;}
-    /* Ao voltar por sessao guardada, o aparelho pode ter dados de outro
-       cliente. Aqui e o mesmo tratamento do login: joga fora e baixa os
-       certos, sem perguntar nada. */
-    if(DB._dono&&DB._dono!==NUVEM.loja){
-      logNuvem('sessao restaurada com dados de outro cliente — recarregando',true);
-      await trocarDeCliente(NUVEM.loja);
-      return true;
-    }
-    DB._dono=NUVEM.loja;
     if(DB._sujo)NUVEM.sujo=true;     /* ficou algo por enviar da sessao anterior */
     statusNuvem('ok');rodape();
     setTimeout(ligarTempoReal,400);
@@ -12126,7 +12093,7 @@ async function religarNuvem(){
       }catch(e){ statusNuvem('erro',(e&&e.message)||''); }
     },900);
     return true;
-  }catch(e){NUVEM.ligada=false;return false;}
+  }catch(e){NUVEM.cli=null;return false;}
 }
 /* ==========================================================
    MOTOR DE SINCRONIZAÇÃO
@@ -12494,23 +12461,9 @@ async function tokenValido(forcar){
       if(NUVEM.cli.realtime&&NUVEM.cli.realtime.setAuth)
         NUVEM.cli.realtime.setAuth(NUVEM.token);
     }else{
-      /* Antes o sistema so desligava e ficava esperando alguem clicar em
-         "Ligar agora". Agora ele tenta voltar sozinho: a sessao guardada
-         costuma estar la, so precisava ser lida de novo. */
-      var voltou=false;
-      try{
-        var r2=await NUVEM.cli.auth.getSession();
-        if(r2&&r2.data&&r2.data.session){
-          NUVEM.token=r2.data.session.access_token;
-          _tokenAte=Date.now()+600000;
-          NUVEM.ligada=true;voltou=true;
-          logNuvem('sessão recuperada sozinha');
-        }
-      }catch(e3){}
-      if(!voltou){
-        NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;
-        try{conferirNuvem();rodape();}catch(e){}
-      }
+      /* a sessão acabou de verdade: parar de fingir que está ligado */
+      NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;
+      try{conferirNuvem();rodape();}catch(e){}
     }
   }catch(e){}
   return NUVEM.token;
@@ -12604,32 +12557,9 @@ async function enviar(tab,linhas){
   var out=[];
   for(var i=0;i<linhas.length;i+=200){
     var lote=igualarChaves(linhas.slice(i,i+200));
-    try{
-      var r=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',lote,
-        {'Prefer':'resolution=merge-duplicates,return=representation'});
-      out=out.concat(r||[]);
-    }catch(e){
-      /* Vinculo apontando para algo que nao existe nesta loja: acontece
-         quando o aparelho traz sobra de outro cliente. Em vez de travar a
-         tabela inteira para sempre, o vinculo e desfeito e o registro sobe
-         sem ele — o dado principal e mais importante que a ligacao. */
-      var m=String((e&&e.message)||'');
-      if(/foreign key|violates foreign/i.test(m)){
-        var campo=(m.match(/_(\w+?)_fkey/)||[])[1];
-        var limpo=lote.map(function(o){
-          var c=Object.assign({},o);
-          Object.keys(c).forEach(function(k){
-            if(k===campo||(campo&&k===campo+'_id')||/_id$/.test(k)&&campo&&k.indexOf(campo)>=0)
-              c[k]=null;
-          });
-          return c;
-        });
-        logNuvem(tab+': vínculo inexistente removido para o registro poder subir');
-        var r2=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',limpo,
-          {'Prefer':'resolution=merge-duplicates,return=representation'});
-        out=out.concat(r2||[]);
-      }else throw e;
-    }
+    var r=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',lote,
+      {'Prefer':'resolution=merge-duplicates,return=representation'});
+    out=out.concat(r||[]);
   }
   return out;
 }
@@ -12681,12 +12611,8 @@ async function apagarRemovidos(tab,chave,idsAgora){
        O _snap NÃO é atualizado quando a trava age: assim o estado anterior
        continua valendo e nada é dado como aceito. */
     if(!idsAgora.length&&!podeEsvaziarAgora()){
-      /* A trava funcionou: nada foi apagado. Isso e o sistema fazendo o
-         trabalho dele, nao um problema para a pessoa resolver — entao vai
-         para o log e nao para a tela. O aviso so aparecia porque eu tratava
-         a protecao como se fosse falha. */
-      logNuvem('protegido: '+tab+' ficaria vazio na nuvem ('+antes.length+
-        ' registro(s)). Nada foi apagado.');
+      logNuvem('BLOQUEADO: '+tab+' ficaria vazio na nuvem ('+antes.length+
+        ' registro(s)). Nada foi apagado.',true);
       return;
     }
     if(sumiram.length>200&&!podeEsvaziarAgora()){
@@ -12715,69 +12641,8 @@ async function apagar(tab,campo,valor){
 }
 
 /* ---- sincronização completa ---- */
-/* Quando o aparelho esta com dados de outro cliente, nao ha o que perguntar:
-   o certo e jogar fora e trazer da nuvem. Antes isso virava um aviso pedindo
-   para a pessoa sair e entrar — no meio de uma operacao, ninguem faz isso. */
-/* Botao de emergencia: joga fora tudo que esta no aparelho e traz da nuvem.
-   Existe porque nenhuma protecao automatica cobre 100% dos casos — e quando
-   nao cobre, a pessoa precisa de uma saida que nao dependa de mim. */
-async function recarregarDaNuvem(){
-  if(!NUVEM.ligada){toast('Ligue a nuvem primeiro.');return;}
-  var ok=await confirmar({
-    titulo:'Recarregar tudo da nuvem',
-    texto:'Descarta o que está neste computador e traz do banco',
-    linhas:[['Loja',E(nomeLojaAtual()),''],
-            ['Usuário',E((usuarioLogado()||{}).login||''),'']],
-    aviso:'Use quando o aparelho estiver mostrando dados de outro cliente. '+
-     'O que ainda não subiu para a nuvem será perdido.',
-    ok:'Recarregar',tipo:'perigo'});
-  if(!ok)return;
-  await trocarDeCliente(NUVEM.loja);
-}
-async function trocarDeCliente(lojaCerta){
-  try{
-    localStorage.removeItem('nexor_dados');
-    localStorage.removeItem('nexor_respaldo');
-    localStorage.removeItem('nexor_respaldo_info');
-  }catch(e){}
-  DB={};
-  try{ semear(); }catch(e){}
-  DB._dono=lojaCerta;
-  DB._snap={};DB._hash={};DB._uuid={};
-  NUVEM.sujo=false;
-  try{ gravarLocal(); }catch(e){}
-  try{
-    statusNuvem('baixando');
-    await baixarDaNuvem(true);
-    statusNuvem('ok');
-    try{ espelharEstoque(); }catch(e){}
-    if(S.mod&&S.it)abrir(S.mod,S.it);
-    toast('Dados do cliente certo carregados.');
-  }catch(e){ statusNuvem('erro','não consegui baixar'); }
-}
 async function sincronizar(){
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
-  /* ==========================================================
-     TRAVA DE DONO — a ultima linha de defesa
-     O envio manda o que esta no navegador para a loja de quem esta
-     logado. Se o aparelho ainda tiver dados de OUTRO cliente, isso
-     copia a base inteira de um para dentro do outro. Foi exatamente
-     o que aconteceu: 425 insumos da Jolo foram parar na Rafaelos.
-     Aqui o envio confere de quem sao os dados ANTES de subir. Na
-     duvida, nao envia: dado que nao subiu se recupera; dado que
-     subiu para o cliente errado, nao.
-     ========================================================== */
-  /* A marca de dono agora vive DENTRO do DB, nao numa chave separada.
-     Separada, ela saia do lugar: a chave dizia "Rafaelos" enquanto os dados
-     ainda eram da Jolo, e o envio passava. Junto, nao ha como divergir. */
-  if(NUVEM.loja){
-    if(DB._dono&&DB._dono!==NUVEM.loja){
-      logNuvem('envio bloqueado: dados de outro cliente — recarregando',true);
-      await trocarDeCliente(NUVEM.loja);
-      return;
-    }
-    if(!DB._dono){DB._dono=NUVEM.loja;try{gravarLocal()}catch(e){}}
-  }
   if(NUVEM.sincronizando){
     NUVEM.pendente=true;
     logNuvem('envio adiado: já havia um em andamento');
@@ -13837,60 +13702,26 @@ $('tg').onclick=function(){
   i.type=v?'password':'text';
   this.setAttribute('aria-label',v?'Mostrar senha':'Ocultar senha');
 };
-async function abrirSessao(){
+function abrirSessao(){
   carregar();
   $('login').classList.add('hide');$('app').classList.remove('hide');
   boot();
-  /* A nuvem sobe em paralelo, NAO na frente. Esperar por ela aqui prendia a
-     tela quando a internet estava lenta — e sistema que nao abre e pior que
-     sistema fora da nuvem. */
-  if(!NUVEM.ligada){
-    statusNuvem('ligando');
-    religarNuvem().then(function(ok){
-      if(ok){statusNuvem('ok');rodape();try{conferirNuvem()}catch(e){}}
-      else statusNuvem('local');
-    }).catch(function(){ statusNuvem('local'); });
-  }
   /* a entrada pelo Auth ja deixou o aparelho ligado: aqui so falta buscar
      o que mudou. Quem voltou por sessao guardada ainda precisa religar. */
-  setTimeout(async function(){
+  setTimeout(function(){
     try{
       if(NUVEM.ligada){
         statusNuvem('ok');rodape();
         setTimeout(ligarTempoReal,400);
         setTimeout(async function(){
           try{
-            /* Enviar antes de baixar so vale se o que esta no aparelho for
-               DESTE cliente. Depois de trocar de login, o local foi limpo —
-               subir aqui mandaria a base de um cliente para dentro do outro.
-               Nesse caso: baixa primeiro, e o envio vem depois. */
-            var mesmoCliente=(DB._dono===NUVEM.loja && temDadosLocais());
-            if(mesmoCliente){ await sincronizar(); }
             statusNuvem('baixando'); await baixarDaNuvem(true); statusNuvem('ok');
-            /* devolve a venda offline que ficou guardada na limpeza */
-            if(DB._pendOffline&&DB._pendOffline.length){
-              DB.pedidos=(DB.pedidos||[]).concat(DB._pendOffline);
-              logNuvem(DB._pendOffline.length+' venda(s) offline devolvida(s) e reenviada(s)');
-              DB._pendOffline=[];
-              salvar(); await sincronizar();
-            }
             if(S.mod&&S.it)abrir(S.mod,S.it);
             /* a fila da assistente entra assim que a nuvem estiver de pé */
             try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){}
           }catch(e){ statusNuvem('erro',(e&&e.message)||''); }
         },900);
-      }else{
-        var ok=await religarNuvem();
-        if(!ok){
-          try{
-            if(clienteNuvem()){
-              var rr=await NUVEM.cli.auth.refreshSession();
-              if(rr&&rr.data&&rr.data.session)ok=await religarNuvem();
-            }
-          }catch(e2){}
-        }
-        if(!ok)logNuvem('não consegui religar sozinho: a sessão expirou',true);
-      }
+      }else religarNuvem();
     }catch(e){console.error('religar',e);}
   },500);
   /* e confere: aparelho fora da nuvem numa loja tem de gritar, nao sussurrar */
@@ -13928,8 +13759,9 @@ function redeDoUsuario(u){
    ---------------------------------------------------------- */
 async function entrarPeloAuth(lg,sn){
   if(!window.supabase||!NUVEM.url||!NUVEM.chave)return {ok:false,motivo:'rede'};
-  var cli=clienteNuvem();
-  if(!cli)return {ok:false,motivo:'rede'};
+  var cli;
+  try{ cli=window.supabase.createClient(NUVEM.url,NUVEM.chave); }
+  catch(e){ return {ok:false,motivo:'rede'}; }
   var r;
   try{ r=await cli.auth.signInWithPassword({email:lg,password:sn}); }
   catch(e){ return {ok:false,motivo:'rede'}; }
@@ -13953,49 +13785,24 @@ async function entrarPeloAuth(lg,sn){
   /* daqui em diante o aparelho esta ligado na nuvem — sem passar por
      Banco de dados. Era isso que deixava o socio lancando no vazio. */
   /* ==========================================================
-     TROCOU DE CLIENTE: O APARELHO COMECA DO ZERO
-     O sistema guarda tudo no navegador. Ate aqui, entrar com outro
-     cliente NAO limpava nada — e a pessoa via os dados de quem usou o
-     computador antes. Nao era vazamento da nuvem: era sobra local.
-     Agora o aparelho lembra de QUEM sao os dados guardados. Se o cliente
-     que entrou e outro, tudo e apagado antes de qualquer coisa aparecer.
+     A NUVEM MANDA
+     O aparelho e limpo ao entrar e tudo vem do banco. Sem isto, quem usou
+     o computador antes deixa a base dele para o proximo — foi assim que os
+     dados da Jolo apareceram dentro da Rafaelos.
      ========================================================== */
-  var lojaAnterior=DB._dono||null;
-  if(!lojaAnterior){ try{ lojaAnterior=localStorage.getItem('nexor_loja_dados'); }catch(e){} }
-
-  /* ==========================================================
-     A NUVEM MANDA. SEMPRE.
-     Eu vinha tentando adivinhar QUANDO limpar o aparelho — por marca de
-     dono, por loja vazia, por comparacao. Cada regra deixava um caso de
-     fora, e o caso de fora significa a base de um cliente dentro do outro.
-     A regra passa a ser uma so: ao ENTRAR, o que esta no aparelho e
-     descartado e tudo vem do banco. O aparelho vira uma janela para a
-     nuvem, nao um lugar onde os dados moram entre uma sessao e outra.
-     ========================================================== */
-  /* Unica excecao: venda feita offline que ainda nao subiu. Descartar isso
-     seria perder dinheiro de verdade — entao ela e guardada, reenviada
-     depois, e so o resto e limpo. */
-  var pendentesOffline=[];
-  try{
-    if(lojaAnterior===rp.data.loja_id)
-      pendentesOffline=(DB.pedidos||[]).filter(function(p){return p&&p._naSubiu});
-  }catch(e){}
-
   try{
     localStorage.removeItem('nexor_dados');
     localStorage.removeItem('nexor_respaldo');
     localStorage.removeItem('nexor_respaldo_info');
-  }catch(e){}
+  }catch(eL){}
   DB={};
-  try{ semear(); }catch(e){}
+  try{ semear(); }catch(eS2){}
   DB._snap={};DB._hash={};DB._uuid={};
   DB._dono=rp.data.loja_id;
-  DB._pendOffline=pendentesOffline;
-  try{ localStorage.setItem('nexor_loja_dados',rp.data.loja_id); }catch(e){}
-  logNuvem('aparelho limpo no login — os dados vêm todos da nuvem'+
-    (pendentesOffline.length?' ('+pendentesOffline.length+' venda(s) offline guardada(s))':''));
+  logNuvem('aparelho limpo no login — os dados vêm todos da nuvem');
 
   NUVEM.cli=cli;NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;
+  if(rp.data.sucursal_ref){DB.lojaAtual=rp.data.sucursal_ref;S.loja=rp.data.sucursal_ref;}
   /* A unidade vem do perfil, nao da escolha da pessoa: o gerente de Jales
      entra em Jales. Sem isto, ele caia sempre na primeira da lista. */
   if(rp.data.sucursal_ref){
@@ -14201,11 +14008,8 @@ $('hdr').innerHTML='<img class="hMk" src="nexor-n.png" alt="Nexor">'+
 '<button class="hIc" id="btnNuvem" onclick="painelNuvem()" title="Banco de dados">'+sv('cloud',18)+'</button>'+'<button class="hIc" onclick="dev()">'+sv('help',18)+'</button>'+
 (function(){var u=usuarioLogado()||{};
   var nm=u.login||u.nome||'sem sessão';
-  /* "franqueadora" so faz sentido quando existe franquia. Loja unica e
-     MATRIZ — chamar de franqueadora confunde quem tem uma loja so. */
-  var pp=ehPlataforma()?'dono do Nexor'
-    :(u.tudo||u.mestre?(temFranquia()?'franqueadora — acesso total':'matriz — acesso total')
-    :(u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
+  var pp=ehPlataforma()?'dono do Nexor':(u.tudo||u.mestre?'franqueadora — acesso total':
+    (u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
   return '<div class="hUsr"><div class="hAv">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
    '<div><b>'+E(nm)+'</b><span>'+pp+'</span></div>';})()+
 '<button class="hPwr" onclick="sair()" title="Sair">'+sv('out',14)+'</button></div>';
@@ -14320,14 +14124,6 @@ function lojaAtual(){
   S.loja=DB.lojaAtual;                 /* as duas passam a apontar para o mesmo */
   return DB.lojaAtual;
 }
-/* Tem franquia quando existe mais de uma unidade, ou quando o dono marcou
-   que a rede e franqueadora na Configuracao da Loja. */
-function temFranquia(){
-  var c=cfg();
-  if(c.tipoRede==='franqueadora')return true;
-  if(c.tipoRede==='matriz')return false;
-  try{ return sucAtivas().length>1; }catch(e){ return false; }
-}
 function nomeLojaAtual(){
   var l=lojasCad().find(function(x){return x.id===lojaAtual()});
   return l?l.nome:'Matriz';
@@ -14382,7 +14178,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V23.0.2';
+var VERSAO='V23.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15586,12 +15382,8 @@ function painelNuvem(){
   '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
   '<button class="btnP2" onclick="exportarDados()">'+sv('down2',14)+' Baixar cópia dos dados</button>'+
   '<button class="btnP2" onclick="document.getElementById(\'impFile\').click()">'+sv('up2',14)+' Restaurar de um arquivo</button>'+
-  '<button class="btnP2 rd" onclick="fecharModal();recarregarDaNuvem()">'+sv('ref',14)+
-   ' Recarregar tudo da nuvem</button>'+
   '<input type="file" id="impFile" accept=".json,application/json" style="display:none" onchange="importarDados(this)">'+
   '</div>'+
-  '<div class="hint" style="margin-top:8px">Use <b>Recarregar tudo da nuvem</b> se este '+
-  'computador estiver mostrando dados de outro cliente.</div>'+
   '<div class="hint" style="margin-top:10px">Resumo atual: '+
   (DB.categorias||[]).length+' categorias · '+(DB.produtos||[]).length+' produtos · '+
   (DB.grupos||[]).length+' grupos · '+((DB.clientes||[]).length)+' clientes · '+((DB.pedidos||[]).length)+' pedidos</div>'+
@@ -23036,19 +22828,6 @@ function telaRedeAberta(id){
    '</div></div>';
   rodape(E(r.nome)+' · '+u.length+' unidade(s)');
 }
-/* todas as telas do sistema, marcadas — usado ao criar a matriz de um
-   cliente novo, que por definicao manda em tudo dentro da rede dela */
-function todasAsTelas(){
-  var p={};
-  MOD.forEach(function(m){
-    (m.it||[]).forEach(function(t){
-      /* Administracao e do dono do Nexor, nao do cliente */
-      if(m.id==='tecnico')return;
-      p[m.id+'/'+t.id]=true;
-    });
-  });
-  return p;
-}
 async function salvarMatriz(id){
   var r=DB.redes.find(function(x){return x.id===id});if(!r)return;
   r.nome=$('rdN').value.trim()||r.nome;
@@ -23061,12 +22840,8 @@ async function salvarMatriz(id){
     var u=(DB.usuarios||[]).find(function(z){return (z.login||'').toLowerCase()===(ant||'').toLowerCase()});
     if(u){u.login=lg;u.senha=r.senha;u.nome=r.nome+' — Matriz';}
     else if(!(DB.usuarios||[]).some(function(z){return (z.login||'').toLowerCase()===lg}))
-      /* "tudo:true" ja daria acesso total, mas o sistema tambem consulta a
-         lista de permissoes em alguns pontos — e vazia ela bloqueava tela por
-         tela. A matriz nasce com TUDO liberado, que e o papel dela. */
       DB.usuarios.push({id:uid('usr'),nome:r.nome+' — Matriz',login:lg,senha:r.senha,
-        mestre:false,plataforma:false,ativo:true,tudo:true,sucursais:[],
-        permissoes:todasAsTelas(),
+        mestre:false,plataforma:false,ativo:true,tudo:true,sucursais:[],permissoes:{},
         criadoEm:new Date().toISOString()});
   }
   var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
@@ -33560,21 +33335,6 @@ function telaCfgPDV(){
     '<button class="btnP2 ok" onclick="salvarCfgPDV()">'+sv('check',13)+' Salvar</button>'+
    '</div>'+
    '<div class="mdvBox">'+
-    '<div class="mdvH"><b>Tipo da rede</b>'+
-     '<span>Muda como o sistema se refere a esta loja. Uma loja só é matriz; '+
-     'com franquias, é franqueadora.</span></div>'+
-    '<div class="mdvGrade">'+
-     [['auto','Automático','pelo número de unidades cadastradas'],
-      ['matriz','Matriz','loja única, sem franquias'],
-      ['franqueadora','Franqueadora','tem franquias']].map(function(o){
-       var atual=cfg().tipoRede||'auto';
-       return '<label class="mdvOp'+(atual===o[0]?' on':'')+'">'+
-        '<input type="radio" name="tipoRede" '+(atual===o[0]?'checked':'')+
-        ' onchange="cfg().tipoRede=\''+o[0]+'\';salvar();telaCfgPDV();topo()">'+
-        '<b>'+E(o[1])+'</b><span>'+E(o[2])+'</span></label>';
-     }).join('')+'</div>'+
-   '</div>'+
-   '<div class="mdvBox">'+
     '<div class="mdvH"><b>Modos de venda</b>'+
      '<span>O que esta loja usa. O que estiver desligado some do PDV, do menu e '+
      'dos relatórios — em vez de ficar ali sem servir para nada.</span></div>'+
@@ -38641,11 +38401,7 @@ function podeVer(mid,iid){
   if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono do Nexor */
   /* modo de venda desligado: a tela dele nao existe para esta loja */
   if((iid==='mesas'||iid==='vendas-mesa')&&typeof modoAtivo==='function'&&!modoAtivo('mesa'))return false;
-  /* "Acesso total" e acesso total. Sem isto, um usuario com tudo:true mas
-     lista de permissoes vazia era barrado tela por tela — foi o que fez a
-     matriz de um cliente novo entrar e nao enxergar nada.
-     Vem DEPOIS das travas de contrato e de modo de venda: acesso total nao
-     desliga regra da rede, so dispensa a lista de permissoes. */
+  /* acesso total sem lista de permissoes preenchida era barrado tela por tela */
   if(u.tudo||u.mestre)return true;
   /* telas do produto: so o dono do Nexor */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
