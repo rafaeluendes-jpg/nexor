@@ -14272,7 +14272,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V26.0.1';
+var VERSAO='V26.0.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23015,7 +23015,7 @@ async function salvarEmpresaNova(){
     dia_vencimento:vlr('nvVenc'),situacao:vlr('nvSit'),ativa:true};
   var und={nome:vlr('nvUnNome'),cnpj:vlr('nvUnCnpj'),endereco:vlr('nvUnEnd'),
     cidade:vlr('nvUnCid'),uf:vlr('nvUnUf'),telefone:vlr('nvUnTel')};
-  if(!emp.nome){alert('Informe a razão social da empresa.');var e=$('nvNome');if(e)e.focus();return;}
+  if(!emp.nome){painelErro('Informe a razão social da empresa.');var e=$('nvNome');if(e)e.focus();return;}
   try{
     toast('Cadastrando '+emp.nome+'…');
     var r=await api('rpc/painel_criar_empresa_completa','POST',{p_emp:emp,p_und:und});
@@ -23023,7 +23023,8 @@ async function salvarEmpresaNova(){
     INS.nuvem=null;await carregarEmpresas(true);
     INS.nova=false;INS.rede=ljId;
     toast(emp.nome+' cadastrada.');telaInstalacao();
-  }catch(e){ alert('Não consegui cadastrar: '+((e&&e.message)||'erro desconhecido')); }
+  }catch(e){ console.error('salvarEmpresaNova',e);
+    painelErro('Não consegui cadastrar a empresa.',detalheErro(e)); }
 }
 function telaRedeAberta(id){
   var x=empresasDaNuvem().find(function(y){return y.loja.id===id});
@@ -23097,17 +23098,46 @@ function telaRedeAberta(id){
   rodape(E(l.nome)+' · '+unid.length+' unidade(s)');
 }
 function vlr(id){var e=$(id);return e?String(e.value||'').trim():'';}
+/* O erro precisa aparecer NA TELA.
+   Depois de varios alertas seguidos, o navegador oferece "impedir que esta
+   pagina crie caixas de dialogo" — e a partir dai todo alert() e engolido em
+   silencio. A pessoa clica em Salvar, nada acontece, e nem o erro chega.
+   Agora a mensagem fica na propria tela ate ser lida. */
+function painelErro(msg,detalhe){
+  var el=document.getElementById('painelAviso');
+  if(!el){
+    el=document.createElement('div');
+    el.id='painelAviso';
+    el.style.cssText='margin:12px 0;padding:12px 14px;border-radius:8px;'+
+      'background:#FBEDE8;border:1px solid #E3BBAB;color:#7A3418;font-size:13px;max-width:860px';
+    var alvo=document.querySelector('.ctWrap')||document.getElementById('content');
+    if(alvo)alvo.insertBefore(el,alvo.firstChild);
+  }
+  el.innerHTML='<b>'+E(msg)+'</b>'+(detalhe?'<div style="margin-top:6px;font-size:12px;'+
+    'opacity:.9;word-break:break-word">'+E(detalhe)+'</div>':'')+
+    '<div style="margin-top:8px"><button class="btnP2" onclick="var n=document.getElementById(\'painelAviso\');if(n)n.remove()">Fechar</button></div>';
+  try{el.scrollIntoView({block:'center'});}catch(e){}
+}
+function detalheErro(e){
+  if(!e)return '';
+  var p=[];
+  if(e.message)p.push(e.message);
+  if(e.status)p.push('resposta do servidor: '+e.status);
+  if(e.tabela)p.push('em '+e.tabela);
+  return p.join(' · ');
+}
 async function salvarEmpresa(lojaId){
   var d={nome:vlr('emNome'),documento:vlr('emDoc'),responsavel:vlr('emResp'),
     email:vlr('emMail'),telefone:vlr('emTel'),cidade:vlr('emCid'),uf:vlr('emUf'),
     plano:vlr('emPlano'),mensalidade:vlr('emMens').replace(/\./g,'').replace(',','.'),
     dia_vencimento:vlr('emVenc'),situacao:vlr('emSit'),ativa:vlr('emAtiva')==='1'};
-  if(!d.nome){alert('Informe o nome da empresa.');return;}
+  if(!d.nome){painelErro('Informe o nome da empresa.');return;}
   try{
     await api('rpc/painel_salvar_empresa','POST',{p_loja_id:lojaId,p_d:d});
     INS.nuvem=null;await carregarEmpresas(true);
     toast('Dados da empresa salvos.');telaInstalacao();
-  }catch(e){ alert('Não consegui salvar: '+((e&&e.message)||'erro')); }
+  }catch(e){ console.error('salvarEmpresa',e);
+    painelErro('Não consegui salvar os dados da empresa.',detalheErro(e)); }
 }
 function formUnidade(lojaId,sucId){
   var x=empresasDaNuvem().find(function(y){return y.loja.id===lojaId})||{unidades:[]};
@@ -23142,13 +23172,14 @@ async function salvarUnidade(){
   var c=INS.und||{};
   var d={nome:vlr('unNome'),apelido:vlr('unApe'),cnpj:vlr('unCnpj'),telefone:vlr('unTel'),
     endereco:vlr('unEnd'),cidade:vlr('unCid'),uf:vlr('unUf'),ativa:vlr('unAtiva')==='1'};
-  if(!d.nome){alert('Informe o nome da unidade.');return;}
+  if(!d.nome){painelErro('Informe o nome da unidade.');return;}
   try{
     await api('rpc/painel_salvar_unidade','POST',
       {p_loja_id:c.loja,p_sucursal_id:c.suc||null,p_d:d});
     INS.nuvem=null;await carregarEmpresas(true);
     INS.und=null;toast('Unidade salva.');telaInstalacao();
-  }catch(e){ alert('Não consegui salvar a unidade: '+((e&&e.message)||'erro')); }
+  }catch(e){ console.error('salvarUnidade',e);
+    painelErro('Não consegui salvar a unidade.',detalheErro(e)); }
 }
 function editarUnidade(redeId,sucId){
   var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
