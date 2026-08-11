@@ -14272,7 +14272,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V26.0.0';
+var VERSAO='V26.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15317,6 +15317,10 @@ setInterval(conferirNuvemAgora,45000);
 var _versaoLoja=null,_verOcupado=false;
 async function conferirVersaoLoja(){
   if(!NUVEM.ligada||_verOcupado||NUVEM.sincronizando||RT.pausa)return;
+  /* O dono da plataforma nao tem loja. Sem esta linha, o relogio de 6 em 6
+     segundos pedia 'loja_id=eq.null' e o banco recusava — enchendo o Console
+     de erro vermelho e escondendo o defeito de verdade que se procurava. */
+  if(NUVEM.plataforma||!NUVEM.loja)return;
   if(document.hidden)return;
   _verOcupado=true;
   try{
@@ -15342,6 +15346,7 @@ async function conferirVersaoLoja(){
 setInterval(conferirVersaoLoja,6000);
 /* depois de eu mesmo enviar, acompanho o contador para não baixar à toa */
 function marcarVersaoAtual(){
+  if(NUVEM.plataforma||!NUVEM.loja)return;
   api('loja_versao?loja_id=eq.'+NUVEM.loja+'&select=versao')
     .then(function(r){ if(r&&r[0])_versaoLoja=Number(r[0].versao); })
     .catch(function(){});
