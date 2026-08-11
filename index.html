@@ -14454,7 +14454,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V29.1.2';
+var VERSAO='V29.1.3';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -39620,37 +39620,60 @@ function usrSel(){return DB.usuarios.find(function(x){return x.id===US.sel})}
    no proximo quadro e no seguinte. Uma delas pega a altura ja certa.
    ========================================================== */
 function semPular(fn){
-  /* ------------------------------------------------------------------
-     Guarda TODAS as barras, nao so uma.
-     Minha primeira tentativa olhava so o .etScroll interno. Acontece que,
-     dependendo da altura da janela e do zoom, quem rola e a PROPRIA JANELA
-     e o .etScroll fica parado em zero. Eu entao guardava zero, devolvia
-     zero, e a tela continuava pulando — a correcao nao pegava no caso real.
-     Agora guardo a janela, o painel interno e a lista da esquerda, e
-     devolvo as tres.
-     ------------------------------------------------------------------ */
-  function medir(){
-    return {
-      win:(window.scrollY||window.pageYOffset||document.documentElement.scrollTop||0),
-      cen:(function(){var e=document.querySelector('.etScroll');return e?e.scrollTop:0})(),
-      esq:(function(){var e=document.querySelector('.usrRol');return e?e.scrollTop:0})()
-    };
-  }
-  var y=medir();
-  fn();
-  function devolve(){
-    if(y.win){
-      var atual=(window.scrollY||window.pageYOffset||document.documentElement.scrollTop||0);
-      if(Math.abs(atual-y.win)>1)window.scrollTo(0,y.win);
+  /* ==========================================================
+     REDESENHAR SEM PULAR — DE UMA VEZ
+     Errei duas vezes tentando adivinhar QUAL barra estava rolada: primeiro
+     guardei so o painel central (.etScroll), depois acrescentei a janela e a
+     lista da esquerda. Faltava justamente a que importava — .usrCorpo, a
+     barra de dentro do quadro de permissoes.
+     Adivinhar qual elemento rola nao escala: cada tela tem a sua, e a
+     proxima que eu criar tera outra. Entao agora nao se pergunta mais:
+     guarda-se a posicao de TUDO que estiver rolado, seja o que for, e
+     devolve-se pelo caminho do elemento na arvore — que e o mesmo antes e
+     depois, porque a tela redesenhada tem a mesma estrutura.
+     ========================================================== */
+  function caminho(el){
+    var p=[],n=el;
+    while(n&&n!==document.body){
+      var pai=n.parentNode;
+      if(!pai)break;
+      var i=Array.prototype.indexOf.call(pai.children,n);
+      p.unshift(n.tagName+':'+i+':'+(n.className||''));
+      n=pai;
     }
-    var c=document.querySelector('.etScroll');
-    if(c&&y.cen&&Math.abs(c.scrollTop-y.cen)>1)c.scrollTop=y.cen;
-    var l=document.querySelector('.usrRol');
-    if(l&&y.esq&&Math.abs(l.scrollTop-y.esq)>1)l.scrollTop=y.esq;
+    return p.join('>');
+  }
+  var marcas=[];
+  var win=(window.scrollY||window.pageYOffset||document.documentElement.scrollTop||0);
+  try{
+    var todos=document.querySelectorAll('*');
+    for(var k=0;k<todos.length;k++){
+      var e=todos[k];
+      if(e.scrollTop>0)marcas.push({c:caminho(e),y:e.scrollTop});
+    }
+  }catch(err){}
+
+  fn();
+
+  function devolve(){
+    try{
+      if(win){
+        var a=(window.scrollY||window.pageYOffset||document.documentElement.scrollTop||0);
+        if(Math.abs(a-win)>1)window.scrollTo(0,win);
+      }
+      if(!marcas.length)return;
+      var todos2=document.querySelectorAll('*'),mapa={};
+      for(var k=0;k<todos2.length;k++)mapa[caminho(todos2[k])]=todos2[k];
+      marcas.forEach(function(m){
+        var el=mapa[m.c];
+        if(el&&Math.abs(el.scrollTop-m.y)>1)el.scrollTop=m.y;
+      });
+    }catch(err){}
   }
   devolve();
   requestAnimationFrame(function(){ devolve(); requestAnimationFrame(devolve); });
-  setTimeout(devolve,60);   /* rede final: altura ja calculada de vez */
+  setTimeout(devolve,60);
+  setTimeout(devolve,150);
 }
 function togPermUsr(chave){
   var u=usrSel();if(!u)return;
