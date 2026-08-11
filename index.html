@@ -11782,7 +11782,7 @@ var MOD=[
 {id:'tecnico',n:'Administração',ic:'gear2',it:[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'clientes-nexor',n:'Clientes Nexor'},
- {id:'instalacao',n:'Assistente de Instalação'},
+ {id:'instalacao',n:'Empresas Clientes'},
  {id:'sincronizacao',n:'Sincronização'},
  {id:'backup',n:'Backup e Restauração'},
  {id:'layout-menu',n:'Layout do Menu'},
@@ -12680,6 +12680,9 @@ async function apagar(tab,campo,valor){
 /* ---- sincronização completa ---- */
 async function sincronizar(){
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
+  /* o dono nao tem loja: nao ha dado dele para subir, e subir com loja vazia
+     carimbaria o cadastro de alguem sem dono */
+  if(NUVEM.plataforma){logNuvem('modo plataforma: nada a enviar');return;}
   /* ==========================================================
      NADA SOBE ANTES DE BAIXAR
      Entre o login e a chegada dos dados da nuvem existe uma janela de alguns
@@ -13778,6 +13781,11 @@ function abrirSessao(){
       if(NUVEM.ligada){
         statusNuvem('ok');rodape();
         setTimeout(ligarTempoReal,400);
+        if(NUVEM.plataforma){
+          statusNuvem('ok');
+          try{ abrir('tecnico','instalacao'); }catch(e){}
+          return;
+        }
         setTimeout(async function(){
           try{
             statusNuvem('baixando'); await baixarDaNuvem(true); statusNuvem('ok');
@@ -13875,6 +13883,15 @@ async function entrarPeloAuth(lg,sn){
   NUVEM.zerado=true;NUVEM.baixou=false;
   logNuvem('aparelho limpo no login — os dados vêm todos da nuvem');
 
+  /* ==========================================================
+     MODO PLATAFORMA
+     O dono do Nexor nao pertence a loja nenhuma. Amarra-lo a uma loja foi o
+     que fez todo cliente novo nascer dentro do primeiro: quem cadastra de
+     dentro de uma empresa cadastra PARA aquela empresa.
+     Perfil sem loja e com cargo 'plataforma' entra em modo plataforma: nao
+     baixa dados de loja, nao envia nada, e abre direto no painel de empresas.
+     ========================================================== */
+  NUVEM.plataforma=(!rp.data.loja_id&&rp.data.cargo==='plataforma');
   NUVEM.cli=cli;NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;
   if(rp.data.sucursal_ref){DB.lojaAtual=rp.data.sucursal_ref;S.loja=rp.data.sucursal_ref;}
   /* A unidade vem do perfil, nao da escolha da pessoa: o gerente de Jales
@@ -14255,7 +14272,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V25.4.0';
+var VERSAO='V26.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
