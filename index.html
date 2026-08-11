@@ -800,6 +800,58 @@ body.pdvFull .wTitle{display:none}
  background:var(--bg2,#faf7f0);display:grid;place-items:center;color:var(--tx2,#9a9288);gap:6px}
 .tmFotoVazio span{font-size:11.5px}
 .tmFotoAc{display:flex;gap:8px;margin-top:9px}
+.trPend{display:flex;align-items:center;gap:12px;background:#EAF2F8;border:1px solid #C2D8E8;
+ border-radius:11px;padding:13px 16px;margin-bottom:14px;color:#1A4D70;font-size:13px}
+.trPend>div{flex:1}
+.trPend b{display:block;margin-bottom:2px}
+.trAbas{display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--lin,#e6e0d4);
+ padding-bottom:0}
+.trAba{background:none;border:none;border-bottom:3px solid transparent;padding:11px 18px;
+ font-size:14px;font-weight:600;color:var(--tx2,#7a7266);cursor:pointer;display:flex;
+ align-items:center;gap:7px}
+.trAba.on{color:var(--pr,#0E5C3A);border-bottom-color:var(--pr,#0E5C3A)}
+.trAba span{background:var(--al,#B4542F);color:#fff;font-size:10.5px;font-weight:700;
+ border-radius:20px;padding:1px 7px}
+.trDuas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:14px;align-items:start}
+@media(max-width:920px){.trDuas{grid-template-columns:1fr}}
+.trBox{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:12px;
+ padding:14px;margin-bottom:14px}
+.trT{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+ color:var(--tx2,#7a7266);margin-bottom:11px}
+.trDest{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.trD{background:var(--bg2,#faf7f0);border:2px solid var(--lin,#e6e0d4);border-radius:10px;
+ padding:12px;cursor:pointer;text-align:left;font-family:inherit}
+.trD.on{border-color:var(--pr,#0E5C3A);background:#F1F8F3}
+.trD b{display:block;font-size:13.5px}
+.trD span{display:block;font-size:10px;color:#1B5E36;margin-top:2px}
+.trBusca{width:100%;border:1.5px solid var(--lin,#e6e0d4);border-radius:9px;padding:9px 11px;
+ font-size:13.5px;margin-bottom:10px;background:#fff}
+.trLista{max-height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:5px}
+.trIt{display:flex;align-items:center;gap:10px;background:var(--bg2,#faf7f0);border:1px solid var(--lin,#e6e0d4);
+ border-radius:9px;padding:10px 12px;cursor:pointer;text-align:left;font-family:inherit;
+ color:var(--pr,#0E5C3A)}
+.trIt.zero{opacity:.5}
+.trItN{flex:1;min-width:0}
+.trItN b{display:block;font-size:13px;color:var(--tx,#2f2a24)}
+.trItN span{display:block;font-size:11px;color:var(--tx2,#7a7266)}
+.trCarga td small{display:block;font-size:10.5px;color:var(--tx2,#9a9288)}
+.trTot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--lin,#e6e0d4);
+ margin-top:11px;padding-top:11px;font-size:13px}
+.trTot b{font-size:18px}
+.trCards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.trCard{background:var(--card,#fff);border:1px solid var(--lin,#e6e0d4);border-radius:12px;
+ overflow:hidden}
+.trCardH{display:flex;align-items:center;gap:9px;padding:12px 14px;background:var(--bg2,#faf7f0);
+ border-bottom:1px solid var(--lin,#e6e0d4)}
+.trCardH b{font-size:15px}
+.trCardH span{flex:1;font-size:12px;color:var(--tx2,#7a7266)}
+.trCardH i{font-style:normal;font-size:11px;color:var(--tx2,#9a9288)}
+.trCardI{padding:11px 14px;display:flex;flex-direction:column;gap:5px}
+.trCardI>div{display:flex;justify-content:space-between;font-size:12.5px}
+.trCardI .mais{color:var(--tx2,#9a9288);font-size:11px}
+.trObs{padding:0 14px 10px;font-size:11.5px;color:var(--tx2,#7a7266);font-style:italic}
+.trCardF{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--lin,#e6e0d4)}
+.trCardF span{flex:1;font-size:15px;font-weight:800}
 .tmLiga{display:flex;align-items:center;gap:14px;background:var(--card,#fff);
  border:1px solid var(--lin,#e6e0d4);border-radius:12px;padding:13px 17px;margin-bottom:14px}
 .tmDuas{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
@@ -11649,6 +11701,7 @@ var MOD=[
  {id:'ingredientes-insumos',n:'Ingredientes e Insumos'},
  {id:'grupo-ingredientes',n:'Grupo de Ingredientes'},
  {id:'movimentacao-estoque',n:'Movimentação de Estoque'},
+ {id:'transferencia',n:'Transferência de Mercadoria'},
  {id:'posicao-estoque',n:'Estoque Total'},
  {id:'contagem-estoque',n:'Contagem de Estoque'},
  {id:'historico-posicao',n:'Histórico de Posição de Estoque'},
@@ -12146,6 +12199,13 @@ var MAPA=[
     nome:x.nome,itens:x.itens||[],aberta:x.aberta!==false,
     aberta_em:x.abertaEm||null,fechada_em:x.fechadaEm||null,
     pedido_ref:x.pedidoRef||null,sucursal_id:x.sucursalId||null}}},
+
+ {col:'transf', espelha:true, tab:'transferencias',
+  campos:function(x){return {numero:n(x.numero),origem_suc:x.origemSuc,destino_suc:x.destinoSuc,
+    situacao:x.situacao||'enviada',itens:x.itens||[],valor_total:n(x.valorTotal),
+    observacao:x.obs||null,enviada_em:x.enviadaEm||null,enviada_por:x.enviadaPor||null,
+    recebida_em:x.recebidaEm||null,recebida_por:x.recebidaPor||null,
+    divergencia:!!x.divergencia,data_envio:x.data||null}}},
 
  {col:'mesas', espelha:true, tab:'mesas',
   campos:function(x){return {numero:n(x.numero),nome:x.nome||null,
@@ -13193,6 +13253,14 @@ async function baixarDaNuvem(forcar){
     aberta:x.aberta!==false,abertaEm:x.aberta_em,fechadaEm:x.fechada_em,
     pedidoRef:x.pedido_ref||'',sucursalId:x.sucursal_id||''}});
 
+  var trf=await api('transferencias'+qs+'&order=numero.desc&limit=1000');
+  DB.transf=volta(trf,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
+    origemSuc:x.origem_suc,destinoSuc:x.destino_suc,situacao:x.situacao||'enviada',
+    itens:x.itens||[],valorTotal:Number(x.valor_total)||0,obs:x.observacao||'',
+    enviadaEm:x.enviada_em,enviadaPor:x.enviada_por||'',
+    recebidaEm:x.recebida_em,recebidaPor:x.recebida_por||'',
+    divergencia:!!x.divergencia,data:x.data_envio||''}});
+
   var ms=await api('mesas'+qs+'&order=numero');
   var mapaMs={};ms.forEach(function(x){mapaMs[x.id]=x.ref_local||x.id});
   DB.mesas=volta(ms,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
@@ -13889,6 +13957,7 @@ function boot(){
   DB.modelosImp=DB.modelosImp||[];
   DB.statusVenda=DB.statusVenda||[];
   DB.mesas=DB.mesas||[];DB.comandas=DB.comandas||[];DB.cupons_f=DB.cupons_f||[];
+  DB.transf=DB.transf||[];
   baseCanc();baseTurnos();baseImp();baseStatus();
   DB.estoqueUn=DB.estoqueUn||[];
   lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
@@ -14083,7 +14152,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.8.1';
+var VERSAO='V21.9.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14189,6 +14258,7 @@ if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
 if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
+if(mid==='estoque'&&iid==='transferencia')return telaTransferencia();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
 if(mid==='estoque'&&iid==='contagem-estoque')return telaContagem();
 if(mid==='estoque'&&iid==='historico-posicao'){
@@ -17153,6 +17223,390 @@ function passaTotem(d){
   var ps=produtosTotem();
   TMC.i=((TMC.i||0)+d+ps.length)%ps.length;
   pintarCheio();
+}
+
+
+/* ==========================================================
+   TRANSFERENCIA ENTRE UNIDADES
+   A matriz manda base para Jales; Jales devolve o que sobrou. Como o
+   saldo agora e de cada unidade, mover mercadoria precisa TIRAR de uma
+   e POR na outra — e nao apenas anotar.
+
+   A transferencia fica em ABERTO ate o destino confirmar. Baixar na
+   origem e creditar no destino no mesmo instante esconderia o que se
+   perde no caminho, que e justamente o que a franqueadora quer ver.
+   ========================================================== */
+var TR={aba:'enviar',de:'',ate:'',destino:'',itens:[],busca:'',obs:''};
+
+function baseTransf(){
+  DB.transf=DB.transf||[];
+  /* motivos proprios: sem eles o movimento apareceria sem explicacao no
+     historico de estoque */
+  baseMov();
+  [['mv_transf_saida','Transferência enviada','saida'],
+   ['mv_transf_entrada','Transferência recebida','entrada']].forEach(function(m){
+    if(!(DB.motivosMov||[]).some(function(x){return x.id===m[0]}))
+      DB.motivosMov.push({id:m[0],nome:m[1],tipo:m[2],sistema:true,ativo:true,sucursais:[]});
+  });
+  return DB.transf;
+}
+function proxNumTransf(){
+  baseTransf();
+  var max=0;
+  DB.transf.forEach(function(t){if((t.numero||0)>max)max=t.numero||0});
+  return max+1;
+}
+function transfDaUnidade(suc,tipo){
+  baseTransf();
+  suc=suc||lojaAtualId();
+  return DB.transf.filter(function(t){
+    if(tipo==='saida')return t.origemSuc===suc;
+    if(tipo==='entrada')return t.destinoSuc===suc;
+    return t.origemSuc===suc||t.destinoSuc===suc;
+  }).sort(function(a,b){return String(b.enviadaEm||'').localeCompare(String(a.enviadaEm||''))});
+}
+function pendentesParaMim(){
+  return transfDaUnidade(lojaAtualId(),'entrada')
+    .filter(function(t){return t.situacao==='enviada'});
+}
+/* os itens que a unidade tem em estoque, para escolher o que mandar */
+function itensTransferiveis(){
+  var suc=lojaAtualId();
+  var l=[];
+  (DB.insumos||[]).forEach(function(i){
+    if(i.ativo===false)return;
+    var q=saldoUn(i.id,suc);
+    l.push({id:i.id,tipo:'insumo',nome:i.nome,unidade:i.unidade,
+      saldo:q,custo:custoMedioUn(i.id,suc)||Number(i.custo)||0});
+  });
+  (DB.fichas||[]).forEach(function(f){
+    var q=saldoUn(f.id,suc);
+    if(!q)return;                       /* ficha so aparece se tiver saldo */
+    l.push({id:f.id,tipo:'ficha',nome:f.nome,unidade:f.unidade||'un',
+      saldo:q,custo:custoMedioUn(f.id,suc)||0});
+  });
+  return l.sort(function(a,b){return a.nome.localeCompare(b.nome)});
+}
+function itemTransf(id){
+  return TR.itens.find(function(x){return x.id===id})||null;
+}
+function porItemTransf(it){
+  var ja=itemTransf(it.id);
+  if(ja)return;
+  TR.itens.push({id:it.id,tipo:it.tipo,nome:it.nome,unidade:it.unidade,
+    qtd:0,custo:it.custo,saldo:it.saldo});
+  telaTransferencia();
+}
+function tirarItemTransf(id){
+  TR.itens=TR.itens.filter(function(x){return x.id!==id});
+  telaTransferencia();
+}
+function qtdItemTransf(id,v){
+  var it=itemTransf(id);if(!it)return;
+  it.qtd=Math.max(0,Number(v)||0);
+}
+function totalTransf(l){
+  return (l||TR.itens).reduce(function(a,i){
+    return a+((Number(i.qtd)||0)*(Number(i.custo)||0));},0);
+}
+
+/* ---------- enviar ---------- */
+async function enviarTransferencia(){
+  var suc=lojaAtualId();
+  if(!TR.destino){toast('Escolha a unidade de destino.');return;}
+  if(TR.destino===suc){toast('Origem e destino são a mesma unidade.');return;}
+  var itens=TR.itens.filter(function(i){return (Number(i.qtd)||0)>0});
+  if(!itens.length){toast('Informe a quantidade de ao menos um item.');return;}
+
+  /* nao deixa mandar o que nao tem: o saldo ficaria negativo na origem */
+  var faltando=itens.filter(function(i){return i.qtd>saldoUn(i.id,suc)+0.0001});
+  if(faltando.length){
+    await confirmar({titulo:'Quantidade acima do estoque',
+      texto:faltando.length+' item(ns) sem saldo suficiente',
+      linhas:faltando.map(function(i){
+        return [i.nome,'tem '+saldoUn(i.id,suc)+' '+i.unidade,'quer mandar '+i.qtd];}),
+      aviso:'Ajuste as quantidades ou faça uma contagem de estoque antes.',
+      ok:'Entendi',cancelar:null});
+    return;
+  }
+  var tot=totalTransf(itens);
+  var ok=await confirmar({
+    titulo:'Enviar para '+sucNome(TR.destino),
+    texto:itens.length+' item(ns) · R$ '+money(tot),
+    linhas:itens.slice(0,8).map(function(i){
+      return [i.nome,i.qtd+' '+i.unidade,'R$ '+money(i.qtd*i.custo)];}),
+    aviso:'O estoque sai de '+sucNome(suc)+' agora. Ele só entra em '+
+      sucNome(TR.destino)+' quando alguém de lá confirmar o recebimento — '+
+      'assim, o que se perder no caminho aparece.',
+    ok:'Enviar',tipo:'check'});
+  if(!ok)return;
+
+  baseTransf();baseMov();
+  var t={id:uid('tr'),numero:proxNumTransf(),
+    origemSuc:suc,destinoSuc:TR.destino,situacao:'enviada',
+    itens:itens.map(function(i){
+      return {id:i.id,tipo:i.tipo,nome:i.nome,unidade:i.unidade,
+        qtd:Number(i.qtd),custo:Number(i.custo)||0};}),
+    valorTotal:tot,obs:TR.obs||'',
+    enviadaEm:new Date().toISOString(),
+    enviadaPor:(usuarioLogado()||{}).nome||'',
+    data:hojeISO()};
+  DB.transf.push(t);
+
+  /* baixa na origem, com motivo proprio para aparecer no historico */
+  var mov={id:uid('mv'),sucursalId:suc,data:hojeISO(),hora:agoraHM(),
+    motivoId:'mv_transf_saida',identificacao:'Transferência #'+t.numero+' → '+sucNome(TR.destino),
+    obs:TR.obs||'',origem:'transferencia',
+    linhas:t.itens.map(function(i){
+      return {insumoId:i.id,nome:i.nome,unidade:i.unidade,qtd:i.qtd,
+        custo:i.custo,direcao:'saida',origem:'transferencia'};})};
+  DB.movEst.push(mov);
+  aplicarMovimento(mov);
+
+  TR.itens=[];TR.obs='';TR.destino='';
+  salvar();telaTransferencia();
+  toast('Transferência #'+t.numero+' enviada para '+sucNome(t.destinoSuc)+'.');
+  if(NUVEM.ligada)sincronizar();
+}
+
+/* ---------- receber ---------- */
+async function receberTransferencia(id){
+  var t=baseTransf().find(function(x){return x.id===id});
+  if(!t||t.situacao!=='enviada')return;
+  if(t.destinoSuc!==lojaAtualId()){
+    toast('Só a unidade de destino confirma o recebimento.');return;}
+
+  var h='<div class="mdB">'+
+   '<div class="hint">Confira o que chegou. Se veio diferente, corrija a quantidade — '+
+   'a diferença fica registrada.</div>'+
+   '<table class="pTable" style="margin-top:11px"><thead><tr><th>Item</th>'+
+   '<th style="width:110px;text-align:right">Enviado</th>'+
+   '<th style="width:130px">Chegou</th></tr></thead><tbody>'+
+   t.itens.map(function(i,k){
+     return '<tr><td><b>'+E(i.nome)+'</b></td>'+
+      '<td style="text-align:right">'+i.qtd+' '+E(i.unidade)+'</td>'+
+      '<td><input type="number" step="0.001" class="trRec" data-k="'+k+'" '+
+      'value="'+i.qtd+'" style="width:100%"></td></tr>';
+   }).join('')+'</tbody></table></div>';
+
+  modal('Receber transferência #'+t.numero,h,'Confirmar recebimento',function(){
+    var rec=[],dif=false;
+    document.querySelectorAll('.trRec').forEach(function(c){
+      var k=+c.getAttribute('data-k'), q=Number(c.value)||0;
+      var o=Object.assign({},t.itens[k]);
+      o.qtdRecebida=q;
+      if(Math.abs(q-o.qtd)>0.0001)dif=true;
+      rec.push(o);
+    });
+    var entrar=rec.filter(function(i){return i.qtdRecebida>0});
+    if(!entrar.length){toast('Informe ao menos um item recebido.');return false;}
+
+    baseMov();
+    var mov={id:uid('mv'),sucursalId:t.destinoSuc,data:hojeISO(),hora:agoraHM(),
+      motivoId:'mv_transf_entrada',
+      identificacao:'Transferência #'+t.numero+' ← '+sucNome(t.origemSuc),
+      origem:'transferencia',
+      linhas:entrar.map(function(i){
+        return {insumoId:i.id,nome:i.nome,unidade:i.unidade,qtd:i.qtdRecebida,
+          custo:i.custo,direcao:'entrada',origem:'transferencia'};})};
+    DB.movEst.push(mov);
+    aplicarMovimento(mov);
+
+    t.situacao='recebida';
+    t.itens=rec;
+    t.recebidaEm=new Date().toISOString();
+    t.recebidaPor=(usuarioLogado()||{}).nome||'';
+    t.divergencia=dif;
+    salvar();telaTransferencia();
+    toast(dif?'Recebida com divergência — está registrada.':'Transferência recebida.');
+    if(NUVEM.ligada)sincronizar();
+    return true;
+  });
+}
+async function cancelarTransferencia(id){
+  var t=baseTransf().find(function(x){return x.id===id});
+  if(!t||t.situacao!=='enviada')return;
+  if(t.origemSuc!==lojaAtualId()&&!ehMatriz()){
+    toast('Só quem enviou pode cancelar.');return;}
+  var ok=await confirmar({titulo:'Cancelar a transferência #'+t.numero,
+    texto:t.itens.length+' item(ns) voltam para '+sucNome(t.origemSuc),
+    aviso:'O estoque volta para a unidade de origem. Use quando o envio foi feito '+
+     'por engano — se a mercadoria já saiu fisicamente, prefira receber com a '+
+     'quantidade certa.',
+    ok:'Cancelar transferência',tipo:'perigo'});
+  if(!ok)return;
+  baseMov();
+  var mov={id:uid('mv'),sucursalId:t.origemSuc,data:hojeISO(),hora:agoraHM(),
+    motivoId:'mv_transf_entrada',
+    identificacao:'Estorno da transferência #'+t.numero,origem:'transferencia',
+    linhas:t.itens.map(function(i){
+      return {insumoId:i.id,nome:i.nome,unidade:i.unidade,qtd:i.qtd,
+        custo:i.custo,direcao:'entrada',origem:'transferencia'};})};
+  DB.movEst.push(mov);
+  aplicarMovimento(mov);
+  t.situacao='cancelada';
+  salvar();telaTransferencia();
+  toast('Transferência cancelada — estoque devolvido.');
+  if(NUVEM.ligada)sincronizar();
+}
+
+/* ---------- a tela ---------- */
+function telaTransferencia(){
+  var suc=lojaAtualId();
+  var outras=sucAtivas().filter(function(s){return s.id!==suc});
+  var pend=pendentesParaMim();
+  var saidas=transfDaUnidade(suc,'saida');
+  var entradas=transfDaUnidade(suc,'entrada');
+
+  if(!outras.length){
+    $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
+     '<div class="construIc">'+sv('troca',30)+'</div><b>Só existe uma unidade</b>'+
+     '<p>A transferência serve para mover mercadoria entre unidades da mesma rede. '+
+     'Cadastre outra em Configuração da Loja › Sucursais da Franquia.</p></div></div>';
+    rodape('uma unidade');return;
+  }
+
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo"><div><h1>Transferência de Mercadoria</h1>'+
+   '<p>Move estoque de <b>'+E(sucNome(suc))+'</b> para outra unidade da rede. '+
+   'Sai daqui na hora do envio e entra lá quando o destino confirmar.</p></div>'+
+   '<button class="infoBt" onclick="explicaTransf()">'+sv('help',15)+'</button></div>'+
+
+   (pend.length?'<div class="trPend">'+sv('box',17)+
+     '<div><b>'+pend.length+' transferência(s) chegando para '+E(sucNome(suc))+'</b>'+
+     'Confirme o recebimento para o estoque entrar.</div>'+
+     '<button class="btnP2 ok" onclick="TR.aba=\'receber\';telaTransferencia()">Ver</button>'+
+    '</div>':'')+
+
+   '<div class="trAbas">'+
+    [['enviar','Enviar',saidas.filter(function(t){return t.situacao==='enviada'}).length],
+     ['receber','Receber',pend.length],
+     ['historico','Histórico',saidas.length+entradas.length]].map(function(a){
+      return '<button class="trAba'+(TR.aba===a[0]?' on':'')+'" '+
+       'onclick="TR.aba=\''+a[0]+'\';telaTransferencia()">'+E(a[1])+
+       (a[2]?'<span>'+a[2]+'</span>':'')+'</button>';
+    }).join('')+'</div>'+
+
+   (TR.aba==='enviar'?abaEnviar(outras)
+    :TR.aba==='receber'?abaReceber(pend)
+    :abaHistorico(saidas,entradas))+
+   '</div></div>';
+  rodape(pend.length?(pend.length+' a receber'):'nenhuma pendência');
+}
+function abaEnviar(outras){
+  var q=(TR.busca||'').toLowerCase();
+  var disp=itensTransferiveis().filter(function(i){
+    if(itemTransf(i.id))return false;
+    return !q||i.nome.toLowerCase().indexOf(q)>=0;
+  }).slice(0,40);
+  return '<div class="trDuas">'+
+   '<div>'+
+    '<div class="trBox"><div class="trT">Para qual unidade</div>'+
+     '<div class="trDest">'+outras.map(function(s){
+       return '<button class="trD'+(TR.destino===s.id?' on':'')+'" '+
+        'onclick="TR.destino=\''+s.id+'\';telaTransferencia()">'+
+        '<b>'+E(s.nome)+'</b>'+(s.matriz?'<span>matriz</span>':'')+'</button>';
+     }).join('')+'</div></div>'+
+    '<div class="trBox"><div class="trT">O que enviar</div>'+
+     '<input class="trBusca" value="'+E(TR.busca)+'" placeholder="buscar ingrediente ou ficha" '+
+     'oninput="TR.busca=this.value;clearTimeout(window._trT);'+
+     'window._trT=setTimeout(telaTransferencia,300)">'+
+     '<div class="trLista">'+(disp.length?disp.map(function(i){
+       return '<button class="trIt'+(i.saldo<=0?' zero':'')+'" onclick=\'porItemTransf('+
+        JSON.stringify(i).replace(/'/g,"&#39;")+')\'>'+
+        '<div class="trItN"><b>'+E(i.nome)+'</b>'+
+        '<span>'+(i.tipo==='ficha'?'ficha · ':'')+'tem '+i.saldo+' '+E(i.unidade)+'</span></div>'+
+        sv('plu',14)+'</button>';
+     }).join(''):'<div class="hint" style="padding:14px">Nada encontrado.</div>')+'</div>'+
+    '</div>'+
+   '</div>'+
+   '<div>'+
+    '<div class="trBox trCarga"><div class="trT">Carga '+
+     (TR.destino?'para '+E(sucNome(TR.destino)):'')+'</div>'+
+     (TR.itens.length?'<table class="pTable"><thead><tr><th>Item</th>'+
+       '<th style="width:120px">Quantidade</th><th style="width:96px;text-align:right">Valor</th>'+
+       '<th style="width:40px"></th></tr></thead><tbody>'+
+       TR.itens.map(function(i){
+         return '<tr><td><b>'+E(i.nome)+'</b><small>tem '+i.saldo+' '+E(i.unidade)+'</small></td>'+
+          '<td><div class="cur"><input type="number" step="0.001" value="'+(i.qtd||'')+'" '+
+           'onchange="qtdItemTransf(\''+i.id+'\',this.value);telaTransferencia()"><span>'+
+           E(i.unidade)+'</span></div></td>'+
+          '<td style="text-align:right">R$ '+money((i.qtd||0)*(i.custo||0))+'</td>'+
+          '<td><button class="rBtn rd" onclick="tirarItemTransf(\''+i.id+'\')">'+
+           sv('trash',11)+'</button></td></tr>';
+       }).join('')+'</tbody></table>'+
+       '<div class="trTot"><span>Valor da carga</span><b>R$ '+money(totalTransf())+'</b></div>'+
+       '<div class="fld2" style="margin-top:11px"><label>Observação</label>'+
+        '<input value="'+E(TR.obs)+'" onchange="TR.obs=this.value" '+
+        'placeholder="quem levou, placa do carro..."></div>'+
+       '<button class="btnP2 ok" style="width:100%;justify-content:center;margin-top:12px" '+
+        'onclick="enviarTransferencia()">'+sv('troca',14)+' Enviar transferência</button>'
+      :'<div class="entVazio"><b>Nenhum item na carga</b>'+
+       '<span>Escolha ao lado o que vai ser enviado.</span></div>')+
+    '</div>'+
+   '</div>'+
+  '</div>';
+}
+function abaReceber(pend){
+  if(!pend.length)
+    return '<div class="entVazio"><b>Nada chegando</b>'+
+     '<span>Quando outra unidade enviar mercadoria, ela aparece aqui.</span></div>';
+  return '<div class="trCards">'+pend.map(function(t){
+    return '<div class="trCard">'+
+     '<div class="trCardH"><b>#'+t.numero+'</b>'+
+      '<span>de '+E(sucNome(t.origemSuc))+'</span>'+
+      '<i>'+dataBR(String(t.data||'').slice(0,10))+'</i></div>'+
+     '<div class="trCardI">'+t.itens.slice(0,5).map(function(i){
+       return '<div><span>'+E(i.nome)+'</span><b>'+i.qtd+' '+E(i.unidade)+'</b></div>';
+     }).join('')+(t.itens.length>5?'<div class="mais">+ '+(t.itens.length-5)+' itens</div>':'')+'</div>'+
+     (t.obs?'<div class="trObs">'+E(t.obs)+'</div>':'')+
+     '<div class="trCardF"><span>R$ '+money(t.valorTotal)+'</span>'+
+      '<button class="btnP2 ok" onclick="receberTransferencia(\''+t.id+'\')">'+
+      sv('check',13)+' Conferir e receber</button></div>'+
+    '</div>';
+  }).join('')+'</div>';
+}
+function abaHistorico(saidas,entradas){
+  var todas=saidas.concat(entradas.filter(function(t){
+    return saidas.indexOf(t)<0;}));
+  todas.sort(function(a,b){return String(b.enviadaEm||'').localeCompare(String(a.enviadaEm||''))});
+  if(!todas.length)
+    return '<div class="entVazio"><b>Nenhuma transferência</b>'+
+     '<span>O histórico aparece aqui depois do primeiro envio.</span></div>';
+  var suc=lojaAtualId();
+  return '<div class="pnl2"><div class="pnl2B" style="padding:0">'+
+   '<table class="pTable"><thead><tr><th style="width:62px">Nº</th><th style="width:96px">Data</th>'+
+   '<th>Trajeto</th><th style="width:78px;text-align:center">Itens</th>'+
+   '<th style="width:110px;text-align:right">Valor</th>'+
+   '<th style="width:150px">Situação</th><th style="width:110px"></th></tr></thead><tbody>'+
+   todas.slice(0,100).map(function(t){
+     var saiu=(t.origemSuc===suc);
+     var cor=t.situacao==='recebida'?(t.divergencia?'#B4542F':'#0E8A46')
+            :t.situacao==='cancelada'?'#C94141':'#8A8578';
+     return '<tr><td><b>#'+t.numero+'</b></td>'+
+      '<td>'+dataBR(String(t.data||'').slice(0,10))+'</td>'+
+      '<td>'+(saiu?sv('up3',11):sv('dn',11))+' '+
+       E(sucNome(t.origemSuc))+' → '+E(sucNome(t.destinoSuc))+'</td>'+
+      '<td style="text-align:center">'+(t.itens||[]).length+'</td>'+
+      '<td style="text-align:right">R$ '+money(t.valorTotal)+'</td>'+
+      '<td><span style="color:'+cor+';font-weight:600">'+
+       (t.situacao==='recebida'?(t.divergencia?'recebida c/ diferença':'recebida')
+        :t.situacao==='cancelada'?'cancelada':'a caminho')+'</span></td>'+
+      '<td>'+(t.situacao==='enviada'&&saiu
+        ?'<button class="rBtn rd" onclick="cancelarTransferencia(\''+t.id+'\')" '+
+         'title="Cancelar">'+sv('x2',12)+'</button>':'')+'</td></tr>';
+   }).join('')+'</tbody></table></div></div>';
+}
+function explicaTransf(){
+  confirmar({titulo:'Como a transferência funciona',texto:'Entre unidades da rede',
+   linhas:[['No envio','o estoque SAI da unidade de origem',''],
+           ['A caminho','fica em aberto, sem estar em lugar nenhum',''],
+           ['No recebimento','o estoque ENTRA na unidade de destino',''],
+           ['Se chegar menos','a diferença fica registrada','']],
+   aviso:'O estoque não entra no destino automaticamente de propósito: creditar sem alguém '+
+    'conferir esconderia o que se perde no caminho — e é isso que a franqueadora precisa ver. '+
+    'O custo do item viaja junto, então a unidade que recebe herda o custo de quem comprou.',
+   ok:'Entendi',cancelar:null}).then(function(){});
 }
 
 /* ==========================================================
