@@ -11586,8 +11586,7 @@ body.semRolagem{overflow:hidden}
       <section class="card" aria-labelledby="title">
         <p class="eyebrow">Portal corporativo</p><h1 id="lgTit">Acesse sua conta</h1><p class="intro">Entre com seus dados para acessar o sistema</p>
         <div class="loginForm" id="loginForm">
-          <div class="group"><label for="lgC">Cliente</label><div class="wrap"><input id="lgC" type="text" placeholder="Nome da rede" autocomplete="off"></div></div>
-          <div class="group"><label for="lgU">Usuário</label><input id="lgU" type="text" placeholder="Digite seu usuário" autocomplete="username" required></div>
+          <div class="group"><label for="lgU">E-mail</label><input id="lgU" type="text" placeholder="Digite seu e-mail" autocomplete="username" required></div>
           <div class="group"><label for="lgP">Senha</label><div class="wrap pass"><input id="lgP" type="password" placeholder="Digite sua senha" autocomplete="current-password" required><button class="eye" id="tg" type="button" aria-label="Mostrar senha">◉</button></div></div>
           <div class="options"><label class="check"><input type="checkbox" id="lgK" checked><span>Manter conectado</span></label><button class="forgot" id="lgEsq" type="button">Esqueci minha senha</button></div>
           <button class="submit" id="lgB" type="button">Entrar no Nexor</button>
@@ -13871,7 +13870,6 @@ function usuarioDaNuvem(x,lg,sn){
 async function entrar(){
   try{ if(!DB||!DB.usuarios)carregar(); }catch(e){}
   baseUsr();
-  var cli=chaveCliente(($('lgC')||{}).value||'');
   var lg=$('lgU').value.trim().toLowerCase();
   var sn=$('lgP').value;
   var u=null;
@@ -13908,17 +13906,17 @@ async function entrar(){
       }
     }
   }
-  /* o dono do Nexor entra sem cliente; os demais precisam informar a rede certa */
-  if(u&&String(u.login||'').toLowerCase()!==ADM_MESTRE){
-    var r=redeDoUsuario(u);
-    var ok=!cli?false:(r?(chaveCliente(r.nome).indexOf(cli)>=0||cli.indexOf(chaveCliente(r.nome))>=0||
-        chaveCliente(r.dominio).indexOf(cli)>=0):true);
-    if(!ok){
-      lgAviso(cli?'Este acesso não pertence ao cliente informado.'
-        :'Informe o <b>cliente</b> (o nome da rede).');
-      sacode();return;
-    }
-  }
+  /* O campo "Cliente" foi retirado. Ele nao separava nada: quando o sistema
+     nao conseguia resolver a rede do usuario — o que acontece SEMPRE logo apos
+     o login, porque o aparelho acabou de ser zerado e a lista de redes esta
+     vazia — a conferencia devolvia "ok" e liberava a entrada com qualquer
+     texto digitado. Era possivel entrar com o usuario da Jolo escrevendo
+     "rafaellos" no campo.
+     Quem separa os clientes e o Supabase Auth (o e-mail ja diz de quem e o
+     acesso) somado ao RLS, que so entrega as linhas da loja daquele perfil.
+     Uma conferencia no navegador nunca foi barreira: qualquer pessoa a remove
+     pelo proprio console. Tirar o campo nao afrouxa nada — so para de
+     prometer uma protecao que nao existia. */
   if(u&&u.ativo===false){
     lgAviso('Este acesso está desativado. Fale com o administrador.');
     sacode();return;
@@ -14223,7 +14221,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V24.0.0';
+var VERSAO='V24.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
