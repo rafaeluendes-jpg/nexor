@@ -12058,6 +12058,7 @@ async function conectarNuvem(email,senha){
 function desconectarNuvem(){
   try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){}
   desligarTempoReal();
+  /* aqui SIM o cliente e descartado: sair tem de derrubar a sessao */
   NUVEM.ligada=false;NUVEM.cli=null;NUVEM.token=null;NUVEM.perfil=null;NUVEM.loja=null;
   setModo('local');rodape();conferirNuvem();
 }
@@ -12090,11 +12091,14 @@ async function religarNuvem(){
     if(!clienteNuvem())return false;
     var r=await NUVEM.cli.auth.getSession();
     var ses=r&&r.data?r.data.session:null;
-    if(!ses){NUVEM.cli=null;return false;}
+    /* Nao destruir o cliente: agora ele e unico e o login precisa dele.
+       Antes cada funcao criava o seu, entao zerar aqui nao fazia falta —
+       com o cliente unico, zerar aqui deixava o sistema sem como entrar. */
+    if(!ses){NUVEM.ligada=false;return false;}
     var rp=await NUVEM.cli.from('perfis')
       .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
       .eq('id',ses.user.id).maybeSingle();
-    if(rp.error||!rp.data){NUVEM.cli=null;return false;}
+    if(rp.error||!rp.data){NUVEM.ligada=false;return false;}
     NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
     NUVEM.token=ses.access_token;
     if(rp.data.sucursal_ref){DB.lojaAtual=rp.data.sucursal_ref;S.loja=rp.data.sucursal_ref;}
@@ -12122,7 +12126,7 @@ async function religarNuvem(){
       }catch(e){ statusNuvem('erro',(e&&e.message)||''); }
     },900);
     return true;
-  }catch(e){NUVEM.cli=null;return false;}
+  }catch(e){NUVEM.ligada=false;return false;}
 }
 /* ==========================================================
    MOTOR DE SINCRONIZAÇÃO
@@ -13837,11 +13841,15 @@ async function abrirSessao(){
   carregar();
   $('login').classList.add('hide');$('app').classList.remove('hide');
   boot();
-  /* A nuvem tem de estar de pe ANTES de a pessoa comecar a mexer. Deixar
-     para depois e o que fazia o sistema abrir dizendo "somente neste
-     aparelho" e so ligar mais tarde — ou nunca. */
+  /* A nuvem sobe em paralelo, NAO na frente. Esperar por ela aqui prendia a
+     tela quando a internet estava lenta — e sistema que nao abre e pior que
+     sistema fora da nuvem. */
   if(!NUVEM.ligada){
-    try{ statusNuvem('ligando'); await religarNuvem(); }catch(e){}
+    statusNuvem('ligando');
+    religarNuvem().then(function(ok){
+      if(ok){statusNuvem('ok');rodape();try{conferirNuvem()}catch(e){}}
+      else statusNuvem('local');
+    }).catch(function(){ statusNuvem('local'); });
   }
   /* a entrada pelo Auth ja deixou o aparelho ligado: aqui so falta buscar
      o que mudou. Quem voltou por sessao guardada ainda precisa religar. */
@@ -14374,7 +14382,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V23.0.0';
+var VERSAO='V23.0.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
