@@ -11901,6 +11901,55 @@ var NUVEM={
   chave:'sb_publishable_tH04wQWnUjOUQWePZ0Bshw_RirDPUDY',
   cli:null, token:null, ligada:false, baixou:false, sujo:false, log:[], loja:null, perfil:null, sincronizando:false, pendente:false, ultima:null
 };
+/* ==========================================================
+   CLIENTE UNICO DA NUVEM
+   Havia TRES createClient() no arquivo — entrar, religar e conectar. Cada um
+   cria um GoTrueClient proprio, com o proprio relogio de renovacao, todos
+   disputando a mesma sessao no localStorage. Dois relogios renovando ao mesmo
+   tempo invalidam o refresh token um do outro, e a sessao cai no meio do uso:
+   era daqui que vinha "sua sessao expirou" durante o trabalho normal.
+   Agora e um so, criado uma vez, com persistencia e renovacao explicitas.
+   ========================================================== */
+var _cli=null;
+function cliente(){
+  if(_cli)return _cli;
+  if(!window.supabase)return null;
+  _cli=window.supabase.createClient(NUVEM.url,NUVEM.chave,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,
+          storageKey:'nexor-auth'}
+  });
+  /* a sessao renovada chega por aqui: o token do sistema acompanha sozinho,
+     sem ninguem precisar perguntar */
+  try{
+    _cli.auth.onAuthStateChange(function(ev,ses){
+      if(ses&&ses.access_token){
+        NUVEM.token=ses.access_token;
+        try{ if(_cli.realtime&&_cli.realtime.setAuth)_cli.realtime.setAuth(NUVEM.token); }catch(e){}
+        if(ev==='TOKEN_REFRESHED')logNuvem('sessão renovada automaticamente');
+      }
+      if(ev==='SIGNED_OUT'){NUVEM.token=null;NUVEM.ligada=false;estadoNuvem('offline');}
+    });
+  }catch(e){}
+  return _cli;
+}
+/* ==========================================================
+   ESTADO UNICO DE CONEXAO
+   Antes cada pedaco da tela decidia sozinho se estava online, e por isso
+   apareciam avisos contraditorios ao mesmo tempo. Agora ha um estado so.
+   ========================================================== */
+var CONEXAO='offline';   /* conectando | online | offline | sincronizando | erro */
+function estadoNuvem(e,msg){
+  CONEXAO=e;
+  var el=document.getElementById('nuvemSt');
+  if(el){
+    if(e==='conectando')el.innerHTML='<i style="background:#B8730B"></i>Conectando...';
+    else if(e==='sincronizando')el.innerHTML='<i style="background:#1F6FB2"></i>Sincronizando...';
+    else if(e==='online')el.innerHTML='<i></i>Online';
+    else if(e==='erro')el.innerHTML='<i style="background:#C94141"></i>'+(msg||'erro de sincronização');
+    else el.innerHTML='<i style="background:#8A8578"></i>Offline — as alterações sobem quando a conexão voltar';
+  }
+  try{conferirNuvem();}catch(e2){}
+}
 function modo(){try{return localStorage.getItem('nexor_modo')||'local'}catch(e){return 'local'}}
 function setModo(m){try{localStorage.setItem('nexor_modo',m)}catch(e){}}
 
@@ -11978,21 +12027,24 @@ function barraAvisos(){
 function conferirNuvem(){
   try{
     var el=document.getElementById('avisoNuvem');
-    if(NUVEM.ligada){ if(el)el.remove(); return; }
-    /* Fora do sistema não há o que avisar: ninguém está lançando nada.
-       Olhar o app é mais seguro que olhar o login — o app só aparece
-       depois da sessão aberta. */
+    /* Conectado, conectando ou o dono da plataforma (que nao tem loja para
+       sincronizar): nada a avisar. */
+    if(NUVEM.ligada||CONEXAO==='conectando'||NUVEM.plataforma){ if(el)el.remove(); return; }
     var ap=document.getElementById('app');
     if(!ap||ap.classList.contains('hide')){ if(el)el.remove(); return; }
     var lg=document.getElementById('login');
     if(lg&&!lg.classList.contains('hide')){ if(el)el.remove(); return; }
     if(el)return;
+    /* ------------------------------------------------------------------
+       Nao existe mais "ligar a nuvem". Se o sistema nao esta conectado com
+       uma sessao valida e internet, e porque a internet caiu — e isso o
+       sistema resolve sozinho. O aviso agora informa, nao cobra acao.
+       ------------------------------------------------------------------ */
     el=document.createElement('div');
     el.id='avisoNuvem';el.className='avisoGrav';
-    el.innerHTML='<div><b>Este aparelho não está ligado na nuvem</b>'+
-      '<span>O que for lançado aqui fica só neste computador: ninguém da rede enxerga '+
-      'e nada vai para o banco de dados. Ligue antes de continuar lançando.</span></div>'+
-      '<button onclick="painelNuvem()">Ligar agora</button>';
+    el.innerHTML='<div><b>Sem conexão com a internet</b>'+
+      '<span>Você pode continuar trabalhando: o que for lançado fica guardado aqui '+
+      'e sobe sozinho assim que a conexão voltar.</span></div>';
     barraAvisos().appendChild(el);
   }catch(e){}
 }
@@ -12092,7 +12144,7 @@ function agendarSync(){
 }
 async function conectarNuvem(email,senha){
   if(!window.supabase)throw new Error('Biblioteca da nuvem não carregou. Verifique a internet.');
-  NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave);
+  NUVEM.cli=cliente();
   var r=await NUVEM.cli.auth.signInWithPassword({email:email,password:senha});
   if(r.error)throw r.error;
   var rp=await NUVEM.cli.from('perfis').select('id,nome,cargo,loja_id,empresa_id').eq('id',r.data.user.id).maybeSingle();
@@ -12117,35 +12169,64 @@ function temDadosLocais(){
   }catch(e){return false}
 }
 async function religarNuvem(){
-  if(modo()!=='nuvem')return false;
+  /* ==========================================================
+     A SESSAO MANDA, NAO A BANDEIRA DO APARELHO
+     Antes a primeira linha era `if(modo()!=='nuvem') return false` — uma
+     marca gravada no localStorage dizendo que ESTE computador estava
+     "ligado na nuvem". Limpar o navegador, trocar de maquina ou abrir uma
+     aba nova apagava a marca, e o sistema entrava desconectado mesmo com
+     sessao valida e internet boa. Era dai que vinha "Este aparelho nao
+     esta ligado na nuvem" e o botao "Ligar agora".
+     Quem decide agora e a sessao do Auth: se ela existe, o sistema conecta.
+     ========================================================== */
   if(!window.supabase)return false;
+  var cli=cliente(); if(!cli)return false;
+  estadoNuvem('conectando');
   try{
-    NUVEM.cli=window.supabase.createClient(NUVEM.url,NUVEM.chave);
-    var r=await NUVEM.cli.auth.getSession();
+    NUVEM.cli=cli;
+    var r=await cli.auth.getSession();
     var ses=r&&r.data?r.data.session:null;
-    if(!ses){NUVEM.cli=null;return false;}
-    var rp=await NUVEM.cli.from('perfis')
-      .select('id,nome,cargo,loja_id,empresa_id').eq('id',ses.user.id).maybeSingle();
-    if(rp.error||!rp.data){NUVEM.cli=null;return false;}
+    if(!ses){ estadoNuvem('offline'); return false; }
+    var rp=await cli.from('perfis')
+      .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
+      .eq('id',ses.user.id).maybeSingle();
+    if(rp.error||!rp.data){ estadoNuvem('offline'); return false; }
     NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
     NUVEM.token=ses.access_token;
-    if(DB._sujo)NUVEM.sujo=true;     /* ficou algo por enviar da sessao anterior */
-    statusNuvem('ok');rodape();
+    NUVEM.plataforma=(!rp.data.loja_id&&rp.data.cargo==='plataforma');
+    setModo('nuvem');
+    if(DB._sujo)NUVEM.sujo=true;
+    estadoNuvem('online');rodape();
+    if(NUVEM.plataforma)return true;          /* dono nao baixa dados de loja */
     setTimeout(ligarTempoReal,400);
-    /* traz o que mudou enquanto o sistema estava fechado —
-       mas primeiro envia o que estiver pendente aqui, para nada ser sobrescrito */
     setTimeout(async function(){
       try{
-        if(temDadosLocais()){ await sincronizar(); }
-        statusNuvem('baixando'); await baixarDaNuvem(); statusNuvem('ok');
+        estadoNuvem('sincronizando'); await baixarDaNuvem();
+        if(temDadosLocais()&&DB._sujo){ await sincronizar(); }
+        estadoNuvem('online');
         if(S.mod&&S.it)abrir(S.mod,S.it);
-        /* quem voltou com a sessão guardada também consome a fila */
         try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){}
-      }catch(e){ statusNuvem('erro',(e&&e.message)||''); }
-    },900);
+      }catch(e){ estadoNuvem('erro',(e&&e.message)||''); }
+    },700);
     return true;
-  }catch(e){NUVEM.cli=null;return false;}
+  }catch(e){ estadoNuvem('offline'); return false; }
 }
+/* ==========================================================
+   RECONEXAO AUTOMATICA
+   Internet caiu e voltou, aba dormiu e acordou: o sistema volta sozinho.
+   Nenhum botao.
+   ========================================================== */
+window.addEventListener('online',function(){
+  if(!NUVEM.ligada)religarNuvem();
+});
+window.addEventListener('offline',function(){ estadoNuvem('offline'); });
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&!NUVEM.ligada&&navigator.onLine)religarNuvem();
+});
+setInterval(function(){
+  if(!NUVEM.ligada&&navigator.onLine&&document.getElementById('app')&&
+     !document.getElementById('app').classList.contains('hide'))religarNuvem();
+},30000);
 /* ==========================================================
    MOTOR DE SINCRONIZAÇÃO
    Cada coleção local vira uma linha do MAPA.
@@ -12545,16 +12626,37 @@ async function api(caminho,metodo,corpo,extra,_repetiu){
     /* Recusa por credencial: renova e tenta UMA vez. Se a renovação não
        devolver token, a sessão acabou mesmo — repetir só produziria a lista
        de 15 tabelas recusadas, que assusta e não diz o que houve. */
-    var porSessao=(r.status===401||r.status===403||
-      (d&&(d.code==='42501'||/row-level security/i.test(d.message||''))));
+    /* ------------------------------------------------------------------
+       401 e sessao. 403 e RLS — a sessao esta viva, o banco e que recusou
+       aquela linha. Tratar os dois como "sessao expirou" derrubava a conexao
+       inteira por causa de UMA consulta barrada, e enchia a tela de aviso
+       durante o uso normal.
+       ------------------------------------------------------------------ */
+    var porSessao=(r.status===401&&!(d&&d.code==='42501'));
+    var porRegra=(r.status===403||(d&&(d.code==='42501'||
+      /row-level security/i.test(d.message||''))));
+    if(porRegra){
+      logNuvem('o banco recusou '+tab+' por regra de acesso (RLS) · loja='+
+        (NUVEM.loja||'sem loja')+' · '+((d&&d.message)||'')+' · tentativa '+
+        (_repetiu?2:1),true);
+      var eR=new Error('sem permissão para '+tab);
+      eR.tabela=tab;eR.status=r.status;eR.regra=true;throw eR;
+    }
     if(porSessao&&!_repetiu){
       var tk=await tokenValido(true);
       if(tk)return api(caminho,metodo,corpo,extra,true);
     }
     if(porSessao){
-      NUVEM.ligada=false;NUVEM.token=null;_tokenAte=0;
-      try{conferirNuvem();rodape();}catch(e){}
-      var eS=new Error('sua sessão expirou');
+      NUVEM.token=null;_tokenAte=0;
+      /* nao anuncia "sessao expirou" e nao desliga: tenta reconectar sozinho.
+         So vira offline se a reconexao tambem falhar. */
+      logNuvem('token recusado em '+tab+' — tentando reconectar',true);
+      var voltou=false;
+      try{ voltou=await religarNuvem(); }catch(e3){}
+      if(voltou&&!_repetiu)return api(caminho,metodo,corpo,extra,true);
+      NUVEM.ligada=false;estadoNuvem('offline');
+      try{rodape();}catch(e){}
+      var eS=new Error('sem conexão com a nuvem');
       eS.tabela=tab;eS.status=r.status;eS.sessao=true;
       throw eS;
     }
@@ -13574,10 +13676,25 @@ async function baixarDaNuvem(forcar){
     _repostos.push(k+' ('+tinha.length+')');
   });
   if(_repostos.length){
-    logNuvem('a nuvem respondeu vazio — mantidos daqui: '+_repostos.join(', '),true);
-    avisoSinc('A nuvem respondeu sem alguns cadastros ('+_repostos.join(', ')+'). '+
-      'O sistema manteve os deste aparelho e não apagou nada. '+
-      'Se isso se repetir, avise antes de continuar lançando.');
+    /* ==========================================================
+       NAO REENVIAR O CACHE POR CIMA DA NUVEM
+       O comportamento antigo era: a nuvem devolveu menos do que tenho aqui,
+       logo a nuvem esta errada — mantinha o local E MARCAVA PARA SUBIR TUDO.
+       Isso ressuscita cadastro apagado de proposito e, quando o aparelho tem
+       dado de outra empresa na memoria, despeja essa empresa dentro desta.
+       Foi assim que a Jolo foi parar dentro da Rafaelos.
+       Agora: o que esta na tela e preservado (ninguem perde o trabalho do
+       dia), mas NADA sobe por conta disso. A causa fica registrada no log
+       tecnico para ser investigada — pode ser RLS, loja errada, sessao
+       vencida ou consulta com filtro errado, e nenhuma dessas se conserta
+       reenviando cache.
+       ========================================================== */
+    logNuvem('a nuvem respondeu vazio em: '+_repostos.join(', ')+
+      ' — mantido o que estava neste aparelho, e NADA foi reenviado',true);
+    (_repostos||[]).forEach(function(t){
+      logNuvem('  · '+t+' · loja='+(NUVEM.loja||'sem loja')+
+        ' · perfil='+((NUVEM.perfil||{}).cargo||'?')+' · '+new Date().toISOString(),true);
+    });
   }
 
   /* ---- rede de proteção 3: a nuvem nunca apaga um vínculo que existe aqui ----
@@ -13630,10 +13747,12 @@ async function baixarDaNuvem(forcar){
     }
   });
   if(_mantidos.length){
-    logNuvem('mantidos aqui por ainda não estarem na nuvem ('+_mantidos.join(' · ')+
-      ') — vão subir no próximo envio');
-    NUVEM.sujo=true;DB._sujo=true;
-    agendarSync();
+    /* registro que existe aqui e nao na nuvem pode ser duas coisas muito
+       diferentes: algo que ainda nao subiu, ou algo que foi APAGADO la de
+       proposito. Reenviar sem saber qual dos dois e ressuscitar exclusao.
+       Fica registrado; sobe junto com a proxima alteracao de verdade. */
+    logNuvem('existem aqui e não na nuvem ('+_mantidos.join(' · ')+
+      ') — mantidos na tela, sem reenvio automático');
   }
 
   /* o que veio da nuvem ja esta na nuvem: registra a impressao para nao reenviar tudo */
@@ -13664,13 +13783,13 @@ function avisoSinc(msg){
 }
 
 function ehUuid(v){return typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)}
+/* mantida so por compatibilidade: tudo passa pelo estado unico */
 function statusNuvem(e,msg){
-  var el=document.getElementById('nuvemSt');if(!el)return;
-  if(e==='enviando')el.innerHTML='<i style="background:#B8730B"></i>Enviando para a nuvem...';
-  else if(e==='baixando')el.innerHTML='<i style="background:#1F6FB2"></i>Baixando da nuvem...';
-  else if(e==='ok')el.innerHTML='<i></i>Sincronizado com a nuvem';
-  else if(e==='erro')el.innerHTML='<i style="background:#C94141"></i>Erro ao sincronizar: '+(msg||'');
-  else el.innerHTML='<i></i>Salvo neste aparelho';
+  if(e==='enviando')return estadoNuvem('sincronizando');
+  if(e==='baixando')return estadoNuvem('sincronizando');
+  if(e==='ok')return estadoNuvem('online');
+  if(e==='erro')return estadoNuvem('erro',msg);
+  return estadoNuvem(NUVEM.ligada?'online':'offline');
 }
 
 function uid(p){return p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -13847,7 +13966,7 @@ function redeDoUsuario(u){
 async function entrarPeloAuth(lg,sn){
   if(!window.supabase||!NUVEM.url||!NUVEM.chave)return {ok:false,motivo:'rede'};
   var cli;
-  try{ cli=window.supabase.createClient(NUVEM.url,NUVEM.chave); }
+  try{ cli=cliente(); if(!cli)return {ok:false,motivo:'rede'}; }
   catch(e){ return {ok:false,motivo:'rede'}; }
   var r;
   try{ r=await cli.auth.signInWithPassword({email:lg,password:sn}); }
@@ -14286,7 +14405,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V27.0.0';
+var VERSAO='V28.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
