@@ -12557,9 +12557,32 @@ async function enviar(tab,linhas){
   var out=[];
   for(var i=0;i<linhas.length;i+=200){
     var lote=igualarChaves(linhas.slice(i,i+200));
-    var r=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',lote,
-      {'Prefer':'resolution=merge-duplicates,return=representation'});
-    out=out.concat(r||[]);
+    try{
+      var r=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',lote,
+        {'Prefer':'resolution=merge-duplicates,return=representation'});
+      out=out.concat(r||[]);
+    }catch(e){
+      /* Vinculo apontando para algo que nao existe nesta loja: acontece
+         quando o aparelho traz sobra de outro cliente. Em vez de travar a
+         tabela inteira para sempre, o vinculo e desfeito e o registro sobe
+         sem ele — o dado principal e mais importante que a ligacao. */
+      var m=String((e&&e.message)||'');
+      if(/foreign key|violates foreign/i.test(m)){
+        var campo=(m.match(/_(\w+?)_fkey/)||[])[1];
+        var limpo=lote.map(function(o){
+          var c=Object.assign({},o);
+          Object.keys(c).forEach(function(k){
+            if(k===campo||(campo&&k===campo+'_id')||/_id$/.test(k)&&campo&&k.indexOf(campo)>=0)
+              c[k]=null;
+          });
+          return c;
+        });
+        logNuvem(tab+': vínculo inexistente removido para o registro poder subir');
+        var r2=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',limpo,
+          {'Prefer':'resolution=merge-duplicates,return=representation'});
+        out=out.concat(r2||[]);
+      }else throw e;
+    }
   }
   return out;
 }
@@ -12611,11 +12634,12 @@ async function apagarRemovidos(tab,chave,idsAgora){
        O _snap NÃO é atualizado quando a trava age: assim o estado anterior
        continua valendo e nada é dado como aceito. */
     if(!idsAgora.length&&!podeEsvaziarAgora()){
-      logNuvem('BLOQUEADO: '+tab+' ficaria vazio na nuvem ('+antes.length+
-        ' registro(s)). Nada foi apagado.',true);
-      avisoSinc('O sistema evitou apagar '+antes.length+' registro(s) de '+tab+
-        ' na nuvem, porque este aparelho ficou sem nenhum. '+
-        'Se você não apagou de propósito, não continue lançando antes de conferir.');
+      /* A trava funcionou: nada foi apagado. Isso e o sistema fazendo o
+         trabalho dele, nao um problema para a pessoa resolver — entao vai
+         para o log e nao para a tela. O aviso so aparecia porque eu tratava
+         a protecao como se fosse falha. */
+      logNuvem('protegido: '+tab+' ficaria vazio na nuvem ('+antes.length+
+        ' registro(s)). Nada foi apagado.');
       return;
     }
     if(sumiram.length>200&&!podeEsvaziarAgora()){
@@ -12644,6 +12668,30 @@ async function apagar(tab,campo,valor){
 }
 
 /* ---- sincronização completa ---- */
+/* Quando o aparelho esta com dados de outro cliente, nao ha o que perguntar:
+   o certo e jogar fora e trazer da nuvem. Antes isso virava um aviso pedindo
+   para a pessoa sair e entrar — no meio de uma operacao, ninguem faz isso. */
+async function trocarDeCliente(lojaCerta){
+  try{
+    localStorage.removeItem('nexor_dados');
+    localStorage.removeItem('nexor_respaldo');
+    localStorage.removeItem('nexor_respaldo_info');
+  }catch(e){}
+  DB={};
+  try{ semear(); }catch(e){}
+  DB._dono=lojaCerta;
+  DB._snap={};DB._hash={};DB._uuid={};
+  NUVEM.sujo=false;
+  try{ gravarLocal(); }catch(e){}
+  try{
+    statusNuvem('baixando');
+    await baixarDaNuvem(true);
+    statusNuvem('ok');
+    try{ espelharEstoque(); }catch(e){}
+    if(S.mod&&S.it)abrir(S.mod,S.it);
+    toast('Dados do cliente certo carregados.');
+  }catch(e){ statusNuvem('erro','não consegui baixar'); }
+}
 async function sincronizar(){
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
   /* ==========================================================
@@ -12656,16 +12704,16 @@ async function sincronizar(){
      duvida, nao envia: dado que nao subiu se recupera; dado que
      subiu para o cliente errado, nao.
      ========================================================== */
-  var _dono=null;
-  try{ _dono=localStorage.getItem('nexor_loja_dados'); }catch(e){}
-  if(_dono&&NUVEM.loja&&_dono!==NUVEM.loja){
-    logNuvem('ENVIO BLOQUEADO: os dados deste aparelho são de outro cliente',true);
-    alertaGravacao('Este aparelho ainda tem dados de outro cliente. Nada foi enviado, '+
-      'para não misturar as bases. Saia e entre de novo para carregar os dados certos.');
-    return;
-  }
-  if(!_dono&&NUVEM.loja){
-    try{ localStorage.setItem('nexor_loja_dados',NUVEM.loja); }catch(e){}
+  /* A marca de dono agora vive DENTRO do DB, nao numa chave separada.
+     Separada, ela saia do lugar: a chave dizia "Rafaelos" enquanto os dados
+     ainda eram da Jolo, e o envio passava. Junto, nao ha como divergir. */
+  if(NUVEM.loja){
+    if(DB._dono&&DB._dono!==NUVEM.loja){
+      logNuvem('envio bloqueado: dados de outro cliente — recarregando',true);
+      await trocarDeCliente(NUVEM.loja);
+      return;
+    }
+    if(!DB._dono){DB._dono=NUVEM.loja;try{gravarLocal()}catch(e){}}
   }
   if(NUVEM.sincronizando){
     NUVEM.pendente=true;
@@ -13824,8 +13872,8 @@ async function entrarPeloAuth(lg,sn){
      Agora o aparelho lembra de QUEM sao os dados guardados. Se o cliente
      que entrou e outro, tudo e apagado antes de qualquer coisa aparecer.
      ========================================================== */
-  var lojaAnterior=null;
-  try{ lojaAnterior=localStorage.getItem('nexor_loja_dados'); }catch(e){}
+  var lojaAnterior=DB._dono||null;
+  if(!lojaAnterior){ try{ lojaAnterior=localStorage.getItem('nexor_loja_dados'); }catch(e){} }
   if(lojaAnterior&&lojaAnterior!==rp.data.loja_id){
     try{
       localStorage.removeItem('nexor_dados');
@@ -13834,8 +13882,10 @@ async function entrarPeloAuth(lg,sn){
     }catch(e){}
     DB={};
     try{ semear(); }catch(e){}
+    DB._snap={};DB._hash={};DB._uuid={};
     logNuvem('outro cliente entrou neste aparelho: dados locais limpos');
   }
+  DB._dono=rp.data.loja_id;
   try{ localStorage.setItem('nexor_loja_dados',rp.data.loja_id); }catch(e){}
 
   NUVEM.cli=cli;NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;
@@ -14044,8 +14094,11 @@ $('hdr').innerHTML='<img class="hMk" src="nexor-n.png" alt="Nexor">'+
 '<button class="hIc" id="btnNuvem" onclick="painelNuvem()" title="Banco de dados">'+sv('cloud',18)+'</button>'+'<button class="hIc" onclick="dev()">'+sv('help',18)+'</button>'+
 (function(){var u=usuarioLogado()||{};
   var nm=u.login||u.nome||'sem sessão';
-  var pp=ehPlataforma()?'dono do Nexor':(u.tudo||u.mestre?'franqueadora — acesso total':
-    (u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
+  /* "franqueadora" so faz sentido quando existe franquia. Loja unica e
+     MATRIZ — chamar de franqueadora confunde quem tem uma loja so. */
+  var pp=ehPlataforma()?'dono do Nexor'
+    :(u.tudo||u.mestre?(temFranquia()?'franqueadora — acesso total':'matriz — acesso total')
+    :(u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
   return '<div class="hUsr"><div class="hAv">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
    '<div><b>'+E(nm)+'</b><span>'+pp+'</span></div>';})()+
 '<button class="hPwr" onclick="sair()" title="Sair">'+sv('out',14)+'</button></div>';
@@ -14160,6 +14213,14 @@ function lojaAtual(){
   S.loja=DB.lojaAtual;                 /* as duas passam a apontar para o mesmo */
   return DB.lojaAtual;
 }
+/* Tem franquia quando existe mais de uma unidade, ou quando o dono marcou
+   que a rede e franqueadora na Configuracao da Loja. */
+function temFranquia(){
+  var c=cfg();
+  if(c.tipoRede==='franqueadora')return true;
+  if(c.tipoRede==='matriz')return false;
+  try{ return sucAtivas().length>1; }catch(e){ return false; }
+}
 function nomeLojaAtual(){
   var l=lojasCad().find(function(x){return x.id===lojaAtual()});
   return l?l.nome:'Matriz';
@@ -14214,7 +14275,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V22.3.0';
+var VERSAO='V22.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33386,6 +33447,21 @@ function telaCfgPDV(){
     '<div><h1>Configuração do PDV</h1><p>Escolha como o cardápio aparece na frente de caixa.</p></div>'+
     '<div style="flex:1"></div>'+
     '<button class="btnP2 ok" onclick="salvarCfgPDV()">'+sv('check',13)+' Salvar</button>'+
+   '</div>'+
+   '<div class="mdvBox">'+
+    '<div class="mdvH"><b>Tipo da rede</b>'+
+     '<span>Muda como o sistema se refere a esta loja. Uma loja só é matriz; '+
+     'com franquias, é franqueadora.</span></div>'+
+    '<div class="mdvGrade">'+
+     [['auto','Automático','pelo número de unidades cadastradas'],
+      ['matriz','Matriz','loja única, sem franquias'],
+      ['franqueadora','Franqueadora','tem franquias']].map(function(o){
+       var atual=cfg().tipoRede||'auto';
+       return '<label class="mdvOp'+(atual===o[0]?' on':'')+'">'+
+        '<input type="radio" name="tipoRede" '+(atual===o[0]?'checked':'')+
+        ' onchange="cfg().tipoRede=\''+o[0]+'\';salvar();telaCfgPDV();topo()">'+
+        '<b>'+E(o[1])+'</b><span>'+E(o[2])+'</span></label>';
+     }).join('')+'</div>'+
    '</div>'+
    '<div class="mdvBox">'+
     '<div class="mdvH"><b>Modos de venda</b>'+
