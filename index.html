@@ -14043,8 +14043,26 @@ async function entrarPeloAuth(lg,sn){
   /* as permissoes continuam vindo de usuarios_sistema, agora com RLS de verdade */
   var linha=null;
   try{
-    var ru=await cli.from('usuarios_sistema').select('*').ilike('login',lg).maybeSingle();
-    if(!ru.error&&ru.data)linha=ru.data;
+    /* ------------------------------------------------------------------
+       maybeSingle() devolve ERRO quando ha mais de uma linha — nao devolve
+       a primeira. Se o mesmo login existir duas vezes na empresa (uma criada
+       pelo painel, outra pela tela da propria loja), o resultado era 'linha
+       nula' e a pessoa entrava com PERMISSAO ZERO, mesmo com tudo liberado.
+       Agora pega a linha com mais telas liberadas e segue, em vez de
+       desistir. O banco tambem passou a impedir a duplicata.
+       ------------------------------------------------------------------ */
+    var ru=await cli.from('usuarios_sistema').select('*').ilike('login',lg).limit(5);
+    var lst=(ru&&!ru.error&&ru.data)?ru.data:[];
+    if(lst.length){
+      lst.sort(function(a,b){
+        var pa=Object.keys(a.permissoes||{}).length+((a.tudo||a.mestre)?999:0);
+        var pb=Object.keys(b.permissoes||{}).length+((b.tudo||b.mestre)?999:0);
+        return pb-pa;
+      });
+      linha=lst[0];
+      if(lst.length>1)logNuvem('atenção: '+lst.length+' cadastros para o login '+lg+
+        ' nesta empresa — usei o mais completo',true);
+    }
   }catch(e){}
   return {ok:true,perfil:rp.data,linha:linha};
 }
@@ -14410,7 +14428,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V28.2.1';
+var VERSAO='V28.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
