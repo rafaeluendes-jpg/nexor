@@ -3849,6 +3849,8 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   overflow:hidden;text-overflow:ellipsis}
 .usrS{display:flex!important;align-items:center;gap:4px;margin-top:1px}
 /* ---- arvore por empresa em Usuarios e Permissoes ---- */
+/* barra de unidades na tela de permissoes */
+.permBarra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:900px;margin-bottom:10px}
 .linhaPerm{display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:7px 10px;border-bottom:1px solid var(--line-2);font-size:12.5px}
 .linhaPerm:last-child{border-bottom:0}
@@ -11800,7 +11802,6 @@ var MOD=[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'clientes-nexor',n:'Clientes Nexor'},
  {id:'instalacao',n:'Empresas Clientes'},
- {id:'permissoes-nexor',n:'Permissões'},
  {id:'financeiro-nexor',n:'Financeiro da Nexor'},
  {id:'sincronizacao',n:'Sincronização'},
  {id:'backup',n:'Backup e Restauração'},
@@ -14428,7 +14429,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V28.3.1';
+var VERSAO='V29.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14550,7 +14551,6 @@ if(mid==='tecnico'&&iid==='backup')return telaBackup();
 if(mid==='tecnico'&&iid==='layout-menu')return telaLayoutMenu();
 if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
-if(mid==='tecnico'&&iid==='permissoes-nexor')return telaPermissoesNexor();
 if(mid==='tecnico'&&iid==='financeiro-nexor')return telaFinanceiroNexor();
 if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
 if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
@@ -23044,6 +23044,7 @@ function selo(txt,cor){
 /* ---------- 1. LISTA DE EMPRESAS ---------- */
 function telaInstalacao(){
   baseSuc();baseUsr();
+  if(PRM.alvo)return telaPermUnidade();
   if(INS.nova)return formEmpresaNova();
   if(INS.und)return formUnidade(INS.und.loja,INS.und.suc);
   if(INS.rede)return telaRedeAberta(INS.rede);
@@ -23181,8 +23182,9 @@ function telaRedeAberta(id){
     '</div>')+
    '</div>'+
    '<div style="max-width:900px;margin:12px 0 40px">'+
-    '<button class="btnP2" onclick="PRM.loja=\''+l.id+'\';abrir(\'tecnico\',\'permissoes-nexor\')">'+
-    sv('lock',13)+' Definir o que esta empresa pode usar</button></div>'+
+    (m?'<button class="btnP2" onclick="PRM.loja=\''+l.id+'\';PRM.alvo=\''+m.id+'\';PRM.pend={};'+
+      'telaPermUnidade()">'+sv('lock',13)+' Definir o que esta empresa pode usar</button>':'')+
+    '</div>'+
    '</div>';
   rodape(E(l.nome)+' · '+x.unidades.length+' unidade(s)');
 }
@@ -23456,113 +23458,106 @@ function chavesDoSistema(){
   });
   return out;
 }
-function telaPermissoesNexor(){
+/* ==========================================================
+   PERMISSOES DE UMA UNIDADE
+   A MATRIZ E O TETO. O que a empresa contratou e o que a matriz enxerga —
+   nao existe um terceiro nivel de "contrato" a parte, porque seria a mesma
+   lista escrita duas vezes. Regra em uma frase: se a matriz nao ve, nenhuma
+   loja dela ve. Quem define a matriz e so a Nexor; a matriz distribui entre
+   as sucursais o que ela mesma tem.
+   ========================================================== */
+function telaPermUnidade(){
   if(!ehPlataforma())return telaRestrita('Permissões');
-  if(!INS.nuvem&&!INS.carregando){
-    INS.carregando=true;
-    carregarEmpresas().then(function(){INS.carregando=false;telaPermissoesNexor();})
-      .catch(function(e){INS.carregando=false;INS.erro=(e&&e.message)||'';telaPermissoesNexor();});
-    $('content').innerHTML='<div class="ctWrap"><div class="usrVazio"><b>Carregando…</b></div></div>';
-    return;
-  }
-  var emps=empresasDaNuvem();
-  if(!PRM.loja&&emps.length)PRM.loja=emps[0].loja.id;
   var x=empresaPorId(PRM.loja);
-  var alvo=PRM.alvo;                       /* null = a empresa (teto da Nexor) */
-  var atual={}, titulo='', sub='';
-  if(x){
-    if(!alvo){ atual=Object.assign({},x.teto);
-      titulo=x.loja.nome; sub='O que a Nexor libera para esta empresa. É o teto: nenhuma unidade dela pode receber mais.'; }
-    else{ atual=Object.assign({},(x.permUn||{})[alvo]||{});
-      var su=(x.unidades||[]).find(function(s){return s.id===alvo})||{};
-      titulo=su.nome||''; sub='O que esta unidade pode usar. Só aparece marcável o que a Nexor liberou para a empresa.'; }
-  }
-  Object.keys(PRM.pend).forEach(function(k){ atual[k]=PRM.pend[k]; });
+  if(!x||!PRM.alvo){INS.rede=PRM.loja;PRM.alvo=null;return telaInstalacao();}
+  var su=(x.unidades||[]).find(function(s){return s.id===PRM.alvo});
+  if(!su){PRM.alvo=null;INS.rede=PRM.loja;return telaInstalacao();}
+  var mz=x.matriz||{};
+  var permMz=(x.permUn||{})[mz.id]||{};
+  var atual=Object.assign({},(x.permUn||{})[su.id]||{});
+  Object.keys(PRM.pend).forEach(function(k){atual[k]=PRM.pend[k];});
 
-  var arv=emps.map(function(y){
-    var ab=PRM.abertas[y.loja.id]!==false;
-    return '<div class="usrPasta'+(ab?' ab':'')+'">'+
-      '<button class="usrPastaH" onclick="PRM.abertas[\''+y.loja.id+'\']='+(ab?'false':'true')+';telaPermissoesNexor()">'+
-       '<span class="usrSeta"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
-        'stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>'+
-       '<div class="usrAv" style="background:var(--deep);color:#fff">'+E(y.loja.nome.charAt(0).toUpperCase())+'</div>'+
-       '<div class="usrN"><b>'+E(y.loja.nome)+'</b><span>'+y.unidades.length+' unidade(s)</span></div>'+
-      '</button>'+
-      '<div class="usrFilhos">'+
-       '<button class="usrIt'+(PRM.loja===y.loja.id&&!PRM.alvo?' on':'')+'" '+
-        'onclick="PRM.loja=\''+y.loja.id+'\';PRM.alvo=null;PRM.pend={};telaPermissoesNexor()">'+
-        '<div class="usrAv" style="background:#1F5F8B;color:#fff">N</div>'+
-        '<div class="usrN"><b>Teto da Nexor</b><span>o que a empresa pode contratar</span></div></button>'+
-       (y.unidades||[]).map(function(s){
-         return '<button class="usrIt'+(PRM.alvo===s.id?' on':'')+'" '+
-          'onclick="PRM.loja=\''+y.loja.id+'\';PRM.alvo=\''+s.id+'\';PRM.pend={};telaPermissoesNexor()">'+
-          '<div class="usrAv" style="background:'+(s.cor||'#00A08B')+';color:#fff">'+
-            E(String(s.nome||'?').charAt(0).toUpperCase())+'</div>'+
-          '<div class="usrN"><b>'+E(s.nome)+(s.matriz?' ·':'')+'</b><span>'+
-            (s.matriz?'matriz':'sucursal')+'</span></div></button>';
-       }).join('')+
-      '</div></div>';
+  var porMod={};
+  chavesDoSistema().forEach(function(c){
+    if(!porMod[c.mod])porMod[c.mod]={n:c.modn,itens:[]};
+    porMod[c.mod].itens.push(c);
+  });
+  var grade=Object.keys(porMod).map(function(mid){
+    var g=porMod[mid];
+    var libs=g.itens.filter(function(c){return atual[c.mod+'.'+c.item]}).length;
+    return '<div class="blk" style="margin-bottom:10px">'+
+     '<div class="acTit">'+E(g.n)+
+      '<span style="float:right;font-weight:400;font-size:11px;color:var(--ink-3)">'+
+        libs+'/'+g.itens.length+'</span>'+
+      '<button class="btnP2" style="float:right;padding:3px 9px;font-size:11px;margin:0 8px" '+
+        'onclick="marcarModulo(\''+mid+'\',false)">nada</button>'+
+      '<button class="btnP2" style="float:right;padding:3px 9px;font-size:11px" '+
+        'onclick="marcarModulo(\''+mid+'\',true)">tudo</button>'+
+     '</div>'+
+     g.itens.map(function(c){
+       var k=c.mod+'.'+c.item;
+       var lig=!!atual[k];
+       var bloq=(!su.matriz&&!permMz[k]);
+       return '<div class="linhaPerm'+(bloq?' bloq':'')+'">'+
+        '<span>'+E(c.n)+(bloq?'<i> — a matriz não tem</i>':'')+'</span>'+
+        '<button class="swPerm'+(lig?' on':'')+'"'+(bloq?' disabled':'')+
+          ' onclick="togglePerm(\''+k+'\','+(lig?'false':'true')+')"></button>'+
+       '</div>';
+     }).join('')+'</div>';
   }).join('');
 
-  var grade='';
-  if(x){
-    var porMod={};
-    chavesDoSistema().forEach(function(c){ (porMod[c.mod]=porMod[c.mod]||{n:c.modn,itens:[]}).itens.push(c); });
-    grade=Object.keys(porMod).map(function(mid){
-      var g=porMod[mid];
-      return '<div class="blk" style="margin-bottom:10px"><div class="acTit">'+E(g.n)+
-       '<button class="btnP2" style="float:right;padding:3px 9px;font-size:11px" '+
-       'onclick="marcarModulo(\''+mid+'\',true)">tudo</button>'+
-       '<button class="btnP2" style="float:right;padding:3px 9px;font-size:11px;margin-right:5px" '+
-       'onclick="marcarModulo(\''+mid+'\',false)">nada</button></div>'+
-       g.itens.map(function(c){
-         var k=c.mod+'.'+c.item;
-         var lig=!!atual[k];
-         var bloq=false,motivo='';
-         if(alvo&&!x.teto[k]){bloq=true;motivo='a Nexor não liberou para a empresa';}
-         return '<div class="linhaPerm'+(bloq?' bloq':'')+'">'+
-          '<span>'+E(c.n)+(bloq?'<i> — '+motivo+'</i>':'')+'</span>'+
-          '<button class="swPerm'+(lig?' on':'')+'"'+(bloq?' disabled':'')+
-            ' onclick="togglePerm(\''+k+'\','+(lig?'false':'true')+')"></button></div>';
-       }).join('')+'</div>';
-    }).join('');
-  }
-
+  var pend=Object.keys(PRM.pend).length;
   $('content').innerHTML='<div class="ctWrap">'+
-   '<div class="ctTopo"><h1>Permissões</h1>'+
-    '<p>À esquerda, a empresa e as unidades dela. À direita, o que cada uma pode usar. '+
-    'A regra é hierárquica: unidade ≤ empresa ≤ Nexor.</p></div>'+
-   '<div class="usrGrade">'+
-    '<div class="usrLista"><div class="usrRol">'+(arv||'<div class="usrVaz">Nenhuma empresa cadastrada.</div>')+'</div></div>'+
-    '<div class="usrDet" style="padding:14px">'+
-     (x?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'+
-       '<div><b style="font-size:15px">'+E(titulo)+'</b>'+
-       '<div class="hint">'+E(sub)+'</div></div><div style="flex:1"></div>'+
-       '<button class="btnP2 ok"'+(Object.keys(PRM.pend).length?'':' disabled')+
-        ' onclick="salvarPermissoes()">Salvar</button></div>'+grade
-      :'<div class="usrVazio"><b>Nenhuma empresa</b><span>Cadastre uma empresa primeiro.</span></div>')+
-    '</div></div></div>';
-  rodape(Object.keys(PRM.pend).length?Object.keys(PRM.pend).length+' alteração(ões) por salvar':'');
+   '<div class="ctTopo">'+
+    '<button class="btnP2" onclick="voltarDaEmpresa()">‹ voltar para '+E(x.loja.nome)+'</button>'+
+    '<h1 style="margin-top:10px">'+E(su.nome)+(su.matriz?selo('MATRIZ','#1F5F8B'):'')+'</h1>'+
+    '<p>'+(su.matriz
+      ?'O que esta empresa contratou. As sucursais só recebem o que estiver marcado aqui — '+
+       'desmarcar algo aqui tira das lojas dela junto.'
+      :'O que esta sucursal usa. O que a matriz não tem aparece travado.')+'</p></div>'+
+   '<div class="permBarra">'+
+    (x.unidades||[]).map(function(s2){
+      return '<button class="btnP2'+(s2.id===su.id?' ok':'')+'" '+
+       'onclick="trocarUnidadePerm(\''+s2.id+'\')">'+E(s2.nome)+
+       (s2.matriz?' (matriz)':'')+'</button>';
+    }).join('')+
+    '<div style="flex:1"></div>'+
+    (pend?'<span class="hint" style="margin-right:8px">'+pend+' alteração(ões) por salvar</span>':'')+
+    '<button class="btnP2 ok"'+(pend?'':' disabled')+' onclick="salvarPermissoes()">Salvar</button>'+
+   '</div>'+
+   '<div style="max-width:900px">'+grade+'</div></div>';
+  rodape(pend?pend+' alteração(ões) por salvar':E(su.nome));
 }
-function togglePerm(k,v){ PRM.pend[k]=v; telaPermissoesNexor(); }
+function voltarDaEmpresa(){
+  if(Object.keys(PRM.pend).length&&
+     !confirm('Há alterações não salvas. Sair mesmo assim?'))return;
+  var lj=PRM.loja;PRM.alvo=null;PRM.pend={};INS.rede=lj;telaInstalacao();
+}
+function trocarUnidadePerm(id){
+  if(Object.keys(PRM.pend).length&&
+     !confirm('Há alterações não salvas nesta unidade. Trocar mesmo assim?'))return;
+  PRM.alvo=id;PRM.pend={};telaPermUnidade();
+}
+function togglePerm(k,v){ PRM.pend[k]=v; telaPermUnidade(); }
 function marcarModulo(mid,v){
   var x=empresaPorId(PRM.loja); if(!x)return;
+  var su=(x.unidades||[]).find(function(s){return s.id===PRM.alvo}); if(!su)return;
+  var permMz=(x.permUn||{})[(x.matriz||{}).id]||{};
   chavesDoSistema().forEach(function(c){
     if(c.mod!==mid)return;
     var k=c.mod+'.'+c.item;
-    if(PRM.alvo&&!x.teto[k])return;     /* nao marca o que a Nexor nao liberou */
+    if(!su.matriz&&!permMz[k])return;      /* nao marca o que a matriz nao tem */
     PRM.pend[k]=v;
   });
-  telaPermissoesNexor();
+  telaPermUnidade();
 }
 async function salvarPermissoes(){
   if(!Object.keys(PRM.pend).length)return;
   try{
-    if(PRM.alvo)await api('rpc/painel_gravar_perm_unidade','POST',
+    await api('rpc/painel_gravar_perm_unidade','POST',
       {p_sucursal_id:PRM.alvo,p_perm:PRM.pend});
-    else await api('rpc/painel_gravar_teto','POST',{p_loja_id:PRM.loja,p_perm:PRM.pend});
     PRM.pend={};INS.nuvem=null;await carregarEmpresas(true);
-    toast('Permissões salvas.');telaPermissoesNexor();
+    toast('Permissões salvas.');telaPermUnidade();
   }catch(e){ console.error('salvarPermissoes',e);
     painelErro('Não consegui salvar as permissões.',detalheErro(e)); }
 }
