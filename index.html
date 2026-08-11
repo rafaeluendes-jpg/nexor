@@ -3849,6 +3849,18 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   overflow:hidden;text-overflow:ellipsis}
 .usrS{display:flex!important;align-items:center;gap:4px;margin-top:1px}
 /* ---- arvore por empresa em Usuarios e Permissoes ---- */
+.linhaPerm{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 10px;border-bottom:1px solid var(--line-2);font-size:12.5px}
+.linhaPerm:last-child{border-bottom:0}
+.linhaPerm i{font-style:normal;font-size:11px;color:var(--ink-3)}
+.linhaPerm.bloq{opacity:.5}
+.swPerm{width:36px;height:20px;border-radius:20px;background:#DCD6CA;position:relative;
+  flex:none;border:none;cursor:pointer;padding:0}
+.swPerm.on{background:var(--deep)}
+.swPerm:disabled{cursor:not-allowed}
+.swPerm::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;
+  border-radius:50%;background:#fff;transition:left .16s}
+.swPerm.on::after{left:18px}
 .usrSec{display:flex;align-items:center;gap:7px;padding:12px 10px 5px;font-size:10px;
   font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
 .usrLn{flex:1;height:1px;background:var(--line-2)}
@@ -11783,6 +11795,8 @@ var MOD=[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'clientes-nexor',n:'Clientes Nexor'},
  {id:'instalacao',n:'Empresas Clientes'},
+ {id:'permissoes-nexor',n:'Permissões'},
+ {id:'financeiro-nexor',n:'Financeiro da Nexor'},
  {id:'sincronizacao',n:'Sincronização'},
  {id:'backup',n:'Backup e Restauração'},
  {id:'layout-menu',n:'Layout do Menu'},
@@ -14272,7 +14286,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V26.1.1';
+var VERSAO='V27.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14394,6 +14408,8 @@ if(mid==='tecnico'&&iid==='backup')return telaBackup();
 if(mid==='tecnico'&&iid==='layout-menu')return telaLayoutMenu();
 if(mid==='tecnico'&&iid==='clientes-nexor')return telaClientesNexor();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
+if(mid==='tecnico'&&iid==='permissoes-nexor')return telaPermissoesNexor();
+if(mid==='tecnico'&&iid==='financeiro-nexor')return telaFinanceiroNexor();
 if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
 if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
 if(mid==='teste'&&iid==='reset-sistema')return telaReset();
@@ -22851,50 +22867,45 @@ function semAcento(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u0
 function apelidoLogin(n){return semAcento(n).toLowerCase().replace(/[^a-z0-9]/g,'')}
 
 /* ==========================================================
-   PAINEL DA PLATAFORMA — as empresas que compram o Nexor
-   Antes esta tela lia DB.redes: uma lista que (1) morava DENTRO dos dados
-   de um cliente e (2) nem subia para a nuvem, entao sumia ao limpar o
-   navegador. Por isso a Rafaelos nunca aparecia aqui: ela e outra LOJA, e
-   quem entra na Jolo baixa so as linhas da Jolo.
-   Agora a tela le a tabela de lojas direto da nuvem. Cada loja e uma
-   empresa cliente, com as unidades dela dentro. Uma nao enxerga a outra —
-   quem enxerga todas e so quem tem cargo 'plataforma', e por permissao
-   escrita nas regras do banco, nunca por falta de isolamento.
+   PAINEL DA PLATAFORMA — Administração da Nexor
+   Hierarquia: EMPRESA (loja) → UNIDADE (sucursal) → ACESSO (perfil).
+   A primeira unidade de uma empresa e SEMPRE a matriz — decidido no banco,
+   nao na tela, para nao depender de ninguem marcar a caixinha certa.
+   Tudo aqui le e grava por funcoes do servidor: as tabelas de sucursais e
+   de contrato sao SINCRONIZADAS, e deixar o navegador escrever nelas para
+   outra loja foi o que misturou as empresas na V25.0.0.
    ========================================================== */
 async function carregarEmpresas(recarregar){
   if(INS.nuvem&&!recarregar)return INS.nuvem;
   if(!NUVEM.ligada)throw new Error('sem conexão com a nuvem');
-  /* Uma porta so, que confere o cargo no servidor antes de devolver qualquer
-     coisa. Nao da para ler as tabelas direto: elas sao sincronizadas, e abrir
-     a leitura nelas faz o aparelho BAIXAR as linhas das outras empresas e
-     misturar tudo — foi exatamente o que quebrou o sistema na V25.0.0. */
   var r=await api('rpc/painel_empresas','POST',{});
   INS.nuvem={lista:Array.isArray(r)?r:[]};
   return INS.nuvem;
 }
 function empresasDaNuvem(){
   return ((INS.nuvem||{}).lista||[]).map(function(l){
-    var ct=l.contrato||null;
-    var ps=l.acessos||[];
-    return {loja:l,unidades:l.unidades||[],contrato:ct,perfis:ps,
-      admin:ps.find(function(p){return p.cargo==='admin'})||null};
+    var un=l.unidades||[];
+    return {loja:l, unidades:un, contrato:l.contrato||null, perfis:l.acessos||[],
+      teto:l.teto||{}, permUn:l.permissoes_unidades||{},
+      total:Number(l.mensalidade_total)||0,
+      matriz:un.find(function(s){return s.matriz})||null,
+      filiais:un.filter(function(s){return !s.matriz})};
   });
 }
+function empresaPorId(id){return empresasDaNuvem().find(function(x){return x.loja.id===id})||null;}
+function moeda(v){return 'R$ '+(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function selo(txt,cor){
+  return '<span style="display:inline-block;margin-left:8px;padding:2px 7px;border-radius:4px;'+
+    'font-size:9.5px;font-weight:700;letter-spacing:.05em;background:'+cor+';color:#fff">'+E(txt)+'</span>';
+}
+
+/* ---------- 1. LISTA DE EMPRESAS ---------- */
 function telaInstalacao(){
-  baseSuc();baseUsr();baseRedes();
+  baseSuc();baseUsr();
   if(INS.nova)return formEmpresaNova();
   if(INS.und)return formUnidade(INS.und.loja,INS.und.suc);
   if(INS.rede)return telaRedeAberta(INS.rede);
-  /* quem nao e dono da plataforma nao tem o que fazer aqui */
-  if(!ehPlataforma()){
-    $('content').innerHTML='<div class="ctWrap"><div class="ctTopo">'+
-     '<h1>Assistente de Instalação</h1>'+
-     '<p>Esta tela pertence à administração do Nexor.</p></div>'+
-     '<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
-      '<b>Área restrita</b><span>Só o administrador da plataforma cadastra empresas clientes.</span>'+
-     '</div></div>';
-    rodape();return;
-  }
+  if(!ehPlataforma())return telaRestrita('Empresas Clientes');
   if(!INS.nuvem&&!INS.carregando&&!INS.erro){
     INS.carregando=true;
     carregarEmpresas().then(function(){INS.carregando=false;telaInstalacao();})
@@ -22903,8 +22914,7 @@ function telaInstalacao(){
   var lista=INS.nuvem?empresasDaNuvem():[];
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo"><h1>Empresas Clientes</h1>'+
-    '<p>Cada empresa que usa o Nexor é um card, com as unidades dela dentro. '+
-    'Uma empresa nunca enxerga os dados da outra.</p></div>'+
+    '<p>Cada empresa que usa o Nexor é um ambiente separado. Uma nunca enxerga os dados da outra.</p></div>'+
    (INS.erro?'<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
       '<b>Não consegui ler as empresas</b><span>'+E(INS.erro)+'</span>'+
       '<div style="margin-top:12px"><button class="btnP2" onclick="INS.erro=\'\';INS.nuvem=null;telaInstalacao()">'+
@@ -22912,192 +22922,98 @@ function telaInstalacao(){
    (INS.carregando?'<div class="usrVazio"><b>Carregando as empresas…</b></div>':'')+
    '<div class="ctGrade">'+
     lista.map(function(x){
-      var l=x.loja,ct=x.contrato||{};
-      var ativa=l.ativa!==false;
-      var nUn=x.unidades.filter(function(s){return s.ativa!==false}).length;
-      return '<div class="ctCard rdCard'+(ativa?'':' off')+'" onclick="INS.rede=\''+l.id+'\';telaInstalacao()">'+
+      var l=x.loja,ct=x.contrato||{},m=x.matriz||{};
+      return '<div class="ctCard rdCard" onclick="INS.rede=\''+l.id+'\';telaInstalacao()">'+
        '<div class="ctCardH"><b>'+E(l.nome)+'</b>'+
-        '<span>'+(ct.documento?E(ct.documento):(l.cidade?E(l.cidade):'sem CNPJ informado'))+'</span></div>'+
+        '<span>'+E(m.cnpj||ct.documento||'sem CNPJ informado')+'</span></div>'+
        '<div class="ctCardB">'+
-        ctLinha('Unidades',String(nUn))+
+        ctLinha('Unidades',x.unidades.length+(x.filiais.length?' ('+x.filiais.length+' filial(is))':''))+
         ctLinha('Acessos',String(x.perfis.length))+
-        ctLinha('Administrador',x.admin?E(x.admin.nome):'<span class="vr">não criado</span>')+
-        ctLinha('Assinatura',ativa
-          ?'<span class="badge2">'+E(ct.situacao||'ativa')+'</span>'
+        ctLinha('Mensalidade',moeda(x.total))+
+        ctLinha('Situação',l.ativa!==false
+          ?'<span class="badge2">'+E(ct.situacao||'ativo')+'</span>'
           :'<span class="badge2 rd">bloqueada</span>')+
         '<div class="hint" style="margin-top:8px">clique para abrir</div>'+
        '</div></div>';
     }).join('')+
     (INS.nuvem?'<div class="ctCard rdCard rdNova" onclick="novaEmpresa()"><div class="ctCardB" '+
      'style="display:flex;align-items:center;justify-content:center;min-height:120px;gap:8px">'+
-     sv('plus',16)+'<b>Nova empresa cliente</b></div></div>':'')+
+     sv('plus',16)+'<b>Cadastrar nova empresa</b></div></div>':'')+
    '</div></div>';
-  rodape(INS.nuvem?lista.length+' empresa(s) cadastrada(s)':'');
+  rodape(INS.nuvem?lista.length+' empresa(s)':'');
 }
-/* cria a empresa cliente: empresa + loja propria + unidade matriz.
-   Tudo carimbado com a loja NOVA — nunca com a loja de quem esta criando.
-   E o que impede o cliente novo de nascer dentro da Jolo, como aconteceu. */
-/* tela de cadastro de cliente novo — era um prompt do navegador, que nao cabe
-   num sistema que se vende para outras empresas */
-function novaEmpresa(){ INS.nova=true;INS.rede=null;INS.und=null;telaInstalacao(); }
-function formEmpresaNova(){
-  function fld(rot,idc,ph,larg){
-    return '<div class="fld2"'+(larg?' style="grid-column:1/-1"':'')+'><label>'+rot+'</label>'+
-      '<input id="'+idc+'" value="" placeholder="'+E(ph||'')+'"></div>';
-  }
-  $('content').innerHTML='<div class="ctWrap">'+
-   '<div class="ctTopo">'+
-    '<button class="btnP2" onclick="INS.nova=false;telaInstalacao()">‹ todas as empresas</button>'+
-    '<h1 style="margin-top:10px">Nova empresa cliente</h1>'+
-    '<p>A empresa nasce com o ambiente dela, separado de todas as outras. '+
-    'Nada do que ela cadastrar será visto por outro cliente, e ela não verá nada dos demais.</p></div>'+
-
-   '<div class="blk" style="max-width:860px">'+
-    '<div class="acTit">Identificação</div>'+
-    '<div class="grid2">'+
-     fld('Razão social *','nvNome','Ex.: Rafaello\'s Gelato e Açaí Ltda',true)+
-     fld('Nome fantasia','nvFant','como o cliente é conhecido')+
-     fld('CNPJ','nvDoc','00.000.000/0000-00')+
-     fld('Cidade','nvCid','')+
-     fld('UF','nvUf','SP')+
-    '</div></div>'+
-
-   '<div class="blk" style="max-width:860px;margin-top:12px">'+
-    '<div class="acTit">Responsável</div>'+
-    '<div class="grid2">'+
-     fld('Nome do responsável','nvResp','quem assina o contrato')+
-     fld('E-mail','nvMail','')+
-     fld('Telefone','nvTel','')+
-    '</div></div>'+
-
-   '<div class="blk" style="max-width:860px;margin-top:12px">'+
-    '<div class="acTit">Assinatura</div>'+
-    '<div class="grid2">'+
-     fld('Plano','nvPlano','Ex.: Franquia, Loja única')+
-     fld('Mensalidade','nvMens','0,00')+
-     fld('Dia do vencimento','nvVenc','10')+
-     '<div class="fld2"><label>Situação</label><select id="nvSit">'+
-      '<option value="ativo">Ativo</option><option value="teste">Em teste</option>'+
-      '<option value="inadimplente">Inadimplente</option></select></div>'+
-    '</div></div>'+
-
-   '<div class="blk" style="max-width:860px;margin-top:12px">'+
-    '<div class="acTit">Unidade matriz</div>'+
-    '<p class="hint" style="margin:0 0 10px">Toda empresa nasce com uma unidade. '+
-    'Se for loja única, é só esta; as filiais você cadastra depois, dentro da empresa. '+
-    'Deixando em branco, repete os dados da identificação.</p>'+
-    '<div class="grid2">'+
-     fld('Nome da unidade','nvUnNome','Matriz')+
-     fld('CNPJ da unidade','nvUnCnpj','se for diferente do da empresa')+
-     fld('Endereço','nvUnEnd','',true)+
-     fld('Cidade','nvUnCid','')+
-     fld('UF','nvUnUf','')+
-     fld('Telefone','nvUnTel','')+
-    '</div></div>'+
-
-   '<div class="blk" style="max-width:860px;margin-top:12px">'+
-    '<div class="acTit">Acesso do administrador</div>'+
-    '<p class="hint vr" style="margin:0">Criar o login desta empresa é a próxima obra. '+
-    'Depende da função do servidor, a única que tem a chave de administrador — ela nunca '+
-    'pode passar pelo navegador. Até lá, a empresa é cadastrada e eu crio o acesso.</p></div>'+
-
-   '<div style="max-width:860px;margin:14px 0 40px;display:flex;gap:8px">'+
-    '<button class="btnP2 ok" onclick="salvarEmpresaNova()">Cadastrar empresa</button>'+
-    '<button class="btnP2" onclick="INS.nova=false;telaInstalacao()">Cancelar</button>'+
-   '</div></div>';
-  rodape('nova empresa cliente');
+function telaRestrita(tit){
+  $('content').innerHTML='<div class="ctWrap"><div class="ctTopo"><h1>'+E(tit)+'</h1>'+
+   '<p>Esta tela pertence à administração da Nexor.</p></div>'+
+   '<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
+   '<b>Área restrita</b><span>Só o administrador da plataforma acessa esta parte.</span></div></div>';
+  rodape();
 }
-async function salvarEmpresaNova(){
-  var emp={nome:vlr('nvNome'),nome_fantasia:vlr('nvFant'),documento:vlr('nvDoc'),
-    cidade:vlr('nvCid'),uf:vlr('nvUf'),responsavel:vlr('nvResp'),email:vlr('nvMail'),
-    telefone:vlr('nvTel'),plano:vlr('nvPlano'),
-    mensalidade:vlr('nvMens').replace(/\./g,'').replace(',','.'),
-    dia_vencimento:vlr('nvVenc'),situacao:vlr('nvSit'),ativa:true};
-  var und={nome:vlr('nvUnNome'),cnpj:vlr('nvUnCnpj'),endereco:vlr('nvUnEnd'),
-    cidade:vlr('nvUnCid'),uf:vlr('nvUnUf'),telefone:vlr('nvUnTel')};
-  if(!emp.nome){painelErro('Informe a razão social da empresa.');var e=$('nvNome');if(e)e.focus();return;}
-  try{
-    toast('Cadastrando '+emp.nome+'…');
-    var r=await api('rpc/painel_criar_empresa_completa','POST',{p_emp:emp,p_und:und});
-    var ljId=(r&&(r.loja_id||(r[0]||{}).loja_id))||null;
-    INS.nuvem=null;await carregarEmpresas(true);
-    INS.nova=false;INS.rede=ljId;
-    toast(emp.nome+' cadastrada.');telaInstalacao();
-  }catch(e){ console.error('salvarEmpresaNova',e);
-    painelErro('Não consegui cadastrar a empresa.',detalheErro(e)); }
-}
+
+/* ---------- 2. A EMPRESA POR DENTRO ---------- */
 function telaRedeAberta(id){
-  var x=empresasDaNuvem().find(function(y){return y.loja.id===id});
-  if(!x){INS.rede=null;return telaInstalacao();}
-  var l=x.loja,ct=x.contrato||{};
-  var unid=(x.unidades||[]).slice();
-  function fld(rot,idc,val,ph,tipo){
-    return '<div class="fld2"><label>'+rot+'</label>'+
-      '<input id="'+idc+'" type="'+(tipo||'text')+'" value="'+E(val==null?'':String(val))+'" '+
-      'placeholder="'+E(ph||'')+'"></div>';
+  var x=empresaPorId(id);
+  if(!x)return (INS.rede=null,telaInstalacao());
+  var l=x.loja,ct=x.contrato||{},m=x.matriz;
+  function linhaUnidade(s){
+    var venc=s.dia_vencimento?('dia '+s.dia_vencimento):'—';
+    return '<tr'+(s.ativa===false?' style="opacity:.55"':'')+'>'+
+     '<td><b>'+E(s.nome)+'</b>'+(s.matriz?selo('MATRIZ','#1F5F8B'):'')+
+       (s.apelido&&s.apelido!==s.nome?'<div class="hint">'+E(s.apelido)+'</div>':'')+'</td>'+
+     '<td>'+E(s.cnpj||'—')+'</td>'+
+     '<td>'+E(s.cidade||'—')+(s.uf?'/'+E(s.uf):'')+'</td>'+
+     '<td style="text-align:right">'+(s.mensalidade?moeda(s.mensalidade):'—')+
+       '<div class="hint">'+venc+'</div></td>'+
+     '<td style="text-align:center">'+(s.ativa!==false?'<span class="badge2">Ativa</span>'
+        :'<span class="badge2 rd">Inativa</span>')+'</td>'+
+     '<td><div class="rowAct">'+
+      '<button class="rBtn" title="Editar" onclick="formUnidade(\''+l.id+'\',\''+s.id+'\')">'+sv('edit',12)+'</button>'+
+      '<button class="rBtn'+(s.ativa!==false?' rd':'')+'" title="'+(s.ativa!==false?'Desativar':'Reativar')+'" '+
+        'onclick="mudarSituacaoUnidade(\''+s.id+'\','+(s.ativa!==false?'false':'true')+')">'+
+        sv(s.ativa!==false?'lock':'check',12)+'</button>'+
+     '</div></td></tr>';
   }
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo">'+
     '<button class="btnP2" onclick="INS.rede=null;INS.und=null;telaInstalacao()">‹ todas as empresas</button>'+
     '<h1 style="margin-top:10px">'+E(l.nome)+'</h1>'+
-    '<p>Os dados desta empresa e as unidades dela. Nada aqui é visível para as outras.</p></div>'+
+    '<p>'+E((m&&(m.cidade||''))||'')+(m&&m.uf?'/'+E(m.uf):'')+
+      ' · '+x.unidades.length+' unidade(s) · '+moeda(x.total)+'/mês</p></div>'+
 
-   '<div class="blk" style="max-width:860px">'+
-    '<div class="acTit">Dados da empresa</div>'+
-    '<div class="grid2">'+
-     fld('Nome / razão social *','emNome',l.nome)+
-     fld('CNPJ','emDoc',ct.documento,'00.000.000/0000-00')+
-     fld('Responsável','emResp',ct.responsavel)+
-     fld('E-mail','emMail',ct.email)+
-     fld('Telefone','emTel',ct.telefone)+
-     fld('Cidade','emCid',ct.cidade||l.cidade)+
-     fld('UF','emUf',ct.uf,'SP')+
-     fld('Plano','emPlano',ct.plano,'Ex.: Franquia')+
-     fld('Mensalidade','emMens',ct.mensalidade,'0,00')+
-     fld('Dia do vencimento','emVenc',ct.dia_vencimento,'10')+
-     '<div class="fld2"><label>Situação da assinatura</label><select id="emSit">'+
-      ['ativo','teste','inadimplente','cancelado'].map(function(v){
-        return '<option value="'+v+'"'+((ct.situacao||'ativo')===v?' selected':'')+'>'+v+'</option>';
-      }).join('')+'</select></div>'+
-     '<div class="fld2"><label>Empresa liberada</label><select id="emAtiva">'+
-      '<option value="1"'+(l.ativa!==false?' selected':'')+'>Sim — pode entrar no sistema</option>'+
-      '<option value="0"'+(l.ativa===false?' selected':'')+'>Não — acesso bloqueado</option>'+
-      '</select></div>'+
-    '</div>'+
-    '<div style="margin-top:12px"><button class="btnP2 ok" onclick="salvarEmpresa(\''+l.id+'\')">'+
-      'Salvar dados da empresa</button></div>'+
+   '<div class="blk" style="max-width:900px">'+
+    '<div class="acTit">Contrato com a Nexor</div>'+
+    ctLinha('Responsável',E(ct.responsavel||'—'))+
+    ctLinha('E-mail',E(ct.email||'—'))+
+    ctLinha('Telefone',E(ct.telefone||'—'))+
+    ctLinha('Plano',E(ct.plano||'—'))+
+    ctLinha('Mensalidade total','<b>'+moeda(x.total)+'</b> (soma das unidades ativas)')+
+    ctLinha('Situação',E(ct.situacao||'ativo'))+
    '</div>'+
 
-   '<div class="blk" style="max-width:860px;margin-top:12px">'+
-    '<div class="acTit">Unidades ('+unid.length+')</div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px">'+
+    '<div class="acTit">Matriz e sucursais ('+x.unidades.length+')</div>'+
     '<div class="etTabW plano2"><table class="etTab semBusca"><thead><tr>'+
-     '<th>Nome</th><th style="width:170px">CNPJ</th><th style="width:180px">Cidade</th>'+
-     '<th style="width:90px;text-align:center">Situação</th><th style="width:70px"></th>'+
+     '<th>Unidade</th><th style="width:160px">CNPJ</th><th style="width:170px">Cidade</th>'+
+     '<th style="width:130px;text-align:right">Mensalidade</th>'+
+     '<th style="width:90px;text-align:center">Situação</th><th style="width:80px"></th>'+
     '</tr></thead><tbody>'+
-    (unid.length?unid.map(function(s){
-      return '<tr><td><b>'+E(s.nome)+'</b>'+(s.matriz?'<span class="tagFicha">matriz</span>':'')+'</td>'+
-       '<td>'+E(s.cnpj||'—')+'</td>'+
-       '<td>'+E(s.cidade||'—')+(s.uf?' / '+E(s.uf):'')+'</td>'+
-       '<td style="text-align:center">'+(s.ativa!==false?'<span class="badge2">Ativa</span>'
-         :'<span class="badge2 rd">Inativa</span>')+'</td>'+
-       '<td><button class="rBtn" onclick="formUnidade(\''+l.id+'\',\''+s.id+'\')">'+sv('edit',12)+'</button></td></tr>';
-    }).join(''):'<tr><td colspan="5" class="hint">Nenhuma unidade cadastrada.</td></tr>')+
+    (m?linhaUnidade(m):'')+x.filiais.map(linhaUnidade).join('')+
     '</tbody></table></div>'+
     '<div style="margin-top:12px"><button class="btnP2 ok" onclick="formUnidade(\''+l.id+'\')">'+
-      sv('plus',13)+' Cadastrar unidade</button></div>'+
+      sv('plus',13)+' Cadastrar sucursal</button></div>'+
    '</div>'+
 
-   '<div class="blk" style="max-width:860px;margin-top:12px">'+
-    '<div class="acTit">Acessos ('+(x.perfis||[]).length+')</div>'+
-    ((x.perfis||[]).length?x.perfis.map(function(p){
-      return ctLinha(E(p.nome||'—'),E(p.cargo||'—')+(p.unidade?' · '+E(p.unidade):''));
+   '<div class="blk" style="max-width:900px;margin-top:12px">'+
+    '<div class="acTit">Acessos ('+x.perfis.length+')</div>'+
+    (x.perfis.length?x.perfis.map(function(p){
+      return ctLinha(E(p.nome||'—'),E(p.cargo||'—')+(p.unidade?' · '+E(p.unidade):' · empresa inteira'));
     }).join(''):'<div class="hint vr">Nenhum acesso criado. Esta empresa ainda não consegue entrar.</div>')+
     '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">'+
      '<b style="font-size:13px">Criar acesso</b>'+
-     '<p class="hint" style="margin:4px 0 10px">A senha é criada por você e trocada pela pessoa depois. '+
-     'O administrador enxerga a empresa inteira; o gerente, só a unidade escolhida.</p>'+
+     '<p class="hint" style="margin:4px 0 10px">O administrador enxerga a empresa inteira; '+
+     'o gerente, só a unidade escolhida. A senha é trocada pela pessoa depois.</p>'+
      '<div class="grid2">'+
-      '<div class="fld2"><label>Nome</label><input id="acNome" placeholder="Ex.: Jolô — Matriz"></div>'+
+      '<div class="fld2"><label>Nome</label><input id="acNome" placeholder="Ex.: '+E(l.nome)+' — Matriz"></div>'+
       '<div class="fld2"><label>E-mail (login) *</label><input id="acMail" placeholder="nome@empresa.com"></div>'+
       '<div class="fld2"><label>Senha *</label><input id="acSenha" type="text" placeholder="mínimo 6 caracteres"></div>'+
       '<div class="fld2"><label>Papel</label><select id="acCargo">'+
@@ -23105,28 +23021,421 @@ function telaRedeAberta(id){
        '<option value="gerente">Gerente de unidade</option></select></div>'+
       '<div class="fld2"><label>Unidade</label><select id="acSuc">'+
        '<option value="">A empresa inteira</option>'+
-       unid.map(function(s2){return '<option value="'+E(s2.ref_local||'')+'">'+E(s2.nome)+'</option>'}).join('')+
+       x.unidades.map(function(s2){return '<option value="'+E(s2.ref_local||'')+'">'+E(s2.nome)+'</option>'}).join('')+
       '</select></div>'+
      '</div>'+
      '<div style="margin-top:10px"><button class="btnP2 ok" onclick="criarAcessoEmpresa(\''+l.id+'\')">'+
       'Criar acesso</button></div>'+
     '</div>'+
-   '</div></div>';
-  rodape(E(l.nome)+' · '+unid.length+' unidade(s)');
+   '</div>'+
+   '<div style="max-width:900px;margin:12px 0 40px">'+
+    '<button class="btnP2" onclick="PRM.loja=\''+l.id+'\';abrir(\'tecnico\',\'permissoes-nexor\')">'+
+    sv('lock',13)+' Definir o que esta empresa pode usar</button></div>'+
+   '</div>';
+  rodape(E(l.nome)+' · '+x.unidades.length+' unidade(s)');
 }
+async function mudarSituacaoUnidade(sucId,ativa){
+  var txt=ativa?'Reativar esta unidade?':
+    'Desativar esta unidade?\n\nO acesso dela para de entrar. Nenhuma venda, lançamento ou '+
+    'histórico é apagado — só o login é bloqueado.';
+  if(!await pergunta(txt))return;
+  try{
+    await api('rpc/painel_situacao_unidade','POST',{p_sucursal_id:sucId,p_ativa:!!ativa});
+    INS.nuvem=null;await carregarEmpresas(true);
+    toast(ativa?'Unidade reativada.':'Unidade desativada. O histórico foi preservado.');
+    telaInstalacao();
+  }catch(e){ painelErro('Não consegui mudar a situação da unidade.',detalheErro(e)); }
+}
+
+/* ---------- 3. CADASTRO DE EMPRESA ---------- */
+function novaEmpresa(){ INS.nova=true;INS.rede=null;INS.und=null;telaInstalacao(); }
+function cmp(rot,idc,val,ph,larg){
+  return '<div class="fld2"'+(larg?' style="grid-column:1/-1"':'')+'><label>'+rot+'</label>'+
+    '<input id="'+idc+'" value="'+E(val==null?'':String(val))+'" placeholder="'+E(ph||'')+'"></div>';
+}
+function formEmpresaNova(){
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo">'+
+    '<button class="btnP2" onclick="INS.nova=false;telaInstalacao()">‹ todas as empresas</button>'+
+    '<h1 style="margin-top:10px">Cadastrar nova empresa</h1>'+
+    '<p>A primeira unidade criada é sempre a <b>matriz</b>. Se a empresa tiver só uma loja, '+
+    'é só ela — filiais você cadastra depois, dentro dela.</p></div>'+
+   '<div class="blk" style="max-width:900px"><div class="acTit">Identificação</div>'+
+    '<div class="grid2">'+
+     cmp('Nome da empresa *','nvNome','','como aparece no sistema',true)+
+     cmp('Razão social','nvRazao','')+
+     cmp('Nome fantasia','nvFant','')+
+     cmp('CNPJ','nvDoc','','00.000.000/0000-00')+
+    '</div></div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px"><div class="acTit">Responsável</div>'+
+    '<div class="grid2">'+
+     cmp('Nome do responsável','nvResp','','quem assina o contrato')+
+     cmp('E-mail','nvMail','')+
+     cmp('Telefone','nvTel','')+
+    '</div></div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px"><div class="acTit">Endereço da matriz</div>'+
+    '<div class="grid2">'+
+     cmp('Endereço','nvEnd','','rua, avenida',true)+
+     cmp('Número','nvNum','')+
+     cmp('Complemento','nvComp','')+
+     cmp('CEP','nvCep','','00000-000')+
+     cmp('Cidade','nvCid','')+
+     cmp('Estado','nvUf','','SP')+
+    '</div></div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px"><div class="acTit">Assinatura da matriz</div>'+
+    '<p class="hint" style="margin:0 0 10px">A cobrança é <b>por unidade</b>. Este é o valor da matriz; '+
+    'cada sucursal terá o seu, e o total da empresa é a soma.</p>'+
+    '<div class="grid2">'+
+     cmp('Plano contratado','nvPlano','','Ex.: Franquia, Loja única')+
+     cmp('Valor da mensalidade','nvMens','','0,00')+
+     cmp('Dia do vencimento','nvVenc','10','10')+
+     '<div class="fld2"><label>Situação</label><select id="nvSit">'+
+      '<option value="ativo">Ativo</option><option value="teste">Em teste</option>'+
+      '<option value="inadimplente">Inadimplente</option>'+
+      '<option value="inativo">Inativo</option></select></div>'+
+    '</div></div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px"><div class="acTit">Acesso da matriz</div>'+
+    '<p class="hint" style="margin:0 0 10px">O login que a empresa vai usar para entrar. '+
+    'Deixando em branco, a empresa é criada sem acesso e você cria depois.</p>'+
+    '<div class="grid2">'+
+     cmp('E-mail (login)','nvLogin','','matriz@empresa.com')+
+     cmp('Senha inicial','nvSenha','','mínimo 6 caracteres')+
+    '</div></div>'+
+   '<div style="max-width:900px;margin:14px 0 40px;display:flex;gap:8px">'+
+    '<button class="btnP2 ok" onclick="salvarEmpresaNova()">Salvar empresa</button>'+
+    '<button class="btnP2" onclick="INS.nova=false;telaInstalacao()">Cancelar</button>'+
+   '</div></div>';
+  rodape('nova empresa cliente');
+}
+async function salvarEmpresaNova(){
+  var nome=vlr('nvNome');
+  if(!nome){painelErro('Informe o nome da empresa.');var e0=$('nvNome');if(e0)e0.focus();return;}
+  var login=vlr('nvLogin').toLowerCase(), senha=vlr('nvSenha');
+  if(login&&senha.length<6){painelErro('A senha inicial precisa ter ao menos 6 caracteres.');return;}
+  var emp={nome:nome,razao_social:vlr('nvRazao'),nome_fantasia:vlr('nvFant'),documento:vlr('nvDoc'),
+    responsavel:vlr('nvResp'),email:vlr('nvMail'),telefone:vlr('nvTel'),
+    cidade:vlr('nvCid'),uf:vlr('nvUf'),plano:vlr('nvPlano'),
+    dia_vencimento:vlr('nvVenc'),situacao:vlr('nvSit'),ativa:vlr('nvSit')!=='inativo'};
+  var und={nome:nome,endereco:vlr('nvEnd'),numero:vlr('nvNum'),complemento:vlr('nvComp'),
+    cep:vlr('nvCep'),mensalidade:vlr('nvMens').replace(/\./g,'').replace(',','.'),
+    cobranca_situacao:vlr('nvSit')};
+  try{
+    toast('Cadastrando '+nome+'…');
+    var r=await api('rpc/painel_criar_empresa_completa','POST',{p_emp:emp,p_und:und});
+    var ljId=(r&&(r.loja_id||(r[0]||{}).loja_id))||null;
+    if(login&&ljId){
+      var er=await criarAcesso(ljId,{nome:nome+' — Matriz',email:login,senha:senha,
+        cargo:'admin',sucursal_ref:''});
+      if(er){painelErro('A empresa foi criada, mas o acesso não.',er);}
+    }
+    INS.nuvem=null;await carregarEmpresas(true);
+    INS.nova=false;INS.rede=ljId;
+    toast(nome+' cadastrada.');telaInstalacao();
+  }catch(e){ console.error('salvarEmpresaNova',e);
+    painelErro('Não consegui cadastrar a empresa.',detalheErro(e)); }
+}
+
+/* ---------- 4. CADASTRO DE UNIDADE ---------- */
+function formUnidade(lojaId,sucId){
+  var x=empresaPorId(lojaId);
+  if(!x)return (INS.und=null,INS.rede=null,telaInstalacao());
+  var s=(x.unidades||[]).find(function(y){return y.id===sucId})||{};
+  var primeira=!x.unidades.length;
+  INS.und={loja:lojaId,suc:sucId||null};
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo">'+
+    '<button class="btnP2" onclick="INS.und=null;telaInstalacao()">‹ voltar para '+E(x.loja.nome)+'</button>'+
+    '<h1 style="margin-top:10px">'+(sucId?'Editar unidade':'Cadastrar sucursal')+
+      (s.matriz?selo('MATRIZ','#1F5F8B'):(primeira?selo('SERÁ A MATRIZ','#1F5F8B'):''))+'</h1>'+
+    '<p>'+(s.matriz?'Esta é a matriz — ela não pode ser desativada enquanto houver filial ativa.'
+      :'A sucursal pertence à mesma empresa da matriz. Não é um cliente novo da Nexor.')+'</p></div>'+
+   '<div class="blk" style="max-width:900px"><div class="acTit">Identificação</div>'+
+    '<div class="grid2">'+
+     cmp('Nome da unidade *','unNome',s.nome,'',true)+
+     cmp('Apelido','unApe',s.apelido,'como aparece nos relatórios')+
+     cmp('Razão social','unRazao',s.razao_social)+
+     cmp('Nome fantasia','unFant',s.nome_fantasia)+
+     cmp('CNPJ','unCnpj',s.cnpj,'00.000.000/0000-00')+
+    '</div></div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px"><div class="acTit">Contato</div>'+
+    '<div class="grid2">'+
+     cmp('Responsável','unResp',s.responsavel)+
+     cmp('E-mail','unMail',s.email)+
+     cmp('Telefone','unTel',s.telefone)+
+    '</div></div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px"><div class="acTit">Endereço</div>'+
+    '<div class="grid2">'+
+     cmp('Endereço','unEnd',s.endereco,'',true)+
+     cmp('Número','unNum',s.numero)+
+     cmp('Complemento','unComp',s.complemento)+
+     cmp('CEP','unCep',s.cep,'00000-000')+
+     cmp('Cidade','unCid',s.cidade)+
+     cmp('Estado','unUf',s.uf,'SP')+
+    '</div></div>'+
+   '<div class="blk" style="max-width:900px;margin-top:12px"><div class="acTit">Cobrança desta unidade</div>'+
+    '<div class="grid2">'+
+     cmp('Plano','unPlano',s.plano)+
+     cmp('Valor da mensalidade','unMens',s.mensalidade,'0,00')+
+     cmp('Dia do vencimento','unVenc',s.dia_vencimento,'10')+
+     '<div class="fld2"><label>Cobrança</label><select id="unCobr">'+
+      ['ativo','teste','inadimplente','inativo'].map(function(v){
+        return '<option value="'+v+'"'+((s.cobranca_situacao||'ativo')===v?' selected':'')+'>'+v+'</option>';
+      }).join('')+'</select></div>'+
+     '<div class="fld2"><label>Situação da unidade</label><select id="unAtiva">'+
+      '<option value="1"'+(s.ativa!==false?' selected':'')+'>Ativa</option>'+
+      '<option value="0"'+(s.ativa===false?' selected':'')+'>Inativa</option></select></div>'+
+    '</div></div>'+
+   (sucId?'':'<div class="blk" style="max-width:900px;margin-top:12px">'+
+    '<div class="acTit">Acesso desta unidade</div>'+
+    '<p class="hint" style="margin:0 0 10px">Opcional. Cria um login de gerente já preso a esta unidade.</p>'+
+    '<div class="grid2">'+cmp('E-mail (login)','unLogin','','')+cmp('Senha inicial','unSenha','','mínimo 6')+
+    '</div></div>')+
+   '<div style="max-width:900px;margin:14px 0 40px;display:flex;gap:8px">'+
+    '<button class="btnP2 ok" onclick="salvarUnidade()">Salvar unidade</button>'+
+    '<button class="btnP2" onclick="INS.und=null;telaInstalacao()">Cancelar</button>'+
+   '</div></div>';
+  rodape();
+}
+async function salvarUnidade(){
+  var c=INS.und||{};
+  var d={nome:vlr('unNome'),apelido:vlr('unApe'),razao_social:vlr('unRazao'),
+    nome_fantasia:vlr('unFant'),cnpj:vlr('unCnpj'),responsavel:vlr('unResp'),
+    email:vlr('unMail'),telefone:vlr('unTel'),endereco:vlr('unEnd'),numero:vlr('unNum'),
+    complemento:vlr('unComp'),cep:vlr('unCep'),cidade:vlr('unCid'),uf:vlr('unUf'),
+    plano:vlr('unPlano'),mensalidade:vlr('unMens').replace(/\./g,'').replace(',','.'),
+    dia_vencimento:vlr('unVenc'),cobranca_situacao:vlr('unCobr'),
+    ativa:vlr('unAtiva')==='1'};
+  if(!d.nome){painelErro('Informe o nome da unidade.');return;}
+  try{
+    var r=await api('rpc/painel_salvar_unidade','POST',
+      {p_loja_id:c.loja,p_sucursal_id:c.suc||null,p_d:d});
+    var ref=(r&&(r.ref_local||(r[0]||{}).ref_local))||'';
+    var login=vlr('unLogin').toLowerCase(), senha=vlr('unSenha');
+    if(login&&!c.suc){
+      if(senha.length<6){painelErro('Unidade salva, mas a senha do acesso precisa de 6 caracteres.');}
+      else{
+        var er=await criarAcesso(c.loja,{nome:d.nome,email:login,senha:senha,
+          cargo:'gerente',sucursal_ref:ref});
+        if(er)painelErro('Unidade salva, mas o acesso não foi criado.',er);
+      }
+    }
+    INS.nuvem=null;await carregarEmpresas(true);
+    INS.und=null;toast('Unidade salva.');telaInstalacao();
+  }catch(e){ console.error('salvarUnidade',e);
+    painelErro('Não consegui salvar a unidade.',detalheErro(e)); }
+}
+
+/* ---------- 5. ACESSOS ---------- */
+/* devolve null quando deu certo, ou o texto do erro */
+async function criarAcesso(lojaId,dados){
+  try{
+    var r=await fetch(NUVEM.url+'/functions/v1/criar-usuario',{
+      method:'POST',
+      headers:{'apikey':NUVEM.chave,'Authorization':'Bearer '+(await tokenValido()),
+               'Content-Type':'application/json'},
+      body:JSON.stringify({email:dados.email,senha:dados.senha,nome:dados.nome,
+        cargo:dados.cargo,loja_id:lojaId,sucursal_ref:dados.sucursal_ref||null})});
+    var d=null; try{ d=await r.json(); }catch(e){}
+    if(!r.ok)return (d&&d.erro)||('o servidor respondeu '+r.status);
+    return null;
+  }catch(e){ return (e&&e.message)||'falha de rede'; }
+}
+async function criarAcessoEmpresa(lojaId){
+  var email=vlr('acMail').toLowerCase(), senha=vlr('acSenha');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){painelErro('Informe um e-mail válido para o login.');return;}
+  if(senha.length<6){painelErro('A senha precisa ter ao menos 6 caracteres.');return;}
+  var er=await criarAcesso(lojaId,{nome:vlr('acNome')||email,email:email,senha:senha,
+    cargo:vlr('acCargo'),sucursal_ref:vlr('acSuc')});
+  if(er){painelErro('Não consegui criar o acesso.',er);return;}
+  INS.nuvem=null;await carregarEmpresas(true);
+  toast('Acesso criado: '+email);telaInstalacao();
+}
+
+/* ---------- 6. PERMISSÕES EM ÁRVORE ---------- */
+var PRM={loja:null,alvo:null,abertas:{},pend:{}};
+function chavesDoSistema(){
+  var out=[];
+  MOD.forEach(function(m){
+    (m.it||[]).forEach(function(it){ out.push({mod:m.id,modn:m.n,item:it.id,n:it.n}); });
+  });
+  return out;
+}
+function telaPermissoesNexor(){
+  if(!ehPlataforma())return telaRestrita('Permissões');
+  if(!INS.nuvem&&!INS.carregando){
+    INS.carregando=true;
+    carregarEmpresas().then(function(){INS.carregando=false;telaPermissoesNexor();})
+      .catch(function(e){INS.carregando=false;INS.erro=(e&&e.message)||'';telaPermissoesNexor();});
+    $('content').innerHTML='<div class="ctWrap"><div class="usrVazio"><b>Carregando…</b></div></div>';
+    return;
+  }
+  var emps=empresasDaNuvem();
+  if(!PRM.loja&&emps.length)PRM.loja=emps[0].loja.id;
+  var x=empresaPorId(PRM.loja);
+  var alvo=PRM.alvo;                       /* null = a empresa (teto da Nexor) */
+  var atual={}, titulo='', sub='';
+  if(x){
+    if(!alvo){ atual=Object.assign({},x.teto);
+      titulo=x.loja.nome; sub='O que a Nexor libera para esta empresa. É o teto: nenhuma unidade dela pode receber mais.'; }
+    else{ atual=Object.assign({},(x.permUn||{})[alvo]||{});
+      var su=(x.unidades||[]).find(function(s){return s.id===alvo})||{};
+      titulo=su.nome||''; sub='O que esta unidade pode usar. Só aparece marcável o que a Nexor liberou para a empresa.'; }
+  }
+  Object.keys(PRM.pend).forEach(function(k){ atual[k]=PRM.pend[k]; });
+
+  var arv=emps.map(function(y){
+    var ab=PRM.abertas[y.loja.id]!==false;
+    return '<div class="usrPasta'+(ab?' ab':'')+'">'+
+      '<button class="usrPastaH" onclick="PRM.abertas[\''+y.loja.id+'\']='+(ab?'false':'true')+';telaPermissoesNexor()">'+
+       '<span class="usrSeta"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+        'stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>'+
+       '<div class="usrAv" style="background:var(--deep);color:#fff">'+E(y.loja.nome.charAt(0).toUpperCase())+'</div>'+
+       '<div class="usrN"><b>'+E(y.loja.nome)+'</b><span>'+y.unidades.length+' unidade(s)</span></div>'+
+      '</button>'+
+      '<div class="usrFilhos">'+
+       '<button class="usrIt'+(PRM.loja===y.loja.id&&!PRM.alvo?' on':'')+'" '+
+        'onclick="PRM.loja=\''+y.loja.id+'\';PRM.alvo=null;PRM.pend={};telaPermissoesNexor()">'+
+        '<div class="usrAv" style="background:#1F5F8B;color:#fff">N</div>'+
+        '<div class="usrN"><b>Teto da Nexor</b><span>o que a empresa pode contratar</span></div></button>'+
+       (y.unidades||[]).map(function(s){
+         return '<button class="usrIt'+(PRM.alvo===s.id?' on':'')+'" '+
+          'onclick="PRM.loja=\''+y.loja.id+'\';PRM.alvo=\''+s.id+'\';PRM.pend={};telaPermissoesNexor()">'+
+          '<div class="usrAv" style="background:'+(s.cor||'#00A08B')+';color:#fff">'+
+            E(String(s.nome||'?').charAt(0).toUpperCase())+'</div>'+
+          '<div class="usrN"><b>'+E(s.nome)+(s.matriz?' ·':'')+'</b><span>'+
+            (s.matriz?'matriz':'sucursal')+'</span></div></button>';
+       }).join('')+
+      '</div></div>';
+  }).join('');
+
+  var grade='';
+  if(x){
+    var porMod={};
+    chavesDoSistema().forEach(function(c){ (porMod[c.mod]=porMod[c.mod]||{n:c.modn,itens:[]}).itens.push(c); });
+    grade=Object.keys(porMod).map(function(mid){
+      var g=porMod[mid];
+      return '<div class="blk" style="margin-bottom:10px"><div class="acTit">'+E(g.n)+
+       '<button class="btnP2" style="float:right;padding:3px 9px;font-size:11px" '+
+       'onclick="marcarModulo(\''+mid+'\',true)">tudo</button>'+
+       '<button class="btnP2" style="float:right;padding:3px 9px;font-size:11px;margin-right:5px" '+
+       'onclick="marcarModulo(\''+mid+'\',false)">nada</button></div>'+
+       g.itens.map(function(c){
+         var k=c.mod+'.'+c.item;
+         var lig=!!atual[k];
+         var bloq=false,motivo='';
+         if(alvo&&!x.teto[k]){bloq=true;motivo='a Nexor não liberou para a empresa';}
+         return '<div class="linhaPerm'+(bloq?' bloq':'')+'">'+
+          '<span>'+E(c.n)+(bloq?'<i> — '+motivo+'</i>':'')+'</span>'+
+          '<button class="swPerm'+(lig?' on':'')+'"'+(bloq?' disabled':'')+
+            ' onclick="togglePerm(\''+k+'\','+(lig?'false':'true')+')"></button></div>';
+       }).join('')+'</div>';
+    }).join('');
+  }
+
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo"><h1>Permissões</h1>'+
+    '<p>À esquerda, a empresa e as unidades dela. À direita, o que cada uma pode usar. '+
+    'A regra é hierárquica: unidade ≤ empresa ≤ Nexor.</p></div>'+
+   '<div class="usrGrade">'+
+    '<div class="usrLista"><div class="usrRol">'+(arv||'<div class="usrVaz">Nenhuma empresa cadastrada.</div>')+'</div></div>'+
+    '<div class="usrDet" style="padding:14px">'+
+     (x?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'+
+       '<div><b style="font-size:15px">'+E(titulo)+'</b>'+
+       '<div class="hint">'+E(sub)+'</div></div><div style="flex:1"></div>'+
+       '<button class="btnP2 ok"'+(Object.keys(PRM.pend).length?'':' disabled')+
+        ' onclick="salvarPermissoes()">Salvar</button></div>'+grade
+      :'<div class="usrVazio"><b>Nenhuma empresa</b><span>Cadastre uma empresa primeiro.</span></div>')+
+    '</div></div></div>';
+  rodape(Object.keys(PRM.pend).length?Object.keys(PRM.pend).length+' alteração(ões) por salvar':'');
+}
+function togglePerm(k,v){ PRM.pend[k]=v; telaPermissoesNexor(); }
+function marcarModulo(mid,v){
+  var x=empresaPorId(PRM.loja); if(!x)return;
+  chavesDoSistema().forEach(function(c){
+    if(c.mod!==mid)return;
+    var k=c.mod+'.'+c.item;
+    if(PRM.alvo&&!x.teto[k])return;     /* nao marca o que a Nexor nao liberou */
+    PRM.pend[k]=v;
+  });
+  telaPermissoesNexor();
+}
+async function salvarPermissoes(){
+  if(!Object.keys(PRM.pend).length)return;
+  try{
+    if(PRM.alvo)await api('rpc/painel_gravar_perm_unidade','POST',
+      {p_sucursal_id:PRM.alvo,p_perm:PRM.pend});
+    else await api('rpc/painel_gravar_teto','POST',{p_loja_id:PRM.loja,p_perm:PRM.pend});
+    PRM.pend={};INS.nuvem=null;await carregarEmpresas(true);
+    toast('Permissões salvas.');telaPermissoesNexor();
+  }catch(e){ console.error('salvarPermissoes',e);
+    painelErro('Não consegui salvar as permissões.',detalheErro(e)); }
+}
+
+/* ---------- 7. FINANCEIRO DA NEXOR ---------- */
+function telaFinanceiroNexor(){
+  if(!ehPlataforma())return telaRestrita('Financeiro da Nexor');
+  if(!INS.nuvem&&!INS.carregando){
+    INS.carregando=true;
+    carregarEmpresas().then(function(){INS.carregando=false;telaFinanceiroNexor();})
+      .catch(function(e){INS.carregando=false;INS.erro=(e&&e.message)||'';telaFinanceiroNexor();});
+    $('content').innerHTML='<div class="ctWrap"><div class="usrVazio"><b>Carregando…</b></div></div>';
+    return;
+  }
+  var linhas=[],totAtivo=0,totPend=0;
+  empresasDaNuvem().forEach(function(x){
+    (x.unidades||[]).forEach(function(s){
+      var v=Number(s.mensalidade)||0;
+      var sit=(s.ativa===false)?'inativo':(s.cobranca_situacao||'ativo');
+      if(sit==='ativo')totAtivo+=v; else if(sit==='inadimplente')totPend+=v;
+      linhas.push({emp:x.loja.nome,un:s.nome,matriz:!!s.matriz,cnpj:s.cnpj||'—',
+        plano:s.plano||'—',valor:v,venc:s.dia_vencimento,sit:sit});
+    });
+  });
+  linhas.sort(function(a,b){
+    if(a.emp!==b.emp)return a.emp.localeCompare(b.emp);
+    return (b.matriz?1:0)-(a.matriz?1:0);
+  });
+  var cor={ativo:'',teste:'',inadimplente:' rd',inativo:' rd'};
+  $('content').innerHTML='<div class="ctWrap">'+
+   '<div class="ctTopo"><h1>Financeiro da Nexor</h1>'+
+    '<p>Quanto os clientes pagam pelo uso do sistema. A cobrança é por unidade — '+
+    'o valor de cada uma é o que foi digitado no cadastro dela.</p></div>'+
+   '<div class="ctGrade" style="margin-bottom:12px">'+
+    '<div class="ctCard"><div class="ctCardB">'+
+     ctLinha('Receita ativa','<b>'+moeda(totAtivo)+'</b>')+
+     ctLinha('Em atraso','<b class="vr">'+moeda(totPend)+'</b>')+
+     ctLinha('Unidades cobradas',String(linhas.filter(function(l){return l.sit==='ativo'}).length))+
+    '</div></div></div>'+
+   '<div class="blk"><div class="etTabW plano2"><table class="etTab semBusca"><thead><tr>'+
+    '<th>Empresa</th><th>Unidade</th><th style="width:150px">CNPJ</th>'+
+    '<th style="width:130px">Plano</th><th style="width:120px;text-align:right">Mensalidade</th>'+
+    '<th style="width:110px;text-align:center">Vencimento</th>'+
+    '<th style="width:110px;text-align:center">Situação</th></tr></thead><tbody>'+
+   (linhas.length?linhas.map(function(l){
+     return '<tr'+(l.sit==='inativo'?' style="opacity:.55"':'')+'>'+
+      '<td>'+E(l.emp)+'</td>'+
+      '<td><b>'+E(l.un)+'</b>'+(l.matriz?selo('MATRIZ','#1F5F8B'):'')+'</td>'+
+      '<td>'+E(l.cnpj)+'</td><td>'+E(l.plano)+'</td>'+
+      '<td style="text-align:right"><b>'+moeda(l.valor)+'</b></td>'+
+      '<td style="text-align:center">'+(l.venc?'dia '+l.venc:'—')+'</td>'+
+      '<td style="text-align:center"><span class="badge2'+(cor[l.sit]||'')+'">'+E(l.sit)+'</span></td></tr>';
+   }).join(''):'<tr><td colspan="7" class="hint">Nenhuma unidade cobrada ainda.</td></tr>')+
+   '</tbody></table></div></div></div>';
+  rodape(moeda(totAtivo)+' por mês');
+}
+
 function vlr(id){var e=$(id);return e?String(e.value||'').trim():'';}
-/* O erro precisa aparecer NA TELA.
-   Depois de varios alertas seguidos, o navegador oferece "impedir que esta
-   pagina crie caixas de dialogo" — e a partir dai todo alert() e engolido em
-   silencio. A pessoa clica em Salvar, nada acontece, e nem o erro chega.
-   Agora a mensagem fica na propria tela ate ser lida. */
+/* O erro precisa aparecer NA TELA. Depois de varios alertas seguidos o
+   navegador oferece "impedir que esta pagina crie caixas de dialogo", e a
+   partir dai todo alert() e engolido em silencio: a pessoa clica, nada
+   acontece, e nem o erro chega. */
 function painelErro(msg,detalhe){
   var el=document.getElementById('painelAviso');
   if(!el){
     el=document.createElement('div');
     el.id='painelAviso';
     el.style.cssText='margin:12px 0;padding:12px 14px;border-radius:8px;'+
-      'background:#FBEDE8;border:1px solid #E3BBAB;color:#7A3418;font-size:13px;max-width:860px';
+      'background:#FBEDE8;border:1px solid #E3BBAB;color:#7A3418;font-size:13px;max-width:900px';
     var alvo=document.querySelector('.ctWrap')||document.getElementById('content');
     if(alvo)alvo.insertBefore(el,alvo.firstChild);
   }
@@ -23134,26 +23443,6 @@ function painelErro(msg,detalhe){
     'opacity:.9;word-break:break-word">'+E(detalhe)+'</div>':'')+
     '<div style="margin-top:8px"><button class="btnP2" onclick="var n=document.getElementById(\'painelAviso\');if(n)n.remove()">Fechar</button></div>';
   try{el.scrollIntoView({block:'center'});}catch(e){}
-}
-async function criarAcessoEmpresa(lojaId){
-  var nome=vlr('acNome'),email=vlr('acMail').toLowerCase(),senha=vlr('acSenha'),
-      cargo=vlr('acCargo'),suc=vlr('acSuc');
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){painelErro('Informe um e-mail válido para o login.');return;}
-  if(senha.length<6){painelErro('A senha precisa ter ao menos 6 caracteres.');return;}
-  try{
-    /* a chave de administrador vive so no servidor: o navegador nunca a ve */
-    var r=await fetch(NUVEM.url+'/functions/v1/criar-usuario',{
-      method:'POST',
-      headers:{'apikey':NUVEM.chave,'Authorization':'Bearer '+(await tokenValido()),
-               'Content-Type':'application/json'},
-      body:JSON.stringify({email:email,senha:senha,nome:nome||email,cargo:cargo,
-                           loja_id:lojaId,sucursal_ref:suc||null})});
-    var d=null; try{ d=await r.json(); }catch(e){}
-    if(!r.ok){painelErro('Não consegui criar o acesso.',(d&&d.erro)||('o servidor respondeu '+r.status));return;}
-    INS.nuvem=null;await carregarEmpresas(true);
-    toast('Acesso criado: '+email);telaInstalacao();
-  }catch(e){ console.error('criarAcessoEmpresa',e);
-    painelErro('Não consegui criar o acesso.',detalheErro(e)); }
 }
 function detalheErro(e){
   if(!e)return '';
@@ -23176,48 +23465,14 @@ async function salvarEmpresa(lojaId){
   }catch(e){ console.error('salvarEmpresa',e);
     painelErro('Não consegui salvar os dados da empresa.',detalheErro(e)); }
 }
-function formUnidade(lojaId,sucId){
-  var x=empresasDaNuvem().find(function(y){return y.loja.id===lojaId})||{unidades:[]};
-  var s=(x.unidades||[]).find(function(y){return y.id===sucId})||{};
-  INS.und={loja:lojaId,suc:sucId||null};
-  function fld(rot,idc,val,ph){
-    return '<div class="fld2"><label>'+rot+'</label><input id="'+idc+'" value="'+
-      E(val==null?'':String(val))+'" placeholder="'+E(ph||'')+'"></div>';
-  }
-  $('content').innerHTML='<div class="ctWrap">'+
-   '<div class="ctTopo">'+
-    '<button class="btnP2" onclick="INS.und=null;telaInstalacao()">‹ voltar para '+E(x.loja.nome)+'</button>'+
-    '<h1 style="margin-top:10px">'+(sucId?'Editar unidade':'Nova unidade')+'</h1>'+
-    '<p>'+(s.matriz?'Esta é a matriz da empresa.':'Uma loja desta empresa.')+'</p></div>'+
-   '<div class="blk" style="max-width:760px"><div class="grid2">'+
-    fld('Nome da unidade *','unNome',s.nome)+
-    fld('Apelido','unApe',s.apelido,'como aparece nos relatórios')+
-    fld('CNPJ','unCnpj',s.cnpj,'00.000.000/0000-00')+
-    fld('Telefone','unTel',s.telefone)+
-    fld('Endereço','unEnd',s.endereco)+
-    fld('Cidade','unCid',s.cidade)+
-    fld('UF','unUf',s.uf,'SP')+
-    '<div class="fld2"><label>Situação</label><select id="unAtiva">'+
-     '<option value="1"'+(s.ativa!==false?' selected':'')+'>Ativa</option>'+
-     '<option value="0"'+(s.ativa===false?' selected':'')+'>Inativa</option></select></div>'+
-   '</div>'+
-   '<div style="margin-top:12px"><button class="btnP2 ok" onclick="salvarUnidade()">Salvar unidade</button>'+
-   '</div></div></div>';
-  rodape();
-}
-async function salvarUnidade(){
-  var c=INS.und||{};
-  var d={nome:vlr('unNome'),apelido:vlr('unApe'),cnpj:vlr('unCnpj'),telefone:vlr('unTel'),
-    endereco:vlr('unEnd'),cidade:vlr('unCid'),uf:vlr('unUf'),ativa:vlr('unAtiva')==='1'};
-  if(!d.nome){painelErro('Informe o nome da unidade.');return;}
-  try{
-    await api('rpc/painel_salvar_unidade','POST',
-      {p_loja_id:c.loja,p_sucursal_id:c.suc||null,p_d:d});
-    INS.nuvem=null;await carregarEmpresas(true);
-    INS.und=null;toast('Unidade salva.');telaInstalacao();
-  }catch(e){ console.error('salvarUnidade',e);
-    painelErro('Não consegui salvar a unidade.',detalheErro(e)); }
-}
+/* ----------------------------------------------------------
+   REMOVIDAS: formUnidade / salvarUnidade da versao anterior do painel.
+   Ficaram para tras quando reescrevi o bloco e, por virem DEPOIS no arquivo,
+   sobrescreviam as novas — a mesma armadilha que engoliu o clique em
+   "Salvar unidade" a tarde inteira. Num arquivo unico, funcao duplicada e
+   silenciosa: a ultima definicao vence e nada avisa.
+   ---------------------------------------------------------- */
+
 /* ----------------------------------------------------------
    REMOVIDAS: editarUnidade / salvarUnidade(redeId,sucId) / apagarUnidade
    Eram as telas da versao anterior, que trabalhavam sobre DB.redes — a lista
