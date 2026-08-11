@@ -14152,7 +14152,7 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V21.9.0';
+var VERSAO='V22.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22789,7 +22789,7 @@ function telaRedeAberta(id){
    '</div></div>';
   rodape(E(r.nome)+' · '+u.length+' unidade(s)');
 }
-function salvarMatriz(id){
+async function salvarMatriz(id){
   var r=DB.redes.find(function(x){return x.id===id});if(!r)return;
   r.nome=$('rdN').value.trim()||r.nome;
   r.dominio=soDom($('rdD').value);
@@ -22807,7 +22807,32 @@ function salvarMatriz(id){
   }
   var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
   if(mz&&DB.redes.length===1){mz.nome=r.nome;mz.apelido='Matriz';}
-  salvar();telaInstalacao();toast('Matriz salva.');
+  salvar();
+
+  /* O acesso so existia na lista local — a senha nunca chegava ao banco,
+     e a pessoa nao conseguia entrar. Era preciso refazer em Usuarios e
+     Permissoes, o que nao faz sentido num assistente de instalacao. */
+  if(lg&&NUVEM.ligada){
+    toast('Criando o acesso...');
+    try{
+      var res=await criarAcessoNoBanco(lg,r.senha,r.nome+' — Matriz');
+      if(res&&res.erro){
+        if(/existe|already|registered/i.test(String(res.erro)))
+          toast('O login '+lg+' já existia — a senha não foi trocada.');
+        else
+          toast('Rede salva, mas o acesso falhou: '+res.erro);
+      }else{
+        toast('Matriz salva. '+lg+' já pode entrar.');
+      }
+    }catch(e){
+      toast('Rede salva, mas não consegui criar o acesso: '+((e&&e.message)||'falha'));
+    }
+  }else if(lg){
+    toast('Matriz salva. Ligue a nuvem para liberar o acesso de '+lg+'.');
+  }else{
+    toast('Matriz salva.');
+  }
+  telaInstalacao();
 }
 function editarUnidade(redeId,sucId){
   var r=DB.redes.find(function(x){return x.id===redeId});if(!r)return;
