@@ -12118,7 +12118,37 @@ async function restaurarRespaldo(){
     location.reload();
   }catch(e){ alert('A cópia está ilegível: '+(e.message||'')); }
 }
+/* ==========================================================
+   P20 — CARIMBO DE ORIGEM (empresa e unidade) NA CRIACAO
+   O motor de sincronizacao carimbava a loja DA SESSAO ATUAL em todo
+   registro que subia (o.loja_id = l). Consequencia: uma venda criada na
+   empresa A, ainda na fila, era enviada como se fosse da empresa B se
+   outra pessoa entrasse antes de a fila esvaziar. O dado mudava de dono.
+   Agora cada registro recebe _loja e _suc NO MOMENTO EM QUE E GRAVADO —
+   que e quando ainda se sabe de quem ele e — e isso nunca mais muda.
+   Na hora de enviar, o motor compara: se a origem nao for a empresa da
+   sessao, o registro NAO SOBE. Fica esperando.
+   ========================================================== */
+var _COLS_SEM_CARIMBO={_hash:1,_uuid:1,_snap:1,_contrato:1,lojaAtual:1,_sujo:1,_snapOk:1};
+function carimbarOrigem(){
+  if(!NUVEM.loja)return 0;                 /* sem sessao nao ha o que carimbar */
+  var suc=null; try{suc=lojaAtualId()}catch(e){}
+  var n=0;
+  for(var col in DB){
+    if(_COLS_SEM_CARIMBO[col])continue;
+    var lista=DB[col];
+    if(!Array.isArray(lista))continue;
+    for(var i=0;i<lista.length;i++){
+      var r=lista[i];
+      if(!r||typeof r!=='object')continue;
+      if(!r._loja){ r._loja=NUVEM.loja; r._suc=r._suc||suc;
+                    r._criadoEm=r._criadoEm||new Date().toISOString(); n++; }
+    }
+  }
+  return n;
+}
 function salvar(){
+  carimbarOrigem();                  /* antes de gravar: de quem e este dado */
   /* a marca de "tem coisa para enviar" vai junto com os dados: se o navegador
      fechar antes do envio, no proximo boot o sistema ainda sabe que deve subir
      antes de baixar qualquer coisa. Antes ela so existia na memoria. */
@@ -12821,7 +12851,9 @@ async function apagar(tab,campo,valor){
 }
 
 /* ---- sincronização completa ---- */
+var RETIDOS={},ORFAOS={};
 async function sincronizar(){
+  RETIDOS={};ORFAOS={};
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
   /* o dono nao tem loja: nao ha dado dele para subir, e subir com loja vazia
      carimbaria o cadastro de alguem sem dono */
@@ -12979,9 +13011,30 @@ async function sincronizar(){
       var hAnt=DB._hash[E2.col]||{}, hNovo={}, mudou={}, hSalvar={};
       DB._uuid[E2.col]=DB._uuid[E2.col]||{};
       if(lista.length){
+        /* ------------------------------------------------------------
+           SO SOBE O QUE E DESTA EMPRESA.
+           Registro de outra empresa fica na fila ate a pessoa voltar para
+           ela. Registro sem origem conhecida (legado, criado antes deste
+           carimbo) tambem NAO sobe: e marcado tenant_desconhecido e espera
+           resolucao. Nunca se adota um dado orfao dando a ele a empresa
+           de quem esta logado agora.
+           ------------------------------------------------------------ */
+        var _retidos=0,_orfaos=0;
+        lista=lista.filter(function(x){
+          if(!x||typeof x!=='object')return true;
+          if(!x._loja){
+            if(x._tenantDesconhecido!==true){x._tenantDesconhecido=true;_orfaos++;}
+            return false;
+          }
+          if(x._loja!==l){_retidos++;return false;}
+          return true;
+        });
+        if(_retidos)RETIDOS[E2.col]=_retidos;
+        if(_orfaos)ORFAOS[E2.col]=_orfaos;
+        if(!lista.length){DB._hash[E2.col]=hAnt;continue;}
         var linhas=lista.map(function(x,i){
           var o=E2.campos(x,i);
-          o.loja_id=l;
+          o.loja_id=x._loja;          /* a empresa de ORIGEM, nunca a da sessao */
           o.ref_local=x.id;
           /* a impressao inclui os filhos: mexer num item da ficha tambem conta */
           var extra='';
@@ -13154,6 +13207,20 @@ async function sincronizar(){
       avisoTabelaComErro(NUVEM.erros);
     }else{
       var av=document.getElementById('avisoTab');if(av)av.remove();
+    }
+    /* o que ficou retido aparece no diagnostico, nao some em silencio */
+    var _r=Object.keys(RETIDOS), _o=Object.keys(ORFAOS);
+    if(_r.length){
+      var tot=_r.reduce(function(a,k){return a+RETIDOS[k]},0);
+      logNuvem('RETIDOS: '+tot+' registro(s) de OUTRA empresa não foram enviados ('+
+        _r.map(function(k){return k+': '+RETIDOS[k]}).join(' · ')+
+        ') — sobem quando alguém dessa empresa entrar',true);
+    }
+    if(_o.length){
+      var tot2=_o.reduce(function(a,k){return a+ORFAOS[k]},0);
+      logNuvem('SEM ORIGEM: '+tot2+' registro(s) sem empresa identificada, marcados '+
+        'tenant_desconhecido e NÃO enviados ('+
+        _o.map(function(k){return k+': '+ORFAOS[k]}).join(' · ')+')',true);
     }
     DB._snapOk=true;
     /* A marca de "tem coisa para enviar" era ligada a cada gravacao e NUNCA
@@ -13829,6 +13896,19 @@ async function baixarDaNuvem(forcar){
   /* alguem tentou enviar durante o download e foi segurado: agora pode ir */
   if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
+  /* o que veio da nuvem pertence a loja de onde veio: carimba antes de
+     qualquer gravacao, senao viraria "sem origem" no proximo envio */
+  try{
+    var _l=NUVEM.loja, _s=null; try{_s=lojaAtualId()}catch(e){}
+    for(var _c in DB){
+      if(_COLS_SEM_CARIMBO[_c])continue;
+      var _li=DB[_c]; if(!Array.isArray(_li))continue;
+      for(var _i=0;_i<_li.length;_i++){
+        var _r=_li[_i];
+        if(_r&&typeof _r==='object'&&!_r._loja){_r._loja=_l;_r._suc=_r._suc||_s;}
+      }
+    }
+  }catch(e){_quieto(e,'carimboDownload')}
   logNuvem('download concluído — itens de categorias: '+antesCat+' -> '+depoisCat,
     depoisCat<antesCat);
 
@@ -14503,7 +14583,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V32.0.0';
+var VERSAO='V33.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17399,6 +17479,7 @@ function fecharPedidoTotem(){
     if(!cli.origem)cli.origem='totem';
   }
 
+  ped._loja=NUVEM.loja; ped._suc=lojaAtualId(); ped._criadoEm=ag.toISOString();
   DB.pedidos.push(ped);
   try{ baixarEstoqueVenda(ped); }catch(e){ console.error('estoque totem',e); }
   try{ registrarCupom(ped); }catch(e){_quieto(e,'fecharPedidoTotem')}
@@ -20336,9 +20417,17 @@ var _ultimoMovVenda=null;
    porque a chave e loja + identificador do pedido. */
 async function enviarVendaAtomica(ped,mov){
   if(!NUVEM.ligada||NUVEM.plataforma)return;
+  /* P20: a venda so sobe na empresa em que foi feita. Se a sessao mudou de
+     empresa antes de a fila esvaziar, ela espera — nunca nasce na outra. */
+  if(ped._loja&&ped._loja!==NUVEM.loja){
+    logNuvem('venda #'+ped.numero+' é da empresa de origem e NÃO foi enviada '+
+             'nesta sessão — permanece pendente',true);
+    return;
+  }
   try{
     var suc=lojaAtualId();
     var pacote={
+      loja_origem:ped._loja||NUVEM.loja,   /* o banco recusa se divergir */
       ref_local:ped.id,numero:ped.numero,tipo:ped.tipo,fase:ped.fase,
       cliente_nome:ped.clienteNome||'',cidade:ped.cidade||'',
       total:ped.total,taxa:ped.taxa,desconto:ped.desconto,fiscal:!!ped.fiscal,
