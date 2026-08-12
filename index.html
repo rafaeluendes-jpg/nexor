@@ -14777,7 +14777,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V35.1.0';
+var VERSAO='V36.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23461,8 +23461,12 @@ function baseRedes(){
   DB.redes=DB.redes||[];
   /* redes antigas: adota as sucursais soltas na primeira rede */
   if(!DB.redes.length&&(DB.sucursais||[]).some(function(x){return !x.matriz})){
+    /* AUDITORIA: havia senha:'123' escrita aqui. Era resto da estrutura
+       DB.redes, aposentada — nunca autenticou nada, porque o login passa pelo
+       Supabase Auth. Ainda assim, senha em texto no codigo-fonte nao fica,
+       nem inutil: quem le o arquivo nao sabe que e inofensiva. */
     DB.redes.push({id:'rede_1',nome:DB.nomeRede||'Minha rede',dominio:DB.dominioRede||'',
-      login:'',senha:'123'});
+      login:''});
     (DB.sucursais||[]).forEach(function(x){if(!x.redeId&&!x.matriz)x.redeId='rede_1'});
   }
   return DB.redes;
@@ -36912,7 +36916,10 @@ async function salvarZap(){
       var conectada=await lojaConectada();
       if(conectada&&alvos.indexOf(conectada)<0)alvos.push(conectada);
       for(var ai=0;ai<alvos.length;ai++)
+      /* P20: a empresa vai explicita. Desde que o banco parou de adotar
+         registro orfao, gravar sem loja_id e recusado. */
       await api('whatsapp_config?on_conflict=sucursal_id','POST',[{
+        loja_id:NUVEM.loja,
         sucursal_id:alvos[ai],
         robo_ativo:c.ativo!==false,
         nome_loja:cd.titulo||sucNome(ZP.suc),
@@ -37329,6 +37336,7 @@ function modalRotina(id) {
       var corpo = {
         loja_id: NUVEM.loja, nome: nome, pergunta: perg,
         hora: hora.length === 5 ? hora + ':00' : hora,
+        loja_id: NUVEM.loja,          /* P20: empresa sempre explicita */
         dias: dd, sucursais: ss,
         tipo_resposta: $('rtTipo').value,
         ativa: $('rtAtiva').checked
