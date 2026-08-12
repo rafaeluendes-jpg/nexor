@@ -13926,11 +13926,11 @@ async function baixarDaNuvem(forcar){
       ' — nada foi alterado neste aparelho',true);
     registrarFalha('download',ondeT||'?',pqT,{situacao:'dados locais preservados'});
     statusNuvem('erro','download incompleto — seus dados locais foram preservados');
-    avisoSinc((_falhou&&_falhou.rede)
-      ? 'A internet caiu no meio da leitura da nuvem. Nada foi apagado aqui — o que você '+
-        'lançou continua neste aparelho, e o sistema tenta de novo sozinho em instantes.'
-      : 'A leitura da nuvem parou em "'+(ondeT||'—')+'": '+pqT+'. '+
-        'Nada foi apagado aqui. Me mande esta mensagem que eu corrijo.');
+    /* a mensagem tecnica (tabela, tipo de coluna, texto do Postgres) vai
+       INTEIRA para o diagnostico, acima. Aqui nao se mostra nada: o rodape
+       ja indica o estado da nuvem, e nada foi perdido. */
+    avisoSinc('leitura da nuvem interrompida em '+(ondeT||'?')+': '+pqT,
+              'dados locais preservados');
     return false;
   }
 
@@ -14732,7 +14732,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V34.0.1';
+var VERSAO='V34.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
