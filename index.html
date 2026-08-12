@@ -2,6 +2,36 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
+<!-- ==========================================================
+     AUDITORIA — POLITICA DE SEGURANCA DE CONTEUDO (CSP)
+     A sessao do Supabase fica no localStorage, legivel por JavaScript. A
+     defesa contra roubo de sessao e impedir que JavaScript estranho rode
+     nesta pagina. Esta politica diz ao navegador de onde ele PODE carregar
+     e para onde PODE falar:
+       script-src  — so o proprio arquivo e o cliente do Supabase
+       connect-src — so o proprio projeto Supabase e o robo
+       frame-ancestors none — a pagina nao pode ser embutida em outro site
+                              (evita clique sequestrado)
+       object-src none — sem Flash/applet
+     'unsafe-inline' e necessario porque o sistema inteiro e um arquivo so,
+     com o script dentro do HTML. Fica registrado como limitacao conhecida:
+     so sai se o JavaScript for separado em arquivo proprio.
+     ========================================================== -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https:;
+  font-src 'self' data:;
+  connect-src 'self' https://cevghkndzpzvnzwifhnm.supabase.co
+              wss://cevghkndzpzvnzwifhnm.supabase.co
+              https://robo.nexorapp.com.br https://api.focusnfe.com.br;
+  frame-ancestors 'none';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
 <title>Nexor</title>
@@ -14777,7 +14807,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V36.0.0';
+var VERSAO='V37.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14873,7 +14903,19 @@ if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='mesas')return telaMesas();
 if(mid==='loja'&&iid==='totem')return telaTotem();
 if(mid==='loja'&&iid==='liberacao')return telaLiberacao();
-if(mid==='loja'&&iid==='fiscal')return telaFiscalCfg();
+if(mid==='loja'&&iid==='fiscal'){
+  /* ==========================================================
+     AUDITORIA — A CHAVE DA API FISCAL NAO E DE TODO MUNDO
+     Esta tela pede o token do provedor de NFC-e (Focus NFe / TecnoSpeed).
+     Com ele se emite nota em nome da empresa. Nao e credencial da nuvem
+     nem do banco — mas e credencial, e estava ao alcance de qualquer
+     pessoa da loja que tivesse a tela liberada, inclusive um operador de
+     caixa. Agora e do administrador, e o banco tambem recusa (politica
+     "fiscal: so quem administra").
+     ========================================================== */
+  if(!ehFranqueadora()&&!ehPlataforma())return telaRestrita('Configuração Fiscal');
+  return telaFiscalCfg();
+}
 /* o item existia no menu e nao tinha tela: clicar nele nao fazia nada */
 if(mid==='loja'&&iid==='dados-fiscais')return telaFiscalCfg();
 if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
@@ -15821,6 +15863,66 @@ setInterval(conferirNuvemAgora,45000);
    quando o número muda de verdade.
    ========================================================== */
 var _versaoLoja=null,_verOcupado=false;
+async /* ==========================================================
+   AUDITORIA — ENCERRAMENTO POR INATIVIDADE
+   Um PDV fica ligado o dia inteiro. Se o operador sai e alguem senta na
+   maquina, entra na sessao dele. Depois de 8 horas sem NENHUMA acao
+   (clique, tecla, toque), a sessao e encerrada e a tela volta para o login.
+   Oito horas porque o turno de uma loja e mais curto que isso: quem esta
+   trabalhando nunca e interrompido; quem esqueceu aberto de um dia para o
+   outro, sim.
+   O tempo e guardado no aparelho, nao no token — reabrir o navegador no dia
+   seguinte tambem cai na regra.
+   ========================================================== */
+var INATIVIDADE_H=8;
+function marcarAtividade(){
+  try{ localStorage.setItem('nexor_visto', String(Date.now())); }
+  catch(e){_quieto(e,'marcarAtividade')}
+}
+function inativoDemais(){
+  try{
+    var t=parseInt(localStorage.getItem('nexor_visto')||'0',10);
+    if(!t)return false;
+    return (Date.now()-t) > INATIVIDADE_H*3600*1000;
+  }catch(e){ return false; }
+}
+(function vigiarInatividade(){
+  ['click','keydown','touchstart','pointerdown'].forEach(function(ev){
+    document.addEventListener(ev, marcarAtividade, {passive:true, capture:true});
+  });
+  marcarAtividade();
+  setInterval(function(){
+    if(!NUVEM.ligada)return;
+    if(inativoDemais()){
+      registrarFalha('sessao','inatividade',
+        'sessão encerrada após '+INATIVIDADE_H+' h sem uso',{situacao:'encerrada'});
+      try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){_quieto(e,'vigiarInatividade')}
+      try{ localStorage.removeItem('nexor_visto'); }catch(e){}
+      location.reload();
+    }
+  }, 60000);
+})();
+
+/* ==========================================================
+   AUDITORIA — ENCERRAR TODAS AS SESSOES
+   Aparelho perdido, funcionario desligado, suspeita de senha vazada: um
+   comando so tira a conta de todos os lugares, inclusive celulares que a
+   pessoa levou embora.
+   ========================================================== */
+async function encerrarTodasAsSessoes(){
+  if(!await pergunta('Encerrar sua conta em TODOS os aparelhos?\n\n'+
+     'Você e qualquer outro dispositivo com esta conta aberta voltarão para a '+
+     'tela de login. Use isto se perdeu um aparelho ou desconfia da senha.'))return;
+  try{
+    if(NUVEM.cli&&NUVEM.cli.auth&&NUVEM.cli.auth.signOut)
+      await NUVEM.cli.auth.signOut({scope:'global'});
+    try{ localStorage.removeItem('nexor_visto'); }catch(e){}
+    toast('Todas as sessões foram encerradas.');
+    setTimeout(function(){location.reload()},900);
+  }catch(e){
+    painelErro('Não consegui encerrar as sessões.',detalheErro(e));
+  }
+}
 async function conferirVersaoLoja(){
   if(!NUVEM.ligada||_verOcupado||NUVEM.sincronizando||RT.pausa)return;
   /* O dono da plataforma nao tem loja. Sem esta linha, o relogio de 6 em 6
@@ -18631,9 +18733,17 @@ function telaFiscalCfg(){
      '<div class="fld2"><label>Endereço da API</label>'+
       '<input id="fsUrl" value="'+E(f.url||'')+'" placeholder="https://..." onchange="salvarFiscal()"></div>'+
      '<div class="fld2"><label>Token / chave da API</label>'+
-      '<input id="fsTok" type="password" value="'+E(f.token||'')+'" '+
-      'placeholder="cole a chave que o provedor entregou" onchange="salvarFiscal()">'+
-      '<div class="hint">Fica guardado só nesta loja. Não é enviado a mais ninguém.</div></div>'+
+      /* a chave gravada NAO volta para a tela: mostra so que existe. Quem
+         precisa trocar digita a nova por cima. Assim ela nao fica no HTML,
+         onde qualquer extensao do navegador ou captura de tela a leria. */
+      '<input id="fsTok" type="password" value="" autocomplete="new-password" '+
+      'placeholder="'+(f.token?'chave já cadastrada — digite para substituir'
+                             :'cole a chave que o provedor entregou')+'" '+
+      'onchange="salvarFiscal()">'+
+      '<div class="hint">'+(f.token
+        ?'Uma chave já está guardada. Ela não é exibida de volta, por segurança.'
+        :'Fica guardada só nesta loja, e só o administrador enxerga esta tela.')+
+      '</div></div>'+
     '</div>'+
    '</div>'+
 
@@ -18698,7 +18808,12 @@ function salvarFiscal(){
     if(p&&p.url&&!v('fsUrl'))f.url=p.url;   /* preenche o endereço conhecido */
   }
   if(v('fsUrl')!==undefined&&v('fsUrl')!=='')f.url=v('fsUrl');
-  f.token=v('fsTok');f.cnpj=v('fsCnpj');f.ie=v('fsIe');f.razao=v('fsRz');
+  /* o campo volta VAZIO de proposito (a chave nao e exibida de volta).
+     Vazio portanto significa "nao mexi", nao "apague". Sem esta linha, abrir
+     a tela e salvar qualquer outro campo zeraria a chave e a emissao de nota
+     pararia sem ninguem entender por que. */
+  var tk=v('fsTok'); if(tk!==undefined&&tk!=='')f.token=tk;
+  f.cnpj=v('fsCnpj');f.ie=v('fsIe');f.razao=v('fsRz');
   f.regime=v('fsReg');f.cscId=v('fsCscId');f.csc=v('fsCsc');
   f.certValidade=v('fsCert');f.ncm=v('fsNcm');f.cfop=v('fsCfop');f.origem=v('fsOrig');
   if(f.regime==='simples')f.csosn=v('fsCst'); else f.cst=v('fsCst');
@@ -23915,6 +24030,8 @@ function telaDiagnosticoSistema(){
                E(a||'—')+' ('+areas[a]+')</option>';
       }).join('')+'</select></div>'+
     '<div style="flex:1"></div>'+
+    '<button class="btnP2" onclick="encerrarTodasAsSessoes()">'+sv('lock',12)+
+     ' Encerrar minhas sessões</button>'+
     '<button class="btnP2" onclick="copiarDiagnostico()">Copiar tudo</button>'+
     '<button class="btnP2 rdB" onclick="DIAGNOSTICO=[];'+
      'try{localStorage.removeItem(\'nexor_diag\')}catch(e){};telaDiagnosticoSistema()">Limpar</button>'+
