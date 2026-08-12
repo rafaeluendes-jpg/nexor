@@ -11802,6 +11802,7 @@ var MOD=[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'instalacao',n:'Empresas Clientes'},
  {id:'financeiro-nexor',n:'Financeiro da Nexor'},
+ {id:'diagnostico-sistema',n:'Diagnóstico do Sistema'},
  {id:'sincronizacao',n:'Sincronização'},
  {id:'backup',n:'Backup e Restauração'},
  {id:'layout-menu',n:'Layout do Menu'},
@@ -11816,7 +11817,7 @@ var MOD=[
    FRANQUEADORA— o cliente que contratou. Manda na propria rede:
                  unidades, usuarios, dados, backup e importacao.
    ---------------------------------------------------------- */
-var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao',
+var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/diagnostico-sistema',
   'tecnico/backup','tecnico/reset-sistema'];
 /* ----------------------------------------------------------
    MODULOS CONTRATADOS
@@ -12169,10 +12170,106 @@ function salvar(){
    passa a ficar registrado, com o lugar onde aconteceu, no diagnostico
    tecnico. Ninguem e incomodado; quem procura, encontra.
    ========================================================== */
+/* ==========================================================
+   VALIDACAO CENTRAL DE IDENTIFICADORES
+   O erro do login veio de JavaScript concatenar null com texto e produzir a
+   STRING "null", que o Postgres recebeu como se fosse um uuid. O mesmo vale
+   para "undefined", "" e "NaN" — todos parecem valor e nao sao.
+   Toda consulta e todo envio passam por aqui antes de sair.
+   ========================================================== */
+var _RX_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var _NAO_VALOR={'null':1,'undefined':1,'NaN':1,'":"':1,'':1};
+function ehUuid(v){
+  if(v==null)return false;
+  var t=String(v).trim();
+  if(_NAO_VALOR[t])return false;
+  return _RX_UUID.test(t);
+}
+/* devolve o uuid, ou null de verdade — nunca a palavra "null" */
+function uuidOuNulo(v){ return ehUuid(v)?String(v).trim():null; }
+/* limpa um objeto inteiro antes de subir: campo *_id que nao for uuid vira
+   null de verdade. Sem isto, um "undefined" perdido derruba a tabela toda. */
+function limparIds(o){
+  if(!o||typeof o!=='object')return o;
+  for(var k in o){
+    if(!/(^|_)(id)$/.test(k))continue;
+    var v=o[k];
+    if(v==null)continue;
+    var t=String(v).trim();
+    if(_NAO_VALOR[t]||t===''){ o[k]=null; continue; }
+    /* ref_local e texto de propósito: só valida o que termina em _id */
+    if(!_RX_UUID.test(t)&&k!=='ref_local'&&k!=='motivo_id'&&k!=='sucursal_id'
+       &&k!=='operador_id'&&k!=='item_ref'){
+      /* identificador local (ins_xxx, ped_xxx) e legitimo em ref_local,
+         mas nao numa coluna uuid: registra e anula */
+      if(/^(ins|ped|cli|prod|mv|lf|cx|nt)_/.test(t)){ o[k]=null; }
+    }
+  }
+  return o;
+}
+
+/* ==========================================================
+   CLASSIFICACAO E REGISTRO DE FALHAS
+   Tres tipos, tres comportamentos:
+     tecnico  -> registra, tenta de novo, nao incomoda ninguem
+     funcional-> mensagem curta ligada a acao (estoque insuficiente)
+     critico  -> impede a operacao e avisa em linguagem simples
+   O operador de caixa nunca ve SQL, uuid, nome de tabela nem pilha de erro.
+   ========================================================== */
+var DIAGNOSTICO=[];
+function classificarErro(e,ctx){
+  var m=String((e&&e.message)||e||'').toLowerCase();
+  var st=(e&&e.status)||0;
+  if(e&&e.rede)return 'tecnico';
+  if(st===408||st===429||st>=500)return 'tecnico';
+  if(/timeout|network|failed to fetch|conexão|conexao/.test(m))return 'tecnico';
+  if(/uuid|syntax|column|relation|violates|constraint|pgrst|row-level/.test(m))return 'tecnico';
+  if(e&&e.critico)return 'critico';
+  if(e&&e.funcional)return 'funcional';
+  return 'tecnico';
+}
+function registrarFalha(area,onde,msg,extra){
+  try{
+    DIAGNOSTICO.unshift({
+      quando:new Date().toISOString(),
+      hora:new Date().toLocaleTimeString('pt-BR'),
+      area:area||'', onde:onde||'', msg:String(msg||'').slice(0,400),
+      loja:(NUVEM&&NUVEM.loja)||'', unidade:(function(){try{return lojaAtualId()}catch(e){return ''}})(),
+      usuario:((NUVEM&&NUVEM.perfil)||{}).nome||'', cargo:((NUVEM&&NUVEM.perfil)||{}).cargo||'',
+      tentativa:(extra&&extra.tentativa)||1, situacao:(extra&&extra.situacao)||'pendente',
+      extra:extra||{}
+    });
+    if(DIAGNOSTICO.length>300)DIAGNOSTICO.pop();
+    try{localStorage.setItem('nexor_diag',JSON.stringify(DIAGNOSTICO.slice(0,80)));}catch(e){}
+  }catch(x){}
+}
+try{ DIAGNOSTICO=JSON.parse(localStorage.getItem('nexor_diag')||'[]'); }catch(e){ DIAGNOSTICO=[]; }
+
+/* ==========================================================
+   RETENTATIVA COM ESPERA CRESCENTE
+   Falha temporaria (rede, timeout, servidor ocupado) tenta de novo sozinha,
+   tres vezes, esperando cada vez mais. Nao e laco infinito, e as operacoes
+   criticas continuam idempotentes — reenviar nao duplica.
+   ========================================================== */
+async function comRetentativa(fn,rot,vezes){
+  vezes=vezes||3;
+  var espera=[600,1800,4000];
+  for(var i=0;i<vezes;i++){
+    try{ return await fn(); }
+    catch(e){
+      var tipo=classificarErro(e);
+      registrarFalha('rede',rot||'',((e&&e.message)||'falha'),
+        {tentativa:i+1,situacao:(i+1<vezes&&tipo==='tecnico')?'vai tentar de novo':'desistiu'});
+      if(tipo!=='tecnico'||i+1>=vezes)throw e;
+      await new Promise(function(ok){setTimeout(ok,espera[i]||4000)});
+    }
+  }
+}
 var FALHAS=[];
 function _quieto(e,onde){
   try{
     if(!e)return;
+    registrarFalha('interno',onde,(e&&e.message)||String(e),{situacao:'registrado'});
     FALHAS.unshift({h:new Date().toLocaleTimeString('pt-BR'),
       onde:onde||'',msg:(e&&e.message)||String(e),
       loja:(NUVEM&&NUVEM.loja)||'',cargo:(NUVEM&&NUVEM.perfil&&NUVEM.perfil.cargo)||''});
@@ -13252,7 +13349,29 @@ async function sincronizar(){
 }
 
 /* ---- trazer da nuvem ---- */
+/* ==========================================================
+   UMA TABELA QUE FALHA NAO DERRUBA AS OUTRAS
+   Antes, o download inteiro estava num unico try: a primeira tabela que o
+   banco recusasse encerrava a leitura, e as 40 seguintes nunca vinham. Foi o
+   que aconteceu com contas_capital — o sistema abriria sem cardapio, sem
+   estoque e sem financeiro por causa de UMA consulta malformada.
+   Agora cada tabela e lida isoladamente, com duas tentativas. A que falhar
+   devolve lista vazia, fica registrada no diagnostico, e o resto continua.
+   Lista vazia nao apaga nada: a rede de protecao mantem o que ja existe.
+   ========================================================== */
+var _FALHOU_BAIXA=[];
+async function baixarTab(nome,url){
+  try{
+    return await comRetentativa(function(){ return api(url); },'baixar '+nome,2);
+  }catch(e){
+    _FALHOU_BAIXA.push(nome);
+    registrarFalha('download',nome,(e&&e.message)||'falha ao ler',
+      {situacao:'tabela pulada; dados locais mantidos',codigo:(e&&e.status)||''});
+    return [];
+  }
+}
 async function baixarDaNuvem(forcar){
+  _FALHOU_BAIXA=[];
   if(NUVEM.plataforma){
     NUVEM.sujo=false;DB._sujo=false;
     return true;                       /* o dono nao baixa dados de loja */
@@ -13273,6 +13392,20 @@ async function baixarDaNuvem(forcar){
   var _falhou=null;
   await tokenAtual();
   var l=NUVEM.loja;
+  /* ==========================================================
+     A CAUSA DO ERRO "invalid input syntax for type uuid: null"
+     Quando NUVEM.loja era nulo, '?loja_id=eq.'+l virava a STRING "null" e
+     seguia para o Postgres, que recusava a consulta inteira. O aviso
+     aparecia na TELA DE LOGIN porque o download disparava antes de a
+     sessao estar completa — sem loja definida ainda.
+     JavaScript nao avisa disso: null concatenado com texto vira "null".
+     Agora, sem empresa nao ha o que baixar: sai antes de montar consulta.
+     ========================================================== */
+  if(!ehUuid(l)){
+    registrarFalha('download','baixarDaNuvem',
+      'sessão ainda sem empresa definida — download adiado', {loja:String(l)});
+    return false;
+  }
   var q='?loja_id=eq.'+l;          /* sem select: cada consulta define o dela */
   /* ==========================================================
      P9 — JANELA DE TEMPO NAS TABELAS QUE CRESCEM PARA SEMPRE
@@ -13304,24 +13437,24 @@ async function baixarDaNuvem(forcar){
     return r;
   }
   try{
-  var cont=await api('contas_capital'+qs);
+  var cont=await baixarTab('contas_capital', 'contas_capital'+qs);
   DB.contas=volta(cont,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
     agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}});
-  var fp=await api('formas_pagamento'+qs+'&order=ordem');
+  var fp=await baixarTab('formas_pagamento', 'formas_pagamento'+qs+'&order=ordem');
   var mapaConta={};cont.forEach(function(x){mapaConta[x.id]=x.ref_local||x.id});
   DB.formasPag=volta(fp,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
     taxaPct:Number(x.taxa_pct)||0,taxaFixa:Number(x.taxa_fixa)||0,dias:x.dias_recebimento||0,
     contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0}});
-  var cf=await api('categorias_financeiras'+q+'&select=*,subcategorias_financeiras(*)&order=ordem');
+  var cf=await baixarTab('categorias_financeiras', 'categorias_financeiras'+q+'&select=*,subcategorias_financeiras(*)&order=ordem');
   DB.catfin=volta(cf,function(x){
     var paiRef=x.ref_local||x.id;
     return {id:paiRef,nome:x.nome,tipo:x.tipo||'despesa',
       itens:(x.subcategorias_financeiras||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
         .map(function(s){return {id:idFilho(paiRef,s.ref_local,s.id),nome:s.nome}})};});
-  var fo=await api('fornecedores'+qs);
+  var fo=await baixarTab('fornecedores', 'fornecedores'+qs);
   DB.fornec=volta(fo,function(x){return {id:x.ref_local||x.id,empresa:x.empresa,nome:x.contato,
     cnpj:x.cnpj,email:x.email,tel:x.telefone,whats:x.whatsapp}});
-  var cl=await api('clientes'+qs);
+  var cl=await baixarTab('clientes', 'clientes'+qs);
   DB.clientes=volta(cl,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,rua:x.rua,
     numero:x.numero,bairro:x.bairro,cidade:x.cidade,ref:x.referencia,
     compras:x.compras||0,gasto:Number(x.gasto)||0,
@@ -13329,11 +13462,11 @@ async function baixarDaNuvem(forcar){
     zonaId:x.zona_id||'',zona:x.zona||'',
     limiteFiado:Number(x.limite_fiado)||0,saldoFiado:Number(x.saldo_fiado)||0,
     ultima:x.ultima_compra||''}});
-  var en=await api('entregadores'+q+'&select=*,entregador_taxas(*)');
+  var en=await baixarTab('entregadores', 'entregadores'+q+'&select=*,entregador_taxas(*)');
   DB.entregadores=volta(en,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
     pix:x.pix,diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false,
     taxas:(x.entregador_taxas||[]).map(function(t){return {cidade:t.cidade,valor:Number(t.valor)||0}})}});
-  var lf=await api('lancamentos_financeiros'+q+'&select=*&vencimento=gte.'+_desde+'&order=vencimento.desc&limit=3000');
+  var lf=await baixarTab('lancamentos_financeiros', 'lancamentos_financeiros'+q+'&select=*&vencimento=gte.'+_desde+'&order=vencimento.desc&limit=3000');
   var mapaSub={};(cf||[]).forEach(function(c2){(c2.subcategorias_financeiras||[]).forEach(function(s){
     mapaSub[s.id]=s.ref_local||s.id})});
   var mapaFP={};fp.forEach(function(x){mapaFP[x.id]=x.ref_local||x.id});
@@ -13350,9 +13483,9 @@ async function baixarDaNuvem(forcar){
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
     origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}});
   /* cardápio */
-  var rc=await api('categorias'+qs+'&order=ordem');
-  var rp=await api('produtos'+qs+'&order=ordem');
-  var rg=await api('grupos_opcoes'+q+'&select=*,opcoes(*)&order=ordem');
+  var rc=await baixarTab('categorias', 'categorias'+qs+'&order=ordem');
+  var rp=await baixarTab('produtos', 'produtos'+qs+'&order=ordem');
+  var rg=await baixarTab('grupos_opcoes', 'grupos_opcoes'+q+'&select=*,opcoes(*)&order=ordem');
   var rv=await api('produto_grupos?select=produto_id,grupo_id');
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
   var mapaGr={};rg.forEach(function(x){mapaGr[x.id]=x.ref_local||x.id});
@@ -13399,7 +13532,7 @@ async function baixarDaNuvem(forcar){
   /* Configuracao do cardapio por unidade: subia e nunca voltava. Aparelho
      novo mostrava o cardapio sem cor, sem logo e sem horario. */
   try{
-    var cc=await api('cardapio_config'+qs);
+    var cc=await baixarTab('cardapio_config', 'cardapio_config'+qs);
     if(cc&&cc.length){
       DB.cardapio=DB.cardapio||{};
       cc.forEach(function(x){
@@ -13418,7 +13551,7 @@ async function baixarDaNuvem(forcar){
   }catch(ec2){ logNuvem('não consegui baixar a configuração do cardápio',true); }
 
   try{
-    var co=await api('config_operacao'+qs+'&limit=1');
+    var co=await baixarTab('config_operacao', 'config_operacao'+qs+'&limit=1');
     if(co&&co[0]){
       var o=co[0];
       if(o.gerente&&Object.keys(o.gerente).length)DB.gerente=o.gerente;
@@ -13430,16 +13563,16 @@ async function baixarDaNuvem(forcar){
     }
   }catch(eo){ logNuvem('não consegui baixar a configuração de operação',true); }
   /* ---------- ESTOQUE ---------- */
-  var ue=await api('unidades_medida'+qs);
+  var ue=await baixarTab('unidades_medida', 'unidades_medida'+qs);
   DB.unidExtra=volta(ue,function(x){return {id:x.ref_local||x.id,n:x.nome,ab:x.sigla,
     base:x.base,f:Number(x.fator)||1}});
 
-  var gi=await api('grupos_ingredientes'+qs);
+  var gi=await baixarTab('grupos_ingredientes', 'grupos_ingredientes'+qs);
   var mapaGi={};gi.forEach(function(x){mapaGi[x.id]=x.ref_local||x.id});
   DB.gruposIng=volta(gi,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     compoeCMV:x.compoe_cmv!==false,sucursais:x.sucursais||[]}});
 
-  var ins=await api('insumos'+qs);
+  var ins=await baixarTab('insumos', 'insumos'+qs);
   var mapaIns={};ins.forEach(function(x){mapaIns[x.id]=x.ref_local||x.id});
   DB.insumos=volta(ins,function(x){return {id:x.ref_local||x.id,nome:x.nome,codigo:x.codigo,
     unidade:x.unidade||'un',custo:Number(x.custo)||0,custoUltima:Number(x.custo_ultima)||0,
@@ -13454,12 +13587,12 @@ async function baixarDaNuvem(forcar){
     fornecedorId:mapaFo[x.fornecedor_id]||'',descricao:x.descricao||'',
     compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}});
 
-  var fg=await api('ficha_grupos'+qs);
+  var fg=await baixarTab('ficha_grupos', 'ficha_grupos'+qs);
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
     destinoId:x.destino_id||'',sucursais:x.sucursais||[]}});
 
-  var ft=await api('fichas_tecnicas'+q+'&select=*,ficha_itens(*)');
+  var ft=await baixarTab('fichas_tecnicas', 'fichas_tecnicas'+q+'&select=*,ficha_itens(*)');
   var mapaFiRef={};ft.forEach(function(x){mapaFiRef[x.id]=x.ref_local||x.id});
   DB.fichas=volta(ft,function(x){return {id:x.ref_local||x.id,nome:x.nome,codigo:x.codigo,
     categoriaId:mapaFg[x.grupo_id]||'',subgrupoId:x.subgrupo_id||'',contaId:mapaSub[x.subcategoria_id]||'',
@@ -13496,23 +13629,23 @@ async function baixarDaNuvem(forcar){
     delete p._fichaUid;delete p._insumoUid;
   });
 
-  var mv=await api('motivos_movimentacao'+qs);
+  var mv=await baixarTab('motivos_movimentacao', 'motivos_movimentacao'+qs);
   var mapaMt={};mv.forEach(function(x){mapaMt[x.id]=x.ref_local||x.id});
   DB.motivosMov=volta(mv,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,
     sistema:!!x.sistema,ativo:x.ativo!==false,lojas:x.lojas_visiveis||[]}});
 
-  var mc=await api('motivos_cancelamento'+qs+'&order=ordem');
+  var mc=await baixarTab('motivos_cancelamento', 'motivos_cancelamento'+qs+'&order=ordem');
   var mapaMc={};mc.forEach(function(x){mapaMc[x.id]=x.ref_local||x.id});
   DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ativo:x.ativo!==false,ordem:x.ordem||0}});
 
   baixarLayoutMenu();
-  var stv=await api('status_venda'+qs+'&order=ordem');
+  var stv=await baixarTab('status_venda', 'status_venda'+qs+'&order=ordem');
   DB.statusVenda=volta(stv,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     papel:x.papel||'producao',ordem:x.ordem||0,ativo:x.ativo!==false,cor:x.cor||'',
     minutos:Number(x.minutos)||0,som:!!x.som,confPag:!!x.confere_pagamento}});
 
-  var mi=await api('modelos_impressao'+qs);
+  var mi=await baixarTab('modelos_impressao', 'modelos_impressao'+qs);
   DB.modelosImp=volta(mi,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
@@ -13521,7 +13654,7 @@ async function baixarDaNuvem(forcar){
   /* Estas duas subiam e nunca voltavam: trocar de aparelho ou limpar o
      navegador perdia os usuarios e a carteira de clientes Nexor. */
   try{
-    var us=await api('usuarios_sistema'+qs+'&order=nome');
+    var us=await baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome');
     if(us&&us.length)DB.usuarios=volta(us,function(x){return {id:x.ref_local||x.id,
       nome:x.nome,login:x.login||'',senha:x.senha||'',
       ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
@@ -13529,7 +13662,7 @@ async function baixarDaNuvem(forcar){
   }catch(e){ logNuvem('não consegui baixar os usuários: '+((e&&e.message)||''),true); }
   if(ehPlataforma&&ehPlataforma()){
     try{
-      var cnx=await api('clientes_nexor'+q+'&order=rede');
+      var cnx=await baixarTab('clientes_nexor', 'clientes_nexor'+q+'&order=rede');
       DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
         responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
         documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',
@@ -13545,13 +13678,13 @@ async function baixarDaNuvem(forcar){
      cada uma lembrar de filtrar. A matriz nunca e filtrada. */
   filtrarCadastroDaUnidade();
 
-  var eun=await api('estoque_unidade'+qs+'&limit=20000');
+  var eun=await baixarTab('estoque_unidade', 'estoque_unidade'+qs+'&limit=20000');
   DB.estoqueUn=volta(eun,function(x){return {id:x.ref_local||(x.sucursal_id+'|'+x.item_ref),
     sucursalId:x.sucursal_id,itemId:x.item_ref,tipo:x.tipo||'insumo',
     estoque:Number(x.estoque)||0,custoMedio:Number(x.custo_medio)||0,
     atualizadoEm:x.atualizado_em}});
 
-  var cpf=await api('cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
+  var cpf=await baixarTab('cupons_fiscais', 'cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
   DB.cupons_f=volta(cpf,function(x){return {id:x.ref_local||x.id,pedidoId:x.pedido_ref||'',
     pedidoNumero:Number(x.pedido_numero)||0,origem:x.origem||'',serie:Number(x.serie)||0,
     numero:Number(x.numero)||0,chave:x.chave||'',protocolo:x.protocolo||'',
@@ -13561,13 +13694,13 @@ async function baixarDaNuvem(forcar){
     entrega:Number(x.valor_entrega)||0,data:x.data_venda||'',hora:x.hora_venda||'',
     nfeAgrupada:x.nfe_agrupada_ref||'',contingencia:!!x.contingencia}});
 
-  var cmd=await api('mesa_comandas'+qs+'&order=aberta_em.desc&limit=500');
+  var cmd=await baixarTab('mesa_comandas', 'mesa_comandas'+qs+'&order=aberta_em.desc&limit=500');
   DB.comandas=volta(cmd,function(x){return {id:x.ref_local||x.id,mesaId:x.mesa_ref||'',
     mesaNumero:Number(x.mesa_numero)||0,nome:x.nome,itens:x.itens||[],
     aberta:x.aberta!==false,abertaEm:x.aberta_em,fechadaEm:x.fechada_em,
     pedidoRef:x.pedido_ref||'',sucursalId:x.sucursal_id||''}});
 
-  var trf=await api('transferencias'+qs+'&order=numero.desc&limit=1000');
+  var trf=await baixarTab('transferencias', 'transferencias'+qs+'&order=numero.desc&limit=1000');
   DB.transf=volta(trf,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
     origemSuc:x.origem_suc,destinoSuc:x.destino_suc,situacao:x.situacao||'enviada',
     itens:x.itens||[],valorTotal:Number(x.valor_total)||0,obs:x.observacao||'',
@@ -13575,35 +13708,35 @@ async function baixarDaNuvem(forcar){
     recebidaEm:x.recebida_em,recebidaPor:x.recebida_por||'',
     divergencia:!!x.divergencia,data:x.data_envio||''}});
 
-  var ms=await api('mesas'+qs+'&order=numero');
+  var ms=await baixarTab('mesas', 'mesas'+qs+'&order=numero');
   var mapaMs={};ms.forEach(function(x){mapaMs[x.id]=x.ref_local||x.id});
   DB.mesas=volta(ms,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
     nome:x.nome||'',lugares:Number(x.lugares)||4,ativa:x.ativa!==false,
     sucursalId:x.sucursal_id||''}});
 
-  var tn=await api('turnos'+qs+'&order=ordem');
+  var tn=await baixarTab('turnos', 'turnos'+qs+'&order=ordem');
   var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
   DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ini:x.hora_inicio||'',fim:x.hora_fim||'',ativo:x.ativo!==false,ordem:x.ordem||0}});
 
-  var cnc=await api('cancelamentos'+q+'&select=*&criado_em=gte.'+_desde+'&order=criado_em.desc&limit=2000');
+  var cnc=await baixarTab('cancelamentos', 'cancelamentos'+q+'&select=*&criado_em=gte.'+_desde+'&order=criado_em.desc&limit=2000');
   DB.cancelamentos=volta(cnc,function(x){return {id:x.ref_local||x.id,
     pedidoId:x.pedido_ref||'',numero:x.pedido_numero||0,valor:Number(x.valor)||0,
     data:x.data||'',hora:x.hora||'',motivoId:mapaMc[x.motivo_id]||'',
     motivo:x.motivo_nome||'',obs:x.observacao||'',operadorId:x.operador_id||'',
     operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||''}});
 
-  var me=await api('movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
+  var me=await baixarTab('movimentacoes_estoque', 'movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
   DB.movEst=volta(me,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     motivoId:mapaMt[x.motivo_id]||'',identificacao:x.identificacao||'',obs:x.observacao||'',
     origem:x.origem||'',linhas:x.linhas||[]}});
 
-  var ct=await api('contagens_estoque'+qs+'&order=data.desc&limit=500');
+  var ct=await baixarTab('contagens_estoque', 'contagens_estoque'+qs+'&order=data.desc&limit=500');
   DB.contagens=volta(ct,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     perda:Number(x.perda)||0,ganho:Number(x.ganho)||0,resultado:Number(x.resultado)||0,
     itens:x.itens||[]}});
 
-  var ae=await api('areas_entrega'+q+'&select=*,areas_zonas(*)');
+  var ae=await baixarTab('areas_entrega', 'areas_entrega'+q+'&select=*,areas_zonas(*)');
   DB.areas=volta(ae,function(x){
     var paiRef=x.ref_local||x.id;
     return {id:paiRef,nome:x.nome,uf:x.uf||'',taxaPadrao:Number(x.taxa_padrao)||0,
@@ -13614,9 +13747,9 @@ async function baixarDaNuvem(forcar){
           tempo:Number(z.tempo)||0,obs:z.observacao||'',ativa:z.ativa!==false}})};
   });
 
-  var scPre=await api('sucursais'+qs);
+  var scPre=await baixarTab('sucursais', 'sucursais'+qs);
   var mapaSuc2={};scPre.forEach(function(x){mapaSuc2[x.id]=x.ref_local||x.id});
-  var cd=await api('cardapio_config'+qs);
+  var cd=await baixarTab('cardapio_config', 'cardapio_config'+qs);
   /* DB.cardapioL é derivado de DB.cardapio e recebe id 'cc_<sucursal>' no envio.
      Guardar aqui as linhas cruas da nuvem trocava esses ids por uuid, e no envio
      seguinte o sistema achava que TODOS tinham sido excluídos. Não se toca nele. */
@@ -13635,13 +13768,13 @@ async function baixarDaNuvem(forcar){
       horarios:(x.horarios&&x.horarios.length)?x.horarios:horariosPadrao()};
   });
 
-  var sc=await api('sucursais'+qs);
+  var sc=await baixarTab('sucursais', 'sucursais'+qs);
   DB.sucursais=volta(sc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     apelido:x.apelido||'',cnpj:x.cnpj||'',telefone:x.telefone||'',cidade:x.cidade||'',
     uf:x.uf||'',matriz:!!x.matriz,ativa:x.ativa!==false,cor:x.cor||'#00A08B',
     redeId:x.rede_id||'',redeNome:x.rede_nome||''}});
 
-  var op=await api('ordens_producao'+qs+'&order=data.desc&limit=1000');
+  var op=await baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
   DB.ordensProd=volta(op,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     data:x.data,hora:x.hora,resp:x.responsavel||'',obs:x.observacao||'',
     previsto:Number(x.previsto)||0,real:Number(x.real_produzido)||0,
@@ -13657,7 +13790,7 @@ async function baixarDaNuvem(forcar){
        Era esse o ciclo: limpava a nuvem, o aparelho devolvia.
        Agora ela pede so a propria loja, como todas as outras consultas.
        ------------------------------------------------------------------ */
-    var us=await api('usuarios_sistema'+qs+'&order=nome.asc&limit=500');
+    var us=await baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome.asc&limit=500');
     if(us&&us.length){
       var locais=DB.usuarios||[];
       (us||[]).forEach(function(x){
@@ -13679,7 +13812,7 @@ async function baixarDaNuvem(forcar){
       situacao:meu[0].situacao,plano:meu[0].plano}:null;
   }catch(e){_quieto(e,'baixarDaNuvem')}
   try{
-    var cnx=await api('clientes_nexor'+qs+'&order=rede.asc&limit=500');
+    var cnx=await baixarTab('clientes_nexor', 'clientes_nexor'+qs+'&order=rede.asc&limit=500');
     if(cnx&&cnx.length)  /* so substitui a carteira se a nuvem realmente devolveu algo */
     DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
       responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
@@ -13688,13 +13821,13 @@ async function baixarDaNuvem(forcar){
       situacao:x.situacao||'ativo',inicio:x.inicio||'',obs:x.observacao||'',
       lojaId:x.loja_id||'',modulos:x.modulos||[],cobrancas:x.cobrancas||[]}});
   }catch(e){_quieto(e,'baixarDaNuvem')}
-  var csvw=await api('compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
+  var csvw=await baixarTab('compras_sem_vinculo', 'compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
   DB.comprasSemVinc=volta(csvw,function(x){return {id:x.ref_local||x.id,
     notaId:x.nota_id||'',notaNumero:x.nota_numero||'',fornecedor:x.fornecedor_nome||'',
     descricao:x.descricao||'',documento:x.documento||'',valor:Number(x.valor)||0,
     vencimento:x.vencimento||'',excluidoPor:x.excluido_por||'',excluidoEm:x.excluido_em||'',
     itens:(x.dados&&x.dados.itens)||[],lanc:(x.dados&&x.dados.lanc)||null}});
-  var nt=await api('notas_entrada'+qs+'&order=data.desc&limit=1000');
+  var nt=await baixarTab('notas_entrada', 'notas_entrada'+qs+'&order=data.desc&limit=1000');
   DB.notas=volta(nt,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     fornecedorId:mapaFo[x.fornecedor_id]||'',fornecedorNome:x.fornecedor_nome||'',
     data:x.data,hora:x.hora,valorMercadorias:Number(x.valor_mercadorias)||0,
@@ -13702,7 +13835,7 @@ async function baixarDaNuvem(forcar){
     pagamento:x.pagamento||{},itens:x.itens||[]}});
 
   /* ---------- OPERAÇÃO ---------- */
-  var cx=await api('caixas'+q+'&select=*,caixa_movimentos(*)&order=aberto_em.desc&limit=400');
+  var cx=await baixarTab('caixas', 'caixas'+q+'&select=*,caixa_movimentos(*)&order=aberto_em.desc&limit=400');
   var fechadosAqui={};
   (DB.caixas||[]).forEach(function(c){ if(c.fechadoEm)fechadosAqui[c.id]=c.fechadoEm; });
   DB.caixas=volta(cx,function(x){
@@ -13735,7 +13868,7 @@ async function baixarDaNuvem(forcar){
   var mapaEnt={};en.forEach(function(x){mapaEnt[x.id]=x.ref_local||x.id});
   var mapaPr={};rp.forEach(function(x){mapaPr[x.id]=x.ref_local||x.id});
 
-  var pd=await api('pedidos'+qJan+'&select=*,pedido_itens(*),pedido_pagamentos(*)&order=criado_em.desc&limit=3000');
+  var pd=await baixarTab('pedidos', 'pedidos'+qJan+'&select=*,pedido_itens(*),pedido_pagamentos(*)&order=criado_em.desc&limit=3000');
   DB.pedidos=volta(pd,function(x){return {id:x.ref_local||x.id,numero:x.numero,tipo:x.tipo,
     fase:x.fase,clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',
     entregadorId:mapaEnt[x.entregador_id]||'',caixaId:mapaCx[x.caixa_id]||'',
@@ -13755,7 +13888,7 @@ async function baixarDaNuvem(forcar){
   var mapaSuc={};sc.forEach(function(x){mapaSuc[x.id]=x.ref_local||x.id});
   var mapaPed={};pd.forEach(function(x){mapaPed[x.id]=x.ref_local||x.id});
 
-  var ac=await api('acertos'+qs+'&order=data.desc&limit=500');
+  var ac=await baixarTab('acertos', 'acertos'+qs+'&order=data.desc&limit=500');
   DB.acertos=volta(ac,function(x){return {id:x.ref_local||x.id,
     entregadorId:mapaEnt[x.entregador_id]||'',data:x.data,de:x.periodo_de,ate:x.periodo_ate,
     qtd:x.qtd||0,taxas:Number(x.taxas)||0,diaria:Number(x.diaria)||0,
@@ -13763,7 +13896,7 @@ async function baixarDaNuvem(forcar){
     vendas:Number(x.vendas)||0,forma:x.forma,contaId:mapaConta[x.conta_id]||'',
     pago:x.pago!==false,obs:x.observacao||''}});
 
-  var cp=await api('cupons'+qs);
+  var cp=await baixarTab('cupons', 'cupons'+qs);
   var mapaCp={};cp.forEach(function(x){mapaCp[x.id]=x.ref_local||x.id});
   DB.cupons=volta(cp,function(x){return {id:x.ref_local||x.id,codigo:x.codigo,tipo:x.tipo,
     valor:Number(x.valor)||0,tetoDesconto:Number(x.teto)||0,minimo:Number(x.minimo)||0,
@@ -13771,13 +13904,13 @@ async function baixarDaNuvem(forcar){
     quantidade:x.quantidade||0,limiteCliente:x.limite_cliente||0,
     canais:x.canais||[],formas:x.formas||[],ativo:x.ativo!==false}});
 
-  var cu=await api('cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
+  var cu=await baixarTab('cupom_usos', 'cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
   DB.cupomUsos=volta(cu,function(x){return {id:x.ref_local||x.id,cupomId:mapaCp[x.cupom_id]||'',
     clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',data:x.data,
     valor:Number(x.valor)||0,totalPedido:Number(x.total_pedido)||0,numero:x.numero,
     pedidoId:mapaPed[x.pedido_id]||''}});
 
-  var fm=await api('fiado_movimentos'+qs+'&order=data.desc&limit=2000');
+  var fm=await baixarTab('fiado_movimentos', 'fiado_movimentos'+qs+'&order=data.desc&limit=2000');
   DB.fiadoMov=volta(fm,function(x){return {id:x.ref_local||x.id,clienteId:mapaCli[x.cliente_id]||'',
     tipo:x.tipo,valor:Number(x.valor)||0,data:x.data,formaId:mapaFP[x.forma_id]||'',
     contaId:mapaConta[x.conta_id]||'',obs:x.observacao||'',pedidoId:mapaPed[x.pedido_id]||''}});
@@ -13791,6 +13924,7 @@ async function baixarDaNuvem(forcar){
     var pqT=(_falhou&&_falhou.message)||'erro';
     logNuvem('download interrompido em '+(ondeT||'?')+': '+pqT+
       ' — nada foi alterado neste aparelho',true);
+    registrarFalha('download',ondeT||'?',pqT,{situacao:'dados locais preservados'});
     statusNuvem('erro','download incompleto — seus dados locais foram preservados');
     avisoSinc((_falhou&&_falhou.rede)
       ? 'A internet caiu no meio da leitura da nuvem. Nada foi apagado aqui — o que você '+
@@ -13909,6 +14043,11 @@ async function baixarDaNuvem(forcar){
       }
     }
   }catch(e){_quieto(e,'carimboDownload')}
+  if(_FALHOU_BAIXA.length){
+    logNuvem('leitura parcial: '+_FALHOU_BAIXA.length+' tabela(s) não vieram ('+
+      _FALHOU_BAIXA.join(', ')+') — o restante carregou normalmente e o que '+
+      'estava neste aparelho foi mantido',true);
+  }
   logNuvem('download concluído — itens de categorias: '+antesCat+' -> '+depoisCat,
     depoisCat<antesCat);
 
@@ -13916,20 +14055,30 @@ async function baixarDaNuvem(forcar){
   return true;
 }
 /* aviso grande e fixo quando a sincronização faz algo que você precisa saber */
-function avisoSinc(msg){
-  try{
-    var el=document.getElementById('avisoSinc');
-    if(el)el.remove();
-    el=document.createElement('div');
-    el.id='avisoSinc';el.className='avisoGrav sinc';
-    el.innerHTML='<div><b>Aviso da sincronização</b><span>'+E(msg)+'</span></div>'+
-      '<button onclick="restaurarRespaldo()">Voltar a cópia local</button>'+
-      '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
-    barraAvisos().appendChild(el);
-  }catch(e){_quieto(e,'avisoSinc')}
+/* ==========================================================
+   O OPERADOR NAO E O SUPORTE TECNICO
+   Esta funcao mostrava uma faixa larga com o texto do erro do Postgres —
+   nome de tabela, tipo de coluna, "me mande esta mensagem que eu corrijo" —
+   inclusive na tela de login e no meio de um atendimento no PDV.
+   Agora ela REGISTRA no diagnostico tecnico e nao interrompe ninguem. O
+   indicador discreto do rodape ja informa o estado da nuvem.
+   Falha que realmente impede uma operacao usa avisoOperacao(), que fala em
+   portugues comum e nao cita banco de dados.
+   ========================================================== */
+function avisoSinc(msg,detalhe){
+  registrarFalha('sincronizacao','avisoSinc',msg,{detalhe:detalhe||'',situacao:'pendente'});
+  try{ if(CONEXAO!=='offline')estadoNuvem(NUVEM.ligada?'online':'offline'); }catch(e){}
+}
+/* mensagem curta, ligada a acao, sem termo tecnico */
+function avisoOperacao(msg){
+  try{ toast(msg); }catch(e){}
 }
 
-function ehUuid(v){return typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)}
+
+/* ehUuid REMOVIDA daqui: ja existe uma versao mais rigorosa la em cima, que
+   tambem recusa as strings "null", "undefined" e "NaN". Esta, por vir DEPOIS
+   no arquivo, sobrescrevia a outra — a mesma armadilha de funcao duplicada
+   que ja custou horas neste projeto. */
 /* mantida so por compatibilidade: tudo passa pelo estado unico */
 function statusNuvem(e,msg){
   if(e==='enviando')return estadoNuvem('sincronizando');
@@ -14583,7 +14732,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V33.0.0';
+var VERSAO='V34.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14705,6 +14854,7 @@ if(mid==='tecnico'&&iid==='backup')return telaBackup();
 if(mid==='tecnico'&&iid==='layout-menu')return telaLayoutMenu();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
 if(mid==='tecnico'&&iid==='financeiro-nexor')return telaFinanceiroNexor();
+if(mid==='tecnico'&&iid==='diagnostico-sistema')return telaDiagnosticoSistema();
 if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
 if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
 if(mid==='teste'&&iid==='reset-sistema')return telaReset();
@@ -23616,6 +23766,72 @@ async function salvarUnidade(){
     painelErro('Não consegui salvar a unidade.',detalheErro(e)); }
 }
 
+/* ==========================================================
+   CENTRAL DE DIAGNOSTICO — so o dono do Nexor
+   O erro tecnico sai da tela do caixa e vem para ca. Aqui aparece o que o
+   operador nunca deveria ler: tabela, codigo do banco, tentativa, empresa,
+   unidade e horario.
+   ========================================================== */
+var DG={filtro:'',area:''};
+function telaDiagnosticoSistema(){
+  if(!ehPlataforma())return telaRestrita('Diagnóstico do Sistema');
+  var L=DIAGNOSTICO.slice();
+  if(DG.area)L=L.filter(function(x){return x.area===DG.area});
+  if(DG.filtro){
+    var q=DG.filtro.toLowerCase();
+    L=L.filter(function(x){return (x.onde+' '+x.msg+' '+x.area).toLowerCase().indexOf(q)>=0});
+  }
+  var areas={};DIAGNOSTICO.forEach(function(x){areas[x.area]=(areas[x.area]||0)+1});
+  var pend=DIAGNOSTICO.filter(function(x){return (x.situacao||'').indexOf('pendente')>=0}).length;
+  $('content').innerHTML='<div class="ctWrap" style="max-width:none">'+
+   '<div class="ctTopo"><h1>Diagnóstico do Sistema</h1>'+
+    '<p>Falhas técnicas registradas neste aparelho. Esta tela é sua — o operador '+
+    'nunca vê nada disto.</p></div>'+
+   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;'+
+    'overflow:hidden;margin-bottom:12px">'+
+    '<div class="hpN"><span>Registros</span><b>'+DIAGNOSTICO.length+'</b></div>'+
+    '<div class="hpN"><span>Pendentes</span><b class="'+(pend?'vr':'')+'">'+pend+'</b></div>'+
+    '<div class="hpN"><span>Conexão</span><b>'+E(CONEXAO)+'</b></div>'+
+    '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
+   '</div>'+
+   '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'+
+    '<div class="f2" style="max-width:260px"><label>Buscar</label>'+
+     '<input value="'+E(DG.filtro)+'" placeholder="tabela, função ou mensagem" '+
+     'oninput="DG.filtro=this.value;clearTimeout(window._tdg);'+
+     'window._tdg=setTimeout(telaDiagnosticoSistema,300)"></div>'+
+    '<div class="f2"><label>Área</label>'+
+     '<select onchange="DG.area=this.value;telaDiagnosticoSistema()">'+
+      '<option value="">todas</option>'+
+      Object.keys(areas).map(function(a){
+        return '<option value="'+E(a)+'"'+(DG.area===a?' selected':'')+'>'+
+               E(a||'—')+' ('+areas[a]+')</option>';
+      }).join('')+'</select></div>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btnP2" onclick="copiarDiagnostico()">Copiar tudo</button>'+
+    '<button class="btnP2 rdB" onclick="DIAGNOSTICO=[];'+
+     'try{localStorage.removeItem(\'nexor_diag\')}catch(e){};telaDiagnosticoSistema()">Limpar</button>'+
+   '</div>'+
+   '<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
+    '<table class="fmTab"><thead><tr>'+
+     '<th style="width:80px">Hora</th><th style="width:110px">Área</th>'+
+     '<th style="width:170px">Onde</th><th>Mensagem</th>'+
+     '<th style="width:150px">Empresa</th><th style="width:120px">Unidade</th>'+
+     '<th style="width:130px">Usuário</th><th style="width:60px">Tent.</th>'+
+     '<th style="width:150px">Situação</th></tr></thead><tbody>'+
+    (L.length?L.map(function(x){
+      return '<tr><td>'+E(x.hora||'')+'</td><td>'+E(x.area||'—')+'</td>'+
+       '<td>'+E(x.onde||'—')+'</td><td><small>'+E(x.msg||'')+'</small></td>'+
+       '<td><small>'+E(String(x.loja||'—').slice(0,8))+'</small></td>'+
+       '<td><small>'+E(x.unidade||'—')+'</small></td>'+
+       '<td><small>'+E(x.usuario||'—')+'</small></td>'+
+       '<td style="text-align:center">'+(x.tentativa||1)+'</td>'+
+       '<td><span class="pill '+((x.situacao||'').indexOf('pendente')>=0?'rd':'')+'">'+
+        E(x.situacao||'—')+'</span></td></tr>';
+    }).join(''):'<tr><td colspan="9" class="fmVazio">Nenhuma falha registrada. '+
+      'É o que se espera.</td></tr>')+
+   '</tbody></table></div></div>';
+  rodape(DIAGNOSTICO.length+' registro(s) de diagnóstico');
+}
 /* ---------- 5. ACESSOS ---------- */
 var ACS={edit:null};
 function formEditarAcesso(x){
