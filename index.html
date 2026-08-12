@@ -12133,7 +12133,7 @@ async function restaurarRespaldo(){
 var _COLS_SEM_CARIMBO={_hash:1,_uuid:1,_snap:1,_contrato:1,lojaAtual:1,_sujo:1,_snapOk:1};
 function carimbarOrigem(){
   if(!NUVEM.loja)return 0;                 /* sem sessao nao ha o que carimbar */
-  var suc=null; try{suc=lojaAtualId()}catch(e){}
+  var suc=null; try{suc=lojaAtualId()}catch(e){_quieto(e,'carimbarOrigem')}
   var n=0;
   for(var col in DB){
     if(_COLS_SEM_CARIMBO[col])continue;
@@ -12240,8 +12240,8 @@ function registrarFalha(area,onde,msg,extra){
       extra:extra||{}
     });
     if(DIAGNOSTICO.length>300)DIAGNOSTICO.pop();
-    try{localStorage.setItem('nexor_diag',JSON.stringify(DIAGNOSTICO.slice(0,80)));}catch(e){}
-  }catch(x){}
+    try{localStorage.setItem('nexor_diag',JSON.stringify(DIAGNOSTICO.slice(0,80)));}catch(e){/* nao registra: e o proprio registrador */}
+  }catch(x){/* nao registra: e o proprio registrador */}
 }
 try{ DIAGNOSTICO=JSON.parse(localStorage.getItem('nexor_diag')||'[]'); }catch(e){ DIAGNOSTICO=[]; }
 
@@ -14033,7 +14033,7 @@ async function baixarDaNuvem(forcar){
   /* o que veio da nuvem pertence a loja de onde veio: carimba antes de
      qualquer gravacao, senao viraria "sem origem" no proximo envio */
   try{
-    var _l=NUVEM.loja, _s=null; try{_s=lojaAtualId()}catch(e){}
+    var _l=NUVEM.loja, _s=null; try{_s=lojaAtualId()}catch(e){_quieto(e,'baixarDaNuvem')}
     for(var _c in DB){
       if(_COLS_SEM_CARIMBO[_c])continue;
       var _li=DB[_c]; if(!Array.isArray(_li))continue;
@@ -14067,11 +14067,11 @@ async function baixarDaNuvem(forcar){
    ========================================================== */
 function avisoSinc(msg,detalhe){
   registrarFalha('sincronizacao','avisoSinc',msg,{detalhe:detalhe||'',situacao:'pendente'});
-  try{ if(CONEXAO!=='offline')estadoNuvem(NUVEM.ligada?'online':'offline'); }catch(e){}
+  try{ if(CONEXAO!=='offline')estadoNuvem(NUVEM.ligada?'online':'offline'); }catch(e){_quieto(e,'avisoSinc')}
 }
 /* mensagem curta, ligada a acao, sem termo tecnico */
 function avisoOperacao(msg){
-  try{ toast(msg); }catch(e){}
+  try{ toast(msg); }catch(e){_quieto(e,'avisoOperacao')}
 }
 
 
@@ -23809,7 +23809,7 @@ function telaDiagnosticoSistema(){
     '<div style="flex:1"></div>'+
     '<button class="btnP2" onclick="copiarDiagnostico()">Copiar tudo</button>'+
     '<button class="btnP2 rdB" onclick="DIAGNOSTICO=[];'+
-     'try{localStorage.removeItem(\'nexor_diag\')}catch(e){};telaDiagnosticoSistema()">Limpar</button>'+
+     'try{localStorage.removeItem(\'nexor_diag\')}catch(e){_quieto(e,'telaDiagnosticoSistema')};telaDiagnosticoSistema()">Limpar</button>'+
    '</div>'+
    '<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
     '<table class="fmTab"><thead><tr>'+
