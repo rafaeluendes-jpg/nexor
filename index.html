@@ -14777,7 +14777,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V35.0.0';
+var VERSAO='V35.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23817,7 +23817,14 @@ function formUnidade(lojaId,sucId){
     '<div class="acTit">Acesso desta unidade</div>'+
     '<p class="hint" style="margin:0 0 10px">Opcional. Cria um login de gerente já preso a esta unidade.</p>'+
     '<div class="grid2">'+cmp('E-mail (login)','unLogin','','')+cmp('Senha inicial','unSenha','','mínimo 6')+
-    '</div></div>')+
+     '<div class="fld2"><label>Papel</label><select id="unCargo">'+
+      '<option value="admin">Administra a própria loja</option>'+
+      '<option value="gerente">Só opera — não cadastra usuários</option>'+
+     '</select></div>'+
+    '</div>'+
+    '<p class="hint" style="margin:8px 0 0">Administrando a própria loja, ela cadastra '+
+    'caixa, produção e o resto da equipe sem depender da matriz — sempre dentro do que '+
+    'a matriz liberou, e sem enxergar outra unidade.</p></div>')+
    '<div style="max-width:900px;margin:14px 0 40px;display:flex;gap:8px">'+
     '<button class="btnP2 ok" onclick="salvarUnidade()">Salvar unidade</button>'+
     '<button class="btnP2" onclick="INS.und=null;telaInstalacao()">Cancelar</button>'+
@@ -23842,8 +23849,18 @@ async function salvarUnidade(){
     if(login&&!c.suc){
       if(senha.length<6){painelErro('Unidade salva, mas a senha do acesso precisa de 6 caracteres.');}
       else{
+        /* ==========================================================
+           A LOJA NASCE ADMINISTRANDO A SI MESMA
+           Antes o acesso criado junto com a unidade nascia 'gerente', e
+           gerente nao cria usuario (regra de RBAC). Na pratica a loja
+           recebia o login e nao conseguia cadastrar o proprio caixa nem o
+           pessoal da producao — tinha de pedir para a matriz cada vez.
+           Quem opera a loja administra a equipe da loja. Continua limitado
+           ao que a matriz liberou para ela, e continua sem enxergar
+           qualquer outra unidade.
+           ========================================================== */
         var er=await criarAcesso(c.loja,{nome:d.nome,email:login,senha:senha,
-          cargo:'gerente',sucursal_ref:ref});
+          cargo:vlr('unCargo')||'admin',sucursal_ref:ref});
         if(er)painelErro('Unidade salva, mas o acesso não foi criado.',er);
       }
     }
@@ -40102,6 +40119,7 @@ function abaPermUsr(u){
     '<button class="btnMini" onclick="aplicarModelo(\'franqueado\')">modelo franqueado</button>'+
     '<button class="btnMini" onclick="aplicarModelo(\'gerente\')">modelo gerente</button>'+
     '<button class="btnMini" onclick="aplicarModelo(\'caixa\')">modelo caixa</button>'+
+    '<button class="btnMini" onclick="aplicarModelo(\'producao\')">modelo produção</button>'+
    '</div>'+
    '<div class="permLista">'+
    MOD.filter(function(m){return m.id!=='teste'}).map(function(m){
@@ -40234,6 +40252,8 @@ var MODELOS={
       de motivos: quem decide a lista e a franqueadora */
    'relatorios/cancelamentos'],
  caixa:['pdv/pdv','pdv/pedidos-online','clientes/cadastro-clientes'],
+ producao:['estoque/producao','estoque/ficha-tecnica','estoque/posicao-estoque',
+   'estoque/movimentacao-estoque','estoque/contagem-estoque','estoque/ingredientes-insumos'],
  gerente:['pdv/pdv','pdv/pedidos-online','financeira/frente-caixa',
    'relatorios/faturamento-dia','relatorios/itens-vendidos','relatorios/cancelamentos',
    'estoque/posicao-estoque','estoque/contagem-estoque','clientes/cadastro-clientes',
@@ -40355,7 +40375,9 @@ async function criarAcessoNoBanco(login,senha,nome){
     method:'POST',
     headers:{'apikey':NUVEM.chave,'Authorization':'Bearer '+NUVEM.token,
              'Content-Type':'application/json'},
-    body:JSON.stringify({email:login,senha:senha,nome:nome,cargo:'gerente'})});
+    /* admin da propria loja: cadastra a equipe dela, dentro do que a matriz
+       liberou. Ver comentario em salvarUnidade. */
+    body:JSON.stringify({email:login,senha:senha,nome:nome,cargo:'admin'})});
   var d=null;
   try{ d=await r.json(); }catch(e){_quieto(e,'criarAcessoNoBanco')}
   if(!r.ok)return {erro:(d&&d.erro)||('o servidor recusou ('+r.status+')')};
