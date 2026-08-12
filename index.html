@@ -13207,6 +13207,20 @@ async function baixarDaNuvem(forcar){
   await tokenAtual();
   var l=NUVEM.loja;
   var q='?loja_id=eq.'+l;          /* sem select: cada consulta define o dela */
+  /* ==========================================================
+     P9 — JANELA DE TEMPO NAS TABELAS QUE CRESCEM PARA SEMPRE
+     Medido em teste de carga: baixar tudo levava 1,2 s com 6 sessoes,
+     15 s com 20 e 49 s com 50 — e isso com o banco praticamente vazio.
+     Com um ano de operacao o login ficaria inviavel.
+     Pedidos, movimentacoes, financeiro, cancelamentos e cupons passam a vir
+     dos ultimos 90 dias. Cadastro (produto, insumo, cliente, ficha) continua
+     inteiro, porque e pequeno e a tela precisa dele todo.
+     Quem precisar de periodo maior usa o relatorio, que consulta a nuvem.
+     ========================================================== */
+  var _dJanela=new Date(); _dJanela.setDate(_dJanela.getDate()-(DIAS_JANELA||90));
+  var _desde=_dJanela.toISOString().slice(0,10);
+  var qJan=q+'&data_venda=gte.'+_desde;      /* pedidos */
+  var qJanD=q+'&data=gte.'+_desde;           /* movimentacoes, cupons */
   var qs=q+'&select=*';            /* consultas simples */
   /* se a nuvem responder vazio mas houver dados aqui, mantém os daqui */
   /* o filho sobe como "idDoPai_idDoFilho"; na volta devolve o id original,
@@ -13252,7 +13266,7 @@ async function baixarDaNuvem(forcar){
   DB.entregadores=volta(en,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
     pix:x.pix,diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false,
     taxas:(x.entregador_taxas||[]).map(function(t){return {cidade:t.cidade,valor:Number(t.valor)||0}})}});
-  var lf=await api('lancamentos_financeiros'+qs+'&order=vencimento.desc');
+  var lf=await api('lancamentos_financeiros'+q+'&select=*&vencimento=gte.'+_desde+'&order=vencimento.desc&limit=3000');
   var mapaSub={};(cf||[]).forEach(function(c2){(c2.subcategorias_financeiras||[]).forEach(function(s){
     mapaSub[s.id]=s.ref_local||s.id})});
   var mapaFP={};fp.forEach(function(x){mapaFP[x.id]=x.ref_local||x.id});
@@ -13505,14 +13519,14 @@ async function baixarDaNuvem(forcar){
   DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ini:x.hora_inicio||'',fim:x.hora_fim||'',ativo:x.ativo!==false,ordem:x.ordem||0}});
 
-  var cnc=await api('cancelamentos'+qs+'&order=criado_em.desc&limit=2000');
+  var cnc=await api('cancelamentos'+q+'&select=*&criado_em=gte.'+_desde+'&order=criado_em.desc&limit=2000');
   DB.cancelamentos=volta(cnc,function(x){return {id:x.ref_local||x.id,
     pedidoId:x.pedido_ref||'',numero:x.pedido_numero||0,valor:Number(x.valor)||0,
     data:x.data||'',hora:x.hora||'',motivoId:mapaMc[x.motivo_id]||'',
     motivo:x.motivo_nome||'',obs:x.observacao||'',operadorId:x.operador_id||'',
     operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||''}});
 
-  var me=await api('movimentacoes_estoque'+qs+'&order=data.desc&limit=3000');
+  var me=await api('movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
   DB.movEst=volta(me,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     motivoId:mapaMt[x.motivo_id]||'',identificacao:x.identificacao||'',obs:x.observacao||'',
     origem:x.origem||'',linhas:x.linhas||[]}});
@@ -13654,7 +13668,7 @@ async function baixarDaNuvem(forcar){
   var mapaEnt={};en.forEach(function(x){mapaEnt[x.id]=x.ref_local||x.id});
   var mapaPr={};rp.forEach(function(x){mapaPr[x.id]=x.ref_local||x.id});
 
-  var pd=await api('pedidos'+q+'&select=*,pedido_itens(*),pedido_pagamentos(*)&order=criado_em.desc&limit=3000');
+  var pd=await api('pedidos'+qJan+'&select=*,pedido_itens(*),pedido_pagamentos(*)&order=criado_em.desc&limit=3000');
   DB.pedidos=volta(pd,function(x){return {id:x.ref_local||x.id,numero:x.numero,tipo:x.tipo,
     fase:x.fase,clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',
     entregadorId:mapaEnt[x.entregador_id]||'',caixaId:mapaCx[x.caixa_id]||'',
@@ -13690,7 +13704,7 @@ async function baixarDaNuvem(forcar){
     quantidade:x.quantidade||0,limiteCliente:x.limite_cliente||0,
     canais:x.canais||[],formas:x.formas||[],ativo:x.ativo!==false}});
 
-  var cu=await api('cupom_usos'+qs+'&order=data.desc&limit=2000');
+  var cu=await api('cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
   DB.cupomUsos=volta(cu,function(x){return {id:x.ref_local||x.id,cupomId:mapaCp[x.cupom_id]||'',
     clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',data:x.data,
     valor:Number(x.valor)||0,totalPedido:Number(x.total_pedido)||0,numero:x.numero,
@@ -13852,7 +13866,19 @@ var S={mod:null,it:null,aberto:null,cat:'todos',buscaCat:'',buscaProd:''};
 var $=function(i){return document.getElementById(i)};
 function M(id){return MOD.find(function(x){return x.id===id})||null}
 function IT(m,id){return m?(m.it.find(function(x){return x.id===id})||null):null}
-function E(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+/* ==========================================================
+   P14 — ESCAPE COMPLETO
+   A versao anterior trocava apenas  &  <  e  "  — faltavam  >  e a ASPA
+   SIMPLES. O sistema monta dezenas de atributos assim:
+       onclick="abrir('+E(x.id)+')"
+   Um valor contendo aspa simples fechava a string e o que viesse depois
+   era executado como codigo. Um cliente chamado  O'Brien');alert(1);//
+   ja seria suficiente.
+   Agora escapa os cinco caracteres que importam em HTML.
+   ========================================================== */
+function E(t){return String(t==null?'':t)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function money(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function toast(m){var o=$('ts');if(o)o.remove();var d=document.createElement('div');
 d.className='toast';d.id='ts';d.textContent=m;document.body.appendChild(d);
@@ -14476,7 +14502,8 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var VERSAO='V31.1.0';
+var DIAS_JANELA=90;   /* dias de historico baixados no login */
+var VERSAO='V32.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16909,6 +16936,21 @@ function miniFoto(p,i,raio,alturaCheia){
     ';display:grid;place-items:center"><span style="font-size:15px;font-weight:800;'+
     'color:rgba(255,255,255,.9)">'+E(ini)+'</span></div>';
 }
+/* ==========================================================
+   P14 — COR VINDA DO CADASTRO NAO ENTRA CRUA EM style=""
+   As cores do totem e do cardapio sao digitadas pelo cliente. Indo direto
+   para o atributo style, um valor como  #fff"><script>...  fecharia o
+   atributo e injetaria HTML. Passam a ser validadas: so cor hexadecimal,
+   rgb/rgba ou nome simples; qualquer outra coisa vira a cor padrao.
+   ========================================================== */
+function corSegura(v,padrao){
+  v=String(v==null?'':v).trim();
+  if(/^#[0-9a-fA-F]{3,8}$/.test(v))return v;
+  if(/^rgba?\([\d\s.,%]+\)$/.test(v))return v;
+  if(/^[a-zA-Z]{3,20}$/.test(v))return v;
+  if(/^var\(--[\w-]+\)$/.test(v))return v;
+  return padrao||'#000000';
+}
 function pintarTotem(){
   var el=document.getElementById('tmTela');
   if(!el)return;
@@ -16918,7 +16960,7 @@ function pintarTotem(){
   if(TM.aba==='descanso'){
     var F=fundoTotem();
     var claro=(t.fundoTipo==='foto'&&t.textoEscuro);
-    el.innerHTML='<div style="flex:1;'+F.css+';color:'+F.texto+';display:flex;'+
+    el.innerHTML='<div style="flex:1;'+F.css+';color:'+corSegura(F.texto,'#222')+';display:flex;'+
      'flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px">'+
      (t.descanso==='produtos'
       ?'<div style="display:flex;gap:6px;margin-bottom:12px">'+ps.slice(0,3).map(function(p,i){
@@ -17442,7 +17484,7 @@ function pintarCheio(){
   if(TMC.passo===1){
     var F=fundoTotem();
     var claro=(t.fundoTipo==='foto'&&t.textoEscuro);
-    el.innerHTML='<div class="tcAtr'+(claro?' claro':'')+'" style="'+F.css+';color:'+F.texto+
+    el.innerHTML='<div class="tcAtr'+(claro?' claro':'')+'" style="'+F.css+';color:'+corSegura(F.texto,'#222')+
      '" onclick="irTotem(2)">'+
      (t.descanso==='produtos'
       ?'<div class="tcGira">'+ps.slice(0,4).map(function(p,i){
@@ -20312,12 +20354,13 @@ async function enviarVendaAtomica(ped,mov){
         motivo_id:mov.motivoId,identificacao:mov.identificacao,
         observacao:mov.obs||'',origem:'venda',linhas:mov.linhas||[],
         sucursal_id:suc}]:[],
-      saldos:(mov&&mov.linhas?mov.linhas:[]).map(function(l){
-        var e=(DB.estoqueUn||[]).find(function(x){
-          return x.itemRef===l.insumoId&&x.sucursalRef===suc;});
-        return e?{item_ref:l.insumoId,estoque:e.estoque,custo_medio:e.custoMedio,
-                  tipo:e.tipo||'insumo',ref_local:e.id,sucursal_id:suc}:null;
-      }).filter(Boolean)
+      sucursal_ref:suc
+      /* O SALDO NAO E MAIS ENVIADO.
+         Mandar o saldo absoluto calculado aqui era o defeito: dois caixas
+         liam 10, um vendia 2 e o outro 3, e gravavam 8 e 7 — o ultimo
+         sobrescrevia o primeiro e sumiam 2 unidades. Agora vai so a
+         QUANTIDADE, dentro das linhas da movimentacao, e o banco faz
+         estoque = estoque - qtd com a linha travada. */
     };
     var r=await api('rpc/venda_registrar','POST',{p:pacote});
     logNuvem('venda #'+ped.numero+' gravada inteira na nuvem'+
@@ -21750,6 +21793,7 @@ function telaCatFin(){
   rodape((DB.catfin||[]).length+' categorias');
 }
 function colunaCatFin(tipo,titulo,desc){
+  titulo=E(titulo);desc=E(desc);   /* P14: nunca entram crus no HTML */
   var pastas=(DB.catfin||[]).filter(function(p){return tipoCat(p)===tipo});
   var n=pastas.reduce(function(a,p){return a+((p.itens||[]).length)},0);
   return '<div class="catCol '+tipo+'">'+
@@ -24581,6 +24625,7 @@ function telaBackup(){
 var CT={aba:'pecas'};
 function ctAba(a){CT.aba=a;telaCentralTecnica();}
 function ctCard(titulo,sub,corpo){
+  titulo=E(titulo);sub=E(sub);     /* P14 */
   return '<div class="ctCard"><div class="ctCardH"><b>'+titulo+'</b>'+
    (sub?'<span>'+sub+'</span>':'')+'</div><div class="ctCardB">'+corpo+'</div></div>';
 }
@@ -29799,6 +29844,7 @@ function blocoRanking(){
     function(x){return x.m.origem==='venda'});
 
   function painel(titulo,icone,lista,rot){
+  titulo=E(titulo);                /* P14 */
     var tot=lista.reduce(function(a,x){return a+x.d.q},0);
     return '<div class="hpCard">'+
      '<div class="hpH">'+sv(icone,14)+' '+titulo+'</div>'+
@@ -29892,6 +29938,7 @@ function telaReset(){
       ['Clientes',(DB.clientes||[]).length]]}
   ];
   function opcao(cor,ic,titulo,sub,corpo,botao,acao,perigo){
+  titulo=E(titulo);sub=E(sub);     /* P14 */
     return '<div class="rsCard'+(perigo?' rsPerigo':'')+'">'+
      '<div class="rsH"><div class="rsIc" style="background:'+cor[0]+';color:'+cor[1]+'">'+sv(ic,16)+'</div>'+
       '<div><b>'+titulo+'</b><span>'+sub+'</span></div></div>'+
