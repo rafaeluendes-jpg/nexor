@@ -14732,7 +14732,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V34.0.0';
+var VERSAO='V34.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23809,7 +23809,7 @@ function telaDiagnosticoSistema(){
     '<div style="flex:1"></div>'+
     '<button class="btnP2" onclick="copiarDiagnostico()">Copiar tudo</button>'+
     '<button class="btnP2 rdB" onclick="DIAGNOSTICO=[];'+
-     'try{localStorage.removeItem(\'nexor_diag\')}catch(e){_quieto(e,'telaDiagnosticoSistema')};telaDiagnosticoSistema()">Limpar</button>'+
+     'try{localStorage.removeItem(\'nexor_diag\')}catch(e){};telaDiagnosticoSistema()">Limpar</button>'+
    '</div>'+
    '<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
     '<table class="fmTab"><thead><tr>'+
