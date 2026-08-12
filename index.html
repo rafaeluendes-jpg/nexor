@@ -3851,6 +3851,51 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 /* ---- arvore por empresa em Usuarios e Permissoes ---- */
 /* barra de unidades na tela de permissoes */
 .permBarra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:900px;margin-bottom:10px}
+/* ---------- Liberação por Unidade ---------- */
+.lbGrade2{display:grid;grid-template-columns:238px 1fr;gap:14px;align-items:start}
+.lbLado{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  position:sticky;top:0}
+.lbLadoT{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--ink-3);
+  padding:11px 15px 8px;text-transform:uppercase;border-bottom:1px solid var(--line-2)}
+.lbLadoR{max-height:calc(100vh - 300px);overflow-y:auto;padding:5px 0}
+.lbCad{display:flex;align-items:center;gap:9px;padding:8px 15px;cursor:pointer;border:0;
+  background:none;width:100%;text-align:left;font-family:inherit;font-size:13px;
+  color:var(--ink);border-left:3px solid transparent}
+.lbCad:hover{background:var(--alt)}
+.lbCad.on{background:var(--acc-soft);border-left-color:var(--acc);font-weight:600}
+.lbCad svg{flex:none;opacity:.55}
+.lbCadN{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbCadQ{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;flex:none}
+.lbCadR{font-size:10px;background:var(--blue-soft);color:var(--blue);padding:1px 6px;
+  border-radius:20px;font-weight:700;flex:none}
+.lbCorpo{min-width:0}
+.lbBarra{display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap}
+.lbBusca{flex:1;min-width:210px;position:relative}
+.lbBusca input{width:100%;height:34px;border:1px solid var(--line);border-radius:var(--r-s);
+  padding:0 12px 0 32px;font-size:13.5px;font-family:inherit;background:#fff;color:var(--ink)}
+.lbBusca input:focus{outline:none;border-color:var(--acc)}
+.lbBusca svg{position:absolute;left:10px;top:10px;opacity:.4;pointer-events:none}
+.lbSegm{display:flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;
+  background:#fff;flex:none}
+.lbSegm button{border:0;background:none;padding:7px 12px;font-size:12.5px;cursor:pointer;
+  font-family:inherit;color:var(--ink-2);border-right:1px solid var(--line)}
+.lbSegm button:last-child{border-right:0}
+.lbSegm button:hover{background:var(--alt)}
+.lbSegm button.on{background:var(--deep);color:#fff;font-weight:600}
+.lbSegm button b{font-variant-numeric:tabular-nums;opacity:.75;font-weight:600}
+.lbTabW{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lbLote{position:sticky;bottom:0;background:var(--deep);color:#fff;padding:11px 16px;
+  display:flex;align-items:center;gap:10px;border-radius:var(--r);margin-top:12px;
+  box-shadow:0 -4px 14px rgba(31,42,36,.13);z-index:3}
+.lbLote b{font-size:13.5px}
+.lbLote .btnP2{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.32);color:#fff}
+.lbLote .btnP2:hover{background:rgba(255,255,255,.24)}
+.lbLote .btnP2.ok{background:#fff;color:var(--deep);border-color:#fff}
+@media(max-width:900px){
+  .lbGrade2{grid-template-columns:1fr}
+  .lbLado{position:static}
+  .lbLadoR{max-height:190px}
+}
 .linhaPerm{display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:7px 10px;border-bottom:1px solid var(--line-2);font-size:12.5px}
 .linhaPerm:last-child{border-bottom:0}
@@ -14732,7 +14777,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V34.1.0';
+var VERSAO='V35.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16678,7 +16723,24 @@ function filtrarCadastroDaUnidade(){
   if(n)logNuvem(n+' item(ns) de cadastro não liberados para '+sucNome(suc)+' ficaram de fora');
   return n;
 }
-var LB={col:'insumos',busca:'',sel:{},grupo:''};
+/* ==========================================================
+   LIBERAÇÃO POR UNIDADE — reescrita
+   A versão anterior punha os 19 cadastros como abas horizontais: elas
+   embrulhavam em três linhas, o número colava no nome ("Ingredientes250") e
+   o aviso de cinco linhas ocupava metade da tela antes de qualquer conteúdo.
+   Havia ainda dois campos de busca diferentes na mesma tela, e "todas as 2
+   unidades" repetido 250 vezes — informação que se repete não informa nada.
+
+   Agora: coluna lateral com os cadastros (o mesmo desenho de Usuários e
+   Permissões, que a pessoa já conhece), uma busca só, filtro para achar o que
+   está restrito entre centenas, e a barra de ação em lote aparecendo apenas
+   quando há seleção.
+   ========================================================== */
+var LB={col:'insumos',busca:'',sel:{},grupo:'',filtro:'todos'};
+
+function libRestritos(col){
+  return (DB[col]||[]).filter(function(x){return x.sucursais&&x.sucursais.length}).length;
+}
 function telaLiberacao(){
   if(!ehMatriz()){
     $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
@@ -16688,74 +16750,99 @@ function telaLiberacao(){
   }
   var sucs=sucAtivas();
   var def=(CADASTROS_LIB.find(function(c){return c.col===LB.col})||CADASTROS_LIB[0]);
-  var lista=(DB[LB.col]||[]).slice();
+  var todos=(DB[LB.col]||[]).slice();
+  var restritos=libRestritos(LB.col);
+
+  var lista=todos.slice();
+  if(LB.filtro==='restritos')
+    lista=lista.filter(function(x){return x.sucursais&&x.sucursais.length});
+  else if(LB.filtro==='todas')
+    lista=lista.filter(function(x){return !(x.sucursais&&x.sucursais.length)});
   var q=(LB.busca||'').toLowerCase();
   if(q)lista=lista.filter(function(x){
     return nomeDoCad(x,LB.col).toLowerCase().indexOf(q)>=0;});
   lista.sort(function(a,b){
     return nomeDoCad(a,LB.col).localeCompare(nomeDoCad(b,LB.col));});
-  var restritos=(DB[LB.col]||[]).filter(function(x){return x.sucursais&&x.sucursais.length}).length;
+
   var selN=Object.keys(LB.sel).filter(function(k){return LB.sel[k]}).length;
+  var nomeMatriz=sucNome((baseSuc().find(function(z){return z.matriz})||{}).id);
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo"><div><h1>Liberação por Unidade</h1>'+
-   '<p>O cadastro é feito uma vez na matriz e vale para a rede inteira. Aqui você '+
-   'restringe o que <b>não</b> deve chegar em alguma unidade.</p></div>'+
+   '<p>O cadastro é feito uma vez na matriz. Aqui você escolhe o que '+
+   '<b>não</b> chega em alguma unidade — o estoque nunca vai junto.</p></div>'+
    '<button class="infoBt" onclick="explicaLiberacao()">'+sv('help',15)+'</button></div>'+
 
-   '<div class="lbAviso">'+sv('nike',15)+
-    '<div>Item <b>sem marcação aparece em todas as unidades</b>. '+
-    (restritos?('Hoje '+restritos+' item(ns) deste cadastro estão restritos.')
-             :'Nenhum item deste cadastro está restrito — todos chegam em todas.')+
-    '<br><b>A matriz enxerga tudo, sempre</b> — e uma unidade nunca vê o cadastro '+
-    'de outra.</div></div>'+
+   '<div class="lbGrade2">'+
 
-   '<div class="lbAbas">'+CADASTROS_LIB.map(function(c){
-     var qt=(DB[c.col]||[]).length;
-     return '<button class="lbAba'+(LB.col===c.col?' on':'')+'" '+
-      'onclick="LB.col=\''+c.col+'\';LB.sel={};telaLiberacao()">'+
-      sv(c.ic,14)+' '+E(c.n)+'<span>'+qt+'</span></button>';
-   }).join('')+'</div>'+
+    /* ---------- coluna dos cadastros ---------- */
+    '<div class="lbLado"><div class="lbLadoT">Cadastros</div><div class="lbLadoR">'+
+    CADASTROS_LIB.map(function(c){
+      var qt=(DB[c.col]||[]).length, rs=libRestritos(c.col);
+      return '<button class="lbCad'+(LB.col===c.col?' on':'')+'" '+
+       'onclick="LB.col=\''+c.col+'\';LB.sel={};LB.busca=\'\';LB.filtro=\'todos\';telaLiberacao()">'+
+       sv(c.ic,14)+'<span class="lbCadN">'+E(c.n)+'</span>'+
+       (rs?'<span class="lbCadR">'+rs+'</span>':'')+
+       '<span class="lbCadQ">'+qt+'</span></button>';
+    }).join('')+'</div></div>'+
 
-   '<div class="filtroCard">'+
-    '<div class="fl" style="flex:1"><label>Buscar</label>'+
-     '<input id="lbQ" value="'+E(LB.busca)+'" placeholder="nome do item" '+
-     'oninput="LB.busca=this.value;clearTimeout(window._lbT);'+
-     'window._lbT=setTimeout(telaLiberacao,350)"></div>'+
-    '<div class="lbSel">'+
-     (selN?'<b>'+selN+' selecionado(s)</b>'+
+    /* ---------- lista de itens ---------- */
+    '<div class="lbCorpo">'+
+     '<div class="lbBarra">'+
+      '<div class="lbBusca">'+sv('search',14)+
+       '<input id="lbQ" value="'+E(LB.busca)+'" placeholder="Buscar entre '+
+       todos.length+' '+E(def.n.toLowerCase())+'" '+
+       'oninput="LB.busca=this.value;clearTimeout(window._lbT);'+
+       'window._lbT=setTimeout(telaLiberacao,300)"></div>'+
+      '<div class="lbSegm">'+
+       ['todos','restritos','todas'].map(function(f){
+         var rot=f==='todos'?'Todos':(f==='restritos'?'Restritos':'Em todas');
+         var n=f==='todos'?todos.length:(f==='restritos'?restritos:todos.length-restritos);
+         return '<button class="'+(LB.filtro===f?'on':'')+'" '+
+          'onclick="LB.filtro=\''+f+'\';telaLiberacao()">'+rot+
+          ' <b>'+n+'</b></button>';
+       }).join('')+'</div>'+
+      (lista.length?'<button class="btnP2" onclick="marcarTodosLib()">Selecionar tudo</button>':'')+
+     '</div>'+
+
+     (lista.length
+      ?'<div class="lbTabW"><table class="pTable"><thead><tr>'+
+       '<th style="width:36px"></th><th>Item</th>'+
+       '<th style="width:300px">Quem enxerga</th>'+
+       '<th style="width:52px"></th></tr></thead><tbody>'+
+       lista.map(function(x){
+         var l=x.sucursais||[];
+         return '<tr>'+
+          '<td><label class="flagBox"><input type="checkbox" '+(LB.sel[x.id]?'checked':'')+
+           ' onchange="LB.sel[\''+x.id+'\']=this.checked;semPular(telaLiberacao)"></label></td>'+
+          '<td><b>'+E(nomeDoCad(x,LB.col))+'</b></td>'+
+          '<td>'+(l.length
+            ?'<div class="lbTags"><span class="lbTag mtz">'+E(nomeMatriz)+'</span>'+
+              l.filter(function(id){return !ehSucMatriz(id)}).map(function(id){
+                return '<span class="lbTag">'+E(sucNome(id))+'</span>';}).join('')+'</div>'
+            :'<span class="lbTodas">todas as unidades</span>')+'</td>'+
+          '<td><button class="rBtn" onclick="editarLiberacao(\''+x.id+'\')" '+
+           'title="Definir unidades">'+sv('edit',12)+'</button></td>'+
+         '</tr>';
+       }).join('')+'</tbody></table></div>'
+      :'<div class="entVazio"><b>'+
+        (LB.filtro==='restritos'
+          ?'Nenhum item restrito'
+          :(q?'Nada encontrado':'Nenhum '+E(def.n.toLowerCase())+' cadastrado'))+
+        '</b><span>'+
+        (LB.filtro==='restritos'
+          ?'Todos os itens deste cadastro chegam em todas as unidades.'
+          :(q?'Tente outro nome.':'Cadastre primeiro na tela do módulo.'))+
+        '</span></div>')+
+
+     (selN?'<div class="lbLote">'+
+       '<b>'+selN+' item(ns) selecionado(s)</b><div style="flex:1"></div>'+
        '<button class="btnP2" onclick="LB.sel={};telaLiberacao()">Limpar</button>'+
-       '<button class="btnP2 ok" onclick="liberarEmLote()">Definir unidades</button>'
-      :'<button class="btnP2" onclick="marcarTodosLib()">Selecionar todos</button>')+
+       '<button class="btnP2 ok" onclick="liberarEmLote()">Definir unidades</button>'+
+      '</div>':'')+
     '</div>'+
-   '</div>'+
-
-   '<div class="pnl2"><div class="pnl2H">'+E(def.n)+
-    ' <span class="cnt2">'+lista.length+'</span></div>'+
-   '<div class="pnl2B" style="padding:0">'+
-   (lista.length?'<table class="pTable"><thead><tr>'+
-    '<th style="width:34px"></th><th>Item</th>'+
-    '<th>Unidades que enxergam</th>'+
-    '<th style="width:60px"></th></tr></thead><tbody>'+
-    lista.map(function(x){
-      var l=x.sucursais||[];
-      return '<tr>'+
-       '<td><label class="flagBox"><input type="checkbox" '+(LB.sel[x.id]?'checked':'')+
-        ' onchange="LB.sel[\''+x.id+'\']=this.checked;telaLiberacao()"></label></td>'+
-       '<td><b>'+E(nomeDoCad(x,LB.col))+'</b></td>'+
-       '<td>'+(l.length
-         ?'<div class="lbTags"><span class="lbTag mtz">'+
-           E(sucNome((baseSuc().find(function(z){return z.matriz})||{}).id))+'</span>'+
-           l.filter(function(id){return !ehSucMatriz(id)}).map(function(id){
-            return '<span class="lbTag">'+E(sucNome(id))+'</span>';}).join('')+'</div>'
-         :'<span class="lbTodas">todas as '+sucs.length+' unidades</span>')+'</td>'+
-       '<td><button class="rBtn" onclick="editarLiberacao(\''+x.id+'\')" title="Definir">'+
-        sv('edit',12)+'</button></td>'+
-      '</tr>';
-    }).join('')+'</tbody></table>'
-   :'<div class="entVazio"><b>Nada encontrado</b><span>Ajuste a busca.</span></div>')+
-   '</div></div></div></div>';
-  rodape(lista.length+' itens · '+restritos+' restritos');
+   '</div></div></div>';
+  rodape(lista.length+' de '+todos.length+' · '+restritos+' restrito(s)');
 }
 function editarLiberacao(id){
   var x=(DB[LB.col]||[]).find(function(i){return i.id===id});
