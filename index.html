@@ -14288,6 +14288,10 @@ async function baixarDaNuvem(forcar){
       }
     }
   }catch(e){_quieto(e,'carimboDownload')}
+  /* marca que o download ja chegou uma vez neste aparelho. As funcoes que
+     semeiam cadastro padrao (motivos, turnos, status, impressao) esperam por
+     ela: semear antes do download e o que criava duplicata a cada entrada. */
+  DB._baixouUmaVez=true;
   if(_FALHOU_BAIXA.length){
     logNuvem('leitura parcial: '+_FALHOU_BAIXA.length+' tabela(s) não vieram ('+
       _FALHOU_BAIXA.join(', ')+') — o restante carregou normalmente e o que '+
@@ -14977,7 +14981,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V41.1.0';
+var VERSAO='V41.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20103,6 +20107,10 @@ function nomePapel(id){var p=PAPEIS.find(function(x){return x.id===id});return p
 
 function baseStatus(){
   DB.statusVenda=DB.statusVenda||[];
+  if(DB.statusVenda.length)return DB.statusVenda;
+  if(DB._semeado&&DB._semeado.statusVenda)return DB.statusVenda;
+  if(NUVEM.ligada&&!DB._baixouUmaVez)return DB.statusVenda;
+  DB._semeado=DB._semeado||{}; DB._semeado.statusVenda=true;
   if(!DB.statusVenda.length){
     /* nasce com o que ja existia, e com os MESMOS identificadores — assim os
        pedidos gravados antes continuam apontando para o status certo */
@@ -39050,6 +39058,9 @@ function blocosPadrao(tipo){
 
 function baseImp(){
   DB.modelosImp=DB.modelosImp||[];
+  /* este era o mais exposto: recriava POR TIPO, entao bastava um tipo faltar
+     na lista para nascer um modelo novo a cada abertura. */
+  if(NUVEM.ligada&&!DB._baixouUmaVez&&!DB.modelosImp.length)return DB.modelosImp;
   IMP_TIPOS.forEach(function(t,i){
     if(!DB.modelosImp.some(function(m){return m.tipo===t.id}))
       DB.modelosImp.push({id:uid('mi'),tipo:t.id,nome:t.n,colunas:48,vias:t.id==='ficha'?2:1,
@@ -39603,13 +39614,28 @@ function imprimirPapel(linhas,cols,vias){
    ========================================================== */
 function baseCanc(){
   DB.motivosCanc=DB.motivosCanc||[];
-  /* primeira vez: entra com a lista que ja era usada, para nao perder o que
-     estava em uso nos cancelamentos antigos */
-  if(!DB.motivosCanc.length){
-    MOTIVOS_CANC.forEach(function(nome,i){
-      DB.motivosCanc.push({id:uid('mc'),nome:nome,ativo:true,ordem:i});
-    });
-  }
+  /* ==========================================================
+     A LISTA SO E SEMEADA UMA VEZ NA VIDA DA EMPRESA
+     Antes bastava a lista estar VAZIA para os 7 motivos serem criados de
+     novo, com identificadores novos. E ela fica vazia toda vez que o sistema
+     abre, no instante entre o arranque e a chegada do download. Resultado:
+     a cada entrada nasciam 7 motivos, subiam para a nuvem, e a lista crescia
+     — "Produto em falta" tres vezes, "Troca de itens" tres vezes.
+     Explicava exatamente o que se via na tela: duplicado ao entrar, normal
+     dez segundos depois (quando o download chegava e substituia a lista).
+     Agora fica uma marca no aparelho e outra na propria empresa. Vazio
+     depois disso significa "a loja apagou todos", e apagado tem de continuar
+     apagado — nao se ressuscita cadastro que alguem removeu de proposito.
+     ========================================================== */
+  if(DB.motivosCanc.length)return DB.motivosCanc;
+  if(DB._semeado&&DB._semeado.motivosCanc)return DB.motivosCanc;
+  /* se a nuvem esta ligada mas o download ainda nao chegou, ESPERA:
+     semear agora e o que criava a duplicata */
+  if(NUVEM.ligada&&!DB._baixouUmaVez)return DB.motivosCanc;
+  MOTIVOS_CANC.forEach(function(nome,i){
+    DB.motivosCanc.push({id:uid('mc'),nome:nome,ativo:true,ordem:i});
+  });
+  DB._semeado=DB._semeado||{}; DB._semeado.motivosCanc=true;
   return DB.motivosCanc;
 }
 function motivosCancAtivos(){
@@ -39724,10 +39750,14 @@ async function excluirMotivoCanc(id){
    ========================================================== */
 function baseTurnos(){
   DB.turnos=DB.turnos||[];
-  if(!DB.turnos.length){
-    DB.turnos.push({id:uid('tn'),nome:'Turno 1',ini:'08:00',fim:'15:00',ativo:true,ordem:0});
-    DB.turnos.push({id:uid('tn'),nome:'Turno 2',ini:'15:00',fim:'23:00',ativo:true,ordem:1});
-  }
+  /* mesma correcao de baseCanc: so semeia uma vez, e nunca antes do
+     download chegar. Ver o comentario la para o porque. */
+  if(DB.turnos.length)return DB.turnos;
+  if(DB._semeado&&DB._semeado.turnos)return DB.turnos;
+  if(NUVEM.ligada&&!DB._baixouUmaVez)return DB.turnos;
+  DB.turnos.push({id:uid('tn'),nome:'Turno 1',ini:'08:00',fim:'15:00',ativo:true,ordem:0});
+  DB.turnos.push({id:uid('tn'),nome:'Turno 2',ini:'15:00',fim:'23:00',ativo:true,ordem:1});
+  DB._semeado=DB._semeado||{}; DB._semeado.turnos=true;
   return DB.turnos;
 }
 function turnosAtivos(){
