@@ -14981,7 +14981,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V42.0.0';
+var VERSAO='V42.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15037,6 +15037,40 @@ $('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada
 /* ===== BLOCO 7 — ROTEADOR ===== */
 /* Redesenhar a mesma tela nao pode jogar a pessoa para o topo. Tela nova
    comeca no comeco, como deve; a mesma tela volta onde estava. */
+/* ==========================================================
+   CRONOMETRO DE ABERTURA DE TELA
+   Li o codigo inteiro procurando o que custa 6 segundos e nao achei: com
+   250 insumos e nenhuma movimentacao, a conta toda nao passa de milissegundos.
+   Ou seja, o gargalo NAO esta onde eu estava olhando — e continuar deduzindo
+   e perder tempo.
+   Isto mede de verdade, no aparelho de quem usa: quanto o JavaScript levou,
+   quanto o navegador levou para desenhar, e o total ate a tela ficar pronta.
+   Fica no Diagnostico do Sistema e nao aparece para o operador.
+   ========================================================== */
+var CRONO=[];
+function cronometrar(rot, fn){
+  var t0=performance.now();
+  var r=fn();
+  var tJs=performance.now()-t0;
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      var tTudo=performance.now()-t0;
+      var reg={tela:rot, js:Math.round(tJs), desenho:Math.round(tTudo-tJs),
+               total:Math.round(tTudo), hora:new Date().toLocaleTimeString('pt-BR')};
+      CRONO.unshift(reg); if(CRONO.length>40)CRONO.pop();
+      if(reg.total>400){
+        registrarFalha('desempenho', rot,
+          'tela levou '+reg.total+' ms ('+reg.js+' ms de cálculo, '+
+          reg.desenho+' ms de desenho)', {situacao:'medido'});
+      }
+      try{ if(window.console&&reg.total>400)
+        console.log('[Nexor] '+rot+': '+reg.total+' ms — cálculo '+reg.js+
+                    ' ms, desenho '+reg.desenho+' ms'); }
+      catch(e){ _quieto(e,'cronometrar'); }
+    });
+  });
+  return r;
+}
 function abrir(mid,iid){
   var mesma=(S.mod===mid&&S.it===iid);
   var ant=0;
@@ -15045,7 +15079,7 @@ function abrir(mid,iid){
     ant=r?r.scrollTop:(window.scrollY||0);
   }
   if(!mesma)_rolChave=(mid||'')+'/'+(iid||'');   /* tela nova: comeca no topo */
-  var v=_abrirTela(mid,iid);
+  var v=cronometrar((mid||'?')+'/'+(iid||'?'), function(){return _abrirTela(mid,iid)});
   if(mesma&&ant){
     var r2=document.querySelector('.etScroll');
     if(r2)r2.scrollTop=ant; else window.scrollTo(0,ant);
@@ -24255,6 +24289,17 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Conexão</span><b>'+E(CONEXAO)+'</b></div>'+
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
+   (CRONO.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
+     '<table class="fmTab"><thead><tr><th>Hora</th><th>Tela</th>'+
+     '<th style="text-align:right">Cálculo</th><th style="text-align:right">Desenho</th>'+
+     '<th style="text-align:right">Total</th></tr></thead><tbody>'+
+     CRONO.slice(0,15).map(function(c){
+       return '<tr><td>'+E(c.hora)+'</td><td>'+E(c.tela)+'</td>'+
+        '<td style="text-align:right">'+c.js+' ms</td>'+
+        '<td style="text-align:right">'+c.desenho+' ms</td>'+
+        '<td style="text-align:right"><b class="'+(c.total>400?'vr':'')+'">'+
+        c.total+' ms</b></td></tr>';
+     }).join('')+'</tbody></table></div>':'')+
    (function(){
      var f=auditarFila();
      var inval=f.LEGADO.length+f.TENANT_DESCONHECIDO.length+f.PERMISSAO.length;
