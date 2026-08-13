@@ -86,8 +86,8 @@ if(!window.supabase){
        azul      — o que se clica e o que informa
        terracota — o que exige atenção
      Fundo creme na área de trabalho, branco no conteúdo. */
-  --deep:#1E4634; --deep-2:#2A5C44;
-  --band:#FFFFFF; --band-2:#FFFFFF; --band-line:#EFE9DC;
+  --deep:#35785A; --deep-2:#41886A;
+  --band:#35785A; --band-2:#35785A; --band-line:#2A6047;
   /* ==========================================================
      FUNDO VERDE-PEDRA
      Era #FAF6EF — quase branco. Com o cartao tambem branco, nada separava o
@@ -95,14 +95,15 @@ if(!window.supabase){
      Agora o fundo e fechado e o branco dos cartoes salta a frente: a
      separacao aparece sem precisar de borda grossa nem sombra pesada.
      ========================================================== */
-  --bg:#C9D2CB; --panel:#FFF; --line:#B4C0B7; --line-2:#E4E9E5;
-  --ink:#1F2A24; --ink-2:#6E7A72; --ink-3:#8A9089;
+  --bg:#EFE7D6; --panel:#FFFCF6; --line:#DCCFB4; --line-2:#EDE4D2;
+  --ink:#2B2314; --ink-2:#756848; --ink-3:#9C8E70;
   --acc:#A07D3C; --acc-d:#8A6A32; --acc-l:#B99A5E; --acc-soft:#FBF3E6;
   --blue:#1C6E97; --blue-soft:#EDF5F9;
   --ok:#3D6B4F; --ok-soft:#EFF3EC;
   --red:#9A4A3C; --red-soft:#F6E6E2;
   --amber:#8A6A32; --amber-soft:#FBF3E6;
-  --alt:#F2F5F3;      /* linha alternada da tabela */
+  --alt:#F7F1E5;      /* linha alternada — um pouco mais marcada, porque o
+                         creme separa menos o cartao do fundo que o verde */
   /* sombra um pouco mais presente: com o fundo fechado, o cartao branco
      precisa de um leve descolamento para nao parecer colado */
   --sh:0 1px 2px rgba(21,36,32,.07),0 2px 6px rgba(21,36,32,.09);
@@ -248,22 +249,19 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
    da barra e o faz respirar. E o mesmo motivo pelo qual icone de aplicativo
    no celular sempre tem fundo.
    ========================================================== */
-.mIco .tile{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;
-  justify-content:center;color:#63758A;transition:all .18s ease;background:#EDF2EF;
-  border:1px solid #E1E7E3}
-/* passando o mouse: cresce, sobe, escurece e ganha sombra — os quatro juntos,
-   senao o efeito nao se percebe num icone de 25px */
-.mIco:hover .tile{background:#fff;border-color:#CBD8D1;
-  transform:scale(1.14) translateY(-2px);
-  box-shadow:0 4px 12px rgba(21,54,42,.22);
-  filter:brightness(.88) saturate(1.1)}
-.mIco.on .tile{background:#fff;border-color:var(--acc);
-  box-shadow:0 2px 7px rgba(21,54,42,.16)}
-.mIco .lb{font-size:10px;line-height:1.2;font-weight:600;color:#5A6B62;text-align:center;max-width:74px;transition:.15s}
-.mIco:hover{background:#F2F5F3;border-color:transparent}
-.mIco:hover .lb{color:var(--deep);font-weight:700}
-.mIco.on{background:#fff;border-color:var(--band-line);box-shadow:var(--sh)}
-.mIco.on .lb{color:var(--acc-d)}
+/* A pastilha SAIU. Ela existia para dar respiro ao icone cheio; com icone de
+   linha ela vira uma caixinha em volta de um risco — mais ruido que ajuda.
+   O icone herda a cor do texto (currentColor): branco sobre a barra verde,
+   escuro quando o modulo esta aberto sobre o creme. Um desenho, dois usos. */
+.mIco .tile{width:30px;height:30px;display:flex;align-items:center;
+  justify-content:center;color:rgba(255,255,255,.82);transition:all .16s ease}
+.mIco:hover .tile{color:#fff;transform:scale(1.10)}
+.mIco.on .tile{color:var(--ink)}
+.mIco .lb{font-size:10px;line-height:1.2;font-weight:600;color:rgba(255,255,255,.72);text-align:center;max-width:74px;transition:.16s}
+.mIco:hover{background:rgba(255,255,255,.10);border-color:transparent}
+.mIco:hover .lb{color:#fff}
+.mIco.on{background:var(--bg);border-color:transparent}
+.mIco.on .lb{color:var(--ink);font-weight:700}
 .mIco.on:before{content:'';position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:var(--acc);border-radius:2px}
 .bandGrow{flex:1}
 .bandSuc{display:flex;align-items:center;gap:8px;height:32px;padding:0 11px;border:1px solid var(--band-line);
@@ -1982,8 +1980,8 @@ button.cxTag:hover{background:rgba(0,160,139,.26)}
        azul      — o que se clica e o que informa
        terracota — o que exige atenção
      Fundo creme na área de trabalho, branco no conteúdo. */
-  --deep:#1E4634; --deep-2:#2A5C44;
-  --band:#FFFFFF; --band-2:#FFFFFF; --band-line:#EFE9DC;
+  --deep:#35785A; --deep-2:#41886A;
+  --band:#35785A; --band-2:#35785A; --band-line:#2A6047;
   /* ==========================================================
      FUNDO VERDE-PEDRA
      Era #FAF6EF — quase branco. Com o cartao tambem branco, nada separava o
@@ -1991,14 +1989,15 @@ button.cxTag:hover{background:rgba(0,160,139,.26)}
      Agora o fundo e fechado e o branco dos cartoes salta a frente: a
      separacao aparece sem precisar de borda grossa nem sombra pesada.
      ========================================================== */
-  --bg:#C9D2CB; --panel:#FFF; --line:#B4C0B7; --line-2:#E4E9E5;
-  --ink:#1F2A24; --ink-2:#6E7A72; --ink-3:#8A9089;
+  --bg:#EFE7D6; --panel:#FFFCF6; --line:#DCCFB4; --line-2:#EDE4D2;
+  --ink:#2B2314; --ink-2:#756848; --ink-3:#9C8E70;
   --acc:#A07D3C; --acc-d:#8A6A32; --acc-l:#B99A5E; --acc-soft:#FBF3E6;
   --blue:#1C6E97; --blue-soft:#EDF5F9;
   --ok:#3D6B4F; --ok-soft:#EFF3EC;
   --red:#9A4A3C; --red-soft:#F6E6E2;
   --amber:#8A6A32; --amber-soft:#FBF3E6;
-  --alt:#F2F5F3;      /* linha alternada da tabela */
+  --alt:#F7F1E5;      /* linha alternada — um pouco mais marcada, porque o
+                         creme separa menos o cartao do fundo que o verde */
   /* sombra um pouco mais presente: com o fundo fechado, o cartao branco
      precisa de um leve descolamento para nao parecer colado */
   --sh:0 1px 2px rgba(21,36,32,.07),0 2px 6px rgba(21,36,32,.09);
@@ -6966,8 +6965,8 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
        azul      — o que se clica e o que informa
        terracota — o que exige atenção
      Fundo creme na área de trabalho, branco no conteúdo. */
-  --deep:#1E4634; --deep-2:#2A5C44;
-  --band:#FFFFFF; --band-2:#FFFFFF; --band-line:#EFE9DC;
+  --deep:#35785A; --deep-2:#41886A;
+  --band:#35785A; --band-2:#35785A; --band-line:#2A6047;
   /* ==========================================================
      FUNDO VERDE-PEDRA
      Era #FAF6EF — quase branco. Com o cartao tambem branco, nada separava o
@@ -6975,14 +6974,15 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
      Agora o fundo e fechado e o branco dos cartoes salta a frente: a
      separacao aparece sem precisar de borda grossa nem sombra pesada.
      ========================================================== */
-  --bg:#C9D2CB; --panel:#FFF; --line:#B4C0B7; --line-2:#E4E9E5;
-  --ink:#1F2A24; --ink-2:#6E7A72; --ink-3:#8A9089;
+  --bg:#EFE7D6; --panel:#FFFCF6; --line:#DCCFB4; --line-2:#EDE4D2;
+  --ink:#2B2314; --ink-2:#756848; --ink-3:#9C8E70;
   --acc:#A07D3C; --acc-d:#8A6A32; --acc-l:#B99A5E; --acc-soft:#FBF3E6;
   --blue:#1C6E97; --blue-soft:#EDF5F9;
   --ok:#3D6B4F; --ok-soft:#EFF3EC;
   --red:#9A4A3C; --red-soft:#F6E6E2;
   --amber:#8A6A32; --amber-soft:#FBF3E6;
-  --alt:#F2F5F3;      /* linha alternada da tabela */
+  --alt:#F7F1E5;      /* linha alternada — um pouco mais marcada, porque o
+                         creme separa menos o cartao do fundo que o verde */
   /* sombra um pouco mais presente: com o fundo fechado, o cartao branco
      precisa de um leve descolamento para nao parecer colado */
   --sh:0 1px 2px rgba(21,36,32,.07),0 2px 6px rgba(21,36,32,.09);
@@ -11876,62 +11876,39 @@ ref:'<polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23
    ========================================================== */
 var ICM={
  /* ==========================================================
-    DUOTONE VERDE — duas tonalidades da mesma cor, nada mais.
-    A versao anterior tinha ate quatro cores por icone (o pote de gelato com
-    tres bolas, o rosa dos clientes) e ficou infantil. Aqui cada icone usa so
-    #154434 (escuro) e #7FBFA0 (claro), na cor da propria marca.
-    O tom ESCURO carrega o significado — o cifrao, a pessoa da frente, a face
-    principal do cubo — e o claro fica de apoio. E o que separa icone
-    corporativo de icone de aplicativo infantil.
-    Desenhados a 25px, que e o tamanho de uso, e so depois conferidos
-    ampliados. Da primeira vez fiz o contrario e por isso ficou ruim na barra.
+    ICONES DE LINHA — 2px, cantos retos
+    Passei tres rodadas trocando a COR (verde, dourado, azul) quando o
+    problema era a LINGUAGEM: massa colorida com cantos gordos e dois tons e
+    desenho de adesivo, nao de sistema de gestao. Nenhuma troca de paleta ia
+    resolver.
+    Software serio usa linha fina, uma cor, sem preenchimento — o icone vira
+    SINAL, nao ilustracao. Aqui: traco de 2px, ponta e junta retas
+    (stroke-linecap square, linejoin miter), que e o que da a firmeza tecnica.
+    A cor vem de fora, por currentColor: branco sobre a barra verde, escuro
+    quando o modulo esta aberto sobre creme. Um desenho, dois contextos.
     ========================================================== */
- pdv:'<rect x="3" y="4" width="26" height="19" rx="3" fill="#7FBFA0"/>'+
-     '<rect x="3" y="4" width="26" height="6" rx="3" fill="#154434"/>'+
-     '<rect x="7" y="14" width="7" height="4" rx="1" fill="#154434"/>'+
-     '<rect x="18" y="14" width="7" height="4" rx="1" fill="#154434"/>'+
-     '<path d="M9 23h14v5H9z" fill="#154434"/>',
- cardapio:'<rect x="5" y="2" width="22" height="28" rx="3" fill="#7FBFA0"/>'+
-     '<rect x="9" y="8" width="14" height="3" rx="1.5" fill="#154434"/>'+
-     '<rect x="9" y="15" width="14" height="3" rx="1.5" fill="#154434"/>'+
-     '<rect x="9" y="22" width="8" height="3" rx="1.5" fill="#154434"/>',
- financeira:'<rect x="3" y="2" width="19" height="27" rx="3" fill="#7FBFA0"/>'+
-     '<rect x="7" y="7" width="11" height="3" rx="1.5" fill="#154434"/>'+
-     '<rect x="7" y="13" width="7" height="3" rx="1.5" fill="#154434"/>'+
-     '<circle cx="23" cy="22" r="8" fill="#154434"/>'+
-     '<path d="M23 17v10M25.7 19h-3.4a2 2 0 000 4h1.8a2 2 0 010 4h-3.4" '+
-     'stroke="#fff" stroke-width="2.1" stroke-linecap="round" fill="none"/>',
- clientes:'<circle cx="11" cy="9" r="5.5" fill="#154434"/>'+
-     '<path d="M1.5 29c0-5.2 4.3-9.5 9.5-9.5s9.5 4.3 9.5 9.5z" fill="#154434"/>'+
-     '<circle cx="23" cy="11" r="4.5" fill="#7FBFA0"/>'+
-     '<path d="M16.5 29c0-4.3 2.9-7.8 6.5-7.8s6.5 3.5 6.5 7.8z" fill="#7FBFA0"/>',
- estoque:'<path d="M16 2l13 7v14l-13 7L3 23V9z" fill="#7FBFA0"/>'+
-     '<path d="M16 16l13-7v14l-13 7z" fill="#154434"/>'+
-     '<path d="M9.5 5.5l13 7" stroke="#154434" stroke-width="2.6" stroke-linecap="round"/>',
- relatorios:'<rect x="3" y="18" width="7" height="11" rx="1.5" fill="#7FBFA0"/>'+
-     '<rect x="12.5" y="11" width="7" height="18" rx="1.5" fill="#154434"/>'+
-     '<rect x="22" y="4" width="7" height="25" rx="1.5" fill="#7FBFA0"/>'+
-     '<path d="M5 13l7-5 6 4 10-7" stroke="#154434" stroke-width="2.6" '+
-     'stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
- dashboard:'<circle cx="16" cy="16" r="13" fill="#7FBFA0"/>'+
-     '<path d="M16 16V3a13 13 0 0112.3 8.8z" fill="#154434"/>'+
-     '<path d="M16 16l9.2 9.2A13 13 0 0116 29z" fill="#154434" opacity=".55"/>'+
-     '<circle cx="16" cy="16" r="4.4" fill="#fff"/>',
- loja:'<path d="M3 29V12L16 2l13 10v17z" fill="#7FBFA0"/>'+
-     '<path d="M3 29V12L16 2v27z" fill="#154434"/>'+
-     '<rect x="12" y="19" width="8" height="10" rx="1.5" fill="#0B2A20"/>',
- tecnico:'<path d="M16 1.5l3.4 2.7 4.3-.6 1.4 4.1 3.9 2.2-1.5 4.1 1.5 4.1'+
-     '-3.9 2.2-1.4 4.1-4.3-.6L16 30.5l-3.4-2.7-4.3.6-1.4-4.1-3.9-2.2 1.5-4.1'+
-     '-1.5-4.1 3.9-2.2 1.4-4.1 4.3.6z" fill="#7FBFA0"/>'+
-     '<circle cx="16" cy="16" r="6" fill="#154434"/>'
+ pdv:'<rect x="3" y="4" width="18" height="13"/><path d="M7 21h10M7 8h10M7 12h5"/>',
+ cardapio:'<rect x="4" y="3" width="16" height="18"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+ financeira:'<path d="M12 2v20M17 5.5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+ clientes:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/>'+
+     '<circle cx="17" cy="9.5" r="2.5"/><path d="M15 20a5 5 0 016.5-4.8"/>',
+ estoque:'<path d="M12 2.5l8.5 4.7v9.6L12 21.5 3.5 16.8V7.2z"/>'+
+     '<path d="M12 12l8.5-4.8M12 12v9.5M12 12L3.5 7.2"/>',
+ relatorios:'<path d="M3 21h18"/><path d="M6 21v-7M12 21V8M18 21v-4"/>',
+ dashboard:'<path d="M12 3a9 9 0 109 9h-9z"/><path d="M12 3v9h9"/>',
+ loja:'<path d="M3 21V9.5L12 3l9 6.5V21z"/><path d="M9.5 21v-6h5v6"/>',
+ tecnico:'<circle cx="12" cy="12" r="3.2"/>'+
+     '<path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3'+
+     'M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4L5.3 5.3"/>'
 };
 
 /* icone do modulo: colorido quando existe, senao o de traco de sempre */
 function svMod(mid, ic, tam) {
   tam = tam || 21;
   if (ICM[mid])
-    return '<svg width="' + tam + '" height="' + tam + '" viewBox="0 0 32 32" fill="none">' +
-           ICM[mid] + '</svg>';
+    return '<svg width="' + tam + '" height="' + tam + '" viewBox="0 0 24 24" ' +
+           'fill="none" stroke="currentColor" stroke-width="2" ' +
+           'stroke-linecap="square" stroke-linejoin="miter">' + ICM[mid] + '</svg>';
   return sv(ic, tam, 1.5);
 }
 function sv(n,s,w){s=s||16;return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||1.7)+'" stroke-linecap="round" stroke-linejoin="round">'+(I[n]||'')+'</svg>';}
@@ -15003,7 +14980,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V40.0.0';
+var VERSAO='V41.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
