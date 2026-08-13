@@ -15060,7 +15060,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V44.0.0';
+var VERSAO='V44.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15151,18 +15151,54 @@ function anotarTrava(tipo, ms, detalhe){
   if(ms>=300)mostrarSelo();
   return r;
 }
-/* 1. tarefas longas: o navegador avisa quando um bloco de JS passa de 50 ms */
+/* ==========================================================
+   QUEM ESTA SEGURANDO A TELA
+   O medidor disse QUANTO (750 ms, uma vez por segundo, sem parar) mas nao
+   disse O QUE. Nenhum laco do sistema roda a cada 1 s, entao a causa esta
+   em outro lugar. Agora cada funcao suspeita e cronometrada por nome, e a
+   que passar de 100 ms aparece com nome e sobrenome no diagnostico.
+   ========================================================== */
 try{
   if(window.PerformanceObserver&&PerformanceObserver.supportedEntryTypes&&
      PerformanceObserver.supportedEntryTypes.indexOf('longtask')>=0){
     new PerformanceObserver(function(l){
       l.getEntries().forEach(function(e){
         if(e.duration>=120)anotarTrava('tarefa longa', e.duration,
-          'bloco de JavaScript segurou a tela');
+          (_ultimaFn?('provavelmente: '+_ultimaFn):'bloco de JavaScript'));
       });
     }).observe({entryTypes:['longtask']});
   }
 }catch(e){ _quieto(e,'observarTarefas'); }
+
+/* etiqueta a funcao em execucao, para o observador saber quem acusar */
+var _ultimaFn='';
+function vigiar(nome, fn){
+  return function(){
+    var t=performance.now();
+    _ultimaFn=nome;
+    try{ return fn.apply(this, arguments); }
+    finally{
+      var d=performance.now()-t;
+      if(d>=100)anotarTrava('função lenta', d, nome+'()');
+      _ultimaFn='';
+    }
+  };
+}
+/* liga a vigilancia nas suspeitas, depois que todas ja existem */
+setTimeout(function(){
+  ['gravarLocal','carimbarOrigem','espelharEstoque','baseMov','baseEstoque',
+   'baseFicha','recalcCustoProducao','repararDestinos','conferirVersaoLoja',
+   'conferirNuvem','aplicarPendente','filtrarCadastroDaUnidade','rodape',
+   'faixa','arrumarCodigos','renumerarCodigos','espelharCardapio',
+   'buscarPedidosOnline','checarVersao','sincronizar','baixarDaNuvem']
+  .forEach(function(n){
+    try{
+      if(typeof window[n]==='function'&&!window[n]._vigiada){
+        var f=vigiar(n, window[n]); f._vigiada=true; window[n]=f;
+      }
+    }catch(e){ /* funcao que nao aceita troca: segue sem vigilancia */ }
+  });
+},1500);
 
 /* 2. batimento: um relogio a cada 250 ms. Se atrasar, o navegador congelou —
       e o atraso e exatamente o tempo em que a tela ficou parada. */
