@@ -10,9 +10,11 @@
      e para onde PODE falar:
        script-src  — so o proprio arquivo e o cliente do Supabase
        connect-src — so o proprio projeto Supabase e o robo
-       frame-ancestors none — a pagina nao pode ser embutida em outro site
-                              (evita clique sequestrado)
        object-src none — sem Flash/applet
+     NAO tem frame-ancestors: essa regra so vale em cabecalho HTTP. Numa
+     etiqueta <meta> o navegador descarta a POLITICA INTEIRA por causa dela —
+     foi o que aconteceu na V37.0.0, e a protecao nao valeu nada.
+     Como o GitHub Pages nao deixa definir cabecalho, isso fica pendente.
      'unsafe-inline' e necessario porque o sistema inteiro e um arquivo so,
      com o script dentro do HTML. Fica registrado como limitacao conhecida:
      so sai se o JavaScript for separado em arquivo proprio.
@@ -34,7 +36,6 @@
   connect-src 'self' https://cevghkndzpzvnzwifhnm.supabase.co
               wss://cevghkndzpzvnzwifhnm.supabase.co
               https://robo.nexorapp.com.br https://api.focusnfe.com.br;
-  frame-ancestors 'none';
   object-src 'none';
   base-uri 'self';
   form-action 'self';">
@@ -14815,7 +14816,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V37.0.1';
+var VERSAO='V37.0.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15871,7 +15872,7 @@ setInterval(conferirNuvemAgora,45000);
    quando o número muda de verdade.
    ========================================================== */
 var _versaoLoja=null,_verOcupado=false;
-async /* ==========================================================
+/* ==========================================================
    AUDITORIA — ENCERRAMENTO POR INATIVIDADE
    Um PDV fica ligado o dia inteiro. Se o operador sai e alguem senta na
    maquina, entra na sessao dele. Depois de 8 horas sem NENHUMA acao
@@ -15905,7 +15906,7 @@ function inativoDemais(){
       registrarFalha('sessao','inatividade',
         'sessão encerrada após '+INATIVIDADE_H+' h sem uso',{situacao:'encerrada'});
       try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){_quieto(e,'vigiarInatividade')}
-      try{ localStorage.removeItem('nexor_visto'); }catch(e){}
+      try{ localStorage.removeItem('nexor_visto'); }catch(e){_quieto(e,'inativoDemais')}
       location.reload();
     }
   }, 60000);
@@ -15924,7 +15925,7 @@ async function encerrarTodasAsSessoes(){
   try{
     if(NUVEM.cli&&NUVEM.cli.auth&&NUVEM.cli.auth.signOut)
       await NUVEM.cli.auth.signOut({scope:'global'});
-    try{ localStorage.removeItem('nexor_visto'); }catch(e){}
+    try{ localStorage.removeItem('nexor_visto'); }catch(e){_quieto(e,'encerrarTodasAsSessoes')}
     toast('Todas as sessões foram encerradas.');
     setTimeout(function(){location.reload()},900);
   }catch(e){
