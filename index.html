@@ -17,7 +17,15 @@
      com o script dentro do HTML. Fica registrado como limitacao conhecida:
      so sai se o JavaScript for separado em arquivo proprio.
      ========================================================== -->
-<meta http-equiv="Content-Security-Policy" content="
+<!-- ==========================================================
+     EM MODO DE OBSERVACAO
+     Publiquei esta politica e os logins pararam de entrar. Regra de ouro:
+     protecao que impede a pessoa de trabalhar nao e protecao — e defeito.
+     Report-Only faz o navegador CONFERIR e RELATAR no Console o que seria
+     bloqueado, sem bloquear nada. Assim eu descubro exatamente qual regra
+     estava atrapalhando, corrijo, e so entao volto a valer de verdade.
+     ========================================================== -->
+<meta http-equiv="Content-Security-Policy-Report-Only" content="
   default-src 'self';
   script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com;
   style-src 'self' 'unsafe-inline';
@@ -14807,7 +14815,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V37.0.0';
+var VERSAO='V37.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
