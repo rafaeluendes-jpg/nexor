@@ -12361,13 +12361,32 @@ function carimbarOrigem(){
    Agora a gravacao e adiada para o proximo respiro do navegador. Se a pessoa
    fechar a aba antes, o gancho de saida grava na hora — nada se perde.
    ========================================================== */
-var _gravPend=false;
+/* ==========================================================
+   GRAVA AGORA, E SO DEPOIS ECONOMIZA
+   A primeira versao ADIAVA a gravacao para o respiro do navegador. Ganhava
+   tempo e perdia dado: o login gravava a lista de usuarios, a gravacao ficava
+   na fila, e um Ctrl+F5 antes do respiro deixava o aparelho sem ela — o
+   sistema abria "sem sessao, acesso limitado". Foi o que aconteceu na
+   V45.0.0 e V45.0.1.
+   Agora e o contrario: a PRIMEIRA gravacao acontece na hora, sincrona, e as
+   seguintes dentro de 400 ms sao agrupadas numa so no fim da janela.
+   Digitar cem vezes seguidas continua dando duas gravacoes em vez de cem —
+   mas o dado nunca fica so na memoria esperando uma folga que pode nao vir.
+   ========================================================== */
+var _gravJanela=-99999, _gravPend=false;   /* comeca fora da janela: a 1a grava */
 function gravarDepois(){
-  if(_gravPend)return;
+  var agora=Date.now();
+  if(agora-_gravJanela>400){          /* fora da janela: grava JA */
+    _gravJanela=agora;
+    try{gravarLocal()}catch(e){_quieto(e,'gravarDepois')}
+    return;
+  }
+  if(_gravPend)return;                /* dentro da janela: uma no fim */
   _gravPend=true;
-  var faz=function(){ _gravPend=false; try{gravarLocal()}catch(e){_quieto(e,'gravarDepois')} };
-  if(window.requestIdleCallback)requestIdleCallback(faz,{timeout:1200});
-  else setTimeout(faz,120);
+  setTimeout(function(){
+    _gravPend=false; _gravJanela=Date.now();
+    try{gravarLocal()}catch(e){_quieto(e,'gravarDepois')}
+  },400);
 }
 window.addEventListener('pagehide',function(){
   if(_gravPend){ _gravPend=false; try{gravarLocal()}catch(e){_quieto(e,'pagehide')} }
@@ -15091,7 +15110,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V45.0.1';
+var VERSAO='V45.0.2';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
