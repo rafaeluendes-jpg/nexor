@@ -14971,7 +14971,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V42.2.0';
+var VERSAO='V43.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30067,6 +30067,21 @@ function telaEstoqueTotal(){
   baseMov();
   var todos=itensEstoque();
   var lista=listaEstoque();
+  /* ==========================================================
+     A TELA APARECE ANTES DE DESENHAR TUDO
+     Medido com os dados reais (250 insumos): o JavaScript leva ~115 ms, mas
+     o HTML tem 114 KB e 2.000 celulas — e e o NAVEGADOR desenhando isso que
+     custa os segundos. Nao adianta otimizar conta: a conta ja e rapida.
+     Agora saem 60 linhas de imediato e o resto entra conforme a rolagem.
+     Os totais continuam somando a lista INTEIRA — o numero no topo nao muda,
+     so o desenho e que e parcelado.
+     ========================================================== */
+  var LOTE=60;
+  if(ET._mostrar===undefined||ET._chave!==(ET.busca+'|'+ET.grupo+'|'+ET.tipo+'|'+ET.ordem+'|'+ET.dir)){
+    ET._mostrar=LOTE;
+    ET._chave=ET.busca+'|'+ET.grupo+'|'+ET.tipo+'|'+ET.ordem+'|'+ET.dir;
+  }
+  var visiveis=lista.slice(0, ET._mostrar);
   var total=lista.reduce(function(a,i){return a+valorItem(i)},0);
   var totalGeral=todos.reduce(function(a,i){return a+valorItem(i)},0);
   var abaixo=todos.filter(function(i){return Number(i.estoqueAtual)<=Number(i.estoqueMin)}).length;
@@ -30127,7 +30142,7 @@ function telaEstoqueTotal(){
        ' onclick="ordEst(\''+c.k+'\')" title="Ordenar por '+c.n+'">'+
        '<span>'+c.n+'<i class="ordSeta">'+seta+'</i></span></th>';
     }).join('')+'</tr></thead><tbody>'+
-    lista.map(function(i){
+    visiveis.map(function(i){
       var eFicha=(i.itens!==undefined&&i.rendimento!==undefined);
       var g=eFicha?catFicha(i.categoriaId):grupoIng(i.grupoId);
       var q=Number(i.estoqueAtual)||0;
@@ -30148,7 +30163,11 @@ function telaEstoqueTotal(){
       '<td style="text-align:right">'+money(i.custoUltima||0)+'</td>'+
       '<td style="text-align:right"><b>R$ '+money(valorItem(i))+'</b></td></tr>';
     }).join('')+'</tbody>'+
-    '<tfoot><tr><td colspan="7"><b>Total do filtro — '+lista.length+' de '+todos.length+' itens</b></td>'+
+    '<tfoot><tr><td colspan="7"><b>Total do filtro — '+lista.length+' de '+todos.length+' itens</b>'+
+      (visiveis.length<lista.length
+        ? '<small style="margin-left:8px;color:var(--ink-3)">mostrando '+visiveis.length+
+          ' — role para ver o restante</small>'
+        : '')+'</td>'+
     '<td style="text-align:right"><b>R$ '+money(total)+'</b></td></tr>'+
     (temFiltro?'<tr class="sub2"><td colspan="7">Estoque inteiro — '+todos.length+' itens</td>'+
      '<td style="text-align:right">R$ '+money(totalGeral)+'</td></tr>':'')+
@@ -30156,8 +30175,39 @@ function telaEstoqueTotal(){
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum item encontrado</b>'+
     '<span>Cadastre ingredientes em <b>Ingredientes e Insumos</b>.</span></div>')+
    '</div></div>';
-  $('etB').oninput=function(){ET.busca=this.value;var p=this.selectionStart;telaEstoqueTotal();
-    var n2=$('etB');n2.focus();n2.setSelectionRange(p,p);};
+  /* ==========================================================
+     BUSCA COM ESPERA
+     Cada tecla redesenhava a tabela inteira. Digitar "chocolate" eram 9
+     redesenhos de 250 linhas — a tela travava enquanto a pessoa escrevia.
+     Agora espera 220 ms depois da ultima tecla. O campo continua respondendo
+     na hora; so a tabela e que aguarda.
+     ========================================================== */
+  $('etB').oninput=function(){
+    ET.busca=this.value;
+    var p=this.selectionStart;
+    clearTimeout(window._etTimer);
+    window._etTimer=setTimeout(function(){
+      telaEstoqueTotal();
+      var n2=$('etB'); if(n2){n2.focus();n2.setSelectionRange(p,p);}
+    },220);
+  };
+  /* ---- carrega mais linhas conforme a rolagem ---- */
+  (function(){
+    var cx=document.querySelector('.etScroll');
+    if(!cx)return;
+    cx.onscroll=function(){
+      if(ET._mostrar>=lista.length)return;
+      if(cx.scrollTop+cx.clientHeight < cx.scrollHeight-400)return;
+      if(window._etCarregando)return;
+      window._etCarregando=true;
+      ET._mostrar=Math.min(ET._mostrar+LOTE, lista.length);
+      var pos=cx.scrollTop;
+      telaEstoqueTotal();
+      var cx2=document.querySelector('.etScroll');
+      if(cx2)cx2.scrollTop=pos;
+      window._etCarregando=false;
+    };
+  })();;
   rodape('estoque total R$ '+money(totalGeral));
 }
 function exportarEstoque(){
