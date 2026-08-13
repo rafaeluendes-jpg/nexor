@@ -20,25 +20,15 @@
      so sai se o JavaScript for separado em arquivo proprio.
      ========================================================== -->
 <!-- ==========================================================
-     EM MODO DE OBSERVACAO
-     Publiquei esta politica e os logins pararam de entrar. Regra de ouro:
-     protecao que impede a pessoa de trabalhar nao e protecao — e defeito.
-     Report-Only faz o navegador CONFERIR e RELATAR no Console o que seria
-     bloqueado, sem bloquear nada. Assim eu descubro exatamente qual regra
-     estava atrapalhando, corrijo, e so entao volto a valer de verdade.
+     CSP REMOVIDA DA ETIQUETA <meta>
+     Report-Only NAO funciona em <meta> — so em cabecalho HTTP. O navegador
+     descartava a politica inteira e ainda escrevia um erro vermelho no
+     Console a cada carregamento, atrapalhando justamente o diagnostico que
+     eu preciso ler. Protecao que nao protege e ainda polui o Console sai.
+     Para valer de verdade, precisa de cabecalho HTTP — o GitHub Pages nao
+     permite definir. Fica registrado como pendencia; a defesa contra roubo
+     de sessao hoje e o escape completo do E() e a validacao de entrada.
      ========================================================== -->
-<meta http-equiv="Content-Security-Policy-Report-Only" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com;
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob: https:;
-  font-src 'self' data:;
-  connect-src 'self' https://cevghkndzpzvnzwifhnm.supabase.co
-              wss://cevghkndzpzvnzwifhnm.supabase.co
-              https://robo.nexorapp.com.br https://api.focusnfe.com.br;
-  object-src 'none';
-  base-uri 'self';
-  form-action 'self';">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14981,7 +14971,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V42.1.0';
+var VERSAO='V42.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15058,15 +15048,33 @@ function cronometrar(rot, fn){
       var reg={tela:rot, js:Math.round(tJs), desenho:Math.round(tTudo-tJs),
                total:Math.round(tTudo), hora:new Date().toLocaleTimeString('pt-BR')};
       CRONO.unshift(reg); if(CRONO.length>40)CRONO.pop();
-      if(reg.total>400){
-        registrarFalha('desempenho', rot,
-          'tela levou '+reg.total+' ms ('+reg.js+' ms de cálculo, '+
-          reg.desenho+' ms de desenho)', {situacao:'medido'});
-      }
-      try{ if(window.console&&reg.total>400)
+      registrarFalha('desempenho', rot,
+        'tela levou '+reg.total+' ms ('+reg.js+' ms de cálculo, '+
+        reg.desenho+' ms de desenho)', {situacao:'medido'});
+      try{ if(window.console)
         console.log('[Nexor] '+rot+': '+reg.total+' ms — cálculo '+reg.js+
                     ' ms, desenho '+reg.desenho+' ms'); }
       catch(e){ _quieto(e,'cronometrar'); }
+      /* mostra o numero NA TELA, no rodape, quando passa de meio segundo.
+         Depender do Console nao esta funcionando: a linha se perde no meio
+         das mensagens do navegador. Assim o numero aparece sozinho. */
+      if(reg.total>500){
+        try{
+          var el=document.getElementById('cronoSelo');
+          if(!el){
+            el=document.createElement('div'); el.id='cronoSelo';
+            el.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;'+
+              'background:#2B2314;color:#fff;border-radius:9px;padding:8px 12px;'+
+              'font:12px/1.5 monospace;box-shadow:0 4px 14px rgba(0,0,0,.3);'+
+              'cursor:pointer';
+            el.title='clique para fechar';
+            el.onclick=function(){el.remove()};
+            document.body.appendChild(el);
+          }
+          el.innerHTML='<b>'+rot+'</b><br>total '+reg.total+' ms<br>'+
+            'cálculo '+reg.js+' ms<br>desenho '+reg.desenho+' ms';
+        }catch(e2){ _quieto(e2,'cronometrar'); }
+      }
     });
   });
   return r;
