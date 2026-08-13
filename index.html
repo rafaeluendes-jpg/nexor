@@ -14971,7 +14971,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V43.0.0';
+var VERSAO='V43.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15037,6 +15037,111 @@ $('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada
    quanto o navegador levou para desenhar, e o total ate a tela ficar pronta.
    Fica no Diagnostico do Sistema e nao aparece para o operador.
    ========================================================== */
+/* ==========================================================
+   MEDIDOR DE TRAVAMENTO — pega QUALQUER coisa que segure o navegador
+   O cronometro anterior media so o que acontece dentro de abrir(). Nao
+   apareceu nada, e isso e informacao: significa que os segundos NAO estao
+   ali. Podem estar antes do clique chegar ao codigo, depois que a tela
+   monta, ou numa tarefa paralela — sincronizacao, gravacao no aparelho,
+   requisicao de rede.
+   Aqui a medicao e por fora e nao depende de eu adivinhar onde procurar:
+     1. tarefa longa  — qualquer bloco de JavaScript acima de 50 ms
+     2. batimento     — se o navegador congela, o relogio atrasa e isso aparece
+     3. gravacao      — quanto custa escrever no aparelho, e o tamanho
+     4. rede          — toda requisicao, com tempo e destino
+   Tudo vai para o Diagnostico e para o selo na tela.
+   ========================================================== */
+var TRAVAS=[];
+function anotarTrava(tipo, ms, detalhe){
+  var r={tipo:tipo, ms:Math.round(ms), detalhe:String(detalhe||''),
+         hora:new Date().toLocaleTimeString('pt-BR'), tela:(S.mod||'?')+'/'+(S.it||'?')};
+  TRAVAS.unshift(r); if(TRAVAS.length>80)TRAVAS.pop();
+  try{ registrarFalha('desempenho', tipo, r.detalhe+' — '+r.ms+' ms',
+        {situacao:'medido', tela:r.tela}); }
+  catch(e){ /* medir nao pode derrubar o sistema */ }
+  if(ms>=300)mostrarSelo();
+  return r;
+}
+/* 1. tarefas longas: o navegador avisa quando um bloco de JS passa de 50 ms */
+try{
+  if(window.PerformanceObserver&&PerformanceObserver.supportedEntryTypes&&
+     PerformanceObserver.supportedEntryTypes.indexOf('longtask')>=0){
+    new PerformanceObserver(function(l){
+      l.getEntries().forEach(function(e){
+        if(e.duration>=120)anotarTrava('tarefa longa', e.duration,
+          'bloco de JavaScript segurou a tela');
+      });
+    }).observe({entryTypes:['longtask']});
+  }
+}catch(e){ _quieto(e,'observarTarefas'); }
+
+/* 2. batimento: um relogio a cada 250 ms. Se atrasar, o navegador congelou —
+      e o atraso e exatamente o tempo em que a tela ficou parada. */
+(function(){
+  var ultimo=Date.now();
+  setInterval(function(){
+    var agora=Date.now(), atraso=agora-ultimo-250;
+    ultimo=agora;
+    if(atraso>400)anotarTrava('congelou', atraso, 'a tela ficou parada');
+  },250);
+})();
+
+/* 3. gravacao no aparelho: mede tamanho e tempo */
+(function(){
+  if(!window.localStorage||localStorage._medido)return;
+  var orig=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var t=performance.now();
+    var r=orig(k,v);
+    var d=performance.now()-t;
+    if(d>=120)anotarTrava('gravação', d,
+      'gravar '+Math.round(String(v).length/1024)+' KB em "'+k+'"');
+    return r;
+  };
+  try{ Object.defineProperty(localStorage,'_medido',{value:true}); }
+  catch(e){ /* navegador que nao deixa marcar: segue sem a marca */ }
+})();
+
+/* 4. rede: toda requisicao, com tempo e destino */
+(function(){
+  if(!window.fetch||window._fetchMedido)return;
+  window._fetchMedido=true;
+  var orig=window.fetch;
+  window.fetch=function(){
+    var alvo=String((arguments[0]&&arguments[0].url)||arguments[0]||'');
+    var curto=alvo.replace(/^https?:\/\/[^/]+/,'').split('?')[0].slice(0,60);
+    var t=performance.now();
+    return orig.apply(this,arguments).then(function(r){
+      var d=performance.now()-t;
+      if(d>=600)anotarTrava('rede', d, curto);
+      return r;
+    },function(e){
+      anotarTrava('rede falhou', performance.now()-t, curto);
+      throw e;
+    });
+  };
+})();
+
+function mostrarSelo(){
+  try{
+    var el=document.getElementById('cronoSelo');
+    if(!el){
+      el=document.createElement('div'); el.id='cronoSelo';
+      el.style.cssText='position:fixed;right:12px;bottom:12px;z-index:99999;'+
+        'background:#2B2314;color:#fff;border-radius:10px;padding:10px 13px;'+
+        'font:11.5px/1.55 monospace;box-shadow:0 4px 16px rgba(0,0,0,.35);'+
+        'cursor:pointer;max-width:330px';
+      el.title='clique para fechar';
+      el.onclick=function(){el.remove()};
+      document.body.appendChild(el);
+    }
+    el.innerHTML='<b>O que segurou a tela</b><br>'+
+      TRAVAS.slice(0,6).map(function(t){
+        return t.hora+' · '+t.tipo+' <b>'+t.ms+' ms</b><br>'+
+               '<span style="opacity:.65">'+E(t.detalhe)+'</span>';
+      }).join('<br>');
+  }catch(e){ _quieto(e,'mostrarSelo'); }
+}
 var CRONO=[];
 function cronometrar(rot, fn){
   var t0=performance.now();
@@ -15058,7 +15163,11 @@ function cronometrar(rot, fn){
       /* mostra o numero NA TELA, no rodape, quando passa de meio segundo.
          Depender do Console nao esta funcionando: a linha se perde no meio
          das mensagens do navegador. Assim o numero aparece sozinho. */
-      if(reg.total>500){
+      if(reg.total>300){
+        anotarTrava('montar tela', reg.total,
+          rot+' — cálculo '+reg.js+' ms, desenho '+reg.desenho+' ms');
+      }
+      if(false){
         try{
           var el=document.getElementById('cronoSelo');
           if(!el){
@@ -24297,6 +24406,21 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Conexão</span><b>'+E(CONEXAO)+'</b></div>'+
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
+   (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
+     '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
+      '<b>O que segurou a tela</b> '+
+      '<small style="color:var(--ink-3)">qualquer bloqueio acima de 120 ms, '+
+      'venha de onde vier</small></div>'+
+     '<table class="fmTab"><thead><tr><th style="width:80px">Hora</th>'+
+     '<th style="width:120px">Tipo</th><th>O que foi</th>'+
+     '<th style="width:130px">Tela</th>'+
+     '<th style="width:90px;text-align:right">Tempo</th></tr></thead><tbody>'+
+     TRAVAS.slice(0,25).map(function(t){
+       return '<tr><td>'+E(t.hora)+'</td><td><b>'+E(t.tipo)+'</b></td>'+
+        '<td><small>'+E(t.detalhe)+'</small></td><td><small>'+E(t.tela)+'</small></td>'+
+        '<td style="text-align:right"><b class="'+(t.ms>800?'vr':'')+'">'+
+        t.ms+' ms</b></td></tr>';
+     }).join('')+'</tbody></table></div>':'')+
    (CRONO.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
      '<table class="fmTab"><thead><tr><th>Hora</th><th>Tela</th>'+
      '<th style="text-align:right">Cálculo</th><th style="text-align:right">Desenho</th>'+
