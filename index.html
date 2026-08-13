@@ -15110,7 +15110,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V45.0.2';
+var VERSAO='V45.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15198,7 +15198,11 @@ function anotarTrava(tipo, ms, detalhe){
   try{ registrarFalha('desempenho', tipo, r.detalhe+' — '+r.ms+' ms',
         {situacao:'medido', tela:r.tela}); }
   catch(e){ /* medir nao pode derrubar o sistema */ }
-  if(ms>=300)mostrarSelo();
+  /* O SELO SAIU DA TELA.
+     Ele existiu para achar o laco de envio-download que congelava o sistema.
+     Cumpriu: as duas fotos que ele gerou deram a causa. Agora e ruido em cima
+     do trabalho de quem usa. A MEDICAO CONTINUA — tudo segue registrado em
+     Administracao > Diagnostico do Sistema, onde e o lugar dela. */
   return r;
 }
 /* ==========================================================
@@ -15220,35 +15224,14 @@ try{
   }
 }catch(e){ _quieto(e,'observarTarefas'); }
 
-/* etiqueta a funcao em execucao, para o observador saber quem acusar */
+/* A VIGILANCIA POR NOME SAIU.
+   Ela trocava 21 funcoes do sistema por versoes cronometradas — util para
+   descobrir quem congelava a tela, e desnecessario depois de descoberto.
+   Trocar funcao em tempo de execucao e coisa de diagnostico, nao de sistema
+   em producao: qualquer erro ali quebra a funcao original.
+   O que ficou: tarefa longa, congelamento, gravacao e rede, todos medidos
+   por fora, sem tocar em nada, e registrados no Diagnostico. */
 var _ultimaFn='';
-function vigiar(nome, fn){
-  return function(){
-    var t=performance.now();
-    _ultimaFn=nome;
-    try{ return fn.apply(this, arguments); }
-    finally{
-      var d=performance.now()-t;
-      if(d>=100)anotarTrava('função lenta', d, nome+'()');
-      _ultimaFn='';
-    }
-  };
-}
-/* liga a vigilancia nas suspeitas, depois que todas ja existem */
-setTimeout(function(){
-  ['gravarLocal','carimbarOrigem','espelharEstoque','baseMov','baseEstoque',
-   'baseFicha','recalcCustoProducao','repararDestinos','conferirVersaoLoja',
-   'conferirNuvem','aplicarPendente','filtrarCadastroDaUnidade','rodape',
-   'faixa','arrumarCodigos','renumerarCodigos','espelharCardapio',
-   'buscarPedidosOnline','checarVersao','sincronizar','baixarDaNuvem']
-  .forEach(function(n){
-    try{
-      if(typeof window[n]==='function'&&!window[n]._vigiada){
-        var f=vigiar(n, window[n]); f._vigiada=true; window[n]=f;
-      }
-    }catch(e){ /* funcao que nao aceita troca: segue sem vigilancia */ }
-  });
-},1500);
 
 /* 2. batimento: um relogio a cada 250 ms. Se atrasar, o navegador congelou —
       e o atraso e exatamente o tempo em que a tela ficou parada. */
@@ -15297,26 +15280,6 @@ setTimeout(function(){
   };
 })();
 
-function mostrarSelo(){
-  try{
-    var el=document.getElementById('cronoSelo');
-    if(!el){
-      el=document.createElement('div'); el.id='cronoSelo';
-      el.style.cssText='position:fixed;right:12px;bottom:12px;z-index:99999;'+
-        'background:#2B2314;color:#fff;border-radius:10px;padding:10px 13px;'+
-        'font:11.5px/1.55 monospace;box-shadow:0 4px 16px rgba(0,0,0,.35);'+
-        'cursor:pointer;max-width:330px';
-      el.title='clique para fechar';
-      el.onclick=function(){el.remove()};
-      document.body.appendChild(el);
-    }
-    el.innerHTML='<b>O que segurou a tela</b><br>'+
-      TRAVAS.slice(0,6).map(function(t){
-        return t.hora+' · '+t.tipo+' <b>'+t.ms+' ms</b><br>'+
-               '<span style="opacity:.65">'+E(t.detalhe)+'</span>';
-      }).join('<br>');
-  }catch(e){ _quieto(e,'mostrarSelo'); }
-}
 var CRONO=[];
 function cronometrar(rot, fn){
   var t0=performance.now();
@@ -15341,23 +15304,6 @@ function cronometrar(rot, fn){
       if(reg.total>300){
         anotarTrava('montar tela', reg.total,
           rot+' — cálculo '+reg.js+' ms, desenho '+reg.desenho+' ms');
-      }
-      if(false){
-        try{
-          var el=document.getElementById('cronoSelo');
-          if(!el){
-            el=document.createElement('div'); el.id='cronoSelo';
-            el.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;'+
-              'background:#2B2314;color:#fff;border-radius:9px;padding:8px 12px;'+
-              'font:12px/1.5 monospace;box-shadow:0 4px 14px rgba(0,0,0,.3);'+
-              'cursor:pointer';
-            el.title='clique para fechar';
-            el.onclick=function(){el.remove()};
-            document.body.appendChild(el);
-          }
-          el.innerHTML='<b>'+rot+'</b><br>total '+reg.total+' ms<br>'+
-            'cálculo '+reg.js+' ms<br>desenho '+reg.desenho+' ms';
-        }catch(e2){ _quieto(e2,'cronometrar'); }
       }
     });
   });
