@@ -13677,13 +13677,25 @@ async function baixarTab(nome,url){
     return [];
   }
 }
-var _baixando=false;
+var _baixando=null;
 async function baixarDaNuvem(forcar){
-  /* dois downloads ao mesmo tempo dobram o trabalho e nao trazem nada novo */
-  if(_baixando)return false;
-  _baixando=true;
-  try{ return await _baixarDaNuvem(forcar); }
-  finally{ _baixando=false; }
+  /* ==========================================================
+     DOWNLOAD SIMULTANEO: ESPERA, NAO DESCARTA
+     Na primeira versao desta trava eu devolvia false quando ja havia um
+     download rodando. Parecia inofensivo e nao era: o LOGIN chama esta
+     funcao para montar a lista de usuarios do aparelho. Se o relogio de 6 s
+     tivesse comecado um download um instante antes, o login recebia false,
+     seguia com a lista vazia, e o sistema abria dizendo "sem sessao — acesso
+     limitado". Foi o que aconteceu na V45.0.0.
+     Agora quem chega depois ESPERA o download que ja esta rodando e recebe o
+     mesmo resultado. Continua havendo um download so, sem descartar ninguem.
+     ========================================================== */
+  if(_baixando)return _baixando;
+  _baixando=(async function(){
+    try{ return await _baixarDaNuvem(forcar); }
+    finally{ _baixando=null; }
+  })();
+  return _baixando;
 }
 async function _baixarDaNuvem(forcar){
   _FALHOU_BAIXA=[];
@@ -15079,7 +15091,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V45.0.0';
+var VERSAO='V45.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
