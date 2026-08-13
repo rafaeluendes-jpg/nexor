@@ -12032,13 +12032,41 @@ function estadoNuvem(e,msg){
   CONEXAO=e;
   var el=document.getElementById('nuvemSt');
   if(el){
+    /* ==========================================================
+       CONTADOR DISCRETO NO LUGAR DA FAIXA
+       Quando ha coisa esperando para subir, o rodape diz quantas — em vez
+       de abrir uma faixa explicando tabelas e sincronizacao. Quem esta no
+       caixa ve "Online · 2 pendencias" e segue trabalhando; quem quiser
+       detalhe abre o Diagnostico.
+       ========================================================== */
+    var pend=0;
+    try{ pend=(NUVEM.sujo||DB._sujo)?contarPendencias():0; }
+    catch(x){ _quieto(x,'estadoNuvem'); }
+    var sufixo=pend?' · '+pend+' pendência'+(pend>1?'s':''):'';
     if(e==='conectando')el.innerHTML='<i style="background:#B8730B"></i>Conectando...';
-    else if(e==='sincronizando')el.innerHTML='<i style="background:#1F6FB2"></i>Sincronizando...';
-    else if(e==='online')el.innerHTML='<i></i>Online';
-    else if(e==='erro')el.innerHTML='<i style="background:#C94141"></i>'+(msg||'erro de sincronização');
-    else el.innerHTML='<i style="background:#8A8578"></i>Offline — as alterações sobem quando a conexão voltar';
+    else if(e==='sincronizando')el.innerHTML='<i style="background:#1F6FB2"></i>Sincronizando'+
+      (pend?' '+pend+' alteração'+(pend>1?'ões':''):'')+'...';
+    else if(e==='online')el.innerHTML='<i></i>Online'+sufixo;
+    else if(e==='erro')el.innerHTML='<i style="background:#C94141"></i>'+(msg||'sincronização pendente')+sufixo;
+    else el.innerHTML='<i style="background:#8A8578"></i>Offline'+sufixo;
   }
   try{conferirNuvem();}catch(e2){_quieto(e2,'estadoNuvem')}
+}
+/* quantas alteracoes ainda nao subiram — so cadastros que o motor envia */
+function contarPendencias(){
+  var n=0;
+  try{
+    (MAPA||[]).forEach(function(E2){
+      var lista=DB[E2.col]; if(!Array.isArray(lista))return;
+      var h=(DB._hash&&DB._hash[E2.col])||{};
+      lista.forEach(function(x){
+        if(!x||typeof x!=='object')return;
+        if(x._loja&&x._loja!==NUVEM.loja)return;   /* de outra empresa: nao conta */
+        if(!h[x.id])n++;
+      });
+    });
+  }catch(e){ _quieto(e,'contarPendencias'); }
+  return n;
 }
 function modo(){try{return localStorage.getItem('nexor_modo')||'local'}catch(e){return 'local'}}
 function setModo(m){try{localStorage.setItem('nexor_modo',m)}catch(e){_quieto(e,'setModo')}}
@@ -13032,9 +13060,9 @@ async function apagar(tab,campo,valor){
 }
 
 /* ---- sincronização completa ---- */
-var RETIDOS={},ORFAOS={};
+var RETIDOS={},ORFAOS={},RECUSADAS={};
 async function sincronizar(){
-  RETIDOS={};ORFAOS={};
+  RETIDOS={};ORFAOS={};RECUSADAS={};
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
   /* o dono nao tem loja: nao ha dado dele para subir, e subir com loja vazia
      carimbaria o cadastro de alguem sem dono */
@@ -13292,6 +13320,42 @@ async function sincronizar(){
       }
 
       }catch(eT){
+        /* ==========================================================
+           SEM PERMISSAO NAO E FALHA DE SINCRONIZACAO
+           O banco recusar por regra de acesso (403 / RLS) nao e problema
+           temporario: e a resposta CERTA para uma operacao que aquela pessoa
+           nao pode fazer. Tratar como falha punha o registro de volta na
+           fila, tentava de novo a cada sincronizacao, e a faixa voltava
+           eternamente — "sobe na proxima sincronizacao" era mentira, porque
+           nunca ia subir.
+           Agora: sai da fila, fica registrado no diagnostico do administrador,
+           e o operador nao ve nada. A correcao de verdade e a tela nao criar
+           a operacao (ver podeCancelarVenda), e isso ja foi feito.
+           ========================================================== */
+        var _semPerm = (eT&&eT.regra) || (eT&&eT.status===403) ||
+          /sem permissão|row-level security|violates row-level/i.test((eT&&eT.message)||'');
+        if(_semPerm){
+          RECUSADAS[etapa]=((RECUSADAS[etapa]||0)+1);
+          registrarFalha('permissao',etapa,
+            'o banco recusou: esta conta não tem permissão para gravar em '+etapa,
+            {situacao:'não será tentado de novo',codigo:403});
+          logNuvem('sem permissão em '+etapa+' — removido da fila, '+
+                   'não adianta tentar de novo',true);
+          DB._hash[E2.col]=hNovo;   /* considera resolvido: para de tentar */
+          continue;
+        }
+        /* dado invalido (400) tambem nao melhora tentando de novo */
+        var _invalido = (eT&&eT.status===400) &&
+          !/timeout|network|fetch/i.test((eT&&eT.message)||'');
+        if(_invalido){
+          registrarFalha('dado',etapa,(eT&&eT.message)||'dado recusado',
+            {situacao:'precisa de correção; não será tentado de novo',codigo:400});
+          logNuvem('dado recusado em '+etapa+': '+((eT&&eT.message)||'')+
+                   ' — registrado no diagnóstico',true);
+          DB._hash[E2.col]=hNovo;
+          continue;
+        }
+        /* daqui para baixo e falha temporaria de verdade: mantem na fila */
         NUVEM.erros.push({tab:etapa,msg:(eT&&eT.message)||'falha'});
         logNuvem('ERRO em '+etapa+': '+((eT&&eT.message)||'falha')+
           ' — as demais tabelas continuam subindo',true);
@@ -14816,7 +14880,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V37.0.2';
+var VERSAO='V38.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15969,43 +16033,48 @@ function marcarVersaoAtual(){
     .catch(function(){});
 }
 /* diz exatamente qual tabela o banco recusou e por quê */
+/* ==========================================================
+   O OPERADOR NAO PRECISA SABER QUE EXISTEM TABELAS
+   Esta funcao abria uma faixa larga no rodape dizendo "1 tabela(s) nao
+   subiram agora — mesmo motivo em todas: sem permissao para cancelamentos".
+   Quem esta atendendo um cliente nao sabe o que e tabela, nem sincronizacao,
+   nem permissao de escrita — e nao pode fazer nada a respeito.
+   Agora:
+     - falta de permissao e dado invalido nem chegam aqui (saem da fila antes)
+     - falha temporaria vira o indicador discreto do rodape
+     - sessao vencida, que EXIGE acao do operador, continua avisando
+   O detalhe tecnico completo vai para Administracao > Diagnostico do Sistema.
+   ========================================================== */
 function avisoTabelaComErro(erros){
   try{
     var el=document.getElementById('avisoTab');
     if(el)el.remove();
-    el=document.createElement('div');
-    el.id='avisoTab';el.className='avisoGrav sinc';
-    /* Quando a causa é a sessão, TODAS as tabelas com regra de escrita caem
-       juntas. Listar as 15 com o texto do banco assusta e esconde o que houve:
-       não é erro de dado, é falta de credencial. Uma frase e um botão. */
+    if(!erros||!erros.length)return;
+
+    erros.forEach(function(x){
+      registrarFalha('sincronizacao',x.tab,x.msg||'falha ao enviar',
+        {situacao:'na fila, será tentado de novo'});
+      logNuvem('não subiu — '+x.tab+': '+x.msg,true);
+    });
+
+    /* Sessao vencida e a UNICA que o operador precisa ver: so ele pode
+       resolver, entrando de novo. Sem isso, ele lancaria a tarde inteira
+       sem nada subir. */
     var todasSessao=erros.length>2&&erros.every(function(x){
       return /row-level security|JWT|sess/i.test(x.msg||'');});
     if(todasSessao){
+      el=document.createElement('div');
+      el.id='avisoTab';el.className='avisoGrav sinc';
       el.innerHTML='<div><b>Sua sessão expirou</b>'+
         '<span>Nada foi perdido — o que você lançou está guardado neste aparelho '+
         'e sobe assim que você entrar de novo.</span></div>'+
         '<button class="btnP2 ok" onclick="sair()">Entrar de novo</button>';
-    }else{
-      /* Despejar 31 mensagens tecnicas do banco tomava a tela inteira e nao
-         dizia o que fazer. Quando o erro e o mesmo em todas, a causa e uma
-         so — entao mostra uma frase, e o detalhe fica no log para quem for
-         investigar. */
-      var msgs={};
-      erros.forEach(function(x){ msgs[String(x.msg||'').slice(0,60)]=true; });
-      var umaCausa=(Object.keys(msgs).length===1);
-      var tabs=erros.map(function(x){return x.tab.replace(/_/g,' ')});
-      el.innerHTML='<div><b>'+erros.length+' tabela(s) não subiram agora</b>'+
-        '<span>'+(umaCausa
-          ?'Mesmo motivo em todas: '+E(erros[0].msg)+'. '
-          :E(tabs.slice(0,4).join(', '))+(tabs.length>4?' e mais '+(tabs.length-4)+'. ':'. '))+
-        'Nada foi perdido — está guardado neste aparelho e sobe na próxima '+
-        'sincronização.</span></div>'+
-        '<button class="btnP2" onclick="verDiagnostico()">Ver detalhes</button>'+
-        '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
-      erros.forEach(function(x){
-        logNuvem('não subiu — '+x.tab+': '+x.msg,true); });
+      barraAvisos().appendChild(el);
+      return;
     }
-    barraAvisos().appendChild(el);
+    /* o resto e falha temporaria: o rodape ja mostra o estado, e a fila
+       reenviara sozinha. Nada na tela. */
+    estadoNuvem(NUVEM.ligada?'online':'offline');
   }catch(e){_quieto(e,'avisoTabelaComErro')}
 }
 function avisoEnvioPreso(){
@@ -24005,6 +24074,61 @@ async function salvarUnidade(){
    unidade e horario.
    ========================================================== */
 var DG={filtro:'',area:''};
+/* ==========================================================
+   AUDITORIA DA FILA DESTE APARELHO
+   Classifica cada registro que ainda nao subiu, para saber o que e legitimo
+   e o que e lixo de versao antiga. Nao apaga nada sozinho: mostra e deixa a
+   decisao com quem esta olhando.
+   ========================================================== */
+function auditarFila(){
+  var r={VALIDA:[],PERMISSAO:[],TENANT_DESCONHECIDO:[],OUTRA_EMPRESA:[],LEGADO:[]};
+  try{
+    (MAPA||[]).forEach(function(E2){
+      var lista=DB[E2.col]; if(!Array.isArray(lista))return;
+      var h=(DB._hash&&DB._hash[E2.col])||{};
+      lista.forEach(function(x){
+        if(!x||typeof x!=='object')return;
+        if(h[x.id])return;                       /* ja subiu */
+        var item={col:E2.col,tab:E2.tab,id:x.id,
+                  nome:x.nome||x.login||x.numero||x.descricao||x.id,
+                  criado:x._criadoEm||'—'};
+        if(x._tenantDesconhecido)          r.TENANT_DESCONHECIDO.push(item);
+        else if(!x._loja)                  r.LEGADO.push(item);
+        else if(x._loja!==NUVEM.loja)      r.OUTRA_EMPRESA.push(item);
+        else if(RECUSADAS[E2.tab])         r.PERMISSAO.push(item);
+        else                               r.VALIDA.push(item);
+      });
+    });
+  }catch(e){ _quieto(e,'auditarFila'); }
+  return r;
+}
+async function limparFilaLegada(){
+  var f=auditarFila();
+  var alvo=f.LEGADO.concat(f.TENANT_DESCONHECIDO).concat(f.PERMISSAO);
+  if(!alvo.length){ toast('Nada a limpar: a fila só tem pendências válidas.'); return; }
+  var ok=await confirmar({
+    titulo:'Limpar '+alvo.length+' pendência(s) que nunca vão subir',
+    texto:'São registros sem empresa de origem, de outra empresa, ou recusados '+
+          'por falta de permissão.',
+    linhas:[['Sem origem',String(f.LEGADO.length),''],
+            ['Empresa desconhecida',String(f.TENANT_DESCONHECIDO.length),''],
+            ['Sem permissão',String(f.PERMISSAO.length),'']],
+    aviso:'Pendências válidas e registros de outra empresa NÃO são tocados. '+
+          'O que for apagado aqui nunca chegou à nuvem.',
+    ok:'Limpar',tipo:'perigo'});
+  if(!ok)return;
+  var n=0;
+  alvo.forEach(function(it){
+    var lista=DB[it.col]; if(!Array.isArray(lista))return;
+    var i=lista.findIndex(function(x){return x&&x.id===it.id});
+    if(i>=0){ lista.splice(i,1); n++; }
+  });
+  gravarLocal();
+  registrarFalha('fila','limparFilaLegada',n+' pendência(s) inválida(s) removidas',
+    {situacao:'resolvido'});
+  toast(n+' pendência(s) removida(s).');
+  telaDiagnosticoSistema();
+}
 function telaDiagnosticoSistema(){
   if(!ehPlataforma())return telaRestrita('Diagnóstico do Sistema');
   var L=DIAGNOSTICO.slice();
@@ -24026,6 +24150,20 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Conexão</span><b>'+E(CONEXAO)+'</b></div>'+
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
+   (function(){
+     var f=auditarFila();
+     var inval=f.LEGADO.length+f.TENANT_DESCONHECIDO.length+f.PERMISSAO.length;
+     return '<div class="hpNums" style="border:1px solid var(--line);'+
+      'border-radius:8px;overflow:hidden;margin-bottom:12px">'+
+      '<div class="hpN"><span>Fila válida</span><b>'+f.VALIDA.length+'</b></div>'+
+      '<div class="hpN"><span>Sem permissão</span><b class="'+(f.PERMISSAO.length?'vr':'')+
+        '">'+f.PERMISSAO.length+'</b></div>'+
+      '<div class="hpN"><span>Sem origem</span><b class="'+(f.LEGADO.length?'vr':'')+
+        '">'+f.LEGADO.length+'</b></div>'+
+      '<div class="hpN"><span>De outra empresa</span><b>'+f.OUTRA_EMPRESA.length+'</b></div>'+
+      '<div class="hpN"><span>Inválidas ao todo</span><b class="'+(inval?'vr':'')+
+        '">'+inval+'</b></div></div>';
+   })()+
    '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'+
     '<div class="f2" style="max-width:260px"><label>Buscar</label>'+
      '<input value="'+E(DG.filtro)+'" placeholder="tabela, função ou mensagem" '+
@@ -24039,6 +24177,8 @@ function telaDiagnosticoSistema(){
                E(a||'—')+' ('+areas[a]+')</option>';
       }).join('')+'</select></div>'+
     '<div style="flex:1"></div>'+
+    '<button class="btnP2" onclick="limparFilaLegada()">'+sv('trash',12)+
+     ' Limpar pendências inválidas</button>'+
     '<button class="btnP2" onclick="encerrarTodasAsSessoes()">'+sv('lock',12)+
      ' Encerrar minhas sessões</button>'+
     '<button class="btnP2" onclick="copiarDiagnostico()">Copiar tudo</button>'+
@@ -38168,9 +38308,34 @@ function pedeSenhaCancel(){
   var i=$('cvSenha');
   if(i){i.value='';i.focus();}
 }
+/* Quem pode cancelar: quem opera o PDV ou a frente de caixa. A mesma regra
+   que o banco aplica na politica "cancelamentos: grava quem opera caixa" —
+   escrita uma vez aqui para a tela nao divergir do banco. */
+function podeCancelarVenda(){
+  try{
+    if(ehPlataforma()||ehFranqueadora())return true;
+    return podeVer('pdv','pdv')||podeVer('financeira','frente-caixa');
+  }catch(e){ _quieto(e,'podeCancelarVenda'); return false; }
+}
 async function confirmarCancelamento(id){
   var p=(DB.pedidos||[]).find(function(x){return x.id===id});
   if(!p)return;
+  /* ==========================================================
+     PERMISSAO CONFERIDA ANTES DE CRIAR A OPERACAO
+     Era aqui a origem da faixa "1 tabela nao subiu — sem permissao para
+     cancelamentos". A tela criava o cancelamento sem perguntar se a pessoa
+     podia cancelar; o registro entrava na fila; o banco recusava com 403,
+     corretamente; a fila guardava para tentar de novo; e o aviso voltava a
+     cada sincronizacao, para sempre. Tentar de novo nunca ia resolver:
+     falta de permissao nao melhora com o tempo.
+     Agora a conferencia vem antes. Sem permissao, nada e criado — e o banco
+     continua conferindo de novo, que a tela nao e seguranca.
+     ========================================================== */
+  if(!podeCancelarVenda()){
+    toast('Você não possui permissão para cancelar vendas.');
+    fecharModal();
+    return;
+  }
   var motId=($('cvMot')||{}).value||'';
   if(!motId){toast('Escolha o motivo do cancelamento.');return;}
   var mot=(DB.motivosCanc||[]).find(function(m){return m.id===motId});
