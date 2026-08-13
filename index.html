@@ -12101,6 +12101,11 @@ function cliente(){
     _cli.auth.onAuthStateChange(function(ev,ses){
       if(ses&&ses.access_token){
         NUVEM.token=ses.access_token;
+      if(_avisouSessao){
+        _avisouSessao=false;
+        try{var _a=document.getElementById('avisoTab'); if(_a)_a.remove();}
+        catch(e2){ _quieto(e2,'tokenValido'); }
+      }
         try{ if(_cli.realtime&&_cli.realtime.setAuth)_cli.realtime.setAuth(NUVEM.token); }catch(e){_quieto(e,'cliente')}
         if(ev==='TOKEN_REFRESHED')logNuvem('sessão renovada automaticamente');
       }
@@ -12347,13 +12352,37 @@ function carimbarOrigem(){
   }
   return n;
 }
+/* ==========================================================
+   GRAVACAO NO APARELHO SAI DA FRENTE DO CLIQUE
+   gravarLocal() transforma o DB inteiro em texto e escreve no aparelho —
+   e isso e SINCRONO: enquanto roda, o navegador nao responde a nada. Com o
+   volume atual sao centenas de KB, e salvar() e chamado em 178 lugares.
+   Clicar num menu logo depois de uma gravacao significa esperar ela acabar.
+   Agora a gravacao e adiada para o proximo respiro do navegador. Se a pessoa
+   fechar a aba antes, o gancho de saida grava na hora — nada se perde.
+   ========================================================== */
+var _gravPend=false;
+function gravarDepois(){
+  if(_gravPend)return;
+  _gravPend=true;
+  var faz=function(){ _gravPend=false; try{gravarLocal()}catch(e){_quieto(e,'gravarDepois')} };
+  if(window.requestIdleCallback)requestIdleCallback(faz,{timeout:1200});
+  else setTimeout(faz,120);
+}
+window.addEventListener('pagehide',function(){
+  if(_gravPend){ _gravPend=false; try{gravarLocal()}catch(e){_quieto(e,'pagehide')} }
+});
+window.addEventListener('visibilitychange',function(){
+  if(document.hidden&&_gravPend){ _gravPend=false;
+    try{gravarLocal()}catch(e){_quieto(e,'visibilitychange')} }
+});
 function salvar(){
   carimbarOrigem();                  /* antes de gravar: de quem e este dado */
   /* a marca de "tem coisa para enviar" vai junto com os dados: se o navegador
      fechar antes do envio, no proximo boot o sistema ainda sabe que deve subir
      antes de baixar qualquer coisa. Antes ela so existia na memoria. */
   if(NUVEM.ligada)DB._sujo=true;
-  gravarLocal();                     /* sempre grava no aparelho (rede caindo nao perde dado) */
+  gravarDepois();                    /* grava no aparelho, mas sem travar a tela */
   if(NUVEM.ligada){NUVEM.sujo=true;logNuvem('mudança salva aqui — envio agendado');agendarSync();}
   else logNuvem('mudança salva aqui (nuvem desligada)');
 }
@@ -12493,7 +12522,23 @@ function semear(){
 var _timerSync=null;
 function agendarSync(){
   clearTimeout(_timerSync);
-  _timerSync=setTimeout(sincronizar,800);
+  /* ==========================================================
+     A SINCRONIZACAO ESPERA A PESSOA PARAR DE MEXER
+     Cada gravacao agendava um envio para 800 ms depois. Trabalhando, isso
+     dispara sem parar — e cada envio percorre 15 tabelas, monta os pacotes e
+     ocupa o navegador. O clique de quem esta usando entra na fila atras
+     disso, e a tela parece lenta mesmo montando em 30 ms.
+     Agora: 2,5 s de silencio antes de enviar, e o envio so comeca quando o
+     navegador esta ocioso. Nada e perdido — o envio continua garantido, so
+     acontece na folga em vez de na frente do usuario.
+     ========================================================== */
+  _timerSync=setTimeout(function(){
+    if(window.requestIdleCallback){
+      requestIdleCallback(function(){sincronizar()},{timeout:4000});
+    }else{
+      setTimeout(sincronizar,0);
+    }
+  },2500);
 }
 async function conectarNuvem(email,senha){
   if(!window.supabase)throw new Error('Biblioteca da nuvem não carregou. Verifique a internet.');
@@ -13150,6 +13195,31 @@ async function apagar(tab,campo,valor){
 var RETIDOS={},ORFAOS={},RECUSADAS={};
 async function sincronizar(){
   RETIDOS={};ORFAOS={};RECUSADAS={};
+  /* ==========================================================
+     SESSAO CAIDA PARA A SINCRONIZACAO NA HORA
+     No Console apareceram cinco POSTs seguidos com 401: turnos,
+     estoque_unidade, sucursais, config_loja, config_operacao. Sem token, o
+     banco recusa TUDO — e o motor seguia tentando tabela por tabela, cada
+     uma com ida e volta pela rede, a cada gravacao. Quinze tabelas x varias
+     tentativas seguram o navegador, e o clique da pessoa fica na fila
+     esperando. Era isso que dava a impressao de tela lenta: a tela monta em
+     30 ms, mas o clique demorava a CHEGAR nela.
+     Agora: sem token, nem comeca. Tenta renovar uma vez; se nao vier,
+     avisa e para. Sessao expirada nao melhora tentando de novo.
+     ========================================================== */
+  if(NUVEM.ligada&&NUVEM.cli){
+    var _tk=await tokenValido();
+    if(!_tk){
+      _tk=await tokenValido(true);
+      if(!_tk){
+        NUVEM.ligada=false;
+        anotarTrava('sessão caiu',0,'sincronização interrompida: sem autorização');
+        estadoNuvem('offline');
+        avisoSessaoCaiu();
+        return;
+      }
+    }
+  }
   if(!NUVEM.ligada){logNuvem('envio cancelado: nuvem desligada',true);return;}
   /* o dono nao tem loja: nao ha dado dele para subir, e subir com loja vazia
      carimbaria o cadastro de alguem sem dono */
@@ -14304,6 +14374,25 @@ async function baixarDaNuvem(forcar){
    Falha que realmente impede uma operacao usa avisoOperacao(), que fala em
    portugues comum e nao cita banco de dados.
    ========================================================== */
+/* Sessao vencida e das poucas coisas que o operador PRECISA saber: so ele
+   resolve, entrando de novo. Sem isso ele lanca a tarde inteira sem nada
+   subir — ou fica com a tela travada sem entender por que. */
+var _avisouSessao=false;
+function avisoSessaoCaiu(){
+  if(_avisouSessao)return;
+  _avisouSessao=true;
+  try{
+    var el=document.getElementById('avisoTab');
+    if(el)el.remove();
+    el=document.createElement('div');
+    el.id='avisoTab'; el.className='avisoGrav sinc';
+    el.innerHTML='<div><b>Sua sessão expirou</b>'+
+      '<span>Nada foi perdido — o que você lançou está guardado neste aparelho '+
+      'e sobe assim que você entrar de novo.</span></div>'+
+      '<button class="btnP2 ok" onclick="sair()">Entrar de novo</button>';
+    barraAvisos().appendChild(el);
+  }catch(e){ _quieto(e,'avisoSessaoCaiu'); }
+}
 function avisoSinc(msg,detalhe){
   registrarFalha('sincronizacao','avisoSinc',msg,{detalhe:detalhe||'',situacao:'pendente'});
   try{ if(CONEXAO!=='offline')estadoNuvem(NUVEM.ligada?'online':'offline'); }catch(e){_quieto(e,'avisoSinc')}
@@ -14971,7 +15060,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V43.1.0';
+var VERSAO='V44.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
