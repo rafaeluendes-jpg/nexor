@@ -13633,7 +13633,9 @@ async function sincronizar(){
     gravarLocal();
     statusNuvem('ok');
     logNuvem('tudo enviado com sucesso');
-    marcarVersaoAtual();
+    /* ESPERA a marca ficar pronta: seguir sem esperar era o que deixava o
+       relogio de 6 s ver um contador "novo" que fui EU mesmo que criei. */
+    await marcarVersaoAtual();
     backupDoDia();                 /* uma cópia por dia, sem travar nada */
   }catch(e){
     console.error('[NEXOR sync]',etapa,e);
@@ -13675,7 +13677,15 @@ async function baixarTab(nome,url){
     return [];
   }
 }
+var _baixando=false;
 async function baixarDaNuvem(forcar){
+  /* dois downloads ao mesmo tempo dobram o trabalho e nao trazem nada novo */
+  if(_baixando)return false;
+  _baixando=true;
+  try{ return await _baixarDaNuvem(forcar); }
+  finally{ _baixando=false; }
+}
+async function _baixarDaNuvem(forcar){
   _FALHOU_BAIXA=[];
   if(NUVEM.plataforma){
     NUVEM.sujo=false;DB._sujo=false;
@@ -14360,6 +14370,15 @@ async function baixarDaNuvem(forcar){
   logNuvem('download concluído — itens de categorias: '+antesCat+' -> '+depoisCat,
     depoisCat<antesCat);
 
+  /* ==========================================================
+     O QUE ACABOU DE CHEGAR DA NUVEM NAO PRECISA VOLTAR PARA ELA
+     Sem isto, o download marcava os dados como pendentes de envio, o envio
+     subia tudo de volta, o contador da loja subia, o relogio de 6 s via
+     mudanca e baixava de novo. Era esse o ciclo que congelava a tela 750 ms
+     por segundo, sem parar.
+     ========================================================== */
+  NUVEM.sujo=false; DB._sujo=false;
+  clearTimeout(_timerSync);
   gravarLocal();
   return true;
 }
@@ -15060,7 +15079,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V44.1.0';
+var VERSAO='V45.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16375,6 +16394,9 @@ async function encerrarTodasAsSessoes(){
 }
 async function conferirVersaoLoja(){
   if(!NUVEM.ligada||_verOcupado||NUVEM.sincronizando||RT.pausa)return;
+  /* envio pendente significa que o contador vai mudar por minha causa —
+     baixar agora e baixar o que eu mesmo acabei de mandar */
+  if(NUVEM.sujo||DB._sujo||_baixando)return;
   /* O dono da plataforma nao tem loja. Sem esta linha, o relogio de 6 em 6
      segundos pedia 'loja_id=eq.null' e o banco recusava — enchendo o Console
      de erro vermelho e escondendo o defeito de verdade que se procurava. */
@@ -16403,11 +16425,31 @@ async function conferirVersaoLoja(){
 }
 setInterval(conferirVersaoLoja,6000);
 /* depois de eu mesmo enviar, acompanho o contador para não baixar à toa */
-function marcarVersaoAtual(){
+/* ==========================================================
+   O LACO QUE CONGELAVA A TELA
+   Medido no aparelho: congelamentos de 750 ms, um por segundo, sem parar —
+   e no meio deles requisicoes de /insumos (1.234 ms) e /estoque_unidade
+   (888 ms). Nao era a tela de estoque: era o sistema baixando a base
+   inteira em laco.
+   O ciclo:
+     1. o sistema envia algo        -> o banco incrementa o contador da loja
+     2. o relogio de 6 s ve o contador diferente do que tinha guardado
+     3. conclui "outro aparelho mexeu" e BAIXA TUDO (insumos, estoque...)
+     4. o download grava no aparelho, o que marca dado sujo
+     5. dado sujo agenda um envio -> volta ao passo 1
+   marcarVersaoAtual existia para evitar isso, mas era ASSINCRONA: pedia o
+   contador e seguia. O relogio disparava antes da resposta chegar, ainda com
+   o numero velho na memoria, e o ciclo comecava.
+   Agora: o proprio envio ja sabe qual contador gerou; a marca e feita na
+   hora, sem ida a rede. E o relogio nao baixa nada enquanto houver envio
+   pendente ou download em andamento.
+   ========================================================== */
+async function marcarVersaoAtual(){
   if(NUVEM.plataforma||!NUVEM.loja)return;
-  api('loja_versao?loja_id=eq.'+NUVEM.loja+'&select=versao')
-    .then(function(r){ if(r&&r[0])_versaoLoja=Number(r[0].versao); })
-    .catch(function(){});
+  try{
+    var r=await api('loja_versao?loja_id=eq.'+NUVEM.loja+'&select=versao');
+    if(r&&r[0])_versaoLoja=Number(r[0].versao);
+  }catch(e){ _quieto(e,'marcarVersaoAtual'); }
 }
 /* diz exatamente qual tabela o banco recusou e por quê */
 /* ==========================================================
