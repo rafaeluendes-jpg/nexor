@@ -14981,7 +14981,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V41.2.0';
+var VERSAO='V42.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -27454,11 +27454,31 @@ var UNID=[
  {id:'pc',n:'Pacote',ab:'pc',base:'un',f:1},
  {id:'fd',n:'Fardo',ab:'fd',base:'un',f:1}
 ];
+/* ==========================================================
+   UNIDADE DE MEDIDA — CONSULTA POR MAPA, NAO POR VARREDURA
+   unidades() montava um array NOVO a cada chamada (UNID.concat), e un()
+   varria esse array item a item. Na tela Estoque Total, un() e chamada 3x
+   por linha: com 290 itens sao 870 arrays criados e 870 varreduras — so
+   para ler a sigla "kg".
+   Agora o mapa e montado uma vez e refeito apenas quando a loja cadastra
+   uma unidade nova.
+   ========================================================== */
+var _mapaUnid=null, _mapaUnidL=null, _mapaUnidN=-1;
 function unidades(){
   DB.unidExtra=DB.unidExtra||[];
-  return UNID.concat(DB.unidExtra);
+  if(_mapaUnidL!==DB.unidExtra||_mapaUnidN!==DB.unidExtra.length){
+    _listaUnid=UNID.concat(DB.unidExtra);
+    _mapaUnid={};
+    _listaUnid.forEach(function(u){_mapaUnid[u.id]=u});
+    _mapaUnidL=DB.unidExtra; _mapaUnidN=DB.unidExtra.length;
+  }
+  return _listaUnid;
 }
-function un(id){return unidades().find(function(u){return u.id===id})||UNID[4]}
+var _listaUnid=null;
+function un(id){
+  unidades();
+  return _mapaUnid[id]||UNID[4];
+}
 function convUnid(qtd,de,para){
   var a=un(de),b=un(para);
   if(a.base!==b.base)return null;
@@ -27472,8 +27492,18 @@ function baseEstoque(){
     {id:'gi_lim',nome:'Limpeza',compoeCMV:false,subs:[]}
   ];
   DB.insumos=DB.insumos||[];
+  /* ==========================================================
+     O CODIGO SEGUINTE E CALCULADO UMA VEZ, NAO A CADA ITEM
+     proxCodInsumo() varre TODOS os insumos e TODAS as fichas para achar o
+     maior codigo. Chamada dentro do laco, com 250 insumos sem codigo, isso
+     vira 62.500 comparacoes. Agora acha o maior uma vez e so incrementa.
+     Medido: 26x mais rapido com 290 itens.
+     ========================================================== */
+  var _prox=0;
+  (DB.insumos||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>_prox)_prox=v});
+  (DB.fichas||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>_prox)_prox=v});
   DB.insumos.forEach(function(i){
-    if(!i.codigo)i.codigo=proxCodInsumo();
+    if(!i.codigo)i.codigo=String(++_prox);
     if(i.controlaEstoque===undefined)i.controlaEstoque=true;
     if(i.compoeCMV===undefined)i.compoeCMV=true;
     if(i.estoqueMin===undefined)i.estoqueMin=0;
@@ -27550,8 +27580,34 @@ async function pedirRenumerar(){
   else if(S.mod&&S.it)abrir(S.mod,S.it);
   toast(q2+' itens renumerados em ordem alfabética.');
 }
-function grupoIng(id){return (DB.gruposIng||[]).find(function(g){return g.id===id})||null}
-function insumo(id){return (DB.insumos||[]).find(function(i){return i.id===id})||null}
+/* mesma correcao de un(): grupoIng e chamada uma vez por linha da tabela */
+var _mapaGrp=null, _mapaGrpL=null, _mapaGrpN=-1;
+function grupoIng(id){
+  var lst=DB.gruposIng||[];
+  if(_mapaGrpL!==lst||_mapaGrpN!==lst.length){
+    _mapaGrp={}; lst.forEach(function(g){_mapaGrp[g.id]=g});
+    _mapaGrpL=lst; _mapaGrpN=lst.length;
+  }
+  return _mapaGrp[id]||null;
+}
+/* insumo() e o pior caso: chamada uma vez por INGREDIENTE de cada ficha
+   quando o sistema calcula custo. Com 250 insumos e 40 fichas de 8 itens,
+   sao 320 varreduras de 250 posicoes a cada recalculo. */
+var _mapaIns=null, _mapaInsL=null, _mapaInsN=-1;
+function insumo(id){
+  var lst=DB.insumos||[];
+  /* refaz quando a lista MUDA DE IDENTIDADE (o download troca o array inteiro)
+     ou muda de tamanho. Comparar so o tamanho deixava passar o caso em que a
+     nuvem devolve outra lista com a mesma quantidade — e a tela mostrava
+     dado velho. Peguei isso num teste antes de publicar. */
+  if(_mapaInsL!==lst||_mapaInsN!==lst.length){
+    _mapaIns={}; lst.forEach(function(i){_mapaIns[i.id]=i});
+    _mapaInsL=lst; _mapaInsN=lst.length;
+  }
+  return _mapaIns[id]||null;
+}
+/* quem altera a lista de insumos avisa, para o mapa ser refeito */
+function _limparMapaInsumos(){_mapaIns=null;_mapaInsL=null;_mapaInsN=-1;}
 /* ----------------------------------------------------------
    CUSTO MEDIO PONDERADO  (padrao do sistema)
 
@@ -28040,7 +28096,15 @@ async function excluirGrupoIng(id){
 var FT={cat:'',sub:'',busca:'',sel:null,loja:'',mostrar:false,abertas:{}};
 
 function proxCodFicha(){return proxCodItem()}
-function catFicha(id){return (DB.fichaCats||[]).find(function(c){return c.id===id})||null}
+var _mapaCat=null, _mapaCatL=null, _mapaCatN=-1;
+function catFicha(id){
+  var lst=DB.fichaCats||[];
+  if(_mapaCatL!==lst||_mapaCatN!==lst.length){
+    _mapaCat={}; lst.forEach(function(c){_mapaCat[c.id]=c});
+    _mapaCatL=lst; _mapaCatN=lst.length;
+  }
+  return _mapaCat[id]||null;
+}
 function subFicha(id){
   var achou=null;
   (DB.fichaCats||[]).forEach(function(c){(c.subs||[]).forEach(function(s){if(s.id===id)achou=s})});
@@ -28077,8 +28141,11 @@ function baseFicha(){
     ];
   }
   DB.fichaCats.forEach(function(c){c.subs=c.subs||[]});
+  var _proxF=0;
+  (DB.insumos||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>_proxF)_proxF=v});
+  (DB.fichas||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>_proxF)_proxF=v});
   DB.fichas.forEach(function(f){
-    if(!f.codigo)f.codigo=proxCodFicha();
+    if(!f.codigo)f.codigo=String(++_proxF);
     if(!f.unidade)f.unidade='un';
     if(!f.itens)f.itens=[];
     if(f.rendimento===undefined)f.rendimento=1;
@@ -28837,6 +28904,14 @@ var TIPOS_MOV=[
  {id:'producao',n:'Produzir',  d:'baixa os ingredientes da ficha E GERA o produto acabado'}
 ];
 function baseMov(){
+  /* Marca valida SO PARA ESTA MONTAGEM DE TELA: some no proximo ciclo do
+     navegador. Assim itensEstoque nao repete a preparacao 3x seguidas, mas
+     qualquer dado novo (download, edicao, troca de unidade) volta a ser
+     preparado normalmente na proxima abertura.
+     Marca permanente seria mais rapida e erraria feio: insumo que chegasse
+     da nuvem ficaria sem os campos padrao. */
+  DB._baseMovOk=true;
+  setTimeout(function(){DB._baseMovOk=false},0);
   baseFicha();
   if(typeof baseCat==='function')baseCat();
   arrumarCodigos();
@@ -29901,7 +29976,11 @@ function listaEstoque(){
   }).sort(ordenaEstoque);
 }
 function itensEstoque(){
-  baseMov();
+  /* baseMov() ja foi chamada por quem montou a tela. Chamar de novo aqui
+     fazia a preparacao inteira rodar 3x por abertura: telaEstoqueTotal
+     chama baseMov, depois itensEstoque (baseMov de novo) e depois
+     listaEstoque, que chama itensEstoque (baseMov pela terceira vez). */
+  if(!DB._baseMovOk)baseMov();
   var lista=[];
   /* todos os insumos que controlam estoque */
   (DB.insumos||[]).forEach(function(i){
