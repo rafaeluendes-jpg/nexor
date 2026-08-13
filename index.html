@@ -13668,6 +13668,7 @@ async function sincronizar(){
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
+    _ultimoEnvio=Date.now();     /* marca para o tempo real ignorar meu eco */
     /* rabicho: os avisos das minhas gravacoes ainda estao a caminho */
     pausaTempoReal(4000);
     if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
@@ -13696,8 +13697,28 @@ async function baixarTab(nome,url){
     return [];
   }
 }
-var _baixando=null;
+var _baixando=null, _ultimoDownload=0, _ultimoEnvio=0;
 async function baixarDaNuvem(forcar){
+  /* ==========================================================
+     INTERVALO MINIMO ENTRE DOWNLOADS
+     Medido no aparelho: /insumos levando 2.116 ms e congelamentos de 750 ms
+     um atras do outro, sem parar. Sao SEIS caminhos diferentes que pedem
+     download — tempo real, relogio de 6 s, conferencia de 45 s, volta para a
+     aba, reconexao e o proprio envio. Fechei um por um e continuaram vindo
+     pelos outros.
+     Em vez de tapar cada caminho, a trava fica AQUI, na porta: fora um
+     pedido explicito da pessoa (forcar), nao se baixa a base inteira mais de
+     uma vez a cada 20 segundos. Novidade real nao se perde — chega no ciclo
+     seguinte, e o tempo real continua avisando.
+     ========================================================== */
+  if(!forcar){
+    var desde=Date.now()-_ultimoDownload;
+    if(desde<20000){
+      logNuvem('download ignorado: o anterior foi há '+Math.round(desde/1000)+' s');
+      return false;
+    }
+  }
+  _ultimoDownload=Date.now();
   /* ==========================================================
      DOWNLOAD SIMULTANEO: ESPERA, NAO DESCARTA
      Na primeira versao desta trava eu devolvia false quando ja havia um
@@ -15110,7 +15131,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V45.1.0';
+var VERSAO='V46.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16142,6 +16163,21 @@ function ligarTempoReal(){
            redesenhava a tela de quem estava trabalhando. Só interessa o que
            o sistema realmente mostra. */
         if(!tabelaDeTela(msg&&msg.table))return;
+        /* ==========================================================
+           NAO REAGIR AO PROPRIO BARULHO
+           O canal avisa QUALQUER gravacao na empresa — inclusive as minhas.
+           Eu enviava, o aviso voltava, eu baixava tudo, o download marcava
+           dado, o dado gerava novo envio. A pausa de 4 s nao dava conta:
+           o aviso do Supabase chega com atraso variavel, as vezes muito
+           depois.
+           Agora comparo o carimbo do registro que mudou com o meu proprio
+           envio: se fui eu, ignoro.
+           ========================================================== */
+        try{
+          var _q=(msg&&msg.new)||{};
+          if(_q.loja_id&&NUVEM.loja&&_q.loja_id===NUVEM.loja&&
+             Date.now()-(_ultimoEnvio||0)<15000)return;
+        }catch(e){ _quieto(e,'tempoReal'); }
         agendarRecarga(msg&&msg.table);
       })
       .subscribe(function(st){
