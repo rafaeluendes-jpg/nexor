@@ -3920,6 +3920,28 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 /* barra de unidades na tela de permissoes */
 .permBarra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:900px;margin-bottom:10px}
 /* ---------- Liberação por Unidade ---------- */
+/* ---------- Controle Diário: baixa manual ---------- */
+.bxLin4{display:grid;grid-template-columns:2.2fr 1fr 1fr 1.6fr;gap:10px;
+  padding:12px 14px 0}
+.bxLin3{display:grid;grid-template-columns:1fr 1.3fr 2fr;gap:10px;padding:10px 14px 0}
+.bxAcoes{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px 14px}
+.bxSug{position:absolute;left:0;right:0;top:100%;z-index:40;background:var(--panel);
+  border:1px solid var(--acc);border-radius:var(--r-s);box-shadow:var(--sh2);
+  overflow:hidden;margin-top:2px;max-height:230px;overflow-y:auto}
+.bxSug div{padding:7px 11px;font-size:13px;cursor:pointer;
+  border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:7px}
+.bxSug div:last-child{border-bottom:0}
+.bxSug div:hover{background:var(--acc-soft)}
+.bxTg{font-size:10px;background:var(--ok-soft);color:var(--ok);padding:1px 7px;
+  border-radius:20px;font-weight:700;margin-left:6px;white-space:nowrap}
+.bxTg.f{background:var(--blue-soft);color:var(--blue)}
+.bxRod{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  border-top:1px solid var(--line)}
+.avisoIn{margin:10px 14px 0;background:var(--red-soft);color:var(--red);
+  border-radius:var(--r-s);padding:8px 12px;font-size:12.5px;font-weight:600}
+@media(max-width:900px){
+  .bxLin4,.bxLin3{grid-template-columns:1fr}
+}
 .lbGrade2{display:grid;grid-template-columns:238px 1fr;gap:14px;align-items:start}
 .lbLado{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
   position:sticky;top:0}
@@ -11884,6 +11906,7 @@ var ICM={
  relatorios:'<path d="M3 21h18"/><path d="M6 21v-7M12 21V8M18 21v-4"/>',
  dashboard:'<path d="M12 3a9 9 0 109 9h-9z"/><path d="M12 3v9h9"/>',
  loja:'<path d="M3 21V9.5L12 3l9 6.5V21z"/><path d="M9.5 21v-6h5v6"/>',
+ controle:'<path d="M5 3h14v18l-4-3-3 3-3-3-4 3z"/><path d="M9 8h6M9 12h4"/>',
  tecnico:'<circle cx="12" cy="12" r="3.2"/>'+
      '<path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3'+
      'M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4L5.3 5.3"/>'
@@ -11947,6 +11970,18 @@ var MOD=[
  {id:'faturamento',n:'Faturamento'},
  {id:'venda-data-hora',n:'Venda por Data e Hora'},
  {id:'comparativo-anual',n:'Comparativo Anual e Mensal'}]},
+/* ==========================================================
+   CONTROLE DIARIO — o caderno da operacao
+   Hoje a perda e anotada em papel e depois digitada de novo no sistema:
+   trabalho dobrado e sujeito a esquecimento. Aqui a pessoa registra na hora,
+   e no fim do dia lanca tudo de uma vez na movimentacao de estoque.
+   Modulo proprio de proposito: e a area do FRANQUEADO, e outras coisas dele
+   virao para ca. Nao e um segundo lugar de baixar estoque — nada sai do
+   saldo enquanto esta aqui.
+   ========================================================== */
+{id:'controle',n:'Controle Diário',ic:'caderno',it:[
+ {id:'baixa-manual',n:'Baixa Manual'},
+ {id:'baixa-relatorio',n:'Relatório de Baixas'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
  {id:'cfg-loja',n:'Mapa do Sistema'},
  {id:'carga-inicial',n:'Importar Dados'},
@@ -12712,6 +12747,17 @@ var MAPA=[
     campos:function(o){return {insumo_id:fk('insumos',o.insumoId),quantidade:n(o.qtd),
       unidade:o.unidade||'un',perda:n(o.perda)}}}]},
 
+ /* o caderno sobe para a nuvem: a franqueadora precisa ver a perda de cada
+    unidade, e a pessoa nao pode perder o registro se trocar de aparelho */
+ {col:'baixasPend', espelha:true, tab:'baixas_pendentes',
+  campos:function(x){return {
+    sucursal_id:x.sucursalRef||null, item_ref:x.itemRef, item_nome:x.itemNome,
+    item_tipo:x.itemTipo||'insumo', quantidade:num(x.qtd), unidade:x.unidade||null,
+    custo_unit:num(x.custo), motivo_ref:x.motivoRef||null, motivo_nome:x.motivoNome||null,
+    quem_registrou:x.quem||null, registrado_por:x.registradoPor||null,
+    data:x.data||null, hora:x.hora||null, observacao:x.obs||null,
+    situacao:x.situacao||'pendente', mov_ref:x.movRef||null,
+    lancada_em:x.lancadaEm||null};}},
  {col:'motivosMov', espelha:true,  tab:'motivos_movimentacao',
   campos:function(x){return {nome:x.nome,tipo:x.tipo,sistema:!!x.sistema,
     ativo:x.ativo!==false,lojas_visiveis:x.lojas||[]}}},
@@ -13996,6 +14042,15 @@ async function _baixarDaNuvem(forcar){
     delete p._fichaUid;delete p._insumoUid;
   });
 
+  var bxp=await baixarTab('baixas_pendentes', 'baixas_pendentes'+qs);
+  DB.baixasPend=volta(bxp,function(x){return {id:x.ref_local||x.id,
+    sucursalRef:x.sucursal_id,itemRef:x.item_ref,itemNome:x.item_nome,
+    itemTipo:x.item_tipo,qtd:Number(x.quantidade)||0,unidade:x.unidade,
+    custo:Number(x.custo_unit)||0,motivoRef:x.motivo_ref,motivoNome:x.motivo_nome,
+    quem:x.quem_registrou,registradoPor:x.registrado_por,data:x.data,hora:x.hora,
+    obs:x.observacao,situacao:x.situacao||'pendente',movRef:x.mov_ref,
+    lancadaEm:x.lancada_em}},DB.baixasPend);
+
   var mv=await baixarTab('motivos_movimentacao', 'motivos_movimentacao'+qs);
   var mapaMt={};mv.forEach(function(x){mapaMt[x.id]=x.ref_local||x.id});
   DB.motivosMov=volta(mv,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,
@@ -15131,7 +15186,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V46.0.0';
+var VERSAO='V47.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15391,6 +15446,8 @@ if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
 if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
+if(mid==='controle'&&iid==='baixa-manual')return telaBaixaManual();
+if(mid==='controle'&&iid==='baixa-relatorio')return telaRelatorioBaixas();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='transferencia')return telaTransferencia();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -29661,6 +29718,506 @@ function casaBuscaMov(l,m,ins){
       || (l.obs||m.obs||'').toLowerCase().indexOf(q)>=0
       || String((ins||{}).codigo||'').toLowerCase().indexOf(q)>=0;
 }
+/* ==========================================================
+   BAIXA MANUAL — o caderno da operação
+   A pessoa registra a perda na hora que acontece. Nada sai do estoque
+   ainda: fica na lista do dia até alguém mandar para a movimentação.
+   Por que o nome é digitado e não vem do login: no PDV o login é do caixa,
+   compartilhado. Se uma perda precisar ser cobrada de alguém, o nome tem de
+   ser da pessoa. O login fica gravado à parte, para auditoria.
+   ========================================================== */
+var BX={busca:'', item:null, qtd:'', unidade:'', motivo:'', quem:'',
+        obs:'', data:'', erro:'', filtro:'pendente', editando:null};
+
+function baseBaixas(){ DB.baixasPend = DB.baixasPend || []; return DB.baixasPend; }
+
+/* tudo que pode sofrer baixa: insumos, fichas técnicas e produtos do PDV */
+function itensParaBaixa(){
+  var out = [];
+  (DB.insumos || []).forEach(function (i) {
+    out.push({ id: i.id, nome: i.nome, tipo: 'insumo',
+               unidade: i.unidade || 'un', custo: custoDoItem(i) });
+  });
+  (DB.fichas || []).forEach(function (f) {
+    out.push({ id: f.id, nome: f.nome, tipo: 'ficha',
+               unidade: f.unidade || 'un', custo: custoDoItem(f) });
+  });
+  return out;
+}
+function buscarItensBaixa(txt){
+  txt = String(txt || '').trim().toLowerCase();
+  if (txt.length < 3) return [];
+  return itensParaBaixa().filter(function (i) {
+    return String(i.nome || '').toLowerCase().indexOf(txt) >= 0;
+  }).slice(0, 8);
+}
+/* os últimos nomes digitados, para não redigitar toda vez */
+function quemJaRegistrou(){
+  var vis = {}, out = [];
+  baseBaixas().forEach(function (b) {
+    var q = String(b.quem || '').trim();
+    if (q && !vis[q.toLowerCase()]) { vis[q.toLowerCase()] = 1; out.push(q); }
+  });
+  return out.slice(0, 8);
+}
+
+function baixasDoFiltro(){
+  var l = baseBaixas().slice();
+  if (BX.filtro === 'pendente') l = l.filter(function (b) { return b.situacao !== 'lancada'; });
+  else if (BX.filtro === 'lancada') l = l.filter(function (b) { return b.situacao === 'lancada'; });
+  l.sort(function (a, b) {
+    return String(b.data + (b.hora || '')).localeCompare(String(a.data + (a.hora || '')));
+  });
+  return l;
+}
+
+function telaBaixaManual(){
+  baseMov(); baseBaixas();
+  if (!BX.data) BX.data = hojeISO();
+  if (!BX.quem) BX.quem = (usuarioLogado() || {}).nome || '';
+  var motivos = motivosBaixa();
+  var lista = baixasDoFiltro();
+  var pend = baseBaixas().filter(function (b) { return b.situacao !== 'lancada'; });
+  var totPend = pend.reduce(function (a, b) {
+    return a + (Number(b.qtd) || 0) * (Number(b.custo) || 0);
+  }, 0);
+  var sug = buscarItensBaixa(BX.busca);
+
+  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+   '<div class="etTopo"><div><h1>Baixa Manual</h1>' +
+   '<p>Registre a perda na hora que acontece. Nada sai do estoque até você ' +
+   'lançar — sozinho ou tudo de uma vez no fim do dia.</p></div>' +
+   '<button class="infoBt" onclick="explicaBaixaManual()">' + sv('help', 15) + '</button></div>' +
+
+   (!motivos.length
+     ? '<div class="entVazio"><b>Nenhum motivo cadastrado</b>' +
+       '<span>Cadastre em Configuração da Loja › Motivos de baixa manual ' +
+       'antes de registrar.</span></div>'
+     :
+    /* ---------- formulário ---------- */
+    '<div class="blk" style="max-width:none">' +
+     '<div class="blkH"><b>' + (BX.editando ? 'Editar registro' : 'Registrar baixa') + '</b>' +
+      '<span>' + (BX.editando ? 'alterando um registro já anotado'
+                              : 'ainda não sai do estoque') + '</span></div>' +
+     (BX.erro ? '<div class="avisoIn">' + E(BX.erro) + '</div>' : '') +
+     '<div class="bxLin4">' +
+      '<div class="f2" style="position:relative"><label>Produto ou insumo</label>' +
+       '<input id="bxItem" value="' + E(BX.item ? BX.item.nome : BX.busca) + '" ' +
+       'placeholder="digite 3 letras" autocomplete="off" ' +
+       'oninput="BX.item=null;BX.busca=this.value;clearTimeout(window._bxT);' +
+       'window._bxT=setTimeout(telaBaixaManual,250)">' +
+       (sug.length && !BX.item
+         ? '<div class="bxSug">' + sug.map(function (i) {
+             return '<div onclick="escolherItemBaixa(\'' + i.id + '\',\'' + i.tipo + '\')">' +
+               E(i.nome) + '<span class="bxTg ' + (i.tipo === 'ficha' ? 'f' : '') + '">' +
+               (i.tipo === 'ficha' ? 'ficha' : 'insumo') + '</span></div>';
+           }).join('') + '</div>'
+         : '') +
+      '</div>' +
+      '<div class="f2"><label>Quantidade</label>' +
+       '<input id="bxQtd" type="number" step="0.001" value="' + E(BX.qtd) + '" ' +
+       'oninput="BX.qtd=this.value"></div>' +
+      '<div class="f2"><label>Unidade</label>' +
+       '<select id="bxUn" onchange="BX.unidade=this.value">' +
+        unidades().map(function (u) {
+          return '<option value="' + u.id + '"' + (BX.unidade === u.id ? ' selected' : '') +
+                 '>' + E(u.ab) + '</option>';
+        }).join('') + '</select></div>' +
+      '<div class="f2"><label>Motivo</label>' +
+       '<select id="bxMot" onchange="BX.motivo=this.value">' +
+        '<option value="">escolha</option>' +
+        motivos.map(function (m) {
+          return '<option value="' + m.id + '"' + (BX.motivo === m.id ? ' selected' : '') +
+                 '>' + E(m.nome) + '</option>';
+        }).join('') + '</select></div>' +
+     '</div>' +
+     '<div class="bxLin3">' +
+      '<div class="f2"><label>Data</label>' +
+       '<input id="bxData" type="date" value="' + E(BX.data) + '" ' +
+       'onchange="BX.data=this.value"></div>' +
+      '<div class="f2"><label>Quem registrou</label>' +
+       '<input id="bxQuem" value="' + E(BX.quem) + '" list="bxQuemLista" ' +
+       'placeholder="nome de quem viu a perda" oninput="BX.quem=this.value">' +
+       '<datalist id="bxQuemLista">' +
+        quemJaRegistrou().map(function (q) {
+          return '<option value="' + E(q) + '">';
+        }).join('') + '</datalist>' +
+       '<div class="hint">O login do caixa é compartilhado — aqui vai o nome da pessoa.</div>' +
+      '</div>' +
+      '<div class="f2"><label>Observação — opcional</label>' +
+       '<input id="bxObs" value="' + E(BX.obs) + '" ' +
+       'placeholder="o que aconteceu" oninput="BX.obs=this.value"></div>' +
+     '</div>' +
+     '<div class="bxAcoes">' +
+      (BX.editando
+        ? '<button class="btnP2" onclick="cancelarEdicaoBaixa()">Cancelar</button>' +
+          '<button class="btnP" onclick="salvarBaixa()">Salvar alteração</button>'
+        : '<button class="btnP" onclick="salvarBaixa()">' + sv('plus', 13) +
+          ' Salvar registro</button>') +
+     '</div>' +
+    '</div>') +
+
+   /* ---------- lista ---------- */
+   '<div class="blk" style="max-width:none;margin-top:14px">' +
+    '<div class="blkH"><b>Registros</b>' +
+     '<span>' + pend.length + ' aguardando lançamento</span>' +
+     '<div style="flex:1"></div>' +
+     '<div class="lbSegm">' +
+      ['pendente', 'lancada', 'todos'].map(function (f) {
+        var rot = f === 'pendente' ? 'A lançar' : (f === 'lancada' ? 'Lançadas' : 'Todas');
+        return '<button class="' + (BX.filtro === f ? 'on' : '') + '" ' +
+          'onclick="BX.filtro=\'' + f + '\';telaBaixaManual()">' + rot + '</button>';
+      }).join('') +
+     '</div></div>' +
+    (lista.length
+      ? '<div class="lbTabW"><table class="pTable"><thead><tr>' +
+        '<th style="width:78px">Data</th><th>Item</th>' +
+        '<th style="width:96px;text-align:right">Qtd</th>' +
+        '<th style="width:150px">Motivo</th><th style="width:130px">Quem</th>' +
+        '<th style="width:96px;text-align:right">Custo</th>' +
+        '<th style="width:96px">Situação</th><th style="width:86px"></th>' +
+        '</tr></thead><tbody>' +
+        lista.map(function (b) {
+          var lancada = (b.situacao === 'lancada');
+          return '<tr>' +
+           '<td>' + E(dataBR(b.data)) + '<small style="display:block;color:var(--ink-3)">' +
+             E(b.hora || '') + '</small></td>' +
+           '<td><b>' + E(b.itemNome) + '</b>' +
+             '<span class="bxTg ' + (b.itemTipo === 'ficha' ? 'f' : '') + '">' +
+             (b.itemTipo === 'ficha' ? 'ficha' : 'insumo') + '</span></td>' +
+           '<td style="text-align:right">' + fmtQt(b.qtd) + ' ' + E(un(b.unidade).ab) + '</td>' +
+           '<td>' + E(b.motivoNome || '—') + '</td>' +
+           '<td>' + E(b.quem || '—') + '</td>' +
+           '<td style="text-align:right">R$ ' +
+             money((Number(b.qtd) || 0) * (Number(b.custo) || 0)) + '</td>' +
+           '<td><span class="pill ' + (lancada ? 'vd' : 'am') + '">' +
+             (lancada ? 'lançada' : 'a lançar') + '</span></td>' +
+           '<td>' + (lancada ? '' :
+             '<button class="rBtn" title="Editar" onclick="editarBaixa(\'' + b.id + '\')">' +
+               sv('edit', 12) + '</button>' +
+             '<button class="rBtn" title="Lançar só este" ' +
+               'onclick="lancarBaixasNoEstoque(\'' + b.id + '\')">' +
+               sv('cr', 12) + '</button>' +
+             '<button class="rBtn" title="Excluir" onclick="excluirBaixa(\'' + b.id + '\')">' +
+               sv('trash', 12) + '</button>') + '</td>' +
+          '</tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<div class="entVazio"><b>' +
+        (BX.filtro === 'lancada' ? 'Nada lançado ainda' : 'Nenhum registro') + '</b>' +
+        '<span>' + (BX.filtro === 'lancada'
+          ? 'O que for lançado no estoque aparece aqui.'
+          : 'Os registros do dia aparecem nesta lista.') + '</span></div>') +
+    (pend.length
+      ? '<div class="bxRod">' +
+        '<div><b>Total a lançar: R$ ' + money(totPend) + '</b>' +
+        '<span style="color:var(--ink-3);margin-left:8px">' + pend.length +
+        ' registro(s)</span></div><div style="flex:1"></div>' +
+        '<button class="btnP2 ok" onclick="lancarBaixasNoEstoque()">' +
+        'Lançar no estoque ' + sv('cr', 12) + '</button></div>'
+      : '') +
+   '</div>' +
+  '</div></div>';
+  rodape(pend.length + ' baixa(s) aguardando lançamento');
+}
+
+function escolherItemBaixa(id, tipo){
+  var i = itensParaBaixa().find(function (x) { return x.id === id && x.tipo === tipo; });
+  if (!i) return;
+  BX.item = i;
+  BX.busca = i.nome;
+  if (!BX.unidade) BX.unidade = i.unidade;
+  BX.erro = '';
+  telaBaixaManual();
+}
+
+function salvarBaixa(){
+  BX.erro = '';
+  if (!BX.item) { BX.erro = 'Escolha o produto ou insumo na lista.'; return telaBaixaManual(); }
+  var q = Number(String(BX.qtd).replace(',', '.'));
+  if (!q || q <= 0) { BX.erro = 'Informe a quantidade.'; return telaBaixaManual(); }
+  if (!BX.motivo) { BX.erro = 'Escolha o motivo.'; return telaBaixaManual(); }
+  if (!String(BX.quem || '').trim()) {
+    BX.erro = 'Informe quem registrou — é esse nome que responde pela perda.';
+    return telaBaixaManual();
+  }
+  var mot = (DB.motivosMov || []).find(function (m) { return m.id === BX.motivo; });
+  baseBaixas();
+  if (BX.editando) {
+    var b = DB.baixasPend.find(function (x) { return x.id === BX.editando; });
+    if (b) {
+      b.itemRef = BX.item.id; b.itemNome = BX.item.nome; b.itemTipo = BX.item.tipo;
+      b.qtd = q; b.unidade = BX.unidade || BX.item.unidade;
+      b.custo = BX.item.custo || 0;
+      b.motivoRef = BX.motivo; b.motivoNome = (mot || {}).nome || '';
+      b.quem = String(BX.quem).trim(); b.data = BX.data; b.obs = BX.obs;
+    }
+    BX.editando = null;
+  } else {
+    DB.baixasPend.push({
+      id: uid('bx'), sucursalRef: lojaAtualId(),
+      itemRef: BX.item.id, itemNome: BX.item.nome, itemTipo: BX.item.tipo,
+      qtd: q, unidade: BX.unidade || BX.item.unidade, custo: BX.item.custo || 0,
+      motivoRef: BX.motivo, motivoNome: (mot || {}).nome || '',
+      quem: String(BX.quem).trim(),
+      registradoPor: (usuarioLogado() || {}).login || '',
+      data: BX.data || hojeISO(), hora: agoraHM(),
+      obs: BX.obs || '', situacao: 'pendente'
+    });
+  }
+  /* o nome de quem registrou FICA para o próximo — quem está no caixa é o
+     mesmo o dia inteiro, e redigitar a cada perda é o tipo de atrito que faz
+     a pessoa voltar para o caderno */
+  BX.item = null; BX.busca = ''; BX.qtd = ''; BX.obs = ''; BX.erro = '';
+  salvar();
+  toast('Registrado.');
+  telaBaixaManual();
+  setTimeout(function () { var e = $('bxItem'); if (e) e.focus(); }, 60);
+}
+
+function editarBaixa(id){
+  var b = baseBaixas().find(function (x) { return x.id === id; });
+  if (!b || b.situacao === 'lancada') return;
+  BX.editando = id;
+  BX.item = { id: b.itemRef, nome: b.itemNome, tipo: b.itemTipo,
+              unidade: b.unidade, custo: b.custo };
+  BX.busca = b.itemNome; BX.qtd = b.qtd; BX.unidade = b.unidade;
+  BX.motivo = b.motivoRef; BX.quem = b.quem; BX.data = b.data; BX.obs = b.obs || '';
+  BX.erro = '';
+  telaBaixaManual();
+}
+function cancelarEdicaoBaixa(){
+  BX.editando = null; BX.item = null; BX.busca = ''; BX.qtd = ''; BX.obs = ''; BX.erro = '';
+  telaBaixaManual();
+}
+async function excluirBaixa(id){
+  var b = baseBaixas().find(function (x) { return x.id === id; });
+  if (!b) return;
+  var ok = await confirmar({
+    titulo: 'Excluir este registro?',
+    texto: b.itemNome + ' — ' + fmtQt(b.qtd) + ' ' + un(b.unidade).ab,
+    aviso: 'Ele ainda não foi para o estoque, então nada será desfeito lá.',
+    ok: 'Excluir', tipo: 'perigo'
+  });
+  if (!ok) return;
+  DB.baixasPend = DB.baixasPend.filter(function (x) { return x.id !== id; });
+  salvar();
+  telaBaixaManual();
+}
+
+/* ==========================================================
+   LANÇAR AS BAIXAS NO ESTOQUE
+   Esta é a ponte entre o caderno e o estoque de verdade. Ela NÃO reimplementa
+   a baixa: monta as mesmas linhas e chama aplicarMovimento(), o mesmo caminho
+   que a tela de Movimentação usa. Se fosse escrita uma conta paralela aqui, o
+   saldo do Controle Diário e o da Movimentação divergiriam com o tempo — e
+   descobrir qual dos dois está certo, depois, é impossível.
+
+   Agrupa por motivo: cinco perdas com três motivos viram três movimentações,
+   e não uma só com tudo misturado. É o que faz o relatório por motivo ter
+   sentido depois.
+   ========================================================== */
+async function lancarBaixasNoEstoque(sohEsta){
+  baseMov(); baseBaixas();
+  var pend = baseBaixas().filter(function (b) {
+    if (b.situacao === 'lancada') return false;
+    return sohEsta ? (b.id === sohEsta) : true;
+  });
+  if (!pend.length) { toast('Nada a lançar.'); return; }
+
+  /* separa por motivo: cada motivo vira uma movimentação própria */
+  var porMotivo = {};
+  pend.forEach(function (b) {
+    (porMotivo[b.motivoRef] = porMotivo[b.motivoRef] || []).push(b);
+  });
+
+  /* monta as linhas antes de perguntar, para poder mostrar o que vai sair */
+  var grupos = [], semItem = [];
+  Object.keys(porMotivo).forEach(function (mot) {
+    var itens = [];
+    porMotivo[mot].forEach(function (b) {
+      var existe = (b.itemTipo === 'ficha')
+        ? (DB.fichas || []).some(function (f) { return f.id === b.itemRef; })
+        : (DB.insumos || []).some(function (i) { return i.id === b.itemRef; });
+      if (!existe) { semItem.push(b); return; }
+      itens.push({ tipo: b.itemTipo, refId: b.itemRef, unidade: b.unidade,
+                   qtd: Number(b.qtd) || 0, custo: Number(b.custo) || 0,
+                   obs: b.obs || '' });
+    });
+    if (itens.length) grupos.push({ motivo: mot, itens: itens, baixas: porMotivo[mot] });
+  });
+
+  if (semItem.length) {
+    await confirmar({
+      titulo: 'Item não encontrado no cadastro',
+      texto: semItem.length + ' registro(s) apontam para item que não existe mais.',
+      linhas: semItem.slice(0, 6).map(function (b) {
+        return [b.itemNome, fmtQt(b.qtd) + ' ' + un(b.unidade).ab, ''];
+      }),
+      aviso: 'Eles ficam pendentes. Corrija o registro ou recadastre o item.',
+      ok: 'Entendi', cancelar: null
+    });
+  }
+  if (!grupos.length) return;
+
+  /* nenhuma baixa é aplicada se faltar saldo: metade lançada é pior que nada */
+  var todasLinhas = [], porGrupo = [];
+  for (var g = 0; g < grupos.length; g++) {
+    var ln = montarLinhas(grupos[g].itens, 'saida');
+    if (!ln.length) continue;
+    porGrupo.push({ g: grupos[g], linhas: ln });
+    todasLinhas = todasLinhas.concat(ln);
+  }
+  if (!todasLinhas.length) {
+    toast('Nada a baixar — verifique se os itens controlam estoque.');
+    return;
+  }
+  var falta = faltaEstoque(todasLinhas);
+  if (falta.length) { alert(avisoFalta(falta, 'este lançamento')); return; }
+
+  var total = pend.reduce(function (a, b) {
+    return a + (Number(b.qtd) || 0) * (Number(b.custo) || 0);
+  }, 0);
+  var ok = await confirmar({
+    titulo: 'Lançar ' + todasLinhas.length + ' item(ns) no estoque?',
+    texto: 'O saldo será baixado agora. Depois disso não dá para editar aqui.',
+    linhas: porGrupo.map(function (p) {
+      return [nomeMotivo(p.g.motivo), p.linhas.length + ' item(ns)', ''];
+    }),
+    aviso: 'Custo total: <b>R$ ' + money(total) + '</b>',
+    ok: 'Lançar no estoque', tipo: 'perigo'
+  });
+  if (!ok) return;
+
+  var criadas = 0, itensLancados = 0;
+  porGrupo.forEach(function (p) {
+    var quem = p.g.baixas.map(function (b) { return b.quem; })
+      .filter(function (q, i, a) { return q && a.indexOf(q) === i; }).join(', ');
+    var mov = {
+      id: uid('mv'),
+      data: p.g.baixas[0].data || hojeISO(),
+      hora: agoraHM(),
+      motivoId: p.g.motivo,
+      identificacao: 'Controle Diário' + (quem ? ' — ' + quem : ''),
+      obs: p.g.baixas.map(function (b) { return b.obs; })
+        .filter(Boolean).join(' · '),
+      itens: JSON.parse(JSON.stringify(p.g.itens)),
+      linhas: p.linhas,
+      origem: 'manual'
+    };
+    DB.movEst.push(mov);
+    aplicarMovimento(mov);          /* o MESMO caminho da tela de Movimentação */
+    criadas++;
+    itensLancados += p.linhas.length;
+    p.g.baixas.forEach(function (b) {
+      b.situacao = 'lancada';
+      b.movRef = mov.id;
+      b.lancadaEm = new Date().toISOString();
+    });
+  });
+
+  salvar();
+  toast(itensLancados + ' item(ns) lançados em ' +
+        criadas + ' movimentação(ões).');
+  telaBaixaManual();
+}
+
+/* ==========================================================
+   RELATORIO DE BAIXAS
+   A pergunta que o franqueado faz e "quanto eu perdi e por que". Entao o
+   relatorio soma por MOTIVO e por ITEM — nao lista registro por registro,
+   que e o que a propria tela de Baixa Manual ja faz.
+   ========================================================== */
+var BXR={de:'',ate:'',quem:''};
+function telaRelatorioBaixas(){
+  baseBaixas();
+  if(!BXR.de){BXR.de=diasAtrasISO(30);BXR.ate=hojeISO();}
+  var l=baseBaixas().filter(function(b){
+    if(BXR.de&&b.data<BXR.de)return false;
+    if(BXR.ate&&b.data>BXR.ate)return false;
+    if(BXR.quem&&String(b.quem||'')!==BXR.quem)return false;
+    return true;
+  });
+  var vlr=function(b){return (Number(b.qtd)||0)*(Number(b.custo)||0)};
+  var total=l.reduce(function(a,b){return a+vlr(b)},0);
+  var lanc=l.filter(function(b){return b.situacao==='lancada'});
+  var pend=l.filter(function(b){return b.situacao!=='lancada'});
+
+  function somar(chave,rot){
+    var m={};
+    l.forEach(function(b){
+      var k=String(b[chave]||'—');
+      m[k]=m[k]||{n:0,q:0,v:0}; m[k].n++; m[k].q+=Number(b.qtd)||0; m[k].v+=vlr(b);
+    });
+    return Object.keys(m).map(function(k){return {k:k,d:m[k]}})
+      .sort(function(a,b){return b.d.v-a.d.v});
+  }
+  var porMotivo=somar('motivoNome'), porItem=somar('itemNome'), porQuem=somar('quem');
+
+  function tabela(titulo,dados,rotulo){
+    return '<div class="blk" style="max-width:none;margin-top:14px">'+
+     '<div class="blkH"><b>'+titulo+'</b></div>'+
+     (dados.length?'<div class="lbTabW"><table class="pTable"><thead><tr>'+
+      '<th>'+rotulo+'</th><th style="width:90px;text-align:right">Registros</th>'+
+      '<th style="width:110px;text-align:right">Quantidade</th>'+
+      '<th style="width:120px;text-align:right">Custo</th>'+
+      '<th style="width:90px;text-align:right">% do total</th></tr></thead><tbody>'+
+      dados.map(function(x){
+        var pc=total?(x.d.v/total*100):0;
+        return '<tr><td><b>'+E(x.k)+'</b></td>'+
+         '<td style="text-align:right">'+x.d.n+'</td>'+
+         '<td style="text-align:right">'+fmtQt(x.d.q)+'</td>'+
+         '<td style="text-align:right"><b>R$ '+money(x.d.v)+'</b></td>'+
+         '<td style="text-align:right">'+pc.toFixed(1)+'%</td></tr>';
+      }).join('')+'</tbody></table></div>'
+      :'<div class="entVazio"><b>Sem dados no período</b><span>Ajuste as datas.</span></div>')+
+    '</div>';
+  }
+
+  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   '<div class="etTopo"><div><h1>Relatório de Baixas</h1>'+
+   '<p>Quanto a loja perdeu, por motivo, por item e por pessoa.</p></div></div>'+
+   '<div class="lbBarra">'+
+    '<div class="f2"><label>De</label><input type="date" value="'+E(BXR.de)+'" '+
+     'onchange="BXR.de=this.value;telaRelatorioBaixas()"></div>'+
+    '<div class="f2"><label>Até</label><input type="date" value="'+E(BXR.ate)+'" '+
+     'onchange="BXR.ate=this.value;telaRelatorioBaixas()"></div>'+
+    '<div class="f2"><label>Quem registrou</label>'+
+     '<select onchange="BXR.quem=this.value;telaRelatorioBaixas()">'+
+      '<option value="">todos</option>'+
+      quemJaRegistrou().map(function(q){
+        return '<option value="'+E(q)+'"'+(BXR.quem===q?' selected':'')+'>'+E(q)+'</option>';
+      }).join('')+'</select></div>'+
+   '</div>'+
+   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;'+
+    'overflow:hidden;margin-bottom:4px">'+
+    '<div class="hpN"><span>Custo total</span><b class="vr">R$ '+money(total)+'</b></div>'+
+    '<div class="hpN"><span>Registros</span><b>'+l.length+'</b></div>'+
+    '<div class="hpN"><span>Já lançadas</span><b>'+lanc.length+'</b></div>'+
+    '<div class="hpN"><span>A lançar</span><b class="'+(pend.length?'am':'')+'">'+
+      pend.length+'</b></div>'+
+   '</div>'+
+   tabela('Por motivo',porMotivo,'Motivo')+
+   tabela('Por item',porItem,'Item')+
+   tabela('Por pessoa',porQuem,'Quem registrou')+
+  '</div></div>';
+  rodape('R$ '+money(total)+' em baixas no período');
+}
+
+function explicaBaixaManual(){
+  confirmar({
+    titulo: 'Como funciona a baixa manual',
+    texto: 'Esta tela substitui o caderno.',
+    linhas: [
+      ['1. Registre na hora', 'a perda fica anotada, sem sair do estoque', ''],
+      ['2. Confira a lista', 'dá para corrigir ou excluir enquanto não lançou', ''],
+      ['3. Lance quando quiser', 'um por um, ou tudo de uma vez no fim do dia', '']
+    ],
+    aviso: 'O nome de quem registrou é digitado de propósito: o login do caixa é ' +
+           'compartilhado, e a perda precisa ter um responsável com nome.',
+    ok: 'Entendi', tipo: 'info'
+  });
+}
+
 function telaMovimentacao(){
   baseMov();
   if(!MV.de){MV.de=diasAtrasISO(30);MV.ate=hojeISO();}
