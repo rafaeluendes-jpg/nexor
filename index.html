@@ -3922,6 +3922,18 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 /* ---------- Liberação por Unidade ---------- */
 /* ---------- Controle Diário: baixa manual ---------- */
 /* ---------- Relatório de Baixas ---------- */
+/* ---------- Central de Bases e Valores ---------- */
+.bsIn{width:100%;height:30px;border:1px solid var(--line);border-radius:6px;
+  padding:0 9px;font-size:12.5px;font-family:inherit;background:var(--panel);color:var(--ink)}
+.bsIn:focus{outline:none;border-color:var(--acc)}
+.bsIn.nu{text-align:right;font-variant-numeric:tabular-nums}
+.bsVlr{color:var(--acc-d);font-variant-numeric:tabular-nums}
+.bsOk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ok);
+  background:var(--ok-soft);padding:7px 13px;border-radius:8px;font-weight:600}
+.bsAviso{display:flex;gap:10px;background:var(--acc-soft);border:1px solid #E8DCC2;
+  border-radius:var(--r);padding:11px 15px;font-size:12.5px;color:#6B5320;
+  margin-bottom:12px;line-height:1.55}
+.bsAviso svg{flex:none;margin-top:2px}
 .bxTopo{display:grid;grid-template-columns:1.4fr 2fr;gap:12px;margin-bottom:12px}
 .bxTotal{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
   padding:16px 20px;box-shadow:var(--sh)}
@@ -12029,7 +12041,8 @@ var MOD=[
    ========================================================== */
 {id:'controle',n:'Controle Diário',ic:'caderno',it:[
  {id:'baixa-manual',n:'Baixa Manual'},
- {id:'baixa-relatorio',n:'Relatório de Baixas'}]},
+ {id:'baixa-relatorio',n:'Relatório de Baixas'},
+ {id:'bases-valores',n:'Bases e Valores'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
  {id:'cfg-loja',n:'Mapa do Sistema'},
  {id:'carga-inicial',n:'Importar Dados'},
@@ -12797,6 +12810,10 @@ var MAPA=[
 
  /* o caderno sobe para a nuvem: a franqueadora precisa ver a perda de cada
     unidade, e a pessoa nao pode perder o registro se trocar de aparelho */
+ {col:'basesCat', espelha:true, tab:'bases_catalogo',
+  campos:function(x){return {nome:x.nome,qtd_caixa:num(x.qtdCaixa),
+    valor_unit:num(x.valorUnit),ficha_ref:x.fichaRef||null,
+    ativo:x.ativo!==false,ordem:x.ordem||0};}},
  {col:'baixasPend', espelha:true, tab:'baixas_pendentes',
   campos:function(x){return {
     sucursal_id:x.sucursalRef||null, item_ref:x.itemRef, item_nome:x.itemNome,
@@ -14090,6 +14107,11 @@ async function _baixarDaNuvem(forcar){
     delete p._fichaUid;delete p._insumoUid;
   });
 
+  var bcat=await baixarTab('bases_catalogo', 'bases_catalogo'+qs);
+  DB.basesCat=volta(bcat,function(x){return {id:x.ref_local||x.id,nome:x.nome,
+    qtdCaixa:Number(x.qtd_caixa)||1,valorUnit:Number(x.valor_unit)||0,
+    fichaRef:x.ficha_ref||'',ativo:x.ativo!==false,ordem:x.ordem||0}},DB.basesCat);
+
   var bxp=await baixarTab('baixas_pendentes', 'baixas_pendentes'+qs);
   DB.baixasPend=volta(bxp,function(x){return {id:x.ref_local||x.id,
     sucursalRef:x.sucursal_id,itemRef:x.item_ref,itemNome:x.item_nome,
@@ -15234,7 +15256,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V47.1.0';
+var VERSAO='V48.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15496,6 +15518,7 @@ if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='controle'&&iid==='baixa-manual')return telaBaixaManual();
 if(mid==='controle'&&iid==='baixa-relatorio')return telaRelatorioBaixas();
+if(mid==='controle'&&iid==='bases-valores')return telaBasesValores();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='transferencia')return telaTransferencia();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -29774,6 +29797,187 @@ function casaBuscaMov(l,m,ins){
    compartilhado. Se uma perda precisar ser cobrada de alguém, o nome tem de
    ser da pessoa. O login fica gravado à parte, para auditoria.
    ========================================================== */
+/* ==========================================================
+   CENTRAL DE BASES E VALORES — só a matriz
+   O catálogo do que a franqueadora produz e vende para as unidades. A filial
+   enxerga para pedir, mas não altera nome nem preço.
+   O campo Ficha técnica fica desde já: enquanto estiver vazio, o pedido e o
+   financeiro funcionam normalmente e só a baixa de estoque espera. Assim dá
+   para usar o sistema antes de cadastrar as 29 fichas.
+   ========================================================== */
+var BS = { busca: '', sohAtivos: false, sujo: false };
+
+function baseCatalogo(){ DB.basesCat = DB.basesCat || []; return DB.basesCat; }
+
+function telaBasesValores(){
+  if (!ehMatriz() && !ehPlataforma()) return telaRestrita('Central de Bases e Valores');
+  baseFicha(); baseCatalogo();
+  var lista = baseCatalogo().slice();
+  if (BS.sohAtivos) lista = lista.filter(function (b) { return b.ativo !== false; });
+  var q = (BS.busca || '').toLowerCase();
+  if (q) lista = lista.filter(function (b) {
+    return String(b.nome || '').toLowerCase().indexOf(q) >= 0;
+  });
+  lista.sort(function (a, b) {
+    return String(a.nome || '').localeCompare(String(b.nome || ''));
+  });
+  var ativos = baseCatalogo().filter(function (b) { return b.ativo !== false; }).length;
+  var semFicha = baseCatalogo().filter(function (b) {
+    return b.ativo !== false && !b.fichaRef;
+  }).length;
+  var fichas = (DB.fichas || []).slice().sort(function (a, b) {
+    return String(a.nome || '').localeCompare(String(b.nome || ''));
+  });
+
+  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+   '<div class="etTopo"><div><h1>Central de Bases e Valores</h1>' +
+   '<p>A matriz define nome, valor e disponibilidade. As unidades enxergam ' +
+   'esta tabela ao fazer o pedido.</p></div>' +
+   (BS.sujo
+     ? '<button class="btnVerde" onclick="salvarBases()">' + sv('save', 13) +
+       ' Salvar alterações</button>'
+     : '<span class="bsOk">' + sv('check', 13) + ' tudo salvo</span>') +
+   '</div>' +
+
+   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;' +
+    'overflow:hidden;margin-bottom:12px">' +
+    '<div class="hpN"><span>Bases ativas</span><b>' + ativos + '</b></div>' +
+    '<div class="hpN"><span>Inativas</span><b>' +
+      (baseCatalogo().length - ativos) + '</b></div>' +
+    '<div class="hpN"><span>Sem ficha técnica</span><b class="' +
+      (semFicha ? 'am' : '') + '">' + semFicha + '</b></div>' +
+   '</div>' +
+
+   (semFicha
+     ? '<div class="bsAviso">' + sv('help', 14) +
+       '<div><b>' + semFicha + ' base(s) ativa(s) sem ficha técnica.</b> ' +
+       'O pedido e o financeiro funcionam. A baixa de estoque na produção só ' +
+       'acontece depois que a ficha for cadastrada e ligada aqui.</div></div>'
+     : '') +
+
+   '<div class="lbBarra">' +
+    '<div class="lbBusca">' + sv('search', 14) +
+     '<input value="' + E(BS.busca) + '" placeholder="Buscar base" ' +
+     'oninput="BS.busca=this.value;clearTimeout(window._bsT);' +
+     'window._bsT=setTimeout(telaBasesValores,250)"></div>' +
+    '<label class="flagBox" style="white-space:nowrap"><input type="checkbox"' +
+     (BS.sohAtivos ? ' checked' : '') +
+     ' onchange="BS.sohAtivos=this.checked;telaBasesValores()"> só ativas</label>' +
+    '<div style="flex:1"></div>' +
+    '<button class="btnP2" onclick="novaBase()">' + sv('plus', 12) +
+     ' Adicionar base</button>' +
+   '</div>' +
+
+   (lista.length
+    ? '<div class="lbTabW"><table class="pTable"><thead><tr>' +
+      '<th>Nome da base</th>' +
+      '<th style="width:200px">Ficha técnica</th>' +
+      '<th style="width:92px;text-align:right">Qtde/cx</th>' +
+      '<th style="width:110px;text-align:right">Valor unitário</th>' +
+      '<th style="width:120px;text-align:right">Valor da caixa</th>' +
+      '<th style="width:104px">Situação</th><th style="width:46px"></th>' +
+      '</tr></thead><tbody>' +
+      lista.map(function (b) {
+        var vlrCx = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
+        return '<tr>' +
+         '<td><input class="bsIn" value="' + E(b.nome) + '" ' +
+           'onchange="mudarBase(\'' + b.id + '\',\'nome\',this.value)"></td>' +
+         '<td><select class="bsIn" onchange="mudarBase(\'' + b.id +
+           '\',\'fichaRef\',this.value)">' +
+           '<option value="">— sem ficha —</option>' +
+           fichas.map(function (f) {
+             return '<option value="' + f.id + '"' +
+               (b.fichaRef === f.id ? ' selected' : '') + '>' + E(f.nome) + '</option>';
+           }).join('') + '</select>' +
+           (!b.fichaRef && b.ativo !== false
+             ? '<div class="hint" style="color:var(--amber)">sem baixa de estoque</div>'
+             : '') + '</td>' +
+         '<td><input class="bsIn nu" type="number" step="0.001" value="' +
+           E(b.qtdCaixa) + '" onchange="mudarBase(\'' + b.id +
+           '\',\'qtdCaixa\',this.value)"></td>' +
+         '<td><input class="bsIn nu" type="number" step="0.01" value="' +
+           E(b.valorUnit) + '" onchange="mudarBase(\'' + b.id +
+           '\',\'valorUnit\',this.value)"></td>' +
+         '<td style="text-align:right"><b class="bsVlr">R$ ' + money(vlrCx) + '</b></td>' +
+         '<td><select class="bsIn" onchange="mudarBase(\'' + b.id +
+           '\',\'ativo\',this.value)">' +
+           '<option value="1"' + (b.ativo !== false ? ' selected' : '') + '>Ativa</option>' +
+           '<option value="0"' + (b.ativo === false ? ' selected' : '') + '>Inativa</option>' +
+           '</select></td>' +
+         '<td><button class="rBtn" title="Excluir" onclick="excluirBase(\'' + b.id +
+           '\')">' + sv('trash', 12) + '</button></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>'
+    : '<div class="entVazio"><b>' +
+      (q ? 'Nada encontrado' : 'Nenhuma base cadastrada') + '</b><span>' +
+      (q ? 'Tente outro nome.' : 'Comece adicionando a primeira base.') +
+      '</span></div>') +
+  '</div></div>';
+  rodape(baseCatalogo().length + ' base(s) no catálogo');
+}
+
+function novaBase(){
+  baseCatalogo();
+  DB.basesCat.push({ id: uid('bc'), nome: 'Nova base', qtdCaixa: 1,
+                     valorUnit: 0, fichaRef: '', ativo: true, ordem: 0 });
+  BS.sujo = true;
+  telaBasesValores();
+}
+function mudarBase(id, campo, valor){
+  var b = baseCatalogo().find(function (x) { return x.id === id; });
+  if (!b) return;
+  if (campo === 'ativo') b.ativo = (valor === '1');
+  else if (campo === 'qtdCaixa' || campo === 'valorUnit')
+    b[campo] = Number(String(valor).replace(',', '.')) || 0;
+  else b[campo] = valor;
+  BS.sujo = true;
+  telaBasesValores();
+}
+async function excluirBase(id){
+  var b = baseCatalogo().find(function (x) { return x.id === id; });
+  if (!b) return;
+  /* base já usada em pedido não se apaga: o histórico ficaria sem o nome */
+  var usada = (DB.pedidosBase || []).some(function (p) {
+    return (p.itens || []).some(function (i) { return i.baseRef === id; });
+  });
+  if (usada) {
+    await confirmar({
+      titulo: 'Esta base já foi pedida',
+      texto: 'Apagar deixaria os pedidos antigos sem o nome dela.',
+      aviso: 'Marque como <b>Inativa</b>: ela some da tela de pedido e o ' +
+             'histórico continua correto.',
+      ok: 'Entendi', cancelar: null
+    });
+    return;
+  }
+  var ok = await confirmar({
+    titulo: 'Excluir "' + b.nome + '"?',
+    texto: 'Ela sai do catálogo e as unidades deixam de vê-la.',
+    ok: 'Excluir', tipo: 'perigo'
+  });
+  if (!ok) return;
+  DB.basesCat = DB.basesCat.filter(function (x) { return x.id !== id; });
+  BS.sujo = true;
+  salvarBases();
+}
+function salvarBases(){
+  var vazias = baseCatalogo().filter(function (b) {
+    return !String(b.nome || '').trim();
+  });
+  if (vazias.length) { toast('Há base sem nome. Preencha antes de salvar.'); return; }
+  /* nome repetido quebra o índice único do banco e a sincronização para */
+  var vis = {}, dup = [];
+  baseCatalogo().forEach(function (b) {
+    var k = String(b.nome || '').trim().toLowerCase();
+    if (vis[k]) dup.push(b.nome); else vis[k] = 1;
+  });
+  if (dup.length) { toast('Nome repetido: ' + dup[0] + '. Cada base precisa de um nome próprio.'); return; }
+  BS.sujo = false;
+  salvar();
+  toast('Catálogo salvo — as unidades já veem a tabela nova.');
+  telaBasesValores();
+}
+
 var BX={busca:'', item:null, qtd:'', unidade:'', motivo:'', quem:'',
         obs:'', data:'', erro:'', filtro:'pendente', editando:null};
 
