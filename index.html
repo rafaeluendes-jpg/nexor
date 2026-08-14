@@ -3921,6 +3921,54 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .permBarra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:900px;margin-bottom:10px}
 /* ---------- Liberação por Unidade ---------- */
 /* ---------- Controle Diário: baixa manual ---------- */
+/* ---------- Relatório de Baixas ---------- */
+.bxTopo{display:grid;grid-template-columns:1.4fr 2fr;gap:12px;margin-bottom:12px}
+.bxTotal{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 20px;box-shadow:var(--sh)}
+.bxTotal span{display:block;font-size:10.5px;letter-spacing:.07em;font-weight:700;
+  color:var(--ink-3)}
+.bxTotal b{display:block;font-size:34px;line-height:1.15;margin-top:4px;
+  color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.bxTotal i{display:block;font-style:normal;font-size:12px;color:var(--ink-2);margin-top:5px}
+.bxMini{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.bxM{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;box-shadow:var(--sh);display:flex;flex-direction:column;
+  justify-content:center}
+.bxM span{font-size:10.5px;letter-spacing:.06em;font-weight:700;color:var(--ink-3)}
+.bxM b{font-size:26px;margin-top:3px;font-variant-numeric:tabular-nums}
+.bxM b.am{color:var(--amber)}
+.bxDestaques{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.bxD{background:var(--acc-soft);border:1px solid #E8DCC2;border-radius:var(--r);
+  padding:13px 17px}
+.bxD span{display:block;font-size:10.5px;letter-spacing:.06em;font-weight:700;
+  color:#8A6A32}
+.bxD b{display:block;font-size:17px;margin-top:3px;color:var(--ink)}
+.bxD i{display:block;font-style:normal;font-size:12px;color:#6B5320;margin-top:2px}
+.bxGrade{display:grid;grid-template-columns:1fr;gap:12px}
+.bxCard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;box-shadow:var(--sh)}
+.bxCardH{padding:13px 17px;border-bottom:1px solid var(--line-2);display:flex;
+  align-items:baseline;gap:9px}
+.bxCardH b{font-size:13.5px}
+.bxCardH span{font-size:11.5px;color:var(--ink-3)}
+.bxLista{padding:6px 0}
+.bxItem{display:grid;grid-template-columns:minmax(150px,1.3fr) 2fr 110px;
+  gap:14px;align-items:center;padding:8px 17px}
+.bxItem:hover{background:var(--alt)}
+.bxItem.top .bxItemN b{font-weight:700}
+.bxItemN b{display:block;font-size:13px}
+.bxItemN span{display:block;font-size:11px;color:var(--ink-3);margin-top:1px}
+.bxBarraW{height:9px;background:var(--line-2);border-radius:5px;overflow:hidden}
+.bxBarra{height:100%;border-radius:5px;transition:width .35s ease;min-width:3px}
+.bxItemV{text-align:right}
+.bxItemV b{display:block;font-size:13.5px;font-variant-numeric:tabular-nums}
+.bxItemV span{display:block;font-size:11px;color:var(--ink-3)}
+.bxMais{padding:8px 17px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line-2)}
+@media(max-width:1000px){
+  .bxTopo,.bxDestaques{grid-template-columns:1fr}
+  .bxItem{grid-template-columns:1fr 90px;gap:8px}
+  .bxBarraW{grid-column:1/-1}
+}
 .bxLin4{display:grid;grid-template-columns:2.2fr 1fr 1fr 1.6fr;gap:10px;
   padding:12px 14px 0}
 .bxLin3{display:grid;grid-template-columns:1fr 1.3fr 2fr;gap:10px;padding:10px 14px 0}
@@ -15186,7 +15234,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V47.0.0';
+var VERSAO='V47.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29851,8 +29899,8 @@ function telaBaixaManual(){
      '<div class="bxAcoes">' +
       (BX.editando
         ? '<button class="btnP2" onclick="cancelarEdicaoBaixa()">Cancelar</button>' +
-          '<button class="btnP" onclick="salvarBaixa()">Salvar alteração</button>'
-        : '<button class="btnP" onclick="salvarBaixa()">' + sv('plus', 13) +
+          '<button class="btnVerde" onclick="salvarBaixa()">Salvar alteração</button>'
+        : '<button class="btnVerde" onclick="salvarBaixa()">' + sv('plus', 13) +
           ' Salvar registro</button>') +
      '</div>' +
     '</div>') +
@@ -29912,7 +29960,7 @@ function telaBaixaManual(){
         '<div><b>Total a lançar: R$ ' + money(totPend) + '</b>' +
         '<span style="color:var(--ink-3);margin-left:8px">' + pend.length +
         ' registro(s)</span></div><div style="flex:1"></div>' +
-        '<button class="btnP2 ok" onclick="lancarBaixasNoEstoque()">' +
+        '<button class="btnVerde" onclick="lancarBaixasNoEstoque()">' +
         'Lançar no estoque ' + sv('cr', 12) + '</button></div>'
       : '') +
    '</div>' +
@@ -30128,6 +30176,15 @@ async function lancarBaixasNoEstoque(sohEsta){
    que e o que a propria tela de Baixa Manual ja faz.
    ========================================================== */
 var BXR={de:'',ate:'',quem:''};
+/* ==========================================================
+   RELATORIO DE BAIXAS
+   A primeira versao eram tres tabelas cinzas identicas. Numero em tabela
+   responde "quanto", mas nao responde "onde esta o problema" — e essa e a
+   pergunta do franqueado.
+   Agora: barra proporcional em cada linha, para o maior ofensor saltar sem
+   precisar comparar numero; o item campeao em destaque; e a leitura em
+   frases, nao so em colunas.
+   ========================================================== */
 function telaRelatorioBaixas(){
   baseBaixas();
   if(!BXR.de){BXR.de=diasAtrasISO(30);BXR.ate=hojeISO();}
@@ -30141,8 +30198,9 @@ function telaRelatorioBaixas(){
   var total=l.reduce(function(a,b){return a+vlr(b)},0);
   var lanc=l.filter(function(b){return b.situacao==='lancada'});
   var pend=l.filter(function(b){return b.situacao!=='lancada'});
+  var dias=Math.max(1,Math.round((new Date(BXR.ate)-new Date(BXR.de))/86400000)+1);
 
-  function somar(chave,rot){
+  function somar(chave){
     var m={};
     l.forEach(function(b){
       var k=String(b[chave]||'—');
@@ -30153,29 +30211,37 @@ function telaRelatorioBaixas(){
   }
   var porMotivo=somar('motivoNome'), porItem=somar('itemNome'), porQuem=somar('quem');
 
-  function tabela(titulo,dados,rotulo){
-    return '<div class="blk" style="max-width:none;margin-top:14px">'+
-     '<div class="blkH"><b>'+titulo+'</b></div>'+
-     (dados.length?'<div class="lbTabW"><table class="pTable"><thead><tr>'+
-      '<th>'+rotulo+'</th><th style="width:90px;text-align:right">Registros</th>'+
-      '<th style="width:110px;text-align:right">Quantidade</th>'+
-      '<th style="width:120px;text-align:right">Custo</th>'+
-      '<th style="width:90px;text-align:right">% do total</th></tr></thead><tbody>'+
-      dados.map(function(x){
-        var pc=total?(x.d.v/total*100):0;
-        return '<tr><td><b>'+E(x.k)+'</b></td>'+
-         '<td style="text-align:right">'+x.d.n+'</td>'+
-         '<td style="text-align:right">'+fmtQt(x.d.q)+'</td>'+
-         '<td style="text-align:right"><b>R$ '+money(x.d.v)+'</b></td>'+
-         '<td style="text-align:right">'+pc.toFixed(1)+'%</td></tr>';
-      }).join('')+'</tbody></table></div>'
-      :'<div class="entVazio"><b>Sem dados no período</b><span>Ajuste as datas.</span></div>')+
+  /* barra proporcional: o maior ofensor aparece sem precisar ler numero */
+  function bloco(titulo,sub,dados,rotulo,cor){
+    var maior=dados.length?dados[0].d.v:0;
+    return '<div class="bxCard">'+
+     '<div class="bxCardH"><b>'+E(titulo)+'</b><span>'+E(sub)+'</span></div>'+
+     (dados.length
+      ? '<div class="bxLista">'+dados.slice(0,12).map(function(x,i){
+          var pc=total?(x.d.v/total*100):0;
+          var larg=maior?(x.d.v/maior*100):0;
+          return '<div class="bxItem'+(i===0?' top':'')+'">'+
+           '<div class="bxItemN"><b>'+E(x.k)+'</b>'+
+            '<span>'+x.d.n+' registro'+(x.d.n>1?'s':'')+' · '+
+            fmtQt(x.d.q)+' un</span></div>'+
+           '<div class="bxBarraW"><div class="bxBarra" style="width:'+larg.toFixed(1)+'%;'+
+            'background:'+cor+'"></div></div>'+
+           '<div class="bxItemV"><b>R$ '+money(x.d.v)+'</b>'+
+            '<span>'+pc.toFixed(0)+'%</span></div>'+
+          '</div>';
+        }).join('')+
+        (dados.length>12?'<div class="bxMais">e mais '+(dados.length-12)+'</div>':'')+
+        '</div>'
+      : '<div class="entVazio"><b>Sem dados</b><span>Nenhuma baixa neste período.</span></div>')+
     '</div>';
   }
+
+  var campeao=porItem[0], motivoTopo=porMotivo[0];
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo"><div><h1>Relatório de Baixas</h1>'+
    '<p>Quanto a loja perdeu, por motivo, por item e por pessoa.</p></div></div>'+
+
    '<div class="lbBarra">'+
     '<div class="f2"><label>De</label><input type="date" value="'+E(BXR.de)+'" '+
      'onchange="BXR.de=this.value;telaRelatorioBaixas()"></div>'+
@@ -30187,22 +30253,74 @@ function telaRelatorioBaixas(){
       quemJaRegistrou().map(function(q){
         return '<option value="'+E(q)+'"'+(BXR.quem===q?' selected':'')+'>'+E(q)+'</option>';
       }).join('')+'</select></div>'+
+    '<div style="flex:1"></div>'+
+    (l.length?'<button class="btnP2" onclick="exportarBaixas()">'+sv('down2',12)+
+      ' Exportar</button>':'')+
    '</div>'+
-   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;'+
-    'overflow:hidden;margin-bottom:4px">'+
-    '<div class="hpN"><span>Custo total</span><b class="vr">R$ '+money(total)+'</b></div>'+
-    '<div class="hpN"><span>Registros</span><b>'+l.length+'</b></div>'+
-    '<div class="hpN"><span>Já lançadas</span><b>'+lanc.length+'</b></div>'+
-    '<div class="hpN"><span>A lançar</span><b class="'+(pend.length?'am':'')+'">'+
-      pend.length+'</b></div>'+
+
+   /* ---- o número que importa, grande ---- */
+   '<div class="bxTopo">'+
+    '<div class="bxTotal">'+
+     '<span>PERDIDO NO PERÍODO</span>'+
+     '<b>R$ '+money(total)+'</b>'+
+     '<i>'+l.length+' registro'+(l.length===1?'':'s')+' em '+dias+' dia'+
+      (dias===1?'':'s')+' · média de R$ '+money(total/dias)+' por dia</i>'+
+    '</div>'+
+    '<div class="bxMini">'+
+     '<div class="bxM"><span>Já lançadas</span><b>'+lanc.length+'</b></div>'+
+     '<div class="bxM"><span>A lançar</span><b class="'+(pend.length?'am':'')+'">'+
+       pend.length+'</b></div>'+
+     '<div class="bxM"><span>Pessoas</span><b>'+porQuem.length+'</b></div>'+
+    '</div>'+
    '</div>'+
-   tabela('Por motivo',porMotivo,'Motivo')+
-   tabela('Por item',porItem,'Item')+
-   tabela('Por pessoa',porQuem,'Quem registrou')+
+
+   /* ---- a leitura em frase, não em coluna ---- */
+   (l.length?'<div class="bxDestaques">'+
+     (campeao?'<div class="bxD"><span>Item que mais pesou</span>'+
+       '<b>'+E(campeao.k)+'</b>'+
+       '<i>R$ '+money(campeao.d.v)+' · '+
+       (total?(campeao.d.v/total*100).toFixed(0):0)+'% de tudo</i></div>':'')+
+     (motivoTopo?'<div class="bxD"><span>Principal motivo</span>'+
+       '<b>'+E(motivoTopo.k)+'</b>'+
+       '<i>R$ '+money(motivoTopo.d.v)+' · '+motivoTopo.d.n+' registro'+
+       (motivoTopo.d.n>1?'s':'')+'</i></div>':'')+
+    '</div>':'')+
+
+   '<div class="bxGrade">'+
+    bloco('Por motivo','onde a perda acontece',porMotivo,'Motivo','var(--red)')+
+    bloco('Por item','o que mais se perde',porItem,'Item','var(--acc)')+
+    bloco('Por pessoa','quem registrou',porQuem,'Pessoa','var(--blue)')+
+   '</div>'+
   '</div></div>';
   rodape('R$ '+money(total)+' em baixas no período');
 }
 
+function exportarBaixas(){
+  var l=baseBaixas().filter(function(b){
+    if(BXR.de&&b.data<BXR.de)return false;
+    if(BXR.ate&&b.data>BXR.ate)return false;
+    if(BXR.quem&&String(b.quem||'')!==BXR.quem)return false;
+    return true;
+  });
+  var lin=[['Data','Hora','Item','Tipo','Quantidade','Unidade','Motivo',
+            'Quem registrou','Custo unitário','Custo total','Situação','Observação']];
+  l.forEach(function(b){
+    lin.push([dataBR(b.data),b.hora||'',b.itemNome,b.itemTipo,
+      fmtQt(b.qtd),un(b.unidade).ab,b.motivoNome||'',b.quem||'',
+      money(b.custo),money((Number(b.qtd)||0)*(Number(b.custo)||0)),
+      b.situacao==='lancada'?'lançada':'a lançar',b.obs||'']);
+  });
+  var csv=lin.map(function(r){
+    return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';');
+  }).join('\r\n');
+  try{
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+    a.download='baixas_'+BXR.de+'_a_'+BXR.ate+'.csv';
+    a.click();
+    toast('Arquivo gerado.');
+  }catch(e){ _quieto(e,'exportarBaixas'); toast('Não consegui gerar o arquivo.'); }
+}
 function explicaBaixaManual(){
   confirmar({
     titulo: 'Como funciona a baixa manual',
