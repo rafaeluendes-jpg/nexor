@@ -30184,6 +30184,220 @@ function sucMatrizId(){
   return m ? m.id : lojaAtualId();
 }
 
+/* ==========================================================
+   ETAPA 4 — AS AUTOMAÇÕES
+   Aqui o pedido deixa de ser papel e mexe no estoque e no dinheiro. Cada
+   ação tem um botão e nenhuma acontece sozinha: quem clica responde pelo
+   lançamento.
+
+     MATRIZ, ao confirmar → Produzir: ordem de produção que baixa as fichas
+                            técnicas · Faturar: conta a RECEBER da unidade
+     UNIDADE, ao receber  → Dar entrada: entrada no estoque dela
+                            Conta a pagar: o que ela deve à matriz
+
+   Nada é reimplementado: a produção e a entrada usam aplicarMovimento(), o
+   mesmo caminho da tela de Movimentação. Conta paralela divergiria com o
+   tempo, e depois seria impossível saber qual saldo está certo.
+   Cada ação grava a referência do que criou e confere antes de rodar —
+   clicar duas vezes não duplica nada.
+   ========================================================== */
+
+function itensComFicha(p){
+  return (p.itens || []).filter(function (i) { return !!i.fichaRef; });
+}
+function itensSemFicha(p){
+  return (p.itens || []).filter(function (i) { return !i.fichaRef; });
+}
+/* o sistema tem hojeISO e dataBR; estas duas faltavam */
+function diasFrenteISO(n){
+  var d = new Date();
+  d.setDate(d.getDate() + (Number(n) || 0));
+  return d.toISOString().slice(0, 10);
+}
+function brParaISO(v){
+  var m = String(v || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  var iso = m[3] + '-' + m[2] + '-' + m[1];
+  var d = new Date(iso + 'T12:00:00');
+  return isNaN(d.getTime()) ? '' : iso;
+}
+
+/* ---------- MATRIZ: produzir ---------- */
+async function produzirPedido(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (p.produzido) { toast('Este pedido já foi produzido.'); return; }
+  baseMov();
+  var comFicha = itensComFicha(p), semFicha = itensSemFicha(p);
+  if (!comFicha.length) {
+    await confirmar({
+      titulo: 'Nenhuma base com ficha técnica',
+      texto: 'Sem ficha, o sistema não sabe o que consumir para produzir.',
+      aviso: 'Ligue as fichas em <b>Bases e valores</b>. O faturamento ' +
+             'funciona mesmo sem ficha.',
+      ok: 'Entendi', cancelar: null
+    });
+    return;
+  }
+  var motivoProd = (DB.motivosMov || []).find(function (m) {
+    return tipoMotivo(m.id) === 'producao' && m.ativo !== false;
+  });
+  if (!motivoProd) { toast('Nenhum motivo de produção cadastrado.'); return; }
+
+  var itensProd = comFicha.map(function (i) {
+    return { tipo: 'ficha', refId: i.fichaRef, unidade: '',
+             qtd: Number(i.qtd) || 0, custo: 0, obs: i.baseNome };
+  });
+  var linhas = montarLinhas(itensProd, 'producao');
+  if (!linhas.length) { toast('As fichas ligadas não consomem insumo nenhum.'); return; }
+  var falta = faltaEstoque(linhas);
+  if (falta.length) { alert(avisoFalta(falta, 'esta produção')); return; }
+
+  var ok = await confirmar({
+    titulo: 'Produzir o pedido #' + String(p.numero || 0).padStart(4, '0') + '?',
+    texto: comFicha.length + ' base(s) para ' + E(p.sucursalNome) + '.',
+    linhas: comFicha.slice(0, 8).map(function (i) {
+      return [i.baseNome, fmtQt(i.qtd) + ' cx', ''];
+    }),
+    aviso: 'Os insumos das fichas saem do estoque da matriz agora.' +
+           (semFicha.length
+             ? '<br><b>' + semFicha.length + ' base(s) sem ficha</b> ficam de fora.'
+             : ''),
+    ok: 'Produzir', tipo: 'perigo'
+  });
+  if (!ok) return;
+
+  var mov = { id: uid('mv'), data: hojeISO(), hora: agoraHM(),
+    motivoId: motivoProd.id,
+    identificacao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
+                   ' — ' + (p.sucursalNome || ''),
+    obs: '', itens: itensProd, linhas: linhas, origem: 'manual' };
+  DB.movEst.push(mov);
+  aplicarMovimento(mov);
+  p.produzido = true; p.movProducaoRef = mov.id;
+  salvar();
+  toast('Produção lançada — ' + linhas.length + ' insumo(s) baixados.');
+  telaPedidoHub();
+}
+
+/* ---------- MATRIZ: conta a receber ---------- */
+async function faturarPedido(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
+  baseFin();
+  var venc = prompt('Vencimento da conta a receber (dd/mm/aaaa):',
+                    dataBR(diasFrenteISO(7)));
+  if (venc === null) return;
+  var vISO = brParaISO(venc);
+  if (!vISO) { toast('Data inválida — use dd/mm/aaaa.'); return; }
+  var ok = await confirmar({
+    titulo: 'Gerar conta a receber?',
+    texto: E(p.sucursalNome) + ' — R$ ' + money(p.total),
+    linhas: [['Vencimento', dataBR(vISO), ''],
+             ['Documento', 'PB' + String(p.numero || 0).padStart(4, '0'), '']],
+    ok: 'Gerar'
+  });
+  if (!ok) return;
+  var l = { id: uid('lf'), tipo: 'receita',
+    descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
+               ' — ' + (p.sucursalNome || ''),
+    valor: Number(p.total) || 0, emissao: hojeISO(), vencimento: vISO,
+    pago: false, documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
+    origemTipo: 'pedido_base', origemId: p.id };
+  DB.lancamentos.push(l);
+  p.finReceberRef = l.id;
+  salvar();
+  toast('Conta a receber gerada — R$ ' + money(p.total) + '.');
+  telaPedidoHub();
+}
+
+/* ---------- UNIDADE: entrada no estoque ---------- */
+async function darEntradaPedido(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (p.entradaEstoque) { toast('Este pedido já deu entrada.'); return; }
+  if (p.sucursalRef !== lojaAtualId() && !ehPlataforma()) {
+    toast('Este pedido é de outra unidade.'); return;
+  }
+  baseMov();
+  var comFicha = itensComFicha(p);
+  if (!comFicha.length) {
+    await confirmar({ titulo: 'Bases sem ficha técnica',
+      texto: 'Sem ficha, não há item de estoque para dar entrada.',
+      aviso: 'A conta a pagar funciona mesmo assim.',
+      ok: 'Entendi', cancelar: null });
+    return;
+  }
+  var motivoEnt = (DB.motivosMov || []).find(function (m) {
+    return tipoMotivo(m.id) === 'entrada' && m.ativo !== false && !m.sistema;
+  });
+  if (!motivoEnt) { toast('Nenhum motivo de entrada cadastrado.'); return; }
+
+  /* o custo entra pelo valor do pedido: é o que a unidade realmente pagou */
+  var itensEnt = comFicha.map(function (i) {
+    var q = Number(i.qtd) || 0;
+    return { tipo: 'ficha', refId: i.fichaRef, unidade: '', qtd: q,
+             custo: q ? ((Number(i.total) || 0) / q) : 0, obs: i.baseNome };
+  });
+  var linhas = montarLinhas(itensEnt, 'entrada');
+  if (!linhas.length) { toast('Nada a dar entrada.'); return; }
+
+  var ok = await confirmar({
+    titulo: 'Dar entrada no estoque?',
+    texto: comFicha.length + ' base(s) entram em ' + E(sucNome(lojaAtualId())) + '.',
+    linhas: comFicha.slice(0, 8).map(function (i) {
+      return [i.baseNome, fmtQt(i.qtd) + ' cx', 'R$ ' + money(i.total)];
+    }),
+    aviso: 'O custo de cada base entra pelo valor do pedido.',
+    ok: 'Dar entrada'
+  });
+  if (!ok) return;
+  var mov = { id: uid('mv'), data: hojeISO(), hora: agoraHM(),
+    motivoId: motivoEnt.id,
+    identificacao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
+                   ' — recebido da matriz',
+    obs: '', itens: itensEnt, linhas: linhas, origem: 'manual' };
+  DB.movEst.push(mov);
+  aplicarMovimento(mov);
+  p.entradaEstoque = true; p.movEntradaRef = mov.id;
+  salvar();
+  toast('Entrada lançada — ' + linhas.length + ' item(ns) no estoque.');
+  telaPedidoHub();
+}
+
+/* ---------- UNIDADE: conta a pagar ---------- */
+async function pagarPedido(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (p.finPagarRef) { toast('A conta a pagar já foi gerada.'); return; }
+  baseFin();
+  var venc = prompt('Vencimento da conta a pagar (dd/mm/aaaa):',
+                    dataBR(diasFrenteISO(7)));
+  if (venc === null) return;
+  var vISO = brParaISO(venc);
+  if (!vISO) { toast('Data inválida — use dd/mm/aaaa.'); return; }
+  var ok = await confirmar({
+    titulo: 'Gerar conta a pagar à matriz?',
+    texto: 'R$ ' + money(p.total) + ' — pedido #' +
+           String(p.numero || 0).padStart(4, '0'),
+    linhas: [['Vencimento', dataBR(vISO), '']],
+    ok: 'Gerar'
+  });
+  if (!ok) return;
+  var l = { id: uid('lf'), tipo: 'despesa',
+    descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
+               ' — matriz',
+    valor: Number(p.total) || 0, emissao: hojeISO(), vencimento: vISO,
+    pago: false, documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
+    origemTipo: 'pedido_base', origemId: p.id };
+  DB.lancamentos.push(l);
+  p.finPagarRef = l.id;
+  salvar();
+  toast('Conta a pagar gerada — R$ ' + money(p.total) + '.');
+  telaPedidoHub();
+}
+
 var PR = { filtro: 'todos', busca: '', de: '', ate: '', aberto: null };
 
 var FASES_PED = ['enviado', 'confirmado', 'enviado_matriz', 'entregue', 'pago'];
@@ -30309,34 +30523,51 @@ function cartaoPedido(p){
 
 function acoesPedido(p){
   if (p.situacao === 'rejeitado') return '';
+  var matriz = (ehMatriz() || ehPlataforma());
+  var minha  = (p.sucursalRef === lojaAtualId());
   var h = '';
-  /* as automacoes aparecem conforme a fase, e somem depois de feitas — o
-     estado gravado no pedido e que decide, nao o clique */
-  if (p.situacao !== 'enviado') {
-    h += p.produzido
-      ? '<span class="prFeito">' + sv('check', 12) + ' produzido</span>'
-      : '<button class="btnP2" onclick="produzirPedidoBase(\'' + p.id + '\')">' +
-        sv('box', 12) + ' Lançar produção</button>';
-    h += p.finReceberRef
-      ? '<span class="prFeito">' + sv('check', 12) + ' faturado</span>'
-      : '<button class="btnP2" onclick="faturarPedidoBase(\'' + p.id + '\')">' +
-        sv('money', 12) + ' Gerar cobrança</button>';
-  }
+  /* As automacoes aparecem conforme a fase e somem depois de feitas — o
+     estado GRAVADO no pedido e que decide, nao o clique. Assim recarregar a
+     tela ou clicar duas vezes nao duplica producao nem cobranca. */
+  var feitos = [];
+  if (p.produzido)      feitos.push('produzido');
+  if (p.finReceberRef)  feitos.push('faturado');
+  if (p.entradaEstoque) feitos.push('em estoque');
+  if (p.finPagarRef)    feitos.push('a pagar gerado');
+  if (feitos.length)
+    h += '<div class="prFeitos">' + feitos.map(function(f){
+      return '<span>' + sv('check',10) + ' ' + f + '</span>'; }).join('') + '</div>';
+
+  var confirmado = (['confirmado','enviado_matriz','entregue','pago'].indexOf(p.situacao) >= 0);
+  var entregue   = (['entregue','pago'].indexOf(p.situacao) >= 0);
+  if (matriz && confirmado && !p.produzido)
+    h += '<button class="btnP2 acB" onclick="produzirPedido(\'' + p.id + '\')">' +
+         sv('box',12) + ' Lançar produção</button>';
+  if (matriz && confirmado && !p.finReceberRef)
+    h += '<button class="btnP2 acB" onclick="faturarPedido(\'' + p.id + '\')">' +
+         sv('money',12) + ' Gerar cobrança</button>';
+  if (minha && entregue && !p.entradaEstoque)
+    h += '<button class="btnP2 acB" onclick="darEntradaPedido(\'' + p.id + '\')">' +
+         sv('dn4',12) + ' Dar entrada</button>';
+  if (minha && entregue && !p.finPagarRef)
+    h += '<button class="btnP2 acB" onclick="pagarPedido(\'' + p.id + '\')">' +
+         sv('money',12) + ' Conta a pagar</button>';
+
+  h += '<div style="flex:1"></div>';
   var prox = {
-    enviado: ['confirmado', 'Confirmar pedido'],
-    confirmado: ['enviado_matriz', 'Marcar como enviado'],
-    enviado_matriz: ['entregue', 'Marcar como entregue'],
-    entregue: ['pago', 'Marcar como pago']
+    enviado: ['confirmado', 'Confirmar'],
+    confirmado: ['enviado_matriz', 'Marcar enviado'],
+    enviado_matriz: ['entregue', 'Marcar entregue'],
+    entregue: ['pago', 'Marcar pago']
   }[p.situacao];
-  if (p.situacao === 'enviado')
+  if (matriz && p.situacao === 'enviado')
     h += '<button class="btnP2 rdB" onclick="rejeitarPedido(\'' + p.id + '\')">' +
          'Rejeitar</button>';
-  h += '<div style="flex:1"></div>';
-  if (prox){
+  if (matriz && prox){
     h += '<button class="btnVerde" onclick="avancarPedido(\'' + p.id + '\',\'' +
-         prox[0] + '\')">' + prox[1] + ' ' + sv('cr', 12) + '</button>';
-  }else{
-    h += '<span class="bsOk">' + sv('check', 13) + ' pedido concluído</span>';
+         prox[0] + '\')">' + prox[1] + '</button>';
+  }else if (p.situacao === 'pago'){
+    h += '<span class="bsOk">' + sv('check',12) + ' concluído</span>';
   }
   return h;
 }
