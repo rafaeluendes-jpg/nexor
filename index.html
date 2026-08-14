@@ -3923,6 +3923,28 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 /* ---------- Controle Diário: baixa manual ---------- */
 /* ---------- Relatório de Baixas ---------- */
 /* ---------- Central de Bases e Valores ---------- */
+/* ---------- Pedido de Base ---------- */
+.pbPrazo{display:flex;gap:11px;align-items:center;background:var(--acc-soft);
+  border:1px solid #E8DCC2;border-radius:var(--r);padding:12px 16px;margin-bottom:12px}
+.pbPrazo svg{flex:none;color:var(--acc-d)}
+.pbPrazo b{display:block;font-size:13px;color:#6B5320}
+.pbPrazo span{display:block;font-size:12px;color:#8A6A32;margin-top:1px}
+.pbCab{display:grid;grid-template-columns:1.3fr .8fr 1fr 1.6fr;gap:11px;margin-bottom:12px}
+.pbFixo{height:34px;display:flex;align-items:center;gap:7px;background:var(--alt);
+  border:1px solid var(--line);border-radius:var(--r-s);padding:0 11px;
+  font-size:13px;font-weight:600;color:var(--ink)}
+.pbRod{display:flex;align-items:center;gap:10px;padding:12px 15px;
+  border-top:1px solid var(--line)}
+.pbTot{text-align:right}
+.pbTot span{display:block;font-size:11.5px;color:var(--ink-3)}
+.pbTot b{display:block;font-size:18px;color:var(--acc-d);font-variant-numeric:tabular-nums}
+.pbAcoes{display:flex;gap:9px;justify-content:flex-end;margin-top:12px}
+tr.pbSel td{background:var(--acc-soft)}
+.pill.az{background:var(--blue-soft);color:var(--blue)}
+.pill.vd{background:var(--ok-soft);color:var(--ok)}
+.pill.am{background:var(--amber-soft);color:var(--amber)}
+.pill.vr{background:var(--red-soft);color:var(--red)}
+@media(max-width:1000px){ .pbCab{grid-template-columns:1fr} }
 .bsIn{width:100%;height:30px;border:1px solid var(--line);border-radius:6px;
   padding:0 9px;font-size:12.5px;font-family:inherit;background:var(--panel);color:var(--ink)}
 .bsIn:focus{outline:none;border-color:var(--acc)}
@@ -12042,6 +12064,7 @@ var MOD=[
 {id:'controle',n:'Controle Diário',ic:'caderno',it:[
  {id:'baixa-manual',n:'Baixa Manual'},
  {id:'baixa-relatorio',n:'Relatório de Baixas'},
+ {id:'pedido-base',n:'Pedido de Base'},
  {id:'bases-valores',n:'Bases e Valores'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
  {id:'cfg-loja',n:'Mapa do Sistema'},
@@ -12810,6 +12833,22 @@ var MAPA=[
 
  /* o caderno sobe para a nuvem: a franqueadora precisa ver a perda de cada
     unidade, e a pessoa nao pode perder o registro se trocar de aparelho */
+ {col:'pedidosBase', espelha:true, tab:'pedidos_base',
+  filhos:{col:'itens', tab:'pedido_base_itens', pai:'pedido_id',
+    campos:function(x,pai){return {base_ref:x.baseRef,base_nome:x.baseNome,
+      ficha_ref:x.fichaRef||null,quantidade:num(x.qtd),
+      valor_unit:num(x.valorUnit),total:num(x.total)};}},
+  campos:function(x){return {numero:x.numero||null,sucursal_id:x.sucursalRef,
+    sucursal_nome:x.sucursalNome||null,data:x.data||null,
+    responsavel:x.responsavel||null,observacao:x.obs||null,total:num(x.total),
+    situacao:x.situacao||'rascunho',produzido:!!x.produzido,
+    mov_producao_ref:x.movProducaoRef||null,
+    financeiro_receber_ref:x.finReceberRef||null,
+    entrada_estoque:!!x.entradaEstoque,mov_entrada_ref:x.movEntradaRef||null,
+    financeiro_pagar_ref:x.finPagarRef||null,
+    enviado_em:x.enviadoEm||null,confirmado_em:x.confirmadoEm||null,
+    entregue_em:x.entregueEm||null,pago_em:x.pagoEm||null,
+    motivo_rejeicao:x.motivoRejeicao||null};}},
  {col:'basesCat', espelha:true, tab:'bases_catalogo',
   campos:function(x){return {nome:x.nome,qtd_caixa:num(x.qtdCaixa),
     valor_unit:num(x.valorUnit),ficha_ref:x.fichaRef||null,
@@ -14107,6 +14146,22 @@ async function _baixarDaNuvem(forcar){
     delete p._fichaUid;delete p._insumoUid;
   });
 
+  var pbs=await baixarTab('pedidos_base','pedidos_base'+q+
+    '&select=*,pedido_base_itens(*)&order=criado_em.desc&limit=800');
+  DB.pedidosBase=volta(pbs,function(x){return {id:x.ref_local||x.id,numero:x.numero,
+    sucursalRef:x.sucursal_id,sucursalNome:x.sucursal_nome,data:x.data,
+    responsavel:x.responsavel,obs:x.observacao,total:Number(x.total)||0,
+    situacao:x.situacao||'rascunho',produzido:!!x.produzido,
+    movProducaoRef:x.mov_producao_ref,finReceberRef:x.financeiro_receber_ref,
+    entradaEstoque:!!x.entrada_estoque,movEntradaRef:x.mov_entrada_ref,
+    finPagarRef:x.financeiro_pagar_ref,enviadoEm:x.enviado_em,
+    confirmadoEm:x.confirmado_em,entregueEm:x.entregue_em,pagoEm:x.pago_em,
+    motivoRejeicao:x.motivo_rejeicao,
+    itens:(x.pedido_base_itens||[]).map(function(i){return {
+      id:idFilho(x.ref_local,i.ref_local,i.id),baseRef:i.base_ref,
+      baseNome:i.base_nome,fichaRef:i.ficha_ref,qtd:Number(i.quantidade)||0,
+      valorUnit:Number(i.valor_unit)||0,total:Number(i.total)||0}})}},DB.pedidosBase);
+
   var bcat=await baixarTab('bases_catalogo', 'bases_catalogo'+qs);
   DB.basesCat=volta(bcat,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     qtdCaixa:Number(x.qtd_caixa)||1,valorUnit:Number(x.valor_unit)||0,
@@ -15256,7 +15311,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V48.0.0';
+var VERSAO='V48.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15519,6 +15574,7 @@ if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='controle'&&iid==='baixa-manual')return telaBaixaManual();
 if(mid==='controle'&&iid==='baixa-relatorio')return telaRelatorioBaixas();
 if(mid==='controle'&&iid==='bases-valores')return telaBasesValores();
+if(mid==='controle'&&iid==='pedido-base')return telaPedidoBase();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='transferencia')return telaTransferencia();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -29805,6 +29861,237 @@ function casaBuscaMov(l,m,ins){
    financeiro funcionam normalmente e só a baixa de estoque espera. Assim dá
    para usar o sistema antes de cadastrar as 29 fichas.
    ========================================================== */
+/* ==========================================================
+   PEDIDO DE BASE — a unidade pede à matriz
+   A unidade NÃO é escolhida: vem do login. Se quem entrou é de Jales, o
+   pedido é de Jales. Deixar escolher seria abrir a porta para a unidade
+   errada receber a mercadoria e a conta.
+   O catálogo e os preços vêm da matriz; aqui só se informa quantidade.
+   ========================================================== */
+var PB = { itens: {}, obs: '', responsavel: '', data: '', busca: '', erro: '' };
+
+function basePedidos(){ DB.pedidosBase = DB.pedidosBase || []; return DB.pedidosBase; }
+function basesAtivas(){
+  return baseCatalogo().filter(function (b) { return b.ativo !== false; })
+    .sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); });
+}
+function proxNumPedBase(){
+  var mx = 0;
+  basePedidos().forEach(function (p) { var n = Number(p.numero) || 0; if (n > mx) mx = n; });
+  return mx + 1;
+}
+function totalPedidoAtual(){
+  var t = 0;
+  basesAtivas().forEach(function (b) {
+    var q = Number(PB.itens[b.id]) || 0;
+    if (q > 0) t += q * (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
+  });
+  return t;
+}
+
+function telaPedidoBase(){
+  baseCatalogo(); basePedidos();
+  if (!PB.data) PB.data = hojeISO();
+  if (!PB.responsavel) PB.responsavel = (usuarioLogado() || {}).nome || '';
+  var bases = basesAtivas();
+  var q = (PB.busca || '').toLowerCase();
+  var vis = q ? bases.filter(function (b) {
+    return String(b.nome || '').toLowerCase().indexOf(q) >= 0;
+  }) : bases;
+  var total = totalPedidoAtual();
+  var nItens = Object.keys(PB.itens).filter(function (k) {
+    return (Number(PB.itens[k]) || 0) > 0;
+  }).length;
+  var meus = basePedidos().filter(function (p) {
+    return p.sucursalRef === lojaAtualId();
+  }).sort(function (a, b) {
+    return String(b.data + (b.numero || '')).localeCompare(String(a.data + (a.numero || '')));
+  }).slice(0, 8);
+
+  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+   '<div class="etTopo"><div><h1>Pedido de Base</h1>' +
+   '<p>Informe a quantidade de cada base. O pedido vai para a matriz.</p></div></div>' +
+
+   '<div class="pbPrazo">' + sv('clock', 16) +
+    '<div><b>Pedidos até as 12h00 de toda segunda-feira</b>' +
+    '<span>Retirada na matriz: toda quinta-feira à tarde</span></div></div>' +
+
+   '<div class="pbCab">' +
+    '<div class="f2"><label>Unidade</label>' +
+     '<div class="pbFixo">' + sv('store', 13) + ' ' + E(sucNome(lojaAtualId())) + '</div>' +
+     '<div class="hint">vem do seu acesso — não é possível pedir por outra</div></div>' +
+    '<div class="f2"><label>Data</label>' +
+     '<input type="date" value="' + E(PB.data) + '" onchange="PB.data=this.value"></div>' +
+    '<div class="f2"><label>Responsável</label>' +
+     '<input value="' + E(PB.responsavel) + '" placeholder="quem está pedindo" ' +
+     'oninput="PB.responsavel=this.value"></div>' +
+    '<div class="f2"><label>Observações — opcional</label>' +
+     '<input value="' + E(PB.obs) + '" placeholder="algo que a matriz precise saber" ' +
+     'oninput="PB.obs=this.value"></div>' +
+   '</div>' +
+
+   (PB.erro ? '<div class="avisoIn" style="margin:0 0 12px">' + E(PB.erro) + '</div>' : '') +
+
+   (!bases.length
+    ? '<div class="entVazio"><b>Nenhuma base disponível</b>' +
+      '<span>A matriz ainda não liberou a tabela de bases.</span></div>'
+    :
+   '<div class="blk" style="max-width:none">' +
+    '<div class="blkH"><b>Itens do catálogo</b>' +
+     '<span>' + bases.length + ' base(s) disponível(is)</span>' +
+     '<div style="flex:1"></div>' +
+     '<div class="lbBusca" style="max-width:220px">' + sv('search', 13) +
+      '<input value="' + E(PB.busca) + '" placeholder="Buscar base" ' +
+      'oninput="PB.busca=this.value;clearTimeout(window._pbT);' +
+      'window._pbT=setTimeout(telaPedidoBase,250)"></div>' +
+    '</div>' +
+    '<div class="lbTabW"><table class="pTable"><thead><tr>' +
+     '<th>Item</th><th style="width:82px;text-align:right">Qtde/cx</th>' +
+     '<th style="width:110px;text-align:right">Preço</th>' +
+     '<th style="width:104px">Quantidade</th>' +
+     '<th style="width:120px;text-align:right">Total</th></tr></thead><tbody>' +
+     vis.map(function (b) {
+       var qt = Number(PB.itens[b.id]) || 0;
+       var vCx = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
+       return '<tr class="' + (qt > 0 ? 'pbSel' : '') + '">' +
+        '<td><b>' + E(b.nome) + '</b></td>' +
+        '<td style="text-align:right">' + fmtQt(b.qtdCaixa) + '</td>' +
+        '<td style="text-align:right">R$ ' + money(vCx) + '</td>' +
+        '<td><input class="bsIn nu" type="number" min="0" step="1" value="' +
+          (qt || '') + '" placeholder="0" ' +
+          'oninput="mudarQtdPedido(\'' + b.id + '\',this.value)"></td>' +
+        '<td style="text-align:right">' +
+          (qt > 0 ? '<b class="bsVlr">R$ ' + money(qt * vCx) + '</b>' :
+           '<span style="color:var(--ink-3)">—</span>') + '</td>' +
+       '</tr>';
+     }).join('') + '</tbody></table></div>' +
+    '<div class="pbRod">' +
+     '<button class="btnP2" onclick="limparPedidoBase()">' + sv('trash', 12) +
+      ' Limpar pedido</button>' +
+     '<div style="flex:1"></div>' +
+     '<div class="pbTot"><span>' + nItens + ' item(ns)</span>' +
+      '<b>Total: R$ ' + money(total) + '</b></div>' +
+    '</div>' +
+   '</div>' +
+   '<div class="pbAcoes">' +
+    '<button class="btnP2" onclick="abrir(\'controle\',\'baixa-manual\')">Cancelar</button>' +
+    '<button class="btnVerde" onclick="enviarPedidoBase()">' +
+     sv('cr', 13) + ' Enviar pedido à matriz</button>' +
+   '</div>') +
+
+   /* ---------- histórico da própria unidade ---------- */
+   (meus.length
+    ? '<div class="blk" style="max-width:none;margin-top:16px">' +
+      '<div class="blkH"><b>Meus pedidos</b>' +
+       '<span>os últimos desta unidade</span></div>' +
+      '<div class="lbTabW"><table class="pTable"><thead><tr>' +
+       '<th style="width:80px">Nº</th><th style="width:100px">Data</th>' +
+       '<th style="width:80px;text-align:right">Itens</th>' +
+       '<th style="width:120px;text-align:right">Total</th>' +
+       '<th>Situação</th></tr></thead><tbody>' +
+       meus.map(function (p) {
+         return '<tr><td><b>#' + String(p.numero || 0).padStart(4, '0') + '</b></td>' +
+          '<td>' + E(dataBR(p.data)) + '</td>' +
+          '<td style="text-align:right">' + (p.itens || []).length + '</td>' +
+          '<td style="text-align:right"><b>R$ ' + money(p.total) + '</b></td>' +
+          '<td>' + seloPedBase(p.situacao) + '</td></tr>';
+       }).join('') + '</tbody></table></div></div>'
+    : '') +
+  '</div></div>';
+  rodape(nItens ? ('pedido em aberto — R$ ' + money(total)) : 'nenhum item selecionado');
+}
+
+function mudarQtdPedido(id, v){
+  var q = Math.max(0, Math.floor(Number(v) || 0));
+  if (q > 0) PB.itens[id] = q; else delete PB.itens[id];
+  PB.erro = '';
+  /* redesenha só os totais: refazer a tela a cada dígito faria o campo
+     perder o foco no meio da digitação */
+  var tot = totalPedidoAtual();
+  var n = Object.keys(PB.itens).length;
+  var el = document.querySelector('.pbTot');
+  if (el) el.innerHTML = '<span>' + n + ' item(ns)</span>' +
+    '<b>Total: R$ ' + money(tot) + '</b>';
+  var b = baseCatalogo().find(function (x) { return x.id === id; });
+  if (b) {
+    var linha = document.querySelector('input[oninput*="' + id + '"]');
+    if (linha) {
+      var tr = linha.closest('tr');
+      if (tr) {
+        tr.className = q > 0 ? 'pbSel' : '';
+        var td = tr.lastElementChild;
+        var vCx = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
+        if (td) td.innerHTML = q > 0
+          ? '<b class="bsVlr">R$ ' + money(q * vCx) + '</b>'
+          : '<span style="color:var(--ink-3)">—</span>';
+      }
+    }
+  }
+  rodape(n ? ('pedido em aberto — R$ ' + money(tot)) : 'nenhum item selecionado');
+}
+function limparPedidoBase(){
+  PB.itens = {}; PB.erro = '';
+  telaPedidoBase();
+}
+
+async function enviarPedidoBase(){
+  PB.erro = '';
+  var esc = [];
+  basesAtivas().forEach(function (b) {
+    var q = Number(PB.itens[b.id]) || 0;
+    if (q <= 0) return;
+    var vCx = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
+    esc.push({ id: uid('pbi'), baseRef: b.id, baseNome: b.nome,
+               fichaRef: b.fichaRef || '', qtd: q, valorUnit: vCx, total: q * vCx });
+  });
+  if (!esc.length) { PB.erro = 'Informe a quantidade de ao menos um item.'; return telaPedidoBase(); }
+  if (!String(PB.responsavel || '').trim()) {
+    PB.erro = 'Informe o responsável pelo pedido.'; return telaPedidoBase();
+  }
+  var total = esc.reduce(function (a, i) { return a + i.total; }, 0);
+  var ok = await confirmar({
+    titulo: 'Enviar o pedido à matriz?',
+    texto: esc.length + ' item(ns) — R$ ' + money(total),
+    linhas: esc.slice(0, 8).map(function (i) {
+      return [i.baseNome, fmtQt(i.qtd) + ' cx', 'R$ ' + money(i.total)];
+    }),
+    aviso: 'Depois de enviado, alterações passam pela matriz.',
+    ok: 'Enviar pedido'
+  });
+  if (!ok) return;
+  basePedidos();
+  DB.pedidosBase.push({
+    id: uid('pb'), numero: proxNumPedBase(),
+    sucursalRef: lojaAtualId(), sucursalNome: sucNome(lojaAtualId()),
+    data: PB.data || hojeISO(),
+    responsavel: String(PB.responsavel).trim(),
+    obs: PB.obs || '', total: total, itens: esc,
+    situacao: 'enviado', enviadoEm: new Date().toISOString(),
+    produzido: false, entradaEstoque: false
+  });
+  PB.itens = {}; PB.obs = ''; PB.busca = '';
+  salvar();
+  toast('Pedido enviado à matriz.');
+  telaPedidoBase();
+}
+
+/* selo de situação do pedido de base — usado aqui e na tela da matriz.
+   NAO se chama selo(): ja existe uma funcao com esse nome no sistema, e a
+   minha, por vir depois no arquivo, teria sobrescrito a original e quebrado
+   as telas que a usam. A verificacao antes de publicar pegou isso. */
+function seloPedBase(sit){
+  var m = {
+    rascunho:       ['Rascunho', ''],
+    enviado:        ['Aguardando', 'am'],
+    confirmado:     ['Confirmado', 'az'],
+    enviado_matriz: ['Enviado pela matriz', 'az'],
+    entregue:       ['Entregue', 'vd'],
+    pago:           ['Pago', 'vd'],
+    rejeitado:      ['Rejeitado', 'vr']
+  }[sit] || [sit || '—', ''];
+  return '<span class="pill ' + m[1] + '">' + E(m[0]) + '</span>';
+}
+
 var BS = { busca: '', sohAtivos: false, sujo: false };
 
 function baseCatalogo(){ DB.basesCat = DB.basesCat || []; return DB.basesCat; }
