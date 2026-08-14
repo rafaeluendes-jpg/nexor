@@ -3924,6 +3924,45 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 /* ---------- Relatório de Baixas ---------- */
 /* ---------- Central de Bases e Valores ---------- */
 /* ---------- Pedido de Base ---------- */
+/* ---------- abas internas (hub) ---------- */
+.hubAbas{display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap}
+.hubAba{display:flex;align-items:center;gap:7px;padding:9px 15px;border-radius:9px;
+  border:1px solid var(--line);background:var(--panel);cursor:pointer;
+  font-family:inherit;font-size:13px;color:var(--ink-2);transition:.15s}
+.hubAba:hover{background:var(--alt);color:var(--ink)}
+.hubAba.on{background:var(--deep);border-color:var(--deep);color:#fff;font-weight:600}
+.hubAba.on svg{opacity:1}
+.hubAba svg{opacity:.6}
+.hubB{font-style:normal;font-size:10.5px;font-weight:700;background:var(--amber);
+  color:#fff;border-radius:20px;padding:1px 7px;margin-left:2px}
+.hubAba.on .hubB{background:#fff;color:var(--deep)}
+/* ---------- pedidos recebidos ---------- */
+.prCard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  margin-bottom:9px;overflow:hidden;box-shadow:var(--sh)}
+.prCard.on{border-color:var(--acc)}
+.prH{display:flex;align-items:center;gap:13px;padding:13px 16px;cursor:pointer}
+.prH:hover{background:var(--alt)}
+.prNum{color:var(--acc-d);font-size:14px;font-variant-numeric:tabular-nums}
+.prLoja b{display:block;font-size:13.5px}
+.prLoja span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.prTot{font-size:14px;font-variant-numeric:tabular-nums}
+.prSeta{color:var(--ink-3);display:flex}
+.prCorpo{padding:0 16px 14px;border-top:1px solid var(--line-2)}
+.prPassos{display:flex;gap:6px;padding:14px 0;flex-wrap:wrap}
+.prPasso{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;
+  background:var(--alt);font-size:12px;color:var(--ink-3)}
+.prPasso i{width:18px;height:18px;border-radius:50%;background:var(--line);
+  display:flex;align-items:center;justify-content:center;font-style:normal;
+  font-size:10px;font-weight:700;color:var(--ink-2)}
+.prPasso.ok{background:var(--ok-soft);color:var(--ok)}
+.prPasso.ok i{background:var(--ok);color:#fff}
+.prPasso.atual{background:var(--acc-soft);color:var(--acc-d);font-weight:600}
+.prPasso.atual i{background:var(--acc);color:#fff}
+.prObs{margin-top:10px;background:var(--alt);border-radius:var(--r-s);
+  padding:9px 13px;font-size:12.5px;color:var(--ink-2)}
+.prAcoes{display:flex;align-items:center;gap:9px;margin-top:13px}
+.rdB{border-color:var(--red);color:var(--red)}
+.rdB:hover{background:var(--red-soft)}
 .pbPrazo{display:flex;gap:11px;align-items:center;background:var(--acc-soft);
   border:1px solid #E8DCC2;border-radius:var(--r);padding:12px 16px;margin-bottom:12px}
 .pbPrazo svg{flex:none;color:var(--acc-d)}
@@ -12063,9 +12102,7 @@ var MOD=[
    ========================================================== */
 {id:'controle',n:'Controle Diário',ic:'caderno',it:[
  {id:'baixa-manual',n:'Baixa Manual'},
- {id:'baixa-relatorio',n:'Relatório de Baixas'},
- {id:'pedido-base',n:'Pedido de Base'},
- {id:'bases-valores',n:'Bases e Valores'}]},
+ {id:'pedido-base',n:'Pedido de Base'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
  {id:'cfg-loja',n:'Mapa do Sistema'},
  {id:'carga-inicial',n:'Importar Dados'},
@@ -15311,7 +15348,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V48.1.0';
+var VERSAO='V48.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15571,10 +15608,8 @@ if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
 if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
-if(mid==='controle'&&iid==='baixa-manual')return telaBaixaManual();
-if(mid==='controle'&&iid==='baixa-relatorio')return telaRelatorioBaixas();
-if(mid==='controle'&&iid==='bases-valores')return telaBasesValores();
-if(mid==='controle'&&iid==='pedido-base')return telaPedidoBase();
+if(mid==='controle'&&iid==='baixa-manual')return telaBaixaHub();
+if(mid==='controle'&&iid==='pedido-base')return telaPedidoHub();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='transferencia')return telaTransferencia();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -29868,6 +29903,248 @@ function casaBuscaMov(l,m,ins){
    errada receber a mercadoria e a conta.
    O catálogo e os preços vêm da matriz; aqui só se informa quantidade.
    ========================================================== */
+/* ==========================================================
+   ABAS EM VEZ DE LINHAS DE MENU
+   Cada tela nova virava uma linha no menu: eram quatro e ia para cinco. Menu
+   comprido é menu que ninguém lê. Agora são DUAS entradas, cada uma com as
+   suas abas por dentro — e a aba só aparece para quem tem acesso a ela.
+   ========================================================== */
+var HUB = { baixa: 'registrar', pedido: '' };
+
+function abasHub(lista, atual, aoTrocar){
+  return '<div class="hubAbas">' + lista.map(function (a) {
+    return '<button class="hubAba' + (atual === a.id ? ' on' : '') + '" ' +
+      'onclick="' + aoTrocar + '(\'' + a.id + '\')">' +
+      sv(a.ic, 14) + '<span>' + E(a.n) + '</span>' +
+      (a.badge ? '<i class="hubB">' + a.badge + '</i>' : '') + '</button>';
+  }).join('') + '</div>';
+}
+
+/* ---------------- Baixa Manual ---------------- */
+function trocarAbaBaixa(a){ HUB.baixa = a; telaBaixaHub(); }
+function telaBaixaHub(){
+  var abas = [
+    { id: 'registrar', n: 'Registrar baixa', ic: 'dn4' },
+    { id: 'relatorio', n: 'Relatório', ic: 'chart' }
+  ];
+  var topo = abasHub(abas, HUB.baixa, 'trocarAbaBaixa');
+  if (HUB.baixa === 'relatorio'){ telaRelatorioBaixas(); } else { telaBaixaManual(); }
+  var alvo = document.querySelector('#content .etScroll');
+  if (alvo) alvo.insertAdjacentHTML('afterbegin', topo);
+}
+
+/* ---------------- Pedido de Base ---------------- */
+function trocarAbaPedido(a){ HUB.pedido = a; telaPedidoHub(); }
+function telaPedidoHub(){
+  basePedidos();
+  var matriz = (ehMatriz() || ehPlataforma());
+  var aguardando = basePedidos().filter(function (p) {
+    return p.situacao === 'enviado';
+  }).length;
+
+  var abas = [{ id: 'novo', n: 'Fazer pedido', ic: 'cart' }];
+  if (matriz) {
+    abas.push({ id: 'recebidos', n: 'Pedidos recebidos', ic: 'list',
+                badge: aguardando || 0 });
+    abas.push({ id: 'bases', n: 'Bases e valores', ic: 'tag' });
+  }
+  if (!HUB.pedido || !abas.some(function (a) { return a.id === HUB.pedido; }))
+    HUB.pedido = matriz ? 'recebidos' : 'novo';
+
+  var topo = abasHub(abas, HUB.pedido, 'trocarAbaPedido');
+  if (HUB.pedido === 'bases'){ telaBasesValores(); }
+  else if (HUB.pedido === 'recebidos'){ telaPedidosRecebidos(); }
+  else { telaPedidoBase(); }
+  var alvo = document.querySelector('#content .etScroll');
+  if (alvo) alvo.insertAdjacentHTML('afterbegin', topo);
+}
+
+/* ==========================================================
+   PEDIDOS RECEBIDOS — a matriz acompanha e move o status
+   O caminho é sempre o mesmo: Aguardando, Confirmado, Enviado, Entregue,
+   Pago. Só se anda para frente, e cada passo grava a hora. Rejeitar é a
+   saída lateral, e exige motivo — pedido recusado sem explicação vira
+   telefonema.
+   ========================================================== */
+var PR = { filtro: 'todos', busca: '', de: '', ate: '', aberto: null };
+
+var FASES_PED = ['enviado', 'confirmado', 'enviado_matriz', 'entregue', 'pago'];
+var ROTULO_FASE = {
+  enviado: 'Aguardando', confirmado: 'Confirmado',
+  enviado_matriz: 'Enviado pela matriz', entregue: 'Entregue', pago: 'Pago'
+};
+
+function telaPedidosRecebidos(){
+  if (!ehMatriz() && !ehPlataforma()) return telaRestrita('Pedidos recebidos');
+  basePedidos();
+  var l = basePedidos().slice();
+  if (PR.filtro !== 'todos') l = l.filter(function (p) { return p.situacao === PR.filtro; });
+  if (PR.de) l = l.filter(function (p) { return p.data >= PR.de; });
+  if (PR.ate) l = l.filter(function (p) { return p.data <= PR.ate; });
+  var q = (PR.busca || '').toLowerCase().replace('#', '');
+  if (q) l = l.filter(function (p) {
+    return String(p.numero || '').indexOf(q) >= 0 ||
+           String(p.sucursalNome || '').toLowerCase().indexOf(q) >= 0;
+  });
+  l.sort(function (a, b) { return (Number(b.numero) || 0) - (Number(a.numero) || 0); });
+
+  var cont = {};
+  basePedidos().forEach(function (p) { cont[p.situacao] = (cont[p.situacao] || 0) + 1; });
+  var totalAberto = basePedidos().filter(function (p) {
+    return ['enviado', 'confirmado', 'enviado_matriz', 'entregue'].indexOf(p.situacao) >= 0;
+  }).reduce(function (a, p) { return a + (Number(p.total) || 0); }, 0);
+
+  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+   '<div class="etTopo"><div><h1>Pedidos de Base</h1>' +
+   '<p>Pedidos recebidos das unidades.</p></div></div>' +
+
+   '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;' +
+    'overflow:hidden;margin-bottom:12px">' +
+    '<div class="hpN"><span>Aguardando</span><b class="' +
+      ((cont.enviado || 0) ? 'am' : '') + '">' + (cont.enviado || 0) + '</b></div>' +
+    '<div class="hpN"><span>Em andamento</span><b>' +
+      ((cont.confirmado || 0) + (cont.enviado_matriz || 0) + (cont.entregue || 0)) +
+      '</b></div>' +
+    '<div class="hpN"><span>Pagos</span><b>' + (cont.pago || 0) + '</b></div>' +
+    '<div class="hpN"><span>A receber</span><b class="vr">R$ ' +
+      money(totalAberto) + '</b></div>' +
+   '</div>' +
+
+   '<div class="lbBarra">' +
+    '<div class="lbBusca" style="max-width:230px">' + sv('search', 14) +
+     '<input value="' + E(PR.busca) + '" placeholder="Nº do pedido ou unidade" ' +
+     'oninput="PR.busca=this.value;clearTimeout(window._prT);' +
+     'window._prT=setTimeout(telaPedidoHub,250)"></div>' +
+    '<div class="f2" style="max-width:140px"><label>De</label>' +
+     '<input type="date" value="' + E(PR.de) + '" ' +
+     'onchange="PR.de=this.value;telaPedidoHub()"></div>' +
+    '<div class="f2" style="max-width:140px"><label>Até</label>' +
+     '<input type="date" value="' + E(PR.ate) + '" ' +
+     'onchange="PR.ate=this.value;telaPedidoHub()"></div>' +
+   '</div>' +
+   '<div class="lbSegm" style="margin-bottom:12px;flex-wrap:wrap">' +
+    [['todos', 'Todos'], ['enviado', 'Aguardando'], ['confirmado', 'Confirmados'],
+     ['enviado_matriz', 'Enviados'], ['entregue', 'Entregues'], ['pago', 'Pagos'],
+     ['rejeitado', 'Rejeitados']].map(function (f) {
+      var n = f[0] === 'todos' ? basePedidos().length : (cont[f[0]] || 0);
+      return '<button class="' + (PR.filtro === f[0] ? 'on' : '') + '" ' +
+        'onclick="PR.filtro=\'' + f[0] + '\';telaPedidoHub()">' + f[1] +
+        ' <b>' + n + '</b></button>';
+    }).join('') + '</div>' +
+
+   (l.length
+    ? l.map(function (p) { return cartaoPedido(p); }).join('')
+    : '<div class="entVazio"><b>Nenhum pedido</b>' +
+      '<span>Os pedidos das unidades aparecem aqui.</span></div>') +
+  '</div></div>';
+  rodape(l.length + ' pedido(s) · R$ ' + money(totalAberto) + ' em aberto');
+}
+
+function cartaoPedido(p){
+  var aberto = (PR.aberto === p.id);
+  var i = FASES_PED.indexOf(p.situacao);
+  var rejeitado = (p.situacao === 'rejeitado');
+  return '<div class="prCard' + (aberto ? ' on' : '') + '">' +
+   '<div class="prH" onclick="PR.aberto=' +
+     (aberto ? 'null' : '\'' + p.id + '\'') + ';telaPedidoHub()">' +
+    '<b class="prNum">#' + String(p.numero || 0).padStart(4, '0') + '</b>' +
+    '<div class="prLoja"><b>' + E(p.sucursalNome || '—') + '</b>' +
+     '<span>' + (p.itens || []).length + ' itens · ' + E(dataBR(p.data)) +
+     (p.responsavel ? ' · ' + E(p.responsavel) : '') + '</span></div>' +
+    '<div style="flex:1"></div>' +
+    '<b class="prTot">R$ ' + money(p.total) + '</b>' +
+    seloPedBase(p.situacao) +
+    '<span class="prSeta">' + sv(aberto ? 'up' : 'dn', 13) + '</span>' +
+   '</div>' +
+   (aberto
+    ? '<div class="prCorpo">' +
+      (rejeitado
+       ? '<div class="avisoIn" style="margin:0 0 12px">Rejeitado: ' +
+         E(p.motivoRejeicao || 'sem motivo informado') + '</div>'
+       : '<div class="prPassos">' + FASES_PED.map(function (f, k) {
+           var feito = (i >= k);
+           return '<div class="prPasso' + (feito ? ' ok' : '') +
+             (i === k ? ' atual' : '') + '">' +
+             '<i>' + (feito ? sv('check', 11) : (k + 1)) + '</i>' +
+             '<span>' + ROTULO_FASE[f] + '</span></div>';
+         }).join('') + '</div>') +
+      '<div class="lbTabW"><table class="pTable"><thead><tr>' +
+       '<th>Item</th><th style="width:80px;text-align:right">Qtde</th>' +
+       '<th style="width:110px;text-align:right">Preço</th>' +
+       '<th style="width:120px;text-align:right">Total</th>' +
+       '<th style="width:120px">Ficha</th></tr></thead><tbody>' +
+       (p.itens || []).map(function (it) {
+         return '<tr><td><b>' + E(it.baseNome) + '</b></td>' +
+          '<td style="text-align:right">' + fmtQt(it.qtd) + '</td>' +
+          '<td style="text-align:right">R$ ' + money(it.valorUnit) + '</td>' +
+          '<td style="text-align:right"><b>R$ ' + money(it.total) + '</b></td>' +
+          '<td>' + (it.fichaRef
+            ? '<span class="pill vd">ligada</span>'
+            : '<span class="pill am">sem ficha</span>') + '</td></tr>';
+       }).join('') + '</tbody></table></div>' +
+      (p.obs ? '<div class="prObs"><b>Observação:</b> ' + E(p.obs) + '</div>' : '') +
+      '<div class="prAcoes">' + acoesPedido(p) + '</div>' +
+     '</div>'
+    : '') +
+  '</div>';
+}
+
+function acoesPedido(p){
+  if (p.situacao === 'rejeitado') return '';
+  var h = '';
+  var prox = {
+    enviado: ['confirmado', 'Confirmar pedido'],
+    confirmado: ['enviado_matriz', 'Marcar como enviado'],
+    enviado_matriz: ['entregue', 'Marcar como entregue'],
+    entregue: ['pago', 'Marcar como pago']
+  }[p.situacao];
+  if (p.situacao === 'enviado')
+    h += '<button class="btnP2 rdB" onclick="rejeitarPedido(\'' + p.id + '\')">' +
+         'Rejeitar</button>';
+  h += '<div style="flex:1"></div>';
+  if (prox){
+    h += '<button class="btnVerde" onclick="avancarPedido(\'' + p.id + '\',\'' +
+         prox[0] + '\')">' + prox[1] + ' ' + sv('cr', 12) + '</button>';
+  }else{
+    h += '<span class="bsOk">' + sv('check', 13) + ' pedido concluído</span>';
+  }
+  return h;
+}
+
+async function avancarPedido(id, para){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  var ok = await confirmar({
+    titulo: ROTULO_FASE[para] + '?',
+    texto: 'Pedido #' + String(p.numero || 0).padStart(4, '0') + ' — ' +
+           E(p.sucursalNome) + ' — R$ ' + money(p.total),
+    ok: ROTULO_FASE[para]
+  });
+  if (!ok) return;
+  p.situacao = para;
+  var agora = new Date().toISOString();
+  if (para === 'confirmado') p.confirmadoEm = agora;
+  if (para === 'entregue') p.entregueEm = agora;
+  if (para === 'pago') p.pagoEm = agora;
+  salvar();
+  toast('Pedido ' + ROTULO_FASE[para].toLowerCase() + '.');
+  telaPedidoHub();
+}
+
+async function rejeitarPedido(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  var motivo = prompt('Por que este pedido está sendo rejeitado?\n\n' +
+    'A unidade vai ver esta mensagem.');
+  if (motivo === null) return;
+  if (!String(motivo).trim()) { toast('Informe o motivo.'); return; }
+  p.situacao = 'rejeitado';
+  p.motivoRejeicao = String(motivo).trim();
+  salvar();
+  toast('Pedido rejeitado.');
+  telaPedidoHub();
+}
+
 var PB = { itens: {}, obs: '', responsavel: '', data: '', busca: '', erro: '' };
 
 function basePedidos(){ DB.pedidosBase = DB.pedidosBase || []; return DB.pedidosBase; }
