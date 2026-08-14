@@ -12121,7 +12121,8 @@ var MOD=[
    ========================================================== */
 {id:'controle',n:'Controle Diário',ic:'caderno',it:[
  {id:'baixa-manual',n:'Baixa Manual'},
- {id:'pedido-base',n:'Pedido de Base'}]},
+ {id:'pedido-base',n:'Fazer Pedido de Base'},
+ {id:'bases-valores',n:'Bases e Valores'}]},
 {id:'loja',n:'Configuração da Loja',ic:'store',it:[
  {id:'cfg-loja',n:'Mapa do Sistema'},
  {id:'carga-inicial',n:'Importar Dados'},
@@ -15628,7 +15629,8 @@ if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
 if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='controle'&&iid==='baixa-manual')return telaBaixaHub();
-if(mid==='controle'&&iid==='pedido-base')return telaPedidoHub();
+if(mid==='controle'&&iid==='pedido-base')return telaPedidoBase();
+if(mid==='controle'&&iid==='bases-valores')return telaBasesHub();
 if(mid==='estoque'&&iid==='movimentacao-estoque')return telaMovimentacao();
 if(mid==='estoque'&&iid==='transferencia')return telaTransferencia();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
@@ -29952,28 +29954,35 @@ function telaBaixaHub(){
   if (alvo) alvo.insertAdjacentHTML('afterbegin', topo);
 }
 
-/* ---------------- Pedido de Base ---------------- */
-function trocarAbaPedido(a){ HUB.pedido = a; telaPedidoHub(); }
-function telaPedidoHub(){
+/* ==========================================================
+   DUAS ENTRADAS DE MENU, E NAO UMA COM ABAS
+   Eu tinha juntado tudo numa tela so. Errado, e por um motivo que nao e de
+   gosto: a Liberacao por Unidade trabalha por ITEM DE MENU. Se "fazer
+   pedido" e "pedidos recebidos" moram no mesmo item, liberar um libera o
+   outro — e o franqueado passaria a ver os pedidos de todas as unidades,
+   os precos e o cadastro de bases.
+   Entao:
+     Fazer Pedido de Base  -> item proprio, liberado ao franqueado
+     Bases e Valores       -> item proprio, so da matriz, com as abas
+                              "Pedidos recebidos" e "Cadastro de bases"
+   A separacao de acesso passa a ser possivel na tela de liberacao, sem
+   depender de o codigo lembrar de esconder.
+   ========================================================== */
+function trocarAbaBases(a){ HUB.pedido = a; telaBasesHub(); }
+function telaBasesHub(){
+  if (!ehMatriz() && !ehPlataforma()) return telaRestrita('Bases e Valores');
   basePedidos();
-  var matriz = (ehMatriz() || ehPlataforma());
   var aguardando = basePedidos().filter(function (p) {
     return p.situacao === 'enviado';
   }).length;
-
-  var abas = [{ id: 'novo', n: 'Fazer pedido', ic: 'cart' }];
-  if (matriz) {
-    abas.push({ id: 'recebidos', n: 'Pedidos recebidos', ic: 'list',
-                badge: aguardando || 0 });
-    abas.push({ id: 'bases', n: 'Bases e valores', ic: 'tag' });
-  }
-  if (!HUB.pedido || !abas.some(function (a) { return a.id === HUB.pedido; }))
-    HUB.pedido = matriz ? 'recebidos' : 'novo';
-
-  var topo = abasHub(abas, HUB.pedido, 'trocarAbaPedido');
-  if (HUB.pedido === 'bases'){ telaBasesValores(); }
-  else if (HUB.pedido === 'recebidos'){ telaPedidosRecebidos(); }
-  else { telaPedidoBase(); }
+  var abas = [
+    { id: 'recebidos', n: 'Pedidos recebidos', ic: 'list', badge: aguardando || 0 },
+    { id: 'cadastro', n: 'Cadastro de bases', ic: 'tag' }
+  ];
+  if (HUB.pedido !== 'cadastro') HUB.pedido = 'recebidos';
+  var topo = abasHub(abas, HUB.pedido, 'trocarAbaBases');
+  if (HUB.pedido === 'cadastro'){ telaBasesValores(); }
+  else { telaPedidosRecebidos(); }
   var alvo = document.querySelector('#content .etScroll');
   if (alvo) alvo.insertAdjacentHTML('afterbegin', topo);
 }
@@ -30066,7 +30075,7 @@ async function produzirPedidoBase(id){
   p.movProducaoRef = mov.id;
   salvar();
   toast('Produção lançada — ' + linhas.length + ' ingrediente(s) baixados.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 /* ---------- 2. MATRIZ: gerar a conta a receber ---------- */
@@ -30104,7 +30113,7 @@ async function faturarPedidoBase(id){
   p.finReceberRef = l.id;
   salvar();
   toast('Conta a receber gerada.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 /* ---------- 3. FILIAL: dar entrada no estoque ---------- */
@@ -30188,7 +30197,10 @@ async function receberPedidoBase(id){
   p.finPagarRef = l.id;
   salvar();
   toast('Entrada registrada e conta a pagar gerada.');
-  telaPedidoHub();
+  /* esta acao roda na tela do FRANQUEADO. Mandar para telaBasesHub jogaria
+     ele numa tela a que nao tem acesso — a troca em massa de nome pegou
+     tambem esta chamada, que nao devia. */
+  telaPedidoBase();
 }
 
 function sucMatrizId(){
@@ -30289,7 +30301,7 @@ async function produzirPedido(id){
   p.produzido = true; p.movProducaoRef = mov.id;
   salvar();
   toast('Produção lançada — ' + linhas.length + ' insumo(s) baixados.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 /* ---------- MATRIZ: conta a receber ---------- */
@@ -30321,7 +30333,7 @@ async function faturarPedido(id){
   p.finReceberRef = l.id;
   salvar();
   toast('Conta a receber gerada — R$ ' + money(p.total) + '.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 /* ---------- UNIDADE: entrada no estoque ---------- */
@@ -30375,7 +30387,7 @@ async function darEntradaPedido(id){
   p.entradaEstoque = true; p.movEntradaRef = mov.id;
   salvar();
   toast('Entrada lançada — ' + linhas.length + ' item(ns) no estoque.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 /* ---------- UNIDADE: conta a pagar ---------- */
@@ -30407,7 +30419,7 @@ async function pagarPedido(id){
   p.finPagarRef = l.id;
   salvar();
   toast('Conta a pagar gerada — R$ ' + money(p.total) + '.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 var PR = { filtro: 'todos', busca: '', de: '', ate: '', aberto: null };
@@ -30461,10 +30473,10 @@ function telaPedidosRecebidos(){
      'window._prT=setTimeout(telaPedidoHub,250)"></div>' +
     '<div class="f2" style="max-width:140px"><label>De</label>' +
      '<input type="date" value="' + E(PR.de) + '" ' +
-     'onchange="PR.de=this.value;telaPedidoHub()"></div>' +
+     'onchange="PR.de=this.value;telaBasesHub()"></div>' +
     '<div class="f2" style="max-width:140px"><label>Até</label>' +
      '<input type="date" value="' + E(PR.ate) + '" ' +
-     'onchange="PR.ate=this.value;telaPedidoHub()"></div>' +
+     'onchange="PR.ate=this.value;telaBasesHub()"></div>' +
    '</div>' +
    '<div class="lbSegm" style="margin-bottom:12px;flex-wrap:wrap">' +
     [['todos', 'Todos'], ['enviado', 'Aguardando'], ['confirmado', 'Confirmados'],
@@ -30472,7 +30484,7 @@ function telaPedidosRecebidos(){
      ['rejeitado', 'Rejeitados']].map(function (f) {
       var n = f[0] === 'todos' ? basePedidos().length : (cont[f[0]] || 0);
       return '<button class="' + (PR.filtro === f[0] ? 'on' : '') + '" ' +
-        'onclick="PR.filtro=\'' + f[0] + '\';telaPedidoHub()">' + f[1] +
+        'onclick="PR.filtro=\'' + f[0] + '\';telaBasesHub()">' + f[1] +
         ' <b>' + n + '</b></button>';
     }).join('') + '</div>' +
 
@@ -30490,7 +30502,7 @@ function cartaoPedido(p){
   var rejeitado = (p.situacao === 'rejeitado');
   return '<div class="prCard' + (aberto ? ' on' : '') + '">' +
    '<div class="prH" onclick="PR.aberto=' +
-     (aberto ? 'null' : '\'' + p.id + '\'') + ';telaPedidoHub()">' +
+     (aberto ? 'null' : '\'' + p.id + '\'') + ';telaBasesHub()">' +
     '<b class="prNum">#' + String(p.numero || 0).padStart(4, '0') + '</b>' +
     '<div class="prLoja"><b>' + E(p.sucursalNome || '—') + '</b>' +
      '<span>' + (p.itens || []).length + ' itens · ' + E(dataBR(p.data)) +
@@ -30601,7 +30613,7 @@ async function avancarPedido(id, para){
   if (para === 'pago') p.pagoEm = agora;
   salvar();
   toast('Pedido ' + ROTULO_FASE[para].toLowerCase() + '.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 async function rejeitarPedido(id){
@@ -30615,7 +30627,7 @@ async function rejeitarPedido(id){
   p.motivoRejeicao = String(motivo).trim();
   salvar();
   toast('Pedido rejeitado.');
-  telaPedidoHub();
+  telaBasesHub();
 }
 
 var PB = { itens: {}, obs: '', responsavel: '', data: '', busca: '', erro: '' };
