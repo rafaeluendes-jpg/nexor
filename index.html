@@ -15438,7 +15438,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V51.1.0';
+var VERSAO='V51.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21575,16 +21575,43 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
     PDV.cliente.ultima=ag.toLocaleDateString('pt-BR')+' '+ped.hora;
   }
   _ultimoMovVenda=null;
-  try{baixarEstoqueVenda(ped);}catch(e){console.error('estoque venda',e);}
+  /* Se a baixa de estoque falhar, a VENDA continua valendo — o cliente pagou
+     e nao se desfaz isso. Mas o erro ia so para o console: a tela dizia
+     "Venda finalizada" e o estoque ficava errado sem ninguem saber. Agora
+     fica registrado no Diagnostico e avisa quem esta no caixa. */
+  var _erroEstoque=null;
+  try{baixarEstoqueVenda(ped);}
+  catch(e){
+    _erroEstoque=String((e&&e.message)||e).slice(0,120);
+    try{ logNuvem('venda #'+ped.numero+': não consegui baixar o estoque — '+
+      _erroEstoque, true); }catch(e2){_quieto(e2,'estoqueVenda')}
+  }
   salvar();
   /* a venda sobe INTEIRA numa transacao — pedido, itens, movimentacao e
      saldo juntos. Se a rede cair, ela fica na fila normal e sobe depois;
      o que nao pode e chegar pela metade na nuvem. */
-  try{ enviarVendaAtomica(ped,_ultimoMovVenda); }catch(e){console.error('venda atomica',e);}
+  try{ enviarVendaAtomica(ped,_ultimoMovVenda); }
+  catch(e){
+    /* a venda cai na fila normal e sobe depois; o registro fica no
+       Diagnostico em vez de so no console, que ninguem abre */
+    try{ logNuvem('venda #'+ped.numero+': envio direto falhou, foi para a fila — '+
+      String((e&&e.message)||e).slice(0,100)); }catch(e2){_quieto(e2,'vendaAtomica')}
+  }
   PDV.comanda=[];PDV.cliente=null;PDV.tipo='loja';_cidadeVenda='';
   if(imprimir)imprimirVia(ped);
   PDV.aba='pedidos';telaPDV();
-  toast('Venda finalizada — pedido #'+ped.numero+'.');
+  if(_erroEstoque){
+    /* sem await de proposito: finalizarVenda e o caminho do caixa e continua
+       sincrona. Tornar a funcao async faria a venda suspender no meio de um
+       fluxo que tem trava de clique duplo esperando resposta imediata. */
+    confirmar({titulo:'Venda registrada, estoque não baixou',
+      texto:'O pedido #'+ped.numero+' está salvo e o pagamento vale. '+
+        'O que não aconteceu foi a saída dos itens do estoque.',
+      aviso:'Detalhe: '+E(_erroEstoque)+
+        '<br>Confira o estoque destes itens antes de fechar o dia.',
+      ok:'Entendi',cancelar:null});
+  }else toast('Venda finalizada — pedido #'+ped.numero+'.');
+
 }
 var _ultimoMovVenda=null;
 /* A trava de clique duplo ja existe desde antes: travarFecharVenda(), usada
@@ -39070,11 +39097,32 @@ function lerCardapio(silencioso){
   if($('cdPix'))c.pixChave=$('cdPix').value.trim();
   if(!silencioso)salvar();
 }
-function salvarCardapio(){
+async function salvarCardapio(){
   lerCardapio();
   salvar();
-  if(NUVEM.ligada)sincronizar();
-  toast('Cardápio salvo — a página pública já está atualizada.');
+  /* A frase "a página pública já está atualizada" era dita sem esperar o
+     envio: sincronizar() era chamada sem await. Quando a nuvem recusava ou
+     a rede caia, o cardapio no ar continuava o antigo e a tela dizia que
+     estava atualizado. Prometer publicacao e diferente de prometer
+     gravacao — esta espera a confirmacao. */
+  if(NUVEM.ligada){
+    try{
+      await sincronizar();
+      if(NUVEM.erros&&NUVEM.erros.length)
+        throw new Error(NUVEM.erros[0].motivo||'a nuvem recusou');
+      toast('Cardápio salvo — a página pública já está atualizada.');
+    }catch(e){
+      await confirmar({titulo:'Salvei aqui, mas não publiquei',
+        texto:'As mudanças estão guardadas neste aparelho, porém a página '+
+          'pública ainda mostra a versão anterior.',
+        aviso:'Detalhe: '+E(String((e&&e.message)||e).slice(0,120))+
+          '<br>Assim que a nuvem voltar, o envio acontece sozinho.',
+        ok:'Entendi',cancelar:null});
+    }
+  }else{
+    toast('Cardápio salvo neste aparelho — a página pública será atualizada '+
+      'quando a nuvem voltar.');
+  }
 }
 function copiarLink(){
   var l='https://rafaeluendes-jpg.github.io/delivery/';
@@ -40660,7 +40708,7 @@ function blocoAssPlataforma(){
      sv('check',13)+' Salvar liberações</button>'+
    '</div></div>';
 }
-function salvarAssPlat(){
+async function salvarAssPlat(){
   var a=baseAssPlat();
   if($('apNum'))a.numero=$('apNum').value.trim();
   if($('apNome'))a.nome=$('apNome').value.trim()||'Assistente Nexor';
@@ -40669,8 +40717,19 @@ function salvarAssPlat(){
   for(var i=0;i<cx.length;i++)
     if(cx[i].checked)a.liberadas[cx[i].getAttribute('data-suc')]=true;
   salvar();
-  Object.keys(a.liberadas).forEach(function(sid){ publicarAssistente(sid); });
-  toast('Liberações salvas.');
+  /* publicarAssistente e assincrona: sem await, 'Liberações salvas' aparecia
+     antes de qualquer unidade ter sido publicada de fato. */
+  var sids=Object.keys(a.liberadas), falhas=[];
+  for(var k=0;k<sids.length;k++){
+    try{ await publicarAssistente(sids[k]); }
+    catch(e){ falhas.push(sucNome(sids[k])||sids[k]); }
+  }
+  if(falhas.length){
+    await confirmar({titulo:'Nem todas as unidades foram publicadas',
+      texto:'Salvei aqui, mas estas não subiram: '+E(falhas.join(', ')),
+      aviso:'Tente de novo quando a nuvem estiver ligada.',
+      ok:'Entendi',cancelar:null});
+  }else toast('Liberações salvas'+(sids.length?' e publicadas.':'.'));
 }
 /* o robô só conhece o gestor se o número chegar no banco */
 /* ==========================================================
