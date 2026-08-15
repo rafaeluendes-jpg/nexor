@@ -3014,14 +3014,42 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .opNome:hover{color:var(--acc-d)}
 .opVerRec{font-size:10px;font-weight:500;color:var(--acc-d);display:flex;align-items:center;gap:4px}
 .opRec td{padding:0!important;background:var(--alt)!important}
-.opRecBox{padding:12px 16px;border-left:3px solid var(--acc)}
-.opRecH{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--ink-2);
-  margin-bottom:8px}
-.opRecH svg{color:var(--acc-d)}
-.opRecH button{margin-left:auto}
-.opRecTxt{font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--ink-2);
-  background:#fff;border:1px solid var(--line-2);border-radius:6px;padding:12px 14px;max-height:340px;overflow-y:auto}
-.opRecIng{margin-top:8px;font-size:11px;color:var(--ink-3)}
+/* ---------- receita da producao, em janela ----------
+   Tamanhos para leitura a distancia de braco, em bancada: passo a passo em
+   17px, ingredientes em 16px. Esta nao e a tela de cadastro, e a tela de
+   QUEM ESTA PRODUZINDO. */
+.recOv{align-items:flex-start;padding:26px 18px;overflow-y:auto}
+.recJan{background:var(--panel);border-radius:14px;width:min(880px,96vw);
+  margin:auto;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden}
+.recH{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  background:var(--deep);color:#fff;padding:15px 20px;position:sticky;top:0;z-index:2}
+.recH b{display:block;font-size:19px;letter-spacing:.2px}
+.recH span{display:block;font-size:13px;opacity:.82;margin-top:3px}
+.recX{background:rgba(255,255,255,.15);border:0;color:#fff;cursor:pointer;
+  width:34px;height:34px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;flex:none}
+.recX:hover{background:rgba(255,255,255,.28)}
+.recCorpo{padding:20px 22px 24px}
+.recCorpo h4{font-size:12px;text-transform:uppercase;letter-spacing:.9px;
+  color:var(--ink-3);margin:0 0 10px;font-weight:700}
+.recCorpo h4 em{font-style:normal;text-transform:none;letter-spacing:0;
+  color:var(--acc-d);font-weight:600}
+.recIng{background:var(--acc-soft);border:1px solid #E8DCC2;border-radius:11px;
+  padding:15px 18px;margin-bottom:20px}
+.recIng ul{margin:0;padding-left:20px;columns:2;column-gap:26px}
+.recIng li{font-size:16px;line-height:1.85;break-inside:avoid}
+.recIng li b{font-variant-numeric:tabular-nums;color:var(--deep)}
+.recPasso ol{margin:0;padding-left:26px}
+.recPasso li{font-size:17px;line-height:1.72;margin-bottom:13px;color:var(--ink)}
+.recPasso li::marker{color:var(--acc-d);font-weight:700}
+.recVaz{font-size:15px;color:var(--ink-3);font-style:italic;margin:0}
+.recFoto{margin-top:20px}
+.recFoto img{width:100%;max-height:300px;object-fit:cover;border-radius:11px;display:block}
+@media(max-width:640px){
+  .recIng ul{columns:1}
+  .recH b{font-size:17px}
+  .recPasso li{font-size:16px}
+}
 .opRecIng b{color:var(--ink-2)}
 .opRod{padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:12px;flex:none}
 
@@ -8150,14 +8178,7 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .opNome:hover{color:var(--acc-d)}
 .opVerRec{font-size:10px;font-weight:500;color:var(--acc-d);display:flex;align-items:center;gap:4px}
 .opRec td{padding:0!important;background:var(--alt)!important}
-.opRecBox{padding:12px 16px;border-left:3px solid var(--acc)}
-.opRecH{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--ink-2);
-  margin-bottom:8px}
-.opRecH svg{color:var(--acc-d)}
-.opRecH button{margin-left:auto}
-.opRecTxt{font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--ink-2);
-  background:#fff;border:1px solid var(--line-2);border-radius:6px;padding:12px 14px;max-height:340px;overflow-y:auto}
-.opRecIng{margin-top:8px;font-size:11px;color:var(--ink-3)}
+
 .opRecIng b{color:var(--ink-2)}
 .opRod{padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:12px;flex:none}
 
@@ -15405,7 +15426,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V50.2.0';
+var VERSAO='V50.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -34263,18 +34284,7 @@ function telaOPNova(){
         ?'<b class="'+(dif>=0?'vg':'vr')+'">'+(dif>0?'+':'')+fmtQt(dif)+' '+un(it.unidade).ab+'</b>'
         :'<span style="color:var(--ink-3)">—</span>')+'</td>'+
       '<td></td></tr>'+
-      (OP.verReceita===k?'<tr class="opRec"><td colspan="9">'+
-        '<div class="opRecBox"><div class="opRecH">'+sv('book',14)+' Modo de preparo — '+E(it.nome)+
-        '<button class="arvB" onclick="OP.verReceita=null;telaProducao()">'+sv('x2',12)+'</button></div>'+
-        '<div class="opRecGrid">'+
-        (f.foto?'<div class="opRecFoto"><img src="'+f.foto+'"></div>':'')+
-        '<div class="opRecTxt">'+(f.receita?E(f.receita):'<i>Esta ficha ainda não tem o modo de preparo cadastrado.</i>')+'</div>'+
-        '</div>'+
-        '<div class="opRecIng"><b>Ingredientes desta receita:</b> '+
-        ((f.itens||[]).map(function(ci){
-          var i2=itemComp(ci.insumoId)||{};
-          return E(i2.nome||'')+' '+fmtQt(ci.qtd)+' '+un(ci.unidade).ab;}).join(' · ')||'—')+'</div>'+
-        '</div></td></tr>':'');
+      '';
     }).join('')+'</tbody>'+
     '<tfoot id="opRodape">'+htmlRodapeOP(tot)+'</tfoot></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum sabor na ordem</b>'+
@@ -34376,7 +34386,54 @@ function addSaborOP(fid){
   telaProducao();
 }
 function remSaborOP(k){OP.itens.splice(k,1);if(OP.verReceita===k)OP.verReceita=null;telaProducao();}
-function verReceitaOP(k){OP.verReceita=(OP.verReceita===k?null:k);telaProducao();}
+/* ==========================================================
+   MODO DE PREPARO EM JANELA, NAO DENTRO DA TABELA
+   A receita era uma linha expandida DENTRO da tabela de producao: fonte de
+   12px, altura travada em 340px, e ainda por cima dentro de uma area que ja
+   rolava — com o cabecalho fixo comendo espaco. Quem esta na cozinha, com a
+   maquina ligada, precisa ler de longe e sem procurar.
+   Agora abre em janela propria: texto grande, passo a passo separado por
+   linha, e os ingredientes ja na QUANTIDADE DA PRODUCAO do dia (a ficha
+   rende X, a ordem pede Y — quem produz nao deveria ter de fazer essa regra
+   de tres de cabeca).
+   ========================================================== */
+function verReceitaOP(k){
+  var it=(OP.itens||[])[k]; if(!it)return;
+  var f=(DB.fichas||[]).find(function(x){return x.id===it.fichaId})||{};
+  var rend=Number(f.rendimento)||0;
+  var prev=Number(it.previsto)||0;
+  var fator=(rend>0&&prev>0)?(prev/rend):1;
+  var passos=String(f.receita||'').split(/\r?\n/).filter(function(l){return l.trim()!==''});
+
+  var ings=(f.itens||[]).map(function(ci){
+    var i2=itemComp(ci.insumoId)||{};
+    var q=(Number(ci.qtd)||0)*fator;
+    return '<li><b>'+fmtQt(q)+' '+un(ci.unidade).ab+'</b> '+E(i2.nome||'')+'</li>';
+  }).join('');
+
+  var h='<div class="recJan">'+
+   '<div class="recH"><div><b>'+E(it.nome)+'</b>'+
+    '<span>'+fmtQt(prev)+' '+un(it.unidade).ab+
+    (fator!==1&&rend?' · receita rende '+fmtQt(rend)+' '+un(f.unidade||it.unidade).ab:'')+
+    '</span></div>'+
+    '<button class="recX" onclick="fecharRecOP()">'+sv('x2',16)+'</button></div>'+
+   '<div class="recCorpo">'+
+    (ings?'<div class="recIng"><h4>Ingredientes'+
+      (fator!==1?' <em>já ajustados para esta produção</em>':'')+'</h4><ul>'+ings+'</ul></div>':'')+
+    '<div class="recPasso"><h4>Modo de preparo</h4>'+
+     (passos.length
+       ? '<ol>'+passos.map(function(l){
+           return '<li>'+E(l.replace(/^\s*\d+[).\-]?\s*/,''))+'</li>'; }).join('')+'</ol>'
+       : '<p class="recVaz">Esta ficha ainda não tem o modo de preparo cadastrado.</p>')+
+    '</div>'+
+    (f.foto?'<div class="recFoto"><img src="'+f.foto+'"></div>':'')+
+   '</div></div>';
+  var ov=document.createElement('div');
+  ov.className='mdOv recOv'; ov.id='recOv'; ov.innerHTML=h;
+  ov.onclick=function(e){ if(e.target===ov)fecharRecOP(); };
+  document.body.appendChild(ov);
+}
+function fecharRecOP(){ var o=document.getElementById('recOv'); if(o)o.remove(); }
 
 /* ---------- PRODUZIR ---------- */
 async function confirmarProducao(){
