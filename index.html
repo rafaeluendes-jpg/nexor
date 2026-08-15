@@ -14276,7 +14276,30 @@ var _FALHOU_BAIXA=[];
    perde historico.
    ========================================================== */
 var _CORTADAS={};
+/* ==========================================================
+   AS LEITURAS COMECAM TODAS JUNTAS, MAS SAO USADAS NA ORDEM
+
+   O download fazia 51 leituras em fila indiana: cada uma esperava a
+   anterior terminar. A ~180 ms por leitura, sao 9 a 25 segundos parado —
+   e era isso que o usuario via como "os nomes aparecem, os valores nao".
+   Nenhuma dessas leituras depende do resultado da outra: todas as URLs
+   sao montadas a partir do mesmo filtro de loja. Entao elas podem partir
+   ao mesmo tempo.
+   O corpo do download NAO muda: continua com "await baixarTab(...)" na
+   mesma ordem, e o processamento continua sequencial (que e onde ha
+   dependencia de verdade — mapa de insumos antes das fichas, por
+   exemplo). Aqui embaixo, baixarTab so aproveita a leitura que ja esta
+   a caminho, em vez de comecar uma nova.
+   ========================================================== */
+var _EMVOO={};
+function adiantarTab(nome,url){
+  var k=nome+'|'+url;
+  if(!_EMVOO[k])_EMVOO[k]=baixarTab(nome,url);
+  return _EMVOO[k];
+}
 async function baixarTab(nome,url){
+  var k=nome+'|'+url;
+  if(_EMVOO[k]){ var p=_EMVOO[k]; delete _EMVOO[k]; return await p; }
   try{
     var r=await comRetentativa(function(){ return api(url); },'baixar '+nome,2);
     var mlim=/[?&]limit=(\d+)/.exec(url||'');
@@ -14512,6 +14535,19 @@ function volta(linhas,fn,atual,col){
     return r;
   }
   try{
+  /* partem todas agora; cada "await baixarTab" abaixo apenas recolhe a sua */
+  _EMVOO={};
+  ['contas_capital'+qs,'formas_pagamento'+qs+'&order=ordem','fornecedores'+qs,
+   'clientes'+qs,'categorias'+qs+'&order=ordem','produtos'+qs+'&order=ordem',
+   'unidades_medida'+qs,'grupos_ingredientes'+qs,'insumos'+qs,
+   'ficha_grupos'+qs,'fichas_tecnicas'+qs,'bases_catalogo'+qs,
+   'baixas_pendentes'+qs,'motivos_movimentacao'+qs,
+   'motivos_cancelamento'+qs+'&order=ordem','status_venda'+qs+'&order=ordem',
+   'modelos_impressao'+qs,'estoque_unidade'+qs+'&limit=20000',
+   'mesas'+qs+'&order=numero','turnos'+qs+'&order=ordem','sucursais'+qs,
+   'cardapio_config'+qs]
+   .forEach(function(u){ adiantarTab(u.split('?')[0],u); });
+  adiantarTab('ficha_itens','ficha_itens?select=*&limit=20000');
   var cont=await baixarTab('contas_capital', 'contas_capital'+qs);
   DB.contas=volta(cont,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
     agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},_ANT('contas'),'contas');
@@ -15910,7 +15946,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V60.0.0';
+var VERSAO='V61.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
