@@ -14653,6 +14653,17 @@ function volta(linhas,fn,atual,col){
 
   var ft=await baixarTab('fichas_tecnicas', 'fichas_tecnicas'+q+'&select=*,ficha_itens(*)');
   var mapaFiRef={};ft.forEach(function(x){mapaFiRef[x.id]=x.ref_local||x.id});
+  /* rastro do download sobre a ficha que esta aberta na tela: diz quantos
+     itens vieram da nuvem e quantos havia aqui, no instante da troca */
+  try{
+    if(typeof _fichaAberta!=='undefined'&&_fichaAberta){
+      var _fn=ft.find(function(x){return (x.ref_local||x.id)===_fichaAberta});
+      var _fl=(DB.fichas||[]).find(function(x){return x.id===_fichaAberta});
+      console.log('[ficha] DOWNLOAD — nuvem trouxe '+
+        ((_fn&&(_fn.ficha_itens||[]).length)||0)+' item(ns), aqui havia '+
+        ((_fl&&(_fl.itens||[]).length)||0));
+    }
+  }catch(e9){}
   DB.fichas=volta(ft,function(x){return {id:x.ref_local||x.id,nome:x.nome,codigo:x.codigo,
     categoriaId:mapaFg[x.grupo_id]||'',subgrupoId:x.subgrupo_id||'',contaId:mapaSub[x.subcategoria_id]||'',
     unidade:x.unidade||'un',estocavel:x.estocavel!==false,disponivelVenda:!!x.disponivel_venda,
@@ -15855,7 +15866,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V57.0.0';
+var VERSAO='V58.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30209,6 +30220,9 @@ function _rastroFicha(oque, f, antes){
     if(console&&console.log)
       console.log('[ficha] '+oque+' — antes '+antes+', agora '+n+alerta+
         '\n         '+ids);
+    /* quem apagou? o rastro dizia QUE sumiu, nunca QUEM. O console.trace
+       imprime a cadeia de chamadas ate aqui — e ela nomeia a funcao. */
+    if(alerta&&console&&console.trace)console.trace('[ficha] quem mexeu na lista');
     _ultimoRastro={id:f.id,n:n,ids:ids};
   }catch(e){ _quieto(e,'rastroFicha'); }
 }
