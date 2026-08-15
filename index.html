@@ -13221,7 +13221,8 @@ var _TAB_VINCULO={insumos:'insumos', fichas:'fichas_tecnicas',
   entregadores:'entregadores', motivosMov:'motivos_movimentacao',
   motivosCanc:'motivos_cancelamento', turnos:'turnos', sucursais:'sucursais',
   mesas:'mesas', cupons:'cupons', caixas:'caixas', pedidos:'pedidos'};
-async function montarMapaVinculos(loja){
+var _MAPA_LIDO=0;
+async function montarMapaVinculos(loja, forcar){
   DB._uuid=DB._uuid||{};
   /* o que este aparelho ja sabe entra primeiro */
   Object.keys(DB._uuid).forEach(function(c){
@@ -13229,6 +13230,11 @@ async function montarMapaVinculos(loja){
     Object.keys(mp).forEach(function(r){ _ids[r]=mp[r]; });
   });
   if(!loja)return;
+  /* Ler as 19 tabelas a CADA envio era caro demais: com o envio acontecendo
+     em laco, virou a propria causa do congelamento. O mapa muda pouco —
+     basta relê-lo de tempos em tempos, ou quando um vinculo faltar. */
+  if(!forcar && _MAPA_LIDO && (Date.now()-_MAPA_LIDO)<5*60*1000)return;
+  _MAPA_LIDO=Date.now();
   var cols=Object.keys(_TAB_VINCULO);
   for(var i=0;i<cols.length;i++){
     var col=cols[i], tab=_TAB_VINCULO[col];
@@ -13644,7 +13650,9 @@ async function sincronizar(){
        Agora o mapa e montado aqui, no comeco de cada envio, perguntando a
        propria nuvem. Sao consultas minusculas: duas colunas por tabela.
        ========================================================== */
-    await montarMapaVinculos(l);
+    /* releitura forcada quando o envio anterior deixou vinculo sem resolver:
+       ai vale a pena pagar as consultas, porque sem elas o item nao sobe */
+    await montarMapaVinculos(l, Object.keys(_fkPerdido||{}).length>0);
     /* o identificador que a nuvem deu a cada registro fica guardado: assim da para
        PULAR o que nao mudou sem perder o vinculo dos filhos com o pai */
     DB._uuid=DB._uuid||{};DB._hash=DB._hash||{};DB._enviados=DB._enviados||{};
@@ -15656,7 +15664,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V53.1.0';
+var VERSAO='V54.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16772,9 +16780,20 @@ function agendarRecarga(tabela){
   clearTimeout(RT.recarga);
   RT.recarga=setTimeout(async function(){
     try{
-      /* mesma razao do arranque: nunca baixar por cima de coisa nao enviada.
-         O tempo real avisa de novo no ciclo seguinte. */
-      if(NUVEM.sujo||DB._sujo){ agendarSync(); return; }
+      /* ==========================================================
+         AQUI NASCIA UM LACO
+         A regra de nao baixar com coisa pendente esta certa. Errado era
+         chamar agendarSync() daqui: o envio ja foi agendado por salvar().
+         Quando alguma tabela falhava, a marca de pendente nunca saia, e
+         entao: tempo real -> agendarSync -> envio -> o envio mexe na nuvem
+         -> tempo real de novo -> agendarSync... sem parar.
+         Com o envio custando centenas de milissegundos, isso e exatamente
+         a tela congelando ~750 ms uma vez por segundo, sem parar, que
+         aparece no diagnostico.
+         Agora: se ha coisa pendente, apenas nao baixa. Quem envia e o
+         agendamento normal, uma vez, depois de 2,5 s de silencio.
+         ========================================================== */
+      if(NUVEM.sujo||DB._sujo){ return; }
       statusNuvem('baixando');
       var antes=retratoDB();
       await baixarDaNuvem();
