@@ -15438,7 +15438,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V51.2.0';
+var VERSAO='V51.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25213,7 +25213,7 @@ function telaPermUnidade(){
        return '<div class="linhaPerm'+(bloq?' bloq':'')+'">'+
         '<span>'+E(c.n)+(bloq?'<i> — a matriz não tem</i>':'')+'</span>'+
         '<button class="swPerm'+(lig?' on':'')+'"'+(bloq?' disabled':'')+
-          ' onclick="togglePerm(\''+k+'\','+(lig?'false':'true')+')"></button>'+
+          ' data-perm="'+k+'" onclick="togglePerm(\''+k+'\',this)"></button>'+
        '</div>';
      }).join('')+'</div>';
   }).join('');
@@ -25234,8 +25234,10 @@ function telaPermUnidade(){
        (s2.matriz?' (matriz)':'')+'</button>';
     }).join('')+
     '<div style="flex:1"></div>'+
-    (pend?'<span class="hint" style="margin-right:8px">'+pend+' alteração(ões) por salvar</span>':'')+
-    '<button class="btnP2 ok"'+(pend?'':' disabled')+' onclick="salvarPermissoes()">Salvar</button>'+
+    '<span class="hint" id="prmPend" style="margin-right:8px">'+
+      (pend?pend+' alteração(ões) por salvar':'')+'</span>'+
+    '<button class="btnP2 ok" id="prmSalvar"'+(pend?'':' disabled')+
+      ' onclick="salvarPermissoes()">Salvar</button>'+
    '</div>'+
    '<div style="max-width:900px">'+grade+'</div></div>';
   rodape(pend?pend+' alteração(ões) por salvar':E(su.nome));
@@ -25250,7 +25252,19 @@ function trocarUnidadePerm(id){
      !confirm('Há alterações não salvas nesta unidade. Trocar mesmo assim?'))return;
   PRM.alvo=id;PRM.pend={};telaPermUnidade();
 }
-function togglePerm(k,v){ PRM.pend[k]=v; telaPermUnidade(); }
+/* mesma razao do togPermUsr: mexer numa chave nao justifica refazer a tela
+   inteira com os 81 itens. Aqui tambem so a chave e o contador mudam. */
+function togglePerm(k, elBt){
+  var lig = elBt && elBt.classList ? !elBt.classList.contains('on') : true;
+  PRM.pend[k] = lig;
+  if(!elBt || !elBt.classList){ telaPermUnidade(); return; }
+  elBt.classList.toggle('on', lig);
+  var pend=Object.keys(PRM.pend).length;
+  var av=document.getElementById('prmPend');
+  if(av)av.textContent = pend ? pend+' alteração(ões) por salvar' : '';
+  var bt=document.getElementById('prmSalvar');
+  if(bt)bt.disabled = !pend;
+}
 function marcarModulo(mid,v){
   var x=empresaPorId(PRM.loja); if(!x)return;
   var su=(x.unidades||[]).find(function(s){return s.id===PRM.alvo}); if(!su)return;
@@ -42942,6 +42956,22 @@ function achou(u,q){
   return !q||String(u.nome||'').toLowerCase().indexOf(q)>=0||
     String(u.login||'').toLowerCase().indexOf(q)>=0;
 }
+/* ==========================================================
+   ABRIR E FECHAR PASTA SEM REMONTAR A TELA
+   O clique chamava telaUsuarios(), que refaz o innerHTML inteiro — arvore,
+   painel de permissoes e as ~91 caixas de marcar junto. O navegador destroi
+   e recria tudo so para mostrar ou esconder alguns nomes; e dai que vinha a
+   travada a cada clique.
+   Abrir e fechar e estado visual: uma classe CSS resolve. O estado continua
+   guardado em US.abertas para a proxima vez que a tela for montada de fato.
+   ========================================================== */
+function abrirPastaEmpresa(botao, nome){
+  var pasta = botao && botao.parentNode;
+  if(!pasta){ US.abertas[nome]=!US.abertas[nome]; telaUsuarios(); return; }
+  var abre = !pasta.classList.contains('ab');
+  pasta.classList.toggle('ab', abre);
+  US.abertas[nome] = abre;
+}
 function telaUsuarios(){
   baseMov();baseSuc();baseUsr();
   var q=(US.busca||'').toLowerCase();
@@ -43092,8 +43122,8 @@ function telaUsuarios(){
        var cobreTudo=resto.some(function(u){return u.tudo||u.mestre});
        h+='<div class="usrSec">Empresa<span class="usrLn"></span></div>'+
         '<div class="usrPasta'+(aberta?' ab':'')+'">'+
-        '<button class="usrPastaH" onclick="US.abertas[\''+
-          String(nomeEmp).replace(/'/g,"\\'")+'\']='+(aberta?'false':'true')+';telaUsuarios()">'+
+        '<button class="usrPastaH" onclick="abrirPastaEmpresa(this,\''+
+          String(nomeEmp).replace(/'/g,"\\'")+'\')">'+
          '<span class="usrSeta"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" '+
            'stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">'+
            '<path d="M9 5l7 7-7 7"/></svg></span>'+
@@ -43365,12 +43395,13 @@ function abaPermUsr(u){
         (lib&&!todos?' data-meio="1"':'')+
         ' onchange="togModUsr(\''+m.id+'\',this.checked)"><i></i></label>'+
        sv(m.ic,15)+'<b>'+E(m.n)+'</b>'+
-       '<span class="permN">'+lib+'/'+itens.length+'</span></div>'+
+       '<span class="permN" data-cont="'+m.id+'">'+lib+'/'+itens.length+'</span></div>'+
       '<div class="permItens">'+itens.map(function(i){
         var on=!!p[m.id+'/'+i.id];
-        return '<label class="permIt'+(on?' on':'')+'">'+
+        return '<label class="permIt'+(on?' on':'')+'" '+
+         'data-perm="'+m.id+'/'+i.id+'" data-mod="'+m.id+'">'+
          '<input type="checkbox"'+(on?' checked':'')+
-         ' onchange="togPermUsr(\''+m.id+'/'+i.id+'\')">'+
+         ' onchange="togPermUsr(\''+m.id+'/'+i.id+'\',this)">'+
          '<span>'+E(i.n)+'</span></label>';
       }).join('')+'</div></div>';
    }).join('')+
@@ -43445,12 +43476,38 @@ function semPular(fn){
   setTimeout(devolve,60);
   setTimeout(devolve,150);
 }
-function togPermUsr(chave){
+/* ==========================================================
+   MARCAR UMA TELA NAO REMONTA A TELA INTEIRA
+   Cada clique numa caixa chamava telaUsuarios(), que refaz o innerHTML
+   completo: a arvore, o painel e as 81 caixas de marcar. O navegador
+   destruia e recriava tudo a cada clique — e quem estava montando a
+   permissao de um franqueado, marcando dezenas de telas seguidas, sentia
+   a interface travar em cada uma.
+   O que muda ao marcar uma caixa e: a propria caixa e o contador do
+   modulo. So isso e atualizado agora.
+   ========================================================== */
+function togPermUsr(chave, elBox){
   var u=usrSel();if(!u)return;
   u.permissoes=u.permissoes||{};
   u.permissoes[chave]=!u.permissoes[chave];
-  if(!u.permissoes[chave])delete u.permissoes[chave];
-  salvar();semPular(telaUsuarios);
+  var ligou=!!u.permissoes[chave];
+  if(!ligou)delete u.permissoes[chave];
+  salvar();
+
+  var lab = elBox && elBox.closest ? elBox.closest('.permIt') : null;
+  if(!lab){ semPular(telaUsuarios); return; }   /* sem o elemento, refaz */
+  lab.classList.toggle('on', ligou);
+
+  /* contador do modulo e o total no topo */
+  var mid = lab.getAttribute('data-mod');
+  var cont = document.querySelector('.permN[data-cont="'+mid+'"]');
+  if(cont){
+    var m=MOD.find(function(x){return x.id===mid})||{it:[]};
+    var n=(m.it||[]).filter(function(i){return u.permissoes[mid+'/'+i.id]}).length;
+    cont.textContent = n+'/'+(m.it||[]).length;
+  }
+  var topo=document.querySelector('.permBarra span');
+  if(topo)topo.textContent = contaPerm(u)+' tela(s) liberada(s)';
 }
 function togModUsr(mid,marcar){
   var u=usrSel();if(!u)return;
