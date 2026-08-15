@@ -13421,8 +13421,40 @@ var _TABS_SEM_LOJA=['ficha_itens','opcoes','produto_grupos','pedido_itens',
 function chaveConflito(tab){
   return (_TABS_SEM_LOJA.indexOf(tab)>=0)?'ref_local':'loja_id,ref_local';
 }
+/* ==========================================================
+   IDENTIFICADOR REPETIDO NO MESMO LOTE DERRUBA A GRAVACAO INTEIRA
+
+   O Postgres recusa um upsert quando duas linhas do MESMO comando disputam
+   a mesma chave: "ON CONFLICT DO UPDATE command cannot affect row a second
+   time". A resposta e 500 e NENHUMA linha do lote entra — nem as que estavam
+   certas.
+   Era isso que limitava a ficha tecnica a poucos ingredientes: bastava dois
+   itens acabarem com o mesmo ref_local para o lote inteiro ser recusado, e
+   a ficha voltava do download com o que ja havia antes.
+   Aqui o lote e limpo antes de sair: identificador repetido fica com a
+   ultima versao, e o caso e registrado para nao passar despercebido.
+   ========================================================== */
+function tirarRepetidos(tab,linhas){
+  var vistos={}, saida=[], repetidos=[];
+  for(var i=0;i<linhas.length;i++){
+    var r=linhas[i]&&linhas[i].ref_local;
+    if(r==null||r===''){ saida.push(linhas[i]); continue; }
+    if(vistos[r]!==undefined){
+      repetidos.push(r);
+      saida[vistos[r]]=linhas[i];      /* a ultima vale */
+    }else{
+      vistos[r]=saida.length;
+      saida.push(linhas[i]);
+    }
+  }
+  if(repetidos.length)
+    logNuvem(tab+': '+repetidos.length+' identificador(es) repetido(s) no envio — '+
+      'mantida a última versão de cada ('+repetidos.slice(0,3).join(', ')+')',true);
+  return saida;
+}
 async function enviar(tab,linhas){
   if(!linhas.length)return [];
+  linhas=tirarRepetidos(tab,linhas);
   var out=[];
   for(var i=0;i<linhas.length;i+=200){
     var lote=igualarChaves(linhas.slice(i,i+200));
@@ -13805,10 +13837,23 @@ async function sincronizar(){
              cada um que entrava derrubava outro.
              Agora: se o item ja tem id proprio, ele E o nome; se nao tem,
              ganha um agora e passa a ter para sempre. */
+          /* identificador estavel E unico. Estavel porque o item guarda o
+             seu; unico porque dois itens com o mesmo nome derrubam o lote
+             inteiro no Postgres (ver tirarRepetidos). */
+          var _usados={};
           var refs=filhos.map(function(o,j){
             if(!o.id)o.id=(lista[k].id)+'_'+j+'_'+Math.random().toString(36).slice(2,8);
             var sid=String(o.id);
-            return sid.indexOf(lista[k].id)===0 ? sid : (lista[k].id+'_'+sid);
+            var r=(sid.indexOf(lista[k].id)===0)?sid:(lista[k].id+'_'+sid);
+            if(_usados[r]){
+              /* colisao real: renomeia ESTE item de forma definitiva */
+              o.id=(lista[k].id)+'_'+j+'_'+Math.random().toString(36).slice(2,8);
+              r=String(o.id);
+              logNuvem(F.tab+': dois itens tinham o mesmo identificador — '+
+                'um foi renomeado para '+r);
+            }
+            _usados[r]=true;
+            return r;
           });
 
           if(!filhos.length)logNuvem(F.tab+': nenhum item para enviar em "'+(lista[k].nome||'')+'"');
@@ -15611,7 +15656,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V53.0.1';
+var VERSAO='V53.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
