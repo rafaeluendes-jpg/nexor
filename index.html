@@ -12971,11 +12971,11 @@ var MAPA=[
      A chave tambem e 'lista', nao 'col', que e como o enviador procura. */
   filhos:[{lista:'itens', tab:'pedido_base_itens', pai:'pedido_id',
     campos:function(x,pai){return {base_ref:x.baseRef,base_nome:x.baseNome,
-      ficha_ref:x.fichaRef||null,quantidade:num(x.qtd),
-      valor_unit:num(x.valorUnit),total:num(x.total)};}}],
+      ficha_ref:x.fichaRef||null,quantidade:n(x.qtd),
+      valor_unit:n(x.valorUnit),total:n(x.total)};}}],
   campos:function(x){return {numero:x.numero||null,sucursal_id:x.sucursalRef,
     sucursal_nome:x.sucursalNome||null,data:x.data||null,
-    responsavel:x.responsavel||null,observacao:x.obs||null,total:num(x.total),
+    responsavel:x.responsavel||null,observacao:x.obs||null,total:n(x.total),
     situacao:x.situacao||'rascunho',produzido:!!x.produzido,
     mov_producao_ref:x.movProducaoRef||null,
     financeiro_receber_ref:x.finReceberRef||null,
@@ -12985,14 +12985,14 @@ var MAPA=[
     entregue_em:x.entregueEm||null,pago_em:x.pagoEm||null,
     motivo_rejeicao:x.motivoRejeicao||null};}},
  {col:'basesCat', espelha:true, tab:'bases_catalogo',
-  campos:function(x){return {nome:x.nome,qtd_caixa:num(x.qtdCaixa),
-    valor_unit:num(x.valorUnit),ficha_ref:x.fichaRef||null,
+  campos:function(x){return {nome:x.nome,qtd_caixa:n(x.qtdCaixa),
+    valor_unit:n(x.valorUnit),ficha_ref:x.fichaRef||null,
     ativo:x.ativo!==false,ordem:x.ordem||0};}},
  {col:'baixasPend', espelha:true, tab:'baixas_pendentes',
   campos:function(x){return {
     sucursal_id:x.sucursalRef||null, item_ref:x.itemRef, item_nome:x.itemNome,
-    item_tipo:x.itemTipo||'insumo', quantidade:num(x.qtd), unidade:x.unidade||null,
-    custo_unit:num(x.custo), motivo_ref:x.motivoRef||null, motivo_nome:x.motivoNome||null,
+    item_tipo:x.itemTipo||'insumo', quantidade:n(x.qtd), unidade:x.unidade||null,
+    custo_unit:n(x.custo), motivo_ref:x.motivoRef||null, motivo_nome:x.motivoNome||null,
     quem_registrou:x.quem||null, registrado_por:x.registradoPor||null,
     data:x.data||null, hora:x.hora||null, observacao:x.obs||null,
     situacao:x.situacao||'pendente', mov_ref:x.movRef||null,
@@ -13744,7 +13744,23 @@ async function sincronizar(){
             var visto={}, limpo=[];
             lst2.forEach(function(o){
               if(!o)return;
-              var ch=String(o.nome||'').trim().toLowerCase()+'|'+(Number(o.preco)||0);
+              /* ==========================================================
+                 ESTA TRAVA APAGAVA OS INGREDIENTES DA FICHA TECNICA
+
+                 Ela foi escrita para OPCOES DE CARDAPIO: duas opcoes com o
+                 mesmo nome e o mesmo preco no mesmo grupo sao a mesma opcao.
+                 Mas roda para os filhos de TODAS as tabelas — e um item de
+                 ficha tecnica nao tem nome nem preco. A chave saia
+                 "" + "|" + 0 = "|0" para TODOS os ingredientes. O primeiro
+                 entrava, e do segundo em diante todos eram considerados
+                 repetidos e descartados — direto de DB.fichas, na memoria.
+                 Era isto: o primeiro insumo gravava, o resto sumia em
+                 segundos, e o terceiro parecia tomar o lugar do segundo.
+                 Filho sem nome nao tem como ser comparado por nome: passa
+                 direto. A trava continua valendo para as opcoes.
+                 ========================================================== */
+              if(!String(o.nome||'').trim()){ limpo.push(o); return; }
+              var ch=String(o.nome).trim().toLowerCase()+'|'+(Number(o.preco)||0);
               if(visto[ch])return;
               visto[ch]=true;limpo.push(o);
             });
@@ -14651,7 +14667,33 @@ function volta(linhas,fn,atual,col){
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
     destinoId:x.destino_id||'',sucursais:x.sucursais||[]}},null,'fichaCats');
 
-  var ft=await baixarTab('fichas_tecnicas', 'fichas_tecnicas'+q+'&select=*,ficha_itens(*)');
+  /* ==========================================================
+     DUAS LEITURAS SIMPLES NO LUGAR DE UMA COM EMBED
+
+     Era "fichas_tecnicas?...&select=*,ficha_itens(*)". Essa URL vinha
+     falhando no aparelho ANTES de chegar ao servidor — no registro do banco
+     nao existe nenhuma chamada dela, so o diagnostico dizendo "fichas_tecnicas
+     nao veio". E o embed ainda tinha um segundo defeito: quando ha mais de uma
+     ligacao entre as duas tabelas, o PostgREST nao sabe qual usar e responde
+     300, derrubando o download inteiro das fichas.
+     Duas leituras planas nao tem nenhum dos dois problemas. Os itens sao
+     costurados aqui, e a propria regra de acesso do banco ja limita as linhas
+     as lojas de quem esta pedindo.
+     ========================================================== */
+  var ft=await baixarTab('fichas_tecnicas', 'fichas_tecnicas'+qs);
+  var fi=await baixarTab('ficha_itens', 'ficha_itens?select=*&limit=20000');
+  var itensPorFicha={};
+  (fi||[]).forEach(function(i3){
+    if(!i3||!i3.ficha_id)return;
+    (itensPorFicha[i3.ficha_id]=itensPorFicha[i3.ficha_id]||[]).push(i3);
+  });
+  (ft||[]).forEach(function(x){ x.ficha_itens=itensPorFicha[x.id]||[]; });
+  /* leitura dos itens falhou: NAO se pode concluir que as fichas estao vazias.
+     Sem isto, uma falha de rede viraria "todas as fichas perderam a receita". */
+  if((_FALHOU_BAIXA||[]).indexOf('ficha_itens')>=0){
+    logNuvem('itens da ficha não vieram — as receitas deste aparelho foram mantidas',true);
+    (ft||[]).forEach(function(x){ x._semItens=true; });
+  }
   var mapaFiRef={};ft.forEach(function(x){mapaFiRef[x.id]=x.ref_local||x.id});
   /* rastro do download sobre a ficha que esta aberta na tela: diz quantos
      itens vieram da nuvem e quantos havia aqui, no instante da troca */
@@ -14676,7 +14718,9 @@ function volta(linhas,fn,atual,col){
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',destinoModo:x.destino_modo||'igual',
     /* o ingrediente pode ser um insumo OU outra ficha — le as duas colunas */
-    itens:(x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
+    itens:x._semItens
+      ? (((DB.fichas||[]).find(function(v){return v.id===(x.ref_local||x.id)})||{}).itens||[])
+      : (x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
       insumoId:mapaIns[i2.insumo_id]||mapaFiRef[i2.ficha_ref]||'',
       qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},_ANT('fichas'),'fichas');
   /* reconstrói os subgrupos a partir das fichas */
@@ -15866,7 +15910,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V59.0.0';
+var VERSAO='V60.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
