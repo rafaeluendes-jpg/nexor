@@ -3029,26 +3029,37 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   width:34px;height:34px;border-radius:9px;display:flex;align-items:center;
   justify-content:center;flex:none}
 .recX:hover{background:rgba(255,255,255,.28)}
-.recCorpo{padding:20px 22px 24px}
+.recCorpo{padding:18px 20px 20px;max-height:calc(92vh - 74px);overflow:auto}
+.recCol{display:grid;grid-template-columns:minmax(0,262px) minmax(0,1fr);gap:22px;align-items:start}
+.recLado{position:sticky;top:0}
 .recCorpo h4{font-size:12px;text-transform:uppercase;letter-spacing:.9px;
   color:var(--ink-3);margin:0 0 10px;font-weight:700}
 .recCorpo h4 em{font-style:normal;text-transform:none;letter-spacing:0;
   color:var(--acc-d);font-weight:600}
 .recIng{background:var(--acc-soft);border:1px solid #E8DCC2;border-radius:11px;
-  padding:15px 18px;margin-bottom:20px}
-.recIng ul{margin:0;padding-left:20px;columns:2;column-gap:26px}
-.recIng li{font-size:16px;line-height:1.85;break-inside:avoid}
-.recIng li b{font-variant-numeric:tabular-nums;color:var(--deep)}
-.recPasso ol{margin:0;padding-left:26px}
-.recPasso li{font-size:17px;line-height:1.72;margin-bottom:13px;color:var(--ink)}
-.recPasso li::marker{color:var(--acc-d);font-weight:700}
+  padding:14px 16px;margin-bottom:14px}
+.recIng ul{margin:0;padding:0;list-style:none}
+.recIng li{padding:9px 0;border-bottom:1px solid rgba(0,0,0,.07);break-inside:avoid}
+.recIng li:last-child{border-bottom:0;padding-bottom:0}
+.recIng li b{display:block;font-size:21px;line-height:1.15;
+  font-variant-numeric:tabular-nums;color:var(--deep)}
+.recIng li span{display:block;font-size:14px;line-height:1.35;color:var(--ink-2);margin-top:2px}
+/* a receita sai como foi escrita: quebras de linha respeitadas, sem
+   renumerar e sem transformar titulo em passo */
+.recTxt{font-size:17px;line-height:1.7;color:var(--ink);white-space:pre-wrap;
+  word-break:break-word;margin:0}
 .recVaz{font-size:15px;color:var(--ink-3);font-style:italic;margin:0}
-.recFoto{margin-top:20px}
-.recFoto img{width:100%;max-height:300px;object-fit:cover;border-radius:11px;display:block}
-@media(max-width:640px){
-  .recIng ul{columns:1}
+/* a foto ESTICAVA: cover numa caixa de largura inteira corta e deforma.
+   Agora a caixa tem proporcao fixa e a imagem cabe inteira dentro dela. */
+.recFoto{margin-top:0;background:#00000008;border:1px solid var(--line);
+  border-radius:11px;overflow:hidden}
+.recFoto img{display:block;width:100%;height:190px;object-fit:contain}
+@media(max-width:760px){
+  .recCol{grid-template-columns:minmax(0,1fr)}
+  .recLado{position:static}
+  .recFoto img{height:220px}
   .recH b{font-size:17px}
-  .recPasso li{font-size:16px}
+  .recTxt{font-size:16px}
 }
 .opRecIng b{color:var(--ink-2)}
 .opRod{padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:12px;flex:none}
@@ -16064,7 +16075,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V65.0.0';
+var VERSAO='V66.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30451,16 +30462,19 @@ function confirmarQtd(insumoId){
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   if(!f)return;
   /* ==========================================================
-     A FICHA NAO PODE CONSUMIR AQUILO QUE ELA PRODUZ
-     "BASE MORANGO" gera estoque no item "BASE MORANGO". Se esse mesmo item
-     entrar como ingrediente dela, produzir a base baixa a base — o estoque
-     nunca fecha e o custo se calcula em circulo.
+     AVISO, NAO PROIBICAO
+
+     Eu tinha BLOQUEADO o caso em que o ingrediente e o mesmo item que a
+     ficha produz, achando que so podia ser engano. Nao e: a base comprada
+     pronta e a base produzida costumam ter o MESMO NOME — uma e insumo, a
+     outra e ficha — e uma entra de verdade na receita da outra.
+     Quem cadastra sabe o que esta fazendo. O sistema avisa quando o item
+     e literalmente o mesmo registro (o que faria o estoque girar em
+     circulo) e deixa seguir.
      ========================================================== */
   var _dest=(typeof destinoDaFicha==='function')?destinoDaFicha(f):null;
-  if(insumoId===f.id||(_dest&&(_dest.id||_dest)===insumoId)){
-    toast('Esta ficha já gera estoque neste item — ele não pode ser ingrediente dela mesma.');
-    return;
-  }
+  if(insumoId===f.id||(_dest&&(_dest.id||_dest)===insumoId))
+    toast('Atenção: este é o mesmo item que a ficha gera. Confira o estoque depois de produzir.');
   /* dois lançamentos do mesmo ingrediente viram um só: somam a quantidade */
   var _ja=(f.itens||[]).find(function(o){
     return o.insumoId===insumoId&&o.unidade===$('qiU').value; });
@@ -35444,8 +35458,21 @@ function verReceitaOP(k){
   var ings=(f.itens||[]).map(function(ci){
     var i2=itemComp(ci.insumoId)||{};
     var q=(Number(ci.qtd)||0)*fator;
-    return '<li><b>'+fmtQt(q)+' '+un(ci.unidade).ab+'</b> '+E(i2.nome||'')+'</li>';
+    return '<li><b>'+fmtQt(q)+' '+un(ci.unidade).ab+'</b><span>'+E(i2.nome||'')+'</span></li>';
   }).join('');
+
+  /* ==========================================================
+     A RECEITA APARECE COMO FOI ESCRITA
+
+     Antes o sistema pegava TODA linha nao vazia e jogava numa lista
+     numerada. Resultado: "INGREDIENTES:" virava o passo 2 e "PASSO A
+     PASSO:" virava o passo 5 — titulos contados como instrucao, e a
+     numeracao propria de quem escreveu ganhando uma segunda por cima.
+     Quem digitou a receita ja decidiu a ordem, os marcadores e os
+     titulos. O sistema nao tem o que melhorar nisso: exibe como esta,
+     em fonte grande, respeitando as quebras de linha.
+     ========================================================== */
+  var receita=String(f.receita||'');
 
   var h='<div class="recJan">'+
    '<div class="recH"><div><b>'+E(it.nome)+'</b>'+
@@ -35454,15 +35481,18 @@ function verReceitaOP(k){
     '</span></div>'+
     '<button class="recX" onclick="fecharRecOP()">'+sv('x2',16)+'</button></div>'+
    '<div class="recCorpo">'+
-    (ings?'<div class="recIng"><h4>Ingredientes'+
-      (fator!==1?' <em>já ajustados para esta produção</em>':'')+'</h4><ul>'+ings+'</ul></div>':'')+
-    '<div class="recPasso"><h4>Modo de preparo</h4>'+
-     (passos.length
-       ? '<ol>'+passos.map(function(l){
-           return '<li>'+E(l.replace(/^\s*\d+[).\-]?\s*/,''))+'</li>'; }).join('')+'</ol>'
-       : '<p class="recVaz">Esta ficha ainda não tem o modo de preparo cadastrado.</p>')+
+    '<div class="recCol">'+
+     '<div class="recLado">'+
+      (ings?'<div class="recIng"><h4>Ingredientes'+
+        (fator!==1?' <em>já na quantidade desta produção</em>':'')+'</h4><ul>'+ings+'</ul></div>':'')+
+      (f.foto?'<div class="recFoto"><img src="'+f.foto+'" alt=""></div>':'')+
+     '</div>'+
+     '<div class="recPasso"><h4>Modo de preparo</h4>'+
+      (receita.trim()
+        ? '<div class="recTxt">'+E(receita)+'</div>'
+        : '<p class="recVaz">Esta ficha ainda não tem o modo de preparo cadastrado.</p>')+
+     '</div>'+
     '</div>'+
-    (f.foto?'<div class="recFoto"><img src="'+f.foto+'"></div>':'')+
    '</div></div>';
   var ov=document.createElement('div');
   ov.className='mdOv recOv'; ov.id='recOv'; ov.innerHTML=h;
