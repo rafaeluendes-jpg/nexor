@@ -13253,6 +13253,7 @@ function fk(col,ref){
   return null;
 }
 var _fkPerdido={};
+var _AVISOU_PERM={};
 function fkSub(ref){return ref&&_ids[ref]?_ids[ref]:null}
 
 /* ---- chamada direta ao banco (sem depender de biblioteca externa) ---- */
@@ -13860,6 +13861,38 @@ async function sincronizar(){
           logNuvem('sem permissão em '+etapa+' — removido da fila, '+
                    'não adianta tentar de novo',true);
           DB._hash[E2.col]=hNovo;   /* considera resolvido: para de tentar */
+          /* ==========================================================
+             RECUSA POR PERMISSAO PRECISA APARECER PARA QUEM ESTA USANDO
+             A decisao de nao insistir esta certa. Errado era o silencio: a
+             pessoa cadastrava, a tela dizia salvo, o registro nunca subia e
+             no download seguinte sumia. Ela conclui que o sistema comeu o
+             dado — e conclui certo, do ponto de vista dela.
+             O caso mais comum e conta de plataforma (dono do Nexor) mexendo
+             em dado de loja: o banco recusa, e deve recusar mesmo. Mas
+             precisa dizer isso em portugues, uma vez por sessao e por tabela,
+             sem virar praga na tela. */
+          if(!_AVISOU_PERM[etapa]){
+            _AVISOU_PERM[etapa]=true;
+            var _eu=(usuarioLogado()||{}).login||'';
+            var _plat=(typeof NUVEM!=='undefined'&&NUVEM.plataforma);
+            try{
+              await confirmar({
+                titulo:'Esta conta não pode gravar aqui',
+                texto:'O que você mudou ficou neste aparelho, mas a nuvem '+
+                  'recusou gravar em "'+E(etapa)+'".',
+                linhas:[['Conta em uso', E(_eu||'—'), '']],
+                aviso:(_plat
+                  ? '<b>Você está na conta do dono da plataforma.</b> Ela '+
+                    'administra o Nexor, não pertence a nenhuma loja — por '+
+                    'isso não grava ficha, insumo nem cardápio.<br>'+
+                    'Saia e entre com a conta da empresa para cadastrar.'
+                  : 'Peça a quem administra a empresa para liberar esta tela '+
+                    'para o seu acesso.')+
+                  '<br><br>Enquanto isso, o que você digitou pode desaparecer '+
+                  'quando o sistema recarregar os dados da nuvem.',
+                ok:'Entendi',cancelar:null});
+            }catch(e9){ _quieto(e9,'avisoPermissao'); }
+          }
           continue;
         }
         /* dado invalido (400) tambem nao melhora tentando de novo */
@@ -15559,7 +15592,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V52.3.0';
+var VERSAO='V52.4.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
