@@ -12544,6 +12544,15 @@ async function restaurarRespaldo(){
    sessao, o registro NAO SOBE. Fica esperando.
    ========================================================== */
 var _COLS_SEM_CARIMBO={_hash:1,_uuid:1,_snap:1,_contrato:1,lojaAtual:1,_sujo:1,_snapOk:1};
+/* marca do que nasceu neste aparelho e ainda nao foi confirmado pela nuvem.
+   E ela que impede o download de apagar o registro recem-criado. */
+function marcarNovoAqui(x,col){
+  try{
+    if(!x||typeof x!=='object'||!x.id)return;
+    if(DB._uuid&&DB._uuid[col]&&DB._uuid[col][x.id]){ delete x._novoAqui; return; }
+    x._novoAqui=true;
+  }catch(e){ _quieto(e,'marcarNovoAqui'); }
+}
 function carimbarOrigem(){
   if(!NUVEM.loja)return 0;                 /* sem sessao nao ha o que carimbar */
   var suc=null; try{suc=lojaAtualId()}catch(e){_quieto(e,'carimbarOrigem')}
@@ -12557,6 +12566,9 @@ function carimbarOrigem(){
       if(!r||typeof r!=='object')continue;
       if(!r._loja){ r._loja=NUVEM.loja; r._suc=r._suc||suc;
                     r._criadoEm=r._criadoEm||new Date().toISOString(); n++; }
+      /* enquanto a nuvem nao devolveu um identificador para este registro,
+         ele so existe aqui — e o download nao pode apaga-lo */
+      marcarNovoAqui(r,col);
     }
   }
   return n;
@@ -13797,11 +13809,21 @@ async function sincronizar(){
           var faltou=envio.length-((salvos||[]).length);
           logNuvem(E2.tab+': '+envio.length+' de '+linhas.length+' mudaram, '+
             (salvos||[]).length+' confirmado(s)',faltou!==0);
+          /* mesma razao: registro do pai que nao subiu nao pode deixar a
+             sincronizacao se declarar limpa */
+          if(faltou>0){
+            NUVEM.erros=NUVEM.erros||[];
+            NUVEM.erros.push({tab:E2.tab,
+              motivo:faltou+' registro(s) não foram aceitos'});
+          }
           if(faltou>0)toast('Atenção: '+faltou+' registro(s) de '+E2.tab+' não foram aceitos pela nuvem.');
         }
         salvos.forEach(function(r){
           if(!r.ref_local)return;
           _ids[r.ref_local]=r.id;DB._uuid[E2.col][r.ref_local]=r.id;
+          /* confirmado pela nuvem: deixa de ser "so daqui" */
+          var _o=lista.find(function(x){return x.id===r.ref_local});
+          if(_o)delete _o._novoAqui;
         });
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};
@@ -13876,6 +13898,32 @@ async function sincronizar(){
             var conf=(sf||[]).length;
             logNuvem(F.tab+': '+lf.length+' item(ns), '+conf+' confirmado(s)',
               conf!==lf.length);
+            /* ==========================================================
+               FILHO QUE NAO SUBIU PRECISA CONTAR COMO ERRO
+
+               ESTA E A CAUSA DO INGREDIENTE QUE SOME.
+               Quando a nuvem nao confirmava uma linha de item, isso so ia
+               para o registro. A sincronizacao terminava "sem erros", e no
+               fim ela limpa a marca de pendente. Sem essa marca, o download
+               seguinte esta liberado — e o download SUBSTITUI a ficha pela
+               versao da nuvem, que nao tem o ingrediente que acabou de
+               falhar. O item somia da tela e o sistema achava que estava
+               tudo certo.
+               Agora a falha entra na lista de erros: a marca de pendente
+               continua, o download nao passa por cima, e o envio e repetido.
+               ========================================================== */
+            if(conf!==lf.length){
+              NUVEM.erros=NUVEM.erros||[];
+              NUVEM.erros.push({tab:F.tab,
+                motivo:(lf.length-conf)+' item(ns) de "'+
+                  (lista[k].nome||F.tab)+'" não foram aceitos'});
+              /* o pai volta a contar como NAO enviado, para o proximo envio
+                 recalcular e mandar os filhos de novo. hSalvar ja foi gravado
+                 em DB._hash antes deste ponto, entao mexe-se ali. */
+              try{
+                if(DB._hash&&DB._hash[E2.col])delete DB._hash[E2.col][lista[k].id];
+              }catch(e8){ _quieto(e8,'reenviarFilhos'); }
+            }
             /* ==========================================================
                FALHA DE FILHO DEIXA DE SER SILENCIOSA
                Quando a nuvem recusava uma linha de item, isso ficava so no
@@ -14303,6 +14351,28 @@ function volta(linhas,fn,atual,col){
     if(col)guardarIds(col,linhas);
     var r=(linhas||[]).map(fn);
     if(!r.length&&atual&&atual.length)return atual;
+    /* ==========================================================
+       O QUE AINDA NAO SUBIU NAO PODE SER APAGADO PELO DOWNLOAD
+       O download substitui a colecao inteira pela versao da nuvem. Se um
+       registro foi criado aqui e ainda nao subiu — porque falhou, porque a
+       rede caiu, porque o envio ainda nem aconteceu — ele simplesmente
+       desaparecia da tela, sem erro nenhum.
+       Aqui o que existe SO no aparelho e preservado. Nao e mesclagem de
+       conteudo: registro que existe nos dois lados continua vindo da nuvem,
+       que e a fonte da verdade. Preserva-se apenas o que a nuvem ainda nao
+       conhece.
+       ========================================================== */
+    if(col&&Array.isArray(atual)&&atual.length){
+      var naNuvem={};
+      r.forEach(function(x){ if(x&&x.id)naNuvem[x.id]=true; });
+      var sos=atual.filter(function(x){
+        return x&&x.id&&!naNuvem[x.id]&&x._novoAqui===true; });
+      if(sos.length){
+        logNuvem(col+': '+sos.length+' registro(s) ainda não enviados foram '+
+          'preservados no aparelho');
+        r=r.concat(sos);
+      }
+    }
     return r;
   }
   try{
@@ -15664,7 +15734,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V54.0.0';
+var VERSAO='V54.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
