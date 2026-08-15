@@ -15734,7 +15734,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V54.1.0';
+var VERSAO='V54.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29120,7 +29120,20 @@ async function excluirInsumo(id){
   if(usos.length){toast('Este item está em '+usos.length+' ficha(s): '+usos.map(function(f){return f.nome}).slice(0,3).join(', ')+'.');return;}
   var i=insumo(id);
   if(!await pergunta('Excluir "'+i.nome+'"?'))return;
+  /* mesma razao da ficha: insumos tambem nao espelha exclusao, entao apagar
+     so aqui fazia o ingrediente voltar no download seguinte */
+  if(NUVEM.ligada&&NUVEM.loja){
+    try{
+      await api('insumos?loja_id=eq.'+NUVEM.loja+
+                '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+    }catch(e){
+      painelErro('Não consegui excluir na nuvem.',detalheErro(e));
+      return;
+    }
+  }
   DB.insumos=DB.insumos.filter(function(x){return x.id!==id});
+  try{ if(DB._uuid&&DB._uuid.insumos)delete DB._uuid.insumos[id]; }
+  catch(e2){ _quieto(e2,'excluirInsumo'); }
   salvar();telaInsumos();toast('Ingrediente excluído.');
 }
 function exportarInsumos(){
@@ -29537,7 +29550,36 @@ async function excluirSel(){
   var uso=(DB.produtos||[]).filter(function(p){return p.fichaId===f.id}).length;
   if(uso){toast('Vinculado a '+uso+' produto(s) do cardápio.');return;}
   if(!await pergunta('Excluir "'+f.nome+'"?'))return;
+  /* ==========================================================
+     A EXCLUSAO PRECISA CHEGAR NA NUVEM
+     fichas_tecnicas esta no mapa com espelha:false — de proposito, para uma
+     unidade nao apagar da nuvem o cadastro da rede que ela nem enxerga. So
+     que isso valia tambem para quem PODE apagar: a ficha saia daqui, o
+     download seguinte trazia de volta, e a pessoa apagava dez vezes sem
+     entender por que voltava.
+     Agora a exclusao vai direto na linha daquela ficha. Se a nuvem recusar,
+     a ficha NAO some daqui — mentir que apagou e pior do que avisar que nao
+     deu.
+     ========================================================== */
+  if(NUVEM.ligada&&NUVEM.loja){
+    try{
+      var alvo=encodeURIComponent(f.id);
+      /* os ingredientes primeiro: sao filhos da ficha */
+      var fc=await api('fichas_tecnicas?loja_id=eq.'+NUVEM.loja+
+                       '&ref_local=eq.'+alvo+'&select=id');
+      if(Array.isArray(fc)&&fc.length){
+        await api('ficha_itens?ficha_id=eq.'+fc[0].id,'DELETE');
+        await api('fichas_tecnicas?id=eq.'+fc[0].id,'DELETE');
+      }
+    }catch(e){
+      painelErro('Não consegui excluir na nuvem.',detalheErro(e));
+      return;                       /* nao apaga aqui: continuaria voltando */
+    }
+  }
   DB.fichas=DB.fichas.filter(function(x){return x.id!==FT.sel});
+  /* tira tambem do retrato, senao o espelhamento a considera "sumida" depois */
+  try{ if(DB._uuid&&DB._uuid.fichas)delete DB._uuid.fichas[FT.sel]; }
+  catch(e2){ _quieto(e2,'excluirSel'); }
   FT.sel=null;salvar();telaFichaTecnica();toast('Excluído.');
 }
 function abrirComposicao(){
