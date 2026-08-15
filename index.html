@@ -15554,11 +15554,45 @@ async function entrarPeloAuth(lg,sn){
   /* daqui em diante o aparelho esta ligado na nuvem — sem passar por
      Banco de dados. Era isso que deixava o socio lancando no vazio. */
   /* ==========================================================
-     A NUVEM MANDA
-     O aparelho e limpo ao entrar e tudo vem do banco. Sem isto, quem usou
-     o computador antes deixa a base dele para o proximo — foi assim que os
-     dados da Jolo apareceram dentro da Rafaelos.
+     A NUVEM MANDA — MAS SO QUANDO QUEM ENTRA E OUTRO
+
+     O aparelho era limpo em TODO login. A razao e boa: quem usou o
+     computador antes nao pode deixar a base dele para o proximo — foi assim
+     que os dados da Jolo apareceram dentro da Rafaelos.
+     O erro era o alcance. Limpar tambem quando e A MESMA PESSOA da MESMA
+     loja entrando de novo faz o sistema comecar do zero toda vez: as 51
+     tabelas sao rebaixadas, e o registro de "o que ja subiu" (_hash e _uuid)
+     vai junto — por isso o envio dizia "insumos: 250 de 250 mudaram" e
+     "estoque_unidade: 241 de 241 mudaram" mesmo sem ninguem ter mexido em
+     nada. Eram os 40 segundos ate os valores aparecerem.
+     Agora a limpeza compara tres coisas: a loja, a unidade e o usuario. Se
+     as tres baterem, o que esta no aparelho e da propria pessoa e continua
+     valendo. Qualquer diferenca — outro usuario, outra unidade, outra
+     empresa — limpa tudo, exatamente como antes.
      ========================================================== */
+  var _mesmoDono=false, _ant=null;
+  try{
+    var _txt=localStorage.getItem('nexor_dados');
+    if(_txt){
+      _ant=JSON.parse(_txt);
+      _mesmoDono = !!_ant
+        && _ant._dono===rp.data.loja_id
+        && _ant._donoUsuario===r.data.user.id
+        && String(_ant._donoSuc||'')===String(rp.data.sucursal_ref||'');
+    }
+  }catch(eL0){ _mesmoDono=false; _ant=null; }
+
+  if(_mesmoDono){
+    DB=_ant;
+    try{ semear(); }catch(eS3){_quieto(eS3,'entrarPeloAuth')}
+    DB.usuarios=DB.usuarios||[];DB.sucursais=DB.sucursais||[];
+    DB.insumos=DB.insumos||[];DB.produtos=DB.produtos||[];
+    DB.categorias=DB.categorias||[];DB.fichas=DB.fichas||[];
+    DB.pedidos=DB.pedidos||[];DB.clientes=DB.clientes||[];
+    DB._snap=DB._snap||{};DB._hash=DB._hash||{};DB._uuid=DB._uuid||{};
+    NUVEM.zerado=false;
+    logNuvem('mesma pessoa, mesma unidade — o que estava no aparelho foi mantido');
+  }else{
   try{
     localStorage.removeItem('nexor_dados');
     localStorage.removeItem('nexor_respaldo');
@@ -15571,13 +15605,15 @@ async function entrarPeloAuth(lg,sn){
   DB.usuarios=[];DB.sucursais=[];DB.insumos=[];DB.produtos=[];
   DB.categorias=[];DB.fichas=[];DB.pedidos=[];DB.clientes=[];
   DB._snap={};DB._hash={};DB._uuid={};
-  DB._dono=rp.data.loja_id;
-  /* Aparelho recem-zerado: nada sobe ate o download chegar. E 'baixou' volta a
-     ser falso porque, em troca de usuario sem recarregar a pagina, ela ficava
-     ligada do usuario ANTERIOR — e o novo ja entrava podendo espelhar exclusoes
-     de uma base que nunca viu. */
-  NUVEM.zerado=true;NUVEM.baixou=false;
+  NUVEM.zerado=true;
   logNuvem('aparelho limpo no login — os dados vêm todos da nuvem');
+  }
+  DB._dono=rp.data.loja_id;
+  DB._donoUsuario=r.data.user.id;
+  DB._donoSuc=rp.data.sucursal_ref||'';
+  /* 'baixou' volta a ser falso em qualquer caso: enquanto o download desta
+     sessao nao chegar, este aparelho nao espelha exclusao nenhuma. */
+  NUVEM.baixou=false;
 
   /* ==========================================================
      MODO PLATAFORMA
@@ -15995,7 +16031,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V62.0.0';
+var VERSAO='V63.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
