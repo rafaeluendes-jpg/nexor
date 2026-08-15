@@ -12935,10 +12935,16 @@ var MAPA=[
  /* o caderno sobe para a nuvem: a franqueadora precisa ver a perda de cada
     unidade, e a pessoa nao pode perder o registro se trocar de aparelho */
  {col:'pedidosBase', espelha:true, tab:'pedidos_base',
-  filhos:{col:'itens', tab:'pedido_base_itens', pai:'pedido_id',
+  /* LISTA, nao objeto. Todo o resto do sistema declara filhos como lista, e o
+     codigo faz (m.filhos||[]).forEach(...). Escrevi este como objeto: forEach
+     nao existe em objeto, entao a leitura do mapa QUEBRAVA no meio — e tudo
+     que vinha depois de pedidosBase deixava de ser processado, inclusive o
+     envio dos itens da ficha tecnica. Era o erro vermelho no Console.
+     A chave tambem e 'lista', nao 'col', que e como o enviador procura. */
+  filhos:[{lista:'itens', tab:'pedido_base_itens', pai:'pedido_id',
     campos:function(x,pai){return {base_ref:x.baseRef,base_nome:x.baseNome,
       ficha_ref:x.fichaRef||null,quantidade:num(x.qtd),
-      valor_unit:num(x.valorUnit),total:num(x.total)};}},
+      valor_unit:num(x.valorUnit),total:num(x.total)};}}],
   campos:function(x){return {numero:x.numero||null,sucursal_id:x.sucursalRef,
     sucursal_nome:x.sucursalNome||null,data:x.data||null,
     responsavel:x.responsavel||null,observacao:x.obs||null,total:num(x.total),
@@ -15592,7 +15598,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V52.4.0';
+var VERSAO='V52.5.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
