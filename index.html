@@ -15866,7 +15866,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V58.0.0';
+var VERSAO='V59.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17001,6 +17001,19 @@ function agendarRecarga(tabela){
          agendamento normal, uma vez, depois de 2,5 s de silencio.
          ========================================================== */
       if(NUVEM.sujo||DB._sujo){ return; }
+      /* ==========================================================
+         FICHA ABERTA NA TELA NAO E TROCADA POR BAIXO
+
+         ocupado() so impedia o REDESENHO — o download ja tinha acontecido e
+         DB.fichas ja tinha sido substituido. Quem estava montando a
+         composicao via o ingrediente sumir enquanto digitava.
+         Com a janela da composicao aberta, nao se baixa nada. Ao fechar,
+         a sincronizacao normal volta a rodar.
+         ========================================================== */
+      if(typeof _fichaAberta!=='undefined'&&_fichaAberta){
+        logNuvem('download adiado: ficha aberta na tela');
+        return;
+      }
       statusNuvem('baixando');
       var antes=retratoDB();
       await baixarDaNuvem();
@@ -30146,6 +30159,7 @@ function desenhaComp(){
 }
 function fecharComp(){
   _rascFicha={};                 /* cancelar descarta o que foi digitado */
+  _fichaAberta=null;             /* libera o download, que fica parado com a ficha aberta */
   var o=document.getElementById('mdOv');if(o)o.remove();
   telaFichaTecnica();
 }
@@ -30298,7 +30312,67 @@ function removerFotoFicha(){
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   f.foto='';salvar();desenhaComp();
 }
-function salvarComposicao(){
+/* ==========================================================
+   OS INGREDIENTES SAO GRAVADOS NA HORA, PELA PROPRIA TELA
+
+   Ate aqui esta tela dependia do motor de sincronizacao: guardava na
+   memoria, marcava pendente, e torcia para o envio em lote dar certo mais
+   tarde. Entre uma coisa e outra havia retrato, impressao, espelhamento,
+   tempo real e download — e bastava um deles falhar para o ingrediente
+   desaparecer sem nenhum erro na tela.
+   Composicao de ficha e um punhado de linhas. Nao precisa de nada disso:
+   grava direto, confere o que a nuvem respondeu e DIZ se deu certo. Se a
+   nuvem recusar, a pessoa fica sabendo na hora, com o motivo.
+   ========================================================== */
+async function gravarItensFichaAgora(f){
+  if(!NUVEM.ligada||!NUVEM.loja)return {ok:true,local:true};
+  var itens=(f.itens||[]).filter(function(o){return o&&o.insumoId});
+  /* 1. o identificador que a nuvem deu para esta ficha */
+  var fc=await api('fichas_tecnicas?loja_id=eq.'+NUVEM.loja+
+                   '&ref_local=eq.'+encodeURIComponent(f.id)+'&select=id');
+  if(!Array.isArray(fc)||!fc.length)
+    return {ok:false,motivo:'a ficha ainda não existe na nuvem'};
+  var pai=fc[0].id;
+  /* o mapa que traduz "ins_xxx" para o identificador da nuvem pode estar vazio
+     se ainda nao houve sincronizacao nesta sessao — monta antes de precisar */
+  try{ await montarMapaVinculos(NUVEM.loja,false); }
+  catch(e){ _quieto(e,'gravarItensFicha'); }
+  /* 2. cada item com identificador proprio e estavel */
+  var refs=[];
+  var linhas=itens.map(function(o){
+    if(!o.id)o.id=uid('fit');
+    refs.push(String(o.id));
+    var ehF=_ehFichaLocal(o.insumoId);
+    return {ref_local:String(o.id),ficha_id:pai,
+      insumo_id:ehF?null:(_ids[o.insumoId]||null),
+      ficha_ref:ehF?(_ids[o.insumoId]||null):null,
+      quantidade:Number(o.qtd)||0,unidade:o.unidade||'un',
+      perda:Number(o.perda)||0};
+  });
+  var semVinculo=linhas.filter(function(y){return !y.insumo_id&&!y.ficha_ref});
+  if(semVinculo.length)
+    return {ok:false,motivo:semVinculo.length+' ingrediente(s) ainda não '+
+      'existem na nuvem — sincronize os ingredientes antes'};
+  var gravadas=[];
+  if(linhas.length){
+    gravadas=await api('ficha_itens?on_conflict=ref_local','POST',linhas,
+      {'Prefer':'resolution=merge-duplicates,return=representation'});
+    if(!Array.isArray(gravadas)||gravadas.length!==linhas.length)
+      return {ok:false,motivo:'a nuvem aceitou '+
+        ((gravadas&&gravadas.length)||0)+' de '+linhas.length+' ingrediente(s)'};
+  }
+  /* 3. o que nao esta na tela sai da nuvem */
+  var qDel='ficha_itens?ficha_id=eq.'+pai;
+  if(refs.length)qDel+='&ref_local=not.in.('+refs.map(function(r){
+    return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')';
+  await api(qDel,'DELETE');
+  /* 4. o retrato passa a bater com a nuvem, senao o motor de sincronizacao
+        acha que estes itens sumiram e os apaga na proxima passagem */
+  try{ DB._snap=DB._snap||{}; DB._snap['fichas.itens.'+f.id]=refs.slice(); }
+  catch(e){ _quieto(e,'gravarItensFicha'); }
+  return {ok:true,n:linhas.length};
+}
+async function salvarComposicao(){
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   if(!f)return;
   /* colhe o que esta na tela AGORA e junta ao que foi digitado nas outras
@@ -30318,8 +30392,19 @@ function salvarComposicao(){
   _rascFicha={};
   salvar();
   var c=custoFicha(f);
+  var r=null;
+  try{ r=await gravarItensFichaAgora(f); }
+  catch(e){ r={ok:false,motivo:detalheErro?detalheErro(e):((e&&e.message)||'falha')}; }
+  if(r&&!r.ok){
+    /* nao fecha a janela: o trabalho continua na tela e a pessoa sabe por que */
+    painelErro('Não consegui gravar os ingredientes na nuvem.',
+      (r.motivo||'')+'\n\nO que está na tela continua aqui. '+
+      'Corrija e clique em Salvar de novo.');
+    return;
+  }
   fecharComp();
-  toast('Ficha salva. Custo total R$ '+money(c));
+  toast('Ficha salva'+(r&&r.n!==undefined?' — '+r.n+' ingrediente(s) na nuvem':'')+
+    '. Custo total R$ '+money(c));
 }
 function imprimirFicha(id){
   var f=DB.fichas.find(function(x){return x.id===id});
