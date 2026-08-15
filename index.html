@@ -15611,7 +15611,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V53.0.0';
+var VERSAO='V53.0.1';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29652,6 +29652,10 @@ function vFicha(f,campo,padrao){
 }
 function trocarAbaComp(a){ colherCamposFicha(); _abaComp=a; desenhaComp(); }
 function desenhaComp(){
+  try{
+    var _f0=DB.fichas.find(function(x){return x.id===_fichaAberta});
+    if(_f0)_rastroFicha('desenhou a tela', _f0, (_f0.itens||[]).length);
+  }catch(e){ _quieto(e,'desenhaComp'); }
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   if(!f)return;
   var custo=custoFicha(f);
@@ -29862,14 +29866,37 @@ function addItemFicha(insumoId){
   setTimeout(function(){var n2=$('qiQ');if(n2){n2.focus();n2.select();}},50);
 }
 function fecharQtd(){var o=document.getElementById('mdOv2');if(o)o.remove();}
+var _ultimoRastro={id:null,n:0,ids:''};
+function _rastroFicha(oque, f, antes){
+  try{
+    var ids=(f.itens||[]).map(function(o){return (o.id||'?')+':'+(o.insumoId||'?')}).join(' | ');
+    var n=(f.itens||[]).length;
+    var alerta='';
+    if(_ultimoRastro.id===f.id && n<_ultimoRastro.n)
+      alerta=' <<< PERDEU ITEM (tinha '+_ultimoRastro.n+')';
+    if(console&&console.log)
+      console.log('[ficha] '+oque+' — antes '+antes+', agora '+n+alerta+
+        '\n         '+ids);
+    _ultimoRastro={id:f.id,n:n,ids:ids};
+  }catch(e){ _quieto(e,'rastroFicha'); }
+}
 function confirmarQtd(insumoId){
   var q=parseFloat($('qiQ').value)||0;
   if(q<=0){toast('Informe a quantidade.');return;}
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   f.itens=f.itens||[];
   /* id proprio desde o nascimento: e ele que amarra o item na nuvem */
+  var _antes=(f.itens||[]).length;
   f.itens.push({id:uid('fit'),insumoId:insumoId,qtd:q,
     unidade:$('qiU').value,perda:parseFloat($('qiP').value)||0});
+  /* ==========================================================
+     RASTRO DA COMPOSICAO
+     O ingrediente some ao adicionar o terceiro e eu nao consigo reproduzir
+     daqui. Este rastro diz, no Console, quantos itens havia antes e depois
+     de cada acao, e se a lista mudou sozinha entre uma e outra. Sai assim
+     que a causa aparecer.
+     ========================================================== */
+  _rastroFicha('adicionou '+insumoId, f, _antes);
   salvar();fecharQtd();desenhaComp();
 }
 function remItemFicha(k){
