@@ -4008,6 +4008,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .lbSegm button{border-radius:20px}
 .prCorpo .pTable td{padding:6px 12px;font-size:12px}
 .prCorpo .pTable th{padding:6px 12px;font-size:9.5px}
+.zonaPerigo{display:flex;align-items:center;gap:14px;justify-content:space-between;
+  margin-top:14px;padding:13px 15px;border:1px solid #E7C3C3;background:#FDF6F6;
+  border-radius:10px;flex-wrap:wrap}
+.zonaPerigo b{display:block;font-size:13px;color:#8A2B2B}
+.zonaPerigo span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px;max-width:520px}
 .rdB{border-color:var(--red);color:var(--red)}
 .rdB:hover{background:var(--red-soft)}
 .pbPrazo{display:flex;gap:10px;align-items:center;background:var(--acc-soft);
@@ -15426,7 +15431,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V50.3.0';
+var VERSAO='V51.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24497,6 +24502,78 @@ function telaInstalacao(){
    '</div></div>';
   rodape(INS.nuvem?lista.length+' empresa(s)':'');
 }
+/* ==========================================================
+   EXCLUIR UMA EMPRESA INTEIRA
+   Isto apaga a rede toda no banco. Tres barreiras, nesta ordem:
+   1. so o dono da plataforma chega aqui;
+   2. a tela MOSTRA ANTES o que sera apagado, contado no banco — ninguem
+      deveria descobrir que eram 250 insumos e 6 meses de venda depois;
+   3. o nome da empresa tem de ser digitado igual; quem esta so clicando
+      rapido para de clicar aqui.
+   A empresa em que voce esta logado nao pode ser apagada — seria arrancar
+   o chao de onde se esta pisando.
+   ========================================================== */
+async function excluirEmpresa(lojaId){
+  if(!ehPlataforma()){ toast('Só o administrador da plataforma faz isso.'); return; }
+  if(lojaId===NUVEM.loja){
+    await confirmar({titulo:'Esta é a empresa aberta agora',
+      texto:'Não dá para apagar a empresa em que você está trabalhando.',
+      aviso:'Volte para a conta da plataforma e tente de novo.',
+      ok:'Entendi',cancelar:null});
+    return;
+  }
+  var res;
+  try{
+    res=await api('rpc/empresa_resumo','POST',{p_loja:lojaId});
+  }catch(e){ painelErro('Não consegui ler o que existe nesta empresa.',detalheErro(e)); return; }
+  var r=Array.isArray(res)?res[0]:res;
+  if(!r||r.erro){ toast('Empresa não encontrada.'); return; }
+
+  var tb=r.tabelas||{};
+  var nomes={insumos:'ingredientes',fichas_tecnicas:'fichas técnicas',produtos:'produtos',
+    pedidos:'vendas',lancamentos_financeiros:'lançamentos financeiros',
+    clientes:'clientes',movimentacoes_estoque:'movimentações de estoque',
+    sucursais:'unidades',usuarios_sistema:'acessos',caixas:'caixas'};
+  var linhas=Object.keys(tb).sort(function(a,b){return tb[b]-tb[a]})
+    .slice(0,10).map(function(k){
+      return [nomes[k]||k.replace(/_/g,' '), String(tb[k]), ''];
+    });
+  var total=Object.keys(tb).reduce(function(a,k){return a+Number(tb[k]||0)},0);
+
+  var ok=await confirmar({
+    titulo:'Excluir "'+(r.nome||'')+'"?',
+    texto:'Isto apaga '+total+' registro(s) desta empresa. Não tem como desfazer.',
+    linhas:linhas,
+    aviso:'Na próxima tela você digita o nome da empresa para confirmar.',
+    ok:'Continuar', tipo:'perigo'
+  });
+  if(!ok)return;
+
+  var digitado=prompt('Para confirmar, digite exatamente o nome da empresa:\n\n'+
+    (r.nome||''));
+  if(digitado===null)return;
+
+  var out;
+  try{
+    out=await api('rpc/empresa_excluir','POST',
+      {p_loja:lojaId,p_nome_confirma:digitado});
+  }catch(e){ painelErro('Não consegui excluir a empresa.',detalheErro(e)); return; }
+  var o=Array.isArray(out)?out[0]:out;
+  if(!o||!o.ok){
+    await confirmar({titulo:'Não excluí',texto:(o&&o.erro)||'O banco recusou.',
+      aviso:'Nada foi apagado.',ok:'Entendi',cancelar:null});
+    return;
+  }
+  /* tira tambem da carteira, senao a empresa some do banco e continua
+     aparecendo na lista de clientes */
+  baseCN();
+  DB.clientesNexor=(DB.clientesNexor||[]).filter(function(x){
+    return String(x.rede||'').toLowerCase()!==String(o.nome||'').toLowerCase(); });
+  salvar();
+  INS.rede=null; INS.nuvem=null;
+  toast('Empresa "'+o.nome+'" excluída — '+o.registros+' registro(s).');
+  telaInstalacao();
+}
 function telaRestrita(tit){
   $('content').innerHTML='<div class="ctWrap"><div class="ctTopo"><h1>'+E(tit)+'</h1>'+
    '<p>Esta tela pertence à administração da Nexor.</p></div>'+
@@ -24543,6 +24620,13 @@ function telaRedeAberta(id){
     ctLinha('Plano',E(ct.plano||'—'))+
     ctLinha('Mensalidade total','<b>'+moeda(x.total)+'</b> (soma das unidades ativas)')+
     ctLinha('Situação',E(ct.situacao||'ativo'))+
+    '<div class="zonaPerigo">'+
+     '<div><b>Excluir esta empresa</b>'+
+      '<span>Apaga a rede inteira: unidades, cadastros, estoque, vendas e '+
+      'financeiro. Não tem como desfazer pela tela.</span></div>'+
+     '<button class="btnP2 rdB" onclick="excluirEmpresa(\''+l.id+'\')">'+
+      sv('trash',13)+' Excluir empresa</button>'+
+    '</div>'+
    '</div>'+
 
    '<div class="blk" style="max-width:900px;margin-top:12px">'+
