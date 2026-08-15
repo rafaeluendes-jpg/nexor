@@ -14075,7 +14075,42 @@ async function _baixarDaNuvem(forcar){
     var p=String(paiRef||'')+'_';
     return String(ref).indexOf(p)===0?String(ref).slice(p.length):ref;
   }
-  function volta(linhas,fn,atual){
+  /* ==========================================================
+   O DOWNLOAD TAMBEM PRECISA GUARDAR O MAPA DE IDENTIFICADORES
+
+   CAUSA DO INGREDIENTE QUE SUMIA AO SALVAR.
+   Ao enviar, cada vinculo (ingrediente -> insumo) e traduzido por fk(), que
+   busca em _ids o identificador que a nuvem deu ao insumo. E _ids so era
+   alimentado por DB._uuid — que registra o que ESTE aparelho enviou.
+   Insumo que chegou por DOWNLOAD nunca entrava nesse mapa. Entao fk()
+   devolvia null, a coluna insumo_id e obrigatoria, e o banco recusava a
+   linha inteira. O ingrediente ficava so na memoria do navegador; no
+   download seguinte a ficha era substituida pela versao da nuvem — que nao
+   tinha aquele ingrediente — e ele sumia da tela.
+   Era exatamente o caso da Agua Filtrada: insumo importado, presente na
+   lista, mas invisivel para o tradutor de vinculos.
+   Agora toda linha que desce registra ref_local -> id. Vale para qualquer
+   vinculo, nao so o da ficha: fornecedor de lancamento, conta, categoria.
+   ========================================================== */
+function guardarIds(col,linhas){
+  if(!col||!linhas||!linhas.length)return;
+  DB._uuid=DB._uuid||{};
+  DB._uuid[col]=DB._uuid[col]||{};
+  for(var i=0;i<linhas.length;i++){
+    var x=linhas[i];
+    if(x&&x.ref_local&&x.id){
+      DB._uuid[col][x.ref_local]=x.id;
+      _ids[x.ref_local]=x.id;
+    }
+    /* registro criado direto na nuvem nao tem ref_local: o proprio id serve
+       de referencia local. Precisa ir para DB._uuid tambem — _ids e zerado a
+       cada envio e remontado so a partir de DB._uuid, entao gravar apenas em
+       _ids resolvia no primeiro envio e falhava em todos os seguintes. */
+    else if(x&&x.id){ DB._uuid[col][x.id]=x.id; _ids[x.id]=x.id; }
+  }
+}
+function volta(linhas,fn,atual,col){
+    if(col)guardarIds(col,linhas);
     var r=(linhas||[]).map(fn);
     if(!r.length&&atual&&atual.length)return atual;
     return r;
@@ -14083,21 +14118,21 @@ async function _baixarDaNuvem(forcar){
   try{
   var cont=await baixarTab('contas_capital', 'contas_capital'+qs);
   DB.contas=volta(cont,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
-    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}});
+    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},null,'contas');
   var fp=await baixarTab('formas_pagamento', 'formas_pagamento'+qs+'&order=ordem');
   var mapaConta={};cont.forEach(function(x){mapaConta[x.id]=x.ref_local||x.id});
   DB.formasPag=volta(fp,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
     taxaPct:Number(x.taxa_pct)||0,taxaFixa:Number(x.taxa_fixa)||0,dias:x.dias_recebimento||0,
-    contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0}});
+    contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0}},null,'formasPag');
   var cf=await baixarTab('categorias_financeiras', 'categorias_financeiras'+q+'&select=*,subcategorias_financeiras(*)&order=ordem');
   DB.catfin=volta(cf,function(x){
     var paiRef=x.ref_local||x.id;
     return {id:paiRef,nome:x.nome,tipo:x.tipo||'despesa',
       itens:(x.subcategorias_financeiras||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
-        .map(function(s){return {id:idFilho(paiRef,s.ref_local,s.id),nome:s.nome}})};});
+        .map(function(s){return {id:idFilho(paiRef,s.ref_local,s.id),nome:s.nome}})};},null,'catfin');
   var fo=await baixarTab('fornecedores', 'fornecedores'+qs);
   DB.fornec=volta(fo,function(x){return {id:x.ref_local||x.id,empresa:x.empresa,nome:x.contato,
-    cnpj:x.cnpj,email:x.email,tel:x.telefone,whats:x.whatsapp}});
+    cnpj:x.cnpj,email:x.email,tel:x.telefone,whats:x.whatsapp}},null,'fornec');
   var cl=await baixarTab('clientes', 'clientes'+qs);
   DB.clientes=volta(cl,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,rua:x.rua,
     numero:x.numero,bairro:x.bairro,cidade:x.cidade,ref:x.referencia,
@@ -14105,11 +14140,11 @@ async function _baixarDaNuvem(forcar){
     cpf:x.cpf||'',nascimento:x.nascimento||'',obs:x.observacao||'',
     zonaId:x.zona_id||'',zona:x.zona||'',
     limiteFiado:Number(x.limite_fiado)||0,saldoFiado:Number(x.saldo_fiado)||0,
-    ultima:x.ultima_compra||''}});
+    ultima:x.ultima_compra||''}},null,'clientes');
   var en=await baixarTab('entregadores', 'entregadores'+q+'&select=*,entregador_taxas(*)');
   DB.entregadores=volta(en,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
     pix:x.pix,diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false,
-    taxas:(x.entregador_taxas||[]).map(function(t){return {cidade:t.cidade,valor:Number(t.valor)||0}})}});
+    taxas:(x.entregador_taxas||[]).map(function(t){return {cidade:t.cidade,valor:Number(t.valor)||0}})}},null,'entregadores');
   var lf=await baixarTab('lancamentos_financeiros', 'lancamentos_financeiros'+q+'&select=*&vencimento=gte.'+_desde+'&order=vencimento.desc&limit=3000');
   var mapaSub={};(cf||[]).forEach(function(c2){(c2.subcategorias_financeiras||[]).forEach(function(s){
     mapaSub[s.id]=s.ref_local||s.id})});
@@ -14125,7 +14160,7 @@ async function _baixarDaNuvem(forcar){
     codigoBarras:x.codigo_barras||'',
     valor:Number(x.valor)||0,emissao:x.emissao,vencimento:x.vencimento,pagamento:x.pagamento,
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
-    origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}});
+    origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}},null,'lancFin');
   /* cardápio */
   var rc=await baixarTab('categorias', 'categorias'+qs+'&order=ordem');
   var rp=await baixarTab('produtos', 'produtos'+qs+'&order=ordem');
@@ -14134,7 +14169,7 @@ async function _baixarDaNuvem(forcar){
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
   var mapaGr={};rg.forEach(function(x){mapaGr[x.id]=x.ref_local||x.id});
   DB.categorias=volta(rc,function(x){return {id:x.ref_local||x.id,nome:x.nome,impressao:x.impressao,
-    imposto:x.imposto,cor:x.cor,imagem:x.imagem,ativo:x.ativa!==false,ordem:x.ordem||0,sucursais:x.sucursais||[]}});
+    imposto:x.imposto,cor:x.cor,imagem:x.imagem,ativo:x.ativa!==false,ordem:x.ordem||0,sucursais:x.sucursais||[]}},null,'categorias');
   DB.grupos=volta(rg,function(x){return {id:x.ref_local||x.id,nome:x.nome,min:x.minimo||0,max:x.maximo||1,
     forcado:!!x.forcado,ordem:x.ordem||0,
     /* A opcao voltava da nuvem SEM identificador. No envio seguinte ela era
@@ -14144,7 +14179,7 @@ async function _baixarDaNuvem(forcar){
        todas as voltas. */
     opcoes:(x.opcoes||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
       .map(function(o){return {id:o.ref_local||null,nome:o.nome,
-        preco:Number(o.preco_adicional)||0}})}});
+        preco:Number(o.preco_adicional)||0}})}},null,'grupos');
   DB.produtos=volta(rp,function(x){
     var g=(rv||[]).filter(function(v){return v.produto_id===x.id}).map(function(v){return mapaGr[v.grupo_id]}).filter(Boolean);
     return {id:x.ref_local||x.id,nome:x.nome,preco:Number(x.preco)||0,codigo:x.codigo,
@@ -14155,7 +14190,7 @@ async function _baixarDaNuvem(forcar){
       nomeOnline:x.nome_online,disponivel:x.disponivel||{},promocoes:x.promocoes||[],
       grupos:g,vinculaEstoque:!!x.vincula_estoque,
       _fichaUid:x.ficha_id||'',_insumoUid:x.insumo_id||'',
-      insumoQtd:Number(x.insumo_qtd)||0,insumoUn:x.insumo_un||'',sucursais:x.sucursais||[]};});
+      insumoQtd:Number(x.insumo_qtd)||0,insumoUn:x.insumo_un||'',sucursais:x.sucursais||[]};},null,'produtos');
   var cfgS=await api('config_loja?loja_id=eq.'+l+'&select=*');
   if(cfgS&&cfgS[0]){var c3=cfg();
     c3.lojaAberta=cfgS[0].loja_aberta!==false;c3.tempoEntrega=cfgS[0].tempo_entrega;
@@ -14209,12 +14244,12 @@ async function _baixarDaNuvem(forcar){
   /* ---------- ESTOQUE ---------- */
   var ue=await baixarTab('unidades_medida', 'unidades_medida'+qs);
   DB.unidExtra=volta(ue,function(x){return {id:x.ref_local||x.id,n:x.nome,ab:x.sigla,
-    base:x.base,f:Number(x.fator)||1}});
+    base:x.base,f:Number(x.fator)||1}},null,'unidExtra');
 
   var gi=await baixarTab('grupos_ingredientes', 'grupos_ingredientes'+qs);
   var mapaGi={};gi.forEach(function(x){mapaGi[x.id]=x.ref_local||x.id});
   DB.gruposIng=volta(gi,function(x){return {id:x.ref_local||x.id,nome:x.nome,
-    compoeCMV:x.compoe_cmv!==false,sucursais:x.sucursais||[]}});
+    compoeCMV:x.compoe_cmv!==false,sucursais:x.sucursais||[]}},null,'gruposIng');
 
   var ins=await baixarTab('insumos', 'insumos'+qs);
   var mapaIns={};ins.forEach(function(x){mapaIns[x.id]=x.ref_local||x.id});
@@ -14229,12 +14264,12 @@ async function _baixarDaNuvem(forcar){
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',fator:Number(x.fator)||1,
     fornecedorId:mapaFo[x.fornecedor_id]||'',descricao:x.descricao||'',
-    compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}});
+    compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}},null,'insumos');
 
   var fg=await baixarTab('ficha_grupos', 'ficha_grupos'+qs);
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
-    destinoId:x.destino_id||'',sucursais:x.sucursais||[]}});
+    destinoId:x.destino_id||'',sucursais:x.sucursais||[]}},null,'fichaCats');
 
   var ft=await baixarTab('fichas_tecnicas', 'fichas_tecnicas'+q+'&select=*,ficha_itens(*)');
   var mapaFiRef={};ft.forEach(function(x){mapaFiRef[x.id]=x.ref_local||x.id});
@@ -14250,7 +14285,7 @@ async function _baixarDaNuvem(forcar){
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',destinoModo:x.destino_modo||'igual',
     itens:(x.ficha_itens||[]).map(function(i2){return {insumoId:mapaIns[i2.insumo_id]||'',
-      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}});
+      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},null,'fichas');
   /* reconstrói os subgrupos a partir das fichas */
   (DB.fichas||[]).forEach(function(f){
     if(!f.subgrupoId)return;
@@ -14287,12 +14322,12 @@ async function _baixarDaNuvem(forcar){
     itens:(x.pedido_base_itens||[]).map(function(i){return {
       id:idFilho(x.ref_local,i.ref_local,i.id),baseRef:i.base_ref,
       baseNome:i.base_nome,fichaRef:i.ficha_ref,qtd:Number(i.quantidade)||0,
-      valorUnit:Number(i.valor_unit)||0,total:Number(i.total)||0}})}},DB.pedidosBase);
+      valorUnit:Number(i.valor_unit)||0,total:Number(i.total)||0}})}},DB.pedidosBase,'pedidosBase');
 
   var bcat=await baixarTab('bases_catalogo', 'bases_catalogo'+qs);
   DB.basesCat=volta(bcat,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     qtdCaixa:Number(x.qtd_caixa)||1,valorUnit:Number(x.valor_unit)||0,
-    fichaRef:x.ficha_ref||'',ativo:x.ativo!==false,ordem:x.ordem||0}},DB.basesCat);
+    fichaRef:x.ficha_ref||'',ativo:x.ativo!==false,ordem:x.ordem||0}},DB.basesCat,'basesCat');
 
   var bxp=await baixarTab('baixas_pendentes', 'baixas_pendentes'+qs);
   DB.baixasPend=volta(bxp,function(x){return {id:x.ref_local||x.id,
@@ -14301,29 +14336,29 @@ async function _baixarDaNuvem(forcar){
     custo:Number(x.custo_unit)||0,motivoRef:x.motivo_ref,motivoNome:x.motivo_nome,
     quem:x.quem_registrou,registradoPor:x.registrado_por,data:x.data,hora:x.hora,
     obs:x.observacao,situacao:x.situacao||'pendente',movRef:x.mov_ref,
-    lancadaEm:x.lancada_em}},DB.baixasPend);
+    lancadaEm:x.lancada_em}},DB.baixasPend,'baixasPend');
 
   var mv=await baixarTab('motivos_movimentacao', 'motivos_movimentacao'+qs);
   var mapaMt={};mv.forEach(function(x){mapaMt[x.id]=x.ref_local||x.id});
   DB.motivosMov=volta(mv,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,
-    sistema:!!x.sistema,ativo:x.ativo!==false,lojas:x.lojas_visiveis||[]}});
+    sistema:!!x.sistema,ativo:x.ativo!==false,lojas:x.lojas_visiveis||[]}},null,'motivosMov');
 
   var mc=await baixarTab('motivos_cancelamento', 'motivos_cancelamento'+qs+'&order=ordem');
   var mapaMc={};mc.forEach(function(x){mapaMc[x.id]=x.ref_local||x.id});
   DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
-    ativo:x.ativo!==false,ordem:x.ordem||0}});
+    ativo:x.ativo!==false,ordem:x.ordem||0}},null,'motivosCanc');
 
   baixarLayoutMenu();
   var stv=await baixarTab('status_venda', 'status_venda'+qs+'&order=ordem');
   DB.statusVenda=volta(stv,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     papel:x.papel||'producao',ordem:x.ordem||0,ativo:x.ativo!==false,cor:x.cor||'',
-    minutos:Number(x.minutos)||0,som:!!x.som,confPag:!!x.confere_pagamento}});
+    minutos:Number(x.minutos)||0,som:!!x.som,confPag:!!x.confere_pagamento}},null,'statusVenda');
 
   var mi=await baixarTab('modelos_impressao', 'modelos_impressao'+qs);
   DB.modelosImp=volta(mi,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
-    ativo:x.ativo!==false}});
+    ativo:x.ativo!==false}},null,'modelosImp');
 
   /* Estas duas subiam e nunca voltavam: trocar de aparelho ou limpar o
      navegador perdia os usuarios e a carteira de clientes Nexor. */
@@ -14332,7 +14367,7 @@ async function _baixarDaNuvem(forcar){
     if(us&&us.length)DB.usuarios=volta(us,function(x){return {id:x.ref_local||x.id,
       nome:x.nome,login:x.login||'',senha:x.senha||'',
       ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
-      sucursais:x.sucursais||[],permissoes:x.permissoes||{}}});
+      sucursais:x.sucursais||[],permissoes:x.permissoes||{}}},null,'usuarios');
   }catch(e){ logNuvem('não consegui baixar os usuários: '+((e&&e.message)||''),true); }
   if(ehPlataforma&&ehPlataforma()){
     try{
@@ -14343,7 +14378,7 @@ async function _baixarDaNuvem(forcar){
         unidades:Number(x.unidades)||1,plano:x.plano||'',
         mensalidade:Number(x.mensalidade)||0,lojaId:x.loja_id||'',
         modulos:x.modulos||[],diaVenc:Number(x.dia_vencimento)||10,
-        situacao:x.situacao||'ativo'}});
+        situacao:x.situacao||'ativo'}},null,'clientesNexor');
     }catch(e){_quieto(e,'baixarDaNuvem')}
   }
 
@@ -14356,7 +14391,7 @@ async function _baixarDaNuvem(forcar){
   DB.estoqueUn=volta(eun,function(x){return {id:x.ref_local||(x.sucursal_id+'|'+x.item_ref),
     sucursalId:x.sucursal_id,itemId:x.item_ref,tipo:x.tipo||'insumo',
     estoque:Number(x.estoque)||0,custoMedio:Number(x.custo_medio)||0,
-    atualizadoEm:x.atualizado_em}});
+    atualizadoEm:x.atualizado_em}},null,'estoqueUn');
 
   var cpf=await baixarTab('cupons_fiscais', 'cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
   DB.cupons_f=volta(cpf,function(x){return {id:x.ref_local||x.id,pedidoId:x.pedido_ref||'',
@@ -14366,13 +14401,13 @@ async function _baixarDaNuvem(forcar){
     consumidor:x.consumidor_nome||'',doc:x.consumidor_doc||'',pagamento:x.pagamento||'',
     total:Number(x.valor_total)||0,desconto:Number(x.valor_desconto)||0,
     entrega:Number(x.valor_entrega)||0,data:x.data_venda||'',hora:x.hora_venda||'',
-    nfeAgrupada:x.nfe_agrupada_ref||'',contingencia:!!x.contingencia}});
+    nfeAgrupada:x.nfe_agrupada_ref||'',contingencia:!!x.contingencia}},null,'cupons_f');
 
   var cmd=await baixarTab('mesa_comandas', 'mesa_comandas'+qs+'&order=aberta_em.desc&limit=500');
   DB.comandas=volta(cmd,function(x){return {id:x.ref_local||x.id,mesaId:x.mesa_ref||'',
     mesaNumero:Number(x.mesa_numero)||0,nome:x.nome,itens:x.itens||[],
     aberta:x.aberta!==false,abertaEm:x.aberta_em,fechadaEm:x.fechada_em,
-    pedidoRef:x.pedido_ref||'',sucursalId:x.sucursal_id||''}});
+    pedidoRef:x.pedido_ref||'',sucursalId:x.sucursal_id||''}},null,'comandas');
 
   var trf=await baixarTab('transferencias', 'transferencias'+qs+'&order=numero.desc&limit=1000');
   DB.transf=volta(trf,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
@@ -14380,35 +14415,35 @@ async function _baixarDaNuvem(forcar){
     itens:x.itens||[],valorTotal:Number(x.valor_total)||0,obs:x.observacao||'',
     enviadaEm:x.enviada_em,enviadaPor:x.enviada_por||'',
     recebidaEm:x.recebida_em,recebidaPor:x.recebida_por||'',
-    divergencia:!!x.divergencia,data:x.data_envio||''}});
+    divergencia:!!x.divergencia,data:x.data_envio||''}},null,'transf');
 
   var ms=await baixarTab('mesas', 'mesas'+qs+'&order=numero');
   var mapaMs={};ms.forEach(function(x){mapaMs[x.id]=x.ref_local||x.id});
   DB.mesas=volta(ms,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
     nome:x.nome||'',lugares:Number(x.lugares)||4,ativa:x.ativa!==false,
-    sucursalId:x.sucursal_id||''}});
+    sucursalId:x.sucursal_id||''}},null,'mesas');
 
   var tn=await baixarTab('turnos', 'turnos'+qs+'&order=ordem');
   var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
   DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
-    ini:x.hora_inicio||'',fim:x.hora_fim||'',ativo:x.ativo!==false,ordem:x.ordem||0}});
+    ini:x.hora_inicio||'',fim:x.hora_fim||'',ativo:x.ativo!==false,ordem:x.ordem||0}},null,'turnos');
 
   var cnc=await baixarTab('cancelamentos', 'cancelamentos'+q+'&select=*&criado_em=gte.'+_desde+'&order=criado_em.desc&limit=2000');
   DB.cancelamentos=volta(cnc,function(x){return {id:x.ref_local||x.id,
     pedidoId:x.pedido_ref||'',numero:x.pedido_numero||0,valor:Number(x.valor)||0,
     data:x.data||'',hora:x.hora||'',motivoId:mapaMc[x.motivo_id]||'',
     motivo:x.motivo_nome||'',obs:x.observacao||'',operadorId:x.operador_id||'',
-    operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||''}});
+    operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||''}},null,'cancelamentos');
 
   var me=await baixarTab('movimentacoes_estoque', 'movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
   DB.movEst=volta(me,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     motivoId:mapaMt[x.motivo_id]||'',identificacao:x.identificacao||'',obs:x.observacao||'',
-    origem:x.origem||'',linhas:x.linhas||[]}});
+    origem:x.origem||'',linhas:x.linhas||[]}},null,'movEst');
 
   var ct=await baixarTab('contagens_estoque', 'contagens_estoque'+qs+'&order=data.desc&limit=500');
   DB.contagens=volta(ct,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     perda:Number(x.perda)||0,ganho:Number(x.ganho)||0,resultado:Number(x.resultado)||0,
-    itens:x.itens||[]}});
+    itens:x.itens||[]}},null,'contagens');
 
   var ae=await baixarTab('areas_entrega', 'areas_entrega'+q+'&select=*,areas_zonas(*)');
   DB.areas=volta(ae,function(x){
@@ -14419,7 +14454,7 @@ async function _baixarDaNuvem(forcar){
         .map(function(z){return {id:idFilho(paiRef,z.ref_local,z.id),nome:z.nome,
           tipo:z.tipo||'bairro',taxa:Number(z.taxa)||0,km:Number(z.km)||0,
           tempo:Number(z.tempo)||0,obs:z.observacao||'',ativa:z.ativa!==false}})};
-  });
+  },null,'areas');
 
   var scPre=await baixarTab('sucursais', 'sucursais'+qs);
   var mapaSuc2={};scPre.forEach(function(x){mapaSuc2[x.id]=x.ref_local||x.id});
@@ -14446,13 +14481,13 @@ async function _baixarDaNuvem(forcar){
   DB.sucursais=volta(sc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     apelido:x.apelido||'',cnpj:x.cnpj||'',telefone:x.telefone||'',cidade:x.cidade||'',
     uf:x.uf||'',matriz:!!x.matriz,ativa:x.ativa!==false,cor:x.cor||'#00A08B',
-    redeId:x.rede_id||'',redeNome:x.rede_nome||''}});
+    redeId:x.rede_id||'',redeNome:x.rede_nome||''}},null,'sucursais');
 
   var op=await baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
   DB.ordensProd=volta(op,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     data:x.data,hora:x.hora,resp:x.responsavel||'',obs:x.observacao||'',
     previsto:Number(x.previsto)||0,real:Number(x.real_produzido)||0,
-    diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}});
+    diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}},null,'ordensProd');
 
   try{
     /* ------------------------------------------------------------------
@@ -14493,20 +14528,20 @@ async function _baixarDaNuvem(forcar){
       documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',unidades:x.unidades||1,
       plano:x.plano||'',mensalidade:Number(x.mensalidade)||0,diaVenc:x.dia_vencimento||10,
       situacao:x.situacao||'ativo',inicio:x.inicio||'',obs:x.observacao||'',
-      lojaId:x.loja_id||'',modulos:x.modulos||[],cobrancas:x.cobrancas||[]}});
+      lojaId:x.loja_id||'',modulos:x.modulos||[],cobrancas:x.cobrancas||[]}},null,'clientesNexor');
   }catch(e){_quieto(e,'baixarDaNuvem')}
   var csvw=await baixarTab('compras_sem_vinculo', 'compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
   DB.comprasSemVinc=volta(csvw,function(x){return {id:x.ref_local||x.id,
     notaId:x.nota_id||'',notaNumero:x.nota_numero||'',fornecedor:x.fornecedor_nome||'',
     descricao:x.descricao||'',documento:x.documento||'',valor:Number(x.valor)||0,
     vencimento:x.vencimento||'',excluidoPor:x.excluido_por||'',excluidoEm:x.excluido_em||'',
-    itens:(x.dados&&x.dados.itens)||[],lanc:(x.dados&&x.dados.lanc)||null}});
+    itens:(x.dados&&x.dados.itens)||[],lanc:(x.dados&&x.dados.lanc)||null}},null,'comprasSemVinc');
   var nt=await baixarTab('notas_entrada', 'notas_entrada'+qs+'&order=data.desc&limit=1000');
   DB.notas=volta(nt,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     fornecedorId:mapaFo[x.fornecedor_id]||'',fornecedorNome:x.fornecedor_nome||'',
     data:x.data,hora:x.hora,valorMercadorias:Number(x.valor_mercadorias)||0,
     valorTotal:Number(x.valor_total)||0,receber:x.recebida!==false,
-    pagamento:x.pagamento||{},itens:x.itens||[]}});
+    pagamento:x.pagamento||{},itens:x.itens||[]}},null,'notas');
 
   /* ---------- OPERAÇÃO ---------- */
   var cx=await baixarTab('caixas', 'caixas'+q+'&select=*,caixa_movimentos(*)&order=aberto_em.desc&limit=400');
@@ -14524,7 +14559,7 @@ async function _baixarDaNuvem(forcar){
     conferencia:x.conferencia||{},obs:x.observacao||'',
     movimentos:(x.caixa_movimentos||[]).map(function(m2){return {tipo:m2.tipo,
       valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,quando:m2.criado_em}})};
-  });
+  },null,'caixas');
   /* segurança: só pode haver um caixa aberto */
   (function(){
     var abertos=(DB.caixas||[]).filter(function(c){return !c.fechadoEm});
@@ -14557,7 +14592,7 @@ async function _baixarDaNuvem(forcar){
       nome:i3.nome,qtd:Number(i3.quantidade)||0,unitario:Number(i3.unitario)||0,
       total:Number(i3.total)||0,obs:i3.observacao||'',opcoes:i3.opcoes||[]}}),
     pagamentos:(x.pedido_pagamentos||[]).map(function(p2){return {formaId:mapaFP[p2.forma_id]||'',
-      valor:Number(p2.valor)||0}})}});
+      valor:Number(p2.valor)||0}})}},null,'pedidos');
 
   var mapaSuc={};sc.forEach(function(x){mapaSuc[x.id]=x.ref_local||x.id});
   var mapaPed={};pd.forEach(function(x){mapaPed[x.id]=x.ref_local||x.id});
@@ -14568,7 +14603,7 @@ async function _baixarDaNuvem(forcar){
     qtd:x.qtd||0,taxas:Number(x.taxas)||0,diaria:Number(x.diaria)||0,
     acrescimos:Number(x.acrescimos)||0,descontos:Number(x.descontos)||0,
     vendas:Number(x.vendas)||0,forma:x.forma,contaId:mapaConta[x.conta_id]||'',
-    pago:x.pago!==false,obs:x.observacao||''}});
+    pago:x.pago!==false,obs:x.observacao||''}},null,'acertos');
 
   var cp=await baixarTab('cupons', 'cupons'+qs);
   var mapaCp={};cp.forEach(function(x){mapaCp[x.id]=x.ref_local||x.id});
@@ -14576,18 +14611,18 @@ async function _baixarDaNuvem(forcar){
     valor:Number(x.valor)||0,tetoDesconto:Number(x.teto)||0,minimo:Number(x.minimo)||0,
     de:x.valido_de,ate:x.valido_ate,horaDe:x.hora_de,horaAte:x.hora_ate,
     quantidade:x.quantidade||0,limiteCliente:x.limite_cliente||0,
-    canais:x.canais||[],formas:x.formas||[],ativo:x.ativo!==false}});
+    canais:x.canais||[],formas:x.formas||[],ativo:x.ativo!==false}},null,'cupons');
 
   var cu=await baixarTab('cupom_usos', 'cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
   DB.cupomUsos=volta(cu,function(x){return {id:x.ref_local||x.id,cupomId:mapaCp[x.cupom_id]||'',
     clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',data:x.data,
     valor:Number(x.valor)||0,totalPedido:Number(x.total_pedido)||0,numero:x.numero,
-    pedidoId:mapaPed[x.pedido_id]||''}});
+    pedidoId:mapaPed[x.pedido_id]||''}},null,'cupomUsos');
 
   var fm=await baixarTab('fiado_movimentos', 'fiado_movimentos'+qs+'&order=data.desc&limit=2000');
   DB.fiadoMov=volta(fm,function(x){return {id:x.ref_local||x.id,clienteId:mapaCli[x.cliente_id]||'',
     tipo:x.tipo,valor:Number(x.valor)||0,data:x.data,formaId:mapaFP[x.forma_id]||'',
-    contaId:mapaConta[x.conta_id]||'',obs:x.observacao||'',pedidoId:mapaPed[x.pedido_id]||''}});
+    contaId:mapaConta[x.conta_id]||'',obs:x.observacao||'',pedidoId:mapaPed[x.pedido_id]||''}},null,'fiadoMov');
 
   }catch(e){ _falhou=e; }
 
@@ -15438,7 +15473,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V51.3.0';
+var VERSAO='V52.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
