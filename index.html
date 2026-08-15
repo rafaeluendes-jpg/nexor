@@ -15405,7 +15405,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V50.0.0';
+var VERSAO='V50.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -28118,7 +28118,19 @@ function unidades(){
 var _listaUnid=null;
 function un(id){
   unidades();
-  return _mapaUnid[id]||UNID[4];
+  /* ==========================================================
+     A SIGLA GRAVADA PODE NAO BATER NA CAIXA
+     A lista embutida usa 'l' minusculo para litro, mas no banco ha insumos
+     gravados com 'L' maiusculo — a sigla oficial do litro. Sem esta segunda
+     tentativa, un('L') nao achava nada e caia no padrao UNID[4], que e
+     "Unidade". O efeito era silencioso e caro: a agua virava item de
+     contagem, a janela da ficha so oferecia unidades de contagem (por isso
+     litro, quilo e grama nao apareciam), e a conversao ml<->L parava de
+     funcionar sem erro nenhum na tela.
+     ========================================================== */
+  if(_mapaUnid[id])return _mapaUnid[id];
+  var k=String(id==null?'':id).trim().toLowerCase();
+  return _mapaUnid[k]||UNID[4];
 }
 function convUnid(qtd,de,para){
   var a=un(de),b=un(para);
