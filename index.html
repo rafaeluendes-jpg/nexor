@@ -15405,7 +15405,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V50.1.0';
+var VERSAO='V50.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29248,10 +29248,42 @@ function trocaAbaFicha(a){
 var _fichaAberta=null,_abaComp='composicao',_buscaIns='',_secIns={material:true,insumo:true,produto:false};
 function modalComposicao(id){
   baseFicha();
+  /* rascunho e SEMPRE da ficha aberta agora. Sem isto, o modo de preparo
+     digitado numa ficha e nao salvo apareceria na proxima que fosse aberta. */
+  _rascFicha={};
   _fichaAberta=id;_abaComp='composicao';
   desenhaComp();
 }
 function telaComposicao(id){modalComposicao(id)}
+/* ==========================================================
+   O QUE FOI DIGITADO SOBREVIVE A TROCA DE ABA
+   Receita e Composicao sao a MESMA janela redesenhada. Trocar de aba
+   chamava desenhaComp() direto, e o desenho le os valores da ficha
+   GRAVADA — entao tudo que estava digitado e ainda nao salvo era
+   redesenhado por cima. A pessoa escrevia o modo de preparo, ia ver a
+   composicao, voltava, e o texto tinha sumido.
+   Pior: salvarComposicao() so le os campos que estao na tela naquele
+   instante ('if($(...))'). Salvando pela aba Composicao, a receita
+   digitada nem chegava a ser lida.
+   Agora existe um rascunho: antes de qualquer redesenho os campos sao
+   colhidos, e o desenho prefere o rascunho ao valor gravado. Cancelar
+   descarta o rascunho — nada e escrito na ficha antes do Salvar.
+   ========================================================== */
+var _rascFicha={};
+function colherCamposFicha(){
+  var C={cpPreco:'preco',cpRend:'rendimento',cpRendU:'rendUnidade',
+         cpUnVenda:'unidadesVenda',cpReceita:'receita',cpTempo:'tempo',
+         cpVal:'validade',cpTemp:'temperatura',cpObs:'obs'};
+  for(var id in C){ var el=$(id); if(el)_rascFicha[C[id]]=el.value; }
+}
+/* valor a exibir: o que a pessoa digitou vence o que esta gravado */
+function vFicha(f,campo,padrao){
+  if(_rascFicha[campo]!==undefined&&_rascFicha[campo]!=='')return _rascFicha[campo];
+  if(_rascFicha[campo]==='')return '';
+  var v=f?f[campo]:undefined;
+  return (v===undefined||v===null)?(padrao===undefined?'':padrao):v;
+}
+function trocarAbaComp(a){ colherCamposFicha(); _abaComp=a; desenhaComp(); }
 function desenhaComp(){
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   if(!f)return;
@@ -29279,13 +29311,13 @@ function desenhaComp(){
     corpo='<div class="fmReceita">'+
      '<div class="fmRcEsq">'+
       '<label class="fmLb">Modo de preparo</label>'+
-      '<textarea id="cpReceita" placeholder="1. Higienizar a fruta&#10;2. Bater por 8 minutos...">'+E(f.receita||'')+'</textarea>'+
+      '<textarea id="cpReceita" placeholder="1. Higienizar a fruta&#10;2. Bater por 8 minutos...">'+E(vFicha(f,'receita',''))+'</textarea>'+
       '<div class="row3" style="margin-top:10px">'+
-       '<div class="fld2" style="margin:0"><label>Tempo (min)</label><input id="cpTempo" type="number" value="'+(f.tempo||0)+'"></div>'+
-       '<div class="fld2" style="margin:0"><label>Validade (dias)</label><input id="cpVal" type="number" value="'+(f.validade||0)+'"></div>'+
-       '<div class="fld2" style="margin:0"><label>Armazenamento</label><input id="cpTemp" value="'+E(f.temperatura||'')+'" placeholder="-18°C"></div>'+
+       '<div class="fld2" style="margin:0"><label>Tempo (min)</label><input id="cpTempo" type="number" value="'+E(vFicha(f,'tempo',0))+'"></div>'+
+       '<div class="fld2" style="margin:0"><label>Validade (dias)</label><input id="cpVal" type="number" value="'+E(vFicha(f,'validade',0))+'"></div>'+
+       '<div class="fld2" style="margin:0"><label>Armazenamento</label><input id="cpTemp" value="'+E(vFicha(f,'temperatura',''))+'" placeholder="-18°C"></div>'+
       '</div>'+
-      '<div class="fld2" style="margin:10px 0 0"><label>Observações</label><input id="cpObs" value="'+E(f.obs||'')+'"></div>'+
+      '<div class="fld2" style="margin:10px 0 0"><label>Observações</label><input id="cpObs" value="'+E(vFicha(f,'obs',''))+'"></div>'+
      '</div>'+
      '<div class="fmRcDir">'+
       '<label class="fmLb">Foto do produto</label>'+
@@ -29346,9 +29378,9 @@ function desenhaComp(){
   var html='<div class="fichaMod">'+
    '<div class="fmH"><b>Ficha Técnica</b><button onclick="fecharComp()">&times;</button></div>'+
    '<div class="fmBar">'+
-    '<button class="fmAba'+(_abaComp==='receita'?' on':'')+'" onclick="_abaComp=\'receita\';desenhaComp()">'+
+    '<button class="fmAba'+(_abaComp==='receita'?' on':'')+'" onclick="trocarAbaComp(\'receita\')">'+
      sv('book',15)+' Receita</button>'+
-    '<button class="fmAba'+(_abaComp==='composicao'?' on':'')+'" onclick="_abaComp=\'composicao\';desenhaComp()">'+
+    '<button class="fmAba'+(_abaComp==='composicao'?' on':'')+'" onclick="trocarAbaComp(\'composicao\')">'+
      sv('box',15)+' Composição</button>'+
     '<div class="tSep2"></div>'+
     '<button class="btnP2" onclick="fecharComp()">Cancelar</button>'+
@@ -29371,14 +29403,14 @@ function desenhaComp(){
    '</div>'+
    '<div class="fmMid">'+
     '<div class="fmBox"><div class="fmBoxT">Rendimento</div>'+
-     '<div class="fmBoxB"><input id="cpRend" type="number" step="0.001" value="'+rend+'">'+
+     '<div class="fmBoxB"><input id="cpRend" type="number" step="0.001" value="'+E(vFicha(f,'rendimento',rend))+'">'+
      '<select id="cpRendU">'+unidades().map(function(u){
-       return '<option value="'+u.id+'"'+((f.rendUnidade||f.unidade)===u.id?' selected':'')+'>'+u.n+'</option>'}).join('')+
+       return '<option value="'+u.id+'"'+(String(vFicha(f,'rendUnidade',f.unidade))===u.id?' selected':'')+'>'+u.n+'</option>'}).join('')+
      '</select></div></div>'+
     '<div class="fmBox"><div class="fmBoxT">Custo Porção / Unid. Venda</div>'+
      '<div class="fmBoxB"><div class="fmRO">'+money(custoPorVenda(f))+'</div></div></div>'+
     '<div class="fmBox"><div class="fmBoxT">Quantas unidades de venda rendem uma receita?</div>'+
-     '<div class="fmBoxB"><input id="cpUnVenda" type="number" step="0.001" value="'+(f.unidadesVenda||rend)+'">'+
+     '<div class="fmBoxB"><input id="cpUnVenda" type="number" step="0.001" value="'+E(vFicha(f,'unidadesVenda',f.unidadesVenda||rend))+'">'+
      '<div class="fmRO sm">Unidade</div></div></div>'+
     '<div class="fmBox"><div class="fmBoxT">Qtd Porção / Unid. Venda</div>'+
      '<div class="fmBoxB"><div class="fmRO">'+
@@ -29399,6 +29431,7 @@ function desenhaComp(){
   ligarArrasteFicha();ligarCamposComp();
 }
 function fecharComp(){
+  _rascFicha={};                 /* cancelar descarta o que foi digitado */
   var o=document.getElementById('mdOv');if(o)o.remove();
   telaFichaTecnica();
 }
@@ -29503,15 +29536,22 @@ function removerFotoFicha(){
 }
 function salvarComposicao(){
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
-  if($('cpPreco'))f.preco=parseFloat($('cpPreco').value)||0;
-  if($('cpRend'))f.rendimento=parseFloat($('cpRend').value)||1;
-  if($('cpRendU'))f.rendUnidade=$('cpRendU').value;
-  if($('cpUnVenda'))f.unidadesVenda=parseFloat($('cpUnVenda').value)||0;
-  if($('cpReceita'))f.receita=$('cpReceita').value;
-  if($('cpTempo'))f.tempo=parseInt($('cpTempo').value)||0;
-  if($('cpVal'))f.validade=parseInt($('cpVal').value)||0;
-  if($('cpTemp'))f.temperatura=$('cpTemp').value;
-  if($('cpObs'))f.obs=$('cpObs').value;
+  if(!f)return;
+  /* colhe o que esta na tela AGORA e junta ao que foi digitado nas outras
+     abas. Antes so os campos visiveis eram lidos: salvar estando na
+     Composicao descartava a receita digitada. */
+  colherCamposFicha();
+  var R=_rascFicha;
+  if(R.preco!==undefined)        f.preco=parseFloat(R.preco)||0;
+  if(R.rendimento!==undefined)   f.rendimento=parseFloat(R.rendimento)||1;
+  if(R.rendUnidade!==undefined)  f.rendUnidade=R.rendUnidade;
+  if(R.unidadesVenda!==undefined)f.unidadesVenda=parseFloat(R.unidadesVenda)||0;
+  if(R.receita!==undefined)      f.receita=R.receita;
+  if(R.tempo!==undefined)        f.tempo=parseInt(R.tempo)||0;
+  if(R.validade!==undefined)     f.validade=parseInt(R.validade)||0;
+  if(R.temperatura!==undefined)  f.temperatura=R.temperatura;
+  if(R.obs!==undefined)          f.obs=R.obs;
+  _rascFicha={};
   salvar();
   var c=custoFicha(f);
   fecharComp();
