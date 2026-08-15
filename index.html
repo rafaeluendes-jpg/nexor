@@ -13794,8 +13794,40 @@ async function sincronizar(){
               return y;
             });
             var sf=await enviar(F.tab,lf);
-            logNuvem(F.tab+': '+lf.length+' item(ns), '+(sf||[]).length+' confirmado(s)',
-              (sf||[]).length!==lf.length);
+            var conf=(sf||[]).length;
+            logNuvem(F.tab+': '+lf.length+' item(ns), '+conf+' confirmado(s)',
+              conf!==lf.length);
+            /* ==========================================================
+               FALHA DE FILHO DEIXA DE SER SILENCIOSA
+               Quando a nuvem recusava uma linha de item, isso ficava so no
+               registro do Diagnostico — que ninguem abre. Na tela, a ficha
+               parecia salva; no download seguinte ela voltava sem aquele
+               ingrediente e a pessoa concluia, com razao, que o sistema
+               tinha comido o dado.
+               Agora quem esta usando fica sabendo na hora, com o nome do
+               que nao subiu. */
+            if(conf!==lf.length){
+              var okRefs={};
+              (sf||[]).forEach(function(r){ if(r.ref_local)okRefs[r.ref_local]=1; });
+              var faltaram=lf.filter(function(y){return !okRefs[y.ref_local]});
+              var semVinculo=faltaram.filter(function(y){
+                return y[F.pai]==null||Object.keys(y).some(function(kk){
+                  return /_id$/.test(kk)&&kk!==F.pai&&y[kk]==null; });
+              }).length;
+              try{
+                await confirmar({
+                  titulo:'Nem tudo foi salvo na nuvem',
+                  texto:'Em "'+E(lista[k].nome||F.tab)+'", '+faltaram.length+
+                    ' de '+lf.length+' item(ns) não foram aceitos.',
+                  aviso:(semVinculo
+                      ? '<b>'+semVinculo+' item(ns) apontam para um cadastro que a '+
+                        'nuvem não reconheceu.</b><br>'
+                      : '')+
+                    'O que já está aqui não foi perdido — o envio será repetido. '+
+                    'Se continuar, me mostre esta mensagem.',
+                  ok:'Entendi',cancelar:null});
+              }catch(e9){ _quieto(e9,'avisoFilho'); }
+            }
             sf.forEach(function(r){if(r.ref_local)_ids[r.ref_local]=r.id});
           }
           /* só remove o que sumiu daqui — e apenas se este aparelho estiver atualizado.
@@ -15527,7 +15559,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V52.2.0';
+var VERSAO='V52.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
