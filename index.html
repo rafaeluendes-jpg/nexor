@@ -12794,8 +12794,19 @@ async function religarNuvem(){
     setTimeout(ligarTempoReal,400);
     setTimeout(async function(){
       try{
-        estadoNuvem('sincronizando'); await baixarDaNuvem();
+        /* ==========================================================
+           SOBE PRIMEIRO, DEPOIS BAIXA
+           A ordem estava invertida. O download SUBSTITUI as listas locais
+           pelas da nuvem; entao, quando o aparelho reabria com uma venda
+           feita offline e ainda nao enviada, o download passava por cima
+           dela e o sincronizar() seguinte ja nao tinha o que enviar — a
+           venda sumia dos dois lados, sem erro nenhum na tela.
+           Simulado: venda offline PERDIDA na ordem antiga, preservada nesta.
+           Enviar primeiro custa alguns segundos a mais no arranque. Perder
+           o movimento de um dia de loja custa muito mais. */
+        estadoNuvem('sincronizando');
         if(temDadosLocais()&&DB._sujo){ await sincronizar(); }
+        await baixarDaNuvem();
         estadoNuvem('online');
         if(S.mod&&S.it)abrir(S.mod,S.it);
         try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){_quieto(e,'religarNuvem')}
@@ -13356,6 +13367,11 @@ var TABS_CADASTRO_REDE=['insumos','fichas_tecnicas','produtos','categorias','fic
  'unidades_medida','turnos','status_venda','entregadores','modelos_impressao'];
 async function apagarRemovidos(tab,chave,idsAgora){
   try{
+    /* veio cortada pelo limite: a ausencia nao significa exclusao */
+    if(_CORTADAS&&_CORTADAS[tab]){
+      logNuvem('exclusões de '+tab+' não espelhadas: o download veio cortado pelo limite');
+      return;
+    }
     /* A unidade so BAIXA o cadastro que foi liberado para ela — entao a lista
        dela e menor de proposito. Se ela pudesse espelhar exclusoes, apagaria
        da nuvem tudo o que nao enxerga. Quem apaga cadastro e a matriz. */
@@ -13894,9 +13910,30 @@ async function sincronizar(){
    Lista vazia nao apaga nada: a rede de protecao mantem o que ja existe.
    ========================================================== */
 var _FALHOU_BAIXA=[];
+/* ==========================================================
+   TABELA QUE VEIO CORTADA NAO ESPELHA EXCLUSAO
+   Tres tabelas espelham exclusoes E baixam com limite: pedidos_base (800),
+   transferencias (1.000) e estoque_unidade (20.000). Enquanto o volume for
+   menor que o limite, tudo funciona. No dia em que passar, o mais antigo
+   deixa de vir no download — e o espelhamento le essa ausencia como "a
+   pessoa apagou" e APAGA DA NUVEM de verdade.
+   As travas de exclusao em massa nao pegam isso: o transbordo e de um ou
+   dois registros por dia, bem abaixo dos limites de 200 e de 60%.
+   Aqui a tabela que voltou no limite e marcada como cortada, e o
+   espelhamento a ignora. Perde-se a exclusao espelhada dessa tabela; nao se
+   perde historico.
+   ========================================================== */
+var _CORTADAS={};
 async function baixarTab(nome,url){
   try{
-    return await comRetentativa(function(){ return api(url); },'baixar '+nome,2);
+    var r=await comRetentativa(function(){ return api(url); },'baixar '+nome,2);
+    var mlim=/[?&]limit=(\d+)/.exec(url||'');
+    if(mlim&&Array.isArray(r)&&r.length>=Number(mlim[1])){
+      _CORTADAS[nome]=true;
+      logNuvem(nome+': download atingiu o limite de '+mlim[1]+
+        ' — exclusões não serão espelhadas nesta tabela',true);
+    }else{ delete _CORTADAS[nome]; }
+    return r;
   }catch(e){
     _FALHOU_BAIXA.push(nome);
     registrarFalha('download',nome,(e&&e.message)||'falha ao ler',
@@ -16457,6 +16494,9 @@ function agendarRecarga(tabela){
   clearTimeout(RT.recarga);
   RT.recarga=setTimeout(async function(){
     try{
+      /* mesma razao do arranque: nunca baixar por cima de coisa nao enviada.
+         O tempo real avisa de novo no ciclo seguinte. */
+      if(NUVEM.sujo||DB._sujo){ agendarSync(); return; }
       statusNuvem('baixando');
       var antes=retratoDB();
       await baixarDaNuvem();
@@ -23385,7 +23425,11 @@ var LF={base:'vencimento',de:'',ate:'',tipo:'todas',sit:'todas',
 function baseLanc(){
   baseCat();baseFormas();
   DB.lancFin=DB.lancFin||[];
-  DB.fornecedores=DB.fornecedores||[];
+  /* a lista de fornecedores do sistema e DB.fornec (sobe para a tabela
+     fornecedores). DB.fornecedores era um segundo balde, criado aqui e na
+     importacao de nota: quem nascia nele nao aparecia na tela de cadastro
+     nem subia para a nuvem. */
+  DB.fornec=DB.fornec||[];
   migrarLanc();
 }
 /* traz para o novo formato o que já existia */
@@ -30098,18 +30142,24 @@ async function faturarPedidoBase(id){
   });
   if (!ok) return;
 
-  DB.lancamentos = DB.lancamentos || [];
+  /* ATENCAO: DB.lancamentos e a colecao LEGADA — ela nao sobe para a nuvem e
+     ainda e migrada para DB.lancFin marcada como PAGA. Escrever ali fazia a
+     cobranca nascer quitada e presa no aparelho. O financeiro de verdade e
+     DB.lancFin / lancamentos_financeiros. */
+  baseFin();
+  DB.lancFin = DB.lancFin || [];
   var l = {
-    id: uid('lf'),
+    id: uid('lf'), tipo: 'receita',
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — ' + (p.sucursalNome || ''),
-    valor: Number(p.total) || 0, tipo: 'receita',
-    emissao: hojeISO(), vencimento: iso, pago: false,
-    origem: 'pedido_base', origemRef: p.id,
-    sucursalRef: sucMatrizId(),
-    obs: 'unidade: ' + (p.sucursalNome || '')
+    contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
+    fornecedor: '', documento: '',
+    valor: Number(p.total) || 0,
+    emissao: hojeISO(), vencimento: iso, pagamento: '',
+    pago: false, conciliado: false,
+    origem: 'pedido_base', origemRef: p.id
   };
-  DB.lancamentos.push(l);
+  DB.lancFin.push(l);
   p.finReceberRef = l.id;
   salvar();
   toast('Conta a receber gerada.');
@@ -30182,18 +30232,20 @@ async function receberPedidoBase(id){
 
   /* a conta a pagar nasce junto: receber mercadoria e não registrar a dívida
      é como o financeiro da loja fica errado sem ninguém perceber */
-  DB.lancamentos = DB.lancamentos || [];
+  baseFin();
+  DB.lancFin = DB.lancFin || [];
   var l = {
-    id: uid('lf'),
+    id: uid('lf'), tipo: 'despesa',
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — matriz',
-    valor: Number(p.total) || 0, tipo: 'despesa',
-    emissao: hojeISO(), vencimento: hojeISO(), pago: false,
-    origem: 'pedido_base', origemRef: p.id,
-    sucursalRef: lojaAtualId(),
-    obs: 'bases recebidas da matriz'
+    contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
+    fornecedor: 'Matriz', documento: '',
+    valor: Number(p.total) || 0,
+    emissao: hojeISO(), vencimento: hojeISO(), pagamento: '',
+    pago: false, conciliado: false,
+    origem: 'pedido_base', origemRef: p.id
   };
-  DB.lancamentos.push(l);
+  DB.lancFin.push(l);
   p.finPagarRef = l.id;
   salvar();
   toast('Entrada registrada e conta a pagar gerada.');
@@ -33289,12 +33341,15 @@ async function aplicarPendenteAssistente(p){
   var forn=null;
   if(fnome){
     var chv=fnome.toLowerCase();
-    forn=(DB.fornecedores||[]).find(function(f){
+    DB.fornec=DB.fornec||[];
+    forn=(DB.fornec||[]).find(function(f){
       return String(f.empresa||'').toLowerCase()===chv;});
     if(!forn){
-      forn={id:uid('fn'),empresa:fnome,contato:'',cnpj:'',email:'',telefone:'',
-        whatsapp:'',criadoEm:new Date().toISOString()};
-      DB.fornecedores.push(forn);
+      /* campos no formato que a tela e o envio esperam: nome/tel/whats,
+         nao contato/telefone/whatsapp */
+      forn={id:uid('fn'),empresa:fnome,nome:'',cnpj:'',email:'',tel:'',
+        whats:'',criadoEm:new Date().toISOString()};
+      DB.fornec.push(forn);
     }
   }
 
@@ -39709,9 +39764,7 @@ async function salvarZap(){
       for(var ai=0;ai<alvos.length;ai++)
       /* P20: a empresa vai explicita. Desde que o banco parou de adotar
          registro orfao, gravar sem loja_id e recusado. */
-      await api('whatsapp_config?on_conflict=sucursal_id','POST',[{
-        loja_id:NUVEM.loja,
-        sucursal_id:alvos[ai],
+      await gravarCfgZap(alvos[ai],{
         robo_ativo:c.ativo!==false,
         nome_loja:cd.titulo||sucNome(ZP.suc),
         link_cardapio:'https://rafaeluendes-jpg.github.io/delivery/',
@@ -39729,9 +39782,8 @@ async function salvarZap(){
         avisos_ativos:c.avisosAtivos!==false,
         ia_ativa:c.iaAtiva!==false,ia_nome:c.iaNome||'Nina',
         ia_tom:c.iaTom||'acolhedor',ia_regras:c.iaRegras||null,
-        ia_apresenta:c.iaApresenta!==false,
-        ref_local:'wz_'+alvos[ai]
-      }],{'Prefer':'resolution=merge-duplicates'});
+        ia_apresenta:c.iaApresenta!==false
+      });
       toast('Configuração salva — o robô já está usando.');
       return;
     }catch(e){
@@ -40421,12 +40473,35 @@ function salvarAssPlat(){
   toast('Liberações salvas.');
 }
 /* o robô só conhece o gestor se o número chegar no banco */
+/* ==========================================================
+   GRAVACAO POR COLUNA — whatsapp_config
+   Duas telas moram na MESMA linha desta tabela: a da Carla (robo) e a do
+   Assistente. Cada uma mandava a linha inteira com merge-duplicates, e
+   merge-duplicates SUBSTITUI a linha: as colunas que a tela nao conhecia
+   voltavam para nulo. Resultado: configurar o Assistente e depois salvar a
+   Carla apagava gestor_zap, assistente_ativa e mais cinco campos — e vice-
+   versa. Nao era "a atualizacao apagou", era uma tela apagando a outra.
+
+   Aqui o PATCH so toca nas colunas enviadas. Se a linha ainda nao existe,
+   o PATCH nao acha nada e ai sim criamos com POST. */
+async function gravarCfgZap(sucursalId, campos){
+  if(!NUVEM.ligada||!NUVEM.loja||!sucursalId)return false;
+  var r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(sucursalId),
+                  'PATCH',campos,{'Prefer':'return=representation'});
+  if(Array.isArray(r)&&r.length)return true;
+  /* linha inexistente: cria com as colunas desta tela + as chaves */
+  var novo={}; for(var k in campos)novo[k]=campos[k];
+  novo.loja_id=NUVEM.loja; novo.sucursal_id=sucursalId;
+  novo.ref_local='wz_'+sucursalId;
+  await api('whatsapp_config?on_conflict=sucursal_id','POST',[novo],
+            {'Prefer':'resolution=merge-duplicates'});
+  return true;
+}
 async function publicarAssistente(suc){
   if(!NUVEM.ligada||!NUVEM.loja)return;
   var g=(DB.gerente||{})[suc]||{};
   try{
-    await api('whatsapp_config?on_conflict=sucursal_id','POST',[{
-      loja_id:NUVEM.loja,sucursal_id:suc,
+    await gravarCfgZap(suc,{
       gestor_nome:g.donoNome||g.nome||null,
       gestor_zap:soDigitos(g.donoZap||g.tel||'')||null,
       assistente_nome:g.assNome||null,
@@ -40437,7 +40512,7 @@ async function publicarAssistente(suc){
          São coisas independentes: a assistente ficava desligada mesmo com a
          caixinha dela marcada, e o agendador nem olhava para a loja. */
       assistente_ativa:!!(g.assistente!==false&&(g.donoZap||g.tel))
-    }],{'Prefer':'resolution=merge-duplicates'});
+    });
     logNuvem('assistente publicada para o robô');
   }catch(e){ logNuvem('não consegui publicar a assistente: '+((e&&e.message)||''),true); }
 }
@@ -42909,13 +42984,25 @@ async function publicarAcesso(){
     var sc=await api('sucursais?loja_id=eq.'+NUVEM.loja);
     (sc||[]).forEach(function(x){ mapa[x.ref_local||x.id]=x.id; });
     var sucs=(u.sucursais||[]).map(function(id){return mapa[id]||id});
-    await api('app_usuarios?on_conflict=login','POST',[{
+    /* ATENCAO ao metodo aqui. Com POST + merge-duplicates a linha inteira e
+       substituida, e as colunas que esta tela nao manda voltam para nulo —
+       entre elas SENHA_HASH. Ou seja: republicar o acesso de alguem que ja
+       existia apagava a senha dele, e o franqueado ficava trancado para fora
+       do aplicativo sem ninguem entender por que. PATCH so toca no que vai
+       escrito; a senha, ultimo_acesso e bloqueado_ate ficam onde estao. */
+    var campos={
       loja_id:NUVEM.loja,
       nome:u.nome,login:u.login,
       ativo:u.ativo!==false,mestre:!!u.mestre,tudo:!!u.tudo,
       sucursais:sucs,permissoes:u.permissoes||{},
       cartoes:u.cartoes||[],ref_local:u.id
-    }],{'Prefer':'resolution=merge-duplicates'});
+    };
+    var ja=await api('app_usuarios?login=eq.'+encodeURIComponent(u.login),
+                     'PATCH',campos,{'Prefer':'return=representation'});
+    var existia=Array.isArray(ja)&&ja.length>0;
+    if(!existia)
+      await api('app_usuarios?on_conflict=login','POST',[campos],
+                {'Prefer':'resolution=merge-duplicates'});
     /* a senha vai por funcao, que cifra dentro do banco. Mandar o texto puro
        na tabela deixaria a senha legivel para quem lesse a linha. */
     if(u.senha){
@@ -42923,7 +43010,10 @@ async function publicarAcesso(){
         {p_login:u.login,p_senha:u.senha});
       var dd=Array.isArray(rs)?rs[0]:rs;
       if(dd&&dd.erro)throw new Error(dd.erro);
-    }else{
+    }else if(!existia){
+      /* so e erro quando o acesso esta NASCENDO sem senha. Para quem ja
+         existe, campo de senha em branco significa "mantem a que tem" —
+         antes isso barrava a republicacao de qualquer permissao. */
       throw new Error('Este acesso está sem senha. Edite o usuário, informe uma '+
         'senha e publique de novo — é ela que abre o aplicativo.');
     }
