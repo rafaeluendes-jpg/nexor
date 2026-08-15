@@ -13794,7 +13794,22 @@ async function sincronizar(){
           var paiId=_ids[lista[k].id];
           if(!paiId)continue;
           var filhos=lista[k][F.lista]||[];
-          var refs=filhos.map(function(o,j){return (lista[k].id)+'_'+(o.id||j)});
+          /* ==========================================================
+             IDENTIFICADOR DO FILHO PRECISA SER ESTAVEL
+             Era montado como pai + '_' + (o.id || posicao). Quando o item
+             ainda nao tinha id proprio virava pai_0, pai_1... e quando ganhava
+             id virava pai_pai_0 — nome DIFERENTE para o MESMO item. A cada
+             sincronizacao o espelhamento via os nomes antigos como "sumiram"
+             e os apagava, e a posicao ainda fazia o item novo herdar o numero
+             de um antigo. Era isso que limitava a ficha a dois ingredientes:
+             cada um que entrava derrubava outro.
+             Agora: se o item ja tem id proprio, ele E o nome; se nao tem,
+             ganha um agora e passa a ter para sempre. */
+          var refs=filhos.map(function(o,j){
+            if(!o.id)o.id=(lista[k].id)+'_'+j+'_'+Math.random().toString(36).slice(2,8);
+            var sid=String(o.id);
+            return sid.indexOf(lista[k].id)===0 ? sid : (lista[k].id+'_'+sid);
+          });
 
           if(!filhos.length)logNuvem(F.tab+': nenhum item para enviar em "'+(lista[k].nome||'')+'"');
           if(filhos.length){
@@ -13825,19 +13840,12 @@ async function sincronizar(){
                 return y[F.pai]==null||Object.keys(y).some(function(kk){
                   return /_id$/.test(kk)&&kk!==F.pai&&y[kk]==null; });
               }).length;
-              try{
-                await confirmar({
-                  titulo:'Nem tudo foi salvo na nuvem',
-                  texto:'Em "'+E(lista[k].nome||F.tab)+'", '+faltaram.length+
-                    ' de '+lf.length+' item(ns) não foram aceitos.',
-                  aviso:(semVinculo
-                      ? '<b>'+semVinculo+' item(ns) apontam para um cadastro que a '+
-                        'nuvem não reconheceu.</b><br>'
-                      : '')+
-                    'O que já está aqui não foi perdido — o envio será repetido. '+
-                    'Se continuar, me mostre esta mensagem.',
-                  ok:'Entendi',cancelar:null});
-              }catch(e9){ _quieto(e9,'avisoFilho'); }
+              /* tambem sem janela: registrado, nao interrompendo */
+              registrarFalha('sincronizacao',F.tab,
+                'em "'+(lista[k].nome||F.tab)+'": '+faltaram.length+' de '+
+                lf.length+' item(ns) não aceitos'+
+                (semVinculo?' ('+semVinculo+' por vínculo não reconhecido)':''),
+                {situacao:'será reenviado'});
             }
             sf.forEach(function(r){if(r.ref_local)_ids[r.ref_local]=r.id});
           }
@@ -13883,35 +13891,26 @@ async function sincronizar(){
              sem virar praga na tela. */
           if(!_AVISOU_PERM[etapa]){
             _AVISOU_PERM[etapa]=true;
+            /* ==========================================================
+               ESTE AVISO SAIU DA TELA.
+               Virou janela em cima do trabalho, repetindo a cada
+               sincronizacao, para um registro antigo preso na fila que nao
+               atrapalha nada do que esta sendo cadastrado agora. Interromper
+               quem esta trabalhando por causa disso e pior do que o problema.
+               A informacao continua inteira — com a conta, os registros e o
+               motivo do servidor — em Administracao > Diagnostico do Sistema.
+               ========================================================== */
             var _eu=(usuarioLogado()||{}).login||'';
-            var _plat=(typeof NUVEM!=='undefined'&&NUVEM.plataforma);
-            try{
-              /* A mensagem anterior dizia so "sem permissao" e assustava sem
-                 ajudar: nao dizia QUAL registro nem POR QUE. Sem isso nao da
-                 para agir — nem para mim, que preciso do motivo do servidor. */
-              var _motivo=String((eT&&(eT.detalhe||eT.message))||'').slice(0,200);
-              var _refs=(typeof envio!=='undefined'&&envio&&envio.length)
-                ? envio.slice(0,3).map(function(o){return o.ref_local}).join(', ')
-                : '—';
-              await confirmar({
-                titulo:'A nuvem recusou gravar em '+E(etapa),
-                texto:'O que está nesta tela continua salvo no aparelho. '+
-                  'O que não aconteceu foi o envio destes registros.',
-                linhas:[['Conta em uso', E(_eu||'—'), ''],
-                        ['Registros', E(_refs), ''],
-                        ['Resposta do servidor', E(_motivo||'403'), '']],
-                aviso:(_plat
-                  ? '<b>Você está na conta do dono da plataforma.</b> Ela '+
-                    'administra o Nexor e não pertence a nenhuma loja — por '+
-                    'isso não grava dado de loja. Entre com a conta da empresa.'
-                  : 'Isto costuma ser um registro antigo, criado em outra '+
-                    'conta ou empresa, que fica tentando subir. Ele não '+
-                    'atrapalha o que você está cadastrando agora.')+
-                  '<br><br>Se este aviso repetir, me mostre esta tela: '+
-                  'a linha “Resposta do servidor” diz o motivo exato.',
-                ok:'Entendi',cancelar:null});
-            }catch(e9){ _quieto(e9,'avisoPermissao'); }
+            var _motivo=String((eT&&(eT.detalhe||eT.message))||'').slice(0,200);
+            var _refs=(typeof envio!=='undefined'&&envio&&envio.length)
+              ? envio.slice(0,3).map(function(o){return o.ref_local}).join(', ')
+              : '—';
+            registrarFalha('permissao',etapa,
+              'a nuvem recusou gravar em '+etapa+' — conta: '+_eu+
+              ' · registros: '+_refs+' · servidor: '+_motivo,
+              {situacao:'não será tentado de novo',codigo:403});
           }
+          continue;
           continue;
         }
         /* dado invalido (400) tambem nao melhora tentando de novo */
@@ -14422,7 +14421,8 @@ function volta(linhas,fn,atual,col){
     destinoId:mapaIns[x.destino_id]||mapaFiRef[x.destino_id]||'',destinoFator:Number(x.destino_fator)||1,
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',destinoModo:x.destino_modo||'igual',
-    itens:(x.ficha_itens||[]).map(function(i2){return {insumoId:mapaIns[i2.insumo_id]||'',
+    itens:(x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
+      insumoId:mapaIns[i2.insumo_id]||'',
       qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},null,'fichas');
   /* reconstrói os subgrupos a partir das fichas */
   (DB.fichas||[]).forEach(function(f){
@@ -15611,7 +15611,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V52.6.0';
+var VERSAO='V53.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29867,7 +29867,9 @@ function confirmarQtd(insumoId){
   if(q<=0){toast('Informe a quantidade.');return;}
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   f.itens=f.itens||[];
-  f.itens.push({insumoId:insumoId,qtd:q,unidade:$('qiU').value,perda:parseFloat($('qiP').value)||0});
+  /* id proprio desde o nascimento: e ele que amarra o item na nuvem */
+  f.itens.push({id:uid('fit'),insumoId:insumoId,qtd:q,
+    unidade:$('qiU').value,perda:parseFloat($('qiP').value)||0});
   salvar();fecharQtd();desenhaComp();
 }
 function remItemFicha(k){
