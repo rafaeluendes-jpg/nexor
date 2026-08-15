@@ -1092,7 +1092,7 @@ sessão do Rafael continua vendo as 70 mensagens e as 5 configurações.
 
 Tudo que passou por conversa ou por repositório público deve ser considerado exposto:
 `NexorZap2026` (já trocada), a chave publishable do Supabase (é pública por desenho, sem
-problema), o token do GitHub `ghp_4VkW...`, a `CHAVE_API` do robô e a `GROQ_KEY`. As três
+problema), o token do GitHub `[token do GitHub — removido deste arquivo]`, a `CHAVE_API` do robô e a `GROQ_KEY`. As três
 últimas continuam pendentes de troca.
 
 ## O robô reconhece a sessão, não uma chave digitada (V17.6.0)

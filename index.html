@@ -15473,7 +15473,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V52.0.0';
+var VERSAO='V52.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15624,6 +15624,7 @@ var _ultimaFn='';
 })();
 
 /* 4. rede: toda requisicao, com tempo e destino */
+var _REDE={n:0, ms:0, falhas:0};
 (function(){
   if(!window.fetch||window._fetchMedido)return;
   window._fetchMedido=true;
@@ -15632,11 +15633,17 @@ var _ultimaFn='';
     var alvo=String((arguments[0]&&arguments[0].url)||arguments[0]||'');
     var curto=alvo.replace(/^https?:\/\/[^/]+/,'').split('?')[0].slice(0,60);
     var t=performance.now();
+    /* contador acumulado: quantas requisicoes e quanto tempo de rede desde o
+       arranque. cronometrar() tira duas fotos e mostra a diferenca — assim
+       da para saber quanto da demora DAQUELA tela foi espera de rede. */
+    _REDE.n++;
     return orig.apply(this,arguments).then(function(r){
       var d=performance.now()-t;
+      _REDE.ms+=d;
       if(d>=600)anotarTrava('rede', d, curto);
       return r;
     },function(e){
+      _REDE.ms+=performance.now()-t; _REDE.falhas++;
       anotarTrava('rede falhou', performance.now()-t, curto);
       throw e;
     });
@@ -15644,15 +15651,35 @@ var _ultimaFn='';
 })();
 
 var CRONO=[];
+/* ==========================================================
+   MEDICAO POR TELA — o que o navegador realmente gastou
+   Antes media so calculo e desenho. Faltavam justamente os suspeitos de uma
+   demora de 6 s: espera de rede, sincronizacao disparada na abertura e o
+   tempo ate a tela ficar utilizavel (nao so pintada).
+   Nada aqui altera comportamento: sao fotos antes e depois.
+   ========================================================== */
 function cronometrar(rot, fn){
   var t0=performance.now();
+  var redeAntes={n:_REDE.n, ms:_REDE.ms};
+  var sincAntes=!!(typeof NUVEM!=='undefined'&&NUVEM.sincronizando);
   var r=fn();
   var tJs=performance.now()-t0;
   requestAnimationFrame(function(){
     requestAnimationFrame(function(){
       var tTudo=performance.now()-t0;
       var reg={tela:rot, js:Math.round(tJs), desenho:Math.round(tTudo-tJs),
-               total:Math.round(tTudo), hora:new Date().toLocaleTimeString('pt-BR')};
+               total:Math.round(tTudo), hora:new Date().toLocaleTimeString('pt-BR'),
+               consultas:_REDE.n-redeAntes.n,
+               rede:Math.round(_REDE.ms-redeAntes.ms),
+               sincronizando:sincAntes||!!(typeof NUVEM!=='undefined'&&NUVEM.sincronizando)};
+      /* tempo ate ficar utilizavel: quando o navegador volta a responder,
+         medido por um relogio curto que so dispara com a fila livre */
+      var tUtil=performance.now();
+      setTimeout(function(){
+        reg.utilizavel=Math.round(performance.now()-t0);
+        if(reg.utilizavel-reg.total>250)
+          anotarTrava('tela presa apos desenhar', reg.utilizavel-reg.total, rot);
+      },0);
       CRONO.unshift(reg); if(CRONO.length>40)CRONO.pop();
       registrarFalha('desempenho', rot,
         'tela levou '+reg.total+' ms ('+reg.js+' ms de cálculo, '+
@@ -25060,15 +25087,29 @@ function telaDiagnosticoSistema(){
         t.ms+' ms</b></td></tr>';
      }).join('')+'</tbody></table></div>':'')+
    (CRONO.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
+     '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
+      '<b>Quanto cada tela levou</b> '+
+      '<small style="color:var(--ink-3)">se “Total” é pequeno e “Utilizável” é '+
+      'grande, a demora está depois do desenho — sincronização, normalmente'+
+      '</small></div>'+
      '<table class="fmTab"><thead><tr><th>Hora</th><th>Tela</th>'+
      '<th style="text-align:right">Cálculo</th><th style="text-align:right">Desenho</th>'+
-     '<th style="text-align:right">Total</th></tr></thead><tbody>'+
+     '<th style="text-align:right">Consultas</th><th style="text-align:right">Rede</th>'+
+     '<th style="text-align:right">Total</th>'+
+     '<th style="text-align:right">Utilizável</th></tr></thead><tbody>'+
      CRONO.slice(0,15).map(function(c){
-       return '<tr><td>'+E(c.hora)+'</td><td>'+E(c.tela)+'</td>'+
+       var ut=(c.utilizavel===undefined?c.total:c.utilizavel);
+       return '<tr><td>'+E(c.hora)+'</td><td>'+E(c.tela)+
+        (c.sincronizando?' <small style="color:var(--acc-d)">(sincronizando)</small>':'')+
+        '</td>'+
         '<td style="text-align:right">'+c.js+' ms</td>'+
         '<td style="text-align:right">'+c.desenho+' ms</td>'+
+        '<td style="text-align:right">'+(c.consultas||0)+'</td>'+
+        '<td style="text-align:right">'+(c.rede||0)+' ms</td>'+
         '<td style="text-align:right"><b class="'+(c.total>400?'vr':'')+'">'+
-        c.total+' ms</b></td></tr>';
+        c.total+' ms</b></td>'+
+        '<td style="text-align:right"><b class="'+(ut>2000?'vr':'')+'">'+
+        ut+' ms</b></td></tr>';
      }).join('')+'</tbody></table></div>':'')+
    (function(){
      var f=auditarFila();
