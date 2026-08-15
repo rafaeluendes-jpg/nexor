@@ -14244,7 +14244,7 @@ async function sincronizar(){
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
-    if(typeof CRONO!=='undefined')CRONO.envio=Date.now()-(_tEnvio||Date.now());
+    try{MEDIDA.envio=Date.now()-(_tEnvio||Date.now());}catch(e){}
     _ultimoEnvio=Date.now();     /* marca para o tempo real ignorar meu eco */
     /* rabicho: os avisos das minhas gravacoes ainda estao a caminho */
     pausaTempoReal(4000);
@@ -14303,7 +14303,25 @@ var _CORTADAS={};
    2. quanto tempo levou o envio e quanto levou a leitura;
    3. quais leituras passaram de 400 ms.
    ========================================================== */
-var CRONO={envio:0,download:0,tabelas:{},boot:{}};
+var MEDIDA={envio:0,download:0,tabelas:{},boot:{}};
+/* ==========================================================
+   MEDIR NUNCA PODE QUEBRAR O QUE ESTA SENDO MEDIDO
+
+   Foi exatamente o que aconteceu: dei a esta medicao o nome CRONO, que ja
+   existia mais abaixo no arquivo para o cronometro de tela. A declaracao de
+   baixo roda depois, sobrescreveu a de cima, e "CRONO.tabelas" deixou de
+   existir. A linha que gravava o tempo estourava — inclusive DENTRO do bloco
+   que trata erros de leitura, de onde o estouro escapa. Resultado: o download
+   morria na primeira leitura e o sistema abria vazio.
+   Agora toda gravacao de tempo passa por aqui, isolada. Se algum dia falhar
+   de novo, perde-se a medicao — nunca o dado.
+   ========================================================== */
+function _medir(nome,t0){
+  try{
+    MEDIDA.tabelas=MEDIDA.tabelas||{};
+    MEDIDA.tabelas[nome]=Date.now()-t0;
+  }catch(e){}
+}
 function _relatorioLentidao(){
   var L=[];
   var kb=0, ok='?';
@@ -14316,11 +14334,11 @@ function _relatorioLentidao(){
          ' | fichas '+((DB.fichas||[]).length)+
          ' | itens de ficha '+((DB.fichas||[]).reduce(function(a,f){
              return a+((f.itens||[]).length)},0)));
-  L.push('na ABERTURA havia: insumos '+(CRONO.boot.insumos===undefined?'?':CRONO.boot.insumos)+
-         ' | estoqueUn '+(CRONO.boot.estoqueUn===undefined?'?':CRONO.boot.estoqueUn)+
-         ' | com saldo '+(CRONO.boot.comSaldo===undefined?'?':CRONO.boot.comSaldo));
-  L.push('último envio: '+(CRONO.envio||0)+' ms | último download: '+(CRONO.download||0)+' ms');
-  var lentas=Object.keys(CRONO.tabelas).map(function(k){return [k,CRONO.tabelas[k]]})
+  L.push('na ABERTURA havia: insumos '+(MEDIDA.boot.insumos===undefined?'?':MEDIDA.boot.insumos)+
+         ' | estoqueUn '+(MEDIDA.boot.estoqueUn===undefined?'?':MEDIDA.boot.estoqueUn)+
+         ' | com saldo '+(MEDIDA.boot.comSaldo===undefined?'?':MEDIDA.boot.comSaldo));
+  L.push('último envio: '+(MEDIDA.envio||0)+' ms | último download: '+(MEDIDA.download||0)+' ms');
+  var lentas=Object.keys(MEDIDA.tabelas).map(function(k){return [k,MEDIDA.tabelas[k]]})
     .filter(function(p){return p[1]>=400}).sort(function(a,b){return b[1]-a[1]}).slice(0,10);
   L.push(lentas.length?('leituras acima de 400 ms: '+lentas.map(function(p){
       return p[0]+' '+p[1]+'ms'}).join(', '))
@@ -14346,10 +14364,10 @@ async function baixarTab(nome,url){
       logNuvem(nome+': download atingiu o limite de '+mlim[1]+
         ' — exclusões não serão espelhadas nesta tabela',true);
     }else{ delete _CORTADAS[nome]; }
-    CRONO.tabelas[nome]=Date.now()-_tt;
+    _medir(nome,_tt);
     return r;
   }catch(e){
-    CRONO.tabelas[nome]=Date.now()-_tt;
+    _medir(nome,_tt);
     _FALHOU_BAIXA.push(nome);
     registrarFalha('download',nome,(e&&e.message)||'falha ao ler',
       {situacao:'tabela pulada; dados locais mantidos',codigo:(e&&e.status)||''});
@@ -14393,7 +14411,7 @@ async function baixarDaNuvem(forcar){
   var _tW=Date.now();
   _baixando=(async function(){
     try{ return await _baixarDaNuvem(forcar); }
-    finally{ _baixando=null; CRONO.download=Date.now()-_tW; }
+    finally{ _baixando=null; try{MEDIDA.download=Date.now()-_tW;}catch(e){} }
   })();
   return _baixando;
 }
@@ -15837,7 +15855,7 @@ function boot(){
   /* retrato do que JA existia no aparelho antes de qualquer conversa com a
      nuvem — e o numero que diz se o problema e o aparelho comecar vazio */
   try{
-    CRONO.boot={insumos:(DB.insumos||[]).length,
+    MEDIDA.boot={insumos:(DB.insumos||[]).length,
       estoqueUn:(DB.estoqueUn||[]).length,
       comSaldo:(DB.estoqueUn||[]).filter(function(x){
         return Number(x&&x.estoque)!==0}).length};
@@ -16031,7 +16049,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V63.0.0';
+var VERSAO='V64.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
