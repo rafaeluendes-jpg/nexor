@@ -15268,6 +15268,21 @@ function volta(linhas,fn,atual,col){
   DB._hash={};
   NUVEM.baixou=true;   /* daqui em diante este aparelho pode espelhar exclusões */
   NUVEM.zerado=false;  /* ja tem os dados do dono: pode enviar */
+  /* ==========================================================
+     O SALDO PRECISA SER REAPLICADO DEPOIS QUE O DADO CHEGA
+
+     A quantidade e o custo que a tela mostra nao vivem no insumo: vivem em
+     estoque_unidade, uma linha por item POR UNIDADE. espelharEstoque()
+     copia o saldo da unidade ativa para dentro de cada insumo.
+     Ela rodava na abertura — quando o aparelho ainda estava vazio — e
+     gravava zero em tudo. O download entao trazia os 241 saldos, mas
+     ninguem mandava ela rodar de novo: os insumos continuavam com o zero
+     escrito la atras. Era o "aparece o nome, nao aparece a quantidade nem
+     o valor", com o dado inteiro no aparelho o tempo todo.
+     Medido no diagnostico: 'no aparelho AGORA: insumos 250 | estoqueUn 241'
+     e a tela mostrando R$ 0,00 em 252 itens.
+     ========================================================== */
+  try{ espelharEstoque(); }catch(e){ _quieto(e,'baixarDaNuvem'); }
   /* alguem tentou enviar durante o download e foi segurado: agora pode ir */
   if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
@@ -16049,7 +16064,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V64.0.0';
+var VERSAO='V65.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18154,14 +18169,21 @@ function setCustoUn(itemId,valor,suc){
 function espelharEstoque(){
   baseEstUn();
   var suc=lojaAtualId();
+  /* um indice em vez de 250 varreduras: regEstoque percorre a lista inteira
+     a cada item, o que dava 250 x 241 comparacoes por chamada. Agora que
+     esta funcao roda depois de cada download e ao abrir a tela, vale montar
+     o mapa uma vez. */
+  var mapa={};
+  (DB.estoqueUn||[]).forEach(function(x){ if(x&&x.id)mapa[x.id]=x; });
+  function achar(itemId){ return mapa[chaveEst(suc,itemId)]||null; }
   (DB.insumos||[]).forEach(function(i){
-    var r=regEstoque(i.id,suc,false);
+    var r=achar(i.id);
     i.estoqueAtual=r?(Number(r.estoque)||0):0;
     i.custo=r?(Number(r.custoMedio)||0):0;
   });
   (DB.fichas||[]).forEach(function(f){
     if(f.estocavel===false)return;
-    var r=regEstoque(f.id,suc,false);
+    var r=achar(f.id);
     f.estoqueAtual=r?(Number(r.estoque)||0):0;
   });
 }
@@ -33439,6 +33461,9 @@ function abrirCadastroItem(id){
 }
 function telaEstoqueTotal(){
   baseMov();
+  /* o saldo mostrado aqui vem de estoque_unidade; reaplica antes de desenhar
+     para a tela nunca exibir o zero que ficou escrito antes do download */
+  try{ espelharEstoque(); }catch(e){ _quieto(e,'telaEstoqueTotal'); }
   var todos=itensEstoque();
   var lista=listaEstoque();
   /* ==========================================================
