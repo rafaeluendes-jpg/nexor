@@ -13870,20 +13870,24 @@ async function sincronizar(){
           /* identificador estavel E unico. Estavel porque o item guarda o
              seu; unico porque dois itens com o mesmo nome derrubam o lote
              inteiro no Postgres (ver tirarRepetidos). */
+          /* ==========================================================
+             O NOME NA NUVEM E O PROPRIO ID DO ITEM — SEM PREFIXO
+             Antes o ref_local era montado colando o id da ficha na frente do
+             id do item. Resultado: o item ia para a nuvem com um nome e
+             voltava com outro, e o download nao conseguia reconhecer que era
+             o mesmo. Era isso que fazia o ingrediente recem-criado ser
+             descartado como se nao existisse.
+             Agora o nome e exatamente o id do item, dos dois lados. */
           var _usados={};
           var refs=filhos.map(function(o,j){
             if(!o.id)o.id=(lista[k].id)+'_'+j+'_'+Math.random().toString(36).slice(2,8);
-            var sid=String(o.id);
-            var r=(sid.indexOf(lista[k].id)===0)?sid:(lista[k].id+'_'+sid);
-            if(_usados[r]){
-              /* colisao real: renomeia ESTE item de forma definitiva */
+            if(_usados[o.id]){
               o.id=(lista[k].id)+'_'+j+'_'+Math.random().toString(36).slice(2,8);
-              r=String(o.id);
               logNuvem(F.tab+': dois itens tinham o mesmo identificador — '+
-                'um foi renomeado para '+r);
+                'um foi renomeado');
             }
-            _usados[r]=true;
-            return r;
+            _usados[o.id]=true;
+            return String(o.id);
           });
 
           if(!filhos.length)logNuvem(F.tab+': nenhum item para enviar em "'+(lista[k].nome||'')+'"');
@@ -14371,6 +14375,45 @@ function volta(linhas,fn,atual,col){
         logNuvem(col+': '+sos.length+' registro(s) ainda não enviados foram '+
           'preservados no aparelho');
         r=r.concat(sos);
+      }
+      /* ==========================================================
+         O REGISTRO EXISTE NOS DOIS LADOS — MAS OS FILHOS, NAO
+
+         AQUI ESTAVA O INGREDIENTE SUMINDO.
+         A preservacao acima so salvava o registro que a nuvem NAO tinha. A
+         ficha tecnica existe nos dois lados, entao a versao da nuvem
+         substituia a local inteira — inclusive a lista de ingredientes. Se
+         o terceiro ingrediente ainda nao tinha subido, ele simplesmente
+         deixava de existir, e a lista voltava ao que a nuvem tinha.
+         Era exatamente o relato: adiciona o terceiro, ele toma o lugar do
+         segundo (a lista voltou ao estado anterior e recebeu o novo), e
+         segundos depois some tudo.
+         Aqui os filhos que so existem no aparelho sao devolvidos ao
+         registro que veio da nuvem. O resto continua vindo da nuvem.
+         ========================================================== */
+      var _FILHOS={fichas:'itens', grupos:'opcoes', contas:'movs'};
+      var campoF=_FILHOS[col];
+      if(campoF){
+        var antesPorId={};
+        atual.forEach(function(x){ if(x&&x.id)antesPorId[x.id]=x; });
+        var devolvidos=0;
+        r.forEach(function(novo){
+          var velho=novo&&novo.id?antesPorId[novo.id]:null;
+          if(!velho)return;
+          var listaVelha=velho[campoF]||[], listaNova=novo[campoF]||[];
+          if(!listaVelha.length)return;
+          var temNaNuvem={};
+          listaNova.forEach(function(o){ if(o&&o.id)temNaNuvem[o.id]=true; });
+          var faltando=listaVelha.filter(function(o){
+            return o&&o.id&&!temNaNuvem[o.id]; });
+          if(faltando.length){
+            novo[campoF]=listaNova.concat(faltando);
+            devolvidos+=faltando.length;
+          }
+        });
+        if(devolvidos)
+          logNuvem(col+': '+devolvidos+' item(ns) ainda não enviados foram '+
+            'mantidos na lista');
       }
     }
     return r;
@@ -15734,7 +15777,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V54.2.0';
+var VERSAO='V55.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29317,6 +29360,17 @@ function baseFicha(){
     if(!f.itens)f.itens=[];
     if(f.rendimento===undefined)f.rendimento=1;
     if(!f.rendUnidade)f.rendUnidade=f.unidade;
+    /* Todo ingrediente precisa de identificador proprio. Sem ele nao da para
+       saber, no download, quais ja estao na nuvem e quais so existem aqui —
+       e era assim que o ingrediente novo era descartado. Fichas antigas
+       recebem o seu agora, uma vez. */
+    var _vistos={};
+    (f.itens||[]).forEach(function(it,j){
+      if(!it)return;
+      if(!it.id||_vistos[it.id])
+        it.id=f.id+'_'+j+'_'+Math.random().toString(36).slice(2,8);
+      _vistos[it.id]=true;
+    });
   });
 }
 /* DESATIVADA. Criava 15 insumos de gelato em toda loja que abrisse a tela de
