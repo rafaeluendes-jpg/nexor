@@ -13351,8 +13351,12 @@ async function api(caminho,metodo,corpo,extra,_repetiu){
       logNuvem('o banco recusou '+tab+' por regra de acesso (RLS) · loja='+
         (NUVEM.loja||'sem loja')+' · '+((d&&d.message)||'')+' · tentativa '+
         (_repetiu?2:1),true);
+      /* a resposta do PostgREST diz QUAL politica recusou; isso era
+         descartado e sobrava so "sem permissao", que nao permite agir */
       var eR=new Error('sem permissão para '+tab);
-      eR.tabela=tab;eR.status=r.status;eR.regra=true;throw eR;
+      eR.tabela=tab;eR.status=r.status;eR.regra=true;
+      eR.detalhe=(d&&(d.message||d.details||d.hint))||('HTTP '+r.status);
+      throw eR;
     }
     if(porSessao&&!_repetiu){
       var tk=await tokenValido(true);
