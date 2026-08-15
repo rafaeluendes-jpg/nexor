@@ -13667,6 +13667,7 @@ async function sincronizar(){
      reagia ao proprio barulho e redesenhava a tela. Agora a pausa dura o
      envio inteiro e so e solta no fim. */
   NUVEM.sincronizando=true;statusNuvem('enviando');
+  var _tEnvio=Date.now();
   RT.pausa=true;clearTimeout(RT._t);
   await tokenAtual();
   logNuvem('enviando...');
@@ -14243,6 +14244,7 @@ async function sincronizar(){
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
+    if(typeof CRONO!=='undefined')CRONO.envio=Date.now()-(_tEnvio||Date.now());
     _ultimoEnvio=Date.now();     /* marca para o tempo real ignorar meu eco */
     /* rabicho: os avisos das minhas gravacoes ainda estao a caminho */
     pausaTempoReal(4000);
@@ -14291,6 +14293,41 @@ var _CORTADAS={};
    exemplo). Aqui embaixo, baixarTab so aproveita a leitura que ja esta
    a caminho, em vez de comecar uma nova.
    ========================================================== */
+/* ==========================================================
+   MEDICAO DA LENTIDAO — PARA DE ADIVINHAR
+
+   Passei a tarde propondo causas para o "os valores demoram" e errei
+   varias. Este relatorio diz, com numero, tres coisas que decidem tudo:
+   1. quanto o aparelho tem guardado (se vier 0 KB, ele comeca vazio a
+      cada abertura e TODO dado precisa vir da nuvem — sao os 40 s);
+   2. quanto tempo levou o envio e quanto levou a leitura;
+   3. quais leituras passaram de 400 ms.
+   ========================================================== */
+var CRONO={envio:0,download:0,tabelas:{},boot:{}};
+function _relatorioLentidao(){
+  var L=[];
+  var kb=0, ok='?';
+  try{ var t=localStorage.getItem('nexor_dados')||''; kb=Math.round(t.length/1024); ok='sim'; }
+  catch(e){ ok='NAO — o navegador recusou ler'; }
+  L.push('--- medição ---');
+  L.push('guardado no aparelho: '+kb+' KB (leitura: '+ok+')');
+  L.push('no aparelho AGORA: insumos '+((DB.insumos||[]).length)+
+         ' | estoqueUn '+((DB.estoqueUn||[]).length)+
+         ' | fichas '+((DB.fichas||[]).length)+
+         ' | itens de ficha '+((DB.fichas||[]).reduce(function(a,f){
+             return a+((f.itens||[]).length)},0)));
+  L.push('na ABERTURA havia: insumos '+(CRONO.boot.insumos===undefined?'?':CRONO.boot.insumos)+
+         ' | estoqueUn '+(CRONO.boot.estoqueUn===undefined?'?':CRONO.boot.estoqueUn)+
+         ' | com saldo '+(CRONO.boot.comSaldo===undefined?'?':CRONO.boot.comSaldo));
+  L.push('último envio: '+(CRONO.envio||0)+' ms | último download: '+(CRONO.download||0)+' ms');
+  var lentas=Object.keys(CRONO.tabelas).map(function(k){return [k,CRONO.tabelas[k]]})
+    .filter(function(p){return p[1]>=400}).sort(function(a,b){return b[1]-a[1]}).slice(0,10);
+  L.push(lentas.length?('leituras acima de 400 ms: '+lentas.map(function(p){
+      return p[0]+' '+p[1]+'ms'}).join(', '))
+    :'nenhuma leitura passou de 400 ms');
+  L.push('');
+  return L.join('\n');
+}
 var _EMVOO={};
 function adiantarTab(nome,url){
   var k=nome+'|'+url;
@@ -14300,6 +14337,7 @@ function adiantarTab(nome,url){
 async function baixarTab(nome,url){
   var k=nome+'|'+url;
   if(_EMVOO[k]){ var p=_EMVOO[k]; delete _EMVOO[k]; return await p; }
+  var _tt=Date.now();
   try{
     var r=await comRetentativa(function(){ return api(url); },'baixar '+nome,2);
     var mlim=/[?&]limit=(\d+)/.exec(url||'');
@@ -14308,8 +14346,10 @@ async function baixarTab(nome,url){
       logNuvem(nome+': download atingiu o limite de '+mlim[1]+
         ' — exclusões não serão espelhadas nesta tabela',true);
     }else{ delete _CORTADAS[nome]; }
+    CRONO.tabelas[nome]=Date.now()-_tt;
     return r;
   }catch(e){
+    CRONO.tabelas[nome]=Date.now()-_tt;
     _FALHOU_BAIXA.push(nome);
     registrarFalha('download',nome,(e&&e.message)||'falha ao ler',
       {situacao:'tabela pulada; dados locais mantidos',codigo:(e&&e.status)||''});
@@ -14350,9 +14390,10 @@ async function baixarDaNuvem(forcar){
      mesmo resultado. Continua havendo um download so, sem descartar ninguem.
      ========================================================== */
   if(_baixando)return _baixando;
+  var _tW=Date.now();
   _baixando=(async function(){
     try{ return await _baixarDaNuvem(forcar); }
-    finally{ _baixando=null; }
+    finally{ _baixando=null; CRONO.download=Date.now()-_tW; }
   })();
   return _baixando;
 }
@@ -15757,6 +15798,14 @@ function boot(){
   migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
   try{filtrarCadastroDaUnidade()}catch(e){_quieto(e,'boot')}
   espelharEstoque();            /* a tela mostra o saldo DESTA unidade */
+  /* retrato do que JA existia no aparelho antes de qualquer conversa com a
+     nuvem — e o numero que diz se o problema e o aparelho comecar vazio */
+  try{
+    CRONO.boot={insumos:(DB.insumos||[]).length,
+      estoqueUn:(DB.estoqueUn||[]).length,
+      comSaldo:(DB.estoqueUn||[]).filter(function(x){
+        return Number(x&&x.estoque)!==0}).length};
+  }catch(e){ _quieto(e,'boot'); }
   aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
   baixarLayoutMenu();
   topo();faixa();
@@ -15946,7 +15995,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V61.0.0';
+var VERSAO='V62.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17590,7 +17639,7 @@ function copiarDiagnostico(){
   }
   t='NEXOR — diagnóstico\nVersão: '+VERSAO+'\nLoja: '+(NUVEM.loja||'-')+
     '\nCargo: '+((NUVEM.perfil||{}).cargo||'-')+
-    '\nConexão: '+CONEXAO+'\nPendente: '+(NUVEM.sujo?'sim':'nao')+'\n\n'+t;
+    '\nConexão: '+CONEXAO+'\nPendente: '+(NUVEM.sujo?'sim':'nao')+'\n\n'+_relatorioLentidao()+'\n'+t;
   try{navigator.clipboard.writeText(t);toast('Diagnóstico copiado. Cole no chat.');}
   catch(e){prompt('Copie o texto abaixo:',t);}
 }
