@@ -4013,6 +4013,13 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   border-radius:10px;flex-wrap:wrap}
 .zonaPerigo b{display:block;font-size:13px;color:#8A2B2B}
 .zonaPerigo span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px;max-width:520px}
+.permTotal{display:flex;align-items:center;gap:13px;padding:13px 15px;margin-bottom:11px;
+  background:#FFF8E6;border:1px solid #E8D9A8;border-radius:10px;flex-wrap:wrap}
+.permTotal svg{color:#9A7B25;flex:none}
+.permTotal b{display:block;font-size:13px;color:#7A5F12}
+.permTotal span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.permTotal button{margin-left:auto;white-space:nowrap}
+.permFraca{opacity:.5}
 .rdB{border-color:var(--red);color:var(--red)}
 .rdB:hover{background:var(--red-soft)}
 .pbPrazo{display:flex;gap:10px;align-items:center;background:var(--acc-soft);
@@ -15431,7 +15438,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V51.0.0';
+var VERSAO='V51.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -43237,10 +43244,48 @@ function abaLojasUsr(u,sucs){
       '<span><b>'+E(s.nome)+'</b><span>'+E(s.cidade||'')+'</span></span></label>';
    }).join('')+'</div></div>';
 }
+/* troca o acesso total pelo controle tela a tela, mantendo o que ja estava
+   marcado — desligar sem preservar deixaria a pessoa sem nada de repente */
+async function tirarAcessoTotal(){
+  var u=usrSel(); if(!u)return;
+  var marcadas=Object.keys(u.permissoes||{}).filter(function(k){return u.permissoes[k]}).length;
+  var ok=await confirmar({
+    titulo:'Controlar tela por tela?',
+    texto:'Este acesso deixa de ver tudo e passa a ver só o que estiver marcado.',
+    linhas:[['Telas marcadas hoje',String(marcadas),''],
+            ['Depois da mudança','vê só essas '+marcadas,'']],
+    aviso:marcadas?'':'<b>Nenhuma tela está marcada.</b> Marque as telas antes, '+
+      'ou esta pessoa ficará sem acesso a nada.',
+    ok:'Controlar tela por tela'
+  });
+  if(!ok)return;
+  u.tudo=false; u.mestre=false;
+  salvar(); semPular(telaUsuarios);
+  toast('Agora as marcações valem para este acesso.');
+}
 function abaPermUsr(u){
   var p=u.permissoes||{};
+  /* ==========================================================
+     ACESSO TOTAL PASSA POR CIMA DAS MARCACOES
+     podeVer() devolve true para quem tem 'tudo' ou 'mestre' ANTES de olhar
+     a lista de permissoes. Entao desmarcar uma tela para um acesso total
+     nao tinha efeito nenhum — e a tela nao dizia isso em lugar nenhum. A
+     pessoa desmarcava, salvava, e a tela continuava aparecendo para o
+     franqueado, sem explicacao.
+     Agora o aviso e explicito e da o caminho para resolver.
+     ========================================================== */
+  var total=!!(u.tudo||u.mestre);
+  var avisoTotal = total
+    ? '<div class="permTotal">'+sv('lock',15)+
+      '<div><b>Este acesso está marcado como acesso total</b>'+
+      '<span>Enquanto estiver assim, ele enxerga todas as telas e '+
+      'as marcações abaixo não têm efeito.</span></div>'+
+      '<button class="btnP2" onclick="tirarAcessoTotal()">'+
+      'Passar a controlar tela por tela</button></div>'
+    : '';
   return '<div class="usrCorpo">'+
-   '<div class="permBarra">'+
+   avisoTotal+
+   '<div class="permBarra'+(total?' permFraca':'')+'">'+
     '<span>'+contaPerm(u)+' tela(s) liberada(s)</span>'+
     '<div style="flex:1"></div>'+
     '<button class="btnMini" onclick="marcarTudoUsr(true)">liberar tudo</button>'+
