@@ -12940,8 +12940,24 @@ var MAPA=[
     destino_fator:n(x.destinoFator)||1,estoque_atual:n(x.estoqueAtual),
     custo_medio:n(x.custoMedio),destino_nome:x.destinoNome||null,
     destino_modo:x.destinoModo||'igual',sucursais:x.sucursais||[]}},
+  /* ==========================================================
+     O INGREDIENTE PODE SER UMA FICHA — E ISSO DERRUBAVA O LOTE INTEIRO
+
+     A tela de composicao oferece, junto com os insumos, as OUTRAS fichas
+     tecnicas (bases, massas). Mas aqui o item subia sempre como
+     insumo_id, e essa coluna aponta para a tabela de insumos. Uma base
+     escolhida como ingrediente virava uma linha invalida.
+     O Postgres recusa o COMANDO inteiro quando uma linha viola a chave —
+     nao so a linha errada. Entao bastava UM ingrediente ser uma base para
+     que NENHUM ingrediente daquela ficha fosse gravado. No download
+     seguinte a ficha voltava com a lista antiga: era o ingrediente
+     "sumindo" e o outro "tomando o lugar dele".
+     Agora cada item vai para a coluna certa: insumo no insumo_id, ficha
+     no ficha_ref. Nenhum dos dois recusa o outro.
+     ========================================================== */
   filhos:[{lista:'itens',tab:'ficha_itens',pai:'ficha_id',
-    campos:function(o){return {insumo_id:fk('insumos',o.insumoId),quantidade:n(o.qtd),
+    campos:function(o){return {insumo_id:refIngInsumo(o.insumoId),
+      ficha_ref:refIngFicha(o.insumoId),quantidade:n(o.qtd),
       unidade:o.unidade||'un',perda:n(o.perda)}}}]},
 
  /* o caderno sobe para a nuvem: a franqueadora precisa ver a perda de cada
@@ -13277,6 +13293,18 @@ function fk(col,ref){
   return null;
 }
 var _fkPerdido={};
+/* ==========================================================
+   _ids E UMA LISTA UNICA PARA TODAS AS TABELAS
+   fk('insumos', ref) nao confere se aquele ref e mesmo de um insumo: ele
+   so procura na lista. Uma ficha usada como ingrediente era encontrada e
+   devolvida como se fosse insumo — e o banco recusava a linha por chave
+   estrangeira. Aqui a origem e decidida ANTES de perguntar o vinculo.
+   ========================================================== */
+function _ehFichaLocal(ref){
+  return !!ref&&(DB.fichas||[]).some(function(f){return f.id===ref});
+}
+function refIngInsumo(ref){ return _ehFichaLocal(ref)?null:fk('insumos',ref); }
+function refIngFicha(ref){  return _ehFichaLocal(ref)?fk('fichas',ref):null; }
 var _AVISOU_PERM={};
 function fkSub(ref){return ref&&_ids[ref]?_ids[ref]:null}
 
@@ -13890,6 +13918,7 @@ async function sincronizar(){
             return String(o.id);
           });
 
+          var _falhouFilho=false;
           if(!filhos.length)logNuvem(F.tab+': nenhum item para enviar em "'+(lista[k].nome||'')+'"');
           if(filhos.length){
             var lf=filhos.map(function(o,j){
@@ -13917,6 +13946,7 @@ async function sincronizar(){
                continua, o download nao passa por cima, e o envio e repetido.
                ========================================================== */
             if(conf!==lf.length){
+              _falhouFilho=true;
               NUVEM.erros=NUVEM.erros||[];
               NUVEM.erros.push({tab:F.tab,
                 motivo:(lf.length-conf)+' item(ns) de "'+
@@ -13958,6 +13988,37 @@ async function sincronizar(){
              Antes ele apagava tudo e reinseria, o que fazia um aparelho
              desatualizado apagar o que o outro tinha acabado de criar. */
           await apagarRemovidos(F.tab,E2.col+'.'+F.lista+'.'+lista[k].id,refs);
+
+          /* ==========================================================
+             OS INGREDIENTES DA FICHA SAO O QUE ESTA NA TELA — NADA ALEM
+
+             O espelhamento acima compara com um RETRATO guardado neste
+             aparelho. Linha que chegou a nuvem antes desse retrato existir
+             — formato antigo de identificador, aparelho trocado, dado de
+             teste — nunca aparecia como "sumida", entao nunca era apagada.
+             A cada download ela voltava, e a ficha ganhava sozinha um
+             ingrediente que ninguem tinha posto. Era por isso tambem que
+             apagar um ingrediente nao adiantava: ele voltava no download.
+             Aqui a lista da tela manda: na nuvem fica exatamente o que
+             esta aqui. O corte e POR FICHA — nenhuma outra e tocada — e so
+             acontece se este aparelho ja baixou nesta sessao e se todos os
+             itens subiram sem falha.
+             ========================================================== */
+          if(F.tab==='ficha_itens'&&NUVEM.baixou&&!_falhouFilho){
+            try{
+              var qDel='ficha_itens?ficha_id=eq.'+paiId;
+              if(refs.length)qDel+='&ref_local=not.in.('+refs.map(function(r){
+                return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')';
+              var sobra=await api(qDel,'DELETE',null,
+                {'Prefer':'return=representation'});
+              if(sobra&&sobra.length)
+                logNuvem('ficha_itens: '+sobra.length+' item(ns) que não estão '+
+                  'na ficha "'+(lista[k].nome||'')+'" foram removidos da nuvem');
+            }catch(eD){
+              logNuvem('ficha_itens: não consegui limpar os itens antigos de "'+
+                (lista[k].nome||'')+'"',true);
+            }
+          }
         }
       }
 
@@ -14587,8 +14648,9 @@ function volta(linhas,fn,atual,col){
     destinoId:mapaIns[x.destino_id]||mapaFiRef[x.destino_id]||'',destinoFator:Number(x.destino_fator)||1,
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',destinoModo:x.destino_modo||'igual',
+    /* o ingrediente pode ser um insumo OU outra ficha — le as duas colunas */
     itens:(x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
-      insumoId:mapaIns[i2.insumo_id]||'',
+      insumoId:mapaIns[i2.insumo_id]||mapaFiRef[i2.ficha_ref]||'',
       qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},null,'fichas');
   /* reconstrói os subgrupos a partir das fichas */
   (DB.fichas||[]).forEach(function(f){
@@ -15777,7 +15839,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V55.0.0';
+var VERSAO='V56.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29330,7 +29392,23 @@ function custoItem(it){
   if(conv===null)conv=q;
   return +(conv*(ins.custo||0)).toFixed(4);
 }
-function custoFicha(f){return +((f.itens||[]).reduce(function(a,it){return a+custoItem(it)},0)).toFixed(4)}
+/* ==========================================================
+   FICHA QUE SE CONTEM TRAVA O NAVEGADOR
+   Uma ficha pode ter outra ficha como ingrediente, e o custo de uma ficha
+   e a soma dos custos dos seus itens. Se A usa B e B usa A, esse calculo
+   se chama sem fim e a aba congela. A pilha abaixo corta o ciclo: a ficha
+   que ja esta sendo calculada vale zero na segunda entrada.
+   ========================================================== */
+var _custoEmCurso={};
+function custoFicha(f){
+  if(!f)return 0;
+  if(_custoEmCurso[f.id])return 0;
+  _custoEmCurso[f.id]=true;
+  var t=0;
+  try{ t=(f.itens||[]).reduce(function(a,it){return a+custoItem(it)},0); }
+  finally{ delete _custoEmCurso[f.id]; }
+  return +t.toFixed(4);
+}
 function custoPorUnidade(f){var r=Number(f.rendimento)||0;return r?+(custoFicha(f)/r).toFixed(4):0}
 function custoPorVenda(f){var u2=Number(f.unidadesVenda)||0;return u2?+(custoFicha(f)/u2).toFixed(4):custoPorUnidade(f)}
 function baseFicha(){
@@ -29621,9 +29699,11 @@ async function excluirSel(){
       /* os ingredientes primeiro: sao filhos da ficha */
       var fc=await api('fichas_tecnicas?loja_id=eq.'+NUVEM.loja+
                        '&ref_local=eq.'+alvo+'&select=id');
-      if(Array.isArray(fc)&&fc.length){
-        await api('ficha_itens?ficha_id=eq.'+fc[0].id,'DELETE');
-        await api('fichas_tecnicas?id=eq.'+fc[0].id,'DELETE');
+      /* todas as linhas, nao so a primeira: se a ficha chegou a duplicar na
+         nuvem, apagar uma so deixava a outra voltando no download */
+      for(var _q=0;_q<((fc&&fc.length)||0);_q++){
+        await api('ficha_itens?ficha_id=eq.'+fc[_q].id,'DELETE');
+        await api('fichas_tecnicas?id=eq.'+fc[_q].id,'DELETE');
       }
     }catch(e){
       painelErro('Não consegui excluir na nuvem.',detalheErro(e));
@@ -29632,7 +29712,8 @@ async function excluirSel(){
   }
   DB.fichas=DB.fichas.filter(function(x){return x.id!==FT.sel});
   /* tira tambem do retrato, senao o espelhamento a considera "sumida" depois */
-  try{ if(DB._uuid&&DB._uuid.fichas)delete DB._uuid.fichas[FT.sel]; }
+  try{ if(DB._uuid&&DB._uuid.fichas)delete DB._uuid.fichas[FT.sel];
+       if(DB._snap)delete DB._snap['fichas.itens.'+FT.sel]; }
   catch(e2){ _quieto(e2,'excluirSel'); }
   FT.sel=null;salvar();telaFichaTecnica();toast('Excluído.');
 }
@@ -30114,6 +30195,28 @@ function confirmarQtd(insumoId){
   var q=parseFloat($('qiQ').value)||0;
   if(q<=0){toast('Informe a quantidade.');return;}
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
+  if(!f)return;
+  /* ==========================================================
+     A FICHA NAO PODE CONSUMIR AQUILO QUE ELA PRODUZ
+     "BASE MORANGO" gera estoque no item "BASE MORANGO". Se esse mesmo item
+     entrar como ingrediente dela, produzir a base baixa a base — o estoque
+     nunca fecha e o custo se calcula em circulo.
+     ========================================================== */
+  var _dest=(typeof destinoDaFicha==='function')?destinoDaFicha(f):null;
+  if(insumoId===f.id||(_dest&&(_dest.id||_dest)===insumoId)){
+    toast('Esta ficha já gera estoque neste item — ele não pode ser ingrediente dela mesma.');
+    return;
+  }
+  /* dois lançamentos do mesmo ingrediente viram um só: somam a quantidade */
+  var _ja=(f.itens||[]).find(function(o){
+    return o.insumoId===insumoId&&o.unidade===$('qiU').value; });
+  if(_ja){
+    _ja.qtd=(Number(_ja.qtd)||0)+q;
+    _ja.perda=parseFloat($('qiP').value)||0;
+    salvar();fecharQtd();desenhaComp();
+    toast('Já havia este ingrediente — a quantidade foi somada.');
+    return;
+  }
   f.itens=f.itens||[];
   /* id proprio desde o nascimento: e ele que amarra o item na nuvem */
   var _antes=(f.itens||[]).length;
