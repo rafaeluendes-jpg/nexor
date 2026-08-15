@@ -14412,6 +14412,22 @@ function guardarIds(col,linhas){
     else if(x&&x.id){ DB._uuid[col][x.id]=x.id; _ids[x.id]=x.id; }
   }
 }
+/* ==========================================================
+   A PROTECAO EXISTIA E NUNCA RODOU
+
+   volta() recebe quatro coisas: as linhas da nuvem, como traduzi-las, O QUE
+   JA EXISTE AQUI, e o nome da colecao. Todo o cuidado de preservar o que
+   ainda nao subiu — inclusive a devolucao dos ingredientes da ficha — esta
+   dentro de "if(atual && atual.length)". So que a chamada das fichas passava
+   null nesse lugar. A protecao inteira era codigo morto.
+   Era exatamente isto: o segundo ingrediente entrava, o aviso de tempo real
+   chegava, o download trocava a ficha inteira pela versao da nuvem — que
+   ainda nao tinha o item — e ele sumia em segundos, sem erro nenhum.
+   _ANT devolve a colecao viva no momento do download.
+   ========================================================== */
+function _ANT(col){
+  try{ var a=DB[col]; return Array.isArray(a)?a:null; }catch(e){ return null; }
+}
 function volta(linhas,fn,atual,col){
     if(col)guardarIds(col,linhas);
     var r=(linhas||[]).map(fn);
@@ -14482,7 +14498,7 @@ function volta(linhas,fn,atual,col){
   try{
   var cont=await baixarTab('contas_capital', 'contas_capital'+qs);
   DB.contas=volta(cont,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
-    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},null,'contas');
+    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},_ANT('contas'),'contas');
   var fp=await baixarTab('formas_pagamento', 'formas_pagamento'+qs+'&order=ordem');
   var mapaConta={};cont.forEach(function(x){mapaConta[x.id]=x.ref_local||x.id});
   DB.formasPag=volta(fp,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
@@ -14543,7 +14559,7 @@ function volta(linhas,fn,atual,col){
        todas as voltas. */
     opcoes:(x.opcoes||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
       .map(function(o){return {id:o.ref_local||null,nome:o.nome,
-        preco:Number(o.preco_adicional)||0}})}},null,'grupos');
+        preco:Number(o.preco_adicional)||0}})}},_ANT('grupos'),'grupos');
   DB.produtos=volta(rp,function(x){
     var g=(rv||[]).filter(function(v){return v.produto_id===x.id}).map(function(v){return mapaGr[v.grupo_id]}).filter(Boolean);
     return {id:x.ref_local||x.id,nome:x.nome,preco:Number(x.preco)||0,codigo:x.codigo,
@@ -14628,7 +14644,7 @@ function volta(linhas,fn,atual,col){
     estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
     destinoNome:x.destino_nome||'',fator:Number(x.fator)||1,
     fornecedorId:mapaFo[x.fornecedor_id]||'',descricao:x.descricao||'',
-    compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}},null,'insumos');
+    compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}},_ANT('insumos'),'insumos');
 
   var fg=await baixarTab('ficha_grupos', 'ficha_grupos'+qs);
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
@@ -14651,7 +14667,7 @@ function volta(linhas,fn,atual,col){
     /* o ingrediente pode ser um insumo OU outra ficha — le as duas colunas */
     itens:(x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
       insumoId:mapaIns[i2.insumo_id]||mapaFiRef[i2.ficha_ref]||'',
-      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},null,'fichas');
+      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},_ANT('fichas'),'fichas');
   /* reconstrói os subgrupos a partir das fichas */
   (DB.fichas||[]).forEach(function(f){
     if(!f.subgrupoId)return;
@@ -15839,7 +15855,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V56.0.0';
+var VERSAO='V57.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16913,7 +16929,12 @@ function ligarTempoReal(){
            ========================================================== */
         try{
           var _q=(msg&&msg.new)||{};
-          if(_q.loja_id&&NUVEM.loja&&_q.loja_id===NUVEM.loja&&
+          /* Tabela FILHA — item de ficha, opcao, movimento — nao tem loja_id:
+             quem isola e o pai. Sem loja_id a comparacao abaixo nunca batia,
+             entao a minha propria gravacao de ingrediente voltava como aviso
+             e disparava um download por cima do que eu acabara de digitar. */
+          var _semLoja=!_q.loja_id;
+          if((_semLoja||(NUVEM.loja&&_q.loja_id===NUVEM.loja))&&
              Date.now()-(_ultimoEnvio||0)<15000)return;
         }catch(e){ _quieto(e,'tempoReal'); }
         agendarRecarga(msg&&msg.table);
