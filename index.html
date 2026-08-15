@@ -13207,6 +13207,43 @@ function ordemDe(x,i){
   var o=x&&x.ordem;
   return (o===undefined||o===null||o==='')?i:(Number(o)||0);
 }
+/* tabelas que servem de destino para algum vinculo */
+var _TAB_VINCULO={insumos:'insumos', fichas:'fichas_tecnicas',
+  fichaCats:'ficha_grupos', gruposIng:'grupos_ingredientes',
+  categorias:'categorias', produtos:'produtos', fornec:'fornecedores',
+  contas:'contas_capital', formasPag:'formas_pagamento', clientes:'clientes',
+  entregadores:'entregadores', motivosMov:'motivos_movimentacao',
+  motivosCanc:'motivos_cancelamento', turnos:'turnos', sucursais:'sucursais',
+  mesas:'mesas', cupons:'cupons', caixas:'caixas', pedidos:'pedidos'};
+async function montarMapaVinculos(loja){
+  DB._uuid=DB._uuid||{};
+  /* o que este aparelho ja sabe entra primeiro */
+  Object.keys(DB._uuid).forEach(function(c){
+    var mp=DB._uuid[c]||{};
+    Object.keys(mp).forEach(function(r){ _ids[r]=mp[r]; });
+  });
+  if(!loja)return;
+  var cols=Object.keys(_TAB_VINCULO);
+  for(var i=0;i<cols.length;i++){
+    var col=cols[i], tab=_TAB_VINCULO[col];
+    try{
+      var r=await api(tab+'?loja_id=eq.'+loja+'&select=id,ref_local&limit=5000');
+      if(!r||!r.length)continue;
+      DB._uuid[col]=DB._uuid[col]||{};
+      for(var k=0;k<r.length;k++){
+        var x=r[k];
+        if(!x||!x.id)continue;
+        var ref=x.ref_local||x.id;
+        _ids[ref]=x.id;
+        DB._uuid[col][ref]=x.id;
+      }
+    }catch(e){
+      /* tabela sem loja_id ou sem permissao: segue com o que ja tem */
+      logNuvem('mapa de vínculos: não li '+tab+' ('+
+        String((e&&e.message)||e).slice(0,60)+')');
+    }
+  }
+}
 function fk(col,ref){
   if(!ref)return null;
   if(_ids[ref])return _ids[ref];
@@ -13548,6 +13585,23 @@ async function sincronizar(){
   try{
     var l=NUVEM.loja;
     _ids={};
+    /* ==========================================================
+       O MAPA DE VINCULOS VEM DA NUVEM, NAO DA MEMORIA DESTE APARELHO
+
+       Por que isto existe: fk() traduz "insumo ins_xxx" para o identificador
+       que a nuvem deu a ele. Esse mapa vinha so de DB._uuid — o que ESTE
+       aparelho enviou um dia. Insumo que chegou por download, ou enviado por
+       outro aparelho, ou de antes de DB._uuid existir, ficava de fora: fk()
+       devolvia null, a coluna e obrigatoria e o banco recusava a linha.
+       Era isso que fazia o ingrediente sumir da ficha ao salvar.
+
+       Na tentativa anterior eu preenchi o mapa durante o DOWNLOAD. Nao
+       bastou: quando ha coisa pendente para subir, o download nem acontece —
+       e o mapa continuava vazio justamente quando era mais necessario.
+       Agora o mapa e montado aqui, no comeco de cada envio, perguntando a
+       propria nuvem. Sao consultas minusculas: duas colunas por tabela.
+       ========================================================== */
+    await montarMapaVinculos(l);
     /* o identificador que a nuvem deu a cada registro fica guardado: assim da para
        PULAR o que nao mudou sem perder o vinculo dos filhos com o pai */
     DB._uuid=DB._uuid||{};DB._hash=DB._hash||{};DB._enviados=DB._enviados||{};
@@ -15473,7 +15527,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V52.1.0';
+var VERSAO='V52.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
