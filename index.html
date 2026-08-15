@@ -13882,20 +13882,29 @@ async function sincronizar(){
             var _eu=(usuarioLogado()||{}).login||'';
             var _plat=(typeof NUVEM!=='undefined'&&NUVEM.plataforma);
             try{
+              /* A mensagem anterior dizia so "sem permissao" e assustava sem
+                 ajudar: nao dizia QUAL registro nem POR QUE. Sem isso nao da
+                 para agir — nem para mim, que preciso do motivo do servidor. */
+              var _motivo=String((eT&&(eT.detalhe||eT.message))||'').slice(0,200);
+              var _refs=(typeof envio!=='undefined'&&envio&&envio.length)
+                ? envio.slice(0,3).map(function(o){return o.ref_local}).join(', ')
+                : '—';
               await confirmar({
-                titulo:'Esta conta não pode gravar aqui',
-                texto:'O que você mudou ficou neste aparelho, mas a nuvem '+
-                  'recusou gravar em "'+E(etapa)+'".',
-                linhas:[['Conta em uso', E(_eu||'—'), '']],
+                titulo:'A nuvem recusou gravar em '+E(etapa),
+                texto:'O que está nesta tela continua salvo no aparelho. '+
+                  'O que não aconteceu foi o envio destes registros.',
+                linhas:[['Conta em uso', E(_eu||'—'), ''],
+                        ['Registros', E(_refs), ''],
+                        ['Resposta do servidor', E(_motivo||'403'), '']],
                 aviso:(_plat
                   ? '<b>Você está na conta do dono da plataforma.</b> Ela '+
-                    'administra o Nexor, não pertence a nenhuma loja — por '+
-                    'isso não grava ficha, insumo nem cardápio.<br>'+
-                    'Saia e entre com a conta da empresa para cadastrar.'
-                  : 'Peça a quem administra a empresa para liberar esta tela '+
-                    'para o seu acesso.')+
-                  '<br><br>Enquanto isso, o que você digitou pode desaparecer '+
-                  'quando o sistema recarregar os dados da nuvem.',
+                    'administra o Nexor e não pertence a nenhuma loja — por '+
+                    'isso não grava dado de loja. Entre com a conta da empresa.'
+                  : 'Isto costuma ser um registro antigo, criado em outra '+
+                    'conta ou empresa, que fica tentando subir. Ele não '+
+                    'atrapalha o que você está cadastrando agora.')+
+                  '<br><br>Se este aviso repetir, me mostre esta tela: '+
+                  'a linha “Resposta do servidor” diz o motivo exato.',
                 ok:'Entendi',cancelar:null});
             }catch(e9){ _quieto(e9,'avisoPermissao'); }
           }
@@ -15598,7 +15607,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V52.5.0';
+var VERSAO='V52.6.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
