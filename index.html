@@ -12177,7 +12177,7 @@ var MOD=[
  {id:'cfg-movimentacao',n:'Motivos de Baixa de Estoque'},
  {id:'areas-entrega',n:'Áreas de Entrega'},
  {id:'canais-integracao',n:'Canais de Venda e Integração'},
- {id:'cfg-gerente',n:'Assistente Nexor'},
+ {id:'cfg-gerente',n:'Assistente Joia'},
  {id:'cfg-dre',n:'Configuração do DRE'},
  {id:'dados-fiscais',n:'Dados Fiscais da Empresa'},
  {id:'modelo-impressao',n:'Modelo de Impressão'},
@@ -12203,7 +12203,7 @@ var MOD=[
 /* ----------------------------------------------------------
    DOIS PAPEIS DIFERENTES
 
-   PLATAFORMA  — o dono do Nexor. Cuida do produto: infraestrutura,
+   PLATAFORMA  — o dono da Joia. Cuida do produto: infraestrutura,
                  contas, servidores. NAO opera dados de cliente.
    FRANQUEADORA— o cliente que contratou. Manda na propria rede:
                  unidades, usuarios, dados, backup e importacao.
@@ -12233,7 +12233,7 @@ function moduloContratado(mid){
   return c.modulos.indexOf(mid)>=0;
 }
 /* O contrato travava o modulo inteiro: ou o cliente tinha Relatorios, ou nao
-   tinha nenhum. Agora o dono do Nexor pode fechar telas soltas — o cliente
+   tinha nenhum. Agora o dono da Joia pode fechar telas soltas — o cliente
    contrata Relatorios e o dono decide se Cancelamentos entra ou nao.
    Lista de bloqueio, e nao de liberacao: contrato antigo continua valendo. */
 function recursoContratado(mid,iid){
@@ -12246,7 +12246,7 @@ var SO_FRANQUEADORA=['loja/carga-inicial'];
 var MOD_PLATAFORMA=[];   /* V67: nenhum modulo bloqueado inteiro — o filtro fino e o SO_PLATAFORMA */
 var ADM_MESTRE='rafael@uendes.com';
 /* quem e a plataforma nao depende de marcacao guardada: e o login, e so ele.
-   Assim ninguem vira dono do Nexor copiando um usuario ou editando um cadastro. */
+   Assim ninguem vira dono da Joia copiando um usuario ou editando um cadastro. */
 function ehPlataforma(u){
   u=u||usuarioLogado();
   return !!(u&&String(u.login||'').toLowerCase()===ADM_MESTRE);
@@ -14079,7 +14079,7 @@ async function sincronizar(){
              pessoa cadastrava, a tela dizia salvo, o registro nunca subia e
              no download seguinte sumia. Ela conclui que o sistema comeu o
              dado — e conclui certo, do ponto de vista dela.
-             O caso mais comum e conta de plataforma (dono do Nexor) mexendo
+             O caso mais comum e conta de plataforma (dono da Joia) mexendo
              em dado de loja: o banco recusa, e deve recusar mesmo. Mas
              precisa dizer isso em portugues, uma vez por sessao e por tabela,
              sem virar praga na tela. */
@@ -15477,7 +15477,7 @@ var _minhaAba=String(Date.now())+'-'+Math.random().toString(36).slice(2,7);
     localStorage.setItem('nexor_aba',_minhaAba);
     window.addEventListener('storage',function(e){
       if(e.key==='nexor_aba'&&e.newValue&&e.newValue!==_minhaAba){
-        alertaGravacao('O Joia foi aberto em outra aba ou janela. Para não gravar '+
+        alertaGravacao('A Joia foi aberta em outra aba ou janela. Para não gravar '+
           'um por cima do outro, use apenas uma — feche esta ou recarregue depois '+
           'de fechar a outra.');
       }
@@ -15661,7 +15661,7 @@ async function entrarPeloAuth(lg,sn){
 
   /* ==========================================================
      MODO PLATAFORMA
-     O dono do Nexor nao pertence a loja nenhuma. Amarra-lo a uma loja foi o
+     O dono da Joia nao pertence a loja nenhuma. Amarra-lo a uma loja foi o
      que fez todo cliente novo nascer dentro do primeiro: quem cadastra de
      dentro de uma empresa cadastra PARA aquela empresa.
      Perfil sem loja e com cargo 'plataforma' entra em modo plataforma: nao
@@ -15886,7 +15886,7 @@ function boot(){
       comSaldo:(DB.estoqueUn||[]).filter(function(x){
         return Number(x&&x.estoque)!==0}).length};
   }catch(e){ _quieto(e,'boot'); }
-  aplicarLayoutMenu();          /* ordem salva pelo dono do Nexor */
+  aplicarLayoutMenu();          /* ordem salva pelo dono da Joia */
   baixarLayoutMenu();
   topo();faixa();
   try{vigiarConteudo()}catch(e){_quieto(e,'boot')}   /* a tela para de subir sozinha */
@@ -15904,7 +15904,7 @@ $('hdr').innerHTML='<img class="hMk" src="joia-icone.png" alt="Joia">'+
 '<button class="hIc" id="btnNuvem" onclick="painelNuvem()" title="Banco de dados">'+sv('cloud',18)+'</button>'+'<button class="hIc" onclick="dev()">'+sv('help',18)+'</button>'+
 (function(){var u=usuarioLogado()||{};
   var nm=u.login||u.nome||'sem sessão';
-  var pp=ehPlataforma()?'dono do Nexor':(u.tudo||u.mestre?'franqueadora — acesso total':
+  var pp=ehPlataforma()?'dono da Joia':(u.tudo||u.mestre?'franqueadora — acesso total':
     (u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
   return '<div class="hUsr"><div class="hAv">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
    '<div><b>'+E(nm)+'</b><span>'+pp+'</span></div>';})()+
@@ -16075,7 +16075,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V68.0.0';
+var VERSAO='V69.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16121,7 +16121,7 @@ $('stat').innerHTML='<span class="live" id="nuvemSt"><i></i>'+(NUVEM.ligada
   :'SALVO SÓ NESTE APARELHO')+'</span><span>|</span>'+
 '<span class="soPC">Loja: <b>'+E(nomeLojaAtual())+'</b></span><span class="soPC">|</span>'+
 '<span class="soPC">Usuário: <b>'+E((usuarioLogado()||{}).login||(usuarioLogado()||{}).nome||'—')+'</b>'+
-  (ehPlataforma()?' <em style="color:var(--acc)">(dono do Nexor)</em>':'')+'</span>'+
+  (ehPlataforma()?' <em style="color:var(--acc)">(dono da Joia)</em>':'')+'</span>'+
 (extra?'<span class="soPC">|</span><span class="soPC">'+extra+'</span>':'')+
 '<span class="gw"></span><span class="logo soPC">'+
  '<img src="joia-icone.png" alt="" class="logoIco">JOIA</span>'+
@@ -17109,7 +17109,7 @@ async function importarDados(input){
       abrir('cardapio','cfg-cardapio');
       toast('Dados restaurados: '+DB.produtos.length+' produtos, '+DB.categorias.length+' categorias.');
     }catch(e){
-      toast('Arquivo inválido. Use uma cópia gerada pelo próprio Joia.');
+      toast('Arquivo inválido. Use uma cópia gerada pela própria Joia.');
     }
   };
   r.readAsText(f);
@@ -20142,7 +20142,7 @@ async function enviarAgora(){
   telaSincronizacao();
 }
 function explicaOffline(){
-  confirmar({titulo:'Como o Joia funciona sem internet',texto:'Modo offline',
+  confirmar({titulo:'Como a Joia funciona sem internet',texto:'Modo offline',
    linhas:[['A venda','é gravada no aparelho, não na nuvem',''],
            ['O estoque','baixa na hora, normalmente',''],
            ['O financeiro','lança na hora, normalmente',''],
@@ -20351,7 +20351,7 @@ function explicaFiscal(){
            ['Série','uma para normal, outra para contingência',''],
            ['NCM por produto','sem ele a SEFAZ rejeita',''],
            ['Impressora','comum serve — não precisa ser fiscal','']],
-   aviso:'O Nexor não fala com a SEFAZ direto. Quem assina e transmite é o provedor '+
+   aviso:'A Joia não fala com a SEFAZ direto. Quem assina e transmite é o provedor '+
     'homologado — assim, quando o leiaute muda (como agora, com IBS e CBS da reforma '+
     'tributária), quem atualiza é ele. Nada aqui substitui seu contador.',
    ok:'Entendi',cancelar:null}).then(function(){});
@@ -21304,7 +21304,7 @@ function concluirMesa(ped){
 }
 
 /* ==========================================================
-   LAYOUT DO MENU — só o dono do Nexor
+   LAYOUT DO MENU — só o dono da Joia
    A ordem dos modulos e das telas dentro deles estava escrita no
    codigo. Agora ela vem de uma linha unica no banco, valida para
    todas as redes: o que for salvo aqui muda o menu de todo mundo.
@@ -21352,7 +21352,7 @@ var LM={mod:null};
 function telaLayoutMenu(){
   if(!ehPlataforma()){
     $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
-     '<div class="construIc">'+sv('lock',30)+'</div><b>Tela do dono do Nexor</b>'+
+     '<div class="construIc">'+sv('lock',30)+'</div><b>Tela do dono da Joia</b>'+
      '<p>Só a plataforma configura o layout do menu.</p></div></div>';
     rodape('sem permissão');return;
   }
@@ -21361,7 +21361,7 @@ function telaLayoutMenu(){
     '<div><h1>Layout do Menu</h1>'+
     '<p>A ordem em que os módulos e as telas aparecem para <b>todos os clientes</b>. '+
     'Suba o que é mais usado. Nada some daqui — para tirar uma tela de um cliente, '+
-    'use Clientes Nexor &rsaquo; Telas liberadas.</p></div>'+
+    'use Clientes Joia &rsaquo; Telas liberadas.</p></div>'+
     '<div style="flex:1"></div>'+
     '<button class="btnP2 ok" onclick="salvarLayoutMenu()">'+sv('nike',14)+' Salvar e publicar</button>'+
    '</div>'+
@@ -21410,7 +21410,7 @@ function moverItem(mid,j,d){
   redesenharLayout();
 }
 async function salvarLayoutMenu(){
-  if(!ehPlataforma()){toast('Só o dono do Nexor pode publicar o layout.');return;}
+  if(!ehPlataforma()){toast('Só o dono da Joia pode publicar o layout.');return;}
   var mods=MOD.map(function(m){return m.id});
   var itens={};
   MOD.forEach(function(m){itens[m.id]=(m.it||[]).map(function(t){return t.id})});
@@ -24977,7 +24977,7 @@ function telaClientesNexor(){
   var receb=ativos.filter(function(c){return cnPago(c,ano,mes)});
   var aRec=mrr-receb.reduce(function(a,c){return a+(Number(c.mensalidade)||0)},0);
   $('content').innerHTML='<div class="ctWrap" style="max-width:none">'+
-   '<div class="ctTopo"><h1>Clientes Nexor</h1>'+
+   '<div class="ctTopo"><h1>Clientes Joia</h1>'+
     '<p>As redes que contrataram o sistema, o que cada uma paga e o que já entrou no mês. '+
     'Esta tela é sua — nenhum cliente tem acesso a ela.</p></div>'+
    '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px">'+
@@ -25310,7 +25310,7 @@ async function excluirEmpresa(lojaId){
 }
 function telaRestrita(tit){
   $('content').innerHTML='<div class="ctWrap"><div class="ctTopo"><h1>'+E(tit)+'</h1>'+
-   '<p>Esta tela pertence à administração da Nexor.</p></div>'+
+   '<p>Esta tela pertence à administração da Joia.</p></div>'+
    '<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
    '<b>Área restrita</b><span>Só o administrador da plataforma acessa esta parte.</span></div></div>';
   rodape();
@@ -25347,7 +25347,7 @@ function telaRedeAberta(id){
       ' · '+x.unidades.length+' unidade(s) · '+moeda(x.total)+'/mês</p></div>'+
 
    '<div class="blk" style="max-width:900px">'+
-    '<div class="acTit">Contrato com a Nexor</div>'+
+    '<div class="acTit">Contrato com a Joia</div>'+
     ctLinha('Responsável',E(ct.responsavel||'—'))+
     ctLinha('E-mail',E(ct.email||'—'))+
     ctLinha('Telefone',E(ct.telefone||'—'))+
@@ -25627,7 +25627,7 @@ async function salvarUnidade(){
 }
 
 /* ==========================================================
-   CENTRAL DE DIAGNOSTICO — so o dono do Nexor
+   CENTRAL DE DIAGNOSTICO — so o dono da Joia
    O erro tecnico sai da tela do caixa e vem para ca. Aqui aparece o que o
    operador nunca deveria ler: tabela, codigo do banco, tentativa, empresa,
    unidade e horario.
@@ -26323,7 +26323,7 @@ function telaCarga(){
   var a=areaImp();
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo"><div><h1>Importar Dados</h1>'+
-   '<p>Traz para o Nexor os cadastros de um sistema anterior. Cada tipo de dado tem a sua '+
+   '<p>Traz para a Joia os cadastros de um sistema anterior. Cada tipo de dado tem a sua '+
    'área — assim o sistema não precisa adivinhar o que é ficha e o que é ingrediente.</p></div>'+
    '<button class="infoBt" onclick="explicaImport()">'+sv('help',15)+'</button></div>'+
 
@@ -26632,13 +26632,13 @@ function telaCargaJSON(){
   var r=(CARGA_SFS&&CARGA_SFS.resumo)||null;
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo"><h1>Importar Dados</h1>'+
-    '<p>Traz para o Nexor os cadastros de um sistema anterior: grupos, ingredientes com estoque e '+
+    '<p>Traz para a Joia os cadastros de um sistema anterior: grupos, ingredientes com estoque e '+
     'custo, fichas técnicas com composição e modo de preparo, e fornecedores. '+
     'Os dados vêm de um <b>arquivo de importação</b> — nada fica escrito dentro do sistema.</p></div>'+
    '<div class="blk" style="max-width:820px">'+
     '<div class="acTit">1. Escolha o arquivo</div>'+
     '<input type="file" id="cgArq" accept=".json,application/json" onchange="lerArquivoCarga(this)">'+
-    '<div class="hint">Arquivo <b>.json</b> de importação do Nexor. Se você tem planilhas do sistema '+
+    '<div class="hint">Arquivo <b>.json</b> de importação da Joia. Se você tem planilhas do sistema '+
     'antigo, me envie que eu gero este arquivo a partir delas.</div>'+
    '</div>'+
    (r?'<div class="ctGrade">'+
@@ -26892,7 +26892,7 @@ function telaBackup(){
     ctCard('Quantas camadas você tem','proteção em três níveis',
      ctLinha('1. O aparelho','os dados ficam no computador da loja, funcionando sem internet')+
      ctLinha('2. A nuvem','o banco Supabase — hoje no plano gratuito, <b>sem backup do serviço</b>')+
-     ctLinha('3. Estas cópias','fotografias diárias automáticas, feitas pelo Nexor')+
+     ctLinha('3. Estas cópias','fotografias diárias automáticas, feitas pela Joia')+
      '<div class="ctNota ctAt">Atenção: no <b>plano gratuito</b>, o Supabase não guarda cópia nenhuma. '+
      'Hoje a camada 3 é a sua única rede de proteção real. No plano Pro (~US$ 25/mês) o próprio '+
      'serviço passa a fazer backup diário e permite voltar o banco a qualquer minuto dos últimos dias. '+
@@ -26933,9 +26933,9 @@ function telaCentralTecnica(){
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo">'+
     '<h1>Mapa do Sistema</h1>'+
-    '<p>Esta tela é a planta baixa do Nexor. Foi escrita para você entender sem saber programar '+
+    '<p>Esta tela é a planta baixa da Joia. Foi escrita para você entender sem saber programar '+
     'e para quem assumir o desenvolvimento encontrar tudo sem depender de ninguém. '+
-    '<b>Esta tela é do dono do Nexor</b> — nenhum cliente, nem a franqueadora dele, tem acesso: '+
+    '<b>Esta tela é do dono da Joia</b> — nenhum cliente, nem a franqueadora dele, tem acesso: '+
     'aqui estão as contas de infraestrutura do produto.</p>'+
    '</div>'+
    '<div class="ctAbas">'+abas.map(function(a){
@@ -26950,7 +26950,7 @@ function telaCentralTecnica(){
 }
 
 function ctPecas(){
-  return '<p class="ctIntro">O Nexor não é um programa só. São <b>quatro peças separadas</b> que '+
+  return '<p class="ctIntro">A Joia não é um programa só. São <b>quatro peças separadas</b> que '+
    'conversam entre si. Isso é de propósito: se uma quebrar, as outras continuam funcionando. '+
    'É a diferença entre queimar uma lâmpada e cair a casa inteira.</p>'+
   '<div class="ctGrade">'+
@@ -27005,7 +27005,7 @@ function ctContas(){
     ctLinha('Endereço da API','https://cevghkndzpzvnzwifhnm.supabase.co')+
     ctLinha('Região','us-east-2 (Ohio, EUA)')+
     ctLinha('Plano','gratuito — <b>sem backup do serviço</b>')+
-    ctLinha('Painel','supabase.com/dashboard → projeto do Nexor')+
+    ctLinha('Painel','supabase.com/dashboard → projeto da Joia')+
     ctLinha('Onde ficam as chaves','painel → Project Settings → API')+
     ctLinha('O que guarda','absolutamente todos os dados da rede')+
     '<div class="ctNota ctAt">É a peça mais crítica. Perder o acesso a esta conta é o pior cenário. '+
@@ -27040,7 +27040,7 @@ function ctContas(){
     'automaticamente pelo fornecedor. Já aconteceu uma vez com a do Groq.</div>')+
 
    ctCard('Acessos do sistema','logins da rede',
-    ctLinha('Administrador do Nexor','rafael@uendes.com — enxerga todas as instalações')+
+    ctLinha('Administrador da Joia','rafael@uendes.com — enxerga todas as instalações')+
     ctLinha('Franqueadora','criada no Assistente de Instalação — acesso total à rede')+
     ctLinha('Unidades','uma por loja, criadas no mesmo assistente')+
     ctLinha('Onde se muda','Configuração da Loja › Usuários e Permissões')+
@@ -27091,7 +27091,7 @@ function ctDados(){
 }
 
 function ctBackupDoc(){
-  return '<p class="ctIntro">Como o backup do Nexor funciona, <b>onde os dados ficam guardados</b> '+
+  return '<p class="ctIntro">Como o backup da Joia funciona, <b>onde os dados ficam guardados</b> '+
    'e o passo a passo para resgatar. Escrito para quem nunca viu o sistema.</p>'+
   '<div class="ctGrade">'+
    ctCard('Como funciona','automático, sem ninguém apertar nada',
@@ -27121,13 +27121,13 @@ function ctBackupDoc(){
     '<div class="ctNota ctAt">Tudo que aconteceu <b>depois</b> da data restaurada se perde. '+
     'Restaurar é para acidente grave, não para corrigir um lançamento errado.</div>')+
 
-   ctCard('Como resgatar sem o sistema','se o Nexor não abrir',
+   ctCard('Como resgatar sem o sistema','se a Joia não abrir',
     '<div class="ctPasso"><b>1.</b> Entre em supabase.com/dashboard com a conta da franqueadora</div>'+
     '<div class="ctPasso"><b>2.</b> Table Editor → tabela <b>backups</b> → ordene por criado_em</div>'+
     '<div class="ctPasso"><b>3.</b> Copie o conteúdo da coluna <b>dados</b> da linha desejada</div>'+
     '<div class="ctPasso"><b>4.</b> É um JSON com todas as coleções — qualquer programador '+
     'recoloca no sistema a partir dali</div>'+
-    '<div class="ctNota ctOk">Ou seja: os dados não ficam presos ao Nexor. '+
+    '<div class="ctNota ctOk">Ou seja: os dados não ficam presos à Joia. '+
     'Estão num banco padrão de mercado, legíveis por qualquer ferramenta.</div>')+
 
    ctCard('O que falta para ficar profissional','honestidade',
@@ -34498,7 +34498,7 @@ async function aplicarPendenteAssistente(p){
     valor:total,emissao:dt,vencimento:dt,
     pagamento:jaPago?dt:'',pago:jaPago,
     origem:'nota-entrada',ref:n.id,
-    obs:'Lançado pela Assistente Nexor, confirmado por '+(p.telefone||'—')+
+    obs:'Lançado pela Assistente Joia, confirmado por '+(p.telefone||'—')+
       (d.formaPagamento?' · '+d.formaPagamento:'')};
   DB.lancFin.push(lanc);
   n.lancIds=[lanc.id];
@@ -41061,7 +41061,7 @@ async function avisarCliente(ped,fase){
 /* A assistente é um serviço da plataforma: o número é UM só, cadastrado pelo dono
    do Nexor, e liberado loja a loja. A loja não digita número nenhum. */
 function baseAssPlat(){
-  DB.assPlat=DB.assPlat||{numero:'',nome:'Assistente Nexor',liberadas:{}};
+  DB.assPlat=DB.assPlat||{numero:'',nome:'Assistente Joia',liberadas:{}};
   return DB.assPlat;
 }
 function assLiberada(suc){
@@ -41458,7 +41458,7 @@ function telaGerente(){
   var g=DB.gerente[GE.suc]||{};
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
-    '<div><h1>Assistente Nexor</h1>'+
+    '<div><h1>Assistente Joia</h1>'+
     '<p>Ela avisa o que acontece na loja, cobra as rotinas e responde o que você '+
     'perguntar sobre venda, estoque e contas — pelo WhatsApp.</p></div>'+
     '<div style="flex:1"></div>'+
@@ -41627,19 +41627,19 @@ function ligarAvisos(lig){
 function previewMsg2(t){
   return String(t||'').replace(/\*(.+?)\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
 }
-/* painel do dono do Nexor: um número para tudo, liberado loja a loja */
+/* painel do dono da Joia: um número para tudo, liberado loja a loja */
 function blocoAssPlataforma(){
   var a=baseAssPlat();
   baseSuc();
   return '<div class="assPlat">'+
-   '<div class="assPlatH">'+sv('lock',14)+' <b>Administração do Nexor</b>'+
+   '<div class="assPlatH">'+sv('lock',14)+' <b>Administração da Joia</b>'+
     '<span>só você vê este bloco</span></div>'+
    '<div style="padding:13px 15px">'+
     '<div class="row2">'+
-     '<div class="fld2"><label>Número da Assistente Nexor</label>'+
+     '<div class="fld2"><label>Número da Assistente Joia</label>'+
       '<input id="apNum" value="'+E(a.numero||'')+'" placeholder="o número oficial da Meta"></div>'+
      '<div class="fld2"><label>Nome padrão</label>'+
-      '<input id="apNome" value="'+E(a.nome||'Assistente Nexor')+'"></div>'+
+      '<input id="apNome" value="'+E(a.nome||'Assistente Joia')+'"></div>'+
     '</div>'+
     '<div class="cfgSep" style="margin:12px 0 8px">Liberar para</div>'+
     '<div class="assLojas">'+
@@ -41659,7 +41659,7 @@ function blocoAssPlataforma(){
 async function salvarAssPlat(){
   var a=baseAssPlat();
   if($('apNum'))a.numero=$('apNum').value.trim();
-  if($('apNome'))a.nome=$('apNome').value.trim()||'Assistente Nexor';
+  if($('apNome'))a.nome=$('apNome').value.trim()||'Assistente Joia';
   a.liberadas={};
   var cx=document.querySelectorAll('.assLojas input[data-suc]');
   for(var i=0;i<cx.length;i++)
@@ -41788,7 +41788,7 @@ function pdfRespostas(){
    '<table><thead><tr><th>Data</th><th>Rotina</th><th class="c">Resposta</th>'+
    '<th>Motivo</th><th class="c">Respondida em</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
    '<div class="res"><b>Resumo:</b> '+sim+' feito(s) · '+nao+' não feito(s) · '+sem+' sem resposta</div>'+
-   '<p class="rod">Documento gerado pelo Joia. O registro original fica no sistema, '+
+   '<p class="rod">Documento gerado pela Joia. O registro original fica no sistema, '+
    'com data e hora de cada resposta, e não pode ser alterado.</p>'+
    '</body></html>');
   w.document.close();
@@ -41866,7 +41866,7 @@ async function testarAvisoGerente(){
   var g=DB.gerente[GE.suc];
   g.tel=tel;g.ativo=true;salvar();
   await avisarGerente(GE.suc,'teste',
-    '✅ *Teste do Nexor*\n\n'+E(nomeLojaAtual())+'\n'+agoraBR()+
+    '✅ *Teste da Joia*\n\n'+E(nomeLojaAtual())+'\n'+agoraBR()+
     '\n\nSe você recebeu esta mensagem, os avisos do caixa estão funcionando.');
 }
 
@@ -42564,7 +42564,7 @@ var IMP_PADRAO={
   '{c}Pedido {numero}\n'+
   '{c}Op: {operador}\n'+
   '{branco}\n'+
-  '{c}{p}{loja} - Nexor{/p}\n'+
+  '{c}{p}{loja} - Joia{/p}\n'+
   '{corte}',
  entrega:
   '{c}{n}{loja}{/n}\n'+
@@ -42598,7 +42598,7 @@ var IMP_PADRAO={
   '{linha}\n'+
   '{c}Op: {operador}\n'+
   '{branco}\n'+
-  '{c}{p}{loja} - Nexor{/p}\n'+
+  '{c}{p}{loja} - Joia{/p}\n'+
   '{corte}',
  mesa:
   '{c}{n}{loja}{/n}\n'+
@@ -42624,7 +42624,7 @@ var IMP_PADRAO={
   '{c}{p}Este documento nao tem valor fiscal{/p}\n'+
   '{c}Op: {operador}\n'+
   '{branco}\n'+
-  '{c}{p}{loja} - Nexor{/p}\n'+
+  '{c}{p}{loja} - Joia{/p}\n'+
   '{corte}'
 };
 
@@ -43768,10 +43768,10 @@ function baseUsr(){
     if((lg.match(/@/g)||[]).length>1)return false;        /* dois arrobas: dominio errado */
     return true;
   });
-  /* garante um unico dono do Nexor */
+  /* garante um unico dono da Joia */
   var donos=DB.usuarios.filter(function(u){return String(u.login||'').toLowerCase()===ADM_MESTRE});
   /* ------------------------------------------------------------------
-     O dono do Nexor NUNCA fica sem acesso.
+     O dono da Joia NUNCA fica sem acesso.
      As permissoes vinham inteiras da tabela usuarios_sistema. Quando o
      download dela falhava — rede, token vencido, qualquer motivo — o registro
      era remontado sem 'tudo' nem 'mestre', e o dono entrava no proprio sistema
@@ -43819,7 +43819,7 @@ function baseUsr(){
       if(sc)u.sucursais=[sc.id];
     });
   }catch(e){_quieto(e,'baseUsr')}
-  /* ninguem alem do dono do Nexor pode carregar a marcacao de plataforma */
+  /* ninguem alem do dono da Joia pode carregar a marcacao de plataforma */
   DB.usuarios.forEach(function(u){
     if(String(u.login||'').toLowerCase()!==ADM_MESTRE&&u.plataforma){u.plataforma=false;}
   });
@@ -43831,7 +43831,7 @@ function baseUsr(){
   if(!DB.usuarios.some(function(u){return (u.login||'').toLowerCase()===ADM_MESTRE})){
     /* sem senha: quem entra e o Auth. Uma senha escrita aqui seria a mesma
        em toda instalacao do Nexor — porta destrancada em todo cliente. */
-    DB.usuarios.unshift({id:'usr_mestre',nome:'Administrador do Nexor',login:ADM_MESTRE,
+    DB.usuarios.unshift({id:'usr_mestre',nome:'Administrador da Joia',login:ADM_MESTRE,
       senha:'',mestre:true,plataforma:true,ativo:true,sucursais:[],permissoes:{},tudo:true,
       criadoEm:new Date().toISOString()});
   }
@@ -43856,12 +43856,12 @@ function podeVer(mid,iid){
   if(MOD_PLATAFORMA.indexOf(mid)>=0&&!ehPlataforma(u))return false;
   if(!u)return false;                       /* ninguem logado: nao mostra nada */
   if(!moduloContratado(mid))return false;   /* fora do contrato: some para todos */
-  if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono do Nexor */
+  if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono da Joia */
   /* modo de venda desligado: a tela dele nao existe para esta loja */
   if((iid==='mesas'||iid==='vendas-mesa')&&typeof modoAtivo==='function'&&!modoAtivo('mesa'))return false;
   /* acesso total sem lista de permissoes preenchida era barrado tela por tela */
   if(u.tudo||u.mestre)return true;
-  /* telas do produto: so o dono do Nexor */
+  /* telas do produto: so o dono da Joia */
   if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
   /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
   if(iid&&SO_FRANQUEADORA.indexOf(mid+'/'+iid)>=0)return ehFranqueadora(u);
@@ -44001,7 +44001,7 @@ function telaUsuarios(){
          if(sc&&sc.redeNome)return sc.redeNome;
          return empresaPadrao();
        }
-       /* o dono do Nexor nao pertence a empresa nenhuma: fica na secao de cima */
+       /* o dono da Joia nao pertence a empresa nenhuma: fica na secao de cima */
        function ehDono(u){
          return String(u.login||'').toLowerCase()===ADM_MESTRE||!!u.plataforma;
        }

@@ -1,19 +1,19 @@
 /* ==========================================================
-   NEXOR — Service Worker
+   JOIA — Service Worker
    O sistema ja vendia sem internet: a venda e gravada no aparelho e
    sobe depois. Faltava a parte mais boba e mais fatal — se alguem
    recarregasse a pagina com a internet fora, o navegador ia buscar o
    arquivo no servidor e nao achava. A loja parava por causa de um F5.
    Este arquivo guarda o sistema no proprio aparelho.
    ========================================================== */
-var CACHE = 'nexor-v2';
+var CACHE = 'joia-v1';
 var ESSENCIAIS = [
   './',
   './index.html',
   './supabase.js',
   './manifest.json',
-  './nexor-n.png',
-  './nexor-icone-192.png'
+  './joia-icone.png',
+  './joia-icone.png'
 ];
 
 self.addEventListener('install', function (e) {

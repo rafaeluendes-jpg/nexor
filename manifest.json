@@ -1,17 +1,32 @@
 {
-  "name": "Nexor — gestão simples, lucro visível",
-  "short_name": "Nexor",
-  "description": "Sistema de gestão para food service e redes de franquia.",
+  "name": "Joia — plataforma de gestão inteligente",
+  "short_name": "Joia",
+  "description": "Plataforma de gestão para food service e redes de franquia.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#deedf8",
-  "theme_color": "#0b8a93",
+  "background_color": "#0F2016",
+  "theme_color": "#0F2016",
   "lang": "pt-BR",
   "icons": [
-    { "src": "nexor-icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "nexor-icone.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "nexor-icone.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "joia-icone.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "joia-icone.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "joia-icone.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
