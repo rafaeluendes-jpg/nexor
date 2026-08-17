@@ -1,9 +1,4 @@
-# Publica o Nexor no GitHub Pages.
-#
-# Envia APENAS os arquivos do site, montados numa pasta limpa. Antes o pacote
-# levava o repositório inteiro, incluindo o histórico do git e a própria pasta
-# de workflows — peso desnecessário que deixava a publicação lenta e instável.
-name: Publicar Nexor
+name: Publicar Joia
 
 on:
   push:
@@ -26,16 +21,17 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - name: Baixar o repositório
+      - name: Baixar o repositorio
         uses: actions/checkout@v4
 
       - name: Montar a pasta do site
         run: |
           mkdir -p _site
-          cp index.html manifest.json _headers _site/
-          cp supabase.js _site/
-          cp CNAME _site/
-          cp nexor-*.png _site/
+          cp index.html manifest.json supabase.js _site/
+          cp *.png _site/ 2>/dev/null || true
+          for f in _headers sw.js CNAME; do
+            [ -f "$f" ] && cp "$f" _site/
+          done
           touch _site/.nojekyll
           ls -la _site
 
