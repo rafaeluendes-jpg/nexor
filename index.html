@@ -14244,7 +14244,7 @@ async function sincronizar(){
     await marcarVersaoAtual();
     backupDoDia();                 /* uma cópia por dia, sem travar nada */
   }catch(e){
-    console.error('[NEXOR sync]',etapa,e);
+    console.error('[JOIA sync]',etapa,e);
     statusNuvem('erro',etapa+': '+((e&&e.message)||'falha'));
     console.error('SINCRONIZACAO falhou em',etapa,e);
     logNuvem('ERRO em '+etapa+': '+((e&&e.message)||'falha'),true);
@@ -15897,7 +15897,7 @@ if(modo()==='nuvem'&&!NUVEM.ligada)setTimeout(function(){toast('Nuvem estava lig
 
 function topo(){
 $('hdr').innerHTML='<img class="hMk" src="joia-icone.png" alt="Joia">'+
-  '<div class="hNm">NEXOR</div><div class="hGrow"></div>'+
+  '<div class="hNm">JOIA</div><div class="hGrow"></div>'+
 '<button class="hSearch" onclick="paleta()">'+sv('search',15)+'<span>Buscar no sistema</span><kbd>Ctrl K</kbd></button>'+
 '<button class="hIc" onclick="toast(\'Nenhuma notificação no momento.\')">'+sv('bell',18)+'<span class="hBadge">0</span></button>'+
 '<span class="rtTag" id="rtTag"><i></i>tempo real</span>'+
@@ -16075,7 +16075,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V69.0.0';
+var VERSAO='V70.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17077,7 +17077,7 @@ async function excluirGrupo(id){
 /* ---------- CÓPIA DE SEGURANÇA ---------- */
 function exportarDados(){
   try{
-    var pacote={sistema:'NEXOR',versao:1,quando:new Date().toISOString(),dados:DB};
+    var pacote={sistema:'JOIA',versao:1,quando:new Date().toISOString(),dados:DB};
     var txt=JSON.stringify(pacote,null,1);
     var blob=new Blob([txt],{type:'application/json'});
     var a=document.createElement('a');
@@ -17717,7 +17717,7 @@ function copiarDiagnostico(){
         return f.h+'  '+f.onde+': '+f.msg;
       }).join('\n');
   }
-  t='NEXOR — diagnóstico\nVersão: '+VERSAO+'\nLoja: '+(NUVEM.loja||'-')+
+  t='JOIA — diagnóstico\nVersão: '+VERSAO+'\nLoja: '+(NUVEM.loja||'-')+
     '\nCargo: '+((NUVEM.perfil||{}).cargo||'-')+
     '\nConexão: '+CONEXAO+'\nPendente: '+(NUVEM.sujo?'sim':'nao')+'\n\n'+_relatorioLentidao()+'\n'+t;
   try{navigator.clipboard.writeText(t);toast('Diagnóstico copiado. Cole no chat.');}
@@ -23667,7 +23667,7 @@ function reciboPago(acId){
   '<br><br><br>'+
   '<div style="text-align:center">_________________________________________</div>'+
   '<div style="text-align:center">'+E(e?e.nome:'')+(e&&e.cpf?'<br>CPF '+E(e.cpf):'')+'</div>'+
-  '<br><div style="text-align:center;font-size:10px">NEXOR · emitido em '+new Date().toLocaleString('pt-BR')+'</div>';
+  '<br><div style="text-align:center;font-size:10px">JOIA · emitido em '+new Date().toLocaleString('pt-BR')+'</div>';
   document.body.appendChild(el);
   setTimeout(function(){window.print()},150);
 }
@@ -23676,7 +23676,7 @@ function imprimirRecibo(entId){
   var e=ent(entId),r=resumoEntregador(e,AC.de,AC.ate);
   var el=document.getElementById('viaImp')||document.createElement('div');
   el.id='viaImp';
-  el.innerHTML='<div style="text-align:center"><b>NEXOR — ACERTO DE ENTREGAS</b><br>'+
+  el.innerHTML='<div style="text-align:center"><b>JOIA — ACERTO DE ENTREGAS</b><br>'+
   dataBR(AC.de)+' a '+dataBR(AC.ate)+'</div><hr>'+
   '<div>Entregador: '+E(e.nome)+'</div>'+(e.cpf?'<div>CPF: '+E(e.cpf)+'</div>':'')+
   '<div>Telefone: '+E(e.tel||'—')+'</div><hr>'+
@@ -23692,7 +23692,7 @@ function imprimirRecibo(entId){
 function imprimirAcertos(){
   var el=document.getElementById('viaImp')||document.createElement('div');
   el.id='viaImp';
-  el.innerHTML='<div style="text-align:center"><b>NEXOR — ACERTOS</b><br>'+dataBR(AC.de)+' a '+dataBR(AC.ate)+'</div><hr>'+
+  el.innerHTML='<div style="text-align:center"><b>JOIA — ACERTOS</b><br>'+dataBR(AC.de)+' a '+dataBR(AC.ate)+'</div><hr>'+
   (DB.entregadores||[]).map(function(e){
     var r=resumoEntregador(e,AC.de,AC.ate);
     return E(e.nome)+' — '+r.qtd+' entregas — R$ '+money(r.aPagar);}).join('<br>');
@@ -27598,7 +27598,7 @@ function imprimirLanc(){
   var totR=lista.filter(function(l){return l.tipo==='receita'}).reduce(function(a,l){return a+l.valor},0);
   var el=document.getElementById('viaImp')||document.createElement('div');
   el.id='viaImp';
-  el.innerHTML='<div style="text-align:center"><b>NEXOR — LANÇAMENTOS FINANCEIROS</b><br>'+
+  el.innerHTML='<div style="text-align:center"><b>JOIA — LANÇAMENTOS FINANCEIROS</b><br>'+
   dataBR(LF.de)+' a '+dataBR(LF.ate)+'</div><hr>'+
   lista.map(function(l){
     return dataBR(l.vencimento)+' — '+E(l.descricao)+' — '+catTexto(l)+' — '+
