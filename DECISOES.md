@@ -1771,3 +1771,27 @@ viraram fixos (`admin` / empresa inteira).
 Regra: **a Joia cria o acesso da franqueadora; a franqueadora cria o resto**,
 em Configuração da Loja › Usuários e Permissões. Cada rede cuida da própria
 equipe, e o dono não vira operador de cadastro dos clientes.
+
+## V75.1 — a tela de contrato oferecia chave que não abre porta
+
+Rafael marcou quatro itens de ADMINISTRAÇÃO para a matriz da Jolô — Empresas
+Clientes, Layout do Menu, Mensalidades e Diagnóstico — salvou, e **nada
+apareceu** para a franqueadora.
+
+**Causa:** três dos quatro estão em `SO_PLATAFORMA`, a lista das telas que
+administram o próprio produto. A trava do `podeVer` (V73) recusa essas telas
+para quem não é plataforma — corretamente. Mas a tela onde o dono define o
+contrato listava **todas** as telas do sistema, inclusive essas. O dono
+marcava, salvava, e a marcação morria na trava.
+
+Oferecer uma chave que nunca abre a porta é pior que não oferecer.
+
+**Correção:** `chavesDoSistema()` passa a pular os itens de `SO_PLATAFORMA`.
+Em ADMINISTRAÇÃO sobram os dois que fazem sentido para uma rede:
+**Mensalidades das Unidades** e **Sincronização**.
+
+Foram apagadas do banco as seis linhas de `sucursal_permissoes` dessas telas
+para a matriz da Jolô — não tinham efeito, e ficariam confundindo a leitura.
+
+**Regra que fica:** o que entra em `SO_PLATAFORMA` some da tela de contrato
+automaticamente. Não existe lista para manter em dois lugares.

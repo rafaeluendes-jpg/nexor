@@ -16122,7 +16122,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V75.0.0';
+var VERSAO='V75.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -26051,10 +26051,25 @@ async function criarAcessoEmpresa(lojaId){
 
 /* ---------- 6. PERMISSÕES EM ÁRVORE ---------- */
 var PRM={loja:null,alvo:null,abertas:{},pend:{}};
+/* ==========================================================
+   O QUE PODE SER VENDIDO
+   Esta lista alimenta a tela onde o dono marca o que a empresa contratou.
+   Ela mostrava TODAS as telas do sistema, inclusive as seis que sao
+   exclusivas da Joia (Mapa do Sistema, Empresas Clientes, Diagnostico,
+   Backup, Layout do Menu, Dados de Teste). O dono marcava, salvava, e nada
+   acontecia — porque a trava de podeVer recusa essas telas para quem nao e
+   plataforma, e com razao: sao as telas que administram o proprio produto.
+   Oferecer uma chave que nunca abre a porta e pior que nao oferecer.
+   Sobram, em Administracao, as duas que fazem sentido para uma rede:
+   Mensalidades das Unidades e Sincronizacao.
+   ========================================================== */
 function chavesDoSistema(){
   var out=[];
   MOD.forEach(function(m){
-    (m.it||[]).forEach(function(it){ out.push({mod:m.id,modn:m.n,item:it.id,n:it.n}); });
+    (m.it||[]).forEach(function(it){
+      if(SO_PLATAFORMA.indexOf(m.id+'/'+it.id)>=0)return;   /* so da Joia: nao se vende */
+      out.push({mod:m.id,modn:m.n,item:it.id,n:it.n});
+    });
   });
   return out;
 }
