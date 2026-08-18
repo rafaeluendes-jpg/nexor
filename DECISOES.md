@@ -1889,3 +1889,22 @@ cadastro — o histórico do que a pessoa fez depende disso — mas não polui a
 tela de trabalho. Um link "mostrar N desligados" traz de volta; escondê-los de
 vez tiraria a única forma de reativar alguém. O acesso aberto na tela nunca
 some, mesmo desligado.
+
+## V77.1 — "não está interligado" era uma unidade que não existe
+
+Rafael viu, na sessão da franqueadora: o **Trocar de Loja** mostrando só uma
+loja, a **Liberação por Unidade** sem a Jales, e concluiu que as telas não
+conversavam entre si.
+
+Não era isso. **Só existe uma unidade ativa.** A `Jolô Jales` está no banco com
+`ativa=false` e `excluida_em` preenchido desde 11/08 — foi excluída. Por isso
+não aparece no seletor de loja nem na liberação: as duas telas estão certas.
+
+O que mentia era a **árvore de Usuários e Permissões**, que contava e desenhava
+tudo que estivesse em `DB.sucursais`, inclusive a excluída — daí o "2 unidades"
+numa empresa com uma só, e a unidade morta aparecendo como se pudesse receber
+acesso. Corrigido: a árvore passa a ignorar unidade excluída ou inativa.
+
+**Lição:** a tela que mostra a mais é a que faz duvidar das que estão certas.
+Um número errado num canto criou a impressão de que o sistema inteiro estava
+desligado por dentro.

@@ -16135,7 +16135,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V77.0.0';
+var VERSAO='V77.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44268,7 +44268,18 @@ function telaUsuarios(){
             donos.map(function(u){return linha(u,false)}).join('');
        }
        var nomeEmp=empresaPadrao();
-       var sucs=(DB.sucursais||[]).slice().sort(function(a,b){
+       /* ==========================================================
+          UNIDADE EXCLUIDA NAO E UNIDADE
+          A arvore contava e desenhava tudo o que estivesse em DB.sucursais,
+          inclusive a que ja tinha sido excluida. Dava "2 unidades" numa
+          empresa com uma so — e a excluida aparecia como se pudesse receber
+          acesso. Pior: a pessoa procurava essa unidade no Trocar de Loja e
+          na Liberacao por Unidade, onde ela (corretamente) nao esta, e
+          concluia que as telas nao conversavam entre si.
+          ========================================================== */
+       var sucs=(DB.sucursais||[]).filter(function(x){
+         return !x.excluida&&!x.excluidaEm&&x.ativa!==false;
+       }).slice().sort(function(a,b){
          if(!!b.matriz!==!!a.matriz)return b.matriz?1:-1;
          return String(a.nome||'').localeCompare(String(b.nome||''));
        });
