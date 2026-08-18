@@ -16172,7 +16172,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V84.0.0';
+var VERSAO='V85.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33642,7 +33642,43 @@ function baixarEstoqueVenda(ped){
 /* ==========================================================
    BLOCO 23 — ESTOQUE TOTAL E CONTAGEM
    ========================================================== */
-var ET={busca:'',grupo:'',tipo:'',ordem:'valor',dir:'desc'};
+var ET={busca:'',grupo:'',tipo:'',ordem:'valor',dir:'desc',data:''};
+/* ==========================================================
+   ESTOQUE NO FIM DE UM DIA
+   Nao existe foto guardada de cada dia, e nao precisa: existe o razao de
+   movimentos, com data. O saldo de uma data e o saldo de HOJE desfazendo
+   tudo o que se moveu DEPOIS dela.
+
+   Por que isso da certo com contagem no meio: a contagem nao grava o total
+   contado — grava a DIFERENCA entre o contado e o que havia, como entrada
+   ou saida. Entao ela e um movimento comum e entra na mesma conta. Se
+   gravasse o total, esta reconstrucao estaria errada e eu teria de tratar
+   contagem como marco. Conferido no codigo que finaliza a contagem.
+
+   O que esta conta NAO faz, e precisa ficar dito: o VALOR usa o custo medio
+   de hoje, nao o daquele dia. Reconstruir custo medio para tras exige
+   refazer a media ponderada compra a compra, o que e outra obra. Quantidade
+   e exata; valor e "quantidade daquele dia ao custo de hoje".
+   ========================================================== */
+function saldoNaData(itemId, dataISO, suc){
+  var atual=saldoUn(itemId,suc||lojaAtualId());
+  if(!dataISO)return atual;
+  var item=itemEstoque(itemId);
+  if(!item)return atual;
+  var alvo=suc||lojaAtualId();
+  (DB.movEst||[]).forEach(function(m){
+    var d=String(m.data||'');
+    if(!d||d<=dataISO)return;                       /* aconteceu ate a data: fica */
+    if((m.sucursalId||lojaAtualId())!==alvo)return; /* outra loja */
+    (m.linhas||[]).forEach(function(l){
+      if(l.insumoId!==itemId)return;
+      var q=convUnid(l.qtd,l.unidade,item.unidade);
+      if(q===null)q=Number(l.qtd)||0;
+      atual -= (l.direcao==='entrada'?1:-1)*q;      /* desfaz */
+    });
+  });
+  return atual;
+}
 /* colunas ordenaveis do Estoque Total: rotulo, alinhamento e sentido inicial */
 var COLS_ET=[
  {k:'codigo', n:'Código',        w:'96px',  dir:'asc'},
@@ -33687,8 +33723,10 @@ function listaEstoque(){
     if(ET.grupo&&i.grupoId!==ET.grupo)return false;
     if(ET.tipo==='ficha'&&!i.gelatoVenda&&!i.deFicha)return false;
     if(ET.tipo==='insumo'&&(i.gelatoVenda||i.deFicha))return false;
-    if(ET.tipo==='baixo'&&!(Number(i.estoqueAtual)<=Number(i.estoqueMin)))return false;
-    if(ET.tipo==='zerado'&&Number(i.estoqueAtual)>0)return false;
+    var _sa=ET.data?saldoNaData(i.id,ET.data):Number(i.estoqueAtual);
+    i._saldoData=_sa;                 /* a tela desenha este, nao o de hoje */
+    if(ET.tipo==='baixo'&&!(_sa<=Number(i.estoqueMin)))return false;
+    if(ET.tipo==='zerado'&&_sa>0)return false;
     if(ET.busca){
       var q=ET.busca.toLowerCase();
       if((i.nome||'').toLowerCase().indexOf(q)<0&&String(i.codigo||'').indexOf(q)<0)return false;
@@ -33719,7 +33757,11 @@ function itensEstoque(){
 }
 /* é ficha técnica? */
 function ehFicha(x){return !!(x&&x.itens!==undefined&&x.rendimento!==undefined)}
-function valorItem(i){return (Number(i.estoqueAtual)||0)*custoDoItem(i)}
+/* qtd da data escolhida (ou de hoje, quando nao ha data) */
+function qtdItemET(i){
+  return Number(ET.data&&i._saldoData!==undefined?i._saldoData:i.estoqueAtual)||0;
+}
+function valorItem(i){return qtdItemET(i)*custoDoItem(i)}
 
 /* ---------- ESTOQUE TOTAL ---------- */
 /* olhinho do estoque: abre o cadastro do item, seja insumo ou ficha */
@@ -33756,7 +33798,7 @@ function telaEstoqueTotal(){
   var total=lista.reduce(function(a,i){return a+valorItem(i)},0);
   var totalGeral=todos.reduce(function(a,i){return a+valorItem(i)},0);
   var abaixo=todos.filter(function(i){return Number(i.estoqueAtual)<=Number(i.estoqueMin)}).length;
-  var qFiltro=lista.reduce(function(a,i){return a+(Number(i.estoqueAtual)||0)},0);
+  var qFiltro=lista.reduce(function(a,i){return a+qtdItemET(i)},0);
   var pct=totalGeral?((total/totalGeral)*100):0;
   var temFiltro=filtroET();
 
@@ -33777,6 +33819,12 @@ function telaEstoqueTotal(){
     '<button class="btnP2" onclick="exportarEstoque()">'+sv('down2',13)+' Exportar</button>'+
    '</div>'+
    '<div class="etFiltros">'+
+    '<div class="f2" style="max-width:170px"><label>Estoque no fim do dia</label>'+
+     '<input type="date" id="etData" max="'+hojeISO()+'" value="'+E(ET.data||'')+'" '+
+     'onchange="ET.data=this.value;ET._mostrar=undefined;telaEstoqueTotal()"></div>'+
+    (ET.data?'<div class="f2" style="max-width:120px"><label>&nbsp;</label>'+
+     '<button class="btnP2" onclick="ET.data=\'\';ET._mostrar=undefined;telaEstoqueTotal()">'+
+     'voltar para hoje</button></div>':'')+
     '<div class="f2 gw2"><label>Buscar</label><input id="etB" value="'+E(ET.busca)+'" placeholder="nome ou código"></div>'+
     '<div class="f2"><label>Grupo</label><select onchange="ET.grupo=this.value;telaEstoqueTotal()">'+
      '<option value="">Todos</option>'+
@@ -33816,7 +33864,7 @@ function telaEstoqueTotal(){
     visiveis.map(function(i){
       var eFicha=(i.itens!==undefined&&i.rendimento!==undefined);
       var g=eFicha?catFicha(i.categoriaId):grupoIng(i.grupoId);
-      var q=Number(i.estoqueAtual)||0;
+      var q=qtdItemET(i);
       var baixo=q<=Number(i.estoqueMin||0);
       var eF=(i.itens!==undefined&&i.rendimento!==undefined);
       return '<tr class="'+(q<0?'neg':baixo?'baixo':'')+'">'+

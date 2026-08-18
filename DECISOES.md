@@ -2160,3 +2160,36 @@ Desmarcar já funciona pela mesma porta (`p_pago = false` remove a marca do mês
    recebimento fica só nesta tela e não entra no caixa dela
 4. `tecnico/financeiro-nexor` precisa estar marcado para o acesso da matriz,
    senão a tela nem abre ("Sem acesso a esta tela")
+
+---
+
+# 18/08/2026 — V85: Estoque Total no fim de qualquer dia
+
+Faltava saber quanto havia em estoque num dia específico — para fechar o mês,
+para conferir uma contagem, para entender uma compra.
+
+**Não existe foto guardada de cada dia, e não precisa.** Existe o razão de
+movimentos, com data. O saldo de uma data é o saldo de hoje **desfazendo tudo
+o que se moveu depois dela**.
+
+Filtro **"Estoque no fim do dia"** na tela Estoque Total. Escolhida a data, a
+quantidade, o valor de cada item, o total do rodapé e os filtros "abaixo do
+mínimo" e "zerado" passam todos a falar daquele dia. Um botão volta para hoje.
+
+**Por que funciona com contagem no meio:** a contagem não grava o total
+contado — grava a **diferença** entre o contado e o que havia, como entrada ou
+saída. É um movimento comum e entra na mesma conta. Se gravasse o total, esta
+reconstrução estaria errada e a contagem teria de ser tratada como marco.
+Conferido no código que finaliza a contagem antes de escrever a conta.
+
+**Por unidade:** movimento de outra loja é ignorado. Cada loja tem seu saldo.
+
+**Limite conhecido, e está escrito no código:** o VALOR usa o custo médio de
+**hoje**, não o daquele dia. Reconstruir custo médio para trás exige refazer a
+média ponderada compra a compra — outra obra. Então: quantidade é exata; valor
+é "a quantidade daquele dia ao custo de hoje". Para fechamento contábil isso
+importa; para gestão do dia a dia, resolve.
+
+**Teste:** história com entrada, saída, contagem e movimento de outra loja —
+sete datas conferidas uma a uma, todas batendo, incluindo o dia anterior à
+primeira entrada (zero) e uma data futura (saldo de hoje).
