@@ -1661,3 +1661,58 @@ Configuração da Loja → Usuários e Permissões → pasta **Empresa** → ace
 `Jolô Franqueadora` (aparece no topo da pasta, antes das unidades, porque não
 tem unidade) → aba **O que pode ver** → botão **Escolher tela por tela** →
 desmarcar. A partir daí ela continua matriz e vê só o marcado.
+
+---
+
+# 18/08/2026 — V74: a tela não volta mais para o topo sozinha
+
+## O sintoma
+
+Rafael, no fim de uma página longa, clicava numa caixa de marcar e a tela
+saltava para o topo. Acontecia em **várias telas**, não em uma.
+
+## A causa
+
+Dezenas de botões chamam `telaXxx()` de novo para se redesenhar — marcar uma
+caixa, mudar filtro, trocar de aba. O desenho refaz o `innerHTML` inteiro, e a
+barra de rolagem volta a zero.
+
+Já existia o `semPular()`, criado para Usuários e Permissões, mas ele era usado
+em **12 lugares** de mais de noventa telas.
+
+## Por que não corrigi chamada por chamada
+
+São 93 funções `tela*` e dezenas de pontos de chamada — e a próxima tela criada
+nasceria com o mesmo defeito. O conserto foi na raiz: **toda função `telaXxx`
+passa a guardar e devolver a rolagem sozinha** (`_envolverTelas()`, que embrulha
+cada uma no `semPular`).
+
+A exceção é o roteador: clicar no menu para ir a **outra** tela deve começar no
+topo — daí `_trocandoTela`, que desliga o comportamento nesse caminho.
+
+## Dois defeitos encontrados durante o teste
+
+**1. Erro de tela ficava escondido.** A primeira versão do embrulho engolia
+exceções da tela: a pessoa via tela quebrada e o console limpo. Corrigido — o
+erro da tela sobe igual a antes; só falha do próprio `semPular` é silenciada,
+e nesse caso a tela é desenhada mesmo sem guardar a rolagem.
+
+**2. `semPular` era lento a ponto de travar.** Ele montava o caminho de TODOS
+os elementos da página para localizar os poucos que interessavam — e repetia
+cinco vezes (agora, dois quadros, 60ms, 150ms). Com o `semPular` usado em 12
+lugares isso passava; **usado em todo clique, travava**. Numa tela simulada de
+12 mil elementos o teste não terminou.
+Trocado por descida direta pelo caminho (do body até o elemento, pelos índices
+dos filhos). Mesma tela: **~33ms no simulador**, que é bem mais lento que um
+navegador de verdade.
+
+## Testes feitos (jsdom)
+
+| caso | resultado |
+|---|---|
+| redesenho no fim da página | devolve a rolagem |
+| troca de tela pelo menu | começa no topo, como deve |
+| chamada dentro de `semPular` | não aninha |
+| tela que dá erro | o erro chega a quem chamou |
+| envolver duas vezes | não empilha |
+| duas barras internas roladas | as duas voltam ao lugar |

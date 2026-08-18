@@ -16122,7 +16122,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V73.0.0';
+var VERSAO='V74.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16356,13 +16356,75 @@ function abrir(mid,iid){
     ant=r?r.scrollTop:(window.scrollY||0);
   }
   if(!mesma)_rolChave=(mid||'')+'/'+(iid||'');   /* tela nova: comeca no topo */
-  var v=cronometrar((mid||'?')+'/'+(iid||'?'), function(){return _abrirTela(mid,iid)});
+  if(!mesma)_trocandoTela++;
+  var v;
+  try{
+    v=cronometrar((mid||'?')+'/'+(iid||'?'), function(){return _abrirTela(mid,iid)});
+  } finally { if(!mesma)_trocandoTela--; }
   if(mesma&&ant){
     var r2=document.querySelector('.etScroll');
     if(r2)r2.scrollTop=ant; else window.scrollTo(0,ant);
   }
   return v;
 }
+var _emSemPular=0;      /* >0 = ja estamos dentro de um semPular */
+var _trocandoTela=0;    /* >0 = o roteador esta abrindo uma tela NOVA */
+/* ==========================================================
+   REDESENHAR NAO PODE JOGAR A PESSOA PARA O TOPO
+   Dezenas de botoes chamam telaXxx() de novo para se redesenharem —
+   marcar uma caixa, mudar um filtro, trocar de aba. Como o desenho refaz
+   o innerHTML inteiro, a barra de rolagem volta ao zero e quem estava no
+   fim da pagina perde o lugar. Estava assim em quase toda tela do sistema.
+
+   Corrigir chamada por chamada nao resolve: sao mais de noventa telas e a
+   proxima que eu criar nasceria com o mesmo defeito. Entao o conserto e
+   aqui: TODA funcao telaXxx passa a guardar e devolver a rolagem sozinha.
+
+   A excecao e o roteador. Quando a pessoa clica no menu e vai para outra
+   tela, ai sim tem que comecar no topo — por isso _trocandoTela.
+   ========================================================== */
+function _envolverTelas(){
+  var nomes;
+  try{ nomes=Object.getOwnPropertyNames(window); }catch(e){ return; }
+  for(var i=0;i<nomes.length;i++){
+    var n=nomes[i];
+    if(!/^tela[A-Z]/.test(n))continue;
+    var orig;
+    try{ orig=window[n]; }catch(e){ continue; }
+    if(typeof orig!=='function'||orig.__guardaRolagem)continue;
+    window[n]=(function(fn){
+      var env=function(){
+        /* tela nova, ou ja estamos dentro de um semPular: segue direto */
+        if(_trocandoTela||_emSemPular)return fn.apply(this,arguments);
+        var eu=this,args=arguments,ret,chamou=false,erroDaTela=null;
+        try{
+          semPular(function(){
+            try{ ret=fn.apply(eu,args); }
+            catch(err){ erroDaTela=err; }      /* guarda para repassar depois */
+            chamou=true;
+          });
+        }catch(e){
+          /* aqui o erro e do proprio semPular, nao da tela.
+             Se a tela nem chegou a ser desenhada, desenha sem guardar
+             a rolagem — perder o lugar e ruim, tela em branco e pior. */
+          _quieto(e,'guardaRolagem');
+          if(!chamou)return fn.apply(eu,args);
+        }
+        /* erro da tela sobe igual a antes: escondê-lo tiraria o defeito
+           do console e ninguem mais acharia a causa */
+        if(erroDaTela)throw erroDaTela;
+        return ret;
+      };
+      env.__guardaRolagem=true;
+      return env;
+    })(orig);
+  }
+}
+/* roda depois que tudo foi declarado, e de novo no load para pegar
+   qualquer tela declarada em bloco de script posterior */
+try{ _envolverTelas(); }catch(e){}
+window.addEventListener('load',function(){ try{ _envolverTelas(); }catch(e){} });
+
 function _abrirTela(mid,iid){
   if(iid&&!podeVer(mid,iid)){
     $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
@@ -44499,7 +44561,8 @@ function semPular(fn){
     }
   }catch(err){_quieto(err,'semPular')}
 
-  fn();
+  _emSemPular++;
+  try{ fn(); } finally { _emSemPular--; }
 
   function devolve(){
     try{
@@ -44508,11 +44571,25 @@ function semPular(fn){
         if(Math.abs(a-win)>1)window.scrollTo(0,win);
       }
       if(!marcas.length)return;
-      var todos2=document.querySelectorAll('*'),mapa={};
-      for(var k=0;k<todos2.length;k++)mapa[caminho(todos2[k])]=todos2[k];
+      /* ==========================================================
+         ACHAR PELO CAMINHO, SEM VARRER A TELA INTEIRA
+         Antes isto montava o caminho de TODOS os elementos da pagina para
+         depois procurar os poucos que interessavam — e repetia isso cinco
+         vezes (agora, dois quadros, 60ms e 150ms). Numa tela de milhares
+         de elementos era lento a ponto de travar.
+         O caminho ja diz a posicao de cada filho: da para descer por ele
+         direto, do body ate o elemento. Passou de varrer tudo para uns
+         poucos passos.
+         ========================================================== */
       marcas.forEach(function(m){
-        var el=mapa[m.c];
-        if(el&&Math.abs(el.scrollTop-m.y)>1)el.scrollTop=m.y;
+        var partes=m.c.split('>'),n=document.body,ok=true;
+        for(var i=0;i<partes.length&&ok;i++){
+          var p=partes[i].split(':'),idx=parseInt(p[1],10);
+          var f=(n&&n.children)?n.children[idx]:null;
+          if(!f||f.tagName!==p[0]){ok=false;break}
+          n=f;
+        }
+        if(ok&&n&&Math.abs(n.scrollTop-m.y)>1)n.scrollTop=m.y;
       });
     }catch(err){_quieto(err,'semPular')}
   }
