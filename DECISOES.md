@@ -1839,3 +1839,53 @@ não é plataforma — são assunto entre a Joia e o cliente.
 
 Testado por perfil: franqueadora, gerente e admin de unidade enxergam **1
 empresa** e **nenhum dado de contrato**; a plataforma vê tudo.
+
+---
+
+# 18/08/2026 — V77: o 403 que travou a sincronização nos dois sentidos
+
+## O sintoma, que parecia dois problemas
+
+1. As permissões marcadas na franqueadora não salvavam — saía da tela, voltava, tudo desmarcado
+2. O acesso da Jolô Jales, criado na nuvem, não descia para o navegador dela
+
+Rafael reclamou, com razão, de eu ter mandado "forçar a sincronização":
+num ERP para 30 lojas, sincronização forçada não existe.
+
+## A causa, única
+
+O Console mostrou `403` repetido no upsert de `usuarios_sistema`. O banco
+recusava a gravação.
+
+O acesso da franqueadora estava com **`sucursal_ref = 'suc_matriz'`**. A regra
+`sou_admin()` exige `cargo in ('admin','plataforma') AND sucursal_ref IS NULL`
+— quem tem unidade é gestor **daquela** unidade, não da rede. Com a unidade
+preenchida, ela foi rebaixada e a política passou a recusar toda linha cujo
+`sucursais` não contivesse `suc_matriz`.
+
+**E é aí que os dois sintomas se juntam:** o sistema não baixa nada enquanto há
+pendência de envio — regra certa, senão o download atropelaria o que ainda não
+subiu. Como o envio falhava sempre, a marca de pendente nunca saía. Um único
+403 travou a subida **e** a descida.
+
+Corrigido no banco: `perfis.sucursal_ref = null` e `usuarios_sistema.sucursais
+= []` para `jolo@jologelato.com.br`. Voltou a sincronizar sozinha — 3 acessos,
+66 telas.
+
+**Erro meu, registrado:** quando Rafael mostrou a coluna Unidade com "Matriz",
+eu disse que era só estética e "funcionava igual". Não funcionava — é regra de
+segurança do banco. Eu deveria ter conferido antes de responder.
+
+## Ainda em aberto
+
+A tela de editar acesso **deixa prender a franqueadora a uma unidade** e
+quebrar tudo de novo, sem aviso nenhum. Falta impedir: acesso de cargo `admin`
+sem unidade é o que define a franqueadora.
+
+## Também nesta versão
+
+Acesso desligado sumiu da árvore de Usuários e Permissões. Ele continua no
+cadastro — o histórico do que a pessoa fez depende disso — mas não polui a
+tela de trabalho. Um link "mostrar N desligados" traz de volta; escondê-los de
+vez tiraria a única forma de reativar alguém. O acesso aberto na tela nunca
+some, mesmo desligado.

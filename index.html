@@ -3940,6 +3940,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .usrBusca{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--line-2)}
 .usrBusca svg{color:var(--ink-3)}
 .usrBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+/* link discreto para trazer de volta quem foi desligado */
+.usrLnk{display:block;width:100%;text-align:left;background:none;border:none;
+  padding:7px 13px 9px;font-size:11.5px;color:var(--ink-3);cursor:pointer;
+  border-bottom:1px solid var(--line-2)}
+.usrLnk:hover{color:var(--acc);text-decoration:underline}
 .usrRol{max-height:calc(100vh - 260px);overflow-y:auto;padding:6px}
 .usrIt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;
   border:none;background:none;border-radius:8px;cursor:pointer}
@@ -16130,7 +16135,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V76.0.0';
+var VERSAO='V77.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44093,7 +44098,7 @@ function sucursaisDoUsuario(){
 }
 
 /* ---------- tela ---------- */
-var US={sel:null,busca:'',aba:'permissoes',abertas:{}};
+var US={sel:null,busca:'',aba:'permissoes',abertas:{},verInativos:false};
 function achou(u,q){
   return !q||String(u.nome||'').toLowerCase().indexOf(q)>=0||
     String(u.login||'').toLowerCase().indexOf(q)>=0;
@@ -44120,7 +44125,16 @@ function telaUsuarios(){
   baseRedes();
   var eu=usuarioLogado();
   var minhaRede=ehPlataforma(eu)?null:redeDoUsuario(eu);
+  /* ==========================================================
+     ACESSO DESLIGADO NAO POLUI A ARVORE
+     Quem foi desligado continua no cadastro — o historico do que essa pessoa
+     fez depende disso. Mas a arvore e a tela de trabalho do dia a dia, e uma
+     lista cheia de gente que nao entra mais so atrapalha quem procura alguem.
+     Some por padrao, com um botao para trazer de volta: escondido de vez,
+     nao teria como reativar ninguem.
+     ========================================================== */
   var lista=DB.usuarios.filter(function(u){
+    if(u.ativo===false&&!US.verInativos&&US.sel!==u.id)return false;
     if(String(u.login||'').toLowerCase().indexOf(ADM_MESTRE)===0&&!ehPlataforma(eu))return false;
     if(u.plataforma&&!ehPlataforma(eu))return false;
     /* franqueadora ve so os acessos da propria rede */
@@ -44167,6 +44181,13 @@ function telaUsuarios(){
     '<div class="usrLista">'+
      '<div class="usrBusca">'+sv('search',13)+
       '<input id="usB" value="'+E(US.busca)+'" placeholder="buscar por nome ou login"></div>'+
+      (function(){
+        var n=(DB.usuarios||[]).filter(function(u){return u.ativo===false}).length;
+        if(!n)return '';
+        return '<button class="usrLnk" onclick="US.verInativos=!US.verInativos;telaUsuarios()">'+
+          (US.verInativos?'esconder os desligados':'mostrar '+n+' desligado'+(n>1?'s':''))+
+        '</button>';
+      })()+
      '<div class="usrRol">'+
      (function(){
        /* ------------------------------------------------------------------
