@@ -16172,7 +16172,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V83.3.0';
+var VERSAO='V84.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -26378,9 +26378,20 @@ function telaFinanceiroNexor(){
        '<td>'+(l.sit!=='ativo'?'—':(pg
          ?'<b class="vg">pago</b> <button class="btnMini" onclick="marcarPagoUnidade(\''+s.id+'\',false)">desfazer</button>'
          :'<button class="btnMini" onclick="marcarPagoUnidade(\''+s.id+'\',true)">marcar pago</button>'))+'</td>'+
-       '<td><button class="rBtn" title="Abrir a unidade" onclick="INS.rede=\''+l.empId+'\';'+
-         'INS.und={loja:\''+l.empId+'\',suc:\''+s.id+'\'};abrir(\'tecnico\',\'instalacao\')">'+
-         sv('edit',12)+'</button></td></tr>';
+       /* ==========================================================
+          O LAPIS LEVA CADA UM AO SEU LUGAR
+          Ele abria Empresas Clientes, que e exclusiva do dono da Joia — a
+          franqueadora clicava e batia em "Sem acesso a esta tela". Para ela
+          o valor e o vencimento moram no cadastro da propria sucursal, que
+          e onde ela pode e deve editar.
+          ========================================================== */
+       '<td>'+(ehPlataforma()
+         ?'<button class="rBtn" title="Abrir a unidade" onclick="INS.rede=\''+l.empId+'\';'+
+           'INS.und={loja:\''+l.empId+'\',suc:\''+s.id+'\'};abrir(\'tecnico\',\'instalacao\')">'+
+           sv('edit',12)+'</button>'
+         :'<button class="rBtn" title="Editar valor e vencimento" '+
+           'onclick="formSucursal(\''+(s.ref_local||s.id)+'\')">'+sv('edit',12)+'</button>')+
+       '</td></tr>';
     }).join('')
     :'<tr><td colspan="10" class="fmVazio">Nenhuma unidade cobrada ainda. '+
       'Cadastre uma empresa em Empresas Clientes.</td></tr>')+
