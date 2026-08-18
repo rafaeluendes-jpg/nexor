@@ -1908,3 +1908,41 @@ acesso. Corrigido: a árvore passa a ignorar unidade excluída ou inativa.
 **Lição:** a tela que mostra a mais é a que faz duvidar das que estão certas.
 Um número errado num canto criou a impressão de que o sistema inteiro estava
 desligado por dentro.
+
+---
+
+# 18/08/2026 — V78: uma dona por assunto
+
+## O diagnóstico do Rafael, e ele está certo
+
+"Tem vários lugares fazendo a mesma coisa — é isso que está dando erro."
+
+Sucursal podia ser cadastrada em **dois** lugares (Administração › Empresas
+Clientes e Configuração da Loja › Sucursais da Franquia). Login e senha em
+**outros dois** (Administração e Usuários e Permissões). Nenhuma tela era dona
+do cadastro inteiro; cada uma gravava um pedaço. Foi isso que produziu o dia
+inteiro de dados desencontrados — o acesso preso a uma unidade excluída, a
+franqueadora rebaixada a gestora de unidade, o 403 travando a sincronização.
+
+## O desenho combinado
+
+| Tela | De quem é | Do que é dona |
+|---|---|---|
+| **Administração › Empresas Clientes** | só Rafael | cria a empresa e o acesso da franqueadora |
+| **Config. da Loja › Sucursais da Franquia** | franqueadora | tudo da unidade: nome, CNPJ, telefone, ativar/desativar **e o login e senha do responsável** |
+| **Usuários e Permissões** | franqueadora | só o que cada um enxerga. Mais **Novo usuário** para a equipe (caixa, produção), com login e senha ali — **sem** escolher unidade, que vem da loja aberta |
+
+## Feito nesta versão (passo 1 de 3)
+
+`tecnico/instalacao` voltou para `SO_PLATAFORMA` e a trava de `telaInstalacao`
+voltou a exigir `ehPlataforma()` — desfazendo a V76 no mesmo dia.
+
+O limite no banco (`painel_empresas()` só devolve a própria loja para quem não
+é plataforma) **fica de pé**: não atrapalha e protege se a tela for reaberta.
+
+## Falta fazer (passos 2 e 3)
+
+2. **Sucursais da Franquia ganha login e senha** do responsável da unidade,
+   gravando pela Edge Function `criar-usuario` (que já sabe criar e editar).
+3. **Usuários e Permissões perde** a edição de login de unidade; fica só com
+   permissões e com o Novo usuário da equipe, sem seletor de unidade.

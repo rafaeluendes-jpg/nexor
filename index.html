@@ -12235,9 +12235,18 @@ var MOD=[
    FRANQUEADORA— o cliente que contratou. Manda na propria rede:
                  unidades, usuarios, dados, backup e importacao.
    ---------------------------------------------------------- */
-var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/diagnostico-sistema',
+var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/diagnostico-sistema',
   'tecnico/backup','tecnico/reset-sistema','tecnico/layout-menu'];
 /* ==========================================================
+   EMPRESAS CLIENTES VOLTOU A SER SO DO DONO (18/08, mesmo dia)
+   A V76 abriu esta tela para a franqueadora cadastrar sucursais. Revisto:
+   cadastrar unidade JA tem lugar proprio — Configuracao da Loja >
+   Sucursais da Franquia. Duas telas fazendo a mesma coisa foi o que
+   espalhou o cadastro e produziu um dia inteiro de dados desencontrados.
+   Uma dona por assunto. O limite no banco (painel_empresas so devolve a
+   propria loja para quem nao e plataforma) fica de pe: nao atrapalha e
+   protege se a tela for reaberta um dia.
+   ---- texto antigo, mantido para historia ----
    EMPRESAS CLIENTES SAIU DA LISTA DO DONO
    A franqueadora precisa cadastrar as proprias sucursais com todos os campos,
    e é esta a tela que faz isso. Ela passou para SO_FRANQUEADORA: continua
@@ -12277,7 +12286,7 @@ function recursoContratado(mid,iid){
   if(!c||!c.bloqueados||!c.bloqueados.length)return true;
   return c.bloqueados.indexOf(mid+'/'+iid)<0;
 }
-var SO_FRANQUEADORA=['loja/carga-inicial','tecnico/instalacao'];
+var SO_FRANQUEADORA=['loja/carga-inicial'];
 var MOD_PLATAFORMA=[];   /* V67: nenhum modulo bloqueado inteiro — o filtro fino e o SO_PLATAFORMA */
 var ADM_MESTRE='rafael@uendes.com';
 /* quem e a plataforma nao depende de marcacao guardada: e o login, e so ele.
@@ -16135,7 +16144,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V77.1.0';
+var VERSAO='V78.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25324,7 +25333,7 @@ function telaInstalacao(){
   if(INS.nova)return formEmpresaNova();
   if(INS.und)return formUnidade(INS.und.loja,INS.und.suc);
   if(INS.rede)return telaRedeAberta(INS.rede);
-  if(!ehPlataforma()&&!ehFranqueadora())return telaRestrita('Empresas Clientes');
+  if(!ehPlataforma())return telaRestrita('Empresas Clientes');
   if(!INS.nuvem&&!INS.carregando&&!INS.erro){
     INS.carregando=true;
     carregarEmpresas().then(function(){INS.carregando=false;telaInstalacao();})
