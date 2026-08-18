@@ -2139,3 +2139,24 @@ Agora o envio manda `excluida_em: null` quando a unidade está ativa — aqui o
 nulo é intencional, quer dizer "está viva". Com a unidade inativa o campo é
 **omitido**, para não apagar a data de quem foi excluído de verdade. É a mesma
 regra da V81, aplicada ao contrário quando o vazio tem significado.
+
+## Mensalidades — quem manda é a matriz, não a plataforma
+
+Rafael marcou pago e o servidor recusou: `painel_marcar_pago` exigia
+`sou_plataforma()`. Está errado para o desenho combinado — **a franqueadora
+administra a cobrança das próprias unidades; o dono da Joia observa.**
+
+A função passou a aceitar `sou_plataforma()` **ou** administrador da rede
+(`sou_admin()`) cuja loja seja a dona da unidade. O limite não sumiu, mudou de
+lugar: ela alcança só as unidades da própria loja. Passou a gravar também
+**quem** deu a baixa.
+
+Desmarcar já funciona pela mesma porta (`p_pago = false` remove a marca do mês).
+
+**Falta, e é o pedido inteiro do "financeiro completo":**
+1. Botão de **desfazer** a baixa na tela (a função já aceita; falta a interface)
+2. **Histórico mês a mês** com pago / a vencer / atrasado, virando a página
+3. A baixa **gerando lançamento no financeiro** da franqueadora — hoje o
+   recebimento fica só nesta tela e não entra no caixa dela
+4. `tecnico/financeiro-nexor` precisa estar marcado para o acesso da matriz,
+   senão a tela nem abre ("Sem acesso a esta tela")
