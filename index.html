@@ -12273,7 +12273,32 @@ function ehPlataforma(u){
   u=u||usuarioLogado();
   return !!(u&&String(u.login||'').toLowerCase()===ADM_MESTRE);
 }
-function ehFranqueadora(u){u=u||usuarioLogado();return !!(u&&(u.tudo||u.mestre||u.plataforma))}
+/* ==========================================================
+   QUEM E A FRANQUEADORA
+   Antes isto era a marca "acesso total". O efeito colateral: tirar o
+   acesso total da franqueadora para escolher o que ela ve fazia ela
+   DEIXAR DE SER MATRIZ — perdia a Liberacao por Unidade, a lista de
+   acessos das unidades, as Bases e Valores. Uma coisa nao tem a ver
+   com a outra: ser matriz e POSICAO na rede, ver tudo e PERMISSAO.
+   Agora a posicao vem de onde o acesso esta na rede:
+     - sem unidade nenhuma  = acesso da empresa inteira = franqueadora
+     - unidade marcada como matriz = franqueadora
+   O "tudo/mestre" continua valendo, para nao mudar quem ja funciona.
+   ========================================================== */
+function ehFranqueadora(u){
+  u=u||usuarioLogado();
+  if(!u)return false;
+  if(u.mestre||u.plataforma||u.tudo)return true;
+  var ss=u.sucursais||[];
+  if(!ss.length)return true;                  /* empresa inteira */
+  try{
+    var base=(typeof baseSuc==='function'?baseSuc():(DB.sucursais||[]))||[];
+    return ss.some(function(sid){
+      var sc=base.find(function(x){return x.id===sid});
+      return !!(sc&&sc.matriz);
+    });
+  }catch(e){ return false; }
+}
 
 /* ===== BLOCO 3 — ARMAZENAMENTO ===== */
 /* Havia DUAS listas com este nome. A de baixo (dos cupons) apagava esta,
@@ -16097,7 +16122,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V72.1.0';
+var VERSAO='V73.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18556,6 +18581,9 @@ function ehMatriz(){
   if(ehPlataforma&&ehPlataforma())return true;
   var u=usuarioLogado()||{};
   if(u.tudo||u.mestre)return true;
+  /* mesma regra da ehFranqueadora: a posicao na rede nao depende
+     de ter ou nao acesso total as telas */
+  if(typeof ehFranqueadora==='function'&&ehFranqueadora(u))return true;
   var s=baseSuc().find(function(x){return x.id===lojaAtualId()});
   return !!(s&&s.matriz);
 }
@@ -43907,12 +43935,17 @@ function podeVer(mid,iid){
   if(iid&&!recursoContratado(mid,iid))return false;   /* tela fechada pelo dono da Joia */
   /* modo de venda desligado: a tela dele nao existe para esta loja */
   if((iid==='mesas'||iid==='vendas-mesa')&&typeof modoAtivo==='function'&&!modoAtivo('mesa'))return false;
+  /* ==========================================================
+     AS LISTAS EXCLUSIVAS SAO TRAVA, NAO PASSE-LIVRE
+     Elas ficavam DEPOIS do atalho do acesso total, entao a franqueadora,
+     que tem acesso total, enxergava as telas do dono da Joia. E ficavam
+     como "return true", entao uma tela desta lista aparecia mesmo com a
+     marcacao desligada. Agora elas so BARRAM quem nao e daquele grupo;
+     quem e daquele grupo segue o caminho normal e obedece a marcacao.
+     ========================================================== */
+  if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0&&!ehPlataforma(u))return false;
+  if(iid&&SO_FRANQUEADORA.indexOf(mid+'/'+iid)>=0&&!ehFranqueadora(u))return false;
   /* acesso total sem lista de permissoes preenchida era barrado tela por tela */
-  if(u.tudo||u.mestre)return true;
-  /* telas do produto: so o dono da Joia */
-  if(iid&&SO_PLATAFORMA.indexOf(mid+'/'+iid)>=0)return ehPlataforma(u);
-  /* telas da rede: a franqueadora do cliente (e o dono, se precisar dar suporte) */
-  if(iid&&SO_FRANQUEADORA.indexOf(mid+'/'+iid)>=0)return ehFranqueadora(u);
   if(u.tudo||u.mestre)return true;
   if(!iid)return (MOD.find(function(m){return m.id===mid})||{it:[]}).it
     .some(function(i){return podeVer(mid,i.id)});
@@ -44317,22 +44350,52 @@ function abaLojasUsr(u,sucs){
 }
 /* troca o acesso total pelo controle tela a tela, mantendo o que ja estava
    marcado — desligar sem preservar deixaria a pessoa sem nada de repente */
+/* ==========================================================
+   TIRAR O ACESSO TOTAL SEM DERRUBAR NINGUEM
+   Antes, um acesso total tem a lista de marcacoes VAZIA — ele nunca
+   precisou dela. Tirar o acesso total nesse estado deixava a pessoa
+   sem nenhuma tela, e o aviso mandava "marque antes", numa tela onde
+   as marcacoes ainda nao valiam. Ordem impossivel.
+   Agora, quando a lista esta vazia, o sistema ja marca tudo o que
+   aquele acesso enxerga hoje. Nada muda para a pessoa no instante da
+   troca — e a partir dali quem desmarca e o dono.
+   ========================================================== */
 async function tirarAcessoTotal(){
   var u=usrSel(); if(!u)return;
   var marcadas=Object.keys(u.permissoes||{}).filter(function(k){return u.permissoes[k]}).length;
+  var vazio=!marcadas;
   var ok=await confirmar({
-    titulo:'Controlar tela por tela?',
-    texto:'Este acesso deixa de ver tudo e passa a ver só o que estiver marcado.',
-    linhas:[['Telas marcadas hoje',String(marcadas),''],
-            ['Depois da mudança','vê só essas '+marcadas,'']],
-    aviso:marcadas?'':'<b>Nenhuma tela está marcada.</b> Marque as telas antes, '+
-      'ou esta pessoa ficará sem acesso a nada.',
-    ok:'Controlar tela por tela'
+    titulo:'Escolher tela por tela?',
+    texto:vazio
+      ?'Vou marcar tudo o que este acesso já enxerga hoje. Nada muda para ele '+
+       'agora — daqui em diante você desmarca o que ele não deve ver.'
+      :'Este acesso deixa de ver tudo e passa a ver só o que estiver marcado.',
+    linhas:vazio
+      ?[['Telas marcadas hoje','nenhuma',''],
+        ['Depois da mudança','continua vendo o mesmo','']]
+      :[['Telas marcadas hoje',String(marcadas),''],
+        ['Depois da mudança','vê só essas '+marcadas,'']],
+    ok:'Continuar'
   });
   if(!ok)return;
   u.tudo=false; u.mestre=false;
+  if(vazio){
+    /* marca cada tela que este acesso pode ver na nova condicao.
+       As telas exclusivas de outro grupo ficam de fora — elas nao
+       apareceriam de qualquer jeito. */
+    u.permissoes={};
+    MOD.filter(function(m){return m.id!=='teste'}).forEach(function(m){
+      (m.it||[]).forEach(function(i){
+        var ch=m.id+'/'+i.id;
+        if(SO_PLATAFORMA.indexOf(ch)>=0&&!ehPlataforma(u))return;
+        if(SO_FRANQUEADORA.indexOf(ch)>=0&&!ehFranqueadora(u))return;
+        u.permissoes[ch]=true;
+      });
+    });
+    marcadas=Object.keys(u.permissoes).length;
+  }
   salvar(); semPular(telaUsuarios);
-  toast('Agora as marcações valem para este acesso.');
+  toast('Pronto: '+marcadas+' tela(s) marcadas. Agora é só desmarcar o que não deve aparecer.');
 }
 function abaPermUsr(u){
   var p=u.permissoes||{};

@@ -1602,3 +1602,62 @@ inglês e quem lê é o franqueado. Traduz senha vazada, senha curta, e-mail
 repetido, e-mail inválido, credencial errada, excesso de tentativas, falha de
 rede e sessão vencida. Mensagem fora da lista passa como veio — texto estranho
 em inglês ainda é melhor que erro escondido.
+
+---
+
+# 18/08/2026 — V73: posição na rede deixou de ser permissão de tela
+
+## O problema
+
+Rafael quis esconder módulos da franqueadora (ex.: Administração é só do dono
+da Joia). O caminho existia — tirar o "acesso total" e marcar tela por tela —
+mas **quebrava outra coisa**: `ehFranqueadora()` e `ehMatriz()` eram definidas
+pela marca `tudo`. Tirar o acesso total fazia a franqueadora **deixar de ser
+matriz**: perdia a Liberação por Unidade, a lista de acessos das unidades e as
+Bases e Valores.
+
+**São duas coisas diferentes e estavam amarradas:**
+*ser matriz* é POSIÇÃO na rede; *ver tudo* é PERMISSÃO de tela.
+
+## O que mudou
+
+**1. `ehFranqueadora()`** passa a olhar onde o acesso está na rede: sem unidade
+nenhuma (= empresa inteira) ou unidade marcada como matriz. `tudo`/`mestre`
+continuam valendo, para não mexer em quem já funciona.
+
+**2. `ehMatriz()`** usa a mesma regra.
+
+**3. `SO_PLATAFORMA` e `SO_FRANQUEADORA` viraram TRAVA, não passe-livre.**
+Estavam **depois** do atalho `if(u.tudo)return true` — ou seja, a franqueadora,
+por ter acesso total, **enxergava as telas do dono da Joia**. E eram
+`return true`, então uma tela dessas aparecia mesmo com a marcação desligada.
+Agora elas só barram quem não é do grupo; quem é segue o caminho normal e
+**obedece à marcação**.
+
+**4. `tirarAcessoTotal()` não derruba mais ninguém.** Um acesso total tem a
+lista de marcações vazia — nunca precisou dela. Tirar o acesso total nesse
+estado deixava a pessoa sem nenhuma tela, e o aviso mandava "marque antes",
+numa tela onde as marcações ainda não valiam: ordem impossível. Agora, com a
+lista vazia, o sistema marca tudo o que aquele acesso já enxerga. Nada muda no
+instante da troca; a partir dali o dono desmarca o que quiser.
+
+## Teste feito antes de subir
+
+Com os três acessos reais do banco:
+
+| | é matriz | Administração | Importar Dados | Liberação | PDV |
+|---|---|---|---|---|---|
+| Rafael (dono) | sim | vê | vê | vê | vê |
+| Franqueadora hoje (total) | sim | **não vê** | vê | vê | vê |
+| Franqueadora tela por tela | **sim** | não vê | vê | vê | vê |
+| Jales (franqueado) | não | não vê | não vê | vê | vê |
+
+Jales tinha `tecnico/central-tecnica` marcada na permissão e **continuou
+bloqueado** — a trava vence a marcação.
+
+## Como o Rafael esconde um módulo da franqueadora
+
+Configuração da Loja → Usuários e Permissões → pasta **Empresa** → acesso
+`Jolô Franqueadora` (aparece no topo da pasta, antes das unidades, porque não
+tem unidade) → aba **O que pode ver** → botão **Escolher tela por tela** →
+desmarcar. A partir daí ela continua matriz e vê só o marcado.
