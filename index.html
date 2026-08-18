@@ -12230,8 +12230,16 @@ var MOD=[
    FRANQUEADORA— o cliente que contratou. Manda na propria rede:
                  unidades, usuarios, dados, backup e importacao.
    ---------------------------------------------------------- */
-var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/instalacao','tecnico/diagnostico-sistema',
+var SO_PLATAFORMA=['tecnico/central-tecnica','tecnico/diagnostico-sistema',
   'tecnico/backup','tecnico/reset-sistema','tecnico/layout-menu'];
+/* ==========================================================
+   EMPRESAS CLIENTES SAIU DA LISTA DO DONO
+   A franqueadora precisa cadastrar as proprias sucursais com todos os campos,
+   e é esta a tela que faz isso. Ela passou para SO_FRANQUEADORA: continua
+   fora do alcance de franqueado, e agora obedece a marcacao do contrato.
+   O que impede a franqueadora de ver os OUTROS clientes da Joia nao é esta
+   lista — é o banco: painel_empresas() so devolve a propria loja para quem
+   nao é plataforma. Trava no servidor, nao no menu. ========================================================== */
 /* ----------------------------------------------------------
    MODULOS CONTRATADOS
    A lista vem do banco (tabela clientes_nexor) e e regravada a
@@ -12264,7 +12272,7 @@ function recursoContratado(mid,iid){
   if(!c||!c.bloqueados||!c.bloqueados.length)return true;
   return c.bloqueados.indexOf(mid+'/'+iid)<0;
 }
-var SO_FRANQUEADORA=['loja/carga-inicial'];
+var SO_FRANQUEADORA=['loja/carga-inicial','tecnico/instalacao'];
 var MOD_PLATAFORMA=[];   /* V67: nenhum modulo bloqueado inteiro — o filtro fino e o SO_PLATAFORMA */
 var ADM_MESTRE='rafael@uendes.com';
 /* quem e a plataforma nao depende de marcacao guardada: e o login, e so ele.
@@ -16122,7 +16130,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V75.1.0';
+var VERSAO='V76.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25311,7 +25319,7 @@ function telaInstalacao(){
   if(INS.nova)return formEmpresaNova();
   if(INS.und)return formUnidade(INS.und.loja,INS.und.suc);
   if(INS.rede)return telaRedeAberta(INS.rede);
-  if(!ehPlataforma())return telaRestrita('Empresas Clientes');
+  if(!ehPlataforma()&&!ehFranqueadora())return telaRestrita('Empresas Clientes');
   if(!INS.nuvem&&!INS.carregando&&!INS.erro){
     INS.carregando=true;
     carregarEmpresas().then(function(){INS.carregando=false;telaInstalacao();})
@@ -25319,8 +25327,11 @@ function telaInstalacao(){
   }
   var lista=INS.nuvem?empresasDaNuvem():[];
   $('content').innerHTML='<div class="ctWrap">'+
-   '<div class="ctTopo"><h1>Empresas Clientes</h1>'+
-    '<p>Cada empresa que usa o Nexor é um ambiente separado. Uma nunca enxerga os dados da outra.</p></div>'+
+   '<div class="ctTopo"><h1>'+(ehPlataforma()?'Empresas Clientes':'Minha rede')+'</h1>'+
+    '<p>'+(ehPlataforma()
+      ?'Cada empresa que usa a Joia é um ambiente separado. Uma nunca enxerga os dados da outra.'
+      :'Aqui ficam as unidades da sua rede. Abra a rede para cadastrar uma nova sucursal.')+
+    '</p></div>'+
    (INS.erro?'<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
       '<b>Não consegui ler as empresas</b><span>'+E(INS.erro)+'</span>'+
       '<div style="margin-top:12px"><button class="btnP2" onclick="INS.erro=\'\';INS.nuvem=null;telaInstalacao()">'+
@@ -25335,14 +25346,14 @@ function telaInstalacao(){
        '<div class="ctCardB">'+
         ctLinha('Unidades',x.unidades.length+(x.filiais.length?' ('+x.filiais.length+' filial(is))':''))+
         ctLinha('Acessos',String(x.perfis.length))+
-        ctLinha('Mensalidade',moeda(x.total))+
+        (ehPlataforma()?ctLinha('Mensalidade',moeda(x.total)):'')+
         ctLinha('Situação',l.ativa!==false
           ?'<span class="badge2">'+E(ct.situacao||'ativo')+'</span>'
           :'<span class="badge2 rd">bloqueada</span>')+
         '<div class="hint" style="margin-top:8px">clique para abrir</div>'+
        '</div></div>';
     }).join('')+
-    (INS.nuvem?'<div class="ctCard rdCard rdNova" onclick="novaEmpresa()"><div class="ctCardB" '+
+    ((INS.nuvem&&ehPlataforma())?'<div class="ctCard rdCard rdNova" onclick="novaEmpresa()"><div class="ctCardB" '+
      'style="display:flex;align-items:center;justify-content:center;min-height:120px;gap:8px">'+
      sv('plus',16)+'<b>Cadastrar nova empresa</b></div></div>':'')+
    '</div></div>';
@@ -25440,8 +25451,8 @@ function telaRedeAberta(id){
        (s.apelido&&s.apelido!==s.nome?'<div class="hint">'+E(s.apelido)+'</div>':'')+'</td>'+
      '<td>'+E(s.cnpj||'—')+'</td>'+
      '<td>'+E(s.cidade||'—')+(s.uf?'/'+E(s.uf):'')+'</td>'+
-     '<td style="text-align:right">'+(s.mensalidade?moeda(s.mensalidade):'—')+
-       '<div class="hint">'+venc+'</div></td>'+
+     (ehPlataforma()?'<td style="text-align:right">'+(s.mensalidade?moeda(s.mensalidade):'—')+
+       '<div class="hint">'+venc+'</div></td>':'')+
      '<td style="text-align:center">'+(s.ativa!==false?'<span class="badge2">Ativa</span>'
         :'<span class="badge2 rd">Inativa</span>')+'</td>'+
      '<td><div class="rowAct">'+
@@ -25453,11 +25464,14 @@ function telaRedeAberta(id){
   }
   $('content').innerHTML='<div class="ctWrap">'+
    '<div class="ctTopo">'+
-    '<button class="btnP2" onclick="INS.rede=null;INS.und=null;ACS.edit=null;telaInstalacao()">‹ todas as empresas</button>'+
+    '<button class="btnP2" onclick="INS.rede=null;INS.und=null;ACS.edit=null;telaInstalacao()">‹ '+
+      (ehPlataforma()?'todas as empresas':'voltar')+'</button>'+
     '<h1 style="margin-top:10px">'+E(l.nome)+'</h1>'+
     '<p>'+E((m&&(m.cidade||''))||'')+(m&&m.uf?'/'+E(m.uf):'')+
-      ' · '+x.unidades.length+' unidade(s) · '+moeda(x.total)+'/mês</p></div>'+
+      ' · '+x.unidades.length+' unidade(s)'+
+      (ehPlataforma()?' · '+moeda(x.total)+'/mês':'')+'</p></div>'+
 
+   (ehPlataforma()?
    '<div class="blk" style="max-width:900px">'+
     '<div class="acTit">Contrato com a Joia</div>'+
     ctLinha('Responsável',E(ct.responsavel||'—'))+
@@ -25473,13 +25487,13 @@ function telaRedeAberta(id){
      '<button class="btnP2 rdB" onclick="excluirEmpresa(\''+l.id+'\')">'+
       sv('trash',13)+' Excluir empresa</button>'+
     '</div>'+
-   '</div>'+
+   '</div>':'')+
 
    '<div class="blk" style="max-width:900px;margin-top:12px">'+
     '<div class="acTit">Matriz e sucursais ('+x.unidades.length+')</div>'+
     '<div class="etTabW plano2"><table class="etTab semBusca"><thead><tr>'+
      '<th>Unidade</th><th style="width:160px">CNPJ</th><th style="width:170px">Cidade</th>'+
-     '<th style="width:130px;text-align:right">Mensalidade</th>'+
+     (ehPlataforma()?'<th style="width:130px;text-align:right">Mensalidade</th>':'')+
      '<th style="width:90px;text-align:center">Situação</th><th style="width:80px"></th>'+
     '</tr></thead><tbody>'+
     (m?linhaUnidade(m):'')+x.filiais.map(linhaUnidade).join('')+
@@ -25525,7 +25539,7 @@ function telaRedeAberta(id){
     '</div>')+
    '</div>'+
    '<div style="max-width:900px;margin:12px 0 40px">'+
-    (m?'<button class="btnP2" onclick="PRM.loja=\''+l.id+'\';PRM.alvo=\''+m.id+'\';PRM.pend={};'+
+    ((m&&ehPlataforma())?'<button class="btnP2" onclick="PRM.loja=\''+l.id+'\';PRM.alvo=\''+m.id+'\';PRM.pend={};'+
       'telaPermUnidade()">'+sv('lock',13)+' Definir o que esta empresa pode usar</button>':'')+
     '</div>'+
    '</div>';

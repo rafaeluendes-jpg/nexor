@@ -1795,3 +1795,47 @@ para a matriz da Jolô — não tinham efeito, e ficariam confundindo a leitura.
 
 **Regra que fica:** o que entra em `SO_PLATAFORMA` some da tela de contrato
 automaticamente. Não existe lista para manter em dois lugares.
+
+---
+
+# 18/08/2026 — V76: a franqueadora cadastra as próprias sucursais
+
+## O pedido
+
+A franqueadora precisa cadastrar Santa Fé, Sorocaba, Petrópolis — com todos os
+campos. A tela que faz isso é **Empresas Clientes**, que era exclusiva do dono.
+
+Rafael observou, com razão, que **este banco só tem a Jolô**: a instância do
+Rafaelo's é outro projeto Supabase (`rafaellos-gestao`), conforme decidido em
+17/08. Não haveria vazamento hoje.
+
+## Por que não bastou liberar a tela
+
+Segurança que depende de uma promessa sobre o futuro não é segurança. Se um dia
+uma segunda rede entrar neste banco, a franqueadora da Jolô passaria a ver o
+nome, o CNPJ, o plano e a mensalidade da concorrente — e ninguém lembraria que
+foi uma liberação feita hoje.
+
+**O limite ficou no banco, não no menu.** `painel_empresas()` agora devolve
+todas as empresas para `sou_plataforma()` e **só a própria loja** para os
+demais (`l.id = minha_loja()`). O contrato e a mensalidade vêm nulos para quem
+não é plataforma — são assunto entre a Joia e o cliente.
+
+## O que mudou no `index.html`
+
+- `tecnico/instalacao` saiu de `SO_PLATAFORMA` e entrou em `SO_FRANQUEADORA`:
+  continua fora do alcance de franqueado e obedece à marcação do contrato
+- A trava da tela passou de `ehPlataforma()` para `ehPlataforma()||ehFranqueadora()`
+- Somem para o cliente: bloco **Contrato com a Joia** (com o *Excluir empresa*),
+  botão **Definir o que esta empresa pode usar**, card **Cadastrar nova
+  empresa**, a linha e a **coluna Mensalidade**, e o total no cabeçalho
+- Título vira **"Minha rede"**; o voltar deixa de dizer "todas as empresas"
+
+## Camadas, na ordem em que barram
+
+1. **Banco** — `painel_empresas()` só devolve a própria loja
+2. **Menu** — `SO_FRANQUEADORA` esconde o item de franqueado
+3. **Tela** — a trava recusa quem não é franqueadora nem plataforma
+
+Testado por perfil: franqueadora, gerente e admin de unidade enxergam **1
+empresa** e **nenhum dado de contrato**; a plataforma vê tudo.
