@@ -16161,7 +16161,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V83.1.0';
+var VERSAO='V83.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -26337,8 +26337,10 @@ function telaFinanceiroNexor(){
         return '<option value="'+m+'"'+(m===mes?' selected':'')+'>'+mesBR(m)+'</option>';
       }).join('')+'</select></div>'+
     '<div style="flex:1"></div>'+
-    '<button class="btnP2 ok" style="height:30px" onclick="INS.nova=true;INS.rede=null;'+
-     'abrir(\'tecnico\',\'instalacao\')">'+sv('plus',12)+' Nova empresa</button>'+
+    /* O botao "Nova empresa" nao pertence a esta tela: aqui se acompanha a
+       cobranca das unidades que ja existem. Cadastrar empresa e outro
+       assunto, e tem lugar proprio em Empresas Clientes. O valor e o dia de
+       vencimento de cada unidade vem do cadastro da sucursal. */
    '</div>'+
 
    '<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
