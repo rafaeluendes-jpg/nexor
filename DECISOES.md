@@ -2036,3 +2036,26 @@ matriz na abertura do sistema, e registra no log da nuvem quando faz isso.
 
 Testado: solta a franqueadora, esconde a linha vazia, e **não** mexe no gerente
 de filial, que deve mesmo continuar preso à loja dele.
+
+## V81 — a linha da unidade sem acesso foi removida de vez
+
+Rafael pediu três vezes que a linha "Jolo Gelato · sem acesso criado · matriz"
+sumisse. Nas duas primeiras eu tentei consertar a *condição* que a fazia
+aparecer, e nas duas ela voltou por um caminho diferente.
+
+**Ela foi removida.** Aquela lista é de **acessos**; unidade se vê em Sucursais
+da Franquia. A linha existia para a franqueadora achar uma unidade recém
+cadastrada e criar o login dela — necessidade que acabou na V79, quando a
+unidade e o acesso passaram a nascer juntos no mesmo formulário. Virou ruído,
+e pior: parecia um login excluído que não saía da tela, com um botão de
+excluir que não existia.
+
+**Por que a V80.1 não resolveu:** o conserto automático depende de
+`sucursais.login_responsavel`, e o aparelho que ainda não tinha baixado esse
+campo mandava `null` no envio — apagando o vínculo na nuvem antes de recebê-lo.
+Como o envio acontece antes do download, o vazio vencia sempre. Agora o campo
+é **omitido** quando vazio, em vez de enviado como nulo.
+
+**Padrão para lembrar:** em tabela sincronizada, campo novo nunca sobe como
+`null` a partir de um aparelho que talvez não o conheça. Vazio não quer dizer
+"apague".

@@ -13269,7 +13269,10 @@ var MAPA=[
   campos:function(x){return {nome:x.nome,apelido:x.apelido||null,cnpj:x.cnpj||null,
     telefone:x.telefone||null,cidade:x.cidade||null,uf:x.uf||null,
     matriz:!!x.matriz,ativa:x.ativa!==false,
-    login_responsavel:x.loginResp||null,
+    /* Vazio aqui NAO significa "apague o que esta la". O aparelho que ainda
+       nao baixou este campo mandaria null e apagaria o vinculo na nuvem —
+       envio acontece antes do download, entao o vazio venceria sempre. */
+    login_responsavel:(x.loginResp||undefined),
     rede_id:x.redeId||null,rede_nome:x.redeNome||null}}},
 
  {col:'ordensProd',  tab:'ordens_producao',
@@ -16147,7 +16150,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V80.1.0';
+var VERSAO='V81.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44441,13 +44444,16 @@ function telaUsuarios(){
           /* Unidade coberta por um acesso de empresa inteira NAO esta sem
              acesso: alguem ja chega nela. Mostrar "sem acesso criado" ali
              era informacao falsa, e ainda parecia uma linha para excluir. */
-          if(cobreTudo)return '';
-          return '<div class="usrIt semAcesso">'+
-            '<div class="usrAv" style="background:'+(sc.cor||'#00A08B')+';color:#fff;opacity:.45">'+
-              E(String(sc.nome||'?').charAt(0).toUpperCase())+'</div>'+
-            '<div class="usrN"><b>'+E(sc.nome)+'</b>'+
-             '<span>sem acesso criado'+(sc.matriz?' · matriz':'')+
-             (sc.ativa===false?' · inativa':'')+'</span></div></div>';
+          /* ==========================================================
+             UNIDADE SEM ACESSO NAO APARECE MAIS
+             Esta linha existia para a franqueadora achar uma unidade recem
+             cadastrada e criar o login dela. Isso acabou: desde a V79 a
+             unidade e o acesso nascem juntos, no cadastro da sucursal.
+             A linha virou so ruido — e pior, parecia um login excluido que
+             nao saia da tela, com um botao de excluir que nao existe.
+             Esta e uma lista de ACESSOS. Unidade se ve em Sucursais.
+             ========================================================== */
+          return '';
         }).join('')+
         '</div></div>';
        if(!h)h='<div class="usrVaz" style="padding:20px 12px">Nenhum acesso encontrado.</div>';
