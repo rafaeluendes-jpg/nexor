@@ -2059,3 +2059,27 @@ Como o envio acontece antes do download, o vazio vencia sempre. Agora o campo
 **Padrão para lembrar:** em tabela sincronizada, campo novo nunca sobe como
 `null` a partir de um aparelho que talvez não o conheça. Vazio não quer dizer
 "apague".
+
+## V82 — a franqueadora presa numa loja que não existe mais
+
+Ela aparecia como **"unidade"** no topo e caía em **"Área restrita"** nas
+próprias telas (Mensalidades das Unidades). Causa: o acesso dela apontava para
+`suc_jales` — **depois** de a Jales ter sido excluída. Presa a uma loja que não
+existe, deixava de ser reconhecida como matriz.
+
+**Apontar para o vazio não é apontar para uma unidade.** O `baseUsr()` agora
+limpa, na abertura, todo vínculo com unidade inexistente. Não depende de campo
+novo nem de download — conserta mesmo com envio pendente, que era o caso.
+Proteção: se a lista de sucursais ainda não foi carregada, nada é apagado.
+
+**O rótulo do topo também estava para trás.** Dizia "franqueadora" só para quem
+tinha acesso total; tela por tela virava "acesso limitado". Agora diz a
+**posição na rede** — matriz — e a permissão vem depois. Mesma separação da V73.
+
+## Mensalidade no cadastro da sucursal
+
+O cadastro ganhou **Mensalidade (R$)** e **Dia do vencimento** (1 a 28), que
+sobem e descem na sincronização. É o que alimenta Mensalidades das Unidades.
+
+**Falta:** o financeiro completo de recebimento dessas mensalidades pela
+franqueadora — baixa, atraso, histórico. Pedido registrado, não construído.

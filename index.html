@@ -13269,6 +13269,7 @@ var MAPA=[
   campos:function(x){return {nome:x.nome,apelido:x.apelido||null,cnpj:x.cnpj||null,
     telefone:x.telefone||null,cidade:x.cidade||null,uf:x.uf||null,
     matriz:!!x.matriz,ativa:x.ativa!==false,
+    mensalidade:n(x.mensalidade),dia_vencimento:x.diaVenc||null,
     /* Vazio aqui NAO significa "apague o que esta la". O aparelho que ainda
        nao baixou este campo mandaria null e apagaria o vinculo na nuvem —
        envio acontece antes do download, entao o vazio venceria sempre. */
@@ -15099,6 +15100,7 @@ function volta(linhas,fn,atual,col){
     apelido:x.apelido||'',cnpj:x.cnpj||'',telefone:x.telefone||'',cidade:x.cidade||'',
     uf:x.uf||'',matriz:!!x.matriz,ativa:x.ativa!==false,cor:x.cor||'#00A08B',
     loginResp:x.login_responsavel||'',
+    mensalidade:Number(x.mensalidade)||0,diaVenc:x.dia_vencimento||null,
     redeId:x.rede_id||'',redeNome:x.rede_nome||''}},null,'sucursais');
 
   var op=await baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
@@ -15979,8 +15981,17 @@ $('hdr').innerHTML='<img class="hMk" src="joia-icone.png" alt="Joia">'+
 '<button class="hIc" id="btnNuvem" onclick="painelNuvem()" title="Banco de dados">'+sv('cloud',18)+'</button>'+'<button class="hIc" onclick="dev()">'+sv('help',18)+'</button>'+
 (function(){var u=usuarioLogado()||{};
   var nm=u.login||u.nome||'sem sessão';
-  var pp=ehPlataforma()?'dono da Joia':(u.tudo||u.mestre?'franqueadora — acesso total':
-    (u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
+  /* ==========================================================
+     O ROTULO DIZ A POSICAO NA REDE, NAO A PERMISSAO
+     Dizia "franqueadora" so para quem tinha acesso total. Quando a
+     franqueadora passou a ser tela por tela ela virou "acesso limitado",
+     e presa a uma unidade virava "unidade" — sendo que ela e a matriz.
+     Ser matriz e posicao; ver todas as telas e permissao. Sao coisas
+     diferentes desde a V73, e este rotulo tinha ficado para tras.
+     ========================================================== */
+  var pp=ehPlataforma()?'dono da Joia'
+    :(ehFranqueadora(u)?('matriz — '+((u.tudo||u.mestre)?'acesso total':'franqueadora'))
+    :(u.sucursais&&u.sucursais.length?'unidade':'acesso limitado'));
   return '<div class="hUsr"><div class="hAv">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
    '<div><b>'+E(nm)+'</b><span>'+pp+'</span></div>';})()+
 '<button class="hPwr" onclick="sair()" title="Sair">'+sv('out',14)+'</button></div>';
@@ -16150,7 +16161,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V81.0.0';
+var VERSAO='V82.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -38293,6 +38304,13 @@ function formSucursal(id){
    '<div class="fld2"><label>Cidade</label><input id="scCid" value="'+E(s?s.cidade:'')+'"></div>'+
    '<div class="fld2"><label>UF</label><input id="scUf" maxlength="2" value="'+E(s?s.uf:'')+'"></div>'+
   '</div><div class="row2">'+
+   '<div class="fld2"><label>Mensalidade (R$)</label>'+
+    '<input id="scMens" value="'+E(s&&s.mensalidade?String(s.mensalidade).replace('.',','):'')+'" '+
+    'placeholder="0,00"></div>'+
+   '<div class="fld2"><label>Dia do vencimento</label>'+
+    '<input id="scVenc" type="number" min="1" max="28" value="'+E(s&&s.diaVenc?s.diaVenc:'')+'" '+
+    'placeholder="10"></div>'+
+  '</div><div class="row2">'+
    '<div class="fld2"><label>Cor nos gráficos</label>'+
     '<div class="coresSuc">'+CORES_SUC.map(function(c){
       return '<button class="corB'+((s?s.cor:CORES_SUC[0])===c?' on':'')+'" style="background:'+c+'" '+
@@ -38329,6 +38347,8 @@ function formSucursal(id){
     var o={nome:nome,apelido:$('scApe').value.trim(),cnpj:$('scCnpj').value.trim(),
       telefone:$('scTel').value.trim(),cidade:$('scCid').value.trim(),
       uf:$('scUf').value.trim().toUpperCase(),ativa:$('scAtiva').checked,
+      mensalidade:Number(String($('scMens').value||'0').replace(/\./g,'').replace(',','.'))||0,
+      diaVenc:Math.min(28,Math.max(1,parseInt($('scVenc').value,10)||10)),
       cor:_corSuc||(s?s.cor:CORES_SUC[DB.sucursais.length%CORES_SUC.length])};
     var mail=($('scMail').value||'').trim().toLowerCase();
     var senha=($('scSenha').value||'');
@@ -44093,6 +44113,27 @@ function baseUsr(){
      Isso ja aconteceu por edicao manual e por cadastro de sucursal.
      Em vez de esperar nao acontecer de novo, conserta-se na abertura.
      ========================================================== */
+  /* ==========================================================
+     UNIDADE QUE NAO EXISTE MAIS NAO PRENDE NINGUEM
+     A franqueadora ficou presa a "suc_jales" DEPOIS de a Jales ser
+     excluida. Resultado: presa a uma loja que nao existe, ela deixava de
+     ser reconhecida como matriz e caia em "Area restrita" nas telas dela
+     — e o banco recusava as gravacoes com 403.
+     Apontar para o vazio nao e apontar para uma unidade: o vinculo morto
+     e limpo na abertura. Isto nao depende de campo novo nem de download,
+     entao conserta mesmo com envio pendente.
+     ========================================================== */
+  try{
+    var vivas={};
+    (DB.sucursais||[]).forEach(function(x){ vivas[x.id]=true; });
+    if(Object.keys(vivas).length)DB.usuarios.forEach(function(u){
+      var antes=(u.sucursais||[]).length;
+      if(!antes)return;
+      u.sucursais=u.sucursais.filter(function(sid){return vivas[sid]});
+      if(u.sucursais.length!==antes)
+        logNuvem('acesso apontava para unidade inexistente — vinculo limpo: '+(u.login||''));
+    });
+  }catch(e){_quieto(e,'baseUsr')}
   try{
     var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
     var lgMz=mz?String(mz.loginResp||'').toLowerCase():'';
