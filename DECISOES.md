@@ -1983,3 +1983,33 @@ a nenhuma unidade.** A regra passou a considerar isso.
 
 A linha continua aparecendo quando é verdade — rede só com gerentes de unidade
 e ninguém cobrindo a empresa. Testado nos três casos.
+
+## V80 — quem é o responsável da unidade virou fato gravado
+
+Rafael clicou em Editar no `jales@jologelato.com.br` dentro de Usuários e
+Permissões e o formulário de login e senha abriu — exatamente o que o combinado
+tirava dali.
+
+**Por quê:** eu estava *deduzindo* quem é o responsável da unidade. Primeira
+tentativa: o primeiro acesso daquela unidade — e o caixa virava responsável
+conforme a ordem da lista. Segunda: quem tem função "gerente" — e o `jales@`,
+salvo como **Atendente**, deixou de ser reconhecido.
+
+Deduzir errado aqui **troca a senha da pessoa errada**. Então o vínculo passou
+a ser escrito: coluna nova `sucursais.login_responsavel`, preenchida no
+cadastro da sucursal e sincronizada como qualquer outro campo. As unidades que
+já existiam foram preenchidas por migração.
+
+**`formUsuario()` agora desvia:** se o login editado é o responsável de alguma
+unidade, ele fecha e abre o cadastro da sucursal. Não existe mais um segundo
+formulário do mesmo dado — nem pelo botão, nem por caminho indireto.
+
+Em Usuários e Permissões fica a **equipe**: caixa, produção, sócio.
+
+## Em aberto, e vale decidir logo
+
+Rafael quer que a equipe entre com **nome e senha simples, sem e-mail**. Hoje o
+login é o Auth do Supabase, que **só aceita e-mail** — o formulário recusa
+qualquer coisa sem arroba. Ou se adota um e-mail interno automático
+(`caixa1@jolo.local`, escondido da tela), ou a equipe passa a ser autenticada
+por outro caminho. Não dá para prometer "senha simples" sem resolver isso.

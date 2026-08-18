@@ -13269,6 +13269,7 @@ var MAPA=[
   campos:function(x){return {nome:x.nome,apelido:x.apelido||null,cnpj:x.cnpj||null,
     telefone:x.telefone||null,cidade:x.cidade||null,uf:x.uf||null,
     matriz:!!x.matriz,ativa:x.ativa!==false,
+    login_responsavel:x.loginResp||null,
     rede_id:x.redeId||null,rede_nome:x.redeNome||null}}},
 
  {col:'ordensProd',  tab:'ordens_producao',
@@ -15094,6 +15095,7 @@ function volta(linhas,fn,atual,col){
   DB.sucursais=volta(sc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     apelido:x.apelido||'',cnpj:x.cnpj||'',telefone:x.telefone||'',cidade:x.cidade||'',
     uf:x.uf||'',matriz:!!x.matriz,ativa:x.ativa!==false,cor:x.cor||'#00A08B',
+    loginResp:x.login_responsavel||'',
     redeId:x.rede_id||'',redeNome:x.rede_nome||''}},null,'sucursais');
 
   var op=await baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
@@ -16145,7 +16147,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V79.1.0';
+var VERSAO='V80.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -38355,6 +38357,8 @@ function formSucursal(id){
         painelErro('A unidade foi salva, mas o acesso não.',er);
         return true;
       }
+      alvo.loginResp=mail;      /* fica registrado de quem e esta unidade */
+      salvar();
       if(NUVEM.ligada){try{await sincronizar()}catch(e){_quieto(e,'formSucursal')}}
     }
     telaSucursais();
@@ -38367,16 +38371,20 @@ var _corSuc='';
    esta criando ou editando o login */
 function acessoDaSuc(s){
   if(!s)return null;
-  /* Quem e "o acesso da unidade" precisa ser UM so, sempre o mesmo. Pegar o
-     primeiro que aparecesse fazia o caixa da loja virar o responsavel
-     dependendo da ordem da lista — e editar a sucursal trocaria a senha da
-     pessoa errada. O responsavel e o gerente; o resto e equipe. */
-  var cand=(DB.usuarios||[]).filter(function(u){
-    return u.ativo!==false&&(u.sucursais||[]).length===1&&u.sucursais[0]===s.id;
-  });
-  if(!cand.length)return null;
-  return cand.find(function(u){return (u.funcao||'')==='gerente'})||
-         cand.find(function(u){return u.tudo})||null;
+  /* ==========================================================
+     QUEM E O RESPONSAVEL DA UNIDADE E UM FATO GRAVADO
+     Tentei deduzir: primeiro pelo primeiro acesso da unidade (e o caixa
+     virava responsavel conforme a ordem da lista), depois pela funcao
+     "gerente" (e o acesso salvo como Atendente deixava de ser reconhecido,
+     reabrindo a edicao de login onde ela nao deve existir).
+     Deduzir errado aqui troca a senha da pessoa errada. Entao o vinculo
+     passou a ser escrito na propria sucursal, no campo loginResp.
+     ========================================================== */
+  var lg=String(s.loginResp||'').toLowerCase();
+  if(!lg)return null;
+  return (DB.usuarios||[]).find(function(u){
+    return u.ativo!==false&&String(u.login||'').toLowerCase()===lg;
+  })||null;
 }
 async function excluirSucursal(id){
   var s=DB.sucursais.find(function(x){return x.id===id});
@@ -44902,6 +44910,20 @@ function editarUsuario(){formUsuario(US.sel);}
 function formUsuario(id){
   baseUsr();
   var u=id?DB.usuarios.find(function(x){return x.id===id}):null;
+  /* ==========================================================
+     O RESPONSAVEL DA UNIDADE NAO SE EDITA POR AQUI
+     Login e senha de quem responde por uma loja moram no cadastro da
+     sucursal — junto do nome, CNPJ e telefone dela. Abrir um segundo
+     formulario do mesmo dado foi o que espalhou o cadastro e deixou os
+     dois lugares gravando pedacos diferentes.
+     Aqui fica a EQUIPE da loja: caixa, producao, socio.
+     ========================================================== */
+  if(u){
+    var sucDele=(DB.sucursais||[]).find(function(x){
+      return String(x.loginResp||'').toLowerCase()===String(u.login||'').toLowerCase();
+    });
+    if(sucDele){ formSucursal(sucDele.id); return; }
+  }
   modal(u?'Editar usuário':'Novo usuário',
   '<div class="mdB">'+
    '<div class="row2">'+
