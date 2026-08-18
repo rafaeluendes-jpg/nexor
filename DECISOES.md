@@ -1946,3 +1946,27 @@ O limite no banco (`painel_empresas()` só devolve a própria loja para quem nã
    gravando pela Edge Function `criar-usuario` (que já sabe criar e editar).
 3. **Usuários e Permissões perde** a edição de login de unidade; fica só com
    permissões e com o Novo usuário da equipe, sem seletor de unidade.
+
+## V79 — passos 2 e 3: o cadastro da unidade virou dono do acesso dela
+
+**Cadastrar/Editar sucursal** (Configuração da Loja › Sucursais da Franquia)
+ganhou **E-mail (login)** e **Senha** do responsável. Salvar grava a unidade e,
+em seguida, cria ou atualiza o acesso pela Edge Function `criar-usuario`, com
+`cargo:'gerente'` e `sucursal_ref` da própria unidade. Editando, senha em
+branco mantém a atual.
+
+**Ordem:** a unidade é gravada primeiro, porque o acesso aponta para ela. Se o
+acesso falhar, **a unidade fica** — desfazer o cadastro por causa do login
+perderia tudo o que a pessoa digitou. O erro aparece, e a unidade está lá.
+
+**Usuários e Permissões:** para o responsável de uma unidade, o botão *Editar*
+virou **"Editar em Sucursais"** e leva ao formulário de lá. Dois lugares
+editando o mesmo login foi o que espalhou o cadastro. A equipe da loja (caixa,
+produção) continua sendo criada e editada ali — essa gente não tem cadastro de
+unidade, e o formulário dela já não pede unidade nenhuma: vem da loja aberta.
+
+**`acessoDaSuc()` precisa ser determinística.** A primeira versão pegava o
+primeiro acesso ativo daquela unidade — e o caixa da loja virava "o
+responsável" dependendo da ordem da lista, o que faria editar a sucursal
+trocar a senha da pessoa errada. Agora o responsável é quem tem função
+**gerente**; sem gerente, nenhum. Testado com o caixa listado primeiro.

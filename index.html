@@ -3940,6 +3940,7 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .usrBusca{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--line-2)}
 .usrBusca svg{color:var(--ink-3)}
 .usrBusca input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent}
+.mdSep{height:1px;background:var(--line-2);margin:16px 0 12px}
 /* link discreto para trazer de volta quem foi desligado */
 .usrLnk{display:block;width:100%;text-align:left;background:none;border:none;
   padding:7px 13px 9px;font-size:11.5px;color:var(--ink-3);cursor:pointer;
@@ -16144,7 +16145,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V78.0.0';
+var VERSAO='V79.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -38295,22 +38296,88 @@ function formSucursal(id){
    '<div class="fld2"><label>&nbsp;</label>'+
     '<label class="chkL"><input type="checkbox" id="scAtiva" '+(!s||s.ativa!==false?'checked':'')+'>'+
     '<span>Sucursal ativa</span></label></div>'+
-  '</div></div>','Salvar',function(){
+  '</div>'+
+  /* ==========================================================
+     O ACESSO DA UNIDADE NASCE AQUI
+     Antes, cadastrar a loja e criar quem entra nela eram duas telas
+     diferentes — e nenhuma era dona do cadastro inteiro. Agora a unidade
+     e o acesso dela saem do mesmo formulario, de uma vez.
+     ========================================================== */
+  '<div class="mdSep"></div>'+
+  '<b style="font-size:13px">Quem entra nesta loja</b>'+
+  '<p class="hint" style="margin:4px 0 10px">'+
+   (acessoDaSuc(s)
+     ? 'Já existe um acesso para esta unidade. Deixe a senha em branco para '+
+       'não trocá-la.'
+     : 'O responsável da unidade entra com este e-mail e senha. Ele enxerga '+
+       'só esta loja.')+'</p>'+
+  '<div class="row2">'+
+   '<div class="fld2"><label>E-mail (login)</label>'+
+    '<input id="scMail" value="'+E((acessoDaSuc(s)||{}).login||'')+'" '+
+    'placeholder="responsavel@empresa.com"></div>'+
+   '<div class="fld2"><label>Senha</label>'+
+    '<input id="scSenha" type="text" placeholder="'+
+      (acessoDaSuc(s)?'deixe em branco para manter':'mínimo 6 caracteres')+'"></div>'+
+  '</div></div>','Salvar',async function(){
     var nome=$('scNome').value.trim();
     if(!nome){toast('Informe o nome da sucursal.');return false;}
     var o={nome:nome,apelido:$('scApe').value.trim(),cnpj:$('scCnpj').value.trim(),
       telefone:$('scTel').value.trim(),cidade:$('scCid').value.trim(),
       uf:$('scUf').value.trim().toUpperCase(),ativa:$('scAtiva').checked,
       cor:_corSuc||(s?s.cor:CORES_SUC[DB.sucursais.length%CORES_SUC.length])};
+    var mail=($('scMail').value||'').trim().toLowerCase();
+    var senha=($('scSenha').value||'');
+    var jaTem=acessoDaSuc(s);
+    if(mail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){
+      toast('O login precisa ser um e-mail válido.');return false;}
+    if(mail&&!jaTem&&senha.length<6){
+      toast('Informe a senha do responsável (mínimo 6 caracteres).');return false;}
+    if(senha&&senha.length<6){
+      toast('A senha precisa ter ao menos 6 caracteres.');return false;}
+
+    var alvo=s;
     if(s)Object.assign(s,o);
-    else DB.sucursais.push(Object.assign({id:uid('suc'),matriz:false},o));
+    else {alvo=Object.assign({id:uid('suc'),matriz:false},o);DB.sucursais.push(alvo);}
     _corSuc='';
-    salvar();telaSucursais();
-    toast('Sucursal salva.');
+    salvar();
+
+    /* O acesso vai depois da unidade existir: ele aponta para ela.
+       Se o acesso falhar, a unidade FICA — desfazer o cadastro por causa
+       do login perderia tudo o que a pessoa digitou. */
+    if(mail){
+      var er=await criarAcesso(NUVEM.loja,{
+        nome:o.nome, email:mail, senha:senha,
+        cargo:'gerente', sucursal_ref:alvo.id,
+        perfil_id:(jaTem&&jaTem.perfilId)||''
+      });
+      if(er){
+        telaSucursais();
+        painelErro('A unidade foi salva, mas o acesso não.',er);
+        return true;
+      }
+      if(NUVEM.ligada){try{await sincronizar()}catch(e){_quieto(e,'formSucursal')}}
+    }
+    telaSucursais();
+    toast(mail?'Sucursal e acesso salvos.':'Sucursal salva.');
     return true;
   },'lg');
 }
 var _corSuc='';
+/* qual acesso pertence a esta unidade — o formulario precisa saber se
+   esta criando ou editando o login */
+function acessoDaSuc(s){
+  if(!s)return null;
+  /* Quem e "o acesso da unidade" precisa ser UM so, sempre o mesmo. Pegar o
+     primeiro que aparecesse fazia o caixa da loja virar o responsavel
+     dependendo da ordem da lista — e editar a sucursal trocaria a senha da
+     pessoa errada. O responsavel e o gerente; o resto e equipe. */
+  var cand=(DB.usuarios||[]).filter(function(u){
+    return u.ativo!==false&&(u.sucursais||[]).length===1&&u.sucursais[0]===s.id;
+  });
+  if(!cand.length)return null;
+  return cand.find(function(u){return (u.funcao||'')==='gerente'})||
+         cand.find(function(u){return u.tudo})||null;
+}
 async function excluirSucursal(id){
   var s=DB.sucursais.find(function(x){return x.id===id});
   var ok=await confirmar({titulo:'Excluir a sucursal '+(s?s.nome:''),
@@ -44367,7 +44434,22 @@ function detalheUsuario(){
     '<div style="flex:1"></div>'+
     (u.mestre?'':'<label class="chkL" style="margin:0"><input type="checkbox" '+
       (u.ativo!==false?'checked':'')+' onchange="togAtivoUsr()"><span>ativo</span></label>')+
-    '<button class="btnP2" onclick="editarUsuario()">'+sv('edit',12)+' Editar</button>'+
+    /* ==========================================================
+       O ACESSO DA UNIDADE NAO SE EDITA AQUI
+       Nome, login e senha do responsavel de uma loja moram no cadastro da
+       sucursal. Ter os dois lugares editando o mesmo acesso foi o que
+       espalhou o cadastro. Aqui o botao leva para la, em vez de abrir um
+       segundo formulario do mesmo dado.
+       A equipe da loja (caixa, producao) continua sendo criada e editada
+       aqui — essa gente nao tem cadastro de unidade.
+       ========================================================== */
+    ((function(){
+      var _s=(DB.sucursais||[]).find(function(x){
+        var a=acessoDaSuc(x); return a&&a.id===u.id;});
+      if(_s)return '<button class="btnP2" onclick="formSucursal(\''+_s.id+'\')">'+
+        sv('edit',12)+' Editar em Sucursais</button>';
+      return '<button class="btnP2" onclick="editarUsuario()">'+sv('edit',12)+' Editar</button>';
+    })())+
     (u.mestre?'':'<button class="btnP2 rdB" onclick="excluirUsuario()">'+sv('trash',12)+'</button>')+
    '</div>'+
    (u.mestre
