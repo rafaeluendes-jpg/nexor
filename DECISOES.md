@@ -2083,3 +2083,34 @@ sobem e descem na sincronização. É o que alimenta Mensalidades das Unidades.
 
 **Falta:** o financeiro completo de recebimento dessas mensalidades pela
 franqueadora — baixa, atraso, histórico. Pedido registrado, não construído.
+
+## V83 — desfazendo a V82: vínculo morto não pode virar acesso a tudo
+
+**Erro meu, e grave.** Na V82 apaguei o vínculo de quem apontava para uma
+unidade excluída, para soltar a franqueadora. Só que o gerente de Jales também
+apontava para a Jales excluída. Sem unidade, ele passou a valer como
+**empresa inteira** — o rodapé dele passou a dizer "matriz — franqueadora".
+Um gerente de loja virou franqueadora por causa de uma limpeza minha.
+
+A regra estava invertida: sem unidade significa "alcança tudo". Então apagar um
+vínculo quebrado **promove** quem o tinha. O certo é o contrário — quem perdeu
+a unidade não alcança nada até alguém dizer onde ele fica.
+
+A limpeza foi removida. A franqueadora continua sendo resolvida pelo caminho
+próprio, que só mexe em quem está registrado como responsável da matriz.
+
+Dado corrigido no banco: `jales@jologelato.com.br` voltou a `cargo=gerente`,
+`sucursal_ref=suc_2157f764d972`.
+
+## O estrago do dia, para não repetir
+
+A conta `jolo@jologelato.com.br` foi **excluída** às 20h55. Antes disso tinha
+sido renomeada para "Jolô Jales" e amarrada à unidade Jales — porque o vínculo
+morto fez o cadastro de sucursal reconhecê-la como responsável daquela loja.
+Na lista ela apareceu como duplicata e foi apagada.
+
+**Travas que faltam, na ordem:**
+1. Acesso que responde pela rede não pode ser excluído pela tela
+2. Cadastro de sucursal nunca adota como responsável um acesso sem unidade
+3. Unidade excluída não deve continuar referenciada por acesso nenhum — a
+   exclusão precisa tratar quem apontava para ela, na hora

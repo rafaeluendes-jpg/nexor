@@ -16161,7 +16161,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V82.0.0';
+var VERSAO='V83.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44114,26 +44114,17 @@ function baseUsr(){
      Em vez de esperar nao acontecer de novo, conserta-se na abertura.
      ========================================================== */
   /* ==========================================================
-     UNIDADE QUE NAO EXISTE MAIS NAO PRENDE NINGUEM
-     A franqueadora ficou presa a "suc_jales" DEPOIS de a Jales ser
-     excluida. Resultado: presa a uma loja que nao existe, ela deixava de
-     ser reconhecida como matriz e caia em "Area restrita" nas telas dela
-     — e o banco recusava as gravacoes com 403.
-     Apontar para o vazio nao e apontar para uma unidade: o vinculo morto
-     e limpo na abertura. Isto nao depende de campo novo nem de download,
-     entao conserta mesmo com envio pendente.
+     A LIMPEZA DE VINCULO MORTO FOI REMOVIDA (V83)
+     Na V82 eu apagava o vinculo de quem apontava para uma unidade
+     excluida, para soltar a franqueadora. O efeito colateral foi grave:
+     o gerente de Jales tambem apontava para a Jales excluida, ficou sem
+     unidade — e sem unidade significa EMPRESA INTEIRA. Um gerente de loja
+     virou franqueadora.
+     Vinculo morto nao pode virar acesso a tudo. O certo e o contrario:
+     quem perdeu a unidade nao alcanca nada ate alguem dizer onde ele fica.
+     A franqueadora se resolve pelo caminho proprio, abaixo, que so mexe em
+     quem esta registrado como responsavel da matriz.
      ========================================================== */
-  try{
-    var vivas={};
-    (DB.sucursais||[]).forEach(function(x){ vivas[x.id]=true; });
-    if(Object.keys(vivas).length)DB.usuarios.forEach(function(u){
-      var antes=(u.sucursais||[]).length;
-      if(!antes)return;
-      u.sucursais=u.sucursais.filter(function(sid){return vivas[sid]});
-      if(u.sucursais.length!==antes)
-        logNuvem('acesso apontava para unidade inexistente — vinculo limpo: '+(u.login||''));
-    });
-  }catch(e){_quieto(e,'baseUsr')}
   try{
     var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
     var lgMz=mz?String(mz.loginResp||'').toLowerCase():'';
