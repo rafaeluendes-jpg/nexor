@@ -1573,3 +1573,32 @@ instalou continua mostrando o ícone velho para sempre.
 2. **Pasta `Joia-Sistema Inteligente/`** guarda um `index.html` na V68 e um
    `joia-icone.png`. Não é servida por ninguém e só ocupa espaço e confunde.
    Pode apagar.
+
+## V72.1 — a troca de domínio quebrou a criação de acessos
+
+Ao salvar um acesso em `joiagest.com.br` aparecia **"Failed to fetch"**.
+
+**Causa:** a lista de origens permitidas (CORS) fica escrita **dentro** da
+Edge Function `criar-usuario`, não no painel do Supabase. Ela ainda listava
+`rafaeluendes-jpg.github.io` e `nexorapp.com.br`. O navegador confere essa
+lista **antes** de enviar o pedido — por isso o erro é "Failed to fetch" e não
+uma resposta do servidor: a chamada nunca chegou lá.
+
+**Correção:** `criar-usuario` foi para a versão 7 com `joiagest.com.br` e
+`www.joiagest.com.br` na lista. Os endereços antigos foram mantidos.
+Testado: domínio inventado continua barrado.
+
+**Regra que fica:** *toda vez que o domínio mudar, a lista `ORIGENS` de cada
+Edge Function muda junto.* Levantamento feito nesta data — das oito funções do
+projeto, só a `criar-usuario` tinha lista fechada; as outras aceitam qualquer
+origem. O `index.html` só chama `criar-usuario`.
+
+**Segundo erro, logo depois:** *"Password is known to be weak and easy to
+guess"*. Não é defeito — é a proteção de senha vazada do Supabase funcionando.
+A senha escolhida está na lista pública de vazamentos.
+
+Foi criada a função `traduzAuth()` no `index.html`: o Supabase Auth responde em
+inglês e quem lê é o franqueado. Traduz senha vazada, senha curta, e-mail
+repetido, e-mail inválido, credencial errada, excesso de tentativas, falha de
+rede e sessão vencida. Mensagem fora da lista passa como veio — texto estranho
+em inglês ainda é melhor que erro escondido.

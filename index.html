@@ -16097,7 +16097,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V72.0.0';
+var VERSAO='V72.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25871,6 +25871,32 @@ async function salvarAcesso(lojaId,perfilId){
   toast(senha?'Acesso salvo e senha trocada.':'Acesso salvo.');telaInstalacao();
 }
 
+/* O Supabase Auth responde em ingles. Quem le a mensagem e o franqueado,
+   entao traduzimos as respostas conhecidas. O que nao estiver na lista passa
+   como veio: mensagem estranha em ingles ainda e melhor que erro escondido. */
+function traduzAuth(m){
+  var txt=String(m||'');
+  var mapa=[
+    [/password is known to be weak|easy to guess|pwned|leaked/i,
+     'Essa senha aparece em listas de senhas vazadas na internet e foi recusada. '+
+     'Escolha outra — o melhor caminho e juntar tres palavras e um numero, '+
+     'sem usar nome, data de nascimento ou sequencia.'],
+    [/password should be at least|password.*too short/i,
+     'A senha e curta demais. Use pelo menos 6 caracteres.'],
+    [/user already registered|already been registered|email.*already/i,
+     'Ja existe um acesso com esse e-mail.'],
+    [/unable to validate email|invalid email/i,
+     'O e-mail digitado nao e valido.'],
+    [/invalid login credentials/i, 'E-mail ou senha nao conferem.'],
+    [/email rate limit|over_email_send_rate|too many requests|rate limit/i,
+     'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.'],
+    [/failed to fetch|network|load failed/i,
+     'Nao consegui falar com o servidor. Verifique a internet e tente de novo.'],
+    [/jwt|session|token/i, 'Sua sessao venceu. Saia e entre de novo no sistema.']
+  ];
+  for(var i=0;i<mapa.length;i++) if(mapa[i][0].test(txt)) return mapa[i][1];
+  return txt;
+}
 /* devolve null quando deu certo, ou o texto do erro */
 async function criarAcesso(lojaId,dados){
   try{
@@ -25882,9 +25908,9 @@ async function criarAcesso(lojaId,dados){
         cargo:dados.cargo,loja_id:lojaId,sucursal_ref:dados.sucursal_ref||null,
         perfil_id:dados.perfil_id||null})});
     var d=null; try{ d=await r.json(); }catch(e){_quieto(e,'criarAcesso')}
-    if(!r.ok)return (d&&d.erro)||('o servidor respondeu '+r.status);
+    if(!r.ok)return traduzAuth((d&&d.erro)||('o servidor respondeu '+r.status));
     return null;
-  }catch(e){ return (e&&e.message)||'falha de rede'; }
+  }catch(e){ return traduzAuth((e&&e.message)||'falha de rede'); }
 }
 async function criarAcessoEmpresa(lojaId){
   var email=vlr('acMail').toLowerCase(), senha=vlr('acSenha');
