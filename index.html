@@ -16161,7 +16161,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V83.0.0';
+var VERSAO='V83.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -38369,7 +38369,15 @@ function formSucursal(id){
     /* O acesso vai depois da unidade existir: ele aponta para ela.
        Se o acesso falhar, a unidade FICA — desfazer o cadastro por causa
        do login perderia tudo o que a pessoa digitou. */
-    if(mail){
+    /* ==========================================================
+       ACESSO SO E TOCADO SE ALGO NELE MUDOU
+       Editar a mensalidade da loja mandava o acesso junto, com a senha
+       vazia — e o servidor recusava, dizendo que a senha e curta demais.
+       Quem edita o cadastro da loja nao esta mexendo em senha nenhuma.
+       ========================================================== */
+    var mexeuNoAcesso = mail && (!jaTem || senha ||
+      String(jaTem.login||'').toLowerCase()!==mail);
+    if(mexeuNoAcesso){
       /* ==========================================================
          A MATRIZ E A EXCECAO
          O responsavel de uma filial responde por aquela loja. O da matriz
@@ -38394,7 +38402,7 @@ function formSucursal(id){
       if(NUVEM.ligada){try{await sincronizar()}catch(e){_quieto(e,'formSucursal')}}
     }
     telaSucursais();
-    toast(mail?'Sucursal e acesso salvos.':'Sucursal salva.');
+    toast(mexeuNoAcesso?'Sucursal e acesso salvos.':'Sucursal salva.');
     return true;
   },'lg');
 }

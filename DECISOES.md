@@ -2114,3 +2114,12 @@ Na lista ela apareceu como duplicata e foi apagada.
 2. Cadastro de sucursal nunca adota como responsável um acesso sem unidade
 3. Unidade excluída não deve continuar referenciada por acesso nenhum — a
    exclusão precisa tratar quem apontava para ela, na hora
+
+## V83.1 — editar a mensalidade pedia a senha
+
+Editar só o valor da mensalidade da loja mandava o acesso junto, com a senha
+vazia — e o servidor recusava dizendo que a senha era curta demais. Quem edita
+o cadastro da loja não está mexendo em senha nenhuma.
+
+O acesso agora só é gravado quando **algo nele** mudou: senha digitada, e-mail
+diferente, ou primeiro acesso da unidade. Testado nos cinco casos.
