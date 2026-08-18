@@ -6,14 +6,15 @@
    arquivo no servidor e nao achava. A loja parava por causa de um F5.
    Este arquivo guarda o sistema no proprio aparelho.
    ========================================================== */
-var CACHE = 'joia-v1';
+var CACHE = 'joia-v2';
 var ESSENCIAIS = [
   './',
   './index.html',
   './supabase.js',
   './manifest.json',
   './joia-icone.png',
-  './joia-icone.png'
+  './joia-icone-192.png',
+  './joia-fundo.jpg'
 ];
 
 self.addEventListener('install', function (e) {

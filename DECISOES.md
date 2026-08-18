@@ -1285,3 +1285,291 @@ estoque, financeiro e relatórios de uma vez. Não começar no cansaço.
   por um campo que guarda outra coisa, e sairia errado. Defeito meu, do mesmo dia
 - Anotado: a tela de cadastro de rotinas **não existe**; as seis foram inseridas direto no
   banco. Sem ela não se cumpre a promessa de "rotina é cadastro, não código"
+
+---
+
+# 17/08/2026 — Nexor vira Joia; Pro assinado; contas fechadas
+
+## O nome mudou: Nexor → Joia (V68 a V70)
+
+**Joia** = "Jô" da Jolô + IA. Passou a ser o nome da empresa do Rafael e do produto.
+Subtítulo da marca: *plataforma de gestão inteligente*. Grafia sem acento.
+Em texto corrido, tratar como feminino: **a Joia**.
+
+**Paleta oficial**, tirada da própria logo:
+
+| Cor | Valor | Uso |
+|---|---|---|
+| Verde profundo | `#0F2016` | fundo da entrada, `--deep` |
+| Dourado claro | `#ECC474` | título, brilho |
+| Dourado médio | `#DDB467` | botão principal, `--acc-l` |
+| Dourado escuro | `#AF7F38` | `--acc`, texto sobre fundo claro |
+
+**Decisão de interface, tomada por mockup antes de codar:** entrada com fundo
+verde escuro; telas de trabalho com **fundo claro e texto escuro**. O motivo é
+prático — a entrada dura cinco segundos e é o momento da marca; a lista de
+insumos é lida por horas, e fundo escuro com muito número cansa a vista.
+
+**Arquivos de imagem:** `joia-icone.png` na raiz do repositório, recortado só o
+monograma (sem o texto, que vira borrão em ícone de celular).
+
+### O que NÃO mudou, e não pode mudar
+
+Nomes internos permanecem com "nexor": `nexor_dados`, `nexor_sessao`,
+`clientes_nexor`, `telaFinanceiroNexor`, `telaClientesNexor`, `clientesNexor`.
+São chaves de armazenamento do navegador, nomes de tabela e de função. Trocar
+apaga o que está salvo no aparelho de todo mundo.
+
+O repositório continua se chamando `nexor`.
+
+## O `pages.yml` estava quebrado havia dois dias (V70)
+
+A publicação parou em 15/08 e ninguém notou — o site no ar era de dois dias
+antes, e todo envio novo parecia funcionar.
+
+**Causa:** o workflow tinha `cp CNAME _site/`. O arquivo CNAME foi removido do
+repositório no dia 15 para destravar o domínio. Sem ele, o comando falha, a
+etapa inteira para e **nada é publicado**. Falha silenciosa: o commit entra, o
+Actions fica vermelho, mas o site continua servindo a versão velha.
+
+**Correção:** arquivos opcionais agora são copiados só se existirem, e as
+imagens entram por curinga (`cp *.png`), sem depender do nome da marca.
+
+**Regra que fica:** conferir o Actions depois de publicar. Verde não é detalhe.
+
+## Administração liberada por item para a franqueadora (V67)
+
+O `MOD_PLATAFORMA=['tecnico']` bloqueava o módulo Administração inteiro,
+passando por cima do `SO_PLATAFORMA`, que já fazia o controle item por item.
+Marreta anulando bisturi.
+
+`MOD_PLATAFORMA` virou lista vazia. O filtro fino voltou a valer.
+
+| Item de Administração | rafael@uendes.com | jolo@franqueadora.com |
+|---|---|---|
+| Mensalidades das Unidades | sim | **sim** |
+| Sincronização | sim | **sim** |
+| Mapa do Sistema | sim | não |
+| Empresas Clientes | sim | não |
+| Diagnóstico do Sistema | sim | não |
+| Backup e Restauração | sim | não |
+| Layout do Menu | sim | não |
+| Reinício de Dados | sim | não |
+
+"Financeiro da Nexor" virou **"Mensalidades das Unidades"** — o módulo trabalha
+por unidade, com mensalidade e marcação de pago mês a mês. Serve direto para a
+franqueadora cobrar as seis unidades.
+
+## Domínio: joiagest.com.br
+
+Registrado em 17/08/2026, válido até 17/08/2027. **Sem acento** (a versão com
+til estava disponível, mas domínio acentuado dá atrito em teclado de celular e
+vira punycode em configuração).
+
+| Ponta | Estado |
+|---|---|
+| Registro.br | servidores `gloria` e `jasper` da Cloudflare |
+| Cloudflare | dois CNAME → `rafaeluendes-jpg.github.io`, ambos **Somente DNS** |
+| GitHub Pages | arquivo `CNAME` + Custom domain |
+
+**Nuvem cinza, sempre.** Se ligar o proxy (nuvem laranja), o certificado do
+GitHub conflita e o site quebra.
+
+`nexorapp.com.br` continua registrado. Não apagar enquanto o novo não estiver
+firme.
+
+### Armadilha que consumiu horas, duas vezes
+
+Quando o Custom domain está configurado e o domínio ainda não resolve, o GitHub
+**redireciona o `github.io` para o domínio novo** — e os dois caminhos fecham ao
+mesmo tempo. O Chrome guarda esse redirecionamento com teimosia.
+
+Sintoma: você clica no link do `github.io` e cai no domínio novo dando 404.
+
+Contorno: **janela anônima**. Limpeza definitiva em `chrome://net-internals/#hsts`,
+apagando as políticas dos dois domínios.
+
+## Supabase Pro assinado
+
+Organização `jcnmdlvzyqtuixtnsjqm`, plano `pro`. Projeto renomeado para
+**"Joia Gestão Inteligente"** (id segue `cevghkndzpzvnzwifhnm`).
+
+Custo ~US$ 35/mês: US$ 25 da assinatura + ~US$ 10 do segundo projeto ativo
+(`rafaellos-gestao`). Projeto pausado não gera custo — `assistente-pessoal` e
+`gerente-financeiro` seguem pausados de propósito.
+
+**O que se compra com isso:** backup diário automático e fim da pausa por
+inatividade. Não é capacidade — o banco usa 71 MB de 8 GB.
+
+Cobrança **só por cartão de crédito**, não tem Pix. Se o cartão falhar, a conta
+volta para o gratuito e **o backup some**. Manter cartão válido é parte da
+segurança do dado.
+
+**Região:** `us-east-2` (Ohio), enquanto o `rafaellos-gestao` está em São Paulo.
+Adiciona latência em cada consulta feita do Brasil. Não vale mexer hoje — mudar
+região é migrar o banco. Reavaliar na obra de estrutura.
+
+## Contas fechadas (as quatro portas)
+
+| Conta | O que foi feito |
+|---|---|
+| GitHub | dois tokens revogados (`Nexor` e `nexor-claude`); 2FA por SMS |
+| Google | verificação em duas etapas **ativada** |
+| Cloudflare | entra pela conta Google — protegida por consequência |
+| Supabase | 2FA por aplicativo ("Google Motorola") |
+
+**Descoberta importante:** a conta Google (`usacademyadm@gmail.com`) é a
+chave-mestra. Cloudflare entra por ela. Proteger o Gmail foi o passo de maior
+retorno do dia.
+
+**Pendências desta frente:**
+- Supabase 2FA tem **um único aparelho** cadastrado. Perder o celular = perder a
+  conta em definitivo, sem código de recuperação. Cadastrar um segundo aparelho
+  antes de a Jolô operar
+- GitHub está em SMS, que é vulnerável a clonagem de chip. Migrar para
+  aplicativo autenticador quando der
+- Guardar os códigos de recuperação do Google e do GitHub junto do zip do sistema
+
+## Proteção contra senha vazada: ativada
+
+Supabase → Authentication → Sign In / Providers → Email →
+*Prevent use of leaked passwords*.
+
+Confere senha nova contra a base do HaveIBeenPwned. **Não é bloqueio por
+tentativa** — age só no momento de escolher ou trocar senha. Senhas que já
+existem não são afetadas.
+
+Também disponíveis na mesma tela, ainda desligadas: *Secure password change* e
+*Require current password when updating*. Valem para o cenário de balcão, com
+aparelho compartilhado e sessão aberta.
+
+---
+
+# A obra que falta: login por Supabase Auth
+
+O plano técnico está na seção **"Próxima obra: ligar o login no Supabase Auth"**,
+mais acima. Continua válido. O que segue é o que se somou a ele em 17/08.
+
+## Por que continua sendo a peça central
+
+As 66 tabelas têm RLS ligado e políticas escritas. Mas `auth.uid()` é sempre
+nulo, porque o login compara senha em texto do lado do navegador. As políticas
+existem e não têm em quem se apoiar.
+
+**Nenhuma configuração de painel resolve isso.** É código.
+
+## Bloqueio por tentativa — desenho aprovado pelo Rafael
+
+Pedido: errar a senha bloqueia o acesso; só a franqueadora desbloqueia; se a
+própria franqueadora perder a senha, recupera por e-mail.
+
+**A trava tem que ficar no banco, não no navegador.** Se a contagem viver no
+código do lado do usuário, quem quiser atacar chama o banco direto e ignora a
+trava. É o mesmo erro de `trava` que o Rafael já apontou em outras ocasiões:
+guarda no navegador não é proteção, é decoração.
+
+Modelo a seguir: os campos `falhas` e `bloqueado_ate` que já existem no
+aplicativo do franqueado.
+
+**Número de tentativas:** o Rafael pediu três. Registrado que a recomendação é
+**cinco, com desbloqueio automático em 15 minutos** — três gera chamado toda
+semana (dedo molhado, teclado de tablet, Caps Lock) e protege igual, já que um
+ataque real precisa de milhares de tentativas. Decisão final do Rafael.
+
+**Recuperação por e-mail** depende do Supabase Auth funcionando. Não dá para
+fazer antes — é a mesma obra.
+
+## Escopo completo da obra
+
+1. Migrar `entrar()` para o Supabase Auth; `api()` passa a levar o token
+2. Migrar os usuários existentes sem ninguém perder acesso
+3. Bloqueio por tentativa no banco (`falhas` / `bloqueado_ate`)
+4. Tela de desbloqueio para a franqueadora
+5. Recuperação de senha por e-mail
+6. **Limpar os usuários de teste** do Auth: `admin@teste.local`,
+   `gestor.a@teste.local`, `gestor.b@teste.local`, `p20a@teste.com`,
+   `p20b@teste.com`. Conta de teste com senha fraca em produção é porta aberta
+7. Rever `exportar_schema()`, hoje chamável sem login — devolve a estrutura do
+   banco. Não expõe dado de cliente, mas entrega o mapa da casa. Conferir antes
+   se o Diagnóstico depende dela
+
+## Condições para fazer
+
+Esta é a **única obra que, se quebrar, tranca todo mundo do lado de fora** —
+inclusive o Rafael. Diferente de tudo que foi feito até aqui, onde o pior caso
+era uma tela errada.
+
+Exige: sessão dedicada, começar descansado, testar tela por tela depois do
+passo 1, e caminho de volta pronto.
+
+**Prazo:** antes da primeira venda real da Jolô. Hoje o risco é baixo porque não
+há operação nem dado de cliente — o sistema está em pré-operação.
+
+---
+
+# Estado em 17/08/2026, fim do dia
+
+Sistema **V70**, inteiro Joia, publicando normalmente.
+
+**Aberto e à espera:**
+- `joiagest.com.br` propagando. Quando abrir: Settings → Pages → **Check again**,
+  e marcar **Enforce HTTPS**
+- Pasta `Joia-Sistema Inteligente` e imagens `nexor-*.png` sobraram no
+  repositório. Não atrapalham; limpar quando der
+- Backup automático em segundo lugar e **importação a partir de arquivo** — o
+  sistema exporta `.json` mas não sabe ler de volta. Se o Supabase sumisse, o
+  arquivo seria inútil. É a peça que falta no plano de recuperação
+- Instância do Rafaelo's: um `index.html` só, escolhendo banco e marca pelo
+  endereço. Não duplicar arquivo — duplicar significa consertar dois
+
+**Princípio reforçado hoje:** o `pages.yml` mostrou que falha silenciosa é a
+pior espécie. Publicar e não conferir o verde do Actions custou dois dias.
+
+---
+
+# 18/08/2026 — V72: entrada corrigida e ícone do aplicativo refeito
+
+## O cartão de entrada saiu de cima do letreiro
+
+A foto de fundo (`joia-fundo.jpg`) tem o letreiro na **direita**. O cartão de
+login estava caindo no meio da tela e cobrindo a marca.
+
+Correção, no fim do bloco de estilo do `#login` (regra `@media(min-width:821px)`):
+o `.shell` volta a ser **linha**, o `.stage` recebe `flex:0 0 min(56%,860px)`
+e centraliza o cartão dentro dessa faixa. Resultado: o cartão fica no meio da
+metade esquerda, na altura do meio, e a parede com o letreiro fica livre.
+
+O cartão também cresceu: largura `min(100%,505px)` (era 470) e fontes,
+campos e botão um degrau maiores.
+
+**No celular nada muda.** A regra é presa a `min-width:821px`. Abaixo disso
+continua valendo o que já existia: foto escurecida e cartão centralizado.
+
+## O ícone do aplicativo agora é a marca nova
+
+O `joia-icone.png` ainda era o **monograma J dourado sobre verde**, que é a
+marca antiga. O certo é a marca do letreiro: **a oval com o sorvete e o nome
+Joia embaixo**.
+
+O ícone foi recortado do próprio `joia-fundo.jpg`, apagando o `2 0 2 1` e o
+subtítulo "plataforma de gestão inteligente" — texto pequeno vira borrão em
+ícone de celular. O apagamento reconstrói a parede interpolando as faixas de
+cima e de baixo da área (interpolar na horizontal não serve: a fonte encostava
+na oval e sujava o remendo).
+
+Arquivos: `joia-icone.png` (512) e `joia-icone-192.png` (192, novo).
+O `<link rel="icon" sizes="192x192">` ainda apontava para `nexor-icone-192.png`
+e foi corrigido. O `manifest.json` passou a usar o arquivo de 192 no lugar certo.
+
+**`sw.js` foi para `joia-v2`.** Sem trocar o número do cache, o celular que já
+instalou continua mostrando o ícone velho para sempre.
+
+## Duas pendências de arrumação do repositório
+
+1. **`DECISOES .md` com espaço no nome** é o arquivo bom e completo.
+   O `DECISOES.md` sem espaço é uma cópia velha (para no dia 1º). Renomear o
+   bom para `DECISOES.md` e apagar a cópia, antes que uma sessão futura leia
+   a errada.
+2. **Pasta `Joia-Sistema Inteligente/`** guarda um `index.html` na V68 e um
+   `joia-icone.png`. Não é servida por ninguém e só ocupa espaço e confunde.
+   Pode apagar.
