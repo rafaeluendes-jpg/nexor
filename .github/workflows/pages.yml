@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html manifest.json supabase.js _site/
-          cp *.png _site/ 2>/dev/null || true
+          cp *.png *.jpg _site/ 2>/dev/null || true
           for f in _headers sw.js CNAME; do
             [ -f "$f" ] && cp "$f" _site/
           done
