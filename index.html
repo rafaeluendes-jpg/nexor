@@ -16145,7 +16145,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V79.0.0';
+var VERSAO='V79.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44368,8 +44368,18 @@ function telaUsuarios(){
        });
        var aberta=buscando||US.abertas[nomeEmp]!==false;
        var totalAc=resto.length;
-       /* alguem com acesso total alcanca todas as unidades da empresa */
-       var cobreTudo=resto.some(function(u){return u.tudo||u.mestre});
+       /* ==========================================================
+          QUEM ALCANCA TODAS AS UNIDADES
+          Isto olhava so o "acesso total". Quando a franqueadora passou a
+          ser tela por tela, ela deixou de contar — e a matriz voltou a
+          aparecer como "sem acesso criado", sendo que a franqueadora chega
+          nela todos os dias.
+          O que alcanca a empresa inteira nao e ver todas as telas: e nao
+          estar preso a nenhuma unidade. Acesso sem unidade cobre todas.
+          ========================================================== */
+       var cobreTudo=resto.some(function(u){
+         return u.tudo||u.mestre||!((u.sucursais||[]).length);
+       });
        h+='<div class="usrSec">Empresa<span class="usrLn"></span></div>'+
         '<div class="usrPasta'+(aberta?' ab':'')+'">'+
         '<button class="usrPastaH" onclick="abrirPastaEmpresa(this,\''+

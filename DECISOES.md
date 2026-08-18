@@ -1970,3 +1970,16 @@ primeiro acesso ativo daquela unidade — e o caixa da loja virava "o
 responsável" dependendo da ordem da lista, o que faria editar a sucursal
 trocar a senha da pessoa errada. Agora o responsável é quem tem função
 **gerente**; sem gerente, nenhum. Testado com o caixa listado primeiro.
+
+## V79.1 — a matriz voltou a aparecer como "sem acesso criado"
+
+A regra que escondia unidade sem login olhava só o **acesso total**. Quando a
+franqueadora passou a ser tela por tela (V73), ela deixou de contar — e a
+matriz voltou a aparecer como "sem acesso criado", sendo que a franqueadora
+chega nela todos os dias.
+
+**O que alcança a empresa inteira não é ver todas as telas: é não estar preso
+a nenhuma unidade.** A regra passou a considerar isso.
+
+A linha continua aparecendo quando é verdade — rede só com gerentes de unidade
+e ninguém cobrindo a empresa. Testado nos três casos.
