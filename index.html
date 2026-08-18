@@ -13270,6 +13270,17 @@ var MAPA=[
     telefone:x.telefone||null,cidade:x.cidade||null,uf:x.uf||null,
     matriz:!!x.matriz,ativa:x.ativa!==false,
     mensalidade:n(x.mensalidade),dia_vencimento:x.diaVenc||null,
+    /* ==========================================================
+       REATIVAR UMA UNIDADE TEM DE APAGAR A MARCA DE EXCLUIDA
+       A Jolo Jales foi reativada com valor e vencimento e mesmo assim nao
+       aparecia nas Mensalidades: a marca de excluida continuava la, e a
+       consulta esconde tudo o que esta marcado. O envio nunca mexia neste
+       campo, entao a marca era eterna.
+       Aqui o nulo e intencional — "esta viva" — e por isso vai. Quando a
+       unidade esta inativa o campo e OMITIDO, para nao apagar a data de
+       exclusao de quem foi excluido de verdade.
+       ========================================================== */
+    excluida_em:(x.ativa!==false?null:undefined),
     /* Vazio aqui NAO significa "apague o que esta la". O aparelho que ainda
        nao baixou este campo mandaria null e apagaria o vinculo na nuvem —
        envio acontece antes do download, entao o vazio venceria sempre. */
@@ -16161,7 +16172,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V83.2.0';
+var VERSAO='V83.3.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

@@ -2123,3 +2123,19 @@ o cadastro da loja não está mexendo em senha nenhuma.
 
 O acesso agora só é gravado quando **algo nele** mudou: senha digitada, e-mail
 diferente, ou primeiro acesso da unidade. Testado nos cinco casos.
+
+## V83.2 / V83.3 — Mensalidades: botão a menos, unidade a mais
+
+Saiu o botão **Nova empresa** da tela de Mensalidades. Ali se acompanha a
+cobrança das unidades que existem; cadastrar empresa é outro assunto e tem
+lugar próprio.
+
+**A Jolô Jales não aparecia** mesmo com R$ 350 e vencimento gravados. Ela
+estava `ativa=true` **e** com `excluida_em` preenchido — reativar pela tela
+nunca apagava essa marca, porque o envio não mexia nesse campo. E a consulta
+esconde tudo que está marcado como excluído.
+
+Agora o envio manda `excluida_em: null` quando a unidade está ativa — aqui o
+nulo é intencional, quer dizer "está viva". Com a unidade inativa o campo é
+**omitido**, para não apagar a data de quem foi excluído de verdade. É a mesma
+regra da V81, aplicada ao contrário quando o vazio tem significado.
