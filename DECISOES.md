@@ -2013,3 +2013,26 @@ login é o Auth do Supabase, que **só aceita e-mail** — o formulário recusa
 qualquer coisa sem arroba. Ou se adota um e-mail interno automático
 (`caixa1@jolo.local`, escondido da tela), ou a equipe passa a ser autenticada
 por outro caminho. Não dá para prometer "senha simples" sem resolver isso.
+
+## V80.1 — a matriz é a exceção, e o conserto virou automático
+
+A linha "sem acesso criado · matriz" continuava aparecendo. A causa não era a
+árvore: **a franqueadora seguia presa a uma unidade** (o topo da tela dizia
+"unidade" ao lado do e-mail dela). Uma unidade sem ninguém de empresa inteira
+para cobri-la aparece como sem acesso — corretamente.
+
+E a V80 tinha piorado: a matriz ganhou "responsável", e o cadastro de sucursal
+prende o responsável àquela unidade. Para a matriz isso está errado.
+
+**O responsável de uma filial responde por aquela loja. O da matriz responde
+pela rede.** O cadastro da matriz passou a gravar `cargo:'admin'` e **sem**
+unidade.
+
+**E o conserto deixou de depender de alguém lembrar.** Hoje esse mesmo defeito
+apareceu três vezes por caminhos diferentes: edição manual, aba "Lojas que
+acessa" e cadastro de sucursal. Cada vez custou o mesmo 403 e a mesma
+sincronização travada nos dois sentidos. Agora o `baseUsr()` solta o acesso da
+matriz na abertura do sistema, e registra no log da nuvem quando faz isso.
+
+Testado: solta a franqueadora, esconde a linha vazia, e **não** mexe no gerente
+de filial, que deve mesmo continuar preso à loja dele.

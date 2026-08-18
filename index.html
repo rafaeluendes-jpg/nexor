@@ -16147,7 +16147,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V80.0.0';
+var VERSAO='V80.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -38347,9 +38347,18 @@ function formSucursal(id){
        Se o acesso falhar, a unidade FICA — desfazer o cadastro por causa
        do login perderia tudo o que a pessoa digitou. */
     if(mail){
+      /* ==========================================================
+         A MATRIZ E A EXCECAO
+         O responsavel de uma filial responde por aquela loja. O da matriz
+         e a franqueadora: ela responde pela REDE. Prende-la a uma unidade
+         a rebaixa a gestora de unidade — foi assim que o banco passou a
+         recusar as gravacoes com 403 e travou a sincronizacao inteira.
+         Por isso a matriz grava sem unidade e com cargo de administrador.
+         ========================================================== */
       var er=await criarAcesso(NUVEM.loja,{
         nome:o.nome, email:mail, senha:senha,
-        cargo:'gerente', sucursal_ref:alvo.id,
+        cargo:alvo.matriz?'admin':'gerente',
+        sucursal_ref:alvo.matriz?'':alvo.id,
         perfil_id:(jaTem&&jaTem.perfilId)||''
       });
       if(er){
@@ -44071,6 +44080,26 @@ function baseUsr(){
      pode depender de uma requisicao dar certo.
      ------------------------------------------------------------------ */
   donos.forEach(function(u){ u.tudo=true;u.mestre=true;u.ativo=true; });
+  /* ==========================================================
+     A FRANQUEADORA NAO FICA PRESA A UMA UNIDADE
+     Quem responde pela matriz responde pela rede. Um acesso desses com
+     unidade marcada perde o direito de administrar (sou_admin() exige
+     nenhuma unidade) e o banco passa a recusar as gravacoes com 403 —
+     o envio para de subir, e como nao se baixa nada com envio pendente,
+     a sincronizacao trava nos dois sentidos.
+     Isso ja aconteceu por edicao manual e por cadastro de sucursal.
+     Em vez de esperar nao acontecer de novo, conserta-se na abertura.
+     ========================================================== */
+  try{
+    var mz=(DB.sucursais||[]).find(function(x){return x.matriz});
+    var lgMz=mz?String(mz.loginResp||'').toLowerCase():'';
+    if(lgMz)DB.usuarios.forEach(function(u){
+      if(String(u.login||'').toLowerCase()===lgMz&&(u.sucursais||[]).length){
+        u.sucursais=[];
+        logNuvem('acesso da matriz estava preso a uma unidade — soltado');
+      }
+    });
+  }catch(e){_quieto(e,'baseUsr')}
   if(donos.length>1){
     var manter=donos[0];
     DB.usuarios=DB.usuarios.filter(function(u){
