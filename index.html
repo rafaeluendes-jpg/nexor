@@ -16172,7 +16172,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V85.0.0';
+var VERSAO='V86.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33046,6 +33046,17 @@ function telaMovimentacao(){
   var totEnt=linhas.filter(function(x){return x.l.direcao==='entrada'})
     .reduce(function(a,x){return a+(Number(x.l.qtd)||0)*(Number(x.l.custo)||0)},0);
   var totSai=totCusto-totEnt;
+  /* Custo medio do que esta na tela: o valor movimentado dividido pela
+     quantidade movimentada. Nao e a media dos custos unitarios — essa
+     trataria 1 kg e 500 kg como se pesassem o mesmo. */
+  var qtdTotal=linhas.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
+  var custoMedio=qtdTotal?totCusto/qtdTotal:0;
+  var unMedia=(function(){
+    var us={};
+    linhas.forEach(function(x){ var u=(x.l.unidade||'')||'un'; us[u]=(us[u]||0)+1; });
+    var ks=Object.keys(us);
+    return ks.length===1?ks[0]:'';     /* unidades misturadas: nao rotula */
+  })();
 
   $('content').innerHTML='<div class="mvWrap">'+
    '<div class="mvTopo">'+
@@ -33114,6 +33125,10 @@ function telaMovimentacao(){
     }).join('')+'</tbody>'+
     '<tfoot><tr><td colspan="7"><b>Subtotal — '+linhas.length+' movimentações</b></td>'+
     '<td></td><td style="text-align:right"><b>R$ '+money(totCusto)+'</b></td><td colspan="2"></td></tr>'+
+    '<tr class="sub2"><td colspan="7"><b>Custo médio</b> — '+fmtQt(qtdTotal)+
+      (unMedia?' '+E(unMedia):'')+' movimentados</td>'+
+    '<td></td><td style="text-align:right"><b>R$ '+money(custoMedio)+
+      (unMedia?'<small> por '+E(unMedia)+'</small>':'')+'</b></td><td colspan="2"></td></tr>'+
     '<tr class="sub2"><td colspan="7">Entradas R$ '+money(totEnt)+' · Consumo R$ '+money(totSai)+'</td>'+
     '<td colspan="4"></td></tr></tfoot></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum registro encontrado</b>'+
@@ -33123,15 +33138,23 @@ function telaMovimentacao(){
   if(mb){
     if(_focoBusca==='mvBusca'){mb.focus();
       try{mb.setSelectionRange(mb.value.length,mb.value.length)}catch(e){_quieto(e,'telaMovimentacao')}}
-    mb.oninput=mb.onchange=function(){
-      _focoBusca='mvBusca';
-      var t=String(this.value||'').trim(), tl=t.toLowerCase();
-      clearTimeout(_mvBuscaT);
+    /* ==========================================================
+       A LISTA DE SUGESTAO SUMIA NA HORA DE CLICAR
+       A cada letra, 260 ms depois, a tela inteira era redesenhada para
+       filtrar a tabela. Redesenhar troca o <input> por um novo — e o
+       navegador fecha a lista de sugestoes junto. Quem digitava "gelato",
+       via a lista abrir e ia clicar, clicava no vazio.
+       Agora digitar NAO redesenha nada. O redesenho acontece quando a
+       escolha esta feita: nome exato (que e o que acontece ao clicar na
+       sugestao), Enter, ou ao sair do campo. A lista fica de pe o tempo
+       todo, que e como uma lista de sugestao tem de se comportar.
+       ========================================================== */
+    function _aplicaBuscaMov(txt,forcar){
+      var t=String(txt||'').trim(), tl=t.toLowerCase();
       if(!t){
         if(MV.insumoId||MV.busca){MV.insumoId='';MV.busca='';telaMovimentacao();}
         return;
       }
-      /* nome inteiro ou codigo: trava no item exato na hora */
       var l2=itensEstoque();
       var a=l2.find(function(i){return (i.nome||'').toLowerCase()===tl})
           || l2.find(function(i){return String(i.codigo||'').toLowerCase()===tl});
@@ -33139,13 +33162,15 @@ function telaMovimentacao(){
         if(a.id!==MV.insumoId||MV.busca){MV.insumoId=a.id;MV.busca='';telaMovimentacao();}
         return;
       }
-      /* a partir de 3 letras, busca parcial — sem precisar acertar o nome inteiro */
-      _mvBuscaT=setTimeout(function(){
-        var nova=(t.length>=3?t:'');
-        if(nova===MV.busca&&!MV.insumoId)return;
-        MV.insumoId='';MV.busca=nova;telaMovimentacao();
-      },260);
-    };
+      if(!forcar)return;                 /* ainda escolhendo: nao mexe na tela */
+      var nova=(t.length>=3?t:'');
+      if(nova===MV.busca&&!MV.insumoId)return;
+      MV.insumoId='';MV.busca=nova;telaMovimentacao();
+    }
+    mb.oninput=function(){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,false); };
+    mb.onchange=function(){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,true); };
+    mb.onblur=function(){ var v=this.value; setTimeout(function(){_aplicaBuscaMov(v,true)},180); };
+    mb.onkeydown=function(e){ if(e.key==='Enter'){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,true); } };
   }
   rodape(linhas.length+' movimentações no período');
 }

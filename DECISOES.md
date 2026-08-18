@@ -2193,3 +2193,22 @@ importa; para gestão do dia a dia, resolve.
 **Teste:** história com entrada, saída, contagem e movimento de outra loja —
 sete datas conferidas uma a uma, todas batendo, incluindo o dia anterior à
 primeira entrada (zero) e uma data futura (saldo de hoje).
+
+## V86 — a sugestão sumia na hora de clicar, e o custo médio no rodapé
+
+**A lista de sugestão.** Em Movimentação de Estoque, digitar "gelato" abria a
+lista e ela sumia ao clicar. Causa: a cada letra, 260 ms depois, a tela inteira
+era redesenhada para filtrar a tabela — e redesenhar troca o `<input>` por um
+novo, o que faz o navegador fechar a lista junto. O clique caía no vazio.
+
+Agora **digitar não redesenha nada**. O redesenho acontece quando a escolha
+está feita: nome exato (que é o que acontece ao clicar na sugestão), Enter, ou
+ao sair do campo. A lista fica de pé o tempo todo.
+
+**Custo médio.** Nova linha no rodapé, ao lado do subtotal: valor movimentado
+dividido pela **quantidade** movimentada — média **ponderada**, não a média dos
+custos unitários. A diferença não é detalhe: 1 kg a R$ 80 mais 500 kg a R$ 10
+dão custo médio de R$ 10,14/kg; a média simples diria R$ 45,00 — quatro vezes
+mais. A unidade só é rotulada quando todas as linhas usam a mesma; com
+unidades misturadas o número aparece sem rótulo, porque somar kg com litro não
+significa nada.
