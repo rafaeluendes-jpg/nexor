@@ -16172,7 +16172,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V86.0.0';
+var VERSAO='V86.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33127,8 +33127,11 @@ function telaMovimentacao(){
     '<td></td><td style="text-align:right"><b>R$ '+money(totCusto)+'</b></td><td colspan="2"></td></tr>'+
     '<tr class="sub2"><td colspan="7"><b>Custo médio</b> — '+fmtQt(qtdTotal)+
       (unMedia?' '+E(unMedia):'')+' movimentados</td>'+
-    '<td></td><td style="text-align:right"><b>R$ '+money(custoMedio)+
-      (unMedia?'<small> por '+E(unMedia)+'</small>':'')+'</b></td><td colspan="2"></td></tr>'+
+    /* o valor fica na coluna CUSTO, que e a do preco por unidade — nao na
+       coluna CUSTO TOTAL, que e soma e nao media */
+    '<td style="text-align:right"><b>R$ '+money(custoMedio)+'</b>'+
+      (unMedia?'<small> / '+E(unMedia)+'</small>':'')+'</td>'+
+    '<td colspan="3"></td></tr>'+
     '<tr class="sub2"><td colspan="7">Entradas R$ '+money(totEnt)+' · Consumo R$ '+money(totSai)+'</td>'+
     '<td colspan="4"></td></tr></tfoot></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhum registro encontrado</b>'+

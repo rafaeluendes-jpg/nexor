@@ -2212,3 +2212,10 @@ dão custo médio de R$ 10,14/kg; a média simples diria R$ 45,00 — quatro vez
 mais. A unidade só é rotulada quando todas as linhas usam a mesma; com
 unidades misturadas o número aparece sem rótulo, porque somar kg com litro não
 significa nada.
+
+## V86.1 — o custo médio na coluna certa
+
+O valor estava na coluna **Custo total**, ao lado do subtotal. Lugar errado:
+aquela coluna é soma, e média não se soma. Passou para a coluna **Custo**, que
+é a do preço por unidade — é com esses números que ele se compara. O rótulo
+"Custo médio" fica à esquerda, na mesma linha.
