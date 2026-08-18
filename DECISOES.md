@@ -1716,3 +1716,58 @@ navegador de verdade.
 | tela que dá erro | o erro chega a quem chamou |
 | envolver duas vezes | não empilha |
 | duas barras internas roladas | as duas voltam ao lugar |
+
+---
+
+# 18/08/2026 — V75: o que foi excluído para de aparecer, e acesso pode ser excluído
+
+## Três coisas que estavam erradas na ficha da empresa (Administração)
+
+**1. Sucursal excluída continuava na lista, como "Inativa".**
+A `Jolô Jales` estava com `excluida_em` preenchido no banco e mesmo assim
+aparecia. A função `painel_empresas()` lia `sucursais` sem filtrar excluídas.
+
+**2. O mesmo acesso aparecia duas vezes.**
+Rafael entrou como franqueadora e criou o acesso da unidade em Usuários e
+Permissões. O acesso antigo (`jolo@jales.com`) foi **desligado** ali —
+`ativo=false` — mas desligar só marca a linha; a conta continua no Auth e o
+perfil continua existindo. `painel_empresas()` listava todo perfil da loja,
+sem olhar se ele estava desligado. Resultado: "Jolô Jales" duas vezes.
+
+**3. Não havia como excluir um acesso.** Só editar.
+
+## O que foi feito
+
+**`painel_empresas()` agora filtra na origem** — sucursal com `excluida_em`
+não vem, e perfil cujo `usuarios_sistema` está excluído ou inativo não vem.
+Filtrar na função, e não em cada tela, evita que a próxima tela criada esqueça
+o filtro. Perfil **sem** linha correspondente continua aparecendo: sumir com um
+acesso por falta de cadastro seria pior que mostrar demais.
+A soma da mensalidade também passou a ignorar unidade excluída.
+
+**Botão de excluir acesso** na lista, chamando a Edge Function `criar-usuario`
+(versão 9) com `acao:'excluir'`. A conta sai do Auth, do `perfis` e é marcada
+como excluída em `usuarios_sistema`.
+
+**Ordem da exclusão importa.** `perfis.id` tem FK para `auth.users` com
+ON DELETE CASCADE: apagar a conta já leva o perfil. Por isso a conta vai
+primeiro — se falhar no meio, nada foi destruído e dá para repetir. Na ordem
+inversa, uma falha depois de apagar o perfil deixaria conta órfã no Auth, que
+é exatamente o tipo de sobra que criou o problema das listas duplicadas.
+
+Travas: ninguém exclui o próprio acesso; o acesso `plataforma` não pode ser
+excluído; administrador de rede só alcança acessos da própria empresa.
+
+**Recriar acesso com e-mail já usado agora reativa a linha.** Sem isso, o
+acesso recriado nasceria invisível — a linha antiga continuaria marcada como
+excluída e o novo filtro o esconderia.
+
+## Divisão de quem cria o quê (pedido do Rafael)
+
+Na Administração, o formulário passou a criar **um só tipo de acesso**: o da
+franqueadora, que enxerga a empresa inteira. Os campos Papel e Unidade saíram —
+viraram fixos (`admin` / empresa inteira).
+
+Regra: **a Joia cria o acesso da franqueadora; a franqueadora cria o resto**,
+em Configuração da Loja › Usuários e Permissões. Cada rede cuida da própria
+equipe, e o dono não vira operador de cadastro dos clientes.

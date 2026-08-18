@@ -16122,7 +16122,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V74.0.0';
+var VERSAO='V75.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25498,26 +25498,27 @@ function telaRedeAberta(id){
          '<td>'+E(p.email||'—')+'</td>'+
          '<td>'+E(p.cargo==='admin'?'Administrador':(p.cargo||'—'))+'</td>'+
          '<td>'+E(p.unidade||'empresa inteira')+'</td>'+
-         '<td><button class="rBtn" title="Editar acesso" '+
-          'onclick="ACS.edit=\''+p.id+'\';telaInstalacao()">'+sv('edit',12)+'</button></td></tr>';
+         '<td style="white-space:nowrap">'+
+          '<button class="rBtn" title="Editar acesso" '+
+           'onclick="ACS.edit=\''+p.id+'\';telaInstalacao()">'+sv('edit',12)+'</button> '+
+          '<button class="rBtn rdB" title="Excluir acesso" '+
+           'onclick="excluirAcessoEmpresa(\''+p.id+'\',\''+E(p.email||'')+'\')">'+
+           sv('trash',12)+'</button></td></tr>';
       }).join('')+'</tbody></table></div>'
      :'<div class="hint vr">Nenhum acesso criado. Esta empresa ainda não consegue entrar.</div>')+
     (ACS.edit?formEditarAcesso(x):'')+
     (ACS.edit?'':'<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">'+
-     '<b style="font-size:13px">Criar acesso</b>'+
-     '<p class="hint" style="margin:4px 0 10px">O administrador enxerga a empresa inteira; '+
-     'o gerente, só a unidade escolhida. A senha é trocada pela pessoa depois.</p>'+
+     '<b style="font-size:13px">Criar o acesso da franqueadora</b>'+
+     '<p class="hint" style="margin:4px 0 10px">Aqui nasce <b>um</b> acesso: o da '+
+     'franqueadora, que enxerga a empresa inteira. Os acessos das unidades — gerente, '+
+     'caixa, operador — quem cria é a própria franqueadora, em Configuração da Loja › '+
+     'Usuários e Permissões. Assim cada rede cuida da própria equipe.</p>'+
      '<div class="grid2">'+
       '<div class="fld2"><label>Nome</label><input id="acNome" placeholder="Ex.: '+E(l.nome)+' — Matriz"></div>'+
       '<div class="fld2"><label>E-mail (login) *</label><input id="acMail" placeholder="nome@empresa.com"></div>'+
       '<div class="fld2"><label>Senha *</label><input id="acSenha" type="text" placeholder="mínimo 6 caracteres"></div>'+
-      '<div class="fld2"><label>Papel</label><select id="acCargo">'+
-       '<option value="admin">Administrador da empresa</option>'+
-       '<option value="gerente">Gerente de unidade</option></select></div>'+
-      '<div class="fld2"><label>Unidade</label><select id="acSuc">'+
-       '<option value="">A empresa inteira</option>'+
-       x.unidades.map(function(s2){return '<option value="'+E(s2.ref_local||'')+'">'+E(s2.nome)+'</option>'}).join('')+
-      '</select></div>'+
+      '<input type="hidden" id="acCargo" value="admin">'+
+      '<input type="hidden" id="acSuc" value="">'+
      '</div>'+
      '<div style="margin-top:10px"><button class="btnP2 ok" onclick="criarAcessoEmpresa(\''+l.id+'\')">'+
       'Criar acesso</button></div>'+
@@ -26001,6 +26002,41 @@ async function criarAcesso(lojaId,dados){
     if(!r.ok)return traduzAuth((d&&d.erro)||('o servidor respondeu '+r.status));
     return null;
   }catch(e){ return traduzAuth((e&&e.message)||'falha de rede'); }
+}
+/* ==========================================================
+   EXCLUIR UM ACESSO DE VERDADE
+   Desligar em Usuarios e Permissoes so marca ativo=false: a conta continua
+   valendo no Auth. Era dai que vinha a mesma pessoa aparecendo duas vezes
+   na lista da Administracao — a conta velha desligada e a nova.
+   Aqui sai dos tres lugares: Auth, perfis e usuarios_sistema. A chave de
+   administrador do banco fica na funcao do servidor; o navegador so pede.
+   ========================================================== */
+async function excluirAcessoEmpresa(perfilId,email){
+  var ok=await confirmar({
+    titulo:'Excluir este acesso?',
+    texto:'A conta deixa de existir e a pessoa não entra mais no sistema.',
+    linhas:[['Login',email||'—',''],['Depois disso','não tem como desfazer pela tela','']],
+    aviso:'Os lançamentos e vendas que essa pessoa fez <b>continuam no sistema</b>. '+
+          'O que some é o acesso.',
+    ok:'Excluir acesso', tipo:'perigo'
+  });
+  if(!ok)return;
+  try{
+    var r=await fetch(NUVEM.url+'/functions/v1/criar-usuario',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':NUVEM.chave,
+               'Authorization':'Bearer '+(NUVEM.token||'')},
+      body:JSON.stringify({acao:'excluir',perfil_id:perfilId})
+    });
+    var d=null; try{d=await r.json()}catch(e){}
+    if(!r.ok){painelErro('Não consegui excluir o acesso.',
+      traduzAuth((d&&d.erro)||('o servidor respondeu '+r.status)));return;}
+  }catch(e){
+    painelErro('Não consegui excluir o acesso.',traduzAuth((e&&e.message)||'falha de rede'));return;
+  }
+  ACS.edit=null; INS.nuvem=null; await carregarEmpresas(true);
+  toast('Acesso excluído: '+(email||''));
+  telaInstalacao();
 }
 async function criarAcessoEmpresa(lojaId){
   var email=vlr('acMail').toLowerCase(), senha=vlr('acSenha');
