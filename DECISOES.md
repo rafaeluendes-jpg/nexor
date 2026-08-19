@@ -2430,3 +2430,49 @@ ficar negativo** se o que foi produzido já tiver sido vendido.
 
 **Teste:** produção de 5 kg de base gerando 4,8 kg com 0,3 kg de diferença —
 os dois movimentos foram encontrados e o estoque voltou exatamente ao original.
+
+---
+
+# PRÓXIMA OBRA — Subgrupos na ficha técnica (pedido em 19/08, fazer imediatamente)
+
+## Combinado com o Rafael
+
+**Quando ele pede, é para fazer agora.** Só adiar quando ele mesmo disser
+"anota e faz amanhã". Registrar em vez de executar não é resposta.
+
+## O problema
+
+`ficha_grupos` tem só `nome` e `destino_id` — **não existe campo de pai**. Os
+subgrupos que aparecem na árvore não são cadastro: são reconstruídos a partir
+do `subgrupo_id` escrito em cada ficha. Subgrupo vazio some no próximo
+carregamento, porque não há onde ficar gravado.
+
+Por isso as fichas BASE BELGA e BASE MORANGO aparecem soltas dentro de
+"Produzido": nenhuma tem subgrupo escrito.
+
+## O que fazer
+
+1. **Banco:** `alter table ficha_grupos add column pai_id uuid references
+   ficha_grupos(id)`. Subgrupo vira linha de verdade — existe vazio, pode ser
+   renomeado, recebe fichas depois.
+2. **Sincronização:** `pai_id` sobe e desce. Campo novo **nunca sobe como
+   `null`** de aparelho que talvez não o conheça (regra da V81) — omitir
+   quando vazio.
+3. **Criar a estrutura**, com esta grafia exata:
+
+   **Produzido** → Artesanal · Base de Gelato · Cascao · Recheio · Sorbet ·
+   Zero Acucar
+
+   **Vendas** → Bebidas_venda · Cascao_Venda · Gelato_Venda · Parceiro_Venda ·
+   Sobremesas_Venda
+
+4. **Migrar:** BASE BELGA e BASE MORANGO para *Produzido › Base de Gelato*.
+5. **Árvore:** clicar no subgrupo lista as fichas dele à direita — não
+   penduradas na pasta, como está hoje.
+6. **Formulário da ficha:** escolher a pasta e depois o subgrupo.
+
+## Cuidado que já custou caro hoje
+
+Editar `index.html` **só por substituição de texto exato**, nunca por corte
+entre marcas que podem se repetir — foi assim que 33 funções sumiram na V87.
+Conferir a lista de funções antes e depois de cada edição.
