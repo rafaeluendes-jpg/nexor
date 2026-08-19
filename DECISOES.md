@@ -2291,3 +2291,32 @@ Quando o filtro mostra só consumo, a conta usa o consumo e o rótulo avisa
 
 Testado: R$ 300 em 30 kg dá R$ 10,00/kg; com consumo junto continua R$ 10,00;
 1 kg a R$ 80 com 500 kg a R$ 10 dá R$ 10,14 (ponderado, não R$ 45).
+
+---
+
+# 18/08/2026 — V88: Movimentação de Mercadoria
+
+"Histórico de Posição de Estoque" virou **Movimentação de Mercadoria**, com
+outra ideia por trás. A pergunta que a tela responde agora é: **neste dia,
+quanto entrou, quanto saiu, com quanto o item terminou — e por quê.**
+
+Uma linha por dia e por item, com entrada, saída e saldo do dia. O **+** abre
+os lançamentos daquele dia, em ordem de hora, cada um com o saldo depois dele:
+começou com X, a venda tirou tanto, a produção pôs tanto, terminou com Y.
+
+Cada lançamento diz a origem em português — venda no PDV, pedido do cardápio,
+totem, fiado, produção, nota de entrada, transferência, ajuste de contagem
+(sobra ou falta), Assistente, ou o motivo cadastrado da baixa manual.
+
+Filtros: data inicial, data final e ingrediente (vazio = todos).
+
+**O saldo não é guardado em lugar nenhum** — é reconstruído do razão de
+movimentos com `saldoNaData()`, o mesmo cálculo da V85. Por isso vale para
+qualquer dia do passado.
+
+**A tela antiga (`telaHistPosicao`) continua no arquivo, intacta.** Só o
+roteador mudou. Se faltar algo na nova, é uma linha para voltar. Depois do
+susto das 33 funções, tela nova entra ao lado, não por cima.
+
+**Teste:** dois dias com nota, venda e produção — o saldo corrido lançamento a
+lançamento bateu com o saldo calculado de forma independente nos dois dias.

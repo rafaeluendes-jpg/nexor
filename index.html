@@ -2446,6 +2446,15 @@ tbody td small{font-size:10.5px}
    coluna a que pertence e ninguem precisa procurar a legenda */
 .mvTab tfoot td small{display:block;font-weight:600;font-size:9.5px;
   letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+/* Movimentacao de Mercadoria: a lista de dentro de cada dia */
+.mmMais{display:inline-block;width:16px;height:16px;line-height:15px;text-align:center;
+  border:1px solid var(--line);border-radius:50%;font-weight:700;font-size:11px;
+  color:var(--ink-3);background:#fff;margin-right:4px}
+.mmSub{width:100%;border-collapse:collapse;font-size:11px;background:#FBFBF9}
+.mmSub td{padding:6px 9px;border-top:1px solid var(--line-2);color:var(--ink-2)}
+.mmSub tr.mmIni td{background:#F3F4F1;font-style:italic}
+.mvTab tr.mmDet>td{padding:0;background:#FBFBF9}
+
 .mvTab tfoot tr.sub2 td{background:#fff;border-top:1px solid var(--line-2);font-size:11.5px;color:var(--ink-3)}
 .mvVazio{padding:70px 20px;text-align:center;color:var(--ink-3)}
 .mvVazio b{display:block;font-size:14px;color:var(--ink-2);margin:11px 0 4px}
@@ -12166,7 +12175,7 @@ var MOD=[
  {id:'transferencia',n:'Transferência de Mercadoria'},
  {id:'posicao-estoque',n:'Estoque Total'},
  {id:'contagem-estoque',n:'Contagem de Estoque'},
- {id:'historico-posicao',n:'Histórico de Posição de Estoque'},
+ {id:'historico-posicao',n:'Movimentação de Mercadoria'},
  {id:'notas-entrada',n:'Notas de Entrada'}]},
 {id:'relatorios',n:'Gestão de Relatórios',ic:'file',it:[
  {id:'faturamento-dia',n:'Faturamento por Dia'},
@@ -16176,7 +16185,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V87.2.0';
+var VERSAO='V88.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16533,9 +16542,9 @@ if(mid==='estoque'&&iid==='transferencia')return telaTransferencia();
 if(mid==='estoque'&&iid==='posicao-estoque')return telaEstoqueTotal();
 if(mid==='estoque'&&iid==='contagem-estoque')return telaContagem();
 if(mid==='estoque'&&iid==='historico-posicao'){
-  /* entrou pela primeira vez: comeca limpo, sem o item da consulta anterior */
-  HP.item='';HP.grupo='';HP.motivoId='';_focoBusca='';
-  return telaHistPosicao();
+  /* A tela antiga (telaHistPosicao) continua no arquivo, intacta: se algo
+     faltar na nova, e so trocar esta linha de volta. */
+  return telaMovMercadoria();
 }
 if(mid==='estoque'&&iid==='notas-entrada')return telaNotas();
 if(mid==='tecnico'&&iid==='reset-sistema')return telaReset();
@@ -33028,6 +33037,167 @@ function explicaBaixaManual(){
     ok: 'Entendi', tipo: 'info'
   });
 }
+
+/* ==========================================================
+   MOVIMENTACAO DE MERCADORIA
+   Substitui o antigo "Historico de Posicao de Estoque". A pergunta que
+   esta tela responde e: neste dia, quanto entrou, quanto saiu e com quanto
+   este item terminou — e, abrindo a linha, POR QUE cada quilo se moveu.
+
+   Uma linha por dia e por item. O "+" abre os lancamentos daquele dia, em
+   ordem de hora, cada um com o saldo depois dele. Assim da para seguir o
+   saldo passo a passo: comecou com X, a venda tirou tanto, a producao pos
+   tanto, terminou com Y.
+
+   O saldo do dia nao e guardado em lugar nenhum: e reconstruido a partir do
+   razao de movimentos, com saldoNaData(). Por isso vale para qualquer dia
+   do passado, sem depender de nada ter sido preparado antes.
+   ========================================================== */
+var MM={de:'',ate:'',item:'',abertos:{},pronto:false};
+
+function mmRotulo(m,l){
+  var o=String(m.origem||'');
+  var ent=(l.direcao==='entrada');
+  if(o==='venda')  return 'Saída por venda no PDV';
+  if(o==='cardapio')return 'Saída por pedido do cardápio';
+  if(o==='totem')  return 'Saída por pedido no totem';
+  if(o==='fiado')  return 'Saída por venda fiado';
+  if(o==='producao')return ent?'Entrada por produção':'Consumo na produção';
+  if(o==='nota')   return 'Entrada por nota de entrada';
+  if(o==='transferencia')return ent?'Entrada por transferência':'Saída por transferência';
+  if(o==='contagem')return ent?'Ajuste de contagem (sobra)':'Ajuste de contagem (falta)';
+  if(o==='assistente')return ent?'Entrada pelo Assistente':'Saída pelo Assistente';
+  var mt=(DB.motivosMov||[]).find(function(x){return x.id===m.motivoId});
+  if(mt&&mt.nome)return (ent?'Entrada':'Saída')+' — '+mt.nome;
+  return ent?'Entrada manual':'Saída manual';
+}
+
+/* todos os lancamentos de um item, no periodo, ja com data e direcao */
+function mmLancamentos(){
+  baseMov();
+  var loja=lojaAtualId();
+  var de=MM.de, ate=MM.ate, alvo=MM.item;
+  var out=[];
+  (DB.movEst||[]).forEach(function(m){
+    var d=String(m.data||'');
+    if(!d||(de&&d<de)||(ate&&d>ate))return;
+    if((m.sucursalId||loja)!==loja)return;
+    (m.linhas||[]).forEach(function(l){
+      if(alvo&&l.insumoId!==alvo)return;
+      out.push({data:d,hora:m.hora||'',mov:m,l:l,
+        id:l.insumoId,nome:l.nome||(itemEstoque(l.insumoId)||{}).nome||'—',
+        un:l.unidade||'',qtd:Number(l.qtd)||0,ent:l.direcao==='entrada'});
+    });
+  });
+  return out;
+}
+
+function telaMovMercadoria(){
+  if(!MM.pronto){
+    var hoje=hojeISO();
+    MM.ate=hoje; MM.de=hoje.slice(0,8)+'01'; MM.pronto=true;
+  }
+  var lanc=mmLancamentos();
+
+  /* agrupa por dia + item */
+  var grupos={};
+  lanc.forEach(function(x){
+    var k=x.data+'|'+x.id;
+    if(!grupos[k])grupos[k]={data:x.data,id:x.id,nome:x.nome,un:x.un,ent:0,sai:0,itens:[]};
+    var g=grupos[k];
+    if(x.ent)g.ent+=x.qtd; else g.sai+=x.qtd;
+    g.itens.push(x);
+  });
+  var lista=Object.keys(grupos).map(function(k){return grupos[k]});
+  lista.sort(function(a,b){
+    if(a.data!==b.data)return a.data<b.data?1:-1;      /* dia mais novo primeiro */
+    return (a.nome||'').localeCompare(b.nome||'');
+  });
+
+  var itens=itensEstoque().slice().sort(function(a,b){
+    return (a.nome||'').localeCompare(b.nome||'')});
+
+  var html=
+   '<div class="ctTopo"><h1>Movimentação de Mercadoria</h1>'+
+    '<p>Dia a dia: quanto entrou, quanto saiu e com quanto o item terminou. '+
+    'Clique no + para ver o motivo de cada movimento.</p></div>'+
+   '<div class="blk" style="max-width:none">'+
+    '<div class="row2" style="align-items:flex-end;gap:12px;flex-wrap:wrap">'+
+     '<div class="fld2" style="max-width:170px"><label>Data inicial</label>'+
+      '<input type="date" id="mmDe" value="'+E(MM.de)+'"></div>'+
+     '<div class="fld2" style="max-width:170px"><label>Data final</label>'+
+      '<input type="date" id="mmAte" value="'+E(MM.ate)+'"></div>'+
+     '<div class="fld2" style="max-width:320px"><label>Ingrediente</label>'+
+      '<select id="mmItem"><option value="">todos os itens</option>'+
+      itens.map(function(i){
+        return '<option value="'+E(i.id)+'"'+(MM.item===i.id?' selected':'')+'>'+
+          E(i.nome)+'</option>';}).join('')+'</select></div>'+
+     '<div class="fld2" style="max-width:120px"><label>&nbsp;</label>'+
+      '<button class="btnP2 ok" onclick="mmBuscar()">'+sv('search',13)+' Buscar</button></div>'+
+     '<div class="fld2" style="max-width:110px"><label>&nbsp;</label>'+
+      '<button class="btnP2" onclick="mmLimpar()">Limpar</button></div>'+
+    '</div></div>';
+
+  if(!lista.length){
+    html+='<div class="mvVazio">'+sv('box',26)+'<b>Nenhuma movimentação no período</b>'+
+      '<span>Ajuste as datas ou escolha outro ingrediente.</span></div>';
+    $('content').innerHTML=html; rodape('0 registros'); return;
+  }
+
+  html+='<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
+   '<table class="mvTab"><thead><tr>'+
+    '<th style="width:110px">Data</th><th>Ingrediente</th>'+
+    '<th style="width:150px;text-align:right">Qtde entrada</th>'+
+    '<th style="width:150px;text-align:right">Qtde saída</th>'+
+    '<th style="width:160px;text-align:right">Saldo do dia</th>'+
+   '</tr></thead><tbody>';
+
+  lista.forEach(function(g){
+    var k=g.data+'|'+g.id, aberto=!!MM.abertos[k];
+    var saldoFim=saldoNaData(g.id,g.data);
+    html+='<tr style="cursor:pointer" onclick="mmAbrir(\''+E(k)+'\')">'+
+      '<td>'+dataBR(g.data)+'</td>'+
+      '<td><span class="mmMais">'+(aberto?'−':'+')+'</span> <b>'+E(g.nome)+'</b></td>'+
+      '<td style="text-align:right;color:var(--ok)"><b>'+fmtQt(g.ent)+'</b> <small>'+E(g.un)+'</small></td>'+
+      '<td style="text-align:right;color:var(--rd)"><b>'+fmtQt(g.sai)+'</b> <small>'+E(g.un)+'</small></td>'+
+      '<td style="text-align:right"><b>'+fmtQt(saldoFim)+'</b> <small>'+E(g.un)+'</small></td></tr>';
+
+    if(aberto){
+      /* saldo corrido: comeca no fim do dia anterior e caminha lancamento a lancamento */
+      var ini=new Date(g.data+'T12:00:00'); ini.setDate(ini.getDate()-1);
+      var saldo=saldoNaData(g.id, ini.toISOString().slice(0,10));
+      var det=g.itens.slice().sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'')});
+      html+='<tr class="mmDet"><td></td><td colspan="4" style="padding:0">'+
+        '<table class="mmSub"><tbody>'+
+        '<tr class="mmIni"><td>—</td><td>Saldo no início do dia</td>'+
+        '<td style="text-align:right"></td>'+
+        '<td style="text-align:right"><b>'+fmtQt(saldo)+'</b> '+E(g.un)+'</td></tr>';
+      det.forEach(function(x){
+        saldo += x.ent? x.qtd : -x.qtd;
+        html+='<tr><td style="width:60px">'+E(x.hora||'')+'</td>'+
+          '<td>'+E(mmRotulo(x.mov,x.l))+
+            (x.mov.identificacao?' <small>· '+E(x.mov.identificacao)+'</small>':'')+'</td>'+
+          '<td style="width:150px;text-align:right;color:'+(x.ent?'var(--ok)':'var(--rd)')+'">'+
+            (x.ent?'+':'−')+fmtQt(x.qtd)+' '+E(x.un)+'</td>'+
+          '<td style="width:160px;text-align:right">'+fmtQt(saldo)+' '+E(x.un)+'</td></tr>';
+      });
+      html+='</tbody></table></td></tr>';
+    }
+  });
+  html+='</tbody></table></div>';
+  $('content').innerHTML=html;
+  rodape(lista.length+' dia(s) com movimento');
+}
+function mmBuscar(){
+  MM.de=$('mmDe').value; MM.ate=$('mmAte').value; MM.item=$('mmItem').value;
+  MM.abertos={}; telaMovMercadoria();
+}
+function mmLimpar(){
+  var hoje=hojeISO();
+  MM.de=hoje.slice(0,8)+'01'; MM.ate=hoje; MM.item=''; MM.abertos={};
+  telaMovMercadoria();
+}
+function mmAbrir(k){ MM.abertos[k]=!MM.abertos[k]; telaMovMercadoria(); }
 
 function telaMovimentacao(){
   baseMov();
