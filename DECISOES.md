@@ -2274,3 +2274,20 @@ O **custo médio** continua ponderado (valor ÷ quantidade), que é o certo para
 dinheiro: 1 kg a R$ 80 com 500 kg a R$ 10 dá R$ 10,14/kg, não R$ 45.
 São duas médias diferentes na mesma linha, de propósito — quantidade se divide
 por lançamentos, dinheiro se divide por quantidade.
+
+## V87.2 — custo médio olha a entrada, não o consumo
+
+Rafael descreveu a conta: soma do custo de entrada ÷ soma da quantidade de
+entrada. É isso mesmo — e não existe "vezes mil"; isso só apareceria em
+conversão de unidade (grama para quilo), que aqui não acontece.
+
+Eu estava calculando sobre **todas** as linhas. Errado: o mesmo material era
+contado duas vezes, uma ao entrar e outra ao sair, e o número deixava de ser o
+custo do quilo. Custo médio responde "quanto me custa o quilo deste item", e
+quem responde isso é a compra/produção.
+
+Quando o filtro mostra só consumo, a conta usa o consumo e o rótulo avisa
+"(consumo)" — melhor que uma linha zerada sem explicação.
+
+Testado: R$ 300 em 30 kg dá R$ 10,00/kg; com consumo junto continua R$ 10,00;
+1 kg a R$ 80 com 500 kg a R$ 10 dá R$ 10,14 (ponderado, não R$ 45).

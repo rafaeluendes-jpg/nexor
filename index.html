@@ -16176,7 +16176,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V87.1.0';
+var VERSAO='V87.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33066,7 +33066,20 @@ function telaMovimentacao(){
   var somaSai=sai.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
   var qtdEnt=ent.length?somaEnt/ent.length:0;   /* media por lancamento */
   var qtdSai=sai.length?somaSai/sai.length:0;
-  var custoMedio=qtdTotal?totCusto/qtdTotal:0;
+  /* ==========================================================
+     CUSTO MEDIO OLHA A ENTRADA, NAO O CONSUMO
+     Custo medio responde "quanto me custa o quilo deste item". Quem
+     responde isso e a COMPRA/PRODUCAO, nao a baixa. Misturando os dois, o
+     mesmo material era contado duas vezes — uma ao entrar e outra ao sair —
+     e o numero deixava de ser o custo do quilo para virar uma media de
+     nada. Quando o filtro so mostra consumo (sem nenhuma entrada), a conta
+     usa o consumo, senao a linha ficaria zerada sem explicacao.
+     ========================================================== */
+  var baseCusto = ent.length?ent:sai;
+  var custoBase = baseCusto.reduce(function(a,x){
+    return a+(Number(x.l.qtd)||0)*(Number(x.l.custo)||0)},0);
+  var qtdBase = baseCusto.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
+  var custoMedio = qtdBase?custoBase/qtdBase:0;
   var unMedia=(function(){
     var us={};
     linhas.forEach(function(x){ var u=(x.l.unidade||'')||'un'; us[u]=(us[u]||0)+1; });
@@ -33154,7 +33167,8 @@ function telaMovimentacao(){
      '<td style="text-align:right"><b>'+fmtQt(qtdSai)+(unMedia?' '+E(unMedia):'')+'</b>'+
       '<small>média de '+sai.length+' consumo'+(sai.length===1?'':'s')+'</small></td>'+
      '<td style="text-align:right"><b>R$ '+money(custoMedio)+'</b>'+
-      '<small>custo médio'+(unMedia?' / '+E(unMedia):'')+'</small></td>'+
+      '<small>custo médio'+(unMedia?' / '+E(unMedia):'')+
+       (ent.length?'':' (consumo)')+'</small></td>'+
      '<td style="text-align:right"><b>R$ '+money(totCusto)+'</b>'+
       '<small>custo total</small></td>'+
      '<td colspan="2"></td></tr></tfoot></table>'
