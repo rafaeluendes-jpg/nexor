@@ -2628,3 +2628,34 @@ cortadas ao meio pelo rodapé — e cada sabor novo piorava.
 - O texto de cada botão dizia "gera 4,8 kg **de BELGA GELATO**" dentro do
   botão BELGA GELATO. O destino agora só aparece quando tem nome diferente do
   da ficha — cada item ficou com metade da largura.
+
+## V99 — "Aparece na ordem de produção": chave por ficha
+
+Nem toda ficha do grupo Produzido é uma ordem de produção. A base de gelato, a
+base da calda e o cascão assado saem junto de outra produção — não se abre
+ordem para eles. A tela listava tudo do grupo Produzido, e quem ia bater gelato
+tinha de achar o sabor no meio de 50 itens que nunca produz.
+
+Em vez de esconder por nome ou por subgrupo no código (que quebraria no dia em
+que uma base virasse produção própria), entrou uma **chave por ficha**:
+`fichas_tecnicas.na_producao boolean not null default true`, sobe e desce na
+sincronização, e aparece no cadastro da ficha como **"Aparece na ordem de
+produção"**, ao lado de Estocável e Disponível para venda. Desligada, a ficha
+sai da lista de Produção sem perder receita, custo nem estoque.
+
+Desligada agora, a pedido do Rafael: as **42 bases** de Base de Gelato, as duas
+**BASE CALDA** que estavam em Recheio, e **CASCAO TRADICIONAL, CASCAO CHOCOLATE,
+CESTINHA CASCÃO e BOLACHA CASCAO** — sobra só a massa, que é o que se produz.
+
+Sobra na tela: Artesanal 30 · Zero Acucar 9 · Sorbet 5 · Recheio 3 · Cascao 2.
+
+## Em aberto por causa disso
+
+Com as quatro fichas de cascão fora da produção, **nada dá entrada no estoque
+dos itens CASCAO TRADICIONAL, CASCAO CHOCOLATE, CESTINHA CASCÃO e BOLACHA
+CASCAO** — e CASCAO 1 BOLA, 2 BOLAS e as de chocolate consomem esses itens na
+venda. Hoje a MASSA produz estoque de MASSA. Para fechar, a massa precisa
+gerar o cascão direto, com "a receita inteira gera N unidades": 2,46 kg de
+massa → 40 cascões, 40 cestinhas ou 300 bolachas. Só que uma ficha tem um
+destino só, e a mesma massa vira três coisas — falta o Rafael dizer como
+decide, na hora de produzir, o que aquela massa vai virar.

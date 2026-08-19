@@ -13282,6 +13282,7 @@ var MAPA=[
  {col:'fichas', espelha:false,      tab:'fichas_tecnicas',
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,grupo_id:fk('fichaCats',x.categoriaId),
     subcategoria_id:fkSub(x.contaId),subgrupo_id:x.subgrupoId||null,unidade:x.unidade||'un',estocavel:x.estocavel!==false,
+    na_producao:x.naProducao!==false,
     disponivel_venda:!!x.disponivelVenda,rendimento:n(x.rendimento)||1,rend_unidade:x.rendUnidade||null,
     unidades_venda:n(x.unidadesVenda),preco:n(x.preco),receita:x.receita||null,
     tempo:n(x.tempo),validade:n(x.validade),temperatura:x.temperatura||null,
@@ -15174,6 +15175,7 @@ function volta(linhas,fn,atual,col){
   DB.fichas=volta(ft,function(x){return {id:x.ref_local||x.id,nome:x.nome,codigo:x.codigo,
     categoriaId:mapaFg[x.grupo_id]||'',subgrupoId:x.subgrupo_id||'',contaId:mapaSub[x.subcategoria_id]||'',
     unidade:x.unidade||'un',estocavel:x.estocavel!==false,disponivelVenda:!!x.disponivel_venda,
+    naProducao:x.na_producao!==false,
     rendimento:Number(x.rendimento)||1,rendUnidade:x.rend_unidade||x.unidade,
     unidadesVenda:Number(x.unidades_venda)||0,preco:Number(x.preco)||0,
     receita:x.receita||'',tempo:x.tempo||0,validade:x.validade||0,temperatura:x.temperatura||'',
@@ -16442,7 +16444,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V98.0.0';
+var VERSAO='V99.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30775,6 +30777,18 @@ function modalFicha(id){
    '<div class="blk" style="margin:11px 0 0;max-width:none">'+
    '<label class="chkL"><input type="checkbox" id="ftEs" '+(!f||f.estocavel!==false?'checked':'')+'><span>Estocável</span></label>'+
    '<label class="chkL"><input type="checkbox" id="ftDv2" '+(f&&f.disponivelVenda?'checked':'')+'><span>Disponível para venda</span></label>'+
+   /* ==========================================================
+      NEM TODA FICHA DO GRUPO PRODUZIDO E UMA ORDEM DE PRODUCAO
+
+      A base de gelato, a base da calda e o cascao assado saem junto de
+      outra producao — nao se abre ordem para eles. Antes a tela de
+      Producao listava tudo do grupo Produzido, e quem ia bater gelato
+      tinha de achar o sabor no meio de 50 itens que nunca produz.
+      A chave abaixo tira a ficha da lista sem apagar nada: ela continua
+      existindo, com receita, custo e estoque.
+      ========================================================== */
+   '<label class="chkL"><input type="checkbox" id="ftProd" '+(!f||f.naProducao!==false?'checked':'')+'>'+
+   '<span>Aparece na ordem de produção</span></label>'+
    '</div></div>'+
   '<div id="abFiscal" style="display:none">'+
    '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Dados fiscais</h3>'+
@@ -30817,6 +30831,7 @@ function modalFicha(id){
       /* este saiu da tela: o que ja estava gravado e preservado */
       contaId:($('ftGc')?$('ftGc').value:(f?f.contaId||'':'')),
       estocavel:$('ftEs').checked,disponivelVenda:$('ftDv2').checked,
+      naProducao:$('ftProd')?$('ftProd').checked:(f?f.naProducao!==false:true),
       ncm:$('ftNc').value.trim(),cfop:$('ftCf').value.trim(),cest:$('ftCe').value.trim(),
       origem:$('ftOr').value,cst:$('ftCs').value.trim(),aliquota:parseFloat($('ftAl').value)||0,lojas:ls,
       destinoId:$('ftDest')?$('ftDest').value:'',
@@ -36186,6 +36201,7 @@ function fichasProduziveis(){
   baseProd();
   return (DB.fichas||[]).filter(function(f){
     if(!(f.itens||[]).length)return false;              /* sem receita não produz */
+    if(f.naProducao===false)return false;               /* desligada nesta tela */
     var c=catFicha(f.categoriaId);
     return !!(c&&/produz/i.test(c.nome||''));           /* só o grupo Produzido */
   }).sort(function(a,b){
