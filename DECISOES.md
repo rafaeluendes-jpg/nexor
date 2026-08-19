@@ -2219,3 +2219,22 @@ O valor estava na coluna **Custo total**, ao lado do subtotal. Lugar errado:
 aquela coluna é soma, e média não se soma. Passou para a coluna **Custo**, que
 é a do preço por unidade — é com esses números que ele se compara. O rótulo
 "Custo médio" fica à esquerda, na mesma linha.
+
+## V87 — rodapé da movimentação: cada total sob a sua coluna
+
+Eram três linhas: o subtotal, o custo médio jogado à esquerda e
+"Entradas/Consumo" solto embaixo. Número longe da coluna não se compara com
+nada — "4,8 kg" ao lado da palavra "Custo médio" chegava a parecer dinheiro.
+
+Agora é **uma linha só**, com cada total debaixo da própria coluna e o nome em
+letra miúda embaixo do valor:
+
+| coluna | total |
+|---|---|
+| Qtd / un. entrada | quanto entrou |
+| Qtd / un. consumo | quanto saiu |
+| Custo | **custo médio** (ponderado) |
+| Custo total | soma do período |
+
+A linha "Entradas R$ · Consumo R$" saiu: virou redundante, já que as
+quantidades agora aparecem nas colunas certas.
