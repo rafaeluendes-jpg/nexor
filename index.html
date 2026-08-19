@@ -3099,6 +3099,10 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .opRecIng b{color:var(--ink-2)}
 .opRod{padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:12px;flex:none}
 
+.opSugG{width:100%;font-size:10.5px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--acc-d);margin:6px 0 -2px;padding-top:4px;
+  border-top:1px solid rgba(175,127,56,.25)}
+.opSugG:first-child{margin-top:0;padding-top:0;border-top:0}
 .opSugT{width:100%;display:flex;align-items:center;font-size:10.5px;font-weight:700;
   color:var(--acc-d);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
 .opSugT button{margin-left:auto}
@@ -8306,6 +8310,10 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .opRecIng b{color:var(--ink-2)}
 .opRod{padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:12px;flex:none}
 
+.opSugG{width:100%;font-size:10.5px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--acc-d);margin:6px 0 -2px;padding-top:4px;
+  border-top:1px solid rgba(175,127,56,.25)}
+.opSugG:first-child{margin-top:0;padding-top:0;border-top:0}
 .opSugT{width:100%;display:flex;align-items:center;font-size:10.5px;font-weight:700;
   color:var(--acc-d);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
 .opSugT button{margin-left:auto}
@@ -16404,7 +16412,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V96.0.0';
+var VERSAO='V97.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -36121,13 +36129,40 @@ function proxNumOP(){
   return String(n+1).padStart(4,'0');
 }
 /* fichas que podem ser produzidas */
+/* ==========================================================
+   NA PRODUCAO, O SABOR VEM PRIMEIRO
+
+   "Todos os sabores" jogava as 42 bases junto com os 44 sabores, numa
+   lista unica em ordem alfabetica — e como quase toda base comeca com
+   "BASE", elas tomavam a tela inteira. Quem vai produzir procura ABACAXI
+   GELATO, nao BASE ABACAXI.
+
+   As bases continuam aqui, porque a matriz produz base de verdade
+   (acucar, dextrose, leite em po, embalagem). Elas so deixaram de vir
+   na frente: a lista agora sai agrupada pelo subgrupo da ficha, com os
+   sabores em cima e a materia-prima embaixo.
+   ========================================================== */
+var ORDEM_PRODUCAO=['fs_artesanal','fs_sorbet','fs_zero_acucar',
+                    'fs_recheio','fs_cascao','fs_base_gelato'];
+function ordemSubProd(f){
+  var i=ORDEM_PRODUCAO.indexOf(f&&f.subgrupoId);
+  return i<0?ORDEM_PRODUCAO.length:i;
+}
+function nomeSubProd(f){
+  var sg=subFicha(f&&f.subgrupoId);
+  return sg?sg.nome:'Sem subgrupo';
+}
 function fichasProduziveis(){
   baseProd();
   return (DB.fichas||[]).filter(function(f){
     if(!(f.itens||[]).length)return false;              /* sem receita não produz */
     var c=catFicha(f.categoriaId);
     return !!(c&&/produz/i.test(c.nome||''));           /* só o grupo Produzido */
-  }).sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+  }).sort(function(a,b){
+    var d=ordemSubProd(a)-ordemSubProd(b);
+    if(d)return d;
+    return (a.nome||'').localeCompare(b.nome||'');
+  });
 }
 /* o que uma receita inteira gera, já na unidade do destino */
 function previstoDestino(f){
@@ -36238,12 +36273,21 @@ function telaOPNova(){
    (achadas.length?'<div class="opSug">'+
      (OP.todos?'<div class="opSugT">Todos os sabores — clique para adicionar'+
        '<button class="arvB" onclick="OP.todos=false;telaProducao()">'+sv('x2',12)+'</button></div>':'')+
-     achadas.map(function(f){
-      var pd=previstoDestino(f);
-      return '<button class="opSugIt" onclick="addSaborOP(\''+f.id+'\')">'+
-      '<b>'+E(f.nome)+'</b><span>gera '+fmtQt(pd.qtd)+' '+un(pd.unidade).ab+
-      (pd.destino?' de '+E(pd.destino.nome):'')+'</span></button>';
-    }).join('')+'</div>':'')+
+     (function(){
+      var atual=null;
+      return achadas.map(function(f){
+       var pd=previstoDestino(f);
+       var cab='';
+       /* na busca a lista e curta e vem misturada; so o "ver todos" separa */
+       if(OP.todos){
+         var sub=nomeSubProd(f);
+         if(sub!==atual){atual=sub;cab='<div class="opSugG">'+E(sub)+'</div>';}
+       }
+       return cab+'<button class="opSugIt" onclick="addSaborOP(\''+f.id+'\')">'+
+       '<b>'+E(f.nome)+'</b><span>gera '+fmtQt(pd.qtd)+' '+un(pd.unidade).ab+
+       (pd.destino?' de '+E(pd.destino.nome):'')+'</span></button>';
+      }).join('');
+     })()+'</div>':'')+
    '<div class="etTabW">'+
    (OP.itens.length?'<table class="etTab opTab"><thead><tr>'+
     '<th style="width:34px"></th><th>Sabor</th>'+

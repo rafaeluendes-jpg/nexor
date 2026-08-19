@@ -2594,3 +2594,21 @@ para `tecnico/backup`, que é `SO_PLATAFORMA` — a franqueadora clicava e caía
 em "Sem acesso a esta tela". Agora o botão consulta `podeVer()`: quem tem
 acesso vê "Abrir backup", quem não tem vê **"Liberar espaço"**, que chama a
 redução das fotos — a ação que de fato resolve o problema dela.
+
+## V97 — na Produção, o sabor vem antes da base
+
+"Ver todos os sabores" na Nova Ordem de Produção jogava as 42 bases junto com
+os 44 sabores, em lista única alfabética. Como quase toda base começa com
+"BASE", elas ocupavam a tela inteira e o sabor sumia. Quem vai produzir
+procura ABACAXI GELATO, não BASE ABACAXI.
+
+As bases **continuam na lista** — a matriz produz base de verdade (açúcar,
+dextrose, leite em pó, embalagem), e tirá-las deixaria essa produção sem tela.
+O que mudou é a ordem e a separação: `fichasProduziveis()` agora ordena pelo
+subgrupo antes do nome, na sequência **Artesanal › Sorbet › Zero Acucar ›
+Recheio › Cascao › Base de Gelato**, e a lista sai com um cabeçalho por
+subgrupo. A busca por texto continua plana, porque ali a lista já é curta.
+
+Testado com 7 casos: sabor em primeiro, base depois do sorbet, ficha de venda
+fora, ficha sem receita fora, bases ainda disponíveis, ordem dos grupos e
+nenhum cabeçalho repetido.
