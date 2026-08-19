@@ -2709,3 +2709,38 @@ a árvore rola. Abaixo de 820px de largura as colunas empilham.
 
 O título da tela passou a ser **Plano de Contas**, que é o nome que o Rafael e
 o contador usam. O item de menu continua "Categorias Financeiras".
+
+## V103 — a causa real do cartão do totem virar tarja (medida em navegador)
+
+Duas versões tentaram consertar isso por dedução. Desta vez o defeito foi
+**reproduzido em Chrome headless** e medido com `getComputedStyle`:
+
+    com poucos produtos:  cartão 361px, tudo certo
+    com dez ou mais:      cartão 131px, foto cortada, nome e preço sumidos
+    linhas da grade:      131.09px cada — altura da grade dividida pelas linhas
+
+Causa, que é a soma de duas coisas:
+
+- `.tcGrade` tem **altura definida** (`flex:1` dentro de `.tmC`) e linhas `auto`;
+- `.tcCard` tem `overflow:hidden`, o que **zera o tamanho mínimo automático**
+  dele.
+
+Com o mínimo em zero e a altura da grade fechada, o algoritmo de grid
+**encolhe as linhas até caberem** em vez de deixar transbordar. Por isso só
+aparecia com muitos produtos — em Bebidas, com 15 itens.
+
+`grid-auto-rows:max-content` tira essa liberdade: a linha fica do tamanho do
+conteúdo e o excedente rola. Medido depois: 361px por cartão com qualquer
+quantidade. `.tcLI{flex:none}` fecha a mesma armadilha no layout lista.
+
+O `min-height` da V101 fica como está — não atrapalha e protege navegador sem
+`aspect-ratio`.
+
+**Lição:** dava para ter reproduzido na primeira vez. Há Chrome headless no
+ambiente (`~/.cache/puppeteer`); extrair o CSS do `index.html`, montar a tela
+com dados de exemplo e medir leva dez minutos e evita duas versões no escuro.
+
+## Também nesta versão
+
+A pastilha **"Todos"** saiu do totem, a pedido do Rafael: a tela abre já na
+primeira categoria (`catInicialTotem()`, chamada em `irTotem(2)`).

@@ -1123,7 +1123,27 @@ body.pdvFull .wTitle{display:none}
 .tcCats::-webkit-scrollbar{display:none}
 .tcCat{flex-shrink:0;padding:13px 24px;border-radius:26px;border:2px solid #E6E0D4;
  background:#FBF8F1;font-size:17px;font-weight:600;white-space:nowrap}
-.tcGrade{flex:1;overflow-y:auto;padding:22px 26px 26px;display:grid;gap:18px;align-content:start}
+/* ==========================================================
+   POR QUE O CARTAO DO TOTEM VIRAVA UMA TARJA
+
+   Reproduzido em navegador e medido: com poucos produtos a grade ficava
+   certa; a partir de umas dez fotos o cartao caia de 361px para 131px,
+   a foto era cortada e o nome e o preco sumiam atras do overflow.
+
+   A causa e a soma de duas coisas:
+   - a grade tem altura definida (flex:1 dentro do .tmC) e linhas `auto`;
+   - `.tcCard` tem `overflow:hidden`, o que zera o tamanho minimo
+     automatico dele.
+   Com o minimo em zero e a altura da grade fechada, o algoritmo de grid
+   ENCOLHE as linhas ate caberem em vez de deixar transbordar — todas as
+   linhas viravam altura-da-grade dividida pelo numero de linhas.
+
+   `grid-auto-rows:max-content` tira essa liberdade: cada linha fica do
+   tamanho do conteudo e o que passar rola, que era o esperado desde o
+   inicio. Medido depois: 361px por cartao, com qualquer quantidade.
+   ========================================================== */
+.tcGrade{flex:1;overflow-y:auto;padding:22px 26px 26px;display:grid;gap:18px;
+  align-content:start;grid-auto-rows:max-content}
 .tcCard{background:#fff;border:1px solid #E6E0D4;border-radius:20px;overflow:hidden;cursor:pointer;
  display:flex;flex-direction:column;transition:transform .12s,box-shadow .12s}
 .tcCard:hover{box-shadow:0 8px 26px rgba(0,0,0,.1);transform:translateY(-2px)}
@@ -1152,6 +1172,7 @@ body.pdvFull .wTitle{display:none}
 .tcPr{font-size:clamp(19px,1.9vw,27px);font-weight:800;margin-top:auto;padding-top:10px;
  letter-spacing:-.02em}
 .tcLista{flex:1;overflow-y:auto;padding:20px 26px 26px;display:flex;flex-direction:column;gap:12px}
+.tcLI{flex:none}
 .tcLI{background:#fff;border:1px solid #E6E0D4;border-radius:16px;padding:14px;display:flex;
  gap:18px;align-items:center;cursor:pointer}
 .tcLI:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
@@ -16489,7 +16510,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V102.0.0';
+var VERSAO='V103.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19382,9 +19403,15 @@ function produtosTotem(){
   return l;
 }
 function catTotem(id){
-  TMC.cat=(TMC.cat===id)?'':(id||'');
+  TMC.cat=id||'';
   TMC.i=0;
   pintarCheio();
+}
+/* sem a pastilha "Todos", o totem abre ja na primeira categoria */
+function catInicialTotem(){
+  var cats=(DB.categorias||[]).filter(function(c){return c.ativo!==false})
+    .sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+  return cats.length?cats[0].id:'';
 }
 var CORES_SEM_FOTO=['linear-gradient(140deg,#F3E0BC,#C99A4E)','linear-gradient(140deg,#F6C6CF,#C25A72)',
  'linear-gradient(140deg,#B79279,#5B3B27)','linear-gradient(140deg,#CFE8D2,#5B9E6E)',
@@ -19954,7 +19981,11 @@ function fecharTotemCheio(){
   try{ if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(function(){}); }catch(e){_quieto(e,'fecharTotemCheio')}
 }
 var TMC={passo:1,sacola:[],cat:''};
-function irTotem(n){TMC.passo=n;pintarCheio();}
+function irTotem(n){
+  TMC.passo=n;
+  if(n===2&&!TMC.cat)TMC.cat=catInicialTotem();
+  pintarCheio();
+}
 function pintarCheio(){
   var el=document.getElementById('tmC');
   if(!el)return;
@@ -20018,9 +20049,6 @@ function pintarCheio(){
     el.innerHTML='<div class="tcTopo" style="background:'+t.fundo+'">'+
      '<button class="tcVb" onclick="irTotem(1)">‹</button><div class="tcT1">Escolha seu pedido</div></div>'+
      (cats.length?'<div class="tcCats">'+
-       ('<div class="tcCat" onclick="catTotem(\'\')"'+
-         (!TMC.cat?' style="background:'+t.fundo+';color:#fff;border-color:'+t.fundo+'"':'')+
-        '>Todos</div>')+
        cats.map(function(c){
        return '<div class="tcCat" onclick="catTotem(\''+c.id+'\')"'+
         (TMC.cat===c.id?' style="background:'+t.fundo+';color:#fff;border-color:'+t.fundo+'"':'')+
