@@ -1131,6 +1131,17 @@ body.pdvFull .wTitle{display:none}
 /* a foto e uma moldura: a imagem preenche e o excedente e cortado nas
    bordas, nunca no meio do produto */
 .tcIm{width:100%;position:relative;overflow:hidden;background:#F2EDE3;flex-shrink:0}
+/* ==========================================================
+   A MOLDURA NAO PODE VIRAR UMA TARJA
+
+   A altura da foto sai de aspect-ratio, que so existe a partir do
+   Chrome 88 / Safari 15. Num aparelho mais antigo — e o totem roda em
+   tablet — a regra e ignorada, a moldura fica com altura zero e o
+   cartao inteiro vira uma tarja fina de 30px mostrando uma faixa do
+   meio da foto. O piso abaixo garante altura util em qualquer
+   navegador, sem atrapalhar onde aspect-ratio funciona.
+   ========================================================== */
+.tcGrade .tcIm{min-height:clamp(130px,13vw,230px)}
 .tcIm img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
 .tcIm.semFoto{display:grid;place-items:center}
 .tcIm.semFoto span{font-size:clamp(30px,4vw,58px);font-weight:800;color:rgba(255,255,255,.85);
@@ -16444,7 +16455,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V100.0.0';
+var VERSAO='V101.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19318,10 +19329,28 @@ function miniTotem(l){
    '</div></div>';
 }
 /* produtos de verdade, os que estão marcados para o totem */
+/* ==========================================================
+   AS CATEGORIAS DO TOTEM NAO FILTRAVAM NADA
+
+   A faixa de categorias era desenhada como <div> sem onclick, e
+   produtosTotem() devolvia sempre a lista inteira. Tocar em "Copo"
+   nao mudava a tela: continuavam os 32 produtos da loja, e a primeira
+   pastilha ficava acesa para sempre.
+
+   Agora a pastilha filtra de verdade, e entrou um "Todos" na frente
+   para poder voltar.
+   ========================================================== */
 function produtosTotem(){
   var l=(DB.produtos||[]).filter(function(p){
     return p.ativo!==false&&disponivelNo(p,'totem');});
-  return l.length?l:(DB.produtos||[]).filter(function(p){return p.ativo!==false});
+  if(!l.length)l=(DB.produtos||[]).filter(function(p){return p.ativo!==false});
+  if(TMC.cat)l=l.filter(function(p){return p.categoriaId===TMC.cat});
+  return l;
+}
+function catTotem(id){
+  TMC.cat=(TMC.cat===id)?'':(id||'');
+  TMC.i=0;
+  pintarCheio();
 }
 var CORES_SEM_FOTO=['linear-gradient(140deg,#F3E0BC,#C99A4E)','linear-gradient(140deg,#F6C6CF,#C25A72)',
  'linear-gradient(140deg,#B79279,#5B3B27)','linear-gradient(140deg,#CFE8D2,#5B9E6E)',
@@ -19881,7 +19910,7 @@ function abrirTotemCheio(){
   try{ if(d.requestFullscreen)d.requestFullscreen().catch(function(){}); }catch(e){_quieto(e,'abrirTotemCheio')}
 }
 function reiniciarTotem(){
-  TMC={passo:1,sacola:[],pedido:null,senha:null};
+  TMC={passo:1,sacola:[],cat:'',pedido:null,senha:null};
   TEC={campo:'',valor:{},maiusc:true};
   pintarCheio();
 }
@@ -19890,7 +19919,7 @@ function fecharTotemCheio(){
   if(d)d.remove();
   try{ if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(function(){}); }catch(e){_quieto(e,'fecharTotemCheio')}
 }
-var TMC={passo:1,sacola:[]};
+var TMC={passo:1,sacola:[],cat:''};
 function irTotem(n){TMC.passo=n;pintarCheio();}
 function pintarCheio(){
   var el=document.getElementById('tmC');
@@ -19954,8 +19983,13 @@ function pintarCheio(){
     }
     el.innerHTML='<div class="tcTopo" style="background:'+t.fundo+'">'+
      '<button class="tcVb" onclick="irTotem(1)">‹</button><div class="tcT1">Escolha seu pedido</div></div>'+
-     (cats.length?'<div class="tcCats">'+cats.map(function(c,i){
-       return '<div class="tcCat"'+(i===0?' style="background:'+t.fundo+';color:#fff;border-color:'+t.fundo+'"':'')+
+     (cats.length?'<div class="tcCats">'+
+       ('<div class="tcCat" onclick="catTotem(\'\')"'+
+         (!TMC.cat?' style="background:'+t.fundo+';color:#fff;border-color:'+t.fundo+'"':'')+
+        '>Todos</div>')+
+       cats.map(function(c){
+       return '<div class="tcCat" onclick="catTotem(\''+c.id+'\')"'+
+        (TMC.cat===c.id?' style="background:'+t.fundo+';color:#fff;border-color:'+t.fundo+'"':'')+
         '>'+E(c.nome)+'</div>';}).join('')+'</div>':'')+
      corpo+
      '<div class="tcRod"><div class="tcRv"><span>'+TMC.sacola.length+' itens</span>'+

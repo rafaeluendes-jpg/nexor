@@ -2678,3 +2678,23 @@ estica) e não tem tarja. A cópia `.bgf` saiu do markup e do CSS.
 **Ícone da categoria:** 52 → 66px no trilho do PDV e 52 → 62px na grade
 (78px no modo botão grande). O cartão foi de 104 para 118px de largura e a
 seta de rolagem acompanhou a altura.
+
+## V101 — totem: categoria que não filtrava e cartão virando tarja
+
+**As categorias do totem nunca filtraram nada.** A faixa era desenhada como
+`<div class="tcCat">` sem `onclick`, e `produtosTotem()` devolvia sempre a
+lista inteira. Tocar em "Copo" não mudava a tela — continuavam os 32 produtos
+da loja — e a primeira pastilha ficava acesa para sempre. Agora a pastilha
+filtra de verdade (`TMC.cat`), com um **"Todos"** na frente para voltar, e
+`reiniciarTotem()` limpa a escolha.
+
+**O cartão colapsado.** A altura da moldura da foto vem de `aspect-ratio`, que
+existe a partir do Chrome 88 / Safari 15. Onde a regra é ignorada, a moldura
+fica com altura zero e o cartão inteiro vira uma tarja de ~30px mostrando uma
+faixa do meio da foto — exatamente o que apareceu na tela do Rafael. Entrou
+`.tcGrade .tcIm{min-height:clamp(130px,13vw,230px)}`, que garante altura útil
+em qualquer navegador e não atrapalha onde `aspect-ratio` funciona.
+
+**Ressalva honesta:** a segunda causa não foi confirmada em aparelho — foi
+deduzida do formato do defeito. Se voltar a acontecer depois desta versão,
+pedir o Console e a versão do navegador antes de mexer de novo.
