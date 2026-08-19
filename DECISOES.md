@@ -2335,3 +2335,25 @@ vermelho na coluna de saída, e o saldo corrido na última.
 
 **Princípio, para as próximas telas:** tabela aninhada tem de repetir a
 estrutura de colunas da tabela que a contém. Se não repetir, os números mentem.
+
+---
+
+# 19/08/2026 — V89: telas de lista usam a tela inteira
+
+O `.finWrap` tinha `max-width:1240px; margin:0 auto` — o conteúdo ficava
+centralizado com duas faixas cinzas nas laterais. Numa lista de 250
+ingredientes isso é espaço jogado fora: as colunas espremidas no meio enquanto
+sobra tela dos dois lados.
+
+Limite removido do estilo base, e removido também das telas que declaravam
+1250/1300/1350px. **Dez telas de lista** passaram a ocupar a largura toda:
+Ingredientes e Insumos, Clientes, Cupons, Cupons Fiscais, Formas de Pagamento,
+Fornecedores, Frente de Caixa, Acertos, Cancelamentos e Mesas.
+
+**Formulários continuam estreitos** (820 a 1000px), de propósito: campo largo
+demais é ruim de ler e de preencher. A regra é a natureza da tela — lista se
+espalha, formulário não.
+
+**Padrão para telas novas:** o cabeçalho e os filtros ficam fixos no topo, numa
+linha só, e a lista ocupa todo o resto com a rolagem só nela — como a
+Movimentação de Mercadoria.

@@ -1429,8 +1429,19 @@ button.cxTag{cursor:pointer;font-family:inherit}
 button.cxTag:hover{background:rgba(0,160,139,.26)}
 
 /* ================= FINANCEIRO / ACERTOS ================= */
-.finWrap{flex:1;overflow-y:auto;padding:20px 24px 40px;display:flex;flex-direction:column;gap:14px;
-  max-width:1240px;margin:0 auto;width:100%}
+/* ==========================================================
+   TELA DE LISTA USA A TELA INTEIRA
+   O limite de 1240px centralizava o conteudo e deixava duas faixas cinzas
+   nas laterais. Numa lista de 250 ingredientes isso e espaco jogado fora:
+   as colunas ficam espremidas no meio enquanto sobra tela dos dois lados.
+   Sem o limite, a lista ocupa o que tem — como ja fazia a Movimentacao de
+   Mercadoria.
+   Formulario continua estreito: a largura de cada tela vem do style="" que
+   ela mesma declara, e as telas de cadastro mantem o seu (820 a 1000px),
+   porque campo largo demais e ruim de ler e de preencher.
+   ========================================================== */
+.finWrap{flex:1;overflow-y:auto;padding:18px 20px 36px;display:flex;flex-direction:column;gap:14px;
+  max-width:none;margin:0;width:100%}
 .finTop{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
 .finTop h1{font-size:21px;font-weight:600}
 .finTop p{font-size:12.8px;color:var(--ink-2);margin-top:4px}
@@ -16192,7 +16203,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V88.1.0';
+var VERSAO='V89.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -28734,7 +28745,7 @@ function telaClientes(){
   var ticketGeral=lista.reduce(function(a,x){return a+x.s.qtd},0);
   ticketGeral=ticketGeral?totGasto/ticketGeral:0;
 
-  $('content').innerHTML='<div class="finWrap" style="max-width:1300px">'+
+  $('content').innerHTML='<div class="finWrap">'+
   '<div class="finTop"><div><h1>Cadastro de Clientes</h1>'+
   '<p>Alimentado automaticamente pelas vendas do PDV. Identificação pelo telefone.</p></div>'+
   '<div class="finActs">'+
@@ -29051,7 +29062,7 @@ function telaCupons(){
   var lista=(DB.cupons||[]).slice().reverse();
   var usos=(DB.cupomUsos||[]).slice().reverse();
 
-  $('content').innerHTML='<div class="finWrap" style="max-width:1250px">'+
+  $('content').innerHTML='<div class="finWrap">'+
   '<div class="finTop"><div><h1>Cupons de Desconto</h1>'+
   '<p>Descontos aplicados na tela de pagamento do PDV.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalCupom()">'+sv('plus',14)+' Novo cupom</button></div></div>'+
@@ -29476,7 +29487,7 @@ function telaInsumos(){
   var abaixo=(DB.insumos||[]).filter(function(i){
     return i.controlaEstoque&&Number(i.estoqueAtual)<=Number(i.estoqueMin)}).length;
 
-  $('content').innerHTML='<div class="finWrap" style="max-width:1350px">'+
+  $('content').innerHTML='<div class="finWrap">'+
   '<div class="finTop"><div><h1>Ingredientes e Insumos</h1>'+
   '<p>Base de custos do sistema. Alimenta a ficha técnica, o CMV e o estoque.</p></div>'+
   '<div class="finActs">'+
