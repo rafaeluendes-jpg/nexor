@@ -2238,3 +2238,25 @@ letra miúda embaixo do valor:
 
 A linha "Entradas R$ · Consumo R$" saiu: virou redundante, já que as
 quantidades agora aparecem nas colunas certas.
+
+## V87 — rodapé refeito, e um erro meu que apagou 33 funções
+
+**O erro primeiro, porque é o que importa.** Para trocar o rodapé eu recortei o
+arquivo entre duas marcas de texto. A marca final (`'</tfoot></table>'`)
+aparece em mais de um lugar, e o corte pegou a ocorrência errada: **levou 33
+funções junto** — `itensEstoque`, `telaEstoqueTotal`, `listaEstoque`,
+`modalMovimento`, `verMovimento`, entre outras. A tela de Contagem quebrou com
+"itensEstoque is not defined", e a validação de sintaxe passou, porque o
+arquivo continuava sintaticamente válido — só que sem metade das funções.
+
+Restaurado do commit anterior e refeito com substituição de **texto exato**,
+não recorte por posição.
+
+**Regra que fica: nunca cortar por marca que pode se repetir.** Substituição
+tem de casar o bloco inteiro, do começo ao fim. E depois de qualquer edição
+grande, comparar a lista de funções antes/depois — foi assim que o estrago
+apareceu.
+
+**O rodapé**, agora em uma linha só, cada total sob a sua coluna, com o nome em
+letra miúda embaixo do valor: média de entrada, média de consumo, custo médio,
+custo total. A linha "Entradas R$ · Consumo R$" saiu, virou redundante.
