@@ -547,9 +547,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   display:flex;flex-direction:column;align-items:center;gap:6px;transition:.14s;text-align:center;position:relative}
 .catBox:hover{border-color:var(--acc);background:var(--acc-soft)}
 .catBox.on{background:var(--acc);border-color:var(--acc);color:#fff}
-.catBox .ci2{width:52px;height:52px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+.catBox .ci2{width:62px;height:62px;border-radius:10px;display:flex;align-items:center;justify-content:center;
   background:var(--alt);color:var(--ink-2);font-weight:700;font-size:19px;overflow:hidden;flex:none}
-.catGrid.gr .ci2{width:64px;height:64px}
+.catGrid.gr .ci2{width:78px;height:78px}
 .catBox.on .ci2{background:rgba(255,255,255,.24);color:#fff}
 .catBox .ci2 img{width:100%;height:100%;object-fit:cover}
 .catBox span{font-size:11px;font-weight:600;line-height:1.25}
@@ -1403,15 +1403,15 @@ tr.off{opacity:.5}
 /* faixa de categorias horizontal */
 .catFaixa{display:flex;align-items:center;gap:6px;flex:none;background:var(--panel);
   border:1px solid var(--line);border-radius:10px;padding:8px}
-.catSeta{width:30px;height:56px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;
+.catSeta{width:30px;height:70px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;
   color:var(--ink-3);display:flex;align-items:center;justify-content:center;flex:none}
 .catSeta:hover{border-color:var(--acc);color:var(--acc-d);background:var(--acc-soft)}
 .catTrilho{flex:1;display:flex;gap:7px;overflow-x:auto;scroll-behavior:smooth;padding:1px}
 .catTrilho::-webkit-scrollbar{height:5px}
 .catTrilho::-webkit-scrollbar-thumb{background:#CDD9E4;border-radius:5px}
-.catTrilho .catBox{width:104px;flex:none;padding:8px 7px;gap:5px}
+.catTrilho .catBox{width:118px;flex:none;padding:9px 7px;gap:5px}
 .catGrid.gr .catBox,.catTrilho .catBox.gr{width:132px}
-.catTrilho .catBox .ci2{width:52px;height:52px}
+.catTrilho .catBox .ci2{width:66px;height:66px}
 .catTrilho .catBox span{font-size:11px;min-height:0;line-height:1.25;display:block;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
 
@@ -3877,22 +3877,22 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -4994,22 +4994,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -5925,22 +5925,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -6774,22 +6774,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -9103,22 +9103,22 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -9952,22 +9952,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -10883,22 +10883,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -11732,22 +11732,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
 /* ==========================================================
-   FOTO INTEIRA, CARD INTEIRO
+   FOTO DE FORA A FORA
 
-   Com object-fit:cover a foto preenchia o card mas cortava o produto —
-   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
-   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
-   proporcao exata da faixa.
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
 
-   As duas coisas juntas: uma copia da propria foto, ampliada e
-   desfocada, preenche o fundo; a foto de verdade fica por cima,
-   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
-   cor da propria foto.
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
    ========================================================== */
-.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;object-position:center}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -16444,7 +16444,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V99.0.0';
+var VERSAO='V100.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22193,8 +22193,7 @@ function renderVenda(){
        var semFoto=(C.layout==='lista');
        return '<div class="prodBox" onclick="addItem(\''+p.id+'\')">'+
        (semFoto?'':'<div class="ph2">'+
-         (p.imagem?'<img class="bgf" src="'+p.imagem+'" alt="" aria-hidden="true">'+
-                   '<img src="'+p.imagem+'" alt="">':'<span class="semImg">'+sv('img',22)+'</span>')+
+         (p.imagem?'<img src="'+p.imagem+'" alt="">':'<span class="semImg">'+sv('img',22)+'</span>')+
          (forc?'<span class="fTag">!</span>':'')+'</div>')+
        '<div class="inf"><b>'+E(p.nome)+
         (semFoto&&forc?' <span class="fTag2">!</span>':'')+'</b>'+

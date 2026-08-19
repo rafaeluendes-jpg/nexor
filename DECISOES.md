@@ -2659,3 +2659,22 @@ gerar o cascão direto, com "a receita inteira gera N unidades": 2,46 kg de
 massa → 40 cascões, 40 cestinhas ou 300 bolachas. Só que uma ficha tem um
 destino só, e a mesma massa vira três coisas — falta o Rafael dizer como
 decide, na hora de produzir, o que aquela massa vai virar.
+
+## V100 — foto de fora a fora, e ícone de categoria maior
+
+Terceira e última volta na foto do card do PDV. O histórico, para não repetir:
+
+1. `cover` numa faixa de 76px — preenchia, mas a faixa era tão baixa que
+   cortava o produto no meio (V93);
+2. `contain` — mostrava a foto inteira e deixava duas barras cinza;
+3. `contain` com uma cópia desfocada no fundo — sem cinza, mas as laterais
+   foscas não agradaram (V94/V95).
+
+**O que resolvia era a altura, não o encaixe.** Com a faixa em 4:3 (V94) o
+corte do `cover` é mínimo, porque quase toda foto de celular já é 4:3 ou 3:2.
+Então voltou o `cover` puro: ocupa de ponta a ponta, mantém a proporção (não
+estica) e não tem tarja. A cópia `.bgf` saiu do markup e do CSS.
+
+**Ícone da categoria:** 52 → 66px no trilho do PDV e 52 → 62px na grade
+(78px no modo botão grande). O cartão foi de 104 para 118px de largura e a
+seta de rolagem acompanhou a altura.
