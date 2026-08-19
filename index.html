@@ -16203,7 +16203,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V89.0.0';
+var VERSAO='V89.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29487,15 +29487,22 @@ function telaInsumos(){
   var abaixo=(DB.insumos||[]).filter(function(i){
     return i.controlaEstoque&&Number(i.estoqueAtual)<=Number(i.estoqueMin)}).length;
 
-  $('content').innerHTML='<div class="finWrap">'+
-  '<div class="finTop"><div><h1>Ingredientes e Insumos</h1>'+
-  '<p>Base de custos do sistema. Alimenta a ficha técnica, o CMV e o estoque.</p></div>'+
+  /* ==========================================================
+     MESMA CASCA DA MOVIMENTACAO DE MERCADORIA
+     A tela era feita de cartoes brancos flutuando sobre um fundo cinza:
+     um para o titulo, um para os filtros, outro para a lista. Com 250
+     ingredientes isso vira moldura em volta do que interessa.
+     Agora e a casca de tela cheia: titulo fixo, filtros fixos numa faixa,
+     e a lista de fora a fora com a rolagem so nela.
+     ========================================================== */
+  $('content').innerHTML='<div class="mvWrap">'+
+  '<div class="mvTopo"><div style="flex:1"><h1>Ingredientes e Insumos</h1></div>'+
   '<div class="finActs">'+
    '<button class="btnP2" onclick="modalUnidades()">'+sv('gear2',13)+' Unidades</button>'+
    '<button class="btnP2" onclick="exportarInsumos()">'+sv('down2',13)+' Exportar</button>'+
    '<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button></div></div>'+
 
-  '<div class="filtroCard">'+
+  '<div class="mvFiltros">'+
    '<div class="fl gw2"><label>Buscar</label><input id="inB" value="'+E(IN.busca)+'" placeholder="nome ou código"></div>'+
    '<div class="fl"><label>Grupo</label><select onchange="IN.grupo=this.value;telaInsumos()">'+
     '<option value="">Todos os grupos</option>'+
@@ -29515,8 +29522,7 @@ function telaInsumos(){
    '</div>'+
   '</div>'+
 
-  '<div class="pnl2"><div class="pnl2H">Ingredientes <span class="cnt2">'+lista.length+'</span></div>'+
-  '<div class="pnl2B" style="padding:0">'+
+  '<div class="mvTabW">'+
   (lista.length?'<table class="pTable finTab tabIns"><thead><tr>'+
    '<th style="width:82px">Código</th><th>Descrição</th>'+
    '<th style="width:110px">Un. consumo</th>'+
@@ -29551,7 +29557,10 @@ function telaInsumos(){
    }).join('')+'</tbody></table>'
   :'<div class="entVazio"><b>Nenhum ingrediente cadastrado</b>'+
    '<span>Cadastre os insumos aqui — eles aparecem automaticamente na ficha técnica.</span></div>')+
-  '</div></div></div>';
+  /* No fim so restam dois abertos: mvTabW (a lista) e mvWrap (a casca).
+     mvTopo, finActs e mvFiltros ja se fecham acima. Contei pela estrutura,
+     nao comparando com a versao antiga — ela tinha um cartao a mais. */
+  '</div></div>';
   $('inB').oninput=function(){IN.busca=this.value;var p=this.selectionStart;telaInsumos();
     var n=$('inB');n.focus();n.setSelectionRange(p,p);};
   rodape((DB.insumos||[]).length+' ingredientes cadastrados');

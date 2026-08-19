@@ -2357,3 +2357,23 @@ espalha, formulário não.
 **Padrão para telas novas:** o cabeçalho e os filtros ficam fixos no topo, numa
 linha só, e a lista ocupa todo o resto com a rolagem só nela — como a
 Movimentação de Mercadoria.
+
+## V89.1 — Ingredientes e Insumos com a casca da Movimentação de Mercadoria
+
+Tirar o limite de largura (V89) não bastou: a tela continuava feita de
+**cartões brancos flutuando sobre fundo cinza** — um para o título, um para os
+filtros, outro para a lista. Com 250 ingredientes, isso é moldura em volta do
+que interessa.
+
+Trocada a casca: `finWrap` + `filtroCard` + `pnl2` viraram
+`mvWrap` + `mvTopo` + `mvFiltros` + `mvTabW`, a mesma estrutura da Movimentação
+de Mercadoria. Título fixo, filtros fixos numa faixa, lista de fora a fora com
+a rolagem só nela.
+
+**Nota de método:** ao fechar as tags eu tentei "igualar o número de `</div>` da
+versão anterior". Errado — a versão anterior tinha um cartão a mais, então o
+número dela não servia de referência. A conta certa é pela estrutura: no fim
+só restam `mvTabW` e `mvWrap` abertos, logo dois fechamentos. Verificado
+montando o HTML e contando: zero divs em aberto.
+
+As outras telas de lista seguem o mesmo caminho quando forem tocadas.
