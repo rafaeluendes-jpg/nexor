@@ -2807,3 +2807,23 @@ Medido em navegador: `#content` 700px → `.finWrap` 700 → `.pnl2` 629 →
 `.pnl2B` 593 com 1196 de conteúdo. A tabela rola por dentro e nada transborda.
 
 Abaixo de 820px a página volta a rolar inteira, que é o certo no celular.
+
+## V107 — largura total não é texto colado na quina
+
+A V105 tirou a faixa central de Compras sem Vínculo levando junto o
+`padding-left/right:22px` que estava no mesmo atributo `style`. Resultado: o
+"De" do calendário encostou na borda esquerda e o total ficou rente à direita,
+quase cortado no notebook.
+
+**Largura total é uma coisa; margem interna é outra.** A tela ganhou um corpo
+próprio (`.mvCorpo`) com 18px dos dois lados — 12px abaixo de 820px — que rola
+sozinho, com a faixa do título parada em cima. E o cabeçalho dos painéis
+`.pnl2` dentro de `.finWrap` também recebeu os mesmos 18px, para alinhar com o
+título da tela.
+
+Conferido em navegador antes de publicar, em 1600px: nada encostando na quina
+e o total inteiro na tela.
+
+**Lição, para valer nas próximas:** ao tirar `max-width` de uma tela, conferir
+se o mesmo atributo não carregava o respiro lateral — e olhar a tela renderizada
+depois, não só o código.
