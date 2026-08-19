@@ -2761,3 +2761,27 @@ título mantém o respiro dele.
 
 Conferido em Chrome headless com as pastas abertas: as duas colunas rolam
 sozinhas e o cabeçalho e o botão de cadastrar ficam parados.
+
+## V105 — telas financeiras de fora a fora
+
+Várias telas ficavam numa faixa estreita no meio de um fundo cinza — em
+monitor de 1900px sobrava moldura e faltava conteúdo. O limite de largura
+estava em dois lugares: no atributo `style` de quatro telas e no CSS de dois
+contêineres.
+
+Tirado de:
+
+- `telaContas` (Contas Bancárias) — `max-width:920px`
+- `telaComprasSemVinculo` — `max-width:1080px;margin:0 auto`
+- `telaGruposIng` (Grupo de Ingredientes) — `max-width:860px`
+- `telaGerarDemo` — `max-width:820px`
+- `.cxWrap` — `max-width:1180px;margin:0 auto`
+- `.cfgWrap` — `max-width:1080px;margin:0 auto`
+
+E o respiro lateral do `.finWrap` foi a zero: o painel encosta na borda da
+tela, sem canto arredondado e sem borda nos lados. Só o título mantém o
+respiro dele, para não ficar colado.
+
+Continuam com largura limitada, de propósito: a **janela da ficha técnica**
+(`.fichaMod`, 1180px) e a grade do **"Leve também"** do totem (980px) — as
+duas são caixas sobre a tela, não telas.
