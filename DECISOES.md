@@ -2744,3 +2744,20 @@ com dados de exemplo e medir leva dez minutos e evita duas versões no escuro.
 
 A pastilha **"Todos"** saiu do totem, a pedido do Rafael: a tela abre já na
 primeira categoria (`catInicialTotem()`, chamada em `irTotem(2)`).
+
+## V104 — a rolagem do Plano de Contas, e a tela de fora a fora
+
+**Por que não aparecia barra de rolagem.** A coluna era flex e a lista tinha
+`overflow-y:auto`, mas entre as duas existe `.arvore`, que não era item
+flexível. A corrente de altura quebrava ali: a lista nunca recebia altura
+definida, crescia para fora do quadro e o navegador não tinha o que rolar.
+Agora `.arvore` também é `flex:1;min-height:0`, e a rolagem cai em `.arvBody`,
+que é onde a lista mora. A barra ficou visível de propósito (10px, com trilho),
+porque numa lista de 125 itens ela precisa ser vista.
+
+**De fora a fora.** Saíram o respiro de 16px, a borda, o canto arredondado e a
+sombra das colunas. Ficou um risco só no meio separando receita de despesa. O
+título mantém o respiro dele.
+
+Conferido em Chrome headless com as pastas abertas: as duas colunas rolam
+sozinhas e o cabeçalho e o botão de cadastrar ficam parados.

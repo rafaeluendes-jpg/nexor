@@ -2616,15 +2616,35 @@ tbody td small{font-size:10.5px}
    lista. Agora sao duas metades exatas, do canto ao canto, e a rolagem e
    de cada coluna — o cabecalho e o botao de cadastrar ficam parados.
    ========================================================== */
-.catFinCheio{padding:16px 16px 16px;gap:12px;overflow:hidden}
-.catFinCheio .catDuas{flex:1;min-height:0;grid-template-columns:1fr 1fr}
-.catFinCheio .catCol{min-height:0}
-.catFinCheio .catCol .arvBody{overflow-y:auto}
-.catFinCheio .arvBody::-webkit-scrollbar{width:8px}
-.catFinCheio .arvBody::-webkit-scrollbar-thumb{background:#CDD9E4;border-radius:5px}
+/* ==========================================================
+   ROLAGEM: A CORRENTE DE ALTURA PRECISA CHEGAR ATE A LISTA
+
+   A coluna era flex, mas entre ela e a lista existe `.arvore`, que nao
+   era item flexivel — entao a lista nunca recebia altura, crescia para
+   fora do quadro e nao aparecia barra nenhuma. Agora `.arvore` tambem e
+   flex:1 com min-height:0, e a rolagem cai em `.arvBody`, que e onde a
+   lista mora.
+
+   E a tela vai de fora a fora: sem respiro, sem canto arredondado e sem
+   sombra, so um risco no meio separando receita de despesa.
+   ========================================================== */
+.catFinCheio{padding:0;gap:0;overflow:hidden}
+.catFinCheio .finTop{padding:16px 18px 12px}
+.catFinCheio .catDuas{flex:1;min-height:0;grid-template-columns:1fr 1fr;gap:0}
+.catFinCheio .catCol{min-height:0;border:0;border-radius:0;box-shadow:none}
+.catFinCheio .catCol.receita{border-right:1px solid var(--line)}
+.catFinCheio .catCol .arvore{flex:1;min-height:0;display:flex;flex-direction:column;
+  border:0;border-radius:0;box-shadow:none;background:transparent}
+.catFinCheio .catCol .arvBody{flex:1;min-height:0;overflow-y:auto}
+.catFinCheio .arvBody::-webkit-scrollbar{width:10px}
+.catFinCheio .arvBody::-webkit-scrollbar-track{background:var(--alt)}
+.catFinCheio .arvBody::-webkit-scrollbar-thumb{background:#B9C7D4;border-radius:6px;
+  border:2px solid var(--alt)}
+.catFinCheio .arvBody::-webkit-scrollbar-thumb:hover{background:#9AAEC0}
 @media(max-width:820px){.catFinCheio{overflow-y:auto}
  .catFinCheio .catDuas{grid-template-columns:1fr}
- .catFinCheio .catCol .arvBody{overflow:visible}}
+ .catFinCheio .catCol.receita{border-right:0;border-bottom:1px solid var(--line)}
+ .catFinCheio .catCol .arvore,.catFinCheio .catCol .arvBody{overflow:visible;min-height:auto}}
 .catDuas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
 .catCol{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
   display:flex;flex-direction:column}
@@ -7915,15 +7935,35 @@ tbody td small{font-size:10.5px}
    lista. Agora sao duas metades exatas, do canto ao canto, e a rolagem e
    de cada coluna — o cabecalho e o botao de cadastrar ficam parados.
    ========================================================== */
-.catFinCheio{padding:16px 16px 16px;gap:12px;overflow:hidden}
-.catFinCheio .catDuas{flex:1;min-height:0;grid-template-columns:1fr 1fr}
-.catFinCheio .catCol{min-height:0}
-.catFinCheio .catCol .arvBody{overflow-y:auto}
-.catFinCheio .arvBody::-webkit-scrollbar{width:8px}
-.catFinCheio .arvBody::-webkit-scrollbar-thumb{background:#CDD9E4;border-radius:5px}
+/* ==========================================================
+   ROLAGEM: A CORRENTE DE ALTURA PRECISA CHEGAR ATE A LISTA
+
+   A coluna era flex, mas entre ela e a lista existe `.arvore`, que nao
+   era item flexivel — entao a lista nunca recebia altura, crescia para
+   fora do quadro e nao aparecia barra nenhuma. Agora `.arvore` tambem e
+   flex:1 com min-height:0, e a rolagem cai em `.arvBody`, que e onde a
+   lista mora.
+
+   E a tela vai de fora a fora: sem respiro, sem canto arredondado e sem
+   sombra, so um risco no meio separando receita de despesa.
+   ========================================================== */
+.catFinCheio{padding:0;gap:0;overflow:hidden}
+.catFinCheio .finTop{padding:16px 18px 12px}
+.catFinCheio .catDuas{flex:1;min-height:0;grid-template-columns:1fr 1fr;gap:0}
+.catFinCheio .catCol{min-height:0;border:0;border-radius:0;box-shadow:none}
+.catFinCheio .catCol.receita{border-right:1px solid var(--line)}
+.catFinCheio .catCol .arvore{flex:1;min-height:0;display:flex;flex-direction:column;
+  border:0;border-radius:0;box-shadow:none;background:transparent}
+.catFinCheio .catCol .arvBody{flex:1;min-height:0;overflow-y:auto}
+.catFinCheio .arvBody::-webkit-scrollbar{width:10px}
+.catFinCheio .arvBody::-webkit-scrollbar-track{background:var(--alt)}
+.catFinCheio .arvBody::-webkit-scrollbar-thumb{background:#B9C7D4;border-radius:6px;
+  border:2px solid var(--alt)}
+.catFinCheio .arvBody::-webkit-scrollbar-thumb:hover{background:#9AAEC0}
 @media(max-width:820px){.catFinCheio{overflow-y:auto}
  .catFinCheio .catDuas{grid-template-columns:1fr}
- .catFinCheio .catCol .arvBody{overflow:visible}}
+ .catFinCheio .catCol.receita{border-right:0;border-bottom:1px solid var(--line)}
+ .catFinCheio .catCol .arvore,.catFinCheio .catCol .arvBody{overflow:visible;min-height:auto}}
 .catDuas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
 .catCol{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
   display:flex;flex-direction:column}
@@ -16510,7 +16550,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V103.0.0';
+var VERSAO='V104.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
