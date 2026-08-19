@@ -2390,3 +2390,17 @@ e as laterais, para a faixa encostar de lado a lado.
 
 Vale para as próximas telas que forem migradas: mudar o contêiner, não os
 componentes.
+
+## V89.3 — duas buscas na mesma tela
+
+Existe uma busca **automática** que o sistema injeta em qualquer tabela com 6
+linhas ou mais. Em Ingredientes e Insumos ela aparecia logo abaixo do campo
+"Buscar" do filtro: duas caixas fazendo a mesma coisa, e a de baixo ainda
+empurrava a lista para baixo.
+
+Ela passou a entrar **só quando a tela não tem campo de busca próprio** na
+faixa de filtros. Campo de data e seletor não contam — filtram, mas não
+procuram por nome.
+
+Testado com jsdom em quatro casos: tela com campo Buscar (não põe), tela só com
+data e seletor (põe), tela sem filtro (põe), tabela pequena (não põe).
