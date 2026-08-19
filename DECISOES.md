@@ -2785,3 +2785,25 @@ respiro dele, para não ficar colado.
 Continuam com largura limitada, de propósito: a **janela da ficha técnica**
 (`.fichaMod`, 1180px) e a grade do **"Leve também"** do totem (980px) — as
 duas são caixas sobre a tela, não telas.
+
+## V106 — Fornecedores: busca no topo e tela cheia sem cartão
+
+Tirar o limite de largura (V105) não bastou. Sobrava a borda cinza dos dois
+lados e embaixo, e quem rolava era a **página inteira** — o painel branco
+passeava como um cartão dentro do fundo cinza.
+
+Entrou a classe `.telaCheia`, que muda três coisas:
+
+- a página não rola (`overflow:hidden`) e a rolagem passa a ser da **tabela**,
+  via `.pnl2B{flex:1;min-height:0;overflow:auto}`;
+- o painel deixa de ser cartão: sem borda, sem canto arredondado e sem sombra,
+  com um risco só separando do cabeçalho;
+- a linha do título fica parada no topo.
+
+O campo de busca saiu de baixo do título e foi para a **mesma linha**, entre o
+título e o botão de cadastrar (`.buscaTopo`).
+
+Medido em navegador: `#content` 700px → `.finWrap` 700 → `.pnl2` 629 →
+`.pnl2B` 593 com 1196 de conteúdo. A tabela rola por dentro e nada transborda.
+
+Abaixo de 820px a página volta a rolar inteira, que é o certo no celular.
