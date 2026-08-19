@@ -2472,6 +2472,8 @@ tbody td small{font-size:10.5px}
 .mmAjuda{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);
   background:#fff;color:var(--ink-3);font-weight:700;font-size:11px;cursor:help}
 .mmAjuda:hover{color:var(--acc);border-color:var(--acc)}
+/* filtro dentro de tela cheia: mesma forma dos campos, sem cartao */
+.filtroCard.emCheia{border-radius:0;border-left:0;border-right:0;margin:0;flex:none}
 
 .mvTab tfoot tr.sub2 td{background:#fff;border-top:1px solid var(--line-2);font-size:11.5px;color:var(--ink-3)}
 .mvVazio{padding:70px 20px;text-align:center;color:var(--ink-3)}
@@ -16203,7 +16205,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V89.1.0';
+var VERSAO='V89.2.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29502,7 +29504,15 @@ function telaInsumos(){
    '<button class="btnP2" onclick="exportarInsumos()">'+sv('down2',13)+' Exportar</button>'+
    '<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button></div></div>'+
 
-  '<div class="mvFiltros">'+
+  /* ==========================================================
+     O FILTRO CONTINUA SENDO filtroCard
+     Troquei por mvFiltros e os campos perderam a forma: os rotulos e as
+     caixas daqui sao .fl, e mvFiltros e feito para .f2. Casca e uma coisa,
+     campo e outra — trocar a casca nao pode trocar o estilo do que esta
+     dentro. A classe emCheia so tira as bordas arredondadas, para a faixa
+     encostar de lado a lado.
+     ========================================================== */
+  '<div class="filtroCard emCheia">'+
    '<div class="fl gw2"><label>Buscar</label><input id="inB" value="'+E(IN.busca)+'" placeholder="nome ou código"></div>'+
    '<div class="fl"><label>Grupo</label><select onchange="IN.grupo=this.value;telaInsumos()">'+
     '<option value="">Todos os grupos</option>'+

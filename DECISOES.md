@@ -2377,3 +2377,16 @@ só restam `mvTabW` e `mvWrap` abertos, logo dois fechamentos. Verificado
 montando o HTML e contando: zero divs em aberto.
 
 As outras telas de lista seguem o mesmo caminho quando forem tocadas.
+
+## V89.2 — casca é uma coisa, campo é outra
+
+Ao trocar a casca da tela de Ingredientes, troquei junto o `filtroCard` por
+`mvFiltros` — e os campos perderam a forma: rótulo colado na caixa, tudo
+desalinhado. Os campos daquela tela são `.fl`; `mvFiltros` é feito para `.f2`.
+
+**Trocar a casca não pode trocar o estilo do que está dentro.** O filtro voltou
+a ser `filtroCard`, com a classe `emCheia` que só remove as bordas arredondadas
+e as laterais, para a faixa encostar de lado a lado.
+
+Vale para as próximas telas que forem migradas: mudar o contêiner, não os
+componentes.
