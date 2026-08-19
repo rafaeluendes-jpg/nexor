@@ -3033,8 +3033,23 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .fmVal.dest7{background:var(--acc-soft);border-color:var(--acc);color:var(--acc-d);font-weight:700}
 
 /* ================= PRODUÇÃO ================= */
-.opSug{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:var(--acc-soft);
-  border-bottom:1px solid var(--line);flex:none}
+/* ==========================================================
+   A LISTA DE SABORES NAO PODE EMPURRAR A TELA
+
+   Era um flex-wrap que crescia sem limite: com 44 sabores o painel
+   ocupava a pagina inteira, empurrava a tabela das cubas para fora e as
+   ultimas linhas ficavam cortadas ao meio pelo rodape. Adicionar mais um
+   sabor piorava.
+
+   Agora e uma grade de colunas iguais com rolagem propria e teto de 38%
+   da altura da tela: cresce ate ali e depois rola por dentro, sem nunca
+   tirar a tabela do lugar.
+   ========================================================== */
+.opSug{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));
+  gap:7px;align-content:start;padding:10px 16px;background:var(--acc-soft);
+  border-bottom:1px solid var(--line);flex:none;max-height:38vh;overflow-y:auto}
+.opSug::-webkit-scrollbar{width:7px}
+.opSug::-webkit-scrollbar-thumb{background:#CDD9E4;border-radius:5px}
 .opSugIt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 12px;
   border:1px solid var(--acc);border-radius:6px;background:#fff;cursor:pointer;text-align:left}
 .opSugIt:hover{background:var(--acc);color:#fff}
@@ -3099,11 +3114,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .opRecIng b{color:var(--ink-2)}
 .opRod{padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:12px;flex:none}
 
-.opSugG{width:100%;font-size:10.5px;font-weight:800;letter-spacing:.06em;
+.opSugG{grid-column:1/-1;width:100%;font-size:10.5px;font-weight:800;letter-spacing:.06em;
   text-transform:uppercase;color:var(--acc-d);margin:6px 0 -2px;padding-top:4px;
   border-top:1px solid rgba(175,127,56,.25)}
 .opSugG:first-child{margin-top:0;padding-top:0;border-top:0}
-.opSugT{width:100%;display:flex;align-items:center;font-size:10.5px;font-weight:700;
+.opSugT{grid-column:1/-1;width:100%;display:flex;align-items:center;font-size:10.5px;font-weight:700;
   color:var(--acc-d);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
 .opSugT button{margin-left:auto}
 .opRecGrid{display:flex;gap:12px;align-items:flex-start}
@@ -8290,8 +8305,23 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .fmVal.dest7{background:var(--acc-soft);border-color:var(--acc);color:var(--acc-d);font-weight:700}
 
 /* ================= PRODUÇÃO ================= */
-.opSug{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:var(--acc-soft);
-  border-bottom:1px solid var(--line);flex:none}
+/* ==========================================================
+   A LISTA DE SABORES NAO PODE EMPURRAR A TELA
+
+   Era um flex-wrap que crescia sem limite: com 44 sabores o painel
+   ocupava a pagina inteira, empurrava a tabela das cubas para fora e as
+   ultimas linhas ficavam cortadas ao meio pelo rodape. Adicionar mais um
+   sabor piorava.
+
+   Agora e uma grade de colunas iguais com rolagem propria e teto de 38%
+   da altura da tela: cresce ate ali e depois rola por dentro, sem nunca
+   tirar a tabela do lugar.
+   ========================================================== */
+.opSug{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));
+  gap:7px;align-content:start;padding:10px 16px;background:var(--acc-soft);
+  border-bottom:1px solid var(--line);flex:none;max-height:38vh;overflow-y:auto}
+.opSug::-webkit-scrollbar{width:7px}
+.opSug::-webkit-scrollbar-thumb{background:#CDD9E4;border-radius:5px}
 .opSugIt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 12px;
   border:1px solid var(--acc);border-radius:6px;background:#fff;cursor:pointer;text-align:left}
 .opSugIt:hover{background:var(--acc);color:#fff}
@@ -8310,11 +8340,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .opRecIng b{color:var(--ink-2)}
 .opRod{padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:12px;flex:none}
 
-.opSugG{width:100%;font-size:10.5px;font-weight:800;letter-spacing:.06em;
+.opSugG{grid-column:1/-1;width:100%;font-size:10.5px;font-weight:800;letter-spacing:.06em;
   text-transform:uppercase;color:var(--acc-d);margin:6px 0 -2px;padding-top:4px;
   border-top:1px solid rgba(175,127,56,.25)}
 .opSugG:first-child{margin-top:0;padding-top:0;border-top:0}
-.opSugT{width:100%;display:flex;align-items:center;font-size:10.5px;font-weight:700;
+.opSugT{grid-column:1/-1;width:100%;display:flex;align-items:center;font-size:10.5px;font-weight:700;
   color:var(--acc-d);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
 .opSugT button{margin-left:auto}
 .opRecGrid{display:flex;gap:12px;align-items:flex-start}
@@ -16412,7 +16442,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V97.0.0';
+var VERSAO='V98.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -36283,9 +36313,12 @@ function telaOPNova(){
          var sub=nomeSubProd(f);
          if(sub!==atual){atual=sub;cab='<div class="opSugG">'+E(sub)+'</div>';}
        }
+       /* "gera 4,8 kg de BELGA GELATO" dentro do botao BELGA GELATO nao
+          informa nada e dobrava a largura de cada item */
+       var mesmo=pd.destino&&String(pd.destino.nome||'').toLowerCase().trim()===String(f.nome||'').toLowerCase().trim();
        return cab+'<button class="opSugIt" onclick="addSaborOP(\''+f.id+'\')">'+
        '<b>'+E(f.nome)+'</b><span>gera '+fmtQt(pd.qtd)+' '+un(pd.unidade).ab+
-       (pd.destino?' de '+E(pd.destino.nome):'')+'</span></button>';
+       (pd.destino&&!mesmo?' de '+E(pd.destino.nome):'')+'</span></button>';
       }).join('');
      })()+'</div>':'')+
    '<div class="etTabW">'+

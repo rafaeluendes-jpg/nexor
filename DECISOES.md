@@ -2612,3 +2612,19 @@ subgrupo. A busca por texto continua plana, porque ali a lista já é curta.
 Testado com 7 casos: sabor em primeiro, base depois do sorbet, ficha de venda
 fora, ficha sem receita fora, bases ainda disponíveis, ordem dos grupos e
 nenhum cabeçalho repetido.
+
+## V98 — a lista de sabores não empurra mais a tela da produção
+
+Com o agrupamento da V97 a lista ficou legível, mas o painel `.opSug` era um
+`flex-wrap` que crescia sem limite. Com 44 sabores ele ocupava a página
+inteira, empurrava a tabela das cubas para fora e as últimas linhas ficavam
+cortadas ao meio pelo rodapé — e cada sabor novo piorava.
+
+- O painel virou **grade de colunas iguais** (`auto-fill, minmax(186px)`) com
+  **rolagem própria** e teto de `38vh`. Cresce até ali e depois rola por
+  dentro; a tabela das cubas nunca sai do lugar.
+- Os cabeçalhos de subgrupo ganharam `grid-column:1/-1` para continuarem
+  ocupando a linha inteira dentro da grade.
+- O texto de cada botão dizia "gera 4,8 kg **de BELGA GELATO**" dentro do
+  botão BELGA GELATO. O destino agora só aparece quando tem nome diferente do
+  da ficha — cada item ficou com metade da largura.
