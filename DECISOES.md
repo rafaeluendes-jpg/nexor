@@ -2550,3 +2550,22 @@ Duas mudanças juntas:
 
 O `<img class="bgf">` é a cópia de fundo, marcada `aria-hidden`. Vale para os
 três layouts do PDV.
+
+## V95 — o borrão vazava por cima do nome; card menor e nome legível
+
+Três coisas na mesma tela:
+
+- **A cópia desfocada do fundo estava passando por cima do nome.** `.prodBox .ph2`
+  não tinha `overflow:hidden` — só os layouts quadro e linha tinham — e o
+  `transform:scale(1.25)` da `.bgf` derramava para fora da faixa. Era por isso
+  que "Copo P" aparecia sobre um borrão marrom, ilegível. Corrigido com
+  `overflow:hidden` na faixa e `z-index:2` + fundo branco no bloco `.inf`.
+- **Card alto demais.** Com poucas colunas, `aspect-ratio:4/3` gerava faixas de
+  250px. Entrou `max-height:150px` (190px no modo botão grande) — cerca de um
+  terço menor, sem voltar a cortar a foto, porque o `contain` continua.
+- **Nome e preço com mais peso:** nome 12,2 → 14px em `--ink` e negrito;
+  preço 13,5 → 16px. O `min-height:32px` do nome saiu, que só empurrava o card.
+
+E a **foto da categoria**: o ícone tinha 30px no trilho do PDV e a foto ficava
+minúscula. Passou para 52px, e o nome deixou de ter `min-height:26px` (que o
+empurrava para cima do ícone) — agora corta com reticências quando é longo.
