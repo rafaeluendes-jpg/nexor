@@ -562,9 +562,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .prodBox{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;cursor:pointer;
   display:flex;flex-direction:column;transition:.14s}
 .prodBox:hover{border-color:var(--acc);box-shadow:0 6px 18px rgba(18,42,66,.14);transform:translateY(-2px)}
-.prodBox .ph2{height:76px;background:var(--alt);display:flex;align-items:center;justify-content:center;
+.prodBox .ph2{aspect-ratio:4/3;height:auto;background:var(--alt);display:flex;align-items:center;justify-content:center;
   color:var(--ink-3);position:relative;border-bottom:1px solid var(--line-2)}
-.prodGrid.gr .ph2{height:112px}
+.prodGrid.gr .ph2{aspect-ratio:4/3;height:auto}
 .prodBox .ph2 img{width:100%;height:100%;object-fit:cover}
 .prodBox .fTag{position:absolute;top:6px;right:6px;width:19px;height:19px;border-radius:50%;
   background:var(--amber);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
@@ -3856,7 +3856,22 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -4958,7 +4973,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -5874,7 +5904,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -6708,7 +6753,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -9003,7 +9063,22 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -9837,7 +9912,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -10753,7 +10843,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -11587,7 +11692,22 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 /* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
-.prodGrid .ph2 img{width:100%;height:100%;object-fit:cover;background:#F2F5F8}
+.prodGrid .ph2 img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+/* ==========================================================
+   FOTO INTEIRA, CARD INTEIRO
+
+   Com object-fit:cover a foto preenchia o card mas cortava o produto —
+   o copo aparecia sem o topo. Com contain aparecia inteiro, so que
+   sobravam duas barras cinza dos lados, porque quase nenhuma foto tem a
+   proporcao exata da faixa.
+
+   As duas coisas juntas: uma copia da propria foto, ampliada e
+   desfocada, preenche o fundo; a foto de verdade fica por cima,
+   inteira. Nada e cortado e nao ha barra cinza — o fundo e sempre da
+   cor da propria foto.
+   ========================================================== */
+.prodGrid .ph2 .bgf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(16px) brightness(1.12) saturate(.9);transform:scale(1.25);z-index:0}
 .prodGrid .semImg{color:#B8C6D2;display:flex;align-items:center;justify-content:center;height:100%}
 
 /* 1) LISTA — sem foto, denso */
@@ -16212,7 +16332,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V93.0.0';
+var VERSAO='V94.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21960,7 +22080,8 @@ function renderVenda(){
        var semFoto=(C.layout==='lista');
        return '<div class="prodBox" onclick="addItem(\''+p.id+'\')">'+
        (semFoto?'':'<div class="ph2">'+
-         (p.imagem?'<img src="'+p.imagem+'" alt="">':'<span class="semImg">'+sv('img',22)+'</span>')+
+         (p.imagem?'<img class="bgf" src="'+p.imagem+'" alt="" aria-hidden="true">'+
+                   '<img src="'+p.imagem+'" alt="">':'<span class="semImg">'+sv('img',22)+'</span>')+
          (forc?'<span class="fTag">!</span>':'')+'</div>')+
        '<div class="inf"><b>'+E(p.nome)+
         (semFoto&&forc?' <span class="fTag2">!</span>':'')+'</b>'+

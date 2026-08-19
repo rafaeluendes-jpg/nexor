@@ -2530,3 +2530,23 @@ faixa de 76px de largura total. Passou para `object-fit:cover` e os `padding`
 de 6px (quadro) e 3px (linha) foram a zero — a foto preenche a faixa inteira,
 cortando o excedente pelas laterais. A regra estava repetida em 8 blocos de
 tema; todos foram alterados.
+
+## V94 — a foto do produto aparece inteira, e o card não fica com barra cinza
+
+A V93 trocou `contain` por `cover` para tirar as barras cinza. Resolveu o
+cinza e criou outro: a faixa tinha 76px de altura e a largura do card
+inteiro, então o `cover` ampliava a foto e **cortava o produto** — o copo
+aparecia sem o topo.
+
+Duas mudanças juntas:
+
+- A faixa deixou de ser uma tira baixa e virou **4:3** (`aspect-ratio:4/3`,
+  altura automática). Numa grade de 4 colunas isso dá cerca de 150px de
+  altura em vez de 76px — espaço para o produto aparecer de corpo inteiro.
+- A foto voltou para `contain`, e o que sobra nas laterais é preenchido por
+  **uma cópia da própria foto, ampliada e desfocada** (`blur(16px)`,
+  `scale(1.25)`). Nada é cortado e não existe barra cinza: o fundo é sempre
+  da cor da própria foto.
+
+O `<img class="bgf">` é a cópia de fundo, marcada `aria-hidden`. Vale para os
+três layouts do PDV.
