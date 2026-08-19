@@ -2404,3 +2404,29 @@ procuram por nome.
 
 Testado com jsdom em quatro casos: tela com campo Buscar (não põe), tela só com
 data e seletor (põe), tela sem filtro (põe), tabela pequena (não põe).
+
+---
+
+# 19/08/2026 — V90: excluir ordem de produção
+
+Botão de lixeira ao lado do imprimir, na linha da ordem.
+
+**A ordem não é só um registro — ela já mexeu no estoque.** Produzir consome os
+ingredientes da ficha e dá entrada no item produzido; a diferença de pesagem
+gera um segundo movimento, de perda ou ganho.
+
+Apagar só a ordem deixaria o estoque com uma produção que ninguém mais consegue
+explicar, e o Estoque Total e a Movimentação de Mercadoria continuariam
+mostrando o resultado dela para sempre.
+
+Por isso a exclusão desfaz na ordem inversa: primeiro os movimentos
+(`aplicarMovimento(m,true)` devolve o que foi tirado e tira o que foi posto),
+depois a ordem. Os movimentos são achados por dois caminhos: o principal pelo
+`movId` guardado na ordem, e os de ajuste de pesagem pela identificação
+"OP &lt;número&gt;".
+
+A confirmação diz quantos movimentos serão desfeitos e **avisa que o saldo pode
+ficar negativo** se o que foi produzido já tiver sido vendido.
+
+**Teste:** produção de 5 kg de base gerando 4,8 kg com 0,3 kg de diferença —
+os dois movimentos foram encontrados e o estoque voltou exatamente ao original.

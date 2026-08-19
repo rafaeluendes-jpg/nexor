@@ -16205,7 +16205,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V89.3.0';
+var VERSAO='V90.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -35857,6 +35857,7 @@ function telaProducao(){
       '<td onclick="event.stopPropagation()"><div class="rowAct">'+
        '<button class="rBtn" onclick="verOP(\''+o.id+'\')" title="Ver">'+sv('eye',12)+'</button>'+
        '<button class="rBtn" onclick="imprimirOP(\''+o.id+'\')" title="Imprimir">'+sv('print2',12)+'</button>'+
+       '<button class="rBtn rd" onclick="excluirOP(\''+o.id+'\')" title="Excluir ordem">'+sv('trash',12)+'</button>'+
       '</div></td></tr>';
     }).join('')+'</tbody></table>'
    :'<div class="mvVazio">'+sv('box',26)+'<b>Nenhuma ordem de produção</b>'+
@@ -36269,6 +36270,49 @@ function verOP(id){
    '<button class="btnP2 ok" onclick="imprimirOP(\''+o.id+'\')">'+sv('print2',13)+' Imprimir / PDF</button></div></div>';
   document.body.appendChild(ov);
   fecharSoForaDeVerdade(ov);
+}
+/* ==========================================================
+   EXCLUIR UMA ORDEM DE PRODUCAO
+   A ordem nao e so um registro: ela JA MEXEU no estoque. Produzir consome
+   os ingredientes da ficha e da entrada no item produzido, e a diferenca de
+   pesagem gera um segundo movimento de perda ou ganho.
+   Apagar so a ordem deixaria o estoque com uma producao que ninguem mais
+   consegue explicar — e o Estoque Total e a Movimentacao de Mercadoria
+   continuariam mostrando o resultado dela para sempre.
+   Por isso aqui se desfaz na ordem inversa: primeiro os movimentos (com
+   aplicarMovimento(m,true), que devolve o que foi tirado e tira o que foi
+   posto), depois a ordem.
+   Os movimentos da ordem sao dois tipos: o principal, guardado em movId, e
+   os de ajuste de pesagem, que carregam a identificacao "OP <numero>".
+   ========================================================== */
+async function excluirOP(id){
+  var o=(DB.ordensProd||[]).find(function(x){return x.id===id});
+  if(!o)return;
+  var marca='OP '+o.numero;
+  var movs=(DB.movEst||[]).filter(function(m){
+    return (o.movId&&m.id===o.movId)||
+           (m.origem==='producao'&&String(m.identificacao||'')===marca);
+  });
+  var ok=await confirmar({
+    titulo:'Excluir a ordem '+o.numero+'?',
+    texto:'O estoque volta ao que era antes desta produção.',
+    linhas:[['Produzido',fmtQt(o.real)+' kg',''],
+            ['Movimentos a desfazer',String(movs.length),''],
+            ['Depois disso','não tem como refazer pela tela','']],
+    aviso:'Os ingredientes consumidos <b>voltam ao estoque</b> e o que foi '+
+          'produzido <b>sai</b>. Se já houve venda do que foi produzido, o '+
+          'saldo pode ficar negativo — confira antes.',
+    ok:'Excluir ordem', tipo:'perigo'
+  });
+  if(!ok)return;
+  movs.forEach(function(m){
+    try{ aplicarMovimento(m,true); }catch(e){ _quieto(e,'excluirOP'); }
+  });
+  var ids={}; movs.forEach(function(m){ids[m.id]=true});
+  DB.movEst=(DB.movEst||[]).filter(function(m){return !ids[m.id]});
+  DB.ordensProd=(DB.ordensProd||[]).filter(function(x){return x.id!==id});
+  salvar(); telaProducao();
+  toast('Ordem '+o.numero+' excluída. Estoque desfeito ('+movs.length+' movimento(s)).');
 }
 function imprimirOP(id){
   var o=(DB.ordensProd||[]).find(function(x){return x.id===id});
