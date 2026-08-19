@@ -16212,7 +16212,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V91.0.0';
+var VERSAO='V92.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16763,10 +16763,50 @@ function abaCat(btn,t){
   $('catB').classList.toggle('hide',t!=='b');
   $('catO').classList.toggle('hide',t!=='o');
 }
+/* ==========================================================
+   FOTO DE PRODUTO: REDUZIR, NAO RECUSAR
+
+   Antes, arquivo acima de 1 MB era simplesmente rejeitado. So que
+   celular nenhum tira foto abaixo disso — qualquer camera decente
+   entrega 3 a 8 MB. Na pratica a tela dizia "escolha uma foto pior",
+   e quem estava cadastrando o cardapio nao tinha como obedecer.
+
+   O tamanho do ARQUIVO nunca foi o problema: o que pesa no banco e na
+   sincronizacao e a imagem depois de convertida. Entao ela entra do
+   tamanho que vier e sai daqui com no maximo 1200px de largura em
+   JPEG — o mesmo tratamento que o fundo do totem e o logo do cardapio
+   ja recebiam. Foto de 8 MB vira algo em torno de 200 KB, com
+   qualidade de sobra para a tela do PDV e do cardapio digital.
+   ========================================================== */
 function lerImagem(input,cb){
   var f=input.files&&input.files[0];if(!f)return;
-  if(f.size>1024*1024){toast('Imagem muito grande (máx. 1 MB).');return;}
-  var r=new FileReader();r.onload=function(){cb(r.result)};r.readAsDataURL(f);
+  if(!/^image\//.test(f.type||'')){toast('Esse arquivo não é uma imagem.');return;}
+  toast('Preparando a foto...');
+  var r=new FileReader();
+  r.onload=function(){
+    var im=new Image();
+    im.onload=function(){
+      try{
+        var L=1200, esc=Math.min(1,L/(im.width||L));
+        var c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round((im.width||L)*esc));
+        c.height=Math.max(1,Math.round((im.height||L)*esc));
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        var url=c.toDataURL('image/jpeg',0.82);
+        /* imagem gigante mesmo depois de reduzida: tenta uma vez mais apertado */
+        if(url.length>900000)url=c.toDataURL('image/jpeg',0.6);
+        cb(url);
+        toast('Foto aplicada — '+Math.round(url.length/1024)+' KB.');
+      }catch(e){
+        _quieto(e,'lerImagem');
+        toast('Não consegui preparar essa imagem.');
+      }
+    };
+    im.onerror=function(){toast('Não consegui ler essa imagem.')};
+    im.src=String(r.result||'');
+  };
+  r.onerror=function(){toast('Não consegui abrir o arquivo.')};
+  r.readAsDataURL(f);
 }
 
 /* ---------- COLUNA PRODUTOS ---------- */

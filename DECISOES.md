@@ -2497,3 +2497,19 @@ Conferir a lista de funções antes e depois de cada edição.
 - Apagar o token `joia-v72` no GitHub
 - O token antigo **não está mais escrito no `DECISOES.md` atual**, mas continua no
   **histórico do repositório** — revogar no GitHub é o que resolve, não editar o arquivo
+
+## V92 — foto de produto: reduzir em vez de recusar
+
+Rafael tentou subir foto no cardápio e a tela recusou: "Imagem muito grande
+(máx. 1 MB)". Celular nenhum tira foto abaixo disso — qualquer câmera entrega
+3 a 8 MB. Na prática o sistema pedia uma foto pior, e não havia como obedecer.
+
+O tamanho do **arquivo** nunca foi o problema: o que pesa no banco e na
+sincronização é a imagem depois de convertida em data URL. `lerImagem()` passou
+a aceitar qualquer imagem e reduzir para no máximo **1200px de largura, JPEG
+0.82** — o mesmo tratamento que o fundo do totem (`lerFundoTotem`) e o logo do
+cardápio (`comprimir`) já faziam. Se ainda passar de 900 KB, cai para 0.6.
+
+Vale para foto de produto e de categoria do cardápio. Foto de 8 MB entra como
+~200 KB, com qualidade de sobra para PDV e cardápio digital. O toast mostra o
+tamanho final, para não haver dúvida do que foi gravado.
