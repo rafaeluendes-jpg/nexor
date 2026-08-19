@@ -12715,8 +12715,78 @@ function alertaGravacao(msg){
     }
     el.innerHTML='<div><b>Atenção: o sistema não está conseguindo salvar</b>'+
       '<span>'+E(msg)+'</span></div>'+
-      '<button onclick="abrir(\'tecnico\',\'backup\')">Abrir backup</button>';
+      (podeVer('tecnico','backup')
+        ?'<button onclick="abrir(\'tecnico\',\'backup\')">Abrir backup</button>'
+        :'<button onclick="encolherFotos(true)">Liberar espaço</button>');
   }catch(e){_quieto(e,'alertaGravacao')}
+}
+/* ==========================================================
+   FOTO GRANDE ENCHE A MEMORIA DO NAVEGADOR
+
+   Todo o banco local mora no localStorage, que tem cerca de 5 MB. As fotos
+   sao guardadas dentro dele em base64: 25 fotos a 160 KB ja ocupavam 4,2 MB
+   e nada mais conseguia ser salvo — o sistema passava a trabalhar so na
+   memoria e o F5 voltava ao estado anterior.
+
+   A foto nova ja entra em 520px. Esta rotina cuida das que foram gravadas
+   antes disso: reduz cada uma, marca que a loja foi tratada e manda as
+   versoes menores para a nuvem, para que os outros aparelhos recebam a
+   foto leve em vez de refazerem a conta.
+   ========================================================== */
+function _encolher1(src,cb){
+  if(!src||src.indexOf('data:image')!==0||src.length<=90000){cb(null);return;}
+  var im=new Image();
+  im.onload=function(){
+    try{
+      var L=520, esc=Math.min(1,L/(im.width||L));
+      var c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round((im.width||L)*esc));
+      c.height=Math.max(1,Math.round((im.height||L)*esc));
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      var u=c.toDataURL('image/jpeg',0.72);
+      if(u.length>90000)u=c.toDataURL('image/jpeg',0.6);
+      if(u.length>90000)u=c.toDataURL('image/jpeg',0.45);
+      cb(u.length<src.length?u:null);
+    }catch(e){_quieto(e,'_encolher1');cb(null);}
+  };
+  im.onerror=function(){cb(null)};
+  im.src=src;
+}
+function encolherFotos(pedido){
+  if(!pedido&&DB._fotosLeves)return;
+  var alvos=[];
+  (DB.produtos||[]).forEach(function(x){alvos.push([x,'imagem'])});
+  (DB.categorias||[]).forEach(function(x){alvos.push([x,'imagem'])});
+  (DB.fichas||[]).forEach(function(x){alvos.push([x,'foto'])});
+  (DB.insumos||[]).forEach(function(x){alvos.push([x,'foto'])});
+  alvos=alvos.filter(function(a){
+    var v=a[0][a[1]];
+    return v&&String(v).indexOf('data:image')===0&&String(v).length>90000;
+  });
+  if(!alvos.length){
+    DB._fotosLeves=true;salvar();
+    if(pedido)toast('As fotos já estão no tamanho leve.');
+    return;
+  }
+  if(pedido)toast('Reduzindo '+alvos.length+' foto(s)...');
+  var i=0,antes=0,depois=0;
+  (function passo(){
+    if(i>=alvos.length){
+      DB._fotosLeves=true;
+      salvar();
+      if(NUVEM.ligada)sincronizar();
+      var ganho=Math.round((antes-depois)/1024);
+      logNuvem('fotos reduzidas: '+alvos.length+' arquivo(s), '+ganho+' KB liberados');
+      toast(alvos.length+' foto(s) reduzida(s) — '+ganho+' KB liberados.');
+      return;
+    }
+    var o=alvos[i][0],campo=alvos[i][1],orig=String(o[campo]||'');
+    i++;
+    _encolher1(orig,function(novo){
+      if(novo){antes+=orig.length;depois+=novo.length;o[campo]=novo;}
+      setTimeout(passo,0);
+    });
+  })();
 }
 function limparAlertaGravacao(){
   var el=document.getElementById('avisoGrav');if(el)el.remove();
@@ -16334,7 +16404,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V95.0.0';
+var VERSAO='V96.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16909,14 +16979,15 @@ function lerImagem(input,cb){
     var im=new Image();
     im.onload=function(){
       try{
-        var L=1200, esc=Math.min(1,L/(im.width||L));
+        var L=520, esc=Math.min(1,L/(im.width||L));
         var c=document.createElement('canvas');
         c.width=Math.max(1,Math.round((im.width||L)*esc));
         c.height=Math.max(1,Math.round((im.height||L)*esc));
         c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-        var url=c.toDataURL('image/jpeg',0.82);
-        /* imagem gigante mesmo depois de reduzida: tenta uma vez mais apertado */
-        if(url.length>900000)url=c.toDataURL('image/jpeg',0.6);
+        var url=c.toDataURL('image/jpeg',0.72);
+        /* ainda pesada: aperta ate caber com folga na memoria do navegador */
+        if(url.length>90000)url=c.toDataURL('image/jpeg',0.6);
+        if(url.length>90000)url=c.toDataURL('image/jpeg',0.45);
         cb(url);
         toast('Foto aplicada — '+Math.round(url.length/1024)+' KB.');
       }catch(e){
@@ -40288,6 +40359,11 @@ function ativarTabelas(){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',liga);
   else liga();
+  /* uma vez por aparelho: alivia a memoria das fotos gravadas antes da V96 */
+  setTimeout(function(){
+    try{ if(typeof encolherFotos==='function')encolherFotos(false); }
+    catch(e){ _quieto(e,'encolherFotos'); }
+  },9000);
 })();
 
 /* ==========================================================

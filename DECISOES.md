@@ -2569,3 +2569,28 @@ Três coisas na mesma tela:
 E a **foto da categoria**: o ícone tinha 30px no trilho do PDV e a foto ficava
 minúscula. Passou para 52px, e o nome deixou de ter `min-height:26px` (que o
 empurrava para cima do ícone) — agora corta com reticências quando é longo.
+
+## V96 — foto grande enchendo a memória do navegador
+
+Rafael recebeu a faixa vermelha "o navegador recusou a gravação — memória
+cheia (5099 KB)". Causa: **as fotos**. Todo o banco local mora no
+`localStorage`, que tem cerca de 5 MB, e as imagens são guardadas ali dentro
+em base64. Conferido no banco naquele momento: 20 fotos de produto (3,2 MB),
+5 de categoria (1 MB) e 13 de ficha (0,4 MB) — **4,6 MB só de foto**. Não
+sobrava espaço para mais nada, e o F5 voltava ao estado anterior.
+
+A V92 tinha resolvido a recusa de upload reduzindo para 1200px/0.82, mas
+1200px é grande demais para um card de 200px: cada foto ficava com ~160 KB.
+
+- **Foto nova entra em 520px, qualidade 0.72**, com dois degraus de aperto se
+  ainda passar de 90 KB. Fica em torno de 40 KB — quatro vezes menor.
+- **`encolherFotos()`** trata as que já estavam gravadas: percorre produtos,
+  categorias, fichas e insumos, reduz o que passa de 90 KB, grava e sincroniza,
+  para que os outros aparelhos recebam a versão leve. Roda sozinha 9 segundos
+  após o carregamento, uma vez por aparelho (`DB._fotosLeves`).
+
+**E o botão do aviso levava a uma tela sem permissão.** "Abrir backup" aponta
+para `tecnico/backup`, que é `SO_PLATAFORMA` — a franqueadora clicava e caía
+em "Sem acesso a esta tela". Agora o botão consulta `podeVer()`: quem tem
+acesso vê "Abrir backup", quem não tem vê **"Liberar espaço"**, que chama a
+redução das fotos — a ação que de fato resolve o problema dela.
