@@ -2513,3 +2513,20 @@ cardápio (`comprimir`) já faziam. Se ainda passar de 900 KB, cai para 0.6.
 Vale para foto de produto e de categoria do cardápio. Foto de 8 MB entra como
 ~200 KB, com qualidade de sobra para PDV e cardápio digital. O toast mostra o
 tamanho final, para não haver dúvida do que foi gravado.
+
+## V93 — nome do cardápio padronizado e foto preenchendo o card do PDV
+
+Dois pedidos do Rafael, olhando a tela do PDV.
+
+**Nomes.** Os produtos vindos da importação estavam em CAIXA ALTA e os do
+cadastro manual em Maiúscula/minúscula, na mesma tela. Produtos e categorias
+do cardápio passaram para `initcap`: primeira letra de cada palavra maiúscula,
+o resto minúsculo. **Só o cardápio** — o nome das fichas técnicas continua
+exatamente como veio das planilhas, que é o combinado.
+
+**Foto.** `.prodGrid .ph2 img` estava com `object-fit:contain`, então a foto
+aparecia pequena e centralizada, com barras cinza dos dois lados, dentro de uma
+faixa de 76px de largura total. Passou para `object-fit:cover` e os `padding`
+de 6px (quadro) e 3px (linha) foram a zero — a foto preenche a faixa inteira,
+cortando o excedente pelas laterais. A regra estava repetida em 8 blocos de
+tema; todos foram alterados.
