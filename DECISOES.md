@@ -2433,46 +2433,67 @@ os dois movimentos foram encontrados e o estoque voltou exatamente ao original.
 
 ---
 
-# PRÓXIMA OBRA — Subgrupos na ficha técnica (pedido em 19/08, fazer imediatamente)
+# 19/08/2026 — V91: o subgrupo virou cadastro de verdade
 
-## Combinado com o Rafael
+## Combinado com o Rafael (continua valendo)
 
 **Quando ele pede, é para fazer agora.** Só adiar quando ele mesmo disser
 "anota e faz amanhã". Registrar em vez de executar não é resposta.
 
-## O problema
+## O que estava errado
 
-`ficha_grupos` tem só `nome` e `destino_id` — **não existe campo de pai**. Os
-subgrupos que aparecem na árvore não são cadastro: são reconstruídos a partir
-do `subgrupo_id` escrito em cada ficha. Subgrupo vazio some no próximo
-carregamento, porque não há onde ficar gravado.
+`ficha_grupos` tinha só `nome` e `destino_id` — **não existia campo de pai**. Os
+subgrupos da árvore não eram cadastro: eram remontados a partir do `subgrupo_id`
+de cada ficha. Subgrupo sem ficha dentro sumia no carregamento seguinte, porque
+não havia onde ficar gravado.
 
-Por isso as fichas BASE BELGA e BASE MORANGO aparecem soltas dentro de
-"Produzido": nenhuma tem subgrupo escrito.
+E havia um segundo furo, que sozinho já impedia tudo: **o `subgrupoId` da ficha
+nunca subia para a nuvem.** O download lia `subgrupo_id`, o envio não escrevia.
+Escolher o subgrupo no cadastro não sobrevivia à primeira sincronização.
 
-## O que fazer
+Por isso BASE BELGA e BASE MORANGO apareciam soltas dentro de "Produzido".
 
-1. **Banco:** `alter table ficha_grupos add column pai_id uuid references
-   ficha_grupos(id)`. Subgrupo vira linha de verdade — existe vazio, pode ser
-   renomeado, recebe fichas depois.
-2. **Sincronização:** `pai_id` sobe e desce. Campo novo **nunca sobe como
-   `null`** de aparelho que talvez não o conheça (regra da V81) — omitir
-   quando vazio.
-3. **Criar a estrutura**, com esta grafia exata:
+## As quatro peças, feitas
 
-   **Produzido** → Artesanal · Base de Gelato · Cascao · Recheio · Sorbet ·
-   Zero Acucar
+1. **Banco:** `ficha_grupos.pai_id uuid references ficha_grupos(id) on delete
+   set null`, com índice. Pasta é a linha sem pai; subgrupo é a linha com pai.
+   Subgrupo agora existe vazio, pode ser renomeado e recebe fichas depois.
+2. **Sincronização:** `pai_id` sobe e desce. **Nunca sobe como `null`** (regra da
+   V81): quando o pai ainda não tem uuid na rodada, o campo é omitido e o
+   vínculo é gravado no fim do envio, no mesmo passe dos vínculos de produção.
+   O `subgrupo_id` da ficha passou a subir.
+3. **Estrutura criada**, com a grafia exata pedida:
+   - **Produzido** → Artesanal · Base de Gelato · Cascao · Recheio · Sorbet · Zero Acucar
+   - **Vendas** → Bebidas_venda · Cascao_Venda · Gelato_Venda · Parceiro_Venda · Sobremesas_Venda
+4. **Migração:** BASE BELGA e BASE MORANGO em *Produzido › Base de Gelato*.
 
-   **Vendas** → Bebidas_venda · Cascao_Venda · Gelato_Venda · Parceiro_Venda ·
-   Sobremesas_Venda
+## Na tela
 
-4. **Migrar:** BASE BELGA e BASE MORANGO para *Produzido › Base de Gelato*.
-5. **Árvore:** clicar no subgrupo lista as fichas dele à direita — não
-   penduradas na pasta, como está hoje.
-6. **Formulário da ficha:** escolher a pasta e depois o subgrupo.
+- A árvore lista **só pastas** no primeiro nível; subgrupo aparece dentro, com a
+  contagem de fichas do lado, e a pasta mostra o total dela
+- **Clicar no subgrupo lista as fichas dele à direita.** Só continua pendurada na
+  pasta a ficha que não tem subgrupo — de propósito, para nenhuma ficar invisível
+- O cadastro da ficha voltou a ter **Subgrupo**, alimentado pela pasta escolhida.
+  Subgrupo de outra pasta é recusado na hora de salvar: deixaria a ficha invisível
+- Excluir grupo ou subgrupo **vai à nuvem primeiro**; se a nuvem recusar, não some
+  daqui. `ficha_grupos` tem `espelha:false`, então apagar só localmente fazia a
+  linha voltar no download seguinte
+- Grupo com subgrupo dentro não é excluído sem esvaziar antes
 
-## Cuidado que já custou caro hoje
+`c.subs` continua existindo porque há tela que lê dele, mas agora é **derivado**
+das linhas, nunca fonte.
+
+**Testes:** 14 casos da árvore e do filtro, 6 casos do envio. Funções antes: 1346;
+depois: 1349, mais `excluirLinhaGrupoFicha` — nenhuma perdida.
+
+## Cuidado que já custou caro
 
 Editar `index.html` **só por substituição de texto exato**, nunca por corte
 entre marcas que podem se repetir — foi assim que 33 funções sumiram na V87.
 Conferir a lista de funções antes e depois de cada edição.
+
+## Pendente de segurança (combinado: fazer depois)
+
+- Apagar o token `joia-v72` no GitHub
+- O token antigo **não está mais escrito no `DECISOES.md` atual**, mas continua no
+  **histórico do repositório** — revogar no GitHub é o que resolve, não editar o arquivo

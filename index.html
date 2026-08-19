@@ -13039,12 +13039,19 @@ var MAPA=[
     gelato_venda:!!x.gelatoVenda,sucursais:x.sucursais||[]}}},
 
  {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
-  campos:function(x){return {nome:x.nome,
-    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null,sucursais:x.sucursais||[]}}},
+  campos:function(x){var o={nome:x.nome,
+    destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null,sucursais:x.sucursais||[]};
+    /* O subgrupo virou linha de verdade em ficha_grupos, com pai_id apontando
+       para a pasta. Campo novo NUNCA sobe como null (regra da V81): aparelho
+       em versao antiga, que nao conhece pai_id, apagaria o vinculo de todos.
+       Se o pai ainda nao tem uuid nesta rodada, o vinculo e gravado no fim
+       do envio, junto com os vinculos de producao. */
+    if(x.paiId&&_ids[x.paiId])o.pai_id=_ids[x.paiId];
+    return o;}},
 
  {col:'fichas', espelha:false,      tab:'fichas_tecnicas',
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,grupo_id:fk('fichaCats',x.categoriaId),
-    subcategoria_id:fkSub(x.contaId),unidade:x.unidade||'un',estocavel:x.estocavel!==false,
+    subcategoria_id:fkSub(x.contaId),subgrupo_id:x.subgrupoId||null,unidade:x.unidade||'un',estocavel:x.estocavel!==false,
     disponivel_venda:!!x.disponivelVenda,rendimento:n(x.rendimento)||1,rend_unidade:x.rendUnidade||null,
     unidades_venda:n(x.unidadesVenda),preco:n(x.preco),receita:x.receita||null,
     tempo:n(x.tempo),validade:n(x.validade),temperatura:x.temperatura||null,
@@ -14300,18 +14307,20 @@ async function sincronizar(){
       if(!f.destinoId||f.destinoId==='__nenhum')return;
       var alvo=_ids[f.destinoId];
       if(!alvo)return;
-      pend.push({tab:'fichas_tecnicas',ref:f.id,uid:alvo});
+      pend.push({tab:'fichas_tecnicas',ref:f.id,campo:'destino_id',uid:alvo});
     });
     (DB.fichaCats||[]).forEach(function(c){
-      if(!c.destinoId)return;
-      var alvo2=_ids[c.destinoId];
-      if(!alvo2)return;
-      pend.push({tab:'ficha_grupos',ref:c.id,uid:alvo2});
+      if(c.destinoId&&_ids[c.destinoId])
+        pend.push({tab:'ficha_grupos',ref:c.id,campo:'destino_id',uid:_ids[c.destinoId]});
+      /* o subgrupo aponta para a pasta, que pode ter subido na mesma rodada */
+      if(c.paiId&&_ids[c.paiId])
+        pend.push({tab:'ficha_grupos',ref:c.id,campo:'pai_id',uid:_ids[c.paiId]});
     });
     for(var pz=0;pz<pend.length;pz++){
       try{
+        var _pt={};_pt[pend[pz].campo||'destino_id']=pend[pz].uid;
         await api(pend[pz].tab+'?ref_local=eq.'+encodeURIComponent(pend[pz].ref),
-          'PATCH',{destino_id:pend[pz].uid});
+          'PATCH',_pt);
       }catch(e){console.error('vinculo',e);}
     }
     if(pend.length)logNuvem(pend.length+' vínculo(s) de produção gravado(s)');
@@ -14890,6 +14899,7 @@ function volta(linhas,fn,atual,col){
   var fg=await baixarTab('ficha_grupos', 'ficha_grupos'+qs);
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
+    paiId:mapaFg[x.pai_id]||'',
     destinoId:x.destino_id||'',sucursais:x.sucursais||[]}},null,'fichaCats');
 
   /* ==========================================================
@@ -14948,13 +14958,10 @@ function volta(linhas,fn,atual,col){
       : (x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
       insumoId:mapaIns[i2.insumo_id]||mapaFiRef[i2.ficha_ref]||'',
       qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},_ANT('fichas'),'fichas');
-  /* reconstrói os subgrupos a partir das fichas */
-  (DB.fichas||[]).forEach(function(f){
-    if(!f.subgrupoId)return;
-    var c4=(DB.fichaCats||[]).find(function(c5){return c5.id===f.categoriaId});
-    if(c4&&!(c4.subs||[]).some(function(sg){return sg.id===f.subgrupoId}))
-      (c4.subs=c4.subs||[]).push({id:f.subgrupoId,nome:f.subgrupoNome||f.subgrupoId});
-  });
+  /* O subgrupo nao e mais reconstruido a partir das fichas: ele e linha de
+     ficha_grupos com pai_id. Esta chamada cobre so a heranca — ficha que
+     aponta para um subgrupo que nunca chegou a ter linha. */
+  normalizaGruposFicha();
 
   /* o destino do grupo pode ser insumo ou ficha — resolve agora que ambos existem */
   (DB.fichaCats||[]).forEach(function(c){
@@ -16205,7 +16212,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V90.0.0';
+var VERSAO='V91.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29946,10 +29953,55 @@ function catFicha(id){
   }
   return _mapaCat[id]||null;
 }
+/* ==========================================================
+   GRUPO E SUBGRUPO SAO A MESMA TABELA
+   ficha_grupos ganhou pai_id. Pasta e a linha sem pai; subgrupo e a linha
+   com pai. Antes o subgrupo so existia dentro do grupo, em memoria, e era
+   remontado a partir das fichas — subgrupo vazio sumia no carregamento
+   seguinte e nao havia onde escrever.
+   c.subs continua existindo porque ha tela que le dele, mas agora e
+   DERIVADO: nunca e fonte, e refeito a cada normalizacao.
+   ========================================================== */
+function gruposFicha(){return (DB.fichaCats||[]).filter(function(c){return !c.paiId})}
+function subsDoGrupo(cid){
+  return (DB.fichaCats||[]).filter(function(c){return c.paiId===cid})
+    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+}
 function subFicha(id){
-  var achou=null;
-  (DB.fichaCats||[]).forEach(function(c){(c.subs||[]).forEach(function(s){if(s.id===id)achou=s})});
+  if(!id)return null;
+  var c=catFicha(id);
+  if(c&&c.paiId)return c;
+  var achou=null;   /* heranca: subgrupo que ainda so existe dentro do grupo */
+  (DB.fichaCats||[]).forEach(function(c2){(c2.subs||[]).forEach(function(s){if(s.id===id)achou=s})});
   return achou;
+}
+function normalizaGruposFicha(){
+  if(!DB.fichaCats)DB.fichaCats=[];
+  var novos=[];
+  var tem=function(id){return (DB.fichaCats||[]).some(function(x){return x.id===id})
+    ||novos.some(function(x){return x.id===id})};
+  /* subgrupo que so existia dentro do grupo vira linha */
+  (DB.fichaCats||[]).forEach(function(c){
+    if(c.paiId)return;
+    (c.subs||[]).forEach(function(sg){
+      if(!sg||!sg.id||tem(sg.id))return;
+      novos.push({id:sg.id,nome:sg.nome||'Subgrupo',paiId:c.id,subs:[],destinoId:'',sucursais:[]});
+    });
+  });
+  /* ficha apontando para subgrupo que nunca teve linha: a linha nasce agora,
+     senao a ficha ficaria invisivel na arvore (mesmo erro da V13.2.0) */
+  (DB.fichas||[]).forEach(function(f){
+    if(!f.subgrupoId||tem(f.subgrupoId))return;
+    if(!f.categoriaId)return;
+    novos.push({id:f.subgrupoId,nome:f.subgrupoNome||'Subgrupo recuperado',
+      paiId:f.categoriaId,subs:[],destinoId:'',sucursais:[]});
+  });
+  if(novos.length)DB.fichaCats=DB.fichaCats.concat(novos);
+  (DB.fichaCats||[]).forEach(function(c){
+    if(c.paiId===undefined)c.paiId='';
+    c.subs=c.paiId?[]:subsDoGrupo(c.id);
+  });
+  return novos.length;
 }
 function custoItem(it){
   var ins=itemComp(it.insumoId);
@@ -29997,7 +30049,7 @@ function baseFicha(){
       {id:'fc_venda',nome:'Vendas',subs:[]}
     ];
   }
-  DB.fichaCats.forEach(function(c){c.subs=c.subs||[]});
+  normalizaGruposFicha();
   var _proxF=0;
   (DB.insumos||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>_proxF)_proxF=v});
   (DB.fichas||[]).forEach(function(x){var v=Number(x.codigo)||0;if(v>_proxF)_proxF=v});
@@ -30074,26 +30126,32 @@ function telaFichaTecnica(){
            '<span class="ftSeta vaz"></span>'+sv('folder',13)+
            ' <b style="color:var(--amber)">Sem grupo</b> <span class="ftQt">'+orfas.length+'</span></div>';
         })()+
-        (DB.fichaCats||[]).map(function(c){
+        gruposFicha().map(function(c){
           var ab=!!FT.abertas[c.id];
+          var _sgs=subsDoGrupo(c.id);
+          var _soltas=(DB.fichas||[]).filter(function(f){return f.categoriaId===c.id&&!f.subgrupoId});
+          var _tot=(DB.fichas||[]).filter(function(f){return f.categoriaId===c.id}).length;
           return '<div class="ftNo'+(FT.cat===c.id&&!FT.sub?' on':'')+'">'+
            '<span class="ftSeta'+(ab?' ab':'')+'" onclick="event.stopPropagation();toggleFT(\''+c.id+'\')">'+
-            (((c.subs||[]).length||(DB.fichas||[]).some(function(f){return f.categoriaId===c.id&&!f.subgrupoId}))?sv('tri',9):'')+'</span>'+
+            ((_sgs.length||_soltas.length)?sv('tri',9):'')+'</span>'+
            '<span class="ftNoNm" onclick="filtroFT(\''+c.id+'\',\'\')">'+sv(ab?'folderOpen':'folder',13)+' '+E(c.nome)+'</span>'+
+           (_tot?'<span class="ftQt">'+_tot+'</span>':'')+
            '<span class="ftEd">'+
             '<button class="arvB" onclick="event.stopPropagation();modalCatFicha(\''+c.id+'\')">'+sv('edit',10)+'</button>'+
             '<button class="arvB rd" onclick="event.stopPropagation();excluirCatFicha(\''+c.id+'\')">'+sv('trash',10)+'</button>'+
            '</span></div>'+
            (ab?'<div class="ftSubs">'+
-             (c.subs||[]).map(function(sg,k){
+             _sgs.map(function(sg){
+               var _qs=(DB.fichas||[]).filter(function(f){return f.subgrupoId===sg.id}).length;
                return '<div class="ftNo sub'+(FT.sub===sg.id?' on':'')+'" onclick="filtroFT(\''+c.id+'\',\''+sg.id+'\')">'+
                sv('file2',12)+' '+E(sg.nome)+
+               (_qs?'<span class="ftQt">'+_qs+'</span>':'')+
                '<span class="ftEd">'+
-                '<button class="arvB" onclick="event.stopPropagation();renSubFicha(\''+c.id+'\','+k+')">'+sv('edit',10)+'</button>'+
-                '<button class="arvB rd" onclick="event.stopPropagation();delSubFicha(\''+c.id+'\','+k+')">'+sv('trash',10)+'</button>'+
+                '<button class="arvB" onclick="event.stopPropagation();renSubFicha(\''+sg.id+'\')">'+sv('edit',10)+'</button>'+
+                '<button class="arvB rd" onclick="event.stopPropagation();delSubFicha(\''+sg.id+'\')">'+sv('trash',10)+'</button>'+
                '</span></div>';
              }).join('')+
-             (DB.fichas||[]).filter(function(f){return f.categoriaId===c.id&&!f.subgrupoId})
+             _soltas.slice()
                .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
                .map(function(f){
                  return '<div class="ftNo prod'+(FT.sel===f.id?' on':'')+'" onclick="selecionaFicha(\''+f.id+'\')">'+
@@ -30208,7 +30266,7 @@ function vincularTudo(){
   var gv=(DB.insumos||[]).find(function(i){
     return i.gelatoVenda||String(i.nome||'').toLowerCase()==='gelato venda';});
   var n=0;
-  (DB.fichaCats||[]).forEach(function(c){
+  gruposFicha().forEach(function(c){
     if(!c.destinoId&&/produz|gelato/i.test(c.nome)&&gv){c.destinoId=gv.id;n++;}
   });
   (DB.fichas||[]).forEach(function(f){
@@ -30313,7 +30371,7 @@ function modalCatFicha(id){
     var nome=$('cfN').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
     if(c){c.nome=nome;c.destinoId=$('cfD').value;}
-    else{var novo={id:uid('fc'),nome:nome,subs:[],destinoId:$('cfD').value};
+    else{var novo={id:uid('fc'),nome:nome,paiId:'',subs:[],destinoId:$('cfD').value};
       DB.fichaCats.push(novo);FT.abertas[novo.id]=true;}
     salvar();telaFichaTecnica();return true;
   },'sm2');
@@ -30321,30 +30379,57 @@ function modalCatFicha(id){
 async function excluirCatFicha(id){
   var q=(DB.fichas||[]).filter(function(f){return f.categoriaId===id}).length;
   if(q){toast('Este grupo tem '+q+' produto(s).');return;}
+  var qs=subsDoGrupo(id).length;
+  if(qs){toast('Este grupo tem '+qs+' subgrupo(s). Exclua-os primeiro.');return;}
   if(!await pergunta('Excluir o grupo?'))return;
-  DB.fichaCats=DB.fichaCats.filter(function(x){return x.id!==id});
-  salvar();telaFichaTecnica();
+  await excluirLinhaGrupoFicha(id);
 }
 function addSubFicha(cid){
   var inp=$('fsg-'+cid);var nome=(inp.value||'').trim();
   if(!nome){inp.focus();return;}
-  var c=catFicha(cid);c.subs=c.subs||[];
-  c.subs.push({id:uid('fs'),nome:nome});
+  if(subsDoGrupo(cid).some(function(x){return (x.nome||'').toLowerCase()===nome.toLowerCase()})){
+    toast('Já existe um subgrupo com esse nome aqui.');return;}
+  DB.fichaCats.push({id:uid('fs'),nome:nome,paiId:cid,subs:[],destinoId:'',sucursais:[]});
+  normalizaGruposFicha();
   FT.abertas[cid]=true;salvar();telaFichaTecnica();
   var n2=$('fsg-'+cid);if(n2)n2.focus();
 }
-function renSubFicha(cid,k){
-  var c=catFicha(cid);
-  var novo=prompt('Renomear subgrupo:',c.subs[k].nome);
+function renSubFicha(sid){
+  var sg=catFicha(sid); if(!sg)return;
+  var novo=prompt('Renomear subgrupo:',sg.nome);
   if(novo===null)return;novo=novo.trim();if(!novo)return;
-  c.subs[k].nome=novo;salvar();telaFichaTecnica();
+  sg.nome=novo;normalizaGruposFicha();salvar();telaFichaTecnica();
 }
-async function delSubFicha(cid,k){
-  var c=catFicha(cid);
-  var q=(DB.fichas||[]).filter(function(f){return f.subgrupoId===c.subs[k].id}).length;
+async function delSubFicha(sid){
+  var sg=catFicha(sid); if(!sg)return;
+  var q=(DB.fichas||[]).filter(function(f){return f.subgrupoId===sid}).length;
   if(q){toast('Este subgrupo tem '+q+' produto(s).');return;}
-  if(!await pergunta('Excluir "'+c.subs[k].nome+'"?'))return;
-  c.subs.splice(k,1);salvar();telaFichaTecnica();
+  if(!await pergunta('Excluir "'+sg.nome+'"?'))return;
+  await excluirLinhaGrupoFicha(sid);
+}
+/* ==========================================================
+   EXCLUSAO PRECISA CHEGAR NA NUVEM
+   ficha_grupos esta no mapa com espelha:false — apagar so aqui faz o
+   download devolver a linha segundos depois, e a pessoa apaga dez vezes
+   sem entender. Se a nuvem recusar, nao some daqui: mentir que apagou e
+   pior do que avisar que nao deu.
+   ========================================================== */
+async function excluirLinhaGrupoFicha(id){
+  if(NUVEM.ligada&&NUVEM.loja){
+    try{
+      await api('ficha_grupos?loja_id=eq.'+NUVEM.loja+
+                '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+    }catch(e){
+      painelErro('Não consegui excluir na nuvem.',detalheErro(e));
+      return false;
+    }
+  }
+  DB.fichaCats=DB.fichaCats.filter(function(x){return x.id!==id});
+  try{ if(DB._uuid&&DB._uuid.fichaCats)delete DB._uuid.fichaCats[id]; }
+  catch(e2){ _quieto(e2,'excluirLinhaGrupoFicha'); }
+  normalizaGruposFicha();
+  salvar();telaFichaTecnica();
+  return true;
 }
 
 /* ---------- CADASTRO ---------- */
@@ -30370,8 +30455,16 @@ function modalFicha(id){
     '</select></div>'+
     '<div class="fld2"><label>Grupo *</label><select id="ftG" onchange="trocaGrupoFicha()">'+
      '<option value="">Selecione</option>'+
-     (DB.fichaCats||[]).map(function(c){return '<option value="'+c.id+'"'+(f&&f.categoriaId===c.id?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
+     gruposFicha().map(function(c){return '<option value="'+c.id+'"'+(f&&f.categoriaId===c.id?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
     '</select></div>'+
+    '</div>'+
+   '<div class="row3">'+
+    '<div class="fld2" style="grid-column:span 2"><label>Subgrupo</label><select id="ftSg">'+
+     '<option value="">— nenhum —</option>'+
+     subsDoGrupo(f?f.categoriaId:'').map(function(sg){
+       return '<option value="'+sg.id+'"'+(f&&f.subgrupoId===sg.id?' selected':'')+'>'+E(sg.nome)+'</option>'}).join('')+
+    '</select><div class="hint">Os subgrupos são os da pasta escolhida acima. '+
+    'Para criar um novo, use a árvore da tela de Ficha Técnica.</div></div>'+
     '</div>'+
    '</div>'+
    '<div class="blk" style="margin:9px 0 0;max-width:none"><h3>O que a produção gera</h3>'+
@@ -30442,8 +30535,14 @@ function modalFicha(id){
     for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value);
     var o={nome:nome,codigo:$('ftC').value.trim()||proxCodFicha(),unidade:$('ftU').value,
       categoriaId:$('ftG').value,
-      /* os dois campos sairam da tela: o que ja estava gravado e preservado */
-      subgrupoId:($('ftSg')?$('ftSg').value:(f?f.subgrupoId||'':'')),
+      /* subgrupo de outra pasta deixaria a ficha invisivel na arvore */
+      subgrupoId:(function(){
+        var v=$('ftSg')?$('ftSg').value:(f?f.subgrupoId||'':'');
+        if(!v)return '';
+        var sg=catFicha(v);
+        return (sg&&sg.paiId===$('ftG').value)?v:'';
+      })(),
+      /* este saiu da tela: o que ja estava gravado e preservado */
       contaId:($('ftGc')?$('ftGc').value:(f?f.contaId||'':'')),
       estocavel:$('ftEs').checked,disponivelVenda:$('ftDv2').checked,
       ncm:$('ftNc').value.trim(),cfop:$('ftCf').value.trim(),cest:$('ftCe').value.trim(),
@@ -30479,10 +30578,11 @@ function avisaFator(){
     'O custo de cada unidade sai do custo da receita dividido por '+fmtQt(n)+'.</span>';
 }
 function trocaGrupoFicha(){
-  var c=catFicha($('ftG').value);
   if(!$('ftSg'))return;
-  $('ftSg').innerHTML='<option value="">—</option>'+((c&&c.subs)||[]).map(function(s){
-    return '<option value="'+s.id+'">'+E(s.nome)+'</option>'}).join('');
+  var ant=$('ftSg').value;
+  var lst=subsDoGrupo($('ftG').value);
+  $('ftSg').innerHTML='<option value="">— nenhum —</option>'+lst.map(function(s){
+    return '<option value="'+s.id+'"'+(s.id===ant?' selected':'')+'>'+E(s.nome)+'</option>'}).join('');
 }
 function trocaAbaFicha(a){
   $('abBasicos').style.display=a==='basicos'?'':'none';
@@ -31020,7 +31120,7 @@ function baseMov(){
   if(jaTem&&!jaTem.gelatoVenda)jaTem.gelatoVenda=true;
   /* grupo Produzido aponta para Gelato Venda por padrão */
   var gvId=((DB.insumos||[]).find(function(i){return i.gelatoVenda;})||{}).id;
-  (DB.fichaCats||[]).forEach(function(c){
+  gruposFicha().forEach(function(c){
     if(!c.destinoId&&/produz|gelato/i.test(c.nome)&&gvId)c.destinoId=gvId;
   });
   repararDestinos();
@@ -31121,7 +31221,7 @@ function repararDestinos(){
     if(alvo){o.destinoId=alvo;consertados++;}
   }
   (DB.fichas||[]).forEach(conserta);
-  (DB.fichaCats||[]).forEach(function(c){
+  gruposFicha().forEach(function(c){
     if(!c.destinoId)return;
     if(itemEstoque(c.destinoId))return;
     var alvo=porNome['gelato venda'];
@@ -33782,7 +33882,7 @@ function montaPickItem(){
        '<span class="pkUn">'+un(f.rendUnidade||f.unidade).ab+'</span></div>';}).join('')+'</div>':'')+
     '</div>';
   }
-  (DB.fichaCats||[]).forEach(function(c){
+  gruposFicha().forEach(function(c){
     var fs2=(DB.fichas||[]).filter(function(f){
         return f.categoriaId===c.id&&f.estocavel!==false&&filtra(f.nome)})
       .sort(function(a,b){return a.nome.localeCompare(b.nome)});
@@ -37041,7 +37141,7 @@ function telaItensConsumidos(){
        '<select onchange="IC.grupo=this.value;telaItensConsumidos()">'+
        '<option value="">Todos</option>'+
        (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(IC.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
-       (DB.fichaCats||[]).map(function(c){return '<option value="'+c.id+'"'+(IC.grupo===c.id?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
+       gruposFicha().map(function(c){return '<option value="'+c.id+'"'+(IC.grupo===c.id?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
        '</select></div>'+
       '<div class="bfCampo cresce"><label>Buscar</label>'+
        '<input id="icBusca" value="'+E(IC.busca)+'" placeholder="nome do ingrediente"></div>'+
