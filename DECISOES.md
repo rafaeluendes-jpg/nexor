@@ -2698,3 +2698,14 @@ em qualquer navegador e não atrapalha onde `aspect-ratio` funciona.
 **Ressalva honesta:** a segunda causa não foi confirmada em aparelho — foi
 deduzida do formato do defeito. Se voltar a acontecer depois desta versão,
 pedir o Console e a versão do navegador antes de mexer de novo.
+
+## V102 — Plano de Contas ocupando a tela
+
+A tela de Categorias Financeiras era uma caixa de 1000px no meio de um fundo
+cinza. Com um plano de contas de verdade — 174 linhas — sobrava moldura e
+faltava lista. Agora são **duas metades exatas, do canto ao canto**, cada uma
+com rolagem própria: o cabeçalho e o botão de cadastrar ficam parados enquanto
+a árvore rola. Abaixo de 820px de largura as colunas empilham.
+
+O título da tela passou a ser **Plano de Contas**, que é o nome que o Rafael e
+o contador usam. O item de menu continua "Categorias Financeiras".
