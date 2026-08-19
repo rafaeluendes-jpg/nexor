@@ -16176,7 +16176,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V87.0.0';
+var VERSAO='V87.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33054,9 +33054,18 @@ function telaMovimentacao(){
      quantidade movimentada. Nao e a media dos custos unitarios — essa
      trataria 1 kg e 500 kg como se pesassem o mesmo. */
   var qtdTotal=linhas.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
-  var qtdEnt=linhas.filter(function(x){return x.l.direcao==='entrada'})
-    .reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
-  var qtdSai=qtdTotal-qtdEnt;
+  /* ==========================================================
+     MEDIA E SOMA DIVIDIDA PELO NUMERO DE LANCAMENTOS
+     Tres entradas de 10 kg somam 30 e a media e 10 — nao 30. O rodape
+     mostrava a soma com o nome de media, que e pior que nao mostrar:
+     o numero parece conferido e nao e o que diz ser.
+     ========================================================== */
+  var ent=linhas.filter(function(x){return x.l.direcao==='entrada'});
+  var sai=linhas.filter(function(x){return x.l.direcao!=='entrada'});
+  var somaEnt=ent.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
+  var somaSai=sai.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
+  var qtdEnt=ent.length?somaEnt/ent.length:0;   /* media por lancamento */
+  var qtdSai=sai.length?somaSai/sai.length:0;
   var custoMedio=qtdTotal?totCusto/qtdTotal:0;
   var unMedia=(function(){
     var us={};
@@ -33141,9 +33150,9 @@ function telaMovimentacao(){
     '<tfoot><tr>'+
      '<td colspan="5"><b>Subtotal — '+linhas.length+' movimentações</b></td>'+
      '<td style="text-align:right"><b>'+fmtQt(qtdEnt)+(unMedia?' '+E(unMedia):'')+'</b>'+
-      '<small>média de entrada</small></td>'+
+      '<small>média de '+ent.length+' entrada'+(ent.length===1?'':'s')+'</small></td>'+
      '<td style="text-align:right"><b>'+fmtQt(qtdSai)+(unMedia?' '+E(unMedia):'')+'</b>'+
-      '<small>média de consumo</small></td>'+
+      '<small>média de '+sai.length+' consumo'+(sai.length===1?'':'s')+'</small></td>'+
      '<td style="text-align:right"><b>R$ '+money(custoMedio)+'</b>'+
       '<small>custo médio'+(unMedia?' / '+E(unMedia):'')+'</small></td>'+
      '<td style="text-align:right"><b>R$ '+money(totCusto)+'</b>'+

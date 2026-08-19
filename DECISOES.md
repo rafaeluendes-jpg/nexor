@@ -2260,3 +2260,17 @@ apareceu.
 **O rodapé**, agora em uma linha só, cada total sob a sua coluna, com o nome em
 letra miúda embaixo do valor: média de entrada, média de consumo, custo médio,
 custo total. A linha "Entradas R$ · Consumo R$" saiu, virou redundante.
+
+## V87.1 — média é soma dividida pelo número de lançamentos
+
+Três entradas de 10 kg somam 30 e a média é **10**, não 30. O rodapé mostrava a
+soma com o nome de média — pior que não mostrar, porque o número parece
+conferido e não é o que diz ser.
+
+Agora divide pelo número de lançamentos daquela direção, e o rótulo diz quantos
+são: "média de 3 entradas". Assim o número se explica sozinho.
+
+O **custo médio** continua ponderado (valor ÷ quantidade), que é o certo para
+dinheiro: 1 kg a R$ 80 com 500 kg a R$ 10 dá R$ 10,14/kg, não R$ 45.
+São duas médias diferentes na mesma linha, de propósito — quantidade se divide
+por lançamentos, dinheiro se divide por quantidade.
