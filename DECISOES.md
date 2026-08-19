@@ -2320,3 +2320,18 @@ susto das 33 funções, tela nova entra ao lado, não por cima.
 
 **Teste:** dois dias com nota, venda e produção — o saldo corrido lançamento a
 lançamento bateu com o saldo calculado de forma independente nos dois dias.
+
+## V88.1 — a entrada aparecia na coluna de saída
+
+A tabela do detalhe tinha **4 colunas** e a de fora tem **5**. Tudo andava uma
+casa: uma entrada de +4,8 kg aparecia debaixo de "Qtde saída".
+
+Número na coluna errada não é detalhe de layout — é informação errada. Quem
+olhasse rápido leria uma produção como se fosse consumo.
+
+O detalhe passou a ter as mesmas cinco colunas, com **entrada e saída
+separadas**, iguais às de cima: entrada em verde na coluna de entrada, saída em
+vermelho na coluna de saída, e o saldo corrido na última.
+
+**Princípio, para as próximas telas:** tabela aninhada tem de repetir a
+estrutura de colunas da tabela que a contém. Se não repetir, os números mentem.

@@ -2447,6 +2447,10 @@ tbody td small{font-size:10.5px}
 .mvTab tfoot td small{display:block;font-weight:600;font-size:9.5px;
   letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
 /* Movimentacao de Mercadoria: a lista de dentro de cada dia */
+.mmAjuda{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;
+  border:1px solid var(--line);border-radius:50%;font-size:11px;font-weight:700;
+  color:var(--ink-3);cursor:help;background:#fff}
+.mmAjuda:hover{border-color:var(--acc);color:var(--acc)}
 .mmMais{display:inline-block;width:16px;height:16px;line-height:15px;text-align:center;
   border:1px solid var(--line);border-radius:50%;font-weight:700;font-size:11px;
   color:var(--ink-3);background:#fff;margin-right:4px}
@@ -2454,6 +2458,9 @@ tbody td small{font-size:10.5px}
 .mmSub td{padding:6px 9px;border-top:1px solid var(--line-2);color:var(--ink-2)}
 .mmSub tr.mmIni td{background:#F3F4F1;font-style:italic}
 .mvTab tr.mmDet>td{padding:0;background:#FBFBF9}
+.mmAjuda{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);
+  background:#fff;color:var(--ink-3);font-weight:700;font-size:11px;cursor:help}
+.mmAjuda:hover{color:var(--acc);border-color:var(--acc)}
 
 .mvTab tfoot tr.sub2 td{background:#fff;border-top:1px solid var(--line-2);font-size:11.5px;color:var(--ink-3)}
 .mvVazio{padding:70px 20px;text-align:center;color:var(--ink-3)}
@@ -16185,7 +16192,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V88.0.0';
+var VERSAO='V88.1.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33117,34 +33124,47 @@ function telaMovMercadoria(){
   var itens=itensEstoque().slice().sort(function(a,b){
     return (a.nome||'').localeCompare(b.nome||'')});
 
+  /* ==========================================================
+     A TELA E A LISTA; O RESTO E MOLDURA
+     Primeira versao: titulo, duas linhas de explicacao e os filtros
+     espalhados numa caixa larga — a lista comecava no meio da tela e rolava
+     junto com a pagina, numa barra minuscula.
+     Agora so o titulo e os filtros ficam fixos, numa faixa fina, e a lista
+     ocupa toda a altura que sobra com rolagem propria. A explicacao virou
+     um "?" ao lado do titulo: quem ja sabe nao le duas vezes.
+     ========================================================== */
   var html=
-   '<div class="ctTopo"><h1>Movimentação de Mercadoria</h1>'+
-    '<p>Dia a dia: quanto entrou, quanto saiu e com quanto o item terminou. '+
-    'Clique no + para ver o motivo de cada movimento.</p></div>'+
-   '<div class="blk" style="max-width:none">'+
-    '<div class="row2" style="align-items:flex-end;gap:12px;flex-wrap:wrap">'+
-     '<div class="fld2" style="max-width:170px"><label>Data inicial</label>'+
+   '<div class="mvWrap">'+
+    '<div class="mvTopo">'+
+     '<h1>Movimentação de Mercadoria</h1>'+
+     '<span class="mmAjuda" title="Uma linha por dia e por item: quanto entrou, '+
+      'quanto saiu e com quanto terminou. Clique na linha para ver hora a hora '+
+      'o motivo de cada movimento e o saldo depois dele.">?</span>'+
+     '<div style="flex:1"></div>'+
+     '<span class="hint">'+lista.length+' dia(s) com movimento</span>'+
+    '</div>'+
+    '<div class="mvFiltros">'+
+     '<div class="f2" style="flex:0 0 150px"><label>Data inicial</label>'+
       '<input type="date" id="mmDe" value="'+E(MM.de)+'"></div>'+
-     '<div class="fld2" style="max-width:170px"><label>Data final</label>'+
+     '<div class="f2" style="flex:0 0 150px"><label>Data final</label>'+
       '<input type="date" id="mmAte" value="'+E(MM.ate)+'"></div>'+
-     '<div class="fld2" style="max-width:320px"><label>Ingrediente</label>'+
-      '<select id="mmItem"><option value="">todos os itens</option>'+
+     '<div class="f2" style="flex:1 1 260px"><label>Ingrediente</label>'+
+      '<select id="mmItem"><option value="">todos os ingredientes</option>'+
       itens.map(function(i){
         return '<option value="'+E(i.id)+'"'+(MM.item===i.id?' selected':'')+'>'+
           E(i.nome)+'</option>';}).join('')+'</select></div>'+
-     '<div class="fld2" style="max-width:120px"><label>&nbsp;</label>'+
-      '<button class="btnP2 ok" onclick="mmBuscar()">'+sv('search',13)+' Buscar</button></div>'+
-     '<div class="fld2" style="max-width:110px"><label>&nbsp;</label>'+
-      '<button class="btnP2" onclick="mmLimpar()">Limpar</button></div>'+
-    '</div></div>';
+     '<button class="btnP2 ok" onclick="mmBuscar()">'+sv('search',13)+' Buscar</button>'+
+     '<button class="btnP2" onclick="mmLimpar()">Limpar</button>'+
+    '</div>';
 
   if(!lista.length){
-    html+='<div class="mvVazio">'+sv('box',26)+'<b>Nenhuma movimentação no período</b>'+
-      '<span>Ajuste as datas ou escolha outro ingrediente.</span></div>';
+    html+='<div class="mvTabW"><div class="mvVazio">'+sv('box',26)+
+      '<b>Nenhuma movimentação no período</b>'+
+      '<span>Ajuste as datas ou escolha outro ingrediente.</span></div></div></div>';
     $('content').innerHTML=html; rodape('0 registros'); return;
   }
 
-  html+='<div class="blk" style="max-width:none;padding:0;overflow:auto">'+
+  html+='<div class="mvTabW">'+
    '<table class="mvTab"><thead><tr>'+
     '<th style="width:110px">Data</th><th>Ingrediente</th>'+
     '<th style="width:150px;text-align:right">Qtde entrada</th>'+
@@ -33167,24 +33187,35 @@ function telaMovMercadoria(){
       var ini=new Date(g.data+'T12:00:00'); ini.setDate(ini.getDate()-1);
       var saldo=saldoNaData(g.id, ini.toISOString().slice(0,10));
       var det=g.itens.slice().sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'')});
-      html+='<tr class="mmDet"><td></td><td colspan="4" style="padding:0">'+
+      /* ==========================================================
+         O DETALHE TEM DE TER AS MESMAS COLUNAS DE FORA
+         A tabela de dentro tinha 4 colunas e a de fora tem 5. Resultado:
+         tudo andava uma casa, e uma ENTRADA de 4,8 kg aparecia debaixo de
+         "Qtde saida". Numero na coluna errada nao e detalhe de layout — e
+         informacao errada. Agora entrada e saida tem cada uma a sua coluna,
+         iguais as de cima, e cada valor cai onde deve.
+         ========================================================== */
+      html+='<tr class="mmDet"><td colspan="5" style="padding:0">'+
         '<table class="mmSub"><tbody>'+
-        '<tr class="mmIni"><td>—</td><td>Saldo no início do dia</td>'+
-        '<td style="text-align:right"></td>'+
-        '<td style="text-align:right"><b>'+fmtQt(saldo)+'</b> '+E(g.un)+'</td></tr>';
+        '<tr class="mmIni"><td style="width:110px">—</td>'+
+        '<td>Saldo no início do dia</td>'+
+        '<td style="width:150px"></td><td style="width:150px"></td>'+
+        '<td style="width:160px;text-align:right"><b>'+fmtQt(saldo)+'</b> '+E(g.un)+'</td></tr>';
       det.forEach(function(x){
         saldo += x.ent? x.qtd : -x.qtd;
-        html+='<tr><td style="width:60px">'+E(x.hora||'')+'</td>'+
+        html+='<tr><td style="width:110px">'+E(x.hora||'')+'</td>'+
           '<td>'+E(mmRotulo(x.mov,x.l))+
             (x.mov.identificacao?' <small>· '+E(x.mov.identificacao)+'</small>':'')+'</td>'+
-          '<td style="width:150px;text-align:right;color:'+(x.ent?'var(--ok)':'var(--rd)')+'">'+
-            (x.ent?'+':'−')+fmtQt(x.qtd)+' '+E(x.un)+'</td>'+
+          '<td style="width:150px;text-align:right;color:var(--ok)">'+
+            (x.ent?'+'+fmtQt(x.qtd)+' '+E(x.un):'')+'</td>'+
+          '<td style="width:150px;text-align:right;color:var(--rd)">'+
+            (x.ent?'':'−'+fmtQt(x.qtd)+' '+E(x.un))+'</td>'+
           '<td style="width:160px;text-align:right">'+fmtQt(saldo)+' '+E(x.un)+'</td></tr>';
       });
       html+='</tbody></table></td></tr>';
     }
   });
-  html+='</tbody></table></div>';
+  html+='</tbody></table></div></div>';
   $('content').innerHTML=html;
   rodape(lista.length+' dia(s) com movimento');
 }
