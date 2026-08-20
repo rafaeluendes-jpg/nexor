@@ -3151,3 +3151,26 @@ horário** — assim reabrir depois não exige redigitar.
 
 Testes: 10 casos — cada conjunto, dias não tocados, reabertura, fechar sem
 perder o horário, e campo vazio não alterando nada.
+
+## Link curto por loja — joiagest.com.br/santafe
+
+O cardápio abria numa tela de "escolha a loja". O Rafael queria um link por
+unidade, para divulgar em cartão e no Instagram.
+
+No `delivery`, o `?loja=` passou a aceitar **o apelido e o nome da loja**, sem
+acento e sem espaço, além do código interno: `?loja=santafe`, `?loja=jales`.
+Quem entra por esse link não passa pela tela de escolha, mas continua podendo
+trocar de unidade pelo seletor do topo.
+
+E, para o link ficar curto, entraram três pastas no repositório do **sistema**
+— `santafe/`, `jales/`, `alphaville/` —, cada uma com um `index.html` que só
+redireciona. Como `joiagest.com.br` já é servido por esse repositório, os
+endereços saem de graça, sem subdomínio, sem mexer no Cloudflare e sem tocar
+na entrada do sistema. O workflow do Pages precisou de um `cp -r` próprio: ele
+copiava só arquivos soltos e ignoraria as pastas.
+
+Também no `delivery`: sem loja escolhida, a capa e a logo caíam nas imagens de
+exemplo do repositório (`img/capa.jpg`) — quem tinha acabado de subir a própria
+capa via outra foto na abertura. Agora vale a marca da rede (`cfgRede()`). E a
+logo saiu do meio da capa, onde tapava o produto e repetia o que já está na
+barra de cima.
