@@ -3071,3 +3071,37 @@ linha de cada combinação. A venda de teste voltou a 1 item e 1 pagamento.
 **Padrão a checar em toda lista-filha nova:** se o download não devolve o
 `id`/`ref_local` do filho, ele duplica em toda sincronização — silenciosamente,
 porque o total do pai continua certo e só o detalhe por produto incha.
+
+## V116 — varredura das listas-filhas e rede de segurança
+
+Pedido do Rafael depois da V115: "vê se pode acontecer de novo em outro lugar e
+já resolve, não dá para descobrir no meio da operação".
+
+**Varredura das 8 listas-filhas do mapa de sincronização** — `ficha_itens`,
+`pedido_itens`, `pedido_pagamentos`, `pedido_base_itens`, `opcoes`,
+`entregador_taxas`, `caixa_movimentos`, `areas_zonas`,
+`subcategorias_financeiras`:
+
+- **Devolvem o `id` no download?** Todas, agora. As quatro que não devolviam
+  foram corrigidas na V115.
+- **Têm índice único no `ref_local`?** Todas menos `pedido_base_itens`, que
+  estava sem trava — criado `uq_pedido_base_itens_ref`. Sem ele, o item do
+  Pedido de Base duplicaria do mesmo jeito assim que a franquia começasse a
+  pedir base, e essa tela ainda não rodou em produção.
+- **Já existe duplicata gravada?** Nenhuma, nas 8 tabelas. Conferido por
+  chave de negócio, não por `ref_local`.
+
+Fora das listas-filhas, as únicas tabelas com `ref_local` sem trava são as de
+backup (`bkp_*`), o `audit_log` — que é histórico e deve aceitar repetição — e
+`whatsapp_config`, que está vazia.
+
+**Rede de segurança:** `conferirFilhosRepetidos()` roda depois de cada download
+e avisa no registro da nuvem (e num toast, para a matriz) se alguma venda,
+ficha ou caixa voltar com a mesma linha repetida. Não apaga nada — só acende a
+luz. O defeito da V115 não dava erro nenhum: o total do pai continuava certo e
+só o detalhe inchava. Foi descoberto por acaso.
+
+Duas linhas iguais do mesmo produto com quantidades diferentes **não** contam
+como duplicata — isso é venda legítima.
+
+Testes: 7 casos da rede de segurança.

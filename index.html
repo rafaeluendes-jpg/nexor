@@ -15907,6 +15907,7 @@ function volta(linhas,fn,atual,col){
      e a tela mostrando R$ 0,00 em 252 itens.
      ========================================================== */
   try{ espelharEstoque(); }catch(e){ _quieto(e,'baixarDaNuvem'); }
+  try{ conferirFilhosRepetidos(); }catch(e){ _quieto(e,'conferirFilhosRepetidos'); }
   /* alguem tentou enviar durante o download e foi segurado: agora pode ir */
   if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
@@ -16735,7 +16736,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V115.0.0';
+var VERSAO='V116.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18940,6 +18941,49 @@ function setCustoUn(itemId,valor,suc){
 }
 /* copia o saldo da unidade ativa para o campo do item, que e o que as
    telas leem. Chamado ao abrir o sistema e ao trocar de unidade. */
+/* ==========================================================
+   REDE DE SEGURANCA: FILHO REPETIDO
+
+   O defeito da V115 — item de venda reinserido a cada sincronizacao —
+   nao dava erro nenhum: o total do pedido continuava certo e so o
+   detalhe por produto inchava. Foi descoberto por acaso, com 10.024
+   itens numa venda de R$ 15,00.
+
+   Esta conferencia roda depois de cada download e avisa se alguma lista
+   filha voltou com a mesma linha repetida. Nao apaga nada — so acende a
+   luz, para ninguem descobrir de novo dois meses depois.
+   ========================================================== */
+function conferirFilhosRepetidos(){
+  var achados=[];
+  function olhar(nomeLista,itens,chave){
+    var vistos={},rep=0;
+    (itens||[]).forEach(function(o){
+      var k=chave(o);
+      if(vistos[k])rep++; else vistos[k]=1;
+    });
+    if(rep)achados.push(nomeLista+': '+rep+' linha(s) repetida(s)');
+  }
+  (DB.pedidos||[]).forEach(function(p){
+    olhar('venda '+(p.numero||p.id),p.itens,function(o){
+      return (o.nome||'')+'|'+(o.qtd||0)+'|'+(o.unit||0);});
+  });
+  (DB.fichas||[]).forEach(function(f){
+    olhar('ficha '+(f.nome||''),f.itens,function(o){
+      return (o.insumoId||'')+'|'+(o.qtd||0)+'|'+(o.unidade||'');});
+  });
+  (DB.caixas||[]).forEach(function(c){
+    olhar('caixa '+(c.id||''),c.movimentos,function(o){
+      return (o.tipo||'')+'|'+(o.valor||0)+'|'+(o.motivo||'')+'|'+(o.quando||'');});
+  });
+  if(!achados.length)return 0;
+  logNuvem('ATENCAO — linhas repetidas encontradas: '+achados.slice(0,6).join(' · ')+
+    (achados.length>6?' e mais '+(achados.length-6):''),true);
+  try{
+    if(typeof ehMatriz==='function'&&ehMatriz())
+      toast('Encontrei linhas repetidas em '+achados.length+' registro(s). Veja o registro da nuvem.');
+  }catch(e){_quieto(e,'conferirFilhosRepetidos');}
+  return achados.length;
+}
 function espelharEstoque(){
   baseEstUn();
   var suc=lojaAtualId();
