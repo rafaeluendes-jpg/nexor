@@ -16650,7 +16650,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V109.0.0';
+var VERSAO='V110.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -34921,6 +34921,18 @@ function custoCont(i){
 }
 function telaContagem(){
   baseMov();
+  /* ==========================================================
+     A CONTAGEM PRECISA LER O SALDO DESTA UNIDADE
+
+     O saldo real mora em estoque_unidade, uma linha por item POR
+     UNIDADE; `i.estoqueAtual` e `i.custo` sao apenas o espelho da
+     unidade aberta, preenchido por espelharEstoque(). A tela de Estoque
+     chamava; a de Contagem, nao. Entao ela mostrava o que tivesse
+     sobrado do ultimo espelho — na pratica, o saldo da matriz mesmo com
+     Santa Fe selecionada, e em outra aba o espelho nem tinha sido
+     refeito. Contar com o numero da unidade errada estraga o ajuste.
+     ========================================================== */
+  try{ espelharEstoque(); }catch(e){ _quieto(e,'telaContagem'); }
   if(CT2.aba==='nova')return telaContagemNova();
   if(!CT2.de){var d=new Date();
     CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);

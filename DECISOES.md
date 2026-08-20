@@ -2903,3 +2903,25 @@ outra unidade, matriz, unidade criada depois e contagem de restritos.
 `sucursais`** — a liberação de fornecedor funciona no aparelho e se perde na
 sincronização. Conferir as demais coleções da lista antes de confiar na
 liberação delas.
+
+## V110 — a Contagem lia o saldo da unidade errada
+
+O Rafael abriu duas abas, uma na matriz e outra em Santa Fé do Sul, e as duas
+mostravam o mesmo saldo — 5 unidades de BASE CHOCOLATE, que é o número da
+matriz. Santa Fé tem 21.
+
+O saldo real mora em `estoque_unidade`, uma linha por item **por unidade**.
+`insumo.estoqueAtual` e `insumo.custo` são só o **espelho** da unidade aberta,
+preenchido por `espelharEstoque()`. A tela de Estoque chamava a função; a de
+**Contagem, não**. Ela mostrava o que tivesse sobrado do último espelho — na
+prática o saldo da matriz, mesmo com Santa Fé selecionada.
+
+`telaContagem()` passou a chamar `espelharEstoque()` logo depois de
+`baseMov()`. Vale para as duas abas da tela, histórico e nova contagem.
+
+**Gravidade:** contar com o número da unidade errada gera ajuste errado. Se a
+contagem tivesse sido finalizada assim, o estoque de Santa Fé seria corrigido
+contra o saldo da matriz.
+
+**Vale conferir o resto:** outras telas que leem `estoqueAtual` sem chamar
+`espelharEstoque()` têm o mesmo defeito. Varrer as chamadas antes de confiar.
