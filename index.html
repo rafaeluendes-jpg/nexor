@@ -13704,6 +13704,16 @@ var MAPA=[
        venda: o dado subia sem o canal e voltava em branco. Com totem e mesa
        entrando, saber de ONDE veio a venda passa a ser essencial. */
     canal:x.canal||null,origem_venda:x.origem||null,
+    /* ==========================================================
+       A VENDA TAMBEM PRECISA SABER DE QUAL LOJA E
+
+       O envio nao mandava sucursal_id e o download nao lia. Na memoria a
+       venda ficava sem unidade, e todo relatorio que le
+       `p.sucursalId||'suc_matriz'` jogava a venda inteira na matriz.
+       Com duas lojas operando, o faturamento de Santa Fe apareceria na
+       matriz e Santa Fe ficaria zerada.
+       ========================================================== */
+    sucursal_id:fk('sucursais',x.sucursalId),
     equipamento:x.equipamento||null,senha_totem:n(x.senha)}},
   filhos:[
    {lista:'itens',tab:'pedido_itens',pai:'pedido_id',
@@ -15606,6 +15616,8 @@ function volta(linhas,fn,atual,col){
     loginResp:x.login_responsavel||'',
     mensalidade:Number(x.mensalidade)||0,diaVenc:x.dia_vencimento||null,
     redeId:x.rede_id||'',redeNome:x.rede_nome||''}},null,'sucursais');
+  /* uuid da sucursal -> ref_local, para a venda saber de qual loja e */
+  var mapaSucPed={};sc.forEach(function(x){mapaSucPed[x.id]=x.ref_local||x.id});
 
   var op=await baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
   DB.ordensProd=volta(op,function(x){return {id:x.ref_local||x.id,numero:x.numero,
@@ -15704,6 +15716,7 @@ function volta(linhas,fn,atual,col){
 
   var pd=await baixarTab('pedidos', 'pedidos'+qJan+'&select=*,pedido_itens(*),pedido_pagamentos(*)&order=criado_em.desc&limit=3000');
   DB.pedidos=volta(pd,function(x){return {id:x.ref_local||x.id,numero:x.numero,tipo:x.tipo,
+    sucursalId:mapaSucPed[x.sucursal_id]||'',
     fase:x.fase,clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',
     entregadorId:mapaEnt[x.entregador_id]||'',caixaId:mapaCx[x.caixa_id]||'',
     cidade:x.cidade||'',total:Number(x.total)||0,taxa:Number(x.taxa)||0,
@@ -15719,7 +15732,6 @@ function volta(linhas,fn,atual,col){
     pagamentos:(x.pedido_pagamentos||[]).map(function(p2){return {formaId:mapaFP[p2.forma_id]||'',
       valor:Number(p2.valor)||0}})}},null,'pedidos');
 
-  var mapaSuc={};sc.forEach(function(x){mapaSuc[x.id]=x.ref_local||x.id});
   var mapaPed={};pd.forEach(function(x){mapaPed[x.id]=x.ref_local||x.id});
 
   var ac=await baixarTab('acertos', 'acertos'+qs+'&order=data.desc&limit=500');
@@ -16704,7 +16716,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V112.0.0';
+var VERSAO='V113.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

@@ -2985,3 +2985,38 @@ usuário com duas unidades, e quem pode trocar.
 **Lição:** a mesma referência de unidade vive em `usuarios_sistema.sucursais`
 e em `perfis.sucursal_ref`. Corrigir uma e não a outra deixa o acesso
 meio-quebrado, do jeito mais difícil de perceber.
+
+## V113 — a venda também precisa saber de qual loja é
+
+Descoberto ao subir o faturamento de Santa Fé: o envio de `pedidos` **não
+mandava `sucursal_id`** e o download **não lia**. Na memória a venda ficava sem
+unidade, e todo relatório que faz `p.sucursalId||'suc_matriz'` jogava a venda
+inteira na matriz. Com duas lojas operando, o faturamento de Santa Fé
+apareceria na matriz e Santa Fé ficaria zerada.
+
+Corrigido nos dois sentidos. Atenção ao tipo: `pedidos.sucursal_id` é **uuid**,
+não `ref_local` como nas outras tabelas — por isso vai por `fk('sucursais',…)`
+na subida e por um mapa uuid→ref_local (`mapaSucPed`) na descida.
+
+## Carga do faturamento de 18/08 — Santa Fé do Sul
+
+19 vendas, 211 itens, **R$ 4.777,40**, todas em Santa Fé do Sul, fase
+`entregue`, canal `pdv`, origem `importado`, pagamento em Dinheiro.
+
+**Sem baixa de estoque, por decisão do Rafael.** A posição de estoque que ele
+mandou é de 20/08, ou seja, já depois dessas vendas: o consumo já está
+descontado nela. Lançar pela porta do banco não dispara `aplicarMovimento`,
+então o estoque continuou exatamente em R$ 22.820,12.
+
+Preços corrigidos no cardápio, todos com divisão exata no relatório: Copo P
+15 → **18,00**, Copo M 20 → **22,00**, Coca Zero 0 → **6,00**, Batido 300 →
+**22,65**, Batido 500 → **29,95**. Cascão 1 Bola e 2 Bolas ficaram como estavam
+(22 e 25): as médias deram 20,25 e 25,67, número quebrado, sinal de desconto.
+
+Criados 5 produtos que existiam no PDV antigo e não no cardápio: Cascão
+Chocolate 1 Bola, Cascão Chocolate 2 Bolas, Cascão Tradicional Avulso, Cascão
+Chocolate Avulso e Taxa de Entrega.
+
+**Ficaram de fora as 3 bordas** (Nutella, Creme Ninho, Creme Pistache), R$ 15,00
+no total — o Rafael disse que criaria os adicionais. Por isso o faturamento
+lançado é R$ 4.777,40 contra R$ 4.792,40 do relatório.
