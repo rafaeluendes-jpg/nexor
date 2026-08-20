@@ -29,6 +29,11 @@ jobs:
           mkdir -p _site
           cp index.html manifest.json supabase.js _site/
           cp *.png *.jpg _site/ 2>/dev/null || true
+          # atalhos por loja: joiagest.com.br/santafe e afins. Sao pastas,
+          # e o cp de arquivos soltos acima nao as levaria.
+          for d in santafe jales alphaville; do
+            [ -d "$d" ] && cp -r "$d" _site/
+          done
           for f in _headers sw.js CNAME; do
             [ -f "$f" ] && cp "$f" _site/
           done
