@@ -2952,3 +2952,36 @@ com a matriz, que é onde foram feitas.
 
 Testes: 6 casos do histórico — Santa Fé, Jales, matriz, registro sem carimbo,
 vazamento entre unidades e o filtro de data junto com o de unidade.
+
+## V112 — o login da unidade abre na unidade dele
+
+O Rafael entrou com `santafe@jologelato.com.br` e o seletor mostrava **Matriz**.
+Estava vendo o estoque da matriz achando que era o de Santa Fé — e foi isso, e
+não a carga, que fez o saldo "não atualizar" por horas.
+
+**Causa.** `perfis.sucursal_ref` do login apontava para `suc_mt1unjwjn3tq`,
+unidade que não existe: sobra do duplo clique que criou e apagou a primeira
+Santa Fé. A referência quebrada estava em **dois lugares** —
+`usuarios_sistema.sucursais`, que eu já tinha corrigido, e `perfis`, que eu não
+tinha conferido. Como a unidade não era encontrada, `lojaAtual()` caía em
+`a[0]`, a primeira da lista, que é a Matriz. **Sem nenhum aviso.**
+
+`lojaAtual()` passou a escolher com ordem, e a última palavra não é mais a
+Matriz:
+
+1. a unidade do perfil, **se existir**;
+2. a única unidade liberada para o usuário (`unidadeDoUsuario()`), que cobre
+   perfil quebrado ou ausente;
+3. só então a primeira da lista — e apenas para quem circula entre unidades,
+   que na prática é a matriz.
+
+E se o perfil apontar para unidade inexistente, aparece um aviso na tela em vez
+de trocar de loja em silêncio.
+
+Testes: 9 casos — login de unidade, perfil quebrado, sem perfil, franqueadora,
+matriz que escolheu outra loja, gerente com memória apontando para a matriz,
+usuário com duas unidades, e quem pode trocar.
+
+**Lição:** a mesma referência de unidade vive em `usuarios_sistema.sucursais`
+e em `perfis.sucursal_ref`. Corrigir uma e não a outra deixa o acesso
+meio-quebrado, do jeito mais difícil de perceber.

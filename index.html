@@ -16599,14 +16599,52 @@ function podeTrocarUnidade(){
   if(!s)return true;                       /* perfil antigo, sem unidade */
   return ehSucMatriz(s);
 }
+/* ==========================================================
+   O LOGIN DA UNIDADE ABRE NA UNIDADE DELE
+
+   Antes: se o perfil apontasse para uma unidade que nao existe mais —
+   e isso acontece quando a unidade e criada, apagada e recriada, porque
+   o codigo muda — a busca falhava e o sistema caia em `a[0]`, que e a
+   primeira da lista: a Matriz. Silenciosamente. O gerente de Santa Fe
+   entrava vendo o estoque da matriz sem nenhum aviso na tela, e demorou
+   horas para alguem desconfiar.
+
+   Agora a escolha tem ordem e a ultima palavra nao e a Matriz:
+   1. a unidade do perfil, se existir;
+   2. a unica unidade liberada para o usuario, se ele tiver so uma;
+   3. so entao a primeira da lista — e apenas para quem circula entre
+      unidades, que na pratica e a matriz.
+   Se o perfil apontar para unidade inexistente, avisa em vez de fingir.
+   ========================================================== */
+function unidadeDoUsuario(){
+  var u=usuarioLogado()||{};
+  var l=(u.sucursais||[]).filter(function(x){return x!=='*'});
+  if(l.length!==1)return '';
+  return sucAtivas().some(function(s){return s.id===l[0]})?l[0]:'';
+}
 function lojaAtual(){
   var a=lojasCad();
-  /* quem tem unidade no perfil e nao pode trocar fica presa a ela */
+  var existe=function(id){return !!id&&a.some(function(l){return l.id===id})};
   var fixa=unidadeDoPerfil();
-  if(fixa&&!podeTrocarUnidade()&&a.some(function(l){return l.id===fixa})){
+  /* 1. a unidade do perfil manda em quem nao circula */
+  if(fixa&&existe(fixa)&&!podeTrocarUnidade()){
     DB.lojaAtual=fixa;S.loja=fixa;return fixa;
   }
-  if(!DB.lojaAtual||!a.some(function(l){return l.id===DB.lojaAtual}))
+  /* perfil apontando para unidade que nao existe: avisa uma vez */
+  if(fixa&&!existe(fixa)&&!DB._avisouUnidadeSumida){
+    DB._avisouUnidadeSumida=true;
+    setTimeout(function(){
+      try{toast('A unidade do seu acesso não existe mais. Peça à matriz para refazer o acesso.');}
+      catch(e){_quieto(e,'lojaAtual');}
+    },1200);
+  }
+  /* 2. quem tem uma unidade so abre nela, mesmo sem perfil ou com perfil quebrado */
+  if(!existe(DB.lojaAtual)){
+    var sua=unidadeDoUsuario();
+    if(sua){DB.lojaAtual=sua;S.loja=sua;return sua;}
+  }
+  /* 3. so quem circula entre unidades cai na primeira da lista */
+  if(!existe(DB.lojaAtual))
     DB.lojaAtual=(a[0]||{}).id||'suc_matriz';
   S.loja=DB.lojaAtual;                 /* as duas passam a apontar para o mesmo */
   return DB.lojaAtual;
@@ -16666,7 +16704,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V111.0.0';
+var VERSAO='V112.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
