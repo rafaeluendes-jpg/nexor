@@ -3020,3 +3020,25 @@ Chocolate Avulso e Taxa de Entrega.
 **Ficaram de fora as 3 bordas** (Nutella, Creme Ninho, Creme Pistache), R$ 15,00
 no total — o Rafael disse que criaria os adicionais. Por isso o faturamento
 lançado é R$ 4.777,40 contra R$ 4.792,40 do relatório.
+
+## V114 — trava de unidade nos painéis de venda
+
+O Rafael trocou o seletor para Jales e o faturamento de Santa Fé continuou na
+tela. Os painéis filtravam **só pelo seletor de sucursais do próprio painel**,
+que nasce em "Todos" — a unidade aberta não era consultada em lugar nenhum.
+
+O corte por unidade não pode depender de cada painel lembrar de filtrar. Passou
+a ser feito **na porta**, junto com o período, em `pedsPeriodo()` e
+`pedidosDeSuc()`, via `vendaDaUnidadeAberta()`:
+
+- **matriz aberta** → vê a rede inteira; é para ela que existe a comparação
+  por loja e o filtro de sucursais do painel;
+- **qualquer outra unidade** → só a própria venda, e o filtro do painel não
+  consegue trazer a de outra.
+
+Testes: 8 casos — matriz, Santa Fé, Jales, venda cancelada, filtro do painel na
+matriz, e tentativa de pedir a venda de outra unidade estando dentro de uma.
+
+**Ainda a conferir:** há 46 lugares que varrem `DB.pedidos` direto. Os painéis
+principais passam por `pedsPeriodo`/`pedidosDeSuc` e estão cobertos; os demais
+(caixa, comandas, entregadores, cupons) precisam ser auditados um a um.

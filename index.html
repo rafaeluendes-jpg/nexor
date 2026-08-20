@@ -16716,7 +16716,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V113.0.0';
+var VERSAO='V114.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -39669,10 +39669,28 @@ async function excluirSucursal(id){
   DB.sucursais=DB.sucursais.filter(function(x){return x.id!==id});
   salvar();telaSucursais();
 }
+/* ==========================================================
+   TRAVA DE UNIDADE NOS PAINEIS
+
+   Os relatorios filtravam so pelo seletor de sucursais do proprio painel,
+   que nasce em "Todos". Quem estava com Jales aberta via o faturamento da
+   rede inteira, e o valor de Santa Fe aparecia dentro de Jales.
+
+   O corte por unidade nao pode depender de o painel lembrar de filtrar:
+   passa a ser feito na porta, junto com o periodo. A matriz continua vendo
+   tudo — e para ela que existe a comparacao por loja. Qualquer outra
+   unidade so enxerga a propria venda.
+   ========================================================== */
+function vendaDaUnidadeAberta(p){
+  var suc=lojaAtualId();
+  if(ehSucMatriz(suc))return true;          /* a matriz compara a rede */
+  return (p&&(p.sucursalId||'suc_matriz'))===suc;
+}
 /* filtro de sucursais usado nos painéis */
 function pedidosDeSuc(peds,sucs){
-  if(!sucs||!sucs.length)return peds;
-  return peds.filter(function(p){return sucs.indexOf(p.sucursalId||'suc_matriz')>=0});
+  var l=(peds||[]).filter(vendaDaUnidadeAberta);
+  if(!sucs||!sucs.length)return l;
+  return l.filter(function(p){return sucs.indexOf(p.sucursalId||'suc_matriz')>=0});
 }
 
 /* ==========================================================
@@ -39712,6 +39730,7 @@ function pedsPeriodo(o){
   baseSuc();
   return (DB.pedidos||[]).filter(function(p){
     if(ehCancelado(p))return false;
+    if(!vendaDaUnidadeAberta(p))return false;   /* unidade nao ve a venda da outra */
     var d=String(p.data||'').slice(0,10);
     if(o.de&&d<o.de)return false;
     if(o.ate&&d>o.ate)return false;
