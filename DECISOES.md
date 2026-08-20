@@ -3199,3 +3199,19 @@ Como o apelido de Santa Fé é "Santa Fé do Sul", o atalho é `/santafedosul`.
 A pasta `/santafe` ficou como apelido alternativo — as duas funcionam.
 
 Testes: 5 casos de `linkCardapio`.
+
+## V120 — a medida da foto escrita embaixo, e as colunas destrocadas
+
+Sem a medida, cada um manda uma foto de um jeito e o resultado no cardápio sai
+torto. Abaixo de cada moldura agora está escrito o que se espera:
+
+- **Logo — quadrada, 512 × 512 px, fundo claro**
+- **Foto de capa — deitada, 1200 × 600 px, o produto no meio**
+
+**E a moldura da logo era enorme por um motivo bobo:** as duas imagens estavam
+numa `.row2`, que é `1fr 240px`. Como a logo vem primeiro no HTML, ela ficava
+com a coluna larga e a capa com a estreita — o contrário do que faz sentido.
+Entrou `.rowImgs` (`132px 1fr`): a logo num quadradinho do tamanho em que ela
+aparece de verdade, a capa larga, na proporção 2:1 do topo do cardápio.
+
+Assim o que se vê no cadastro é o que vai para o ar.
