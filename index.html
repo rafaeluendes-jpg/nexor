@@ -864,6 +864,7 @@ body.pdvFull .wTitle{display:none}
  border:1px solid var(--lin,#e6e0d4);border-radius:9px;padding:10px 13px;
  margin-bottom:14px;font-size:12.5px;color:var(--tx2,#7a7266)}
 .lbTag.mtz{background:#EAF5EE;color:#1B5E36;border-color:#BFE0CC}
+.lbTag.so{background:#FBEDED;color:#8E2F2F;border-color:#EFC9C9}
 .lbOp.fixa{opacity:.75;cursor:default;background:#EAF5EE;border-color:#BFE0CC}
 .lbOp.fixa span{display:block;font-size:10.5px;color:#1B5E36}
 .impAbas{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:16px}
@@ -16649,7 +16650,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V108.0.0';
+var VERSAO='V109.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18954,8 +18955,24 @@ function ehSucMatriz(id){
       unidade nenhuma que ela nao possa ver. A marcacao nem e consultada.
    2. Unidade nao ve nada de outra unidade. Sabor regional de Jales nao
       aparece em Santa Fe, nem o contrario. Cada uma e independente.
-   3. Sem marcacao = todas as unidades. E o padrao, para item novo chegar
-      em todo lugar sem ninguem precisar liberar. */
+   3. SEM LIBERACAO A UNIDADE NAO VE. Este e o ponto e ele mudou na V109.
+
+      Antes, item sem marcacao ia para todas as unidades sozinho. Parecia
+      comodo, mas invertia o proposito da tela de Liberacao por Unidade:
+      a matriz nao liberava — ela tirava. E franquia nova nascia enxergando
+      o cardapio inteiro, inclusive sabor que ela nao vende.
+
+      Agora e o contrario, e e o que se espera de um ERP com matriz por
+      cima: a unidade entra vendo os modulos vazios, e a matriz vai
+      liberando item a item o que aquela unidade pode ter.
+
+      Para dizer "todas, inclusive as futuras" existe a marca '*' na
+      lista. Lista vazia significa ninguem — nao significa todos. */
+var TODAS_UN='*';
+function marcadoTodas(item){
+  var l=(item&&item.sucursais)||[];
+  return l.indexOf(TODAS_UN)>=0;
+}
 /* O mesmo bloco em todo formulario de cadastro: quem enxerga este item.
    Decidir na hora de criar e melhor do que criar e depois lembrar de ir
    na tela de liberacao — que e onde as coisas ficam esquecidas. */
@@ -18964,7 +18981,7 @@ function blocoUnidades(item,pref){
   if(sucs.length<2)return '';              /* loja unica nao tem o que liberar */
   if(!ehMatriz())return '';                /* so a matriz decide */
   var l=(item&&item.sucursais)||[];
-  var todas=!l.length;
+  var todas=marcadoTodas(item);
   return '<div class="blk unBlk" style="margin:0 0 11px;max-width:none">'+
    '<h3>Quem enxerga este item</h3>'+
    '<label class="chkL"><input type="checkbox" id="'+pref+'Todas" '+(todas?'checked':'')+
@@ -18978,7 +18995,8 @@ function blocoUnidades(item,pref){
        (l.indexOf(x.id)>=0?' checked':'')+(todas?' disabled':'')+'>'+
        '<b>'+E(x.nome)+'</b></label>';
     }).join('')+'</div>'+
-   '<div class="hint">Sem marcação, o item chega em todas. A matriz enxerga sempre.</div>'+
+   '<div class="hint">Sem marcar nada, o item fica só na matriz — a unidade não vê. '+
+   'A matriz enxerga sempre.</div>'+
   '</div>';
 }
 function togTodasUn(pref){
@@ -18992,7 +19010,7 @@ function togTodasUn(pref){
 function lerUnidades(pref,item){
   var t=document.getElementById(pref+'Todas');
   if(!t)return;                            /* bloco nao esta na tela */
-  if(t.checked){item.sucursais=[];return;}
+  if(t.checked){item.sucursais=[TODAS_UN];return;}
   var l=[];
   document.querySelectorAll('.'+pref+'Suc').forEach(function(c){if(c.checked)l.push(c.value)});
   item.sucursais=l;
@@ -19002,8 +19020,9 @@ function liberadoNa(item,suc){
   suc=suc||lojaAtualId();
   if(ehSucMatriz(suc))return true;       /* regra 1 — a matriz ve tudo */
   var l=item.sucursais;
-  if(!l||!l.length)return true;          /* regra 3 — sem marcacao = todas */
-  return l.indexOf(suc)>=0;              /* regra 2 — so quem foi marcado */
+  if(l&&l.indexOf(TODAS_UN)>=0)return true;  /* liberado para todas, e para as futuras */
+  if(!l||!l.length)return false;         /* regra 3 — sem liberacao, nao ve */
+  return l.indexOf(suc)>=0;              /* regra 2 — so quem foi liberado */
 }
 /* usada pelas telas: so o que esta liberado nesta unidade */
 function soLiberados(lista,suc){
@@ -19040,8 +19059,10 @@ function filtrarCadastroDaUnidade(){
    ========================================================== */
 var LB={col:'insumos',busca:'',sel:{},grupo:'',filtro:'todos'};
 
+/* restrito = nao esta com a marca de todas. Inclui o item que ainda nao
+   foi liberado para ninguem, que e o estado natural de item novo. */
 function libRestritos(col){
-  return (DB[col]||[]).filter(function(x){return x.sucursais&&x.sucursais.length}).length;
+  return (DB[col]||[]).filter(function(x){return !marcadoTodas(x)}).length;
 }
 function telaLiberacao(){
   if(!ehMatriz()){
@@ -19057,9 +19078,9 @@ function telaLiberacao(){
 
   var lista=todos.slice();
   if(LB.filtro==='restritos')
-    lista=lista.filter(function(x){return x.sucursais&&x.sucursais.length});
+    lista=lista.filter(function(x){return !marcadoTodas(x)});
   else if(LB.filtro==='todas')
-    lista=lista.filter(function(x){return !(x.sucursais&&x.sucursais.length)});
+    lista=lista.filter(function(x){return marcadoTodas(x)});
   var q=(LB.busca||'').toLowerCase();
   if(q)lista=lista.filter(function(x){
     return nomeDoCad(x,LB.col).toLowerCase().indexOf(q)>=0;});
@@ -19118,11 +19139,14 @@ function telaLiberacao(){
           '<td><label class="flagBox"><input type="checkbox" '+(LB.sel[x.id]?'checked':'')+
            ' onchange="LB.sel[\''+x.id+'\']=this.checked;semPular(telaLiberacao)"></label></td>'+
           '<td><b>'+E(nomeDoCad(x,LB.col))+'</b></td>'+
-          '<td>'+(l.length
-            ?'<div class="lbTags"><span class="lbTag mtz">'+E(nomeMatriz)+'</span>'+
-              l.filter(function(id){return !ehSucMatriz(id)}).map(function(id){
-                return '<span class="lbTag">'+E(sucNome(id))+'</span>';}).join('')+'</div>'
-            :'<span class="lbTodas">todas as unidades</span>')+'</td>'+
+          '<td>'+(marcadoTodas(x)
+            ?'<span class="lbTodas">todas as unidades</span>'
+            :(l.length
+              ?'<div class="lbTags"><span class="lbTag mtz">'+E(nomeMatriz)+'</span>'+
+                l.filter(function(id){return !ehSucMatriz(id)}).map(function(id){
+                  return '<span class="lbTag">'+E(sucNome(id))+'</span>';}).join('')+'</div>'
+              :'<div class="lbTags"><span class="lbTag mtz">'+E(nomeMatriz)+'</span>'+
+                '<span class="lbTag so">só a matriz</span></div>'))+'</td>'+
           '<td><button class="rBtn" onclick="editarLiberacao(\''+x.id+'\')" '+
            'title="Definir unidades">'+sv('edit',12)+'</button></td>'+
          '</tr>';
@@ -19133,7 +19157,7 @@ function telaLiberacao(){
           :(q?'Nada encontrado':'Nenhum '+E(def.n.toLowerCase())+' cadastrado'))+
         '</b><span>'+
         (LB.filtro==='restritos'
-          ?'Todos os itens deste cadastro chegam em todas as unidades.'
+          ?'Nenhum item deste cadastro foi limitado a unidades específicas.'
           :(q?'Tente outro nome.':'Cadastre primeiro na tela do módulo.'))+
         '</span></div>')+
 
@@ -19168,9 +19192,11 @@ function abrirEscolhaUnidades(itens,titulo){
   var sucs=sucAtivas();
   /* marcacao inicial: o que TODOS os itens ja tem em comum */
   var atual=(itens.length===1)?(itens[0].sucursais||[]):[];
+  var jaTodas=(itens.length===1)&&marcadoTodas(itens[0]);
+  atual=atual.filter(function(x){return x!==TODAS_UN});
   modal('Quem enxerga: '+E(titulo),
   '<div class="mdB">'+
-   '<label class="chkL"><input type="checkbox" id="lbTodas" '+(atual.length?'':'checked')+
+   '<label class="chkL"><input type="checkbox" id="lbTodas" '+(jaTodas?'checked':'')+
     ' onchange="document.querySelectorAll(\'.lbSuc\').forEach(function(c){c.disabled=this.checked},this)">'+
     '<span><b>Todas as unidades</b> — inclusive as que forem criadas depois</span></label>'+
    '<div class="hint" style="margin:6px 0 12px">Desmarque acima para escolher unidade por unidade.</div>'+
@@ -19180,7 +19206,7 @@ function abrirEscolhaUnidades(itens,titulo){
        return '<label class="lbOp fixa"><input type="checkbox" checked disabled>'+
         '<b>'+E(s.nome)+'</b><span>matriz — vê sempre</span></label>';
      return '<label class="lbOp"><input type="checkbox" class="lbSuc" value="'+E(s.id)+'"'+
-      (atual.indexOf(s.id)>=0?' checked':'')+(atual.length?'':' disabled')+'>'+
+      (atual.indexOf(s.id)>=0?' checked':'')+(jaTodas?' disabled':'')+'>'+
       '<b>'+E(s.nome)+'</b></label>';
    }).join('')+'</div>'+
   '</div>','Salvar',function(){
@@ -19190,7 +19216,7 @@ function abrirEscolhaUnidades(itens,titulo){
     if(!todas&&!escolhidas.length){
       toast('Escolha ao menos uma unidade, ou marque Todas.');return false;
     }
-    itens.forEach(function(x){ x.sucursais=todas?[]:escolhidas.slice(); });
+    itens.forEach(function(x){ x.sucursais=todas?[TODAS_UN]:escolhidas.slice(); });
     LB.sel={};salvar();telaLiberacao();
     toast(itens.length+' item(ns) atualizado(s).');
     if(NUVEM.ligada)sincronizar();

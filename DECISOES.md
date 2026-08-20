@@ -2863,3 +2863,43 @@ da altura.
 
 Testes: 9 casos de `custoCont` — campo vazio, valor digitado, apagado, texto
 inválido, zero, item sem custo e item inexistente.
+
+## V109 — a regra da rede invertida: sem liberação, a unidade não vê
+
+Até aqui, item sem marcação ia para **todas** as unidades sozinho. Era o
+padrão que eu tinha escolhido, "para item novo chegar em todo lugar sem
+ninguém precisar liberar". O Rafael apontou que isso inverte o propósito da
+tela: a matriz não liberava — ela **tirava**. E franquia nova nascia
+enxergando o cardápio inteiro, inclusive sabor que ela não vende.
+
+A regra passou a ser a de um ERP com matriz por cima:
+
+1. **A matriz enxerga tudo**, sempre. A marcação nem é consultada.
+2. **Unidade não vê nada de outra unidade.**
+3. **Sem liberação, a unidade não vê.** Lista vazia significa *ninguém* —
+   não significa todos.
+
+Para dizer "todas, inclusive as futuras" entrou a marca `'*'` na lista
+(`TODAS_UN`), com o helper `marcadoTodas()`. O checkbox "Todas as unidades"
+passou a gravar `['*']` em vez de `[]`, no formulário de cadastro e na tela
+de Liberação por Unidade. Item que não foi liberado para ninguém aparece na
+lista com a etiqueta **"só a matriz"**, e o contador de "restritos" passou a
+significar "não está em Todas".
+
+**Nada quebrou na virada** porque, naquele momento, todo o cadastro da Jolô já
+estava marcado explicitamente para Santa Fé do Sul: 290 insumos, 139 fichas,
+32 produtos, 6 categorias, 13 grupos de ficha. Santa Fé continuou vendo o que
+via; Jales continuou sem ver, que era o esperado.
+
+**Efeito no dia a dia, e é intencional:** produto novo criado na matriz nasce
+invisível para as unidades até ser liberado.
+
+Testes: 13 casos — item novo, liberado para uma, liberado para todas, sabor de
+outra unidade, matriz, unidade criada depois e contagem de restritos.
+
+## Em aberto
+
+`fornecedores` está em `CADASTROS_LIB`, mas a tabela **não tem coluna
+`sucursais`** — a liberação de fornecedor funciona no aparelho e se perde na
+sincronização. Conferir as demais coleções da lista antes de confiar na
+liberação delas.
