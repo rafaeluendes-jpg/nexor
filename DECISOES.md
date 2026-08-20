@@ -3174,3 +3174,28 @@ exemplo do repositório (`img/capa.jpg`) — quem tinha acabado de subir a próp
 capa via outra foto na abertura. Agora vale a marca da rede (`cfgRede()`). E a
 logo saiu do meio da capa, onde tapava o produto e repetia o que já está na
 barra de cima.
+
+## V119 — o cardápio perdia o que tinha sido salvo, e o link agora é o curto
+
+**O nome do cardápio voltava sozinho ao valor antigo.** A descida de
+`cardapio_config` escrevia por cima de `DB.cardapio[sid]` **sem olhar nada** —
+sem `volta()`, sem `_ANT`, sem comparação. Quem salvava e ficava um instante
+sem enviar (offline, fila de envio, ou só o intervalo entre uma coisa e outra)
+via o campo voltar. Foi o que aconteceu com "Jolô Gelato SFS": o Rafael salvou,
+a descida veio antes do envio e restaurou o título antigo.
+
+Agora a configuração local guarda `_salvoEm`. Se ela for mais nova que o
+`atualizado_em` da nuvem, a descida não encosta e o envio seguinte leva a
+versão do aparelho. `salvarCardapio()` também passou a chamar `agendarSync()`,
+para o envio sair na hora em vez de esperar o próximo ciclo.
+
+**O link público** passou a ser o atalho curto por loja
+(`linkCardapio()`): `joiagest.com.br/santafedosul`, `/jales`, `/matriz` — do
+apelido da unidade, sem acento e sem espaço. O botão Copiar link e o Ver o
+cardápio seguem o mesmo endereço. Loja sem apelido usa o nome; loja
+desconhecida cai no endereço completo.
+
+Como o apelido de Santa Fé é "Santa Fé do Sul", o atalho é `/santafedosul`.
+A pasta `/santafe` ficou como apelido alternativo — as duas funcionam.
+
+Testes: 5 casos de `linkCardapio`.

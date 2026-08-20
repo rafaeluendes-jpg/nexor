@@ -15721,6 +15721,24 @@ function volta(linhas,fn,atual,col){
   cd.forEach(function(x){
     var sid=mapaSuc2[x.sucursal_id]||x.sucursal_id;
     if(!sid)return;
+    /* ==========================================================
+       O QUE AINDA NAO SUBIU NAO PODE SER APAGADO PELA DESCIDA
+
+       Esta descida escrevia por cima sem olhar nada. Quem preenchia o
+       nome do cardapio e salvava, mas ficava um instante sem enviar —
+       aparelho offline, fila de envio, ou so o intervalo entre uma coisa
+       e outra — via o campo voltar sozinho ao valor antigo. Foi o que
+       aconteceu com "Jolo Gelato SFS".
+
+       Agora a configuracao local guarda a hora em que foi salva. Se ela
+       for mais nova do que a da nuvem, a descida nao encosta: o envio
+       seguinte leva a versao do aparelho.
+       ========================================================== */
+    var loc=DB.cardapio[sid];
+    if(loc&&loc._salvoEm){
+      var nuvem=Date.parse(x.atualizado_em||0)||0;
+      if(loc._salvoEm>nuvem)return;
+    }
     DB.cardapio[sid]={ativo:x.ativo!==false,titulo:x.titulo||'',slogan:x.slogan||'',
       logo:x.logo||'',capa:x.capa||'',corPrincipal:x.cor_principal||'#2F4A32',
       corFundo:x.cor_fundo||'#F7F3EA',whatsapp:x.whatsapp||'',instagram:x.instagram||'',
@@ -16856,7 +16874,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V118.0.0';
+var VERSAO='V119.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41479,7 +41497,9 @@ function telaCfgCardapio(dentro){
   baseMov();baseSuc();
   var c=cardAtual();
   var sucs=sucAtivas();
-  var link='https://rafaeluendes-jpg.github.io/delivery/';
+  /* o atalho curto e o que se divulga; o endereco completo continua
+     valendo, mas ninguem poe um /delivery/?loja= num cartao */
+  var link=linkCardapio(CD.suc);
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     (dentro?'<button class="btnP2" onclick="CN2.aba=\'canais\';telaCanaisIntegracao()">'+
@@ -41490,7 +41510,7 @@ function telaCfgCardapio(dentro){
     '<button class="btnP2" onclick="copiarLink()">'+sv('copy',13)+' Copiar link</button>'+
     '<a class="btnP2" href="'+link+'" target="_blank" style="text-decoration:none">'+
      sv('eye',13)+' Ver o cardápio</a>'+
-    '<button class="btnP2 ok" onclick="salvarCardapio()">'+sv('check',13)+' Salvar</button>'+
+    '<button class="btnP2 ok" onclick="salvarCardapio(true)">'+sv('check',13)+' Salvar</button>'+
    '</div>'+
    '<div class="barraF">'+
     '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
@@ -41910,8 +41930,8 @@ async function salvarCardapio(){
   }
 }
 function copiarLink(){
-  var l='https://rafaeluendes-jpg.github.io/delivery/';
-  try{navigator.clipboard.writeText(l);toast('Link copiado.');}
+  var l=linkCardapio(CD.suc);
+  try{navigator.clipboard.writeText(l);toast('Link copiado: '+l);}
   catch(e){prompt('Copie o link:',l);}
 }
 function ligarCardapio(){
@@ -41930,6 +41950,17 @@ function ligarCardapio(){
    estiver na tela e ignorado — e roda tambem ao trocar de aba, para nada
    se perder no caminho.
    ========================================================== */
+function apelidoLink(sucId){
+  var s=(DB.sucursais||[]).find(function(x){return x.id===sucId});
+  var t=(s&&(s.apelido||s.nome))||'';
+  return String(t).toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+}
+function linkCardapio(sucId){
+  var a=apelidoLink(sucId);
+  return a?('https://joiagest.com.br/'+a)
+          :'https://rafaeluendes-jpg.github.io/delivery/';
+}
 function cardapioAtual(){
   DB.cardapio=DB.cardapio||{};
   if(!CD.suc)CD.suc=(sucAtivas()[0]||{}).id||'';
@@ -41946,7 +41977,9 @@ function salvarCardapio(avisar){
   if($('cdMin'))c.pedidoMinimo=Number($('cdMin').value)||0;
   var chk={cdAtivo:'ativo',cdEnt:'aceitaEntrega',cdRet:'aceitaRetirada',cdCpf:'pedeCpf'};
   Object.keys(chk).forEach(function(id){ if($(id))c[chk[id]]=$(id).checked; });
+  c._salvoEm=Date.now();          /* protege da descida ate o envio acontecer */
   salvar();
+  if(NUVEM.ligada)agendarSync();
   if(avisar)toast('Cardápio salvo.');
   return c;
 }
