@@ -2925,3 +2925,30 @@ contra o saldo da matriz.
 
 **Vale conferir o resto:** outras telas que leem `estoqueAtual` sem chamar
 `espelharEstoque()` têm o mesmo defeito. Varrer as chamadas antes de confiar.
+
+## V111 — cada unidade conta a sua, e isso passa a sobreviver à sincronização
+
+Auditoria pedida pelo Rafael: "cada loja faz a contagem dela, tem que ficar
+salvo em cada loja, não pode misturar". O saldo e o custo médio já eram por
+unidade de verdade (`estoque_unidade`, uma linha por item por loja, e a nota
+de entrada já recalcula o custo médio só de quem comprou). **O que falhava era
+o carimbo de quem fez o quê:**
+
+- **Contagem** — o aparelho sabia a loja, mas o campo **não subia**: chegava
+  vazio na nuvem. E o histórico da tela listava **todas as contagens sem
+  filtrar** — o inventário de Santa Fé apareceria em Jales, com itens e valores.
+- **Movimentação** — o envio mandava `sucursal_id`, o **download não lia de
+  volta**. Depois da primeira sincronização todo movimento ficava sem dono na
+  memória.
+- **Ordem de produção** — mesmo defeito.
+
+Corrigido: `sucursal_id` entra no `campos` da contagem, e as três coleções
+passam a ler a unidade no download. A contagem nasce com `sucursalId`, e o
+histórico só mostra a da unidade aberta — contagem antiga sem carimbo fica
+com a matriz, para não sumir de vista.
+
+As 4 linhas órfãs que já existiam (3 movimentações e 1 ordem) foram carimbadas
+com a matriz, que é onde foram feitas.
+
+Testes: 6 casos do histórico — Santa Fé, Jales, matriz, registro sem carimbo,
+vazamento entre unidades e o filtro de data junto com o de unidade.

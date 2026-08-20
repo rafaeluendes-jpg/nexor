@@ -13627,8 +13627,21 @@ var MAPA=[
     motivo_id:fk('motivosMov',x.motivoId),identificacao:x.identificacao||null,
     observacao:x.obs||null,origem:x.origem||null,linhas:x.linhas||[]}}},
 
+ /* ==========================================================
+    CADA UNIDADE CONTA A SUA, E ISSO PRECISA SOBREVIVER A SINCRONIZACAO
+
+    A contagem e o inventario fisico de UMA loja. O aparelho ja sabia de
+    qual era, mas o campo nao subia e nao descia — na nuvem chegava vazio,
+    e o historico da tela listava tudo junto: a contagem de Santa Fe
+    aparecia em Jales, com os itens e os valores dela.
+
+    O mesmo valia para a movimentacao e para a ordem de producao: o envio
+    mandava a unidade, o download nao lia de volta. Depois da primeira
+    sincronizacao todo movimento ficava sem dono na memoria.
+    ========================================================== */
  {col:'contagens',   tab:'contagens_estoque',
   campos:function(x){return {data:x.data||null,hora:x.hora||null,
+    sucursal_id:x.sucursalId||x.loja||null,
     perda:n(x.perda),ganho:n(x.ganho),resultado:n(x.resultado),itens:x.itens||[]}}},
 
  {col:'categorias', espelha:true,  tab:'categorias',
@@ -15544,11 +15557,13 @@ function volta(linhas,fn,atual,col){
 
   var me=await baixarTab('movimentacoes_estoque', 'movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
   DB.movEst=volta(me,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
+    sucursalId:x.sucursal_id||'',
     motivoId:mapaMt[x.motivo_id]||'',identificacao:x.identificacao||'',obs:x.observacao||'',
     origem:x.origem||'',linhas:x.linhas||[]}},null,'movEst');
 
   var ct=await baixarTab('contagens_estoque', 'contagens_estoque'+qs+'&order=data.desc&limit=500');
   DB.contagens=volta(ct,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
+    sucursalId:x.sucursal_id||'',loja:x.sucursal_id||'',
     perda:Number(x.perda)||0,ganho:Number(x.ganho)||0,resultado:Number(x.resultado)||0,
     itens:x.itens||[]}},null,'contagens');
 
@@ -15595,6 +15610,7 @@ function volta(linhas,fn,atual,col){
   var op=await baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
   DB.ordensProd=volta(op,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     data:x.data,hora:x.hora,resp:x.responsavel||'',obs:x.observacao||'',
+    sucursalId:x.sucursal_id||'',
     previsto:Number(x.previsto)||0,real:Number(x.real_produzido)||0,
     diferenca:Number(x.diferenca)||0,itens:x.itens||[],movId:x.mov_id||''}},null,'ordensProd');
 
@@ -16650,7 +16666,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V110.0.0';
+var VERSAO='V111.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -34937,7 +34953,12 @@ function telaContagem(){
   if(!CT2.de){var d=new Date();
     CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     CT2.ate=hojeISO();}
+  /* inventario e de UMA loja: o historico nunca mistura. A matriz ve o
+     dela; contagem antiga, sem carimbo, fica com a matriz. */
+  var _suc=lojaAtualId();
   var lista=(DB.contagens||[]).filter(function(c){
+    var s=c.sucursalId||c.loja||'';
+    if(s?(s!==_suc):!ehSucMatriz(_suc))return false;
     return (!CT2.de||c.data>=CT2.de)&&(!CT2.ate||c.data<=CT2.ate);
   }).sort(function(a,b){return (b.data+b.hora).localeCompare(a.data+a.hora)});
   var tGanho=lista.reduce(function(a,c){return a+(Number(c.ganho)||0)},0);
@@ -35233,7 +35254,7 @@ async function fecharContagem(){
   aplicarMovimento(mov);
   DB.contagens.push({id:uid('ct'),data:hojeISO(),hora:agoraHM(),movId:mov.id,
     itens:det,perda:+perda.toFixed(2),ganho:+ganho.toFixed(2),
-    resultado:+(ganho+perda).toFixed(2),loja:lojaAtual(),
+    resultado:+(ganho+perda).toFixed(2),loja:lojaAtual(),sucursalId:lojaAtualId(),
     precos:precos.map(function(p2){return {insumoId:p2.item.id,nome:p2.item.nome,de:p2.de,para:p2.para}})});
   CT2.cont={};CT2.custo={};CT2.aba='hist';salvar();telaContagem();
   toast('Contagem finalizada. Estoque ajustado'+
