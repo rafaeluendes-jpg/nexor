@@ -14484,9 +14484,27 @@ async function sincronizar(){
     });
     /* nenhum registro sobe sem identificação própria — é ela que evita duplicar */
     /* o cardápio é guardado por sucursal: vira lista para subir */
+    /* ==========================================================
+       A CONFIGURACAO DO CARDAPIO NUNCA SUBIA
+
+       O envio descarta todo registro sem `_loja` — e o marca como
+       "tenant desconhecido", em silencio, sem erro na tela. Quem poe o
+       carimbo e carimbarOrigem(), que percorre DB e so entra em coleçao
+       que e ARRAY. DB.cardapio e um mapa por unidade, nao um array:
+       nunca foi carimbado. E DB.cardapioL, derivado dele aqui, nascia
+       igualmente sem carimbo — entao era filtrado fora do envio toda
+       vez. Por isso o Rafael salvava o nome do cardapio, o campo
+       aceitava, e a nuvem continuava com o valor antigo.
+
+       O carimbo agora vem junto: da propria configuracao, se ela ja
+       tiver, senao da sessao aberta.
+       ========================================================== */
     DB.cardapioL=Object.keys(DB.cardapio||{}).map(function(k){
       var o=Object.assign({},DB.cardapio[k]);
-      o.id='cc_'+k;o.sucId=k;return o;
+      o.id='cc_'+k;o.sucId=k;
+      o._loja=DB.cardapio[k]._loja||NUVEM.loja;
+      o._suc=DB.cardapio[k]._suc||k;
+      return o;
     });
     MAPA.forEach(function(E3){
       var lst=DB[E3.col]||[];
@@ -16938,7 +16956,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V120.0.0';
+var VERSAO='V121.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

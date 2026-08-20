@@ -3215,3 +3215,27 @@ Entrou `.rowImgs` (`132px 1fr`): a logo num quadradinho do tamanho em que ela
 aparece de verdade, a capa larga, na proporção 2:1 do topo do cardápio.
 
 Assim o que se vê no cadastro é o que vai para o ar.
+
+## V121 — a configuração do cardápio nunca subia
+
+O Rafael salvava o nome e a frase do cardápio, o campo aceitava, e a nuvem
+continuava com o valor antigo. A V119 tratou um sintoma — a descida apagando o
+que ainda não tinha subido —, mas a causa era outra e estava mais fundo.
+
+**O envio descarta todo registro sem `_loja`**, marcando-o como "tenant
+desconhecido". Em silêncio: sem erro na tela, sem entrada no log. Quem põe esse
+carimbo é `carimbarOrigem()`, que percorre o DB e **só entra em coleção que é
+array**. `DB.cardapio` é um **mapa por unidade**, não um array — nunca foi
+carimbado. E `DB.cardapioL`, derivado dele na hora do envio, nascia igualmente
+sem carimbo, e era filtrado fora **toda vez**.
+
+Ou seja: desde que a trava de tenant entrou, **nenhuma configuração de cardápio
+jamais chegou à nuvem**. O que está lá veio de antes.
+
+O carimbo agora é posto na montagem de `DB.cardapioL`: da própria configuração,
+se ela já tiver, senão da sessão aberta.
+
+**Padrão a checar:** qualquer coleção que seja mapa e não array está fora do
+`carimbarOrigem()` e, portanto, fora do envio. Vale varrer o DB atrás de outras.
+
+Testes: 7 casos da montagem e do filtro do envio.
