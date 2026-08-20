@@ -3790,7 +3790,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -3881,12 +3885,16 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -4907,7 +4915,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -4998,12 +5010,16 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -5838,7 +5854,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -5929,12 +5949,16 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -6687,7 +6711,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -6778,12 +6806,16 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -9077,7 +9109,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -9168,12 +9204,16 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -9926,7 +9966,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -10017,12 +10061,16 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -10857,7 +10905,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -10948,12 +11000,16 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -11706,7 +11762,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .motN small{display:block;font-size:10.5px;color:var(--ink-3)}
 .motAc{display:flex;align-items:center;gap:4px}
 .lockIc{color:var(--ink-3);display:flex;padding:0 4px}
-.miniSw{position:relative;width:32px;height:18px;flex:none;cursor:pointer}
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+.miniSw{display:inline-block;vertical-align:middle;position:relative;width:34px;height:19px;flex:none;cursor:pointer}
+.miniSw i{box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .miniSw input{opacity:0;width:0;height:0;position:absolute}
 .miniSw i{position:absolute;inset:0;background:#C6D4E0;border-radius:10px;transition:.15s}
 .miniSw i:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;
@@ -11797,12 +11857,16 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .linkBox b{display:block;font-size:12px;color:var(--ink-2);font-family:ui-monospace,Menlo,monospace}
 .rotImg{display:block;font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
   letter-spacing:.05em;margin-bottom:6px}
-.imgDrop{height:118px;border:2px dashed var(--line);border-radius:10px;display:flex;
+.imgDrop{height:96px;border:2px dashed var(--line);border-radius:10px;display:flex;
   align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:var(--alt);
   transition:.15s}
 .imgDrop:hover{border-color:var(--acc);background:var(--acc-soft)}
 .imgDrop.tem{border-style:solid;padding:0}
 .imgDrop img{width:100%;height:100%;object-fit:contain}
+.cdSalvar{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:11px 16px;background:var(--panel);border-top:1px solid var(--line);
+  position:sticky;bottom:0;z-index:5}
+.cdSalvar span{font-size:11.5px;color:var(--ink-3)}
 .imgDrop.capa img{object-fit:cover}
 .imgDrop div{text-align:center;color:var(--ink-3)}
 .imgDrop div span{display:block;font-size:11px;margin-top:5px}
@@ -16736,7 +16800,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V116.0.0';
+var VERSAO='V117.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41374,7 +41438,7 @@ function telaCfgCardapio(dentro){
    '</div>'+
    '<div class="barraF">'+
     '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
-     '<select onchange="CD.suc=this.value;telaCfgCardapio()">'+
+     '<select onchange="salvarCardapio(false);CD.suc=this.value;telaCfgCardapio()">'+
      sucs.map(function(s){
        return '<option value="'+s.id+'"'+(CD.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'+
@@ -41388,12 +41452,15 @@ function telaCfgCardapio(dentro){
     [['marca','Marca e visual','img'],['loja','Loja e horários','store'],
      ['entrega','Entrega e pagamento','moto'],['prods','Produtos no cardápio','book']]
      .map(function(a){
-      return '<button class="abaCN'+(CD.aba===a[0]?' on':'')+'" onclick="CD.aba=\''+a[0]+'\';telaCfgCardapio()">'+
+      return '<button class="abaCN'+(CD.aba===a[0]?' on':'')+'" onclick="trocarAbaCardapio(\''+a[0]+'\')">'+
       sv(a[2],14)+' '+a[1]+'</button>';}).join('')+
    '</div>'+
    (CD.aba==='marca'?abaMarca(c):CD.aba==='loja'?abaLoja(c):
     CD.aba==='entrega'?abaEntrega(c):abaProdutos(c))+
-   '</div></div>';
+   '</div></div>'+
+   '<div class="cdSalvar"><span>As mudanças valem para o cardápio de '+
+    E(sucNome(CD.suc))+'.</span>'+
+    '<button class="btnP2 ok" onclick="salvarCardapio(true)">'+sv('check',14)+' Salvar</button></div>';
   ligarCardapio();
   rodape('cardápio de '+(sucNome(CD.suc)));
 }
@@ -41749,6 +41816,40 @@ function ligarCardapio(){
     var el=$(id);
     if(el)el.oninput=function(){if(id==='cdTitulo'||id==='cdSlogan')previewCard()};
   });
+}
+/* ==========================================================
+   O QUE FOI DIGITADO PRECISA SER GRAVADO
+
+   Os campos desta tela so tinham `oninput` para atualizar a previa. Nada
+   escrevia na configuracao: quem preenchia WhatsApp, Instagram e endereco
+   e trocava de aba perdia tudo, sem aviso nenhum. Agora existe
+   salvarCardapio(), que le todos os campos das quatro abas — o que nao
+   estiver na tela e ignorado — e roda tambem ao trocar de aba, para nada
+   se perder no caminho.
+   ========================================================== */
+function cardapioAtual(){
+  DB.cardapio=DB.cardapio||{};
+  if(!CD.suc)CD.suc=(sucAtivas()[0]||{}).id||'';
+  DB.cardapio[CD.suc]=DB.cardapio[CD.suc]||{};
+  return DB.cardapio[CD.suc];
+}
+function salvarCardapio(avisar){
+  var c=cardapioAtual();
+  var txt={cdTitulo:'titulo',cdSlogan:'slogan',cdZap:'whatsapp',cdInsta:'instagram',
+    cdEnd:'endereco',cdAviso:'aviso',cdPix:'pixChave',cdTE:'tempoEntrega',cdTR:'tempoRetirada'};
+  Object.keys(txt).forEach(function(id){ if($(id))c[txt[id]]=$(id).value.trim(); });
+  if($('cdCor1'))c.corPrincipal=$('cdCor1').value;
+  if($('cdCor2'))c.corFundo=$('cdCor2').value;
+  if($('cdMin'))c.pedidoMinimo=Number($('cdMin').value)||0;
+  var chk={cdAtivo:'ativo',cdEnt:'aceitaEntrega',cdRet:'aceitaRetirada',cdCpf:'pedeCpf'};
+  Object.keys(chk).forEach(function(id){ if($(id))c[chk[id]]=$(id).checked; });
+  salvar();
+  if(avisar)toast('Cardápio salvo.');
+  return c;
+}
+function trocarAbaCardapio(a){
+  try{ salvarCardapio(false); }catch(e){ _quieto(e,'trocarAbaCardapio'); }
+  CD.aba=a; telaCfgCardapio();
 }
 
 /* ==========================================================

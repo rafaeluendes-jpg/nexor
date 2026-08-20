@@ -3105,3 +3105,31 @@ Duas linhas iguais do mesmo produto com quantidades diferentes **não** contam
 como duplicata — isso é venda legítima.
 
 Testes: 7 casos da rede de segurança.
+
+## V117 — o cardápio digital não gravava nada
+
+O Rafael preencheu WhatsApp, Instagram e endereço, trocou de aba e voltou: em
+branco. **Os campos da tela nunca foram gravados.** `ligarCardapio()` só tinha
+`oninput` para atualizar a prévia; nada escrevia na configuração, e não havia
+botão de salvar. Tudo que era digitado morria na troca de aba.
+
+- Entrou `salvarCardapio()`, que lê os campos das quatro abas — título,
+  slogan, WhatsApp, Instagram, endereço, aviso, cores, chave Pix, tempos,
+  pedido mínimo, e as chaves de ativo/entrega/retirada/CPF. O que não está na
+  tela é ignorado.
+- **Barra de salvar fixa no rodapé**, visível nas quatro abas.
+- Trocar de aba e trocar de loja passam a salvar antes, para nada se perder no
+  caminho.
+
+**O interruptor "No cardápio" estava invisível.** `.miniSw` é um `label`, que é
+inline — largura e altura não valem em elemento inline. Dentro de um flex ele
+virava item flexível e funcionava; solto numa célula de tabela ficava com
+tamanho zero, e só aparecia a bolinha branca do `:before`. Era o que o Rafael
+via na aba Produtos: um pontinho branco no vazio. Resolvido com
+`display:inline-block`, mais um contorno leve para o estado desligado ficar
+visível.
+
+A caixa da logo e da capa foi de 118px para 96px de altura.
+
+**Pendente:** o Rafael pediu um controle de zoom/enquadramento para a foto de
+capa. Não foi feito nesta versão.
