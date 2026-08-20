@@ -2918,9 +2918,33 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .etTab tbody tr.neg td{background:#FBEEEE}
 .etTab td small{display:block;font-size:10px;color:var(--ink-3)}
 .etTab tfoot td{padding:9px 10px;background:var(--alt);border-top:2px solid var(--line);font-size:12.5px}
+/* ==========================================================
+   NA CONTAGEM, A LISTA E QUE IMPORTA
+
+   O cabecalho e os filtros ocupavam quase um terco da altura e sobrava
+   uma tira para os insumos. Aqui eles ficam mais baixos — so nesta
+   tela — e a tabela leva o resto.
+   ========================================================== */
+.ctCheia .etTopo{padding:9px 16px;gap:12px}
+.ctCheia .etTopo h1{font-size:15px}
+.ctCheia .etTopo p{font-size:11.5px}
+.ctCheia .etT{padding:5px 11px;min-width:88px}
+.ctCheia .etT b{font-size:14px}
+.ctCheia .etT.dest b{font-size:16px}
+.ctCheia .etFiltros{padding:8px 16px}
+.ctCheia .etFiltros .gw2{max-width:340px}
 .ctTab .ctIn{width:100%;height:26px;border:1px solid var(--line);border-radius:4px;padding:0 7px;
   text-align:right;outline:none;font-size:12px;background:#fff}
 .ctTab .ctIn:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+/* o custo e editavel, mas discreto: so ganha moldura quando recebe algo */
+.ctTab .ctCu{width:100%;height:26px;border:1px dashed var(--line);border-radius:4px;
+  padding:0 7px;text-align:right;outline:none;font-size:12px;background:transparent;color:var(--ink-2)}
+.ctTab .ctCu::placeholder{color:var(--ink-2);opacity:1}
+.ctTab .ctCu:hover{border-style:solid;background:#fff}
+.ctTab .ctCu:focus{border:1px solid var(--acc);background:#fff;color:var(--ink);
+  box-shadow:0 0 0 3px var(--acc-soft)}
+.ctTab .ctCu:not(:placeholder-shown){border-style:solid;background:var(--acc-soft);
+  border-color:var(--acc);color:var(--acc-d);font-weight:700}
 .ctTab tbody tr.mais td{background:#F1FAF6}
 .ctTab tbody tr.menos td{background:#FCF0F0}
 .ctTab tbody tr.ok4 td{background:#F7F9FA}
@@ -8227,9 +8251,33 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .etTab tbody tr.neg td{background:#FBEEEE}
 .etTab td small{display:block;font-size:10px;color:var(--ink-3)}
 .etTab tfoot td{padding:9px 10px;background:var(--alt);border-top:2px solid var(--line);font-size:12.5px}
+/* ==========================================================
+   NA CONTAGEM, A LISTA E QUE IMPORTA
+
+   O cabecalho e os filtros ocupavam quase um terco da altura e sobrava
+   uma tira para os insumos. Aqui eles ficam mais baixos — so nesta
+   tela — e a tabela leva o resto.
+   ========================================================== */
+.ctCheia .etTopo{padding:9px 16px;gap:12px}
+.ctCheia .etTopo h1{font-size:15px}
+.ctCheia .etTopo p{font-size:11.5px}
+.ctCheia .etT{padding:5px 11px;min-width:88px}
+.ctCheia .etT b{font-size:14px}
+.ctCheia .etT.dest b{font-size:16px}
+.ctCheia .etFiltros{padding:8px 16px}
+.ctCheia .etFiltros .gw2{max-width:340px}
 .ctTab .ctIn{width:100%;height:26px;border:1px solid var(--line);border-radius:4px;padding:0 7px;
   text-align:right;outline:none;font-size:12px;background:#fff}
 .ctTab .ctIn:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+/* o custo e editavel, mas discreto: so ganha moldura quando recebe algo */
+.ctTab .ctCu{width:100%;height:26px;border:1px dashed var(--line);border-radius:4px;
+  padding:0 7px;text-align:right;outline:none;font-size:12px;background:transparent;color:var(--ink-2)}
+.ctTab .ctCu::placeholder{color:var(--ink-2);opacity:1}
+.ctTab .ctCu:hover{border-style:solid;background:#fff}
+.ctTab .ctCu:focus{border:1px solid var(--acc);background:#fff;color:var(--ink);
+  box-shadow:0 0 0 3px var(--acc-soft)}
+.ctTab .ctCu:not(:placeholder-shown){border-style:solid;background:var(--acc-soft);
+  border-color:var(--acc);color:var(--acc-d);font-weight:700}
 .ctTab tbody tr.mais td{background:#F1FAF6}
 .ctTab tbody tr.menos td{background:#FCF0F0}
 .ctTab tbody tr.ok4 td{background:#F7F9FA}
@@ -16601,7 +16649,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V107.0.0';
+var VERSAO='V108.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -34824,7 +34872,27 @@ function exportarEstoque(){
 }
 
 /* ---------- CONTAGEM DE ESTOQUE ---------- */
-var CT2={aba:'hist',busca:'',grupo:'',cont:{},de:'',ate:''};
+/* ==========================================================
+   CUSTO CORRIGIDO NA CONTAGEM
+
+   Regra geral do sistema: custo de insumo nao se digita — sai da nota de
+   entrada pela media ponderada. A contagem e a excecao legitima: quem
+   esta com o produto na mao vendo a etiqueta enxerga o preco de hoje.
+
+   O custo digitado aqui NAO altera nada na hora. Fica guardado em
+   CT2.custo, entra na conta da diferenca na tela, e so e gravado no
+   insumo quando a contagem e finalizada — junto do ajuste de estoque e
+   registrado no historico da contagem, para depois se saber de onde
+   veio aquele preco.
+   ========================================================== */
+var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:''};
+/* custo que vale na tela: o digitado, se houver; senao o do cadastro */
+function custoCont(i){
+  if(!i)return 0;
+  var v=CT2.custo[i.id];
+  if(v!==undefined&&v!==''&&isFinite(parseFloat(v)))return parseFloat(v);
+  return custoAtual(i);
+}
 function telaContagem(){
   baseMov();
   if(CT2.aba==='nova')return telaContagemNova();
@@ -34944,7 +35012,7 @@ function telaContagemNova(){
     return true;
   }).sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
 
-  $('content').innerHTML='<div class="etWrap">'+
+  $('content').innerHTML='<div class="etWrap ctCheia">'+
    '<div class="etTopo" style="flex:none">'+
     '<button class="btnP2" onclick="voltarContagem()">'+sv('cr2',13)+' Voltar</button>'+
     '<div><h1>Nova contagem</h1><p>Informe a quantidade contada. O sistema calcula a diferença.</p></div>'+
@@ -34958,7 +35026,7 @@ function telaContagemNova(){
      (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(CT2.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
     '</select></div>'+
     '<button class="btnP2" onclick="preencherContagem()">Preencher com o sistema</button>'+
-    '<button class="btnP2" onclick="CT2.cont={};telaContagem()">Limpar</button>'+
+    '<button class="btnP2" onclick="CT2.cont={};CT2.custo={};telaContagem()">Limpar</button>'+
    '</div>'+
    '<div class="etTabW">'+
    (lista.length?'<table class="etTab ctTab"><thead><tr>'+
@@ -34967,7 +35035,7 @@ function telaContagemNova(){
     '<th style="width:118px;text-align:right">Qtd. no sistema</th>'+
     '<th style="width:130px;text-align:right">Qtd. conferida</th>'+
     '<th style="width:120px;text-align:right">Diferença</th>'+
-    '<th style="width:110px;text-align:right">Custo médio</th>'+
+    '<th style="width:118px">Custo médio</th>'+
     '<th style="width:130px;text-align:right">Valor da diferença</th></tr></thead><tbody>'+
     lista.map(function(i){return linhaContagem(i)}).join('')+'</tbody>'+
     '<tfoot><tr><td colspan="5"><b>Resultado da contagem</b></td>'+
@@ -34986,7 +35054,7 @@ function linhaContagem(i){
   var c=CT2.cont[i.id];
   var tem=(c!==undefined&&c!=='');
   var d=tem?((parseFloat(c)||0)-sis):0;
-  var v=d*custoAtual(i);
+  var v=d*custoCont(i);
   return '<tr id="lc-'+i.id+'" class="'+(tem?(Math.abs(d)<0.0001?'ok4':(d>0?'mais':'menos')):'')+'">'+
   '<td>'+E(i.codigo)+'</td><td><b>'+E(i.nome)+'</b></td>'+
   '<td>'+E(g?g.nome:'—')+'</td>'+
@@ -34995,7 +35063,8 @@ function linhaContagem(i){
   '<td style="text-align:right" class="cDif2">'+(tem
     ?'<b class="'+(d>0?'vg':d<0?'vr':'')+'">'+(d>0?'+':'')+fmtQt(d)+' '+un(i.unidade).ab+'</b>'
     :'<span style="color:var(--ink-3)">—</span>')+'</td>'+
-  '<td style="text-align:right">'+money(custoAtual(i))+'</td>'+
+  '<td><input class="ctCu" data-id="'+i.id+'" type="number" step="0.0001" min="0" '+
+   'value="'+(CT2.custo[i.id]!==undefined?CT2.custo[i.id]:'')+'" placeholder="'+money(custoAtual(i))+'"></td>'+
   '<td style="text-align:right" class="cVal2">'+(tem
     ?'<b class="'+(v>0?'vg':v<0?'vr':'')+'">'+(v>0?'+ ':v<0?'- ':'')+'R$ '+money(Math.abs(v))+'</b>'
     :'<span style="color:var(--ink-3)">—</span>')+'</td></tr>';
@@ -35007,7 +35076,7 @@ function resumoContagem(lista){
     if(c===undefined||c==='')return;
     conf++;
     var d=(parseFloat(c)||0)-(Number(i.estoqueAtual)||0);
-    var v=d*custoAtual(i);
+    var v=d*custoCont(i);
     if(d<0)perda+=v; else ganho+=v;
   });
   return '<div class="etT"><span>Conferidos</span><b>'+conf+'</b></div>'+
@@ -35023,7 +35092,7 @@ function atualizaLinhaCont(id){
   var c=CT2.cont[id];
   var tem=(c!==undefined&&c!=='');
   var d=tem?((parseFloat(c)||0)-sis):0;
-  var v=d*custoAtual(i);
+  var v=d*custoCont(i);
   tr.className=tem?(Math.abs(d)<0.0001?'ok4':(d>0?'mais':'menos')):'';
   var cd=tr.querySelector('.cDif2'),cv=tr.querySelector('.cVal2');
   if(cd)cd.innerHTML=tem?('<b class="'+(d>0?'vg':d<0?'vr':'')+'">'+(d>0?'+':'')+fmtQt(d)+' '+un(i.unidade).ab+'</b>')
@@ -35040,7 +35109,7 @@ function atualizaContagem(){
     var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
     var d=(parseFloat(c)||0)-(Number(i.estoqueAtual)||0);
-    var v=d*custoAtual(i);
+    var v=d*custoCont(i);
     if(d<0)perda+=v; else ganho+=v;
   });
   var r=$('ctRod'),t=$('ctRes');
@@ -35048,6 +35117,14 @@ function atualizaContagem(){
   if(t)t.innerHTML='<b class="'+((ganho+perda)>=0?'vg':'vr')+'">R$ '+money(ganho+perda)+'</b>';
 }
 function ligarContagem(){
+  var cus=document.querySelectorAll('.ctCu');
+  for(var j=0;j<cus.length;j++){
+    cus[j].oninput=function(){
+      var id=this.getAttribute('data-id');
+      if(this.value==='')delete CT2.custo[id]; else CT2.custo[id]=this.value;
+      atualizaLinhaCont(id);
+    };
+  }
   var ins=document.querySelectorAll('.ctIn');
   for(var i=0;i<ins.length;i++){
     ins[i].oninput=function(){
@@ -35071,26 +35148,45 @@ function preencherContagem(){
 }
 async function fecharContagem(){
   baseMov();
-  var linhas=[],det=[],perda=0,ganho=0;
+  var linhas=[],det=[],precos=[],perda=0,ganho=0;
   itensEstoque().forEach(function(i){
     var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
     var sis=Number(i.estoqueAtual)||0;
     var conf=parseFloat(c)||0;
     var d=+(conf-sis).toFixed(4);
-    var v=d*custoAtual(i);
+    var cAnt=custoAtual(i), cNovo=custoCont(i);
+    var mudouCusto=Math.abs(cNovo-cAnt)>0.00005;
+    var v=d*cNovo;
     det.push({insumoId:i.id,nome:i.nome,unidade:i.unidade,sistema:sis,conferido:conf,
-      diferenca:d,custo:custoAtual(i),valor:+v.toFixed(2)});
+      diferenca:d,custo:cNovo,custoAnterior:cAnt,custoCorrigido:mudouCusto,valor:+v.toFixed(2)});
+    if(mudouCusto)precos.push({item:i,de:cAnt,para:cNovo});
     if(d<0)perda+=v; else ganho+=v;
     if(Math.abs(d)<0.0001)return;
     linhas.push({insumoId:i.id,nome:i.nome,unidade:i.unidade,qtd:Math.abs(d),
-      custo:custoAtual(i),direcao:(d>0?'entrada':'saida'),origem:'contagem',
+      custo:cNovo,direcao:(d>0?'entrada':'saida'),origem:'contagem',
       sistema:sis,conferido:conf,diferenca:d});
   });
   if(!det.length){toast('Informe a quantidade conferida de ao menos um item.');return;}
+  /* mexer em preco atinge toda ficha que usa o item: avisar antes, com nome e valor */
+  var avisoPreco='';
+  if(precos.length){
+    avisoPreco='\n\nCUSTO CORRIGIDO em '+precos.length+' item(ns):\n'+
+      precos.slice(0,8).map(function(p2){
+        return '· '+p2.item.nome+': R$ '+money(p2.de)+' → R$ '+money(p2.para);
+      }).join('\n')+
+      (precos.length>8?'\n· e mais '+(precos.length-8)+'...':'')+
+      '\n\nO novo custo passa a valer em todas as fichas técnicas que usam esses itens.';
+  }
   if(!await pergunta('Finalizar a contagem?\n\n'+det.length+' item(ns) conferido(s), '+linhas.length+' com diferença.\n'+
     'Sobra R$ '+money(ganho)+' · Perda R$ '+money(Math.abs(perda))+'\n\n'+
-    'O estoque será ajustado e o lançamento vai para a movimentação.'))return;
+    'O estoque será ajustado e o lançamento vai para a movimentação.'+avisoPreco))return;
+  /* grava o custo antes do ajuste, para a movimentacao ja usar o valor novo */
+  precos.forEach(function(p2){
+    p2.item.custo=p2.para;
+    p2.item.custoUltima=p2.para;
+    p2.item.modoCusto='manual';
+  });
   var ag=new Date();
   var mov={id:uid('mv'),data:hojeISO(),hora:agoraHM(),motivoId:'mv_cont',
     identificacao:'Contagem '+ag.toLocaleDateString('pt-BR'),
@@ -35099,9 +35195,11 @@ async function fecharContagem(){
   aplicarMovimento(mov);
   DB.contagens.push({id:uid('ct'),data:hojeISO(),hora:agoraHM(),movId:mov.id,
     itens:det,perda:+perda.toFixed(2),ganho:+ganho.toFixed(2),
-    resultado:+(ganho+perda).toFixed(2),loja:lojaAtual()});
-  CT2.cont={};CT2.aba='hist';salvar();telaContagem();
-  toast('Contagem finalizada. Estoque ajustado e lançado na movimentação.');
+    resultado:+(ganho+perda).toFixed(2),loja:lojaAtual(),
+    precos:precos.map(function(p2){return {insumoId:p2.item.id,nome:p2.item.nome,de:p2.de,para:p2.para}})});
+  CT2.cont={};CT2.custo={};CT2.aba='hist';salvar();telaContagem();
+  toast('Contagem finalizada. Estoque ajustado'+
+    (precos.length?', '+precos.length+' custo(s) atualizado(s)':'')+' e lançado na movimentação.');
 }
 function verContagem(id){
   var c=(DB.contagens||[]).find(function(x){return x.id===id});
@@ -35121,7 +35219,9 @@ function verContagem(id){
     '<th style="width:110px;text-align:right">Diferença</th>'+
     '<th style="width:120px;text-align:right">Valor</th></tr></thead><tbody>'+
     (c.itens||[]).map(function(x){
-      return '<tr><td>'+E(x.nome)+'</td>'+
+      return '<tr><td>'+E(x.nome)+
+      (x.custoCorrigido?'<br><small style="color:var(--acc-d)">custo corrigido: R$ '+
+        money(x.custoAnterior)+' → R$ '+money(x.custo)+'</small>':'')+'</td>'+
       '<td style="text-align:right">'+fmtQt(x.sistema)+' '+un(x.unidade).ab+'</td>'+
       '<td style="text-align:right">'+fmtQt(x.conferido)+' '+un(x.unidade).ab+'</td>'+
       '<td style="text-align:right"><b class="'+(x.diferenca>0?'vg':x.diferenca<0?'vr':'')+'">'+

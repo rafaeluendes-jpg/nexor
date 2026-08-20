@@ -2827,3 +2827,39 @@ e o total inteiro na tela.
 **Lição, para valer nas próximas:** ao tirar `max-width` de uma tela, conferir
 se o mesmo atributo não carregava o respiro lateral — e olhar a tela renderizada
 depois, não só o código.
+
+## V108 — custo médio editável na contagem de estoque
+
+Pedido do Rafael: durante a contagem, quem está com o produto na mão vê a
+etiqueta e sabe o preço de hoje. A banana está a R$ 5,00 no cadastro e ele
+acabou de pagar R$ 6,00 — quer corrigir ali mesmo.
+
+**Isso é uma exceção deliberada à regra do sistema.** Custo de insumo não se
+digita: sai da nota de entrada pela média ponderada. A contagem é a exceção
+legítima, porque é uma conferência física do que existe e do que vale.
+
+Como ficou:
+
+- A coluna **Custo médio** virou campo. Em branco mostra o custo do cadastro
+  como marca-d'água; digitado, fica destacado em dourado.
+- `custoCont(item)` é o custo que vale **na tela**: o digitado, se houver,
+  senão o do cadastro. Todas as contas — diferença, sobra, perda, resultado,
+  rodapé — passaram a usar essa função.
+- **Nada muda no cadastro enquanto se digita.** O valor fica em `CT2.custo` e
+  só é gravado ao **finalizar a contagem**, junto do ajuste de estoque.
+- Antes de finalizar, a confirmação lista item por item o que vai mudar
+  (`Banana Fruta: R$ 5,00 → R$ 6,00`) e avisa que o novo custo passa a valer em
+  todas as fichas técnicas que usam o item.
+- O histórico da contagem guarda `custoAnterior`, `custo` e a lista `precos`,
+  e a tela de detalhe mostra "custo corrigido: R$ 5,00 → R$ 6,00".
+
+O efeito em cascata é automático: o custo da ficha técnica é calculado a partir
+de `custoAtual()` de cada ingrediente na hora de exibir, então basta gravar no
+insumo para todas as fichas, o CMV e os relatórios seguirem o valor novo.
+
+Também nesta versão: o cabeçalho e os filtros da contagem ficaram mais baixos
+(classe `.ctCheia`, só nesta tela) para a lista de insumos levar a maior parte
+da altura.
+
+Testes: 9 casos de `custoCont` — campo vazio, valor digitado, apagado, texto
+inválido, zero, item sem custo e item inexistente.
