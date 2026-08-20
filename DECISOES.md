@@ -3133,3 +3133,21 @@ A caixa da logo e da capa foi de 118px para 96px de altura.
 
 **Pendente:** o Rafael pediu um controle de zoom/enquadramento para a foto de
 capa. Não foi feito nesta versão.
+
+## V118 — horário do cardápio preenchido de uma vez
+
+Preencher sete dias um a um é trabalho à toa: na prática a loja abre no mesmo
+horário a semana quase inteira e muda só no domingo. Digitar catorze horários
+para mudar dois é o tipo de coisa que faz ninguém manter o cadastro em dia.
+
+Entrou uma barra no topo da lista: um horário de abertura, um de fechamento, e
+quatro botões — **Seg a Sex · Seg a Sáb · Sáb e Dom · Todos os dias**. Aplica no
+conjunto escolhido e **reabre quem estava fechado**, porque quem escolhe um
+horário para o dia está dizendo que ele funciona. Depois é só ajustar a exceção
+no dia certo.
+
+Entrou também `fecharDias()`, que marca um conjunto como fechado **sem apagar o
+horário** — assim reabrir depois não exige redigitar.
+
+Testes: 10 casos — cada conjunto, dias não tocados, reabertura, fechar sem
+perder o horário, e campo vazio não alterando nada.
