@@ -15234,7 +15234,10 @@ function volta(linhas,fn,atual,col){
   var en=await baixarTab('entregadores', 'entregadores'+q+'&select=*,entregador_taxas(*)');
   DB.entregadores=volta(en,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
     pix:x.pix,diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false,
-    taxas:(x.entregador_taxas||[]).map(function(t){return {cidade:t.cidade,valor:Number(t.valor)||0}})}},null,'entregadores');
+    /* mesmo defeito da venda: sem o id de volta, a taxa era reinserida a
+       cada sincronizacao */
+    taxas:(x.entregador_taxas||[]).map(function(t){return {id:t.ref_local||t.id,
+      cidade:t.cidade,valor:Number(t.valor)||0}})}},null,'entregadores');
   var lf=await baixarTab('lancamentos_financeiros', 'lancamentos_financeiros'+q+'&select=*&vencimento=gte.'+_desde+'&order=vencimento.desc&limit=3000');
   var mapaSub={};(cf||[]).forEach(function(c2){(c2.subcategorias_financeiras||[]).forEach(function(s){
     mapaSub[s.id]=s.ref_local||s.id})});
@@ -15694,7 +15697,8 @@ function volta(linhas,fn,atual,col){
     vendas:Number(x.vendas)||0,esperado:Number(x.esperado)||0,contado:Number(x.contado)||0,
     totalInformado:Number(x.total_informado)||0,qtd:x.qtd_pedidos||0,
     conferencia:x.conferencia||{},obs:x.observacao||'',
-    movimentos:(x.caixa_movimentos||[]).map(function(m2){return {tipo:m2.tipo,
+    movimentos:(x.caixa_movimentos||[]).map(function(m2){return {id:m2.ref_local||m2.id,
+      tipo:m2.tipo,
       valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,quando:m2.criado_em}})};
   },null,'caixas');
   /* segurança: só pode haver um caixa aberto */
@@ -15726,10 +15730,25 @@ function volta(linhas,fn,atual,col){
     equipamento:x.equipamento||'',senha:Number(x.senha_totem)||0,
     mesaId:x.mesa_id||'',mesa:Number(x.mesa_numero)||0,
     comandaNome:x.comanda_nome||'',taxaServico:Number(x.taxa_servico)||0,
-    itens:(x.pedido_itens||[]).map(function(i3){return {produtoId:mapaPr[i3.produto_id]||'',
+    /* ==========================================================
+       O ITEM DA VENDA PRECISA VOLTAR COM O IDENTIFICADOR
+
+       ESTA E A CAUSA DA VENDA QUE MULTIPLICA.
+       O envio da um ref_local ao item que ainda nao tem (`o.id`), e grava
+       esse id no proprio objeto. So que o download reconstruia a lista de
+       itens SEM o id. Resultado: a cada sincronizacao os itens voltavam
+       "novos", ganhavam um ref_local aleatorio no envio seguinte e eram
+       INSERIDOS de novo — o indice unico e por ref_local, entao nada
+       barrava. Uma venda de teste chegou a 10.024 itens e 14.522
+       pagamentos, somando R$ 150 mil em relatorio de produto.
+       A ficha tecnica ja lia `id:i2.ref_local` e por isso nunca duplicou.
+       ========================================================== */
+    itens:(x.pedido_itens||[]).map(function(i3){return {id:i3.ref_local||i3.id,
+      produtoId:mapaPr[i3.produto_id]||'',
       nome:i3.nome,qtd:Number(i3.quantidade)||0,unitario:Number(i3.unitario)||0,
       total:Number(i3.total)||0,obs:i3.observacao||'',opcoes:i3.opcoes||[]}}),
-    pagamentos:(x.pedido_pagamentos||[]).map(function(p2){return {formaId:mapaFP[p2.forma_id]||'',
+    pagamentos:(x.pedido_pagamentos||[]).map(function(p2){return {id:p2.ref_local||p2.id,
+      formaId:mapaFP[p2.forma_id]||'',
       valor:Number(p2.valor)||0}})}},null,'pedidos');
 
   var mapaPed={};pd.forEach(function(x){mapaPed[x.id]=x.ref_local||x.id});
@@ -16716,7 +16735,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V114.0.0';
+var VERSAO='V115.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

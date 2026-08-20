@@ -3042,3 +3042,32 @@ matriz, e tentativa de pedir a venda de outra unidade estando dentro de uma.
 **Ainda a conferir:** há 46 lugares que varrem `DB.pedidos` direto. Os painéis
 principais passam por `pedsPeriodo`/`pedidosDeSuc` e estão cobertos; os demais
 (caixa, comandas, entregadores, cupons) precisam ser auditados um a um.
+
+## V115 — a venda multiplicava os itens a cada sincronização
+
+Descoberto ao apagar a carga de 18/08: as 19 vendas tinham **528 itens** e
+**494 pagamentos** em vez de 19 e 19. E a venda de teste que já existia,
+`ped_mt0twvxrnleb` — um Copo P cancelado de R$ 15,00 — tinha **10.024 itens e
+14.522 pagamentos**, somando R$ 150.360 no relatório por produto.
+
+**Causa.** No envio, o item que ainda não tem identificador ganha um
+(`o.id = pai_j_random`) e esse id é gravado no próprio objeto. Mas o
+**download reconstruía a lista de itens sem o `id`**. A cada sincronização os
+itens voltavam "novos", ganhavam um `ref_local` aleatório no envio seguinte e
+eram **inseridos de novo**. O índice único é por `ref_local`, então nada
+barrava: cada rodada de sync criava uma cópia de todos os itens de todas as
+vendas.
+
+A ficha técnica já lia `id:i2.ref_local` — por isso nunca duplicou. Faltava o
+mesmo no pedido.
+
+Corrigido em `pedido_itens`, `pedido_pagamentos`, `entregador_taxas` e
+`caixa_movimentos`, que tinham o mesmo defeito. `opcoes`,
+`subcategorias_financeiras` e `areas_zonas` já liam o id de volta.
+
+Limpeza: 10.023 itens e 14.521 pagamentos duplicados apagados, mantendo uma
+linha de cada combinação. A venda de teste voltou a 1 item e 1 pagamento.
+
+**Padrão a checar em toda lista-filha nova:** se o download não devolve o
+`id`/`ref_local` do filho, ele duplica em toda sincronização — silenciosamente,
+porque o total do pai continua certo e só o detalhe por produto incha.
