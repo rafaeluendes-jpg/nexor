@@ -3307,3 +3307,22 @@ Duas correções:
 
 **Padrão:** trava baseada em comparação de data só funciona se a data do outro
 lado for realmente atualizada. E toda trava desse tipo precisa de prazo.
+
+## V124 — o Salvar das respostas lia a memória, não a tela
+
+O Rafael cadastrou a resposta sobre franquia, clicou em Salvar, e o banco
+gravou `respostas: []`. A linha foi atualizada — o Salvar rodou —, mas a lista
+subiu vazia.
+
+Cada campo de palavra-chave gravava no objeto pelo `onchange`, que só dispara
+quando o campo perde o foco. Quem digitava e clicava direto em Salvar, ou
+trocava de aba, podia perder o que tinha acabado de escrever. E sem erro
+nenhum: o banco recebia lista vazia e aceitava.
+
+`salvarZap()` agora **varre os campos da tela**, do mesmo jeito que já fazia
+com o nome da atendente e as regras. Linha sem palavra-chave e sem texto é
+descartada.
+
+**Padrão:** onde o Salvar depende de `onchange` para ter capturado o valor, o
+usuário perde dado ao clicar direto no botão. Ler da tela no momento de salvar
+é o único jeito confiável.

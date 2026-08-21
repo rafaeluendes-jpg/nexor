@@ -16974,7 +16974,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V123.0.0';
+var VERSAO='V124.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42940,9 +42940,9 @@ function abaRespostas(c){
     '<div class="colB" style="padding:14px">'+
     ((c.respostas||[]).length?c.respostas.map(function(r,k){
       return '<div class="respZ">'+
-       '<input value="'+E(r.chaves||'')+'" placeholder="palavras separadas por vírgula" '+
+       '<input id="zpRc'+k+'" value="'+E(r.chaves||'')+'" placeholder="palavras separadas por vírgula" '+
         'onchange="setResp('+k+',\'chaves\',this.value)">'+
-       '<textarea rows="2" placeholder="o que responder" '+
+       '<textarea id="zpRr'+k+'" rows="2" placeholder="o que responder" '+
         'onchange="setResp('+k+',\'resposta\',this.value)">'+E(r.resposta||'')+'</textarea>'+
        '<button class="rBtn rd" onclick="remResp('+k+')">'+sv('trash',11)+'</button>'+
       '</div>';
@@ -42999,6 +42999,29 @@ async function salvarZap(silencioso){
   if($('iaNome'))c.iaNome=$('iaNome').value.trim();
   if($('iaApres'))c.iaApresenta=$('iaApres').checked;
   if($('iaRegras'))c.iaRegras=$('iaRegras').value;
+  /* ==========================================================
+     O SALVAR LE A TELA, NAO A MEMORIA
+
+     As palavras-chave dependiam do `onchange` de cada campo ter rodado
+     antes. Quem digitava e clicava direto em Salvar — ou trocava de aba
+     — podia perder o que tinha acabado de escrever: a lista subia vazia
+     e o banco gravava `[]`, sem erro nenhum. Foi o que aconteceu com a
+     resposta sobre franquia.
+
+     Agora o Salvar varre os campos da tela, do mesmo jeito que ja fazia
+     com o nome e as regras. Linha sem palavra-chave e sem texto e
+     descartada, para nao acumular linha vazia.
+     ========================================================== */
+  if(document.getElementById('zpRc0')||((c.respostas||[]).length)){
+    var lidas=[];
+    for(var ri=0;ri<200;ri++){
+      var ei=document.getElementById('zpRc'+ri), et=document.getElementById('zpRr'+ri);
+      if(!ei&&!et)break;
+      var ch=(ei?ei.value:'').trim(), tx=(et?et.value:'').trim();
+      if(ch||tx)lidas.push({chaves:ch,resposta:tx});
+    }
+    if(lidas.length||document.getElementById('zpRc0'))c.respostas=lidas;
+  }
   var rt=document.querySelectorAll('input[name="iaTom"]');
   for(var ti=0;ti<rt.length;ti++)if(rt[ti].checked)c.iaTom=rt[ti].value;
   salvar();
