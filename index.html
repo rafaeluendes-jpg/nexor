@@ -16956,7 +16956,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V121.0.0';
+var VERSAO='V122.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42579,6 +42579,17 @@ async function zapApi(caminho,metodo,corpo){
 }
 function telaZap(dentro){
   baseMov();baseSuc();baseZap();
+  /* ==========================================================
+     O CAMINHO DE VOLTA NAO PODE SUMIR
+
+     `dentro` dizia se a tela foi aberta a partir de Canais de Venda, e so
+     entao aparecia o botao Canais. Mas toda troca de aba, de loja ou
+     salvamento chama telaZap() sem o argumento — e o botao desaparecia.
+     Quem entrava, clicava numa aba e queria voltar ficava sem saida.
+     Agora a origem fica guardada em ZP.dentro.
+     ========================================================== */
+  if(dentro!==undefined)ZP.dentro=!!dentro;
+  dentro=ZP.dentro;
   var c=zapAtual();
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
@@ -42591,7 +42602,7 @@ function telaZap(dentro){
    '</div>'+
    '<div class="barraF">'+
     '<div class="bfCampo" style="min-width:230px"><label>Loja</label>'+
-     '<select onchange="ZP.suc=this.value;telaZap()">'+
+     '<select onchange="trocarLojaZap(this.value)">'+
      sucAtivas().map(function(s){
        return '<option value="'+s.id+'"'+(ZP.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'+
@@ -42603,12 +42614,24 @@ function telaZap(dentro){
     [['conexao','Conexão','chat'],['ia','Atendente virtual','users'],
      ['avisos','Avisos do pedido','cart'],
      ['respostas','Respostas automáticas','book']].map(function(a){
-      return '<button class="abaCN'+(ZP.aba===a[0]?' on':'')+'" onclick="ZP.aba=\''+a[0]+'\';telaZap()">'+
+      return '<button class="abaCN'+(ZP.aba===a[0]?' on':'')+'" onclick="trocarAbaZap(\''+a[0]+'\')">'+
       sv(a[2],14)+' '+a[1]+'</button>';}).join('')+
    '</div>'+
    (ZP.aba==='conexao'?abaConexao(c):ZP.aba==='ia'?abaIA(c):
     ZP.aba==='avisos'?abaAvisos(c):abaRespostas(c))+
-   '</div></div>';
+   '</div>'+
+   /* ==========================================================
+      SALVAR PERTO DO CAMPO, E COM A LOJA ESCRITA
+
+      A configuracao da Carla e POR LOJA. O Rafael digitou "Carla" dez
+      vezes com o seletor na Matriz e foi conferir em Santa Fe — que
+      continuava "Nina". Salvou todas as vezes, sempre na loja errada.
+      O botao ficava la em cima, longe do campo, e nada dizia para qual
+      unidade ia. Agora o nome da loja vai escrito ao lado do botao.
+      ========================================================== */
+   '<div class="cdSalvar"><span>As mudanças valem para <b>'+E(sucNome(ZP.suc))+'</b>.</span>'+
+    '<button class="btnP2 ok" onclick="salvarZap()">'+sv('check',14)+' Salvar</button></div>'+
+   '</div>';
   if(ZP.aba==='conexao')verEstadoZap();
   rodape();
 }
@@ -42935,7 +42958,17 @@ function telaZapSalvaAba(){
   salvar();telaZap();
 }
 /* ---------- salvar ---------- */
-async function salvarZap(){
+/* trocar de aba ou de loja sem salvar era o caminho mais curto para
+   perder o que acabou de ser digitado */
+async function trocarAbaZap(a){
+  try{ await salvarZap(true); }catch(e){ _quieto(e,'trocarAbaZap'); }
+  ZP.aba=a; telaZap();
+}
+async function trocarLojaZap(id){
+  try{ await salvarZap(true); }catch(e){ _quieto(e,'trocarLojaZap'); }
+  ZP.suc=id; telaZap();
+}
+async function salvarZap(silencioso){
   var c=zapAtual();
   if($('zpAtivo'))c.ativo=$('zpAtivo').checked;
   if($('zpAvisos'))c.avisosAtivos=$('zpAvisos').checked;
@@ -42964,7 +42997,7 @@ async function salvarZap(){
       await gravarCfgZap(alvos[ai],{
         robo_ativo:c.ativo!==false,
         nome_loja:cd.titulo||sucNome(ZP.suc),
-        link_cardapio:'https://rafaeluendes-jpg.github.io/delivery/',
+        link_cardapio:linkCardapio(alvos[ai]),
         saudacao:c.saudacao||null,texto_horario:c.textoHorario||null,
         texto_entrega:c.textoEntrega||null,texto_pagamento:c.textoPagamento||null,
         texto_endereco:c.textoEndereco||null,
@@ -42981,14 +43014,14 @@ async function salvarZap(){
         ia_tom:c.iaTom||'acolhedor',ia_regras:c.iaRegras||null,
         ia_apresenta:c.iaApresenta!==false
       });
-      toast('Configuração salva — o robô já está usando.');
+      if(!silencioso)toast('Configuração salva — o robô já está usando.');
       return;
     }catch(e){
       toast('Salvo aqui, mas não subiu para o robô: '+String(e.message||'').slice(0,50));
       return;
     }
   }
-  toast('Configuração salva neste aparelho. Ligue a nuvem para o robô usar.');
+  if(!silencioso)toast('Configuração salva neste aparelho. Ligue a nuvem para o robô usar.');
 }
 /* ---------- envio automático quando o pedido muda de fase ---------- */
 /* acha a configuração da loja; se o código não bater, usa a primeira */

@@ -3239,3 +3239,46 @@ se ela já tiver, senão da sessão aberta.
 `carimbarOrigem()` e, portanto, fora do envio. Vale varrer o DB atrás de outras.
 
 Testes: 7 casos da montagem e do filtro do envio.
+
+## V122 — o robô do WhatsApp: caminho de volta, salvar por loja e o link curto
+
+**O botão "Canais" sumia.** `telaZap(dentro)` só mostrava o caminho de volta
+quando recebia o argumento — e toda troca de aba, de loja ou salvamento chama
+`telaZap()` sem ele. Quem entrava por Canais, clicava numa aba e queria voltar
+ficava sem saída. A origem agora fica em `ZP.dentro`.
+
+**O nome da atendente "não salvava".** Salvava sim — na loja errada. A
+configuração é por unidade, e o Rafael digitou "Carla" dez vezes com o seletor
+na Matriz, conferindo depois em Santa Fé, que continuava "Nina". O banco
+confirmou: `zap.suc_matriz.iaNome = Carla`, `zap.suc_mt1unhbx2xrb.iaNome =
+Nina`. O botão ficava no topo, longe do campo, e nada dizia para qual unidade
+ia. Agora há uma **barra fixa no rodapé com o nome da loja escrito**, e trocar
+de aba ou de loja salva antes.
+
+**O link que o robô manda** passou a ser o atalho curto da unidade
+(`linkCardapio`), em vez do endereço fixo do GitHub.
+
+## O que travava a conexão do WhatsApp — e não era nada do que parecia
+
+Quatro camadas, descobertas nesta ordem:
+
+1. **CORS** — `joiagest.com.br` não estava entre as origens liberadas do robô.
+2. **`daMinhaLoja`** comparava `req.params.loja` com `perfil.loja_id`. O
+   primeiro é a **unidade** (`suc_...`), o segundo é o **uuid da empresa**:
+   403 para todo mundo, sempre. A tela traduzia isso como "não consegui falar
+   com o robô", o que mandou a investigação para o Render.
+3. **`whatsapp_sessoes` com RLS ligado e nenhuma política** — o Postgres
+   recusa tudo nesse estado.
+4. **A causa real:** o gatilho `bump_loja_versao`, presente em 40 tabelas,
+   converte `loja_id` para uuid. `whatsapp_sessoes` é a **única** em que essa
+   coluna é `text` e guarda a referência da **unidade**. A conversão falhava e
+   **derrubava a gravação inteira** — a sessão nunca era salva e o pareamento
+   morria em `408` depois de cinco QRs. O gatilho passou a ignorar valor que
+   não seja uuid; nas outras 39 nada muda.
+
+Depois disso: **42 chaves de sessão gravadas**, WhatsApp conectado no
+5517996546445.
+
+**Lição:** o log do Render mostrava `QR gerado` cinco vezes e `caiu (408)` —
+o padrão exato de "pareamento não fecha". O que fechou o diagnóstico foi
+tentar a gravação direto no banco e ler o erro do Postgres.
