@@ -3604,7 +3604,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -4028,10 +4032,18 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -4744,7 +4756,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -5168,10 +5184,18 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -5698,7 +5722,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -6122,10 +6150,18 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -6570,7 +6606,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -6994,10 +7034,18 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -8983,7 +9031,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -9407,10 +9459,18 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -9855,7 +9915,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -10279,10 +10343,18 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -10809,7 +10881,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -11233,10 +11309,18 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -11681,7 +11765,11 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
 .colH{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--alt);
   border-bottom:1px solid var(--line-2);font-size:11px;font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:.05em}
-.colH .cnt2{margin-left:auto}
+.colH .cnt2{margin-left:0}
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+.zapResp .colB{max-height:none;overflow:visible}
+.zapResp{align-items:flex-start}
 .colB{overflow-y:auto;max-height:calc(100vh - 300px)}
 .cfgDreTab tr.semRub td{background:#FFFBF2}
 .cfgDreTab tr.semRub select{border-color:#E8CFA0}
@@ -12105,10 +12193,18 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   line-height:1.6;color:#111;position:relative}
 .avisoP:after{content:'';position:absolute;right:-5px;top:11px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
-.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:10px;margin-bottom:9px;
-  position:relative}
+.respZ{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:12px 12px 4px 16px;
+  margin:0 0 12px 10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .respZ input,.respZ textarea{width:100%;border:1px solid var(--line);border-radius:6px;
-  padding:7px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit}
+  padding:8px 10px;font-size:12.5px;margin-bottom:10px;outline:none;font-family:inherit;
+  line-height:1.5;resize:vertical}
+.respZ textarea{min-height:78px}
+.respZ input:focus,.respZ textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.respZ label{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.respZn{position:absolute;left:-9px;top:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
@@ -16974,7 +17070,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V124.0.0';
+var VERSAO='V125.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42647,7 +42743,10 @@ function telaZap(dentro){
       O botao ficava la em cima, longe do campo, e nada dizia para qual
       unidade ia. Agora o nome da loja vai escrito ao lado do botao.
       ========================================================== */
-   '<div class="cdSalvar"><span>As mudanças valem para <b>'+E(sucNome(ZP.suc))+'</b>.</span>'+
+   '<div class="cdSalvar">'+
+    '<span id="zpSalvo">'+(ZP._salvoEm
+      ?'<b style="color:#1B5E36">salvo às '+ZP._salvoEm+'</b>'
+      :'As mudanças valem para <b>'+E(sucNome(ZP.suc))+'</b>.')+'</span>'+
     '<button class="btnP2 ok" onclick="salvarZap()">'+sv('check',14)+' Salvar</button></div>'+
    '</div>';
   if(ZP.aba==='conexao')verEstadoZap();
@@ -42927,7 +43026,7 @@ function abaRespostas(c){
    '<div class="cnAviso" style="margin-bottom:12px">'+sv('help',15)+
    '<div>Deixe em branco para usar a resposta padrão do sistema. '+
    'Use <b>{link}</b> para inserir o endereço do cardápio.</div></div>'+
-   '<div class="cfgDuas" style="padding:0">'+
+   '<div class="cfgDuas zapResp" style="padding:0">'+
    '<div class="cfgCol"><div class="colH">Respostas prontas</div>'+
     '<div class="colB" style="padding:16px">'+
     padrao.map(function(p){
@@ -42935,20 +43034,34 @@ function abaRespostas(c){
       '<textarea id="zp_'+p[0]+'" rows="3" placeholder="'+E(p[3])+'">'+E(c[p[0]]||'')+'</textarea></div>';
     }).join('')+
     '</div></div>'+
-   '<div class="cfgCol estreita"><div class="colH">Palavras-chave suas'+
+   /* ==========================================================
+      O QUE ESTA CADASTRADO PRECISA SER LEGIVEL
+
+      Eram dois campos nus, um do lado do outro, com o texto cortado em
+      duas linhas. Nao dava para saber o que ja existia — o Rafael quase
+      cadastrou de novo uma resposta que ja estava salva. Agora cada uma
+      e um bloco numerado, com o texto inteiro a vista, dizendo em
+      palavras o que cada campo significa.
+      ========================================================== */
+   '<div class="cfgCol"><div class="colH">Perguntas e respostas'+
+     '<span class="cnt2">'+((c.respostas||[]).length)+'</span>'+
+     '<div style="flex:1"></div>'+
      '<button class="btnMini" onclick="addRespZap()">'+sv('plus',11)+' nova</button></div>'+
     '<div class="colB" style="padding:14px">'+
     ((c.respostas||[]).length?c.respostas.map(function(r,k){
       return '<div class="respZ">'+
-       '<input id="zpRc'+k+'" value="'+E(r.chaves||'')+'" placeholder="palavras separadas por vírgula" '+
-        'onchange="setResp('+k+',\'chaves\',this.value)">'+
-       '<textarea id="zpRr'+k+'" rows="2" placeholder="o que responder" '+
-        'onchange="setResp('+k+',\'resposta\',this.value)">'+E(r.resposta||'')+'</textarea>'+
+       '<div class="respZn">'+(k+1)+'</div>'+
        '<button class="rBtn rd" onclick="remResp('+k+')">'+sv('trash',11)+'</button>'+
+       '<label>Quando o cliente falar em</label>'+
+       '<input id="zpRc'+k+'" value="'+E(r.chaves||'')+'" placeholder="franquia, abrir uma loja, ser franqueado" '+
+        'onchange="setResp('+k+',\'chaves\',this.value)">'+
+       '<label>Responder</label>'+
+       '<textarea id="zpRr'+k+'" rows="4" placeholder="o que a atendente deve dizer" '+
+        'onchange="setResp('+k+',\'resposta\',this.value)">'+E(r.resposta||'')+'</textarea>'+
       '</div>';
     }).join('')
-     :'<div class="hint">Nenhuma ainda. Exemplo: palavras <i>sem lactose, zero açúcar</i> '+
-      'respondendo sobre os sabores especiais.</div>')+
+     :'<div class="hint">Nenhuma ainda. Clique em <b>nova</b>. Exemplo: '+
+      'palavras <i>sem lactose, zero açúcar</i> respondendo sobre os sabores especiais.</div>')+
     '</div></div>'+
    '</div></div>';
 }
@@ -43025,6 +43138,10 @@ async function salvarZap(silencioso){
   var rt=document.querySelectorAll('input[name="iaTom"]');
   for(var ti=0;ti<rt.length;ti++)if(rt[ti].checked)c.iaTom=rt[ti].value;
   salvar();
+  /* marca a hora, para a tela poder dizer que salvou de verdade */
+  ZP._salvoEm=agoraHM();
+  var elS=$('zpSalvo');
+  if(elS)elS.innerHTML='<b style="color:#1B5E36">salvo às '+ZP._salvoEm+'</b>';
   /* manda para o banco, que o robô lê — inclusive para a loja conectada */
   if(NUVEM.ligada){
     try{

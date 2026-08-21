@@ -3326,3 +3326,18 @@ descartada.
 **Padrão:** onde o Salvar depende de `onchange` para ter capturado o valor, o
 usuário perde dado ao clicar direto no botão. Ler da tela no momento de salvar
 é o único jeito confiável.
+
+## V125 — as perguntas e respostas do robô ficaram legíveis
+
+Eram dois campos nus lado a lado, dentro de uma coluna com altura travada em
+`calc(100vh - 300px)`: o texto da resposta aparecia cortado em duas linhas e
+não dava para saber o que já estava cadastrado. O Rafael quase cadastrou de
+novo uma resposta que já existia.
+
+- Cada resposta virou um **bloco numerado**, com rótulos em palavras —
+  *"Quando o cliente falar em"* e *"Responder"* — e a caixa de texto com
+  altura para o texto inteiro.
+- O cabeçalho mostra **quantas existem**.
+- A coluna cresce com o conteúdo em vez de espremer numa janelinha.
+- Depois de salvar, o rodapé passa a dizer **"salvo às 09:34"** no lugar da
+  frase da loja — confirmação de que gravou, que era o que faltava.
