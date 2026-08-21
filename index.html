@@ -13940,7 +13940,20 @@ var MAPA=[
     tempo_retirada:x.tempoRetirada||null,aceita_entrega:x.aceitaEntrega!==false,
     aceita_retirada:x.aceitaRetirada!==false,pede_cpf:!!x.pedeCpf,
     formas_aceitas:x.formas||[],pix_chave:x.pixChave||null,
-    aviso:x.aviso||null,horarios:x.horarios||[]}}},
+    aviso:x.aviso||null,horarios:x.horarios||[],
+    /* ==========================================================
+       A DATA PRECISA SUBIR JUNTO
+
+       A V119 pos uma trava: a descida nao escreve por cima quando o
+       aparelho tem algo mais novo, comparando `_salvoEm` local com
+       `atualizado_em` da nuvem. So que o envio NUNCA mandava
+       `atualizado_em` — ele ficava congelado na data de criacao. Com a
+       nuvem sempre "mais velha", a trava passou a valer para sempre: o
+       aparelho parou de aceitar o que vinha da nuvem, e cada aba ficou
+       com a sua propria versao. Foi por isso que o horario "voltava
+       sozinho" — era outra aba, com dado velho, gravando por cima.
+       ========================================================== */
+    atualizado_em:new Date().toISOString()}}},
 
  {col:'areas', espelha:true, tab:'areas_entrega',
   campos:function(x){return {nome:x.nome,uf:x.uf||null,
@@ -15819,7 +15832,12 @@ function volta(linhas,fn,atual,col){
     var loc=DB.cardapio[sid];
     if(loc&&loc._salvoEm){
       var nuvem=Date.parse(x.atualizado_em||0)||0;
-      if(loc._salvoEm>nuvem)return;
+      /* a protecao vale so ate o envio acontecer. Passados 5 minutos, o
+         que veio da nuvem manda — senao um aparelho com data futura, ou
+         com envio falhando, fica ilhado para sempre. */
+      var recente=(Date.now()-loc._salvoEm)<5*60*1000;
+      if(recente&&loc._salvoEm>nuvem)return;
+      if(!recente)delete loc._salvoEm;
     }
     DB.cardapio[sid]={ativo:x.ativo!==false,titulo:x.titulo||'',slogan:x.slogan||'',
       logo:x.logo||'',capa:x.capa||'',corPrincipal:x.cor_principal||'#2F4A32',
@@ -16956,7 +16974,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V122.0.0';
+var VERSAO='V123.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

@@ -3282,3 +3282,28 @@ Depois disso: **42 chaves de sessão gravadas**, WhatsApp conectado no
 **Lição:** o log do Render mostrava `QR gerado` cinco vezes e `caiu (408)` —
 o padrão exato de "pareamento não fecha". O que fechou o diagnóstico foi
 tentar a gravação direto no banco e ler o erro do Postgres.
+
+## V123 — a trava da V119 congelou a configuração do cardápio
+
+O Rafael dizia que o horário e o endereço "voltavam sozinhos" depois de salvar.
+O banco mostrava o contrário: **os dados estavam lá e corretos** — endereço
+"Avenida Navarro Andrade", horários 12:30–23:00 de segunda a sábado, domingo
+13:00–23:00. O que estava errado era a tela.
+
+**Defeito meu, criado na V119.** Aquela versão pôs uma trava: a descida não
+escreve por cima quando o aparelho tem algo mais novo, comparando `_salvoEm`
+local com `atualizado_em` da nuvem. Só que o envio **nunca mandou
+`atualizado_em`** — o campo ficava congelado na data de criação da linha. Com
+a nuvem sempre "mais velha" que qualquer edição local, a trava passou a valer
+para sempre: o aparelho parou de aceitar o que vinha da nuvem, cada aba ficou
+com a sua própria versão, e a aba com dado velho gravava por cima da nova.
+
+Duas correções:
+
+- `atualizado_em` passa a subir junto, com a hora do envio;
+- a trava **expira em 5 minutos**. Passado esse tempo, o que veio da nuvem
+  manda — senão um aparelho com relógio adiantado, ou com envio falhando,
+  fica ilhado para sempre.
+
+**Padrão:** trava baseada em comparação de data só funciona se a data do outro
+lado for realmente atualizada. E toda trava desse tipo precisa de prazo.
