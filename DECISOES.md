@@ -3528,3 +3528,23 @@ A conferência exigia soma **exata**. Agora:
 Testes: 8 casos — R$ 100 numa venda de 20, valor exato, faltando, Pix a mais,
 cartão exato, cartão + dinheiro com troco saindo do dinheiro, e diferença de
 centavo.
+
+## V133 — caixa aberto é o que não tem data de fechamento
+
+A tabela `caixas` tem **dois campos** para o fechamento: `fechado_txt`, um texto
+como "24/08/2026 13:01", e `fechado_em`, uma data de verdade. Só o texto era
+gravado; a data ficava sempre vazia. O mesmo valia para `aberto_em`.
+
+Quem consulta pela data — relatório, conferência, qualquer coisa fora do
+aparelho — via **todos os caixas como abertos**, inclusive os fechados dias
+atrás. Foi o que me fez concluir errado que havia três caixas abertos ao mesmo
+tempo e sugerir ao Rafael fechar dois que já estavam fechados.
+
+`dataDoTexto()` converte "24/08/2026 13:01" em data com fuso de Brasília, e o
+envio passa a mandar `aberto_em` e `fechado_em` junto com os textos.
+
+Os dois caixas antigos foram corrigidos no banco. Situação real agora: **um
+aberto** (24/08, R$ 556,05) e dois fechados.
+
+**Padrão:** dois campos para o mesmo fato é a mesma armadilha da V131 — um
+sempre fica para trás, e quem lê pelo campo errado tira conclusão errada.

@@ -13980,6 +13980,23 @@ var MAPA=[
   campos:function(x){return {operador:x.operador||null,valor_inicial:n(x.inicial),
     turno_id:fk('turnos',x.turnoId),turno_nome:x.turno||null,operador_id:x.operadorId||null,
     aberto_txt:x.aberto||null,fechado_txt:x.fechadoEm||null,
+    /* ==========================================================
+       CAIXA ABERTO E O QUE NAO TEM DATA DE FECHAMENTO
+
+       A tabela tem DOIS campos para o fechamento: `fechado_txt`, um
+       texto tipo "24/08/2026 13:01", e `fechado_em`, uma data de
+       verdade. So o texto era gravado; a data ficava sempre vazia.
+
+       Quem consulta pela data — relatorio, conferencia, qualquer coisa
+       fora do aparelho — via TODOS os caixas como abertos, inclusive os
+       fechados dias atras. Foi o que me fez concluir errado que havia
+       tres caixas abertos ao mesmo tempo.
+
+       Agora as duas sobem juntas, e `aberto_em` tambem: caixa aberto e
+       o que tem `fechado_em` nulo, sem ambiguidade.
+       ========================================================== */
+    aberto_em:dataDoTexto(x.aberto),
+    fechado_em:dataDoTexto(x.fechadoEm),
     esperado:n(x.esperado),contado:n(x.contado),total_informado:n(x.totalInformado),
     vendas:n(x.vendas),qtd_pedidos:n(x.qtd),conferencia:x.conferencia||{},observacao:x.obs||null}},
   filhos:[{lista:'movimentos',tab:'caixa_movimentos',pai:'caixa_id',
@@ -17092,7 +17109,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V132.0.0';
+var VERSAO='V133.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22139,6 +22156,13 @@ function explicaMesas(){
    lojas na rede, as duas geravam o mesmo numero no mesmo dia, porque a lista
    traz os pedidos de todas as sucursais. E excluir um pedido fazia o numero
    voltar atras. Agora e o maior numero DAQUELA loja, mais um. */
+/* "24/08/2026 13:01" -> data de verdade, no fuso de Brasilia.
+   Devolve null quando o texto nao existe ou nao tem esse formato. */
+function dataDoTexto(t){
+  var m=/^(\d{2})\/(\d{2})\/(\d{4})[ T]+(\d{2}):(\d{2})/.exec(String(t||'').trim());
+  if(!m)return null;
+  return m[3]+'-'+m[2]+'-'+m[1]+'T'+m[4]+':'+m[5]+':00-03:00';
+}
 function proxNumPedido(){
   var suc=lojaAtualId?lojaAtualId():'';
   var max=0,maxGeral=0;
