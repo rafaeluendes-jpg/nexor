@@ -17092,7 +17092,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V130.0.0';
+var VERSAO='V131.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41904,7 +41904,7 @@ function telaCfgCardapio(dentro){
    '</div>'+
    '<div class="barraF">'+
     '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
-     '<select onchange="salvarCardapio(false);CD.suc=this.value;telaCfgCardapio()">'+
+     '<select onchange="trocarLojaCardapio(this.value)">'+
      sucs.map(function(s){
        return '<option value="'+s.id+'"'+(CD.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'+
@@ -42374,11 +42374,33 @@ function linkCardapio(sucId){
   return a?('https://joiagest.com.br/'+a)
           :'https://rafaeluendes-jpg.github.io/delivery/';
 }
-function cardapioAtual(){
+/* ==========================================================
+   UMA CONFIGURACAO SO, NAO DUAS
+
+   Eu criei cardapioAtual() na V117 sem ver que cardAtual() ja existia e
+   fazia o mesmo. As duas escolhiam a loja por caminhos diferentes:
+
+     cardAtual()    — cai na primeira loja se DB.cardapio[CD.suc] ainda
+                      nao existir, mesmo com CD.suc apontando para outra
+     cardapioAtual()— cria a entrada da loja escolhida e devolve ela
+
+   Resultado: o horario, gravado por setHora() via cardAtual(), ia para
+   uma loja; o titulo e o resto, gravados por salvarCardapio() via
+   cardapioAtual(), iam para outra. Quem trocava da Matriz para Santa Fe
+   e mexia no horario escrevia na Matriz sem perceber — a tela mostrava
+   Santa Fe e a nuvem recebia o horario antigo dela de volta.
+
+   Agora existe uma so: cardapioAtual() virou apelido de cardAtual().
+   ========================================================== */
+function cardapioAtual(){ return cardAtual(); }
+function trocarLojaCardapio(id){
+  try{ salvarCardapio(false); }catch(e){ _quieto(e,'trocarLojaCardapio'); }
+  CD.suc=id;
+  /* garante a entrada da loja escolhida: sem isso cardAtual() cairia na
+     primeira loja da lista e a tela mostraria a configuracao errada */
   DB.cardapio=DB.cardapio||{};
-  if(!CD.suc)CD.suc=(sucAtivas()[0]||{}).id||'';
-  DB.cardapio[CD.suc]=DB.cardapio[CD.suc]||{};
-  return DB.cardapio[CD.suc];
+  DB.cardapio[id]=DB.cardapio[id]||{};
+  telaCfgCardapio();
 }
 function salvarCardapio(avisar){
   var c=cardapioAtual();

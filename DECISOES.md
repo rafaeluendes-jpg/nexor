@@ -3477,3 +3477,33 @@ renumeradas de 317 a 323, na ordem em que saíram.
 **Em aberto:** três vendas ficaram **sem forma de pagamento** (13:22, 13:42 e
 13:44), sendo que o Rafael marcou em todas. A de 13:22 gravou o *valor* com a
 forma vazia, o que aponta para o `fk('formasPag',...)` não resolvendo. Investigar.
+
+## V131 — duas funções para a mesma configuração, e elas discordavam
+
+A Carla dizia "fechada, abre às 14h de terça a domingo" enquanto a tela mostrava
+segunda a sábado 12:30 às 23:00. A nuvem dava razão à Carla: horários 14:00–22:30
+com **segunda fechada** — e hoje é segunda.
+
+**Causa: eu criei `cardapioAtual()` na V117 sem ver que `cardAtual()` já existia
+e fazia o mesmo.** As duas escolhiam a loja por caminhos diferentes:
+
+- `cardAtual()` — se `DB.cardapio[CD.suc]` ainda **não existe**, cai na primeira
+  loja da lista, mesmo com `CD.suc` apontando para outra;
+- `cardapioAtual()` — cria a entrada da loja escolhida e devolve ela.
+
+O horário é gravado por `setHora()` via `cardAtual()`; o título e o resto por
+`salvarCardapio()` via `cardapioAtual()`. Quem trocava da Matriz para Santa Fé
+e mexia no horário **escrevia na Matriz** — a tela mostrava Santa Fé, e a nuvem
+devolvia o horário antigo dela.
+
+Correção: `cardapioAtual()` virou apelido de `cardAtual()`, e a troca de loja
+passa por `trocarLojaCardapio()`, que **cria a entrada da loja escolhida antes**
+de qualquer leitura.
+
+Horário de Santa Fé corrigido no banco: 12:30–23:00 de segunda a sábado, domingo
+13:00–23:00, nenhum dia fechado.
+
+**Lição, e é a segunda vez nesta semana:** antes de criar uma função de acesso,
+procurar se já existe. Duas funções para o mesmo dado é garantia de divergência
+— e a divergência aparece longe, num robô de WhatsApp dizendo que a loja está
+fechada.
