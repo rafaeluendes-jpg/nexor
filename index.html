@@ -432,6 +432,10 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .grpTop{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--alt);border-bottom:1px solid var(--line-2)}
 .grpTop b{flex:1;font-size:13px;font-weight:600}
 .grpMeta{font-size:11.5px;color:var(--ink-3)}
+.tagC{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;
+  text-transform:uppercase;background:#EAF2FA;color:#2C6FD1;border:1px solid #C9DEF3;
+  border-radius:20px;padding:2px 8px;margin-left:6px}
+.canaisG{display:flex;gap:14px;flex-wrap:wrap;margin:2px 0 4px}
 .tagF{background:var(--amber-soft);color:var(--amber);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px}
 .grpOps{padding:9px 13px;display:flex;flex-wrap:wrap;gap:6px}
 .opChip{background:var(--alt);border:1px solid var(--line-2);border-radius:20px;padding:4px 11px;font-size:11.5px;color:var(--ink-2)}
@@ -13937,7 +13941,7 @@ var MAPA=[
 
  {col:'grupos', espelha:true,      tab:'grupos_opcoes',
   campos:function(x,i){return {nome:x.nome,minimo:n(x.min),maximo:(x.max==null?1:Number(x.max)),
-    forcado:!!x.forcado,ordem:ordemDe(x,i)}},
+    forcado:!!x.forcado,ordem:ordemDe(x,i),canais:x.canais||[]}},
   filhos:[{lista:'opcoes',tab:'opcoes',pai:'grupo_id',
     campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k}}}]},
 
@@ -15589,7 +15593,7 @@ function volta(linhas,fn,atual,col){
   DB.categorias=volta(rc,function(x){return {id:x.ref_local||x.id,nome:x.nome,impressao:x.impressao,
     imposto:x.imposto,cor:x.cor,imagem:x.imagem,ativo:x.ativa!==false,ordem:x.ordem||0,sucursais:x.sucursais||[]}},null,'categorias');
   DB.grupos=volta(rg,function(x){return {id:x.ref_local||x.id,nome:x.nome,min:x.minimo||0,max:x.maximo||1,
-    forcado:!!x.forcado,ordem:x.ordem||0,
+    forcado:!!x.forcado,ordem:x.ordem||0,canais:x.canais||[],
     /* A opcao voltava da nuvem SEM identificador. No envio seguinte ela era
        renumerada pela posicao, entao qualquer reordenacao criava linha nova
        em vez de atualizar a existente. Duas bordas viraram 2.000 linhas.
@@ -17085,7 +17089,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V127.0.0';
+var VERSAO='V128.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18120,8 +18124,11 @@ function abrirGrupos(){
   sv('plus',14)+' Criar novo grupo</button></div>';
   if(!DB.grupos.length)h+='<div class="vazio" style="padding:30px"><b>Nenhum grupo cadastrado</b>Grupos servem para sabores, adicionais e bordas.</div>';
   DB.grupos.forEach(function(g){
+    var canT={pdv:'só caixa',cardapio:'só cardápio',totem:'só totem'};
     h+='<div class="grpCard"><div class="grpTop"><b>'+E(g.nome)+'</b>'+
     (g.forcado?'<span class="tagF">pergunta forçada</span>':'')+
+    ((g.canais||[]).length&&g.canais.length<3
+      ?'<span class="tagC">'+g.canais.map(function(c){return canT[c]||c}).join(' e ')+'</span>':'')+
     '<span class="grpMeta">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+'</span>'+
     '<button class="btn sm" onclick="formGrupo(\''+g.id+'\')">'+sv('edit',13)+'</button>'+
     '<button class="btn sm" onclick="excluirGrupo(\''+g.id+'\')">'+sv('trash',13)+'</button></div>'+
@@ -18146,6 +18153,17 @@ function formGrupo(id){
   '<span>Pergunta forçada</span></label></div></div>'+
   '<div class="hint">Com <b>pergunta forçada</b>, ao lançar o produto na frente de caixa o sistema abre estas opções antes de fechar o item — o caixa é obrigado a perguntar (ex.: "aceita borda?").</div>'+
   '<div class="hint">O grupo aparece <b>desmarcado</b> em todos os produtos. Ele só vale onde você marcar, no cadastro do produto.</div>'+
+  '<div class="fld2" style="margin-top:10px"><label>Onde perguntar</label>'+
+   '<div class="canaisG">'+
+   [['pdv','Frente de caixa'],['cardapio','Cardápio digital'],['totem','Totem']]
+     .map(function(c){
+       var lig=!g||!g.canais||!g.canais.length||g.canais.indexOf(c[0])>=0;
+       return '<label class="chkL"><input type="checkbox" class="gCanal" value="'+c[0]+'"'+
+        (lig?' checked':'')+'><span>'+c[1]+'</span></label>';}).join('')+
+   '</div>'+
+   '<div class="hint">Desmarque onde a pergunta não faz sentido. O sabor do pote, '+
+   'por exemplo: no cardápio o cliente escolhe sozinho; na frente de caixa quem '+
+   'atende já ouviu o sabor, e marcar de novo só atrasa a fila.</div></div>'+
   '</div>'+
   '<div class="blk" style="margin:0;max-width:none"><h3>Opções deste grupo</h3><div id="gopsBox"></div>'+
   '<button class="btn" onclick="addOp()" style="margin-top:6px">'+sv('plus',13)+' Adicionar opção</button></div></div>';
@@ -18153,8 +18171,17 @@ function formGrupo(id){
     var nome=$('gNome').value.trim();
     if(!nome){toast('Informe o nome do grupo.');return false;}
     lerOps();
+    var cn=[],cs=document.querySelectorAll('.gCanal');
+    for(var ci=0;ci<cs.length;ci++)if(cs[ci].checked)cn.push(cs[ci].value);
+    /* os tres marcados = vale em todos: guarda vazio, que e o padrao */
+    if(cn.length===3)cn=[];
+    /* nenhum marcado nao pode virar "todos": avisa e nao salva */
+    if(!cn.length&&cs.length&&Array.prototype.every.call(cs,function(c){return !c.checked})){
+      toast('Escolha ao menos um lugar onde a pergunta aparece.');return false;
+    }
     var obj={nome:nome,min:parseInt($('gMin').value)||0,max:parseInt($('gMax').value)||1,
-      forcado:$('gForc').checked,opcoes:_gops.filter(function(o){return o.nome&&o.nome.trim()})};
+      forcado:$('gForc').checked,canais:cn,
+      opcoes:_gops.filter(function(o){return o.nome&&o.nome.trim()})};
     if(g){Object.assign(g,obj);}
     else{obj.id=uid('grp');DB.grupos.push(obj);}
     salvar();
@@ -20351,10 +20378,28 @@ function faltaPreencher(){
      "Quer adicionar borda?" e so entao mostra os sabores. Perguntar
      antes evita que a pessoa role uma lista que talvez nem queira.
    ========================================================== */
-function gruposDoProduto(p){
+/* ==========================================================
+   NEM TODA PERGUNTA CABE NOS TRES CANAIS
+
+   O sabor do pote e do batido precisa ser perguntado no cardapio
+   digital — o cliente escolhe sozinho, ninguem esta ali para anotar.
+   Na frente de caixa, nao: quem atende ja ouviu o sabor e serviu, e ser
+   obrigado a marcar de novo na tela so atrasa a fila.
+
+   Cada grupo agora diz onde vale. Sem marcacao nenhuma, vale nos tres —
+   e o que existia antes continua funcionando igual.
+   ========================================================== */
+function grupoValeEm(g,canal){
+  if(!g)return false;
+  var c=g.canais;
+  if(!c||!c.length)return true;      /* sem escolha = todos os canais */
+  return c.indexOf(canal)>=0;
+}
+function gruposDoProduto(p,canal){
   if(!p||!p.grupos||!p.grupos.length)return [];
   return (DB.grupos||[]).filter(function(g){
-    return p.grupos.indexOf(g.id)>=0&&(g.opcoes||[]).length;
+    if(p.grupos.indexOf(g.id)<0||!(g.opcoes||[]).length)return false;
+    return canal?grupoValeEm(g,canal):true;
   });
 }
 function grupoObrigatorio(g){return (Number(g.min)||0)>0;}
@@ -20411,7 +20456,7 @@ function telaLeveTambem(){
 function comecarMontagem(i){
   var p=produtosTotem()[i];
   if(!p)return;
-  var gs=gruposDoProduto(p);
+  var gs=gruposDoProduto(p,'totem');
   if(!gs.length){                       /* produto simples: entra direto */
     TMC.sacola.push({nome:p.nome,preco:Number(p.preco)||0,opcoes:[]});
     pintarCheio();return;
@@ -20421,7 +20466,7 @@ function comecarMontagem(i){
   pintarCheio();
 }
 function grupoAtual(){
-  var gs=gruposDoProduto(MON.produto);
+  var gs=gruposDoProduto(MON.produto,'totem');
   return gs[MON.idx]||null;
 }
 function precoMontagem(){
@@ -20456,7 +20501,7 @@ function escolherOpcao(gid,k){
   if(max===1&&grupoObrigatorio(g))setTimeout(proximoGrupo,240);
 }
 function proximoGrupo(){
-  var gs=gruposDoProduto(MON.produto);
+  var gs=gruposDoProduto(MON.produto,'totem');
   if(MON.idx<gs.length-1){MON.idx++;pintarCheio();return;}
   fecharMontagem();
 }
@@ -20479,7 +20524,7 @@ function fecharMontagem(){
 function telaMontagem(){
   var t=cfgTotem(), p=MON.produto, g=grupoAtual();
   if(!p||!g)return '';
-  var gs=gruposDoProduto(p);
+  var gs=gruposDoProduto(p,'totem');
   var obr=grupoObrigatorio(g);
   var max=maxDoGrupo(g);
   var sel=MON.escolhas[g.id]||[];
@@ -22982,7 +23027,7 @@ function renderVenda(){
      '<span class="cnt2">'+prods.length+'</span></div>'+
     '<div class="pnl2B scroll1"><div class="prodGrid'+gr+'" style="--pcols:'+(C.colunas||4)+'">'+
      (prods.length?prods.map(function(p){
-       var forc=(p.grupos||[]).some(function(g){var G=DB.grupos.find(function(x){return x.id===g});return G&&G.forcado});
+       var forc=(p.grupos||[]).some(function(g){var G=DB.grupos.find(function(x){return x.id===g});return G&&G.forcado&&grupoValeEm(G,'pdv')});
        var pv=precoVigente(p),base=Number(p.preco)||0;
        var semFoto=(C.layout==='lista');
        return '<div class="prodBox" onclick="addItem(\''+p.id+'\')">'+
@@ -23065,7 +23110,8 @@ function renderComanda(){
 }
 function addItem(pid){
   var p=DB.produtos.find(function(x){return x.id===pid});
-  var grupos=(p.grupos||[]).map(function(g){return DB.grupos.find(function(x){return x.id===g})}).filter(Boolean);
+  var grupos=(p.grupos||[]).map(function(g){return DB.grupos.find(function(x){return x.id===g})})
+    .filter(function(g){return g&&grupoValeEm(g,'pdv')});
   if(grupos.length)return modalOpcoes(p,grupos);
   lancar(p,[],1);
 }

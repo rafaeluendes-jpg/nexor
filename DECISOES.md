@@ -3388,3 +3388,32 @@ Digitou algo que não é ficha? **Avisa na tela** em vez de descartar em silênc
 
 Testes: 9 casos — nome exato, caixa alta e baixa, espaço sobrando, campo vazio,
 nome pela metade e ficha apagada.
+
+## V128 — cada grupo de opções diz onde é perguntado
+
+O sabor do pote e do batido precisa ser perguntado no **cardápio digital** — o
+cliente escolhe sozinho, ninguém está ali para anotar. Na **frente de caixa**,
+não: quem atende já ouviu o sabor e serviu, e ser obrigado a marcar de novo na
+tela só atrasa a fila.
+
+O cadastro do grupo ganhou **"Onde perguntar"**, com três caixas: Frente de
+caixa · Cardápio digital · Totem. `grupoValeEm(g,canal)` decide, e
+`gruposDoProduto(p,canal)` passou a receber o canal — o PDV pede `'pdv'`, o
+totem pede `'totem'`, e a tela de cadastro não passa canal nenhum, para mostrar
+todos.
+
+Regras de borda: **lista vazia = vale nos três**, então tudo que já existe
+continua funcionando igual; marcar os três também grava vazio, que é o mesmo
+significado; e **nenhum marcado é recusado**, com aviso, porque um grupo que não
+aparece em lugar nenhum é só confusão.
+
+Na lista de grupos aparece uma etiqueta — *só cardápio*, *só caixa* — quando o
+grupo não vale nos três.
+
+Testes: 9 casos — cada canal, grupo sem escolha, grupo antigo sem o campo,
+grupo sem opções e produto sem grupo.
+
+**Pendente:** a coluna `grupos_opcoes.canais` (jsonb, default `'[]'`) **não foi
+criada** — a ferramenta do banco falhou em cinco tentativas seguidas. Sem ela, a
+escolha funciona no aparelho e se perde na sincronização. Criar assim que a
+conexão voltar.
