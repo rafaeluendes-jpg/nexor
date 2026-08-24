@@ -3684,3 +3684,24 @@ e margens proporcionalmente menores.
 `grid-auto-rows:max-content` entrou junto — sem ele, grade com `overflow:hidden`
 nos itens e altura definida no container comprime as linhas e o cartão vira
 tarja. Foi o defeito do totem na V103.
+
+## Cardápio digital — vínculo de grupos e ordem das seções
+
+**Os sabores não apareciam no pote nem no batido.** A configuração do Rafael
+estava certa; faltava **permissão**. A tabela `produto_grupos` — que liga o
+grupo ao produto — tinha uma única política, e ela exige `minha_loja()`, ou
+seja, estar logado. Para o cliente do cardápio a consulta voltava **vazia**: os
+grupos chegavam, o vínculo não, e nenhuma pergunta era feita. Entrou a política
+`cardapio publico - vinculo de grupos`, só de leitura e só para produto de loja
+com cardápio no ar. É o mesmo caso da lista de lojas, resolvido dias antes.
+
+**As bebidas abriam o cardápio.** As seções eram montadas na ordem em que os
+produtos apareciam na lista — ordem dos **produtos**, não das **categorias**. O
+primeiro produto era uma água. A ordem cadastrada em Gestão de Cardápio já
+existia (Copo, Cascão, Potes, Bebidas, Sobremesas, Parceiro) e era ignorada.
+Agora as seções são ordenadas pelo índice da categoria; categoria desconhecida
+vai para o fim.
+
+**Pendente do Rafael:** os três grupos de sabores estão como **opcional** — dá
+para fechar um pote de 1 kg sem escolher sabor. Precisa marcar *Pergunta
+forçada*. E "Sabores Gelatos 1 Sabor" está com máximo 2.
