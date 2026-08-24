@@ -16136,8 +16136,29 @@ function volta(linhas,fn,atual,col){
       produtoId:mapaPr[i3.produto_id]||'',
       nome:i3.nome,qtd:Number(i3.quantidade)||0,unitario:Number(i3.unitario)||0,
       total:Number(i3.total)||0,obs:i3.observacao||'',opcoes:i3.opcoes||[]}}),
+    /* ==========================================================
+       O PAGAMENTO VOLTAVA COM O CAMPO TROCADO
+
+       ESTA E A CAUSA DAS VENDAS SEM FORMA DE PAGAMENTO.
+
+       O sistema inteiro le a forma em `pagamento.forma` — o detalhe do
+       pedido, o fechamento de caixa, o relatorio. Mas a descida gravava
+       em `formaId`. Resultado: depois de QUALQUER download, todo
+       pagamento ficava na memoria sem `forma`; a tela mostrava "forma
+       nao informada", e o envio seguinte reescrevia o registro com o
+       vinculo vazio — apagando na nuvem o que estava certo.
+
+       Por isso as tres vendas que eu vi corretas as 14h estavam zeradas
+       as 15h: nao era o mapa de vinculos, era o campo trocado. O
+       aparelho destruia o proprio dado a cada volta.
+
+       Agora volta em `forma`, com a referencia da nuvem quando o mapa
+       nao souber traduzir. `formaId` fica junto, por compatibilidade.
+       ========================================================== */
     pagamentos:(x.pedido_pagamentos||[]).map(function(p2){return {id:p2.ref_local||p2.id,
-      formaId:mapaFP[p2.forma_id]||'',
+      forma:mapaFP[p2.forma_id]||p2.forma_ref||'',
+      formaId:mapaFP[p2.forma_id]||p2.forma_ref||'',
+      equipamento:p2.equipamento||'',
       valor:Number(p2.valor)||0}})}},null,'pedidos');
 
   var mapaPed={};pd.forEach(function(x){mapaPed[x.id]=x.ref_local||x.id});
@@ -17125,7 +17146,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V135.0.0';
+var VERSAO='V136.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

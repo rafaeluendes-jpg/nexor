@@ -3600,3 +3600,35 @@ zerar na próxima sincronização.
 **Padrão, e é o terceiro caso hoje:** vínculo que falha silenciosamente e grava
 nulo é pior do que erro na tela. Onde `fk()` puder devolver null num campo que
 importa, mandar também a referência e resolver no banco.
+
+## V136 — a causa real: o pagamento voltava com o campo trocado
+
+A V135 tratou um sintoma. **A causa era outra, e mais simples.**
+
+O sistema inteiro lê a forma em `pagamento.forma` — o detalhe do pedido
+(`FORMAS.find(y=>y.id===x.forma)`), o fechamento de caixa (`movimentoCaixa`), o
+relatório. Mas a descida da nuvem gravava em **`formaId`**.
+
+O efeito em cadeia:
+
+1. depois de **qualquer download**, todo pagamento ficava na memória sem
+   `forma`;
+2. a tela mostrava "forma não informada" — inclusive nas vendas que estavam
+   corretas na nuvem;
+3. e o envio seguinte reescrevia o registro com `fk('formasPag', undefined)` =
+   **nulo**, apagando na nuvem o que estava certo.
+
+Ou seja: **o aparelho destruía o próprio dado a cada volta**. Foi por isso que
+três vendas apareceram corretas às 14h e zeradas às 15h — não era o mapa de
+vínculos, era o campo trocado.
+
+A descida agora devolve `forma`, com `forma_ref` como reserva quando o mapa não
+souber traduzir, e mantém `formaId` por compatibilidade. O `equipamento`
+também voltou a descer — sem ele, o fechamento não separava balcão de totem.
+
+O gatilho da V135 continua valendo como rede de segurança: se algum dia o
+vínculo chegar vazio com a referência preenchida, o banco resolve.
+
+**Lição:** nome de campo diferente entre a subida e a descida é um dado que se
+apaga sozinho, sem erro em lugar nenhum. Vale varrer as outras coleções atrás
+do mesmo padrão.
