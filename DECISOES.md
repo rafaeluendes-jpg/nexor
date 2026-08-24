@@ -3341,3 +3341,32 @@ novo uma resposta que já existia.
 - A coluna cresce com o conteúdo em vez de espremer numa janelinha.
 - Depois de salvar, o rodapé passa a dizer **"salvo às 09:34"** no lugar da
   frase da loja — confirmação de que gravou, que era o que faltava.
+
+## V126 — a opção escolhida baixa estoque, e a tela para de pular
+
+Três coisas apontadas pelo Rafael enquanto vinculava as fichas ao cardápio.
+
+**A opção não saía do estoque.** `baixarEstoqueVenda()` olhava só o produto e a
+ficha dele. Borda de Nutella, cobertura, Ovomaltine: o cliente escolhia, o
+insumo sumia do pote e **não sumia do sistema** — perda invisível, que só
+apareceria na contagem, sem ninguém saber de onde veio.
+
+- `opcoes.ficha_id` (uuid → fichas_tecnicas) entrou no banco, sobe e desce na
+  sincronização.
+- O cadastro da opção ganhou o campo **ficha técnica**, ao lado do nome e do
+  valor adicional.
+- A baixa da venda passa a explodir cada opção escolhida, na quantidade do
+  item. Opção antiga, sem vínculo gravado, é procurada **pelo nome** da ficha —
+  assim as quatro bordas já funcionam sem recadastro.
+
+**A tela pulava para o topo** a cada marcação em Produtos no cardápio. A tela é
+redesenhada a cada clique e o navegador volta a rolagem ao começo; com 42
+produtos, quem estava no fim era jogado para o início toda vez. `semPular()` já
+existia para isso — faltava usar em `togProdCard` e `togCatCard`.
+
+**O grupo de opções** já aparece em todos os produtos, desmarcado, e só vale
+onde for marcado. Ficou escrito no próprio cadastro, que antes não dizia.
+
+Testes: 7 casos da baixa por opção — uma borda, três itens, opção sem vínculo
+achada pelo nome, opção sem ficha, item sem opções, duas opções no mesmo item e
+conversão de unidade.
