@@ -14655,7 +14655,10 @@ async function sincronizar(){
        O carimbo agora vem junto: da propria configuracao, se ela ja
        tiver, senao da sessao aberta.
        ========================================================== */
-    DB.cardapioL=Object.keys(DB.cardapio||{}).map(function(k){
+    DB.cardapioL=Object.keys(DB.cardapio||{})
+      /* configuracao que nunca foi salva pelo lojista nao sobe */
+      .filter(function(k){return !(DB.cardapio[k]||{})._padrao;})
+      .map(function(k){
       var o=Object.assign({},DB.cardapio[k]);
       o.id='cc_'+k;o.sucId=k;
       o._loja=DB.cardapio[k]._loja||NUVEM.loja;
@@ -17146,7 +17149,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V136.0.0';
+var VERSAO='V137.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41985,11 +41988,34 @@ function ligarCN(){
    CONFIGURAÇÃO DO CARDÁPIO DIGITAL
    ========================================================== */
 var CD={suc:'',aba:'marca'};
+/* ==========================================================
+   O PADRAO DA TELA NAO PODE SUBIR COMO SE FOSSE ESCOLHA
+
+   ESTA E A CAUSA DOS HORARIOS QUE "SOMEM" A CADA ATUALIZACAO.
+
+   baseCard() cria uma configuracao padrao para toda unidade que ainda
+   nao tem uma — 14:00 as 22:30 com segunda fechada. Isso e certo para
+   a tela ter o que mostrar. O erro era essas configuracoes entrarem no
+   ENVIO como se fossem escolha do lojista.
+
+   Sequencia do estrago, que se repetiu quinze vezes:
+     1. Ctrl+Shift+R: o aparelho abre vazio;
+     2. baseCard() semeia o padrao nas quatro unidades;
+     3. o envio sai antes de a descida terminar;
+     4. o padrao sobrescreve na nuvem o horario de verdade.
+   No fim, as quatro lojas ficavam com o MESMO horario — o padrao. Foi
+   o que apareceu no banco: Matriz, Jales, Alphaville e Santa Fe
+   identicas, 14:00 as 22:30, segunda fechada.
+
+   Agora o que nasce padrao fica marcado com `_padrao` e NAO sobe. A
+   marca cai no primeiro salvamento de verdade, e a partir dali a
+   configuracao e do lojista e sobe normalmente.
+   ========================================================== */
 function baseCard(){
   DB.cardapio=DB.cardapio||{};
   baseSuc();
   sucAtivas().forEach(function(s){
-    if(!DB.cardapio[s.id])DB.cardapio[s.id]={
+    if(!DB.cardapio[s.id])DB.cardapio[s.id]={_padrao:true,
       ativo:true,titulo:'',slogan:'',logo:'',capa:'',
       corPrincipal:'#2F4A32',corFundo:'#F7F3EA',
       whatsapp:'',instagram:'',endereco:'',
@@ -42285,6 +42311,8 @@ function togDia(k){
 function setHora(k,campo,v){
   var c=cardAtual();
   c.horarios[k][campo]=v;
+  delete c._padrao;               /* mexeu no horario: e escolha, sobe */
+  c._salvoEm=Date.now();
   salvar();
 }
 function aplicarHorario(dias){
@@ -42297,6 +42325,7 @@ function aplicarHorario(dias){
     if(dias.indexOf(Number(x.dia))<0)return;
     x.abre=de; x.fecha=ate; x.fechado=false; n++;
   });
+  delete c._padrao; c._salvoEm=Date.now();
   salvar(); telaCfgCardapio();
   toast(n+' dia(s) com horário '+de+' às '+ate+'.');
 }
@@ -42309,6 +42338,7 @@ function fecharDias(dias){
     if(dias.indexOf(Number(x.dia))<0)return;
     x.fechado=true; n++;
   });
+  delete c._padrao; c._salvoEm=Date.now();
   salvar(); telaCfgCardapio();
   toast(n+' dia(s) marcado(s) como fechado.');
 }
@@ -42543,6 +42573,7 @@ function salvarCardapio(avisar){
   var chk={cdAtivo:'ativo',cdEnt:'aceitaEntrega',cdRet:'aceitaRetirada',cdCpf:'pedeCpf'};
   Object.keys(chk).forEach(function(id){ if($(id))c[chk[id]]=$(id).checked; });
   c._salvoEm=Date.now();          /* protege da descida ate o envio acontecer */
+  delete c._padrao;               /* deixou de ser padrao: agora e escolha */
   salvar();
   if(NUVEM.ligada)agendarSync();
   if(avisar)toast('Cardápio salvo.');

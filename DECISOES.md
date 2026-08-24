@@ -3632,3 +3632,37 @@ vínculo chegar vazio com a referência preenchida, o banco resolve.
 **Lição:** nome de campo diferente entre a subida e a descida é um dado que se
 apaga sozinho, sem erro em lugar nenhum. Vale varrer as outras coleções atrás
 do mesmo padrão.
+
+## V137 — o padrão da tela sobrescrevia o horário de verdade
+
+**Causa dos horários que "somem" a cada atualização — quinze vezes, segundo o
+Rafael.**
+
+`baseCard()` cria uma configuração padrão para toda unidade que ainda não tem
+uma: 14:00 às 22:30 com segunda fechada. Isso é certo — a tela precisa ter o que
+mostrar. O erro era essas configurações entrarem no **envio** como se fossem
+escolha do lojista.
+
+A sequência do estrago:
+
+1. Ctrl+Shift+R — o aparelho abre vazio;
+2. `baseCard()` semeia o padrão nas quatro unidades;
+3. o envio sai antes de a descida terminar;
+4. o padrão sobrescreve na nuvem o horário de verdade.
+
+O resultado apareceu no banco: **Matriz, Jales, Alphaville e Santa Fé com o
+horário idêntico** — exatamente `horariosPadrao()`. Inclusive Santa Fé, que eu
+tinha corrigido para 12:30–23:00 poucas horas antes.
+
+Agora o que nasce padrão fica marcado com `_padrao` e **não sobe**. A marca cai
+no primeiro salvamento de verdade — `salvarCardapio`, `setHora`,
+`aplicarHorario`, `fecharDias` — e a partir dali a configuração é do lojista e
+sobe normalmente.
+
+Testes: 6 casos — depois do recarregamento nada sobe, só a loja mexida sobe, as
+outras continuam padrão, e recarregar não apaga o que foi salvo.
+
+**Padrão, e vale para todo o sistema:** dado semeado pelo próprio sistema nunca
+pode ser tratado como dado do cliente. Foi a mesma raiz do episódio dos 27
+insumos da Rafaelo's — lá a trava foi `NUVEM.zerado`; aqui faltava marca
+equivalente.
