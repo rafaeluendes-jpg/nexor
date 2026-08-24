@@ -3433,3 +3433,19 @@ de um produto, não que ali se criam e gerenciam todos os grupos da rede.
 
 **Lição:** o Rafael pediu uma funcionalidade que já existia. Nome de botão que
 descreve a ação errada custa o mesmo que a funcionalidade não existir.
+
+## V129 — "Editar opções" virou "Grupos de opções"
+
+O Rafael pediu uma tela central para cadastrar e editar todos os grupos —
+sabores, bordas, coberturas — num lugar só. **Ela já existia**, atrás do botão
+"Editar opções", em Gestão de Cardápio. O nome não dizia o que fazia, e ele
+procurou uma coisa que estava na frente dele.
+
+- O botão passou a se chamar **Grupos de opções**, com a contagem ao lado.
+- Cada opção mostra, embaixo do nome, a **ficha técnica ligada** — verde quando
+  tem, "sem ficha" em vermelho quando não tem. Assim dá para conferir a baixa de
+  estoque sem abrir grupo por grupo.
+- Cada grupo mostra **em quantos produtos está sendo usado**.
+
+**Lição:** o nome do botão é parte da funcionalidade. Uma tela que ninguém acha
+é uma tela que não existe.
