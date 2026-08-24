@@ -3507,3 +3507,24 @@ Horário de Santa Fé corrigido no banco: 12:30–23:00 de segunda a sábado, do
 procurar se já existe. Duas funções para o mesmo dado é garantia de divergência
 — e a divergência aparece longe, num robô de WhatsApp dizendo que a loja está
 fechada.
+
+## V132 — receber a mais em dinheiro não é erro, é troco
+
+O caixa lançava uma venda de R$ 20, o cliente entregava R$ 100, e o operador
+digitava 100 **justamente para o sistema calcular o troco**. A tela mostrava
+"Troco R$ 80" — e logo abaixo recusava a venda: *"pagamentos somam R$ 100 e o
+total é R$ 20"*. O campo existe para o caixa não fazer conta de cabeça, e era
+essa mesma conta que travava o fechamento.
+
+A conferência exigia soma **exata**. Agora:
+
+- **Faltar continua barrando** — venda paga a menos é erro de verdade.
+- **Sobrar só é aceito quando há forma que dá troco** (dinheiro). Cartão e Pix
+  continuam exigindo valor exato: ali sobra é erro de digitação, não troco.
+- **O pedido guarda o valor da venda, não o que entrou na mão.** O excedente é
+  descontado da forma que dá troco antes de gravar. Sem isso o faturamento do
+  dia sairia inflado pelo troco, e o fechamento de caixa não bateria.
+
+Testes: 8 casos — R$ 100 numa venda de 20, valor exato, faltando, Pix a mais,
+cartão exato, cartão + dinheiro com troco saindo do dinheiro, e diferença de
+centavo.

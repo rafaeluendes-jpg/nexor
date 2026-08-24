@@ -17092,7 +17092,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V131.0.0';
+var VERSAO='V132.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23497,10 +23497,50 @@ function irPagamento(){
     var final=tot+taxa-desc;
     var somaPg=_pagos.reduce(function(a,p){return a+p.valor},0);
     if(!_pagos.length){toast('Selecione ao menos uma forma de pagamento.');liberarFecharVenda();return false;}
-    if(Math.abs(somaPg-final)>0.01){toast('Pagamentos somam R$ '+money(somaPg)+' e o total é R$ '+money(final)+'.');liberarFecharVenda();return false;}
+    /* ==========================================================
+       RECEBER A MAIS EM DINHEIRO NAO E ERRO — E TROCO
+
+       A conferencia exigia soma EXATA. Quem digitava os R$ 100 que o
+       cliente entregou, para o sistema mostrar o troco, era impedido de
+       fechar: "pagamentos somam 100 e o total e 20". O campo existe
+       justamente para o caixa nao ter de fazer a conta de cabeca, e a
+       propria tela ja mostrava "Troco R$ 80" logo acima do aviso.
+
+       Agora: faltar dinheiro continua barrando; sobrar so e aceito
+       quando ha forma que da troco (dinheiro). Cartao e Pix continuam
+       exigindo o valor exato — ali sobra e erro de digitacao, nao troco.
+
+       O pedido guarda o valor da venda, nao o que entrou na mao: o
+       troco volta para o cliente e nao e faturamento.
+       ========================================================== */
+    var _daTroco=_pagos.some(function(pg){var f=formaPag(pg.forma);return f&&f.troco;});
+    if(somaPg<final-0.01){
+      toast('Faltam R$ '+money(final-somaPg)+' — os pagamentos somam R$ '+money(somaPg)+
+            ' e o total é R$ '+money(final)+'.');
+      liberarFecharVenda();return false;
+    }
+    if(somaPg>final+0.01&&!_daTroco){
+      toast('Recebido a mais em forma que não dá troco: R$ '+money(somaPg)+
+            ' para um total de R$ '+money(final)+'. Corrija o valor.');
+      liberarFecharVenda();return false;
+    }
+    var _troco=+(somaPg-final).toFixed(2);
     var pcs=$('pgCidade');
     _cidadeVenda=pcs?pcs.value:((PDV.cliente&&PDV.cliente.cidade)||'');
     var entSel=document.querySelector('input[name=pgEnt]:checked');
+    /* o que entra no caixa e o valor da venda; o excedente volta ao
+       cliente. Sem isso o faturamento do dia sairia inflado pelo troco. */
+    var _pagosVenda=JSON.parse(JSON.stringify(_pagos));
+    if(_troco>0.009){
+      for(var ti=_pagosVenda.length-1;ti>=0&&_troco>0.009;ti--){
+        var fT=formaPag(_pagosVenda[ti].forma);
+        if(!fT||!fT.troco)continue;
+        var tira=Math.min(_pagosVenda[ti].valor,_troco);
+        _pagosVenda[ti].valor=+(_pagosVenda[ti].valor-tira).toFixed(2);
+        _troco=+(_troco-tira).toFixed(2);
+      }
+      _pagosVenda=_pagosVenda.filter(function(x){return x.valor>0.009});
+    }
     var fiado=_pagos.filter(function(p){var f=formaPag(p.forma);return f&&f.tipo==='fiado'})
       .reduce(function(a,p){return a+p.valor},0);
     if(fiado>0){
@@ -23513,7 +23553,7 @@ function irPagamento(){
         return false;
       }
     }
-    finalizarVenda(final,taxa,desc,_pagos.slice(),$('pgFiscal').checked,$('pgImp').checked,entSel?entSel.value:null,fiado);
+    finalizarVenda(final,taxa,desc,_pagosVenda,$('pgFiscal').checked,$('pgImp').checked,entSel?entSel.value:null,fiado);
     return true;
   },'lg');
   $('pgTaxa').oninput=recalcPag;$('pgDesc').oninput=recalcPag;
