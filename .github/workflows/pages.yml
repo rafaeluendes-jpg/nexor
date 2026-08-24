@@ -31,6 +31,8 @@ jobs:
           cp *.png *.jpg _site/ 2>/dev/null || true
           # atalhos por loja: joiagest.com.br/santafe e afins. Sao pastas,
           # e o cp de arquivos soltos acima nao as levaria.
+          # fotos dos produtos: ficam no site, e o cadastro guarda so o endereco
+          [ -d fotos ] && cp -r fotos _site/
           for d in santafe santafedosul jales alphaville; do
             [ -d "$d" ] && cp -r "$d" _site/
           done
