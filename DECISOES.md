@@ -3725,3 +3725,34 @@ numeração.
 
 **Padrão a checar:** todo lugar que só permite arrastar está quebrado no
 aparelho da loja. Vale varrer as outras listas com `ativarArrasto`.
+
+## V140 — o sistema desistia da nuvem no primeiro erro
+
+Dia de instabilidade do Supabase (incidente aberto: *"Erros 401 devido a
+rejeições de JWT"*). Testado por fora, sem passar pelo sistema: três consultas
+seguidas deram **sem resposta**, **erro 500** e **23 segundos**. As duas contas
+do Rafael — Santa Fé e franqueadora — caíram para offline ao mesmo tempo.
+
+Três correções, todas do nosso lado:
+
+**A leitura do perfil era feita uma vez.** Falhou, o sistema se declarava
+desconectado e a loja passava a trabalhar só no aparelho. Agora tenta **três
+vezes**, com espera crescente — na prática a segunda já passa.
+
+**A reconexão automática era a cada 30 segundos.** Com a loja aberta isso é
+tempo demais. Passou para **8 segundos**.
+
+**A tela de pedidos ficava em branco.** `baseStatus()` não semeia as colunas
+quando o aparelho está ligado na nuvem e ainda não baixou — trava certa, para o
+padrão não subir por cima do que a loja configurou (V137). Mas com o download
+falhando, `_baixouUmaVez` nunca ficava verdadeiro e a lista de colunas ficava
+vazia: kanban sem coluna nenhuma, com 326 pedidos no rodapé. Entrou
+`FASES_SOCORRO`, usada **só para desenhar** — não entra no DB e não sobe.
+
+**E a mensagem mentia.** Dizia "Sem conexão com a internet" quando a internet
+estava boa e quem não respondeu foi o servidor. Isso mandou o Rafael procurar
+problema no lugar errado. Agora distingue os dois casos.
+
+**Lição:** num sistema que roda em loja aberta, toda chamada de rede precisa de
+nova tentativa antes de mudar o estado do sistema. Um erro isolado é normal;
+tratá-lo como queda é que derruba a operação.

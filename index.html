@@ -13244,7 +13244,11 @@ function conferirNuvem(){
        ------------------------------------------------------------------ */
     el=document.createElement('div');
     el.id='avisoNuvem';el.className='avisoGrav';
-    el.innerHTML='<div><b>Sem conexão com a internet</b>'+
+    /* "sem internet" mandava procurar problema no lugar errado: quase sempre
+       a internet esta boa e quem nao respondeu foi o servidor. */
+    var semNet=!navigator.onLine;
+    el.innerHTML='<div><b>'+(semNet?'Sem conexão com a internet'
+      :'Servidor não respondeu — reconectando sozinho')+'</b>'+
       '<span>Você pode continuar trabalhando: o que for lançado fica guardado aqui '+
       'e sobe sozinho assim que a conexão voltar.</span></div>';
     barraAvisos().appendChild(el);
@@ -13678,10 +13682,30 @@ async function religarNuvem(){
     var r=await cli.auth.getSession();
     var ses=r&&r.data?r.data.session:null;
     if(!ses){ estadoNuvem('offline'); return false; }
-    var rp=await cli.from('perfis')
-      .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
-      .eq('id',ses.user.id).maybeSingle();
-    if(rp.error||!rp.data){ estadoNuvem('offline'); return false; }
+    /* ==========================================================
+       UM ERRO NAO E MOTIVO PARA DESISTIR DA NUVEM
+
+       A leitura do perfil era feita UMA vez. Se falhasse, o sistema se
+       declarava desconectado e a loja passava a trabalhar so no
+       aparelho. Num dia de instabilidade do servidor — 401 intermitente,
+       consulta estourando o tempo — isso derruba os dois computadores ao
+       mesmo tempo, com a sessao valida e a internet boa.
+
+       Agora tenta tres vezes, com espera crescente. Na pratica a segunda
+       ja costuma passar.
+       ========================================================== */
+    var rp=null;
+    for(var _t=0;_t<3;_t++){
+      rp=await cli.from('perfis')
+        .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
+        .eq('id',ses.user.id).maybeSingle();
+      if(rp&&!rp.error&&rp.data)break;
+      if(_t<2){
+        try{logNuvem('perfil não respondeu — tentando de novo ('+(_t+2)+'ª)');}catch(e){}
+        await new Promise(function(r2){setTimeout(r2,900*(_t+1))});
+      }
+    }
+    if(!rp||rp.error||!rp.data){ estadoNuvem('offline'); return false; }
     NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
     NUVEM.token=ses.access_token;
     NUVEM.plataforma=(!rp.data.loja_id&&rp.data.cargo==='plataforma');
@@ -13725,10 +13749,11 @@ window.addEventListener('offline',function(){ estadoNuvem('offline'); });
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden&&!NUVEM.ligada&&navigator.onLine)religarNuvem();
 });
+/* loja aberta e sistema desconectado custa caro: tenta a cada 8 segundos */
 setInterval(function(){
   if(!NUVEM.ligada&&navigator.onLine&&document.getElementById('app')&&
      !document.getElementById('app').classList.contains('hide'))religarNuvem();
-},30000);
+},8000);
 /* ==========================================================
    MOTOR DE SINCRONIZAÇÃO
    Cada coleção local vira uma linha do MAPA.
@@ -17158,7 +17183,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V139.0.0';
+var VERSAO='V140.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22962,9 +22987,36 @@ function cfg(){
   if(c.taxaPadrao===undefined)c.taxaPadrao=5;
   return c;
 }
+/* ==========================================================
+   A TELA DE PEDIDOS NAO PODE FICAR EM BRANCO
+
+   baseStatus() nao semeia as colunas quando o aparelho esta ligado na
+   nuvem e ainda nao baixou — trava certa, para o padrao nao subir por
+   cima do que a loja configurou (foi o defeito da V137).
+
+   So que hoje o Supabase esta instavel: o download falhou, o
+   `_baixouUmaVez` nunca ficou verdadeiro, e a lista de colunas ficou
+   VAZIA. Resultado: kanban sem coluna nenhuma — a tela verde vazia que
+   o Rafael viu, com 326 pedidos no rodape e nada aparecendo.
+
+   Agora, se nao houver coluna, a tela usa a lista padrao SO PARA
+   DESENHAR. Ela nao entra no DB e nao sobe para lugar nenhum: some
+   sozinha quando as colunas de verdade chegarem.
+   ========================================================== */
+var FASES_SOCORRO=[
+  {id:'aguardando',n:'Aguardando preparação',papel:'aguardando',cor:'#8A8578'},
+  {id:'preparo',   n:'Em preparação',        papel:'producao',  cor:'#C9922F'},
+  {id:'pronto',    n:'Pronto para retirada', papel:'pronto',    cor:'#1F5F8B'},
+  {id:'saiu',      n:'Saiu para entrega',    papel:'entrega',   cor:'#1F5F8B'},
+  {id:'entregue',  n:'Entregue / Concluído', papel:'finalizado',cor:'#0E8A46'},
+  {id:'cancelado', n:'Cancelado',            papel:'cancelado', cor:'#B4542F'}
+];
 function fasesAtivas(){
-  return statusAtivos().map(function(x){return {id:x.id,n:x.nome,cor:x.cor,
+  var l=statusAtivos().map(function(x){return {id:x.id,n:x.nome,cor:x.cor,
     minutos:x.minutos,som:x.som,confPag:x.confPag,papel:x.papel};});
+  if(l.length)return l;
+  return FASES_SOCORRO.map(function(x){
+    return {id:x.id,n:x.n,cor:x.cor,minutos:0,som:false,confPag:false,papel:x.papel};});
 }
 function caixaAberto(){
   DB.caixas=DB.caixas||[];
