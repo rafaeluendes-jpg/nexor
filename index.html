@@ -17158,7 +17158,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V138.0.0';
+var VERSAO='V139.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17622,8 +17622,22 @@ function renderCategorias(){
   '<div class="catAll'+(S.cat==='todos'?' on':' off')+'" onclick="selCat(\'todos\')">Todos os produtos</div>';
   if(!lista.length)h+='<div class="vazio"><b>Nenhuma categoria</b>Cadastre a primeira categoria para organizar seus produtos.</div>';
   lista.forEach(function(c){
+    /* ==========================================================
+       ARRASTAR NAO FUNCIONA EM TELA DE TOQUE
+
+       A ordem das categorias so podia ser mudada arrastando. O
+       computador da loja e touch, e o arrasto do navegador nao responde
+       ao dedo — entao a ordem nunca mudava, e o cardapio continuava
+       abrindo pelas bebidas. As setas resolvem no toque e no mouse.
+       ========================================================== */
+    var _iC=lista.indexOf(c);
     h+='<div class="catRow'+(S.cat===c.id?' on':'')+'" draggable="true" data-id="'+c.id+'" onclick="selCat(\''+c.id+'\')">'+
-    '<span class="grip" title="Arraste para reordenar">⠿</span>'+
+    '<span class="ordBt">'+
+      '<button title="subir"'+(_iC===0?' disabled':'')+
+       ' onclick="event.stopPropagation();moverCat(\''+c.id+'\',-1)">▲</button>'+
+      '<button title="descer"'+(_iC===lista.length-1?' disabled':'')+
+       ' onclick="event.stopPropagation();moverCat(\''+c.id+'\',1)">▼</button>'+
+    '</span>'+
     (c.cor?'<span style="width:9px;height:9px;border-radius:50%;background:'+c.cor+';flex:none"></span>':'')+
     '<span class="nm">'+E(c.nome)+'</span>'+
     '<button class="sw'+(c.ativo!==false?' on':'')+'" onclick="event.stopPropagation();toggleCat(\''+c.id+'\')"></button>'+
@@ -17635,6 +17649,18 @@ function renderCategorias(){
   $('colCat').innerHTML=h;
   $('bCat').oninput=function(){S.buscaCat=this.value;renderCategorias();};
   ativarArrasto('#listaCat .catRow',function(de,para){reordenar(DB.categorias,de,para);salvar();renderCategorias();});
+}
+function moverCat(id,passo){
+  var l=DB.categorias.slice().sort(function(a,b){return a.ordem-b.ordem});
+  var i=l.findIndex(function(x){return x.id===id});
+  var j=i+passo;
+  if(i<0||j<0||j>=l.length)return;
+  var t=l[i]; l[i]=l[j]; l[j]=t;
+  l.forEach(function(x,k){x.ordem=k});
+  salvar();
+  if(NUVEM.ligada)agendarSync();
+  semPular(renderCategorias);
+  toast('Ordem: '+l.map(function(x){return x.nome}).join(' → '));
 }
 function selCat(id){S.cat=id;renderCategorias();renderProdutos();}
 function toggleCat(id){

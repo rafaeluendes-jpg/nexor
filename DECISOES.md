@@ -3705,3 +3705,23 @@ vai para o fim.
 **Pendente do Rafael:** os três grupos de sabores estão como **opcional** — dá
 para fechar um pote de 1 kg sem escolher sabor. Precisa marcar *Pergunta
 forçada*. E "Sabores Gelatos 1 Sabor" está com máximo 2.
+
+## V139 — reordenar categoria por setas, porque arrastar não funciona no toque
+
+O Rafael reordenava as categorias e o cardápio continuava abrindo pelas
+bebidas. O banco explicou: a ordem **nunca mudou** — continuava a de criação
+(Copo 0, Cascão 1, Potes 2, Bebidas 3, Sobremesas 4).
+
+A única forma de reordenar era **arrastar**, e o computador da loja é de
+**toque**. O arrasto nativo do navegador não responde ao dedo: ele arrastava e
+nada acontecia, sem erro nenhum.
+
+Entraram setas ▲▼ em cada linha, que funcionam no dedo e no mouse. A primeira
+não sobe, a última não desce, e a numeração é refeita sem buraco a cada
+movimento. `agendarSync()` é chamado junto, para a ordem subir na hora.
+
+Testes: 7 casos — subir, descer, extremos, id inexistente e integridade da
+numeração.
+
+**Padrão a checar:** todo lugar que só permite arrastar está quebrado no
+aparelho da loja. Vale varrer as outras listas com `ativarArrasto`.
