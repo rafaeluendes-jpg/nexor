@@ -3666,3 +3666,21 @@ outras continuam padrão, e recarregar não apaga o que foi salvo.
 pode ser tratado como dado do cliente. Foi a mesma raiz do episódio dos 27
 insumos da Rafaelo's — lá a trava foi `NUVEM.zerado`; aqui faltava marca
 equivalente.
+
+## V138 — o PDV cabe na tela, e a pastilha "Todos" saiu
+
+Duas coisas pedidas depois do primeiro dia de operação real.
+
+**A pastilha "Todos" saiu.** Mostrar os 42 produtos de uma vez é a lista mais
+longa possível, com rolagem garantida — e cada rolagem é tempo na fila. O caixa
+trabalha por categoria. A tela agora **abre na primeira categoria**, e a busca
+cobre o caso de procurar um item sem saber onde ele está.
+
+**A grade ficou densa o bastante para caber sem rolar:** largura mínima do
+cartão de 144px para 118px, foto de 4:3 para 1:1 com no máximo 104px, ícone da
+categoria de 62px para 44px, e a coluna da comanda de 360px para 308px. Textos
+e margens proporcionalmente menores.
+
+`grid-auto-rows:max-content` entrou junto — sem ele, grade com `overflow:hidden`
+nos itens e altura definida no container comprime as linhas e o cartão vira
+tarja. Foi o defeito do totem na V103.

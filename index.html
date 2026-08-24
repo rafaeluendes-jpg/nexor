@@ -533,7 +533,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .pdvTab .bg2{background:var(--acc);color:#fff;border-radius:10px;padding:1px 7px;font-size:10.5px}
 
 .pdvBody{flex:1;overflow:hidden;display:flex;background:var(--bg)}
-.pdvLeft{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:14px;gap:12px;min-width:0}
+.pdvLeft{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px;gap:8px;min-width:0}
 .pnlBar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;flex:none}
 .segm{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
 .segm button{height:30px;padding:0 14px;border:none;border-radius:7px;background:none;cursor:pointer;
@@ -557,11 +557,11 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 
 .catGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px}
 .catGrid.gr{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
-.catBox{border:1px solid var(--line);border-radius:9px;background:#fff;padding:10px 8px;cursor:pointer;
+.catBox{border:1px solid var(--line);border-radius:9px;background:#fff;padding:7px 8px;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:6px;transition:.14s;text-align:center;position:relative}
 .catBox:hover{border-color:var(--acc);background:var(--acc-soft)}
 .catBox.on{background:var(--acc);border-color:var(--acc);color:#fff}
-.catBox .ci2{width:62px;height:62px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+.catBox .ci2{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;
   background:var(--alt);color:var(--ink-2);font-weight:700;font-size:19px;overflow:hidden;flex:none}
 .catGrid.gr .ci2{width:78px;height:78px}
 .catBox.on .ci2{background:rgba(255,255,255,.24);color:#fff}
@@ -571,22 +571,31 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .catBox em{position:absolute;top:5px;right:7px;font-style:normal;font-size:9.5px;font-weight:700;color:var(--ink-3)}
 .catBox.on em{color:rgba(255,255,255,.8)}
 
-.prodGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(144px,1fr));gap:9px}
+/* ==========================================================
+   O CAIXA NAO DEVE ROLAR A TELA PARA ACHAR PRODUTO
+
+   Os cartoes tinham largura minima de 144px e a foto ocupava 4:3 — em
+   categorias com 8 ou 10 itens sobrava rolagem, e cada rolagem e tempo
+   na fila. Reduzindo o minimo e a altura da foto, cabem mais colunas e
+   mais linhas na mesma tela, sem o cartao virar tarja.
+   ========================================================== */
+.prodGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px;
+  grid-auto-rows:max-content}
 .prodGrid.gr{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:11px}
 .prodBox{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;cursor:pointer;
   display:flex;flex-direction:column;transition:.14s}
 .prodBox:hover{border-color:var(--acc);box-shadow:0 6px 18px rgba(18,42,66,.14);transform:translateY(-2px)}
-.prodBox .ph2{aspect-ratio:4/3;height:auto;max-height:150px;background:var(--alt);
+.prodBox .ph2{aspect-ratio:1/1;height:auto;max-height:104px;background:var(--alt);
   display:flex;align-items:center;justify-content:center;overflow:hidden;
   color:var(--ink-3);position:relative;border-bottom:1px solid var(--line-2)}
 .prodGrid.gr .ph2{aspect-ratio:4/3;height:auto;max-height:190px}
 .prodBox .ph2 img{width:100%;height:100%;object-fit:cover}
 .prodBox .fTag{position:absolute;top:6px;right:6px;width:19px;height:19px;border-radius:50%;
   background:var(--amber);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
-.prodBox .inf{padding:9px 11px 11px;background:#fff;position:relative;z-index:2}
-.prodBox .inf b{display:block;font-size:14px;font-weight:700;color:var(--ink);line-height:1.3;min-height:0}
+.prodBox .inf{padding:6px 8px 8px;background:#fff;position:relative;z-index:2}
+.prodBox .inf b{display:block;font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.25;min-height:0}
 .prodGrid.gr .inf b{font-size:15.5px;min-height:0}
-.prodBox .inf span{display:block;color:var(--acc-d);font-weight:800;font-size:16px;margin-top:4px}
+.prodBox .inf span{display:block;color:var(--acc-d);font-weight:800;font-size:14px;margin-top:2px}
 .prodGrid.gr .inf span{font-size:18px}
 .prodBox .inf s{color:var(--ink-3);font-weight:500;font-size:11px}
 .vazio2{grid-column:1/-1;padding:44px 20px;text-align:center;color:var(--ink-3);font-size:12.8px}
@@ -599,7 +608,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .pdvAviso span{font-size:12.8px;color:var(--ink-2);line-height:1.6;display:block;margin-bottom:16px}
 
 /* comanda */
-.pdvRight{width:360px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex:none}
+.pdvRight{width:308px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex:none}
 .comTop{background:var(--deep);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:9px}
 .comTop b{font-size:14px;font-weight:600;flex:1}
 .comTop span{font-size:10.5px;background:rgba(255,255,255,.14);padding:3px 9px;border-radius:20px}
@@ -17149,7 +17158,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V137.0.0';
+var VERSAO='V138.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23083,6 +23092,8 @@ function renderVenda(){
   /* "Disponível em" passa a valer de verdade: produto marcado só para
      cardápio digital não polui a tela de quem está no balcão. */
   var canalPDV=(PDV.tipo==='entrega')?'delivery':'pdv';
+  /* sem "Todos", a tela precisa abrir em alguma categoria */
+  if(!PDV.cat&&!q&&cats.length)PDV.cat=cats[0].id;
   var prods=DB.produtos.filter(function(p){return p.ativo!==false})
     .filter(function(p){return disponivelNo(p,canalPDV)})
     .filter(function(p){return !PDV.cat||p.categoriaId===PDV.cat})
@@ -23101,9 +23112,15 @@ function renderVenda(){
    '<div class="catFaixa">'+
     '<button class="catSeta" onclick="rolarCat(-1)">'+sv('cr2',15)+'</button>'+
     '<div class="catTrilho" id="catTrilho">'+
-     '<div class="catBox'+(!PDV.cat?' on':'')+'" onclick="setCatPdv(null)">'+
-       '<div class="ci2">'+sv('book',16)+'</div><span>Todos</span>'+
-       '<em>'+DB.produtos.filter(function(p){return p.ativo!==false}).length+'</em></div>'+
+     /* ==========================================================
+        SEM A PASTILHA "TODOS"
+
+        Mostrar os 42 produtos de uma vez nao ajuda quem atende: e a
+        lista mais longa possivel, com rolagem garantida. O caixa
+        trabalha por categoria — cascao, copo, pote. A tela abre na
+        primeira categoria e a busca cobre o caso de procurar um item
+        especifico sem saber a categoria.
+        ========================================================== */
      cats.map(function(c){
        var qt=DB.produtos.filter(function(p){return p.categoriaId===c.id&&p.ativo!==false}).length;
        return '<div class="catBox'+(PDV.cat===c.id?' on':'')+'" onclick="setCatPdv(\''+c.id+'\')">'+
