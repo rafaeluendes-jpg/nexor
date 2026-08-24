@@ -3370,3 +3370,21 @@ onde for marcado. Ficou escrito no próprio cadastro, que antes não dizia.
 Testes: 7 casos da baixa por opção — uma borda, três itens, opção sem vínculo
 achada pelo nome, opção sem ficha, item sem opções, duas opções no mesmo item e
 conversão de unidade.
+
+## V127 — a escolha da ficha na opção virou campo de busca
+
+O `<select>` da V126 era impraticável com 139 fichas: digitar não filtra, o
+navegador pula para a primeira ficha que começa com aquela letra, e cada tecla
+pula de novo. Quem digitava "borda" ia parar em B, O, R, D, A — cinco fichas
+diferentes, sem conseguir apagar nem corrigir.
+
+Virou **campo de texto com sugestão** (`datalist`): digita parte do nome, a
+lista filtra, e o vínculo é resolvido pelo nome ao salvar. A comparação ignora
+maiúscula e espaço sobrando, o que importa porque as fichas da Jolô estão em
+caixa alta e as opções são digitadas em caixa baixa.
+
+Digitou algo que não é ficha? **Avisa na tela** em vez de descartar em silêncio:
+*"Não achei a ficha X — a opção ficou sem baixa de estoque."*
+
+Testes: 9 casos — nome exato, caixa alta e baixa, espaço sobrando, campo vazio,
+nome pela metade e ficha apagada.

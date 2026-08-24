@@ -17085,7 +17085,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V126.0.0';
+var VERSAO='V127.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18164,8 +18164,28 @@ function formGrupo(id){
   });
   renderOps();
 }
+function nomeFichaDe(id){
+  if(!id)return '';
+  var f=(DB.fichas||[]).find(function(x){return x.id===id});
+  return f?f.nome:'';
+}
+function fichaPeloNome(txt){
+  var t=String(txt||'').trim().toLowerCase();
+  if(!t)return '';
+  var f=(DB.fichas||[]).find(function(x){return String(x.nome||'').trim().toLowerCase()===t});
+  return f?f.id:'';
+}
 function renderOps(){
   var b=$('gopsBox');if(!b)return;
+  /* a lista de sugestoes fica fora das linhas, uma so para todas */
+  if(!document.getElementById('listaFichasOp')){
+    var dl=document.createElement('datalist');
+    dl.id='listaFichasOp';
+    dl.innerHTML=(DB.fichas||[]).slice()
+      .sort(function(a,b2){return (a.nome||'').localeCompare(b2.nome||'')})
+      .map(function(f){return '<option value="'+E(f.nome)+'">'}).join('');
+    document.body.appendChild(dl);
+  }
   b.innerHTML=_gops.length?_gops.map(function(o,i){
     /* ==========================================================
        A OPCAO PRECISA DIZER O QUE SAI DO ESTOQUE
@@ -18178,21 +18198,37 @@ function renderOps(){
     return '<div class="opRow2">'+
     '<input value="'+E(o.nome)+'" placeholder="nome da opção" class="goN">'+
     '<div class="cur" style="width:118px"><span>R$</span><input type="number" step="0.01" value="'+(o.preco||0)+'" class="goP"></div>'+
-    '<select class="goF"><option value="">— não baixa estoque —</option>'+
-      (DB.fichas||[]).slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
-        .map(function(f){return '<option value="'+f.id+'"'+(o.fichaId===f.id?' selected':'')+'>'+E(f.nome)+'</option>'}).join('')+
-    '</select>'+
+    /* ==========================================================
+       LISTA DE 139 FICHAS NAO CABE NUM SELECT
+
+       Com um <select>, digitar nao filtra: o navegador pula para a
+       primeira ficha que comeca com aquela letra, e cada tecla pula de
+       novo. Quem digitava "borda" ia parar em B, O, R, D, A — cinco
+       fichas diferentes, sem conseguir apagar nem corrigir.
+
+       Agora e um campo de texto com sugestao: digita parte do nome e a
+       lista filtra. O vinculo e resolvido pelo nome na hora de salvar.
+       ========================================================== */
+    '<input class="goF" list="listaFichasOp" placeholder="digite para achar a ficha" '+
+      'value="'+E(nomeFichaDe(o.fichaId))+'">'+
     '<button onclick="remOp('+i+')">'+sv('trash',13)+'</button></div>';}).join('')
     :'<div class="hint">Nenhuma opção. Exemplo: Borda de Nutella, Borda de Chocolate.</div>';
 }
 function lerOps(){
   var n=document.querySelectorAll('.goN'),p=document.querySelectorAll('.goP'),
       f=document.querySelectorAll('.goF');
+  var antes=_gops.slice();
   _gops=[];
-  for(var i=0;i<n.length;i++)_gops.push({
-    id:(_gops[i]&&_gops[i].id)||undefined,
-    nome:n[i].value,preco:parseFloat(p[i].value)||0,
-    fichaId:(f[i]?f[i].value:'')||''});
+  for(var i=0;i<n.length;i++){
+    var txt=f[i]?f[i].value:'';
+    var fid=fichaPeloNome(txt);
+    /* digitou algo que nao e ficha: avisa em vez de descartar em silencio */
+    if(txt.trim()&&!fid)toast('Não achei a ficha "'+txt.trim()+'" — a opção ficou sem baixa de estoque.');
+    _gops.push({
+      id:(antes[i]&&antes[i].id)||undefined,
+      nome:n[i].value,preco:parseFloat(p[i].value)||0,
+      fichaId:fid});
+  }
 }
 function addOp(){lerOps();_gops.push({nome:'',preco:0});renderOps();}
 function remOp(i){lerOps();_gops.splice(i,1);renderOps();}
