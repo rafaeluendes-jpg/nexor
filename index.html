@@ -15720,7 +15720,28 @@ function volta(linhas,fn,atual,col){
           whatsapp:x.whatsapp||'',instagram:x.instagram||'',endereco:x.endereco||'',
           pedidoMinimo:Number(x.pedido_minimo)||0,
           tempoEntrega:x.tempo_entrega||'',tempoRetirada:x.tempo_retirada||'',
-          aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false});
+          aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false,
+          /* ==========================================================
+             ESTA DESCIDA ESQUECIA O HORARIO — E ERA POR ISSO QUE ELE VOLTAVA
+
+             Existem DUAS descidas da configuracao do cardapio. A primeira
+             traz tudo, inclusive `horarios`. Esta segunda, mais abaixo no
+             mesmo carregamento, faz Object.assign com uma lista de campos
+             onde `horarios` NAO estava — entao a entrada ficava sem
+             horario nenhum.
+
+             E aí a armadilha: cardAtual() preenche horario vazio com o
+             padrao (14:00 as 22:30, segunda fechada) e essa entrada NAO
+             tem a marca `_padrao`, porque veio da nuvem. Resultado: o
+             padrao subia por cima do horario de verdade, e o cardapio
+             voltava a dizer que a loja esta fechada na segunda.
+
+             Aconteceu de novo as 18:36, ja depois da V137. A trava da
+             V137 estava certa; faltava esta linha.
+             ========================================================== */
+          horarios:(x.horarios&&x.horarios.length)?x.horarios
+                   :((DB.cardapio[sid]||{}).horarios||[]),
+          endereco:x.endereco||((DB.cardapio[sid]||{}).endereco||'')});
       });
     }
   }catch(ec2){ logNuvem('não consegui baixar a configuração do cardápio',true); }
@@ -17183,7 +17204,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V140.0.0';
+var VERSAO='V141.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42130,7 +42151,10 @@ function cardAtual(){
   baseCard();
   if(!CD.suc||!DB.cardapio[CD.suc])CD.suc=(sucAtivas()[0]||{}).id||'';
   var c=DB.cardapio[CD.suc]||{};
-  if(!c.horarios||!c.horarios.length)c.horarios=horariosPadrao();
+  /* horario vazio ganha o padrao SO PARA A TELA TER O QUE MOSTRAR. Sem a
+     marca, esse padrao sobe e apaga o horario de verdade — foi o que
+     aconteceu duas vezes. A marca cai no primeiro salvamento. */
+  if(!c.horarios||!c.horarios.length){c.horarios=horariosPadrao();c._padrao=true;}
   if(!c.formas||!c.formas.length)c.formas=['Dinheiro','Pix','Cartão de débito','Cartão de crédito'];
   return c;
 }

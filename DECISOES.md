@@ -3756,3 +3756,28 @@ problema no lugar errado. Agora distingue os dois casos.
 **Lição:** num sistema que roda em loja aberta, toda chamada de rede precisa de
 nova tentativa antes de mudar o estado do sistema. Um erro isolado é normal;
 tratá-lo como queda é que derruba a operação.
+
+## V141 — o horário voltava porque existem DUAS descidas do cardápio
+
+O horário de Santa Fé foi corrigido de manhã e **voltou ao padrão às 18:36**,
+depois da V137. A trava daquela versão estava certa; o furo era outro.
+
+**Existem duas descidas da configuração do cardápio no mesmo carregamento.** A
+primeira traz tudo, inclusive `horarios`. A segunda, mais abaixo, faz
+`Object.assign` com uma lista de campos onde **`horarios` não estava** — a
+entrada ficava sem horário nenhum.
+
+E aí a armadilha: `cardAtual()` preenche horário vazio com o padrão (14:00 às
+22:30, segunda fechada), e essa entrada **não tem a marca `_padrao`**, porque
+veio da nuvem. O padrão então subia por cima do horário de verdade.
+
+Duas correções:
+
+- a segunda descida passou a trazer `horarios` (e `endereco`), preservando o que
+  já existe quando a nuvem vier vazia;
+- `cardAtual()` marca `_padrao` ao preencher horário vazio, para o padrão
+  **nunca** subir — a marca cai no primeiro salvamento de verdade.
+
+**Lição:** duas rotinas escrevendo no mesmo objeto, com listas de campos
+diferentes, é a mesma armadilha da V131 (duas funções para a mesma
+configuração). Vale procurar outros pontos onde isso se repete.
