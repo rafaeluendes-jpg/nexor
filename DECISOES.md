@@ -3449,3 +3449,31 @@ procurou uma coisa que estava na frente dele.
 
 **Lição:** o nome do botão é parte da funcionalidade. Uma tela que ninguém acha
 é uma tela que não existe.
+
+## V130 — a venda do balcão nascia sem unidade, e isso quebrou três coisas
+
+Primeiro dia de operação real em Santa Fé. O Rafael notou uma venda que "sumiu
+ao atualizar". No banco estavam as oito, mas com defeitos em cadeia — todos com
+**uma causa só**: `finalizarVenda()` não carimbava `sucursalId`. O totem
+carimbava; a frente de caixa, não.
+
+O estrago:
+
+1. **Relatório errado** — quem lê usa `p.sucursalId||'suc_matriz'`, então toda
+   venda do balcão contava como da matriz.
+2. **Número travado** — `proxNumPedido()` só olha as vendas **da unidade
+   aberta**. Como as novas nasciam sem unidade, ficavam fora da conta e o
+   número parava: sete vendas seguidas com o número 317.
+3. **A venda que sumiu** — duas vendas com o mesmo número aparecem como uma só
+   na tela. Estava gravada, escondida atrás da outra.
+
+Correções: a venda passa a carimbar `sucursalId`, `canal` e `origem`; e
+`proxNumPedido()` respeita o maior número existente em qualquer venda —
+**prefere-se um salto na sequência a dois pedidos com o mesmo número**.
+
+Dados do dia arrumados: sete vendas carimbadas com Santa Fé do Sul e
+renumeradas de 317 a 323, na ordem em que saíram.
+
+**Em aberto:** três vendas ficaram **sem forma de pagamento** (13:22, 13:42 e
+13:44), sendo que o Rafael marcou em todas. A de 13:22 gravou o *valor* com a
+forma vazia, o que aponta para o `fk('formasPag',...)` não resolvendo. Investigar.

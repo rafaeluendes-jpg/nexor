@@ -17092,7 +17092,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V129.0.0';
+var VERSAO='V130.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -22141,13 +22141,24 @@ function explicaMesas(){
    voltar atras. Agora e o maior numero DAQUELA loja, mais um. */
 function proxNumPedido(){
   var suc=lojaAtualId?lojaAtualId():'';
-  var max=0;
+  var max=0,maxGeral=0;
   (DB.pedidos||[]).forEach(function(p){
-    if(suc&&(p.sucursalId||'suc_matriz')!==suc)return;
     var n2=Number(p.numero)||0;
+    if(n2>maxGeral)maxGeral=n2;
+    if(suc&&(p.sucursalId||'suc_matriz')!==suc)return;
     if(n2>max)max=n2;
   });
-  return max+1;
+  /* ==========================================================
+     NUMERO REPETIDO E PIOR DO QUE NUMERO FORA DE ORDEM
+
+     A conta olhava so as vendas da unidade aberta. Venda gravada sem
+     unidade — por defeito ou por versao antiga — ficava de fora, e o
+     numero parava de andar: sete vendas com o mesmo 317, e a tela
+     mostrando uma so. Agora, se houver numero maior em qualquer venda,
+     ele e respeitado. Prefere-se um salto na sequencia a duas vendas
+     com o mesmo numero.
+     ========================================================== */
+  return Math.max(max,maxGeral)+1;
 }
 /* Clique duplo no botao de pagamento gerava DUAS vendas iguais: estoque
    baixado duas vezes e faturamento contado duas vezes. A trava solta
@@ -23574,7 +23585,25 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
     cidade:_cidadeVenda||(PDV.cliente&&PDV.cliente.cidade)||'',
     zonaId:(PDV.cliente&&PDV.cliente.zonaId)||'',
     zona:(PDV.cliente&&PDV.cliente.zona)||'',
-    data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id
+    data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id,
+    /* ==========================================================
+       A VENDA DO BALCAO NASCIA SEM UNIDADE
+
+       O totem carimbava `sucursalId`; a venda da frente de caixa, nao.
+       Isso causava TRES estragos ao mesmo tempo:
+
+       1. o relatorio contava a venda como da matriz, porque quem le usa
+          `p.sucursalId||'suc_matriz'`;
+       2. proxNumPedido() so olha as vendas DA unidade aberta — como as
+          novas nasciam sem unidade, elas eram ignoradas na conta e o
+          numero travava: sete vendas seguidas com o numero 317;
+       3. duas vendas com o mesmo numero aparecem como uma so na tela.
+          Foi a venda que "sumiu" — estava gravada, escondida atras da
+          outra.
+       ========================================================== */
+    sucursalId:lojaAtualId(),
+    canal:(PDV.tipo==='entrega'?'entrega':(PDV.mesaPag?'mesa':'pdv')),
+    origem:'pdv'
   };
   if(_cupomAtivo)ped.cupom={id:_cupomAtivo.id,codigo:_cupomAtivo.codigo,valor:valorCupom(_cupomAtivo,total+desc-taxa)};
   /* de qual aparelho saiu o pagamento — o fechamento separa por isso */
