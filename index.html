@@ -438,6 +438,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .canaisG{display:flex;gap:14px;flex-wrap:wrap;margin:2px 0 4px}
 .tagF{background:var(--amber-soft);color:var(--amber);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px}
 .grpOps{padding:9px 13px;display:flex;flex-wrap:wrap;gap:6px}
+.opChip i{display:block;font-style:normal;font-size:9.5px;margin-top:2px;opacity:.8}
+.opChip i.sem{color:#B4593F}
+.opChip.comF{border-color:#BFE0CC;background:#F2FAF5}
 .opChip{background:var(--alt);border:1px solid var(--line-2);border-radius:20px;padding:4px 11px;font-size:11.5px;color:var(--ink-2)}
 .opRow2{display:grid;grid-template-columns:1fr 118px 200px 34px;gap:7px;align-items:center;
   margin-bottom:7px}
@@ -17089,7 +17092,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V128.0.0';
+var VERSAO='V129.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17697,7 +17700,12 @@ function renderProdutos(){
 
   var h='<div class="cardH"><h2>'+(cat?E(cat.nome):'Todos os produtos')+'</h2><div class="acts">'+
   '<button class="btn b2" onclick="formProduto()">'+sv('plus',14)+' Cadastrar outros produtos</button>'+
-  '<button class="btn" onclick="abrirGrupos()">'+sv('edit',14)+' Editar opções</button></div></div>'+
+  /* "Editar opções" nao dizia que ali se cadastra e edita TODO grupo —
+     sabores, bordas, coberturas — num lugar so. O Rafael pediu essa tela
+     sem saber que ela ja existia atras desse nome. */
+  '<button class="btn" onclick="abrirGrupos()">'+sv('list',14)+' Grupos de opções'+
+   ((DB.grupos||[]).length?' <span class="cnt2">'+DB.grupos.length+'</span>':'')+
+  '</button></div></div>'+
   '<div class="srch"><span class="si">'+sv('search',15)+'</span>'+
   '<input id="bProd" placeholder="Pesquise por produto" value="'+E(S.buscaProd)+'"></div>'+
   '<div class="cardB" id="listaProd">';
@@ -18125,15 +18133,22 @@ function abrirGrupos(){
   if(!DB.grupos.length)h+='<div class="vazio" style="padding:30px"><b>Nenhum grupo cadastrado</b>Grupos servem para sabores, adicionais e bordas.</div>';
   DB.grupos.forEach(function(g){
     var canT={pdv:'só caixa',cardapio:'só cardápio',totem:'só totem'};
+    var qProd=(DB.produtos||[]).filter(function(pp){return (pp.grupos||[]).indexOf(g.id)>=0}).length;
     h+='<div class="grpCard"><div class="grpTop"><b>'+E(g.nome)+'</b>'+
     (g.forcado?'<span class="tagF">pergunta forçada</span>':'')+
     ((g.canais||[]).length&&g.canais.length<3
       ?'<span class="tagC">'+g.canais.map(function(c){return canT[c]||c}).join(' e ')+'</span>':'')+
-    '<span class="grpMeta">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+'</span>'+
+    '<span class="grpMeta">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+
+      ' · em '+qProd+' produto'+(qProd===1?'':'s')+'</span>'+
     '<button class="btn sm" onclick="formGrupo(\''+g.id+'\')">'+sv('edit',13)+'</button>'+
     '<button class="btn sm" onclick="excluirGrupo(\''+g.id+'\')">'+sv('trash',13)+'</button></div>'+
+    /* mostrar a ficha de cada opcao evita ter de abrir o grupo so para
+       conferir se a baixa de estoque foi vinculada */
     '<div class="grpOps">'+((g.opcoes||[]).length?g.opcoes.map(function(o){
-      return '<span class="opChip">'+E(o.nome)+(o.preco?' +R$ '+money(o.preco):'')+'</span>'}).join(''):
+      var fn=nomeFichaDe(o.fichaId);
+      return '<span class="opChip'+(fn?' comF':'')+'">'+E(o.nome)+
+        (o.preco?' +R$ '+money(o.preco):'')+
+        (fn?'<i>'+E(fn)+'</i>':'<i class="sem">sem ficha</i>')+'</span>'}).join(''):
       '<span class="grpMeta">sem opções</span>')+'</div></div>';
   });
   h+='</div>';

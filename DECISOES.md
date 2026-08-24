@@ -3417,3 +3417,19 @@ grupo sem opções e produto sem grupo.
 criada** — a ferramenta do banco falhou em cinco tentativas seguidas. Sem ela, a
 escolha funciona no aparelho e se perde na sincronização. Criar assim que a
 conexão voltar.
+
+## V129 — o cadastro central de grupos já existia, escondido atrás do nome
+
+O Rafael pediu uma tela para cadastrar e editar todos os grupos num lugar só.
+Ela existe desde sempre: é o `abrirGrupos()`, atrás do botão **"Editar
+opções"**. O nome não dizia o que fazia — dava a entender que editava as opções
+de um produto, não que ali se criam e gerenciam todos os grupos da rede.
+
+- O botão virou **"Grupos de opções"**, com a contagem ao lado.
+- O painel passou a mostrar, em cada opção, **qual ficha técnica está
+  vinculada** — ou um aviso vermelho *"sem ficha"*, porque opção sem ficha não
+  baixa estoque e isso precisa ser visível sem abrir o grupo.
+- Cada grupo mostra **em quantos produtos está sendo usado**.
+
+**Lição:** o Rafael pediu uma funcionalidade que já existia. Nome de botão que
+descreve a ação errada custa o mesmo que a funcionalidade não existir.
