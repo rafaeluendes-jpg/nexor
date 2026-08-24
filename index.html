@@ -14032,8 +14032,24 @@ var MAPA=[
       quantidade:n(o.qtd),unitario:n(o.unit),total:n(o.total),
       opcoes:o.opcoes||[],observacao:o.obs||null}}},
    {lista:'pagamentos',tab:'pedido_pagamentos',pai:'pedido_id',
-    campos:function(o){return {forma_id:fk('formasPag',o.forma),valor:n(o.valor),
-      equipamento:o.equipamento||null}}}]},
+    /* ==========================================================
+       A FORMA DE PAGAMENTO NAO PODE DEPENDER DO MAPA DO APARELHO
+
+       `fk()` traduz a referencia local no identificador da nuvem usando
+       um mapa que o aparelho monta antes de enviar. Quando esse mapa
+       falha — releitura vencida, tabela nao lida, aparelho recem-aberto
+       — `fk()` devolve NULO, e a venda subia com a forma em branco. Sem
+       erro na tela: o caixa fechava a venda achando que estava tudo
+       certo, e a noite o fechamento nao batia.
+
+       Aconteceu com as 8 vendas do primeiro dia de operacao em Santa Fe.
+
+       Agora a referencia vai junto (`forma_ref`), e um gatilho no banco
+       resolve o vinculo quando o id chega vazio. A forma deixa de
+       depender de o aparelho ter o mapa montado.
+       ========================================================== */
+    campos:function(o){return {forma_id:fk('formasPag',o.forma),forma_ref:o.forma||null,
+      valor:n(o.valor),equipamento:o.equipamento||null}}}]},
 
  {col:'acertos',     tab:'acertos',
   campos:function(x){return {entregador_id:fk('entregadores',x.entregadorId),
@@ -17109,7 +17125,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V134.0.0';
+var VERSAO='V135.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

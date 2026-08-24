@@ -3567,3 +3567,36 @@ O detalhe também ganhou o que o Rafael pediu: **situação**, **caixa** de orig
 e **troco devolvido**, quando houve. O troco passou a ser guardado no pedido
 (`troco`) — sem ele, quem confere depois não entende por que o cliente entregou
 mais do que o valor da venda.
+
+## V135 — a forma de pagamento não depende mais do mapa do aparelho
+
+**Causa das 8 vendas sem forma no primeiro dia de operação em Santa Fé.**
+
+`fk('formasPag', o.forma)` traduz a referência local (`fp_debito`) no
+identificador da nuvem, usando um mapa que o aparelho monta **antes de cada
+envio**. Esse mapa é relido no máximo a cada 5 minutos, e só é forçado quando um
+vínculo já falhou antes. Quando ele não está montado — aparelho recém-aberto,
+releitura vencida, tabela não lida —, `fk()` devolve **null**.
+
+E aí está o problema: gravava `forma_id: null` **em silêncio**. O caixa fechava
+a venda achando que estava tudo certo, e à noite o fechamento não batia. Pior:
+a cada nova sincronização o envio reescrevia os filhos do pedido, então
+pagamentos que **já estavam corretos** eram zerados de novo — foi o que
+aconteceu entre duas conferências minhas no mesmo dia.
+
+Correção em duas pontas:
+
+- o envio manda **`forma_ref`** junto (a referência, que o aparelho sempre tem);
+- um gatilho no banco (`resolve_forma_pagamento`) preenche `forma_id` quando ele
+  chega vazio, buscando por `ref_local` dentro da loja do pedido.
+
+Assim a forma deixa de depender de o aparelho ter o mapa montado. Testado: um
+pagamento inserido com vínculo nulo e `forma_ref='fp_pix'` saiu resolvido como
+Pix.
+
+Os 8 pagamentos do dia foram preenchidos com a referência, para não voltarem a
+zerar na próxima sincronização.
+
+**Padrão, e é o terceiro caso hoje:** vínculo que falha silenciosamente e grava
+nulo é pior do que erro na tela. Onde `fk()` puder devolver null num campo que
+importa, mandar também a referência e resolver no banco.
