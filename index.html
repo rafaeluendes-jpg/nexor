@@ -17109,7 +17109,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V133.0.0';
+var VERSAO='V134.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23577,6 +23577,7 @@ function irPagamento(){
         return false;
       }
     }
+    _trocoVenda=+(somaPg-final).toFixed(2);
     finalizarVenda(final,taxa,desc,_pagosVenda,$('pgFiscal').checked,$('pgImp').checked,entSel?entSel.value:null,fiado);
     return true;
   },'lg');
@@ -23632,6 +23633,7 @@ function addPag(f){
 }
 function remPag(i){_pagos.splice(i,1);recalcPag();}
 
+var _trocoVenda=0;
 function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado){
   var ag=new Date();
   /* venda na frente de caixa já sai concluída — só delivery passa pelo fluxo.
@@ -23667,8 +23669,10 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
        ========================================================== */
     sucursalId:lojaAtualId(),
     canal:(PDV.tipo==='entrega'?'entrega':(PDV.mesaPag?'mesa':'pdv')),
-    origem:'pdv'
+    origem:'pdv',
+    troco:_trocoVenda>0.009?_trocoVenda:0
   };
+  _trocoVenda=0;
   if(_cupomAtivo)ped.cupom={id:_cupomAtivo.id,codigo:_cupomAtivo.codigo,valor:valorCupom(_cupomAtivo,total+desc-taxa)};
   /* de qual aparelho saiu o pagamento — o fechamento separa por isso */
   ped.equipamento=(ped.canal==='totem')?'totem':(ped.canal==='mesa'?'mesa':'balcao');
@@ -23915,9 +23919,34 @@ function verPedido(id){
   (p.taxa?'<div class="linha"><span>Taxa de entrega</span><b>R$ '+money(p.taxa)+'</b></div>':'')+
   (p.desconto?'<div class="linha"><span>Desconto</span><b>- R$ '+money(p.desconto)+'</b></div>':'')+
   '<div class="linha tot"><span>Total</span><span>R$ '+money(p.total)+'</span></div>'+
-  '<div style="margin-top:11px">'+p.pagamentos.map(function(x){
-    var f=FORMAS.find(function(y){return y.id===x.forma});
-    return '<div class="linha"><span>'+f.n+'</span><b>R$ '+money(x.valor)+'</b></div>'}).join('')+'</div>'+
+  /* ==========================================================
+     PAGAMENTO SEM FORMA NAO PODE DERRUBAR A TELA
+
+     `FORMAS.find(...)` devolve undefined quando o pagamento chegou sem
+     forma — e o codigo lia `f.n` direto. Resultado: "Cannot read
+     properties of undefined (reading 'n')" e o detalhe do pedido nao
+     abria. Justamente nos pedidos com pagamento incompleto, que sao os
+     que mais precisam ser olhados.
+
+     Agora forma desconhecida aparece como "não informada", em vermelho,
+     e a tela abre. Ver o problema vale mais do que esconde-lo.
+     ========================================================== */
+  '<div style="margin-top:11px">'+
+  ((p.pagamentos||[]).length
+    ?(p.pagamentos||[]).map(function(x){
+       var f=FORMAS.find(function(y){return y.id===x.forma});
+       var nome=f?f.n:(x.nome||'forma não informada');
+       return '<div class="linha"><span'+(f?'':' style="color:#B4593F"')+'>'+E(nome)+'</span>'+
+         '<b>R$ '+money(x.valor)+'</b></div>'}).join('')
+    :'<div class="linha"><span style="color:#B4593F">Sem forma de pagamento registrada</span>'+
+     '<b>R$ '+money(p.total)+'</b></div>')+
+  /* o troco fica no pedido: sem ele, quem confere depois nao entende
+     por que o cliente entregou mais do que a venda */
+  (p.troco?'<div class="linha"><span>Troco devolvido</span><b>R$ '+money(p.troco)+'</b></div>':'')+
+  '</div>'+
+  '<div class="linha"><span>Situação</span><b>'+E((statusVenda(p.fase)||{}).nome||p.fase||'—')+'</b></div>'+
+  (p.caixaId?'<div class="linha"><span>Caixa aberto em</span><b>'+
+    E(((DB.caixas||[]).find(function(c){return c.id===p.caixaId})||{}).aberto||'—')+'</b></div>':'')+
   '</div></div>';
   modal('Detalhes do pedido',h,'Fechar',function(){return true});
 }

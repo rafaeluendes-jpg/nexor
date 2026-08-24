@@ -3548,3 +3548,22 @@ aberto** (24/08, R$ 556,05) e dois fechados.
 
 **Padrão:** dois campos para o mesmo fato é a mesma armadilha da V131 — um
 sempre fica para trás, e quem lê pelo campo errado tira conclusão errada.
+
+## V134 — o detalhe do pedido quebrava justamente nos pedidos com problema
+
+Clicar no olho no kanban dava *"Cannot read properties of undefined (reading
+'n')"* e a tela não abria. Causa: `FORMAS.find(...)` devolve `undefined` quando
+o pagamento chegou **sem forma**, e o código lia `f.n` direto.
+
+A ironia: quebrava exatamente nos pedidos com pagamento incompleto — os que
+mais precisam ser olhados. Os outros abriam normal, o que explica o "uns
+aparece, outros não".
+
+Agora forma desconhecida aparece como **"forma não informada"**, em vermelho, e
+a tela abre. Pedido sem nenhum pagamento mostra **"Sem forma de pagamento
+registrada"** com o valor total. Ver o problema vale mais do que escondê-lo.
+
+O detalhe também ganhou o que o Rafael pediu: **situação**, **caixa** de origem
+e **troco devolvido**, quando houve. O troco passou a ser guardado no pedido
+(`troco`) — sem ele, quem confere depois não entende por que o cliente entregou
+mais do que o valor da venda.
