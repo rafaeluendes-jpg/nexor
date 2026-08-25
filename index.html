@@ -17338,7 +17338,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V155.0.0';
+var VERSAO='V156.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23188,6 +23188,38 @@ function fasesAtivas(){
   return FASES_SOCORRO.map(function(x){
     return {id:x.id,n:x.n,cor:x.cor,minutos:0,som:false,confPag:false,papel:x.papel};});
 }
+/* ==========================================================
+   ITEM 6 — FECHAR O CAIXA PRECISA ENCERRAR O PDV
+
+   Ao confirmar o fechamento, o codigo chamava `telaPDV()` e mais nada.
+   Redesenhar a tela nao apaga o que esta na memoria: a comanda em
+   andamento, o cliente escolhido, a mesa em pagamento, os pagamentos
+   montados, o cupom aplicado e o troco pendente continuavam todos la.
+
+   Na pratica: o operador fechava o caixa e o pedido anterior seguia na
+   tela. Bastava tocar em Finalizar para nascer uma venda NOVA, sem
+   caixa aberto — venda orfa, que nao entra em fechamento nenhum e some
+   do controle.
+
+   Esta funcao apaga tudo o que pertence ao turno que acabou. Nao toca
+   em dado gravado: comanda, cliente e pagamentos aqui sao rascunho de
+   tela, e a venda ja finalizada esta em DB.pedidos.
+   ========================================================== */
+function encerrarSessaoPDV(){
+  PDV.comanda=[];
+  PDV.cliente=null;
+  PDV.tipo='loja';
+  PDV.aba='venda';
+  PDV.cat=null;
+  PDV.busca='';
+  PDV.comandaId=null;
+  PDV.mesaPag=false;
+  MESA_PAG=null;
+  _pagos=[]; _totPag=0; _cupomAtivo=null; _cidadeVenda=''; _trocoVenda=0;
+  try{ if(typeof _tpDesc!=='undefined')_tpDesc='rs'; }catch(e){}
+  /* fecha qualquer janela aberta por cima (pagamento, comanda, mesa) */
+  try{ fecharModal(); }catch(e){}
+}
 function caixaAberto(){
   DB.caixas=DB.caixas||[];
   return DB.caixas.find(function(c){return !c.fechadoEm})||null;
@@ -23770,6 +23802,22 @@ function trocaZonaPDV(zid){
 }
 function irPagamento(){
   if(!PDV.comanda.length){toast('Comanda vazia.');return;}
+  /* ==========================================================
+     SEM CAIXA ABERTO NAO SE FINALIZA VENDA
+
+     A venda carimba `caixaId:(caixaAberto()||{}).id` — sem caixa, isso
+     grava vazio e a venda nasce orfa: nao entra em fechamento nenhum,
+     nao aparece no movimento do turno, e so reaparece num relatorio
+     amplo, dias depois.
+
+     Isso ficou possivel justamente depois do fechamento, quando a tela
+     antiga continuava viva. Fechar a porta aqui vale mesmo que algum
+     estado escape no futuro.
+     ========================================================== */
+  if(!caixaAberto()){
+    toast('Não há caixa aberto. Abra o caixa antes de finalizar a venda.');
+    return telaPDV();
+  }
   if(PDV.tipo==='entrega'&&!PDV.cliente){toast('Entrega exige cliente identificado com endereço.');return buscarCliente();}
   var tot=PDV.comanda.reduce(function(a,i){return a+i.total},0);
   _pagos=[];_totPag=tot;_tpDesc='rs';_cupomAtivo=null;
@@ -24734,6 +24782,8 @@ function fecharCaixa(){
     (DB.caixas||[]).forEach(function(c){ if(!c.fechadoEm&&c.id!==cx.id)c.fechadoEm=cx.fechadoEm; });
     var nLanc=lancarFechamento(cx,mov);
     salvar();
+    /* o turno acabou: nada do que estava na tela pode sobreviver a ele */
+    encerrarSessaoPDV();
     telaPDV();
     if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));

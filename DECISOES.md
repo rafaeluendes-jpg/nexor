@@ -4202,3 +4202,32 @@ sem forma não protege a contagem, só garante que o problema passe despercebido
 de novo.
 
 28 testes entre os dois blocos.
+
+## V156 — ITEM 6 da auditoria do PDV: fechar o caixa encerra o PDV
+
+Ao confirmar o fechamento o código chamava `telaPDV()` e mais nada. Redesenhar a
+tela **não apaga o que está na memória**: comanda em andamento, cliente
+escolhido, mesa em pagamento, pagamentos montados, cupom aplicado e troco
+pendente continuavam todos lá.
+
+Na prática: o operador fechava o caixa e o pedido anterior seguia na tela.
+Bastava tocar em Finalizar para nascer uma venda **nova, sem caixa aberto** —
+venda órfã, que não entra em fechamento nenhum e só reaparece num relatório
+amplo, dias depois.
+
+Criada `encerrarSessaoPDV()`, chamada ao confirmar o fechamento: limpa comanda,
+cliente, tipo, aba, categoria, busca, comanda aberta, mesa em pagamento,
+`MESA_PAG`, pagamentos, total, cupom, cidade, troco e tipo de desconto, e fecha
+qualquer janela aberta por cima. Não toca em dado gravado — o que está ali é
+rascunho de tela; a venda finalizada já está em `DB.pedidos`.
+
+**Segunda trava, independente da primeira:** `irPagamento()` agora recusa
+finalizar quando não há caixa aberto. A venda carimba
+`caixaId:(caixaAberto()||{}).id` — sem caixa isso grava vazio. Fechar essa porta
+vale mesmo que algum estado escape no futuro.
+
+18 testes, cobrindo C5, C6 e C7 do documento.
+
+**Observado para o item 7:** `caixaAberto()` procura qualquer caixa sem
+`fechadoEm` **sem filtrar por unidade** — um caixa aberto no Alphaville é visto
+como aberto em Santa Fé. Será tratado no próximo item.
