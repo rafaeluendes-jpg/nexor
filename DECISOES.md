@@ -4461,3 +4461,54 @@ digital** que lia direto do banco sem a tradução — a causa do grupo de 2 sab
 aceitar só 1, já corrigida.
 
 A varredura ficou em `/home/claude/varre/` e pode ser reexecutada a cada rodada.
+
+## V164 — ITENS 5 a 10 (rodada 2): o horário da Carla
+
+**Causa raiz do problema relatado: não estava no robô.** A lógica de leitura foi
+reproduzida com os dados reais do banco e responde certo — testada às 18:10 de
+terça, devolveu ABERTO, com o dia da semana e a hora corretos.
+
+O que fazia a Carla dizer "fechado" era **o painel gravando errado**: o horário
+padrão subindo sozinho (V141/V142) e o salvamento indo para a unidade errada
+(V144). Corrigidos, mais a trava no banco que recusa o padrão.
+
+Quatro riscos que continuavam abertos e foram fechados:
+
+**1. Fonte dupla do horário (itens 5 e 6).** `whatsapp_config.texto_horario` é um
+campo livre, escrito à mão, e vinha **antes** do horário do cardápio nas duas
+listas do contexto da IA. Bastava alguém ter digitado ali "seg a sáb, 14h às
+22h30" uma vez para a Carla repetir isso para sempre, mesmo depois de o horário
+mudar no painel. **Fonte única agora:** manda sempre `cardapio_config.horarios`
+da unidade; o texto manual entra depois, identificado como observação do
+lojista. (Na Jolô o campo está vazio, então não houve efeito — mas era uma
+armadilha armada.)
+
+**2. Fuso escrito na mão (item 8).** `Date.now() - 3*3600*1000`. Funciona hoje
+porque o Brasil não tem horário de verão, mas é uma conta no código: se voltar,
+ou se uma unidade abrir em outro fuso, a Carla erra uma hora e ninguém liga uma
+coisa à outra. Agora o fuso é **nomeado** (`America/Sao_Paulo` por padrão, campo
+por unidade), com queda para o padrão se o cadastro tiver fuso inválido.
+Aplicado também em `hojeSP()` e no disparo das rotinas do assistente.
+
+**3. Madrugada (item 8).** Se a segunda vai das 12:00 às 02:00, à 01:00 de terça
+a loja está aberta — mas quem está aberto é o turno de segunda. O código somava
+1440 ao fechamento e **nunca chegava a usar essa soma**, porque à 01:00 de terça
+consultava a faixa de terça. Agora consulta também o dia anterior.
+
+**4. Unidade obrigatória (item 10).** A consulta filtrava só por `sucursal_id`.
+Se esse campo viesse vazio, o filtro deixava de existir e a consulta devolvia a
+**primeira linha da tabela** — o horário de outra unidade, possivelmente de outra
+rede. Agora: sem unidade não se consulta nada, e o filtro leva também `loja_id`.
+
+**Item 7 — sobrevive a deploy:** verificado que horário, configuração da Carla,
+unidade, telefone e gestores vivem todos em tabelas do banco. Nada em arquivo
+local nem em variável de memória.
+
+30 testes, incluindo os cenários exatos do item 9 (segunda 12:00–23:00 →
+aberto às 15:00, fechado às 23:30; alterado para 00:00 → aberto às 23:30),
+madrugada, domingo, virada de semana, e quatro fusos brasileiros.
+
+**ACHADO URGENTE — fora do escopo, mas precisa de ação:** `whatsapp_sessoes`
+está **vazia** (zero chaves). A última mensagem foi às 09:12 de hoje. A Carla
+provavelmente está desconectada e precisa reler o QR — sem isso os avisos de
+fase não chegam ao cliente.
