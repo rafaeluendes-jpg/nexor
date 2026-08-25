@@ -16278,6 +16278,33 @@ function volta(linhas,fn,atual,col){
       valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,quando:m2.criado_em}})};
   },null,'caixas');
   /* ==========================================================
+     ITEM 13 — CAIXA FECHADO NA NUVEM NAO PODE REABRIR AQUI
+
+     O aparelho guarda tudo no proprio navegador para funcionar sem
+     rede. Isso e proposital. Mas o caixa tem uma particularidade: se
+     ele foi fechado em OUTRO aparelho, a copia local continua achando
+     que esta aberto — e o operador segue vendendo num turno que ja
+     acabou, com as vendas caindo num caixa encerrado.
+
+     A nuvem manda no fechamento: se la esta fechado, aqui fecha
+     tambem. O contrario nao vale (ja tratado logo acima: fechamento
+     feito aqui nunca e desfeito pela nuvem).
+     ========================================================== */
+  (function(){
+    var naNuvem={};
+    (cx||[]).forEach(function(x){
+      if(x.fechado_txt||x.fechado_em)naNuvem[x.ref_local||x.id]=x.fechado_txt||'fechado';
+    });
+    (DB.caixas||[]).forEach(function(c){
+      if(!c.fechadoEm&&naNuvem[c.id]){
+        c.fechadoEm=naNuvem[c.id];
+        logNuvem('caixa '+String(c.id).slice(-6)+' foi fechado em outro aparelho — '+
+          'encerrado aqui tambem',true);
+      }
+    });
+  })();
+
+  /* ==========================================================
      O REMENDO QUE ESCONDIA O PROBLEMA
 
      Aqui, ao baixar da nuvem, o codigo fechava sozinho todos os caixas
@@ -17376,7 +17403,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V159.0.0';
+var VERSAO='V160.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24225,6 +24252,19 @@ async function enviarVendaAtomica(ped,mov){
       total:ped.total,taxa:ped.taxa,desconto:ped.desconto,fiscal:!!ped.fiscal,
       hora:ped.hora,data_venda:ped.data,canal:ped.canal||'',equipamento:ped.equipamento||'',
       cupom_codigo:(ped.cupom||{}).codigo||'',cupom_valor:(ped.cupom||{}).valor||null,
+      /* ==========================================================
+         ITEM 19 — A VENDA SUBIA SEM O CAIXA
+
+         O pacote atomico nao mandava `caixa_ref`. Na nuvem, 80 de 115
+         vendas dos ultimos dez dias estao sem caixa vinculado: no
+         aparelho a venda pertence ao turno, na nuvem nao pertence a
+         nenhum. Qualquer conferencia de fechamento feita fora do
+         aparelho que vendeu da resultado errado.
+
+         Vai a referencia local; o banco resolve para o identificador
+         dele, como ja faz com sucursal e produto.
+         ========================================================== */
+      caixa_ref:ped.caixaId||'',
       itens:(ped.itens||[]).map(function(it,i){
         return {ref_local:(it.id||(ped.id+'_'+i)),nome:it.nome||'',
           produto_id:it.produtoId||'',           /* identificador local; o banco resolve */
@@ -24545,7 +24585,7 @@ function pedeSenhaMov(){
 function movCaixa(tipo){
   var cx=caixaAberto();if(!cx)return;
   if(!operadoresPara(tipo).length){
-    toast('Ninguém com permissão para isso. Cadastre um gerente em Operadores do Caixa.');
+    toast('Ninguém com senha de autorização cadastrada. Cadastre em Operadores do Caixa.');
     return;
   }
   var titulo=tipo==='sangria'?'Sangria — retirada de dinheiro':'Suprimento — reforço de caixa';
@@ -45242,21 +45282,38 @@ function baseOper(){
    - cancelar venda ............. gerente, administrador
    Atendente e producao vendem, mas nao mexem em dinheiro nem cancelam.
    ========================================================== */
-var PERM_CAIXA={
-  abrir:    ['caixa','gerente','administrador'],
-  fechar:   ['caixa','gerente','administrador'],
-  sangria:  ['gerente','administrador'],
-  suprimento:['gerente','administrador'],
-  cancelar: ['gerente','administrador']
-};
+/* ==========================================================
+   DECISAO DO RAFAEL: QUEM TEM SENHA PODE
+
+   A primeira versao amarrava cada acao a um cargo — so gerente fazia
+   sangria, so gerente cancelava. Numa loja de gelato com duas ou tres
+   pessoas por turno isso trava a operacao: o gerente nao esta no balcao
+   as 21h de um sabado, e a venda para.
+
+   A regra passa a ser: QUALQUER operador pode, desde que tenha senha
+   de autorizacao cadastrada e a digite. O que assina a operacao e a
+   senha, nao o cargo.
+
+   Consequencia que fica registrada: com todos podendo tudo, a senha
+   vira o unico controle. Quem nao deve autorizar sangria simplesmente
+   nao recebe senha — e o cadastro em Operadores do Caixa passa a ser a
+   ferramenta de controle. Se um dia a rede crescer e for preciso
+   separar por cargo de novo, basta voltar a listar os cargos aqui.
+   ========================================================== */
+var PERM_CAIXA={};   /* vazio = sem restricao por cargo */
+/* acoes que exigem senha cadastrada para serem autorizadas */
+var EXIGE_SENHA=['sangria','suprimento','cancelar','fechar'];
 var NOME_ACAO={abrir:'abrir o caixa',fechar:'fechar o caixa',
   sangria:'fazer sangria',suprimento:'lançar suprimento',cancelar:'cancelar venda'};
 
 function podeFazer(op,acao){
   if(!op)return false;
   var lista=PERM_CAIXA[acao];
-  if(!lista)return true;
-  return lista.indexOf(op.funcao||'atendente')>=0;
+  if(lista&&lista.length&&lista.indexOf(op.funcao||'atendente')<0)return false;
+  /* mexer em dinheiro e cancelar exigem senha cadastrada: sem senha nao ha
+     como assinar a operacao, e retirada sem assinatura foi o buraco do item 10 */
+  if(EXIGE_SENHA.indexOf(acao)>=0 && !op.senha)return false;
+  return true;
 }
 /* quem pode aparecer na lista daquela acao */
 function operadoresPara(acao){
@@ -45267,7 +45324,10 @@ function autorizar(acao,id,senhaDigitada){
   var op=operAtivos().find(function(o){return o.id===id});
   if(!op){toast('Selecione quem está autorizando.');return null;}
   if(!podeFazer(op,acao)){
-    toast(op.nome+' não tem permissão para '+(NOME_ACAO[acao]||acao)+'.');return null;}
+    toast(op.senha
+      ? op.nome+' não tem permissão para '+(NOME_ACAO[acao]||acao)+'.'
+      : op.nome+' não tem senha de autorização — cadastre em Operadores do Caixa.');
+    return null;}
   if(op.senha){
     if(!senhaDigitada){toast('Digite a senha de '+op.nome+'.');return null;}
     if(String(senhaDigitada)!==String(op.senha)){toast('Senha incorreta.');return null;}

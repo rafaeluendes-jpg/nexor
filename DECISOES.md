@@ -4328,3 +4328,40 @@ o risco é diferente do de uma senha de acesso, mas o correto é guardar o hash.
 Depende de mover a conferência para o banco (Edge Function ou RPC), porque hash
 conferido no navegador não protege nada. **Fica para a migração do login para o
 Supabase Auth**, já na fila.
+
+## V160 — ITENS 13, 19 e mudança de regra de permissão
+
+**Regra de permissão, decidida pelo Rafael:** a primeira versão amarrava cada
+ação a um cargo — só gerente fazia sangria, só gerente cancelava. Numa loja com
+duas ou três pessoas por turno isso trava a operação: o gerente não está no
+balcão às 21h de um sábado, e a venda para.
+
+Passa a valer: **qualquer operador pode, desde que tenha senha de autorização
+cadastrada e a digite.** O que assina a operação é a senha, não o cargo.
+
+Consequência registrada: com todos podendo tudo, **a senha vira o único
+controle**. Quem não deve autorizar sangria simplesmente não recebe senha — o
+cadastro em Operadores do Caixa passa a ser a ferramenta de controle. Voltar a
+separar por cargo é uma linha (`PERM_CAIXA`).
+
+Abrir caixa não exige senha (é o início do turno, e travar isso deixa a loja
+sem vender). Fechar, sangria, suprimento e cancelar exigem.
+
+**Item 13 — estado local.** O aparelho guardar tudo é proposital (funciona sem
+rede). Mas o caixa tem uma particularidade: fechado em **outro** aparelho, a
+cópia local continuava achando que estava aberto, e o operador seguia vendendo
+num turno encerrado. Agora, ao baixar, caixa fechado na nuvem fecha aqui — o
+contrário não vale, fechamento feito aqui nunca é desfeito.
+
+**Item 19 — atomicidade.** Conferido: `venda_registrar`, `estoque_aplicar` e
+`confere_origem` são plpgsql sem `exception when others`, portanto a transação
+é atômica de verdade — não há como gravar metade.
+
+**Mas a venda subia sem o caixa.** O pacote não mandava `caixa_ref`: **80 de 115
+vendas dos últimos dez dias estão sem caixa vinculado na nuvem**. No aparelho a
+venda pertence ao turno; na nuvem, a nenhum. Qualquer conferência de fechamento
+feita fora do aparelho que vendeu dava resultado errado. Corrigido nas duas
+pontas — o pacote leva a referência e a função resolve, preservando o vínculo
+existente em reenvio.
+
+17 testes.
