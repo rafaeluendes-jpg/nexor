@@ -4220,6 +4220,15 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .pgRot{display:block;font-size:10px;font-weight:600;color:var(--ink-3);
   letter-spacing:.04em;text-transform:uppercase;margin-top:1px}
 .pgFalta{color:var(--red)}
+.fcRes{text-align:center;padding:16px;border-radius:11px;border:1.5px solid}
+.fcRes.ok{background:var(--green-soft,#E8F5E9);border-color:var(--green,#2E7D32)}
+.fcRes.dif{background:var(--red-soft);border-color:var(--red)}
+.fcRes span{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2)}
+.fcRes b{display:block;font-size:30px;font-weight:800;margin:4px 0 2px}
+.fcRes.ok b{color:var(--green,#2E7D32)}
+.fcRes.dif b{color:var(--red)}
+.fcRes small{display:block;font-size:11.5px;color:var(--ink-3)}
 .pgTroco{display:flex;justify-content:space-between;align-items:center;margin-top:10px;
   padding:11px 13px;background:var(--green-soft,#E8F5E9);border:1.5px solid var(--green,#2E7D32);
   border-radius:9px}
@@ -17324,7 +17333,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V153.0.0';
+var VERSAO='V154.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23123,7 +23132,21 @@ function cfg(){
   if(c.lojaAberta===undefined)c.lojaAberta=true;
   if(c.tempoEntrega===undefined)c.tempoEntrega=30;
   if(c.tempoRetirada===undefined)c.tempoRetirada=20;
-  if(c.caixaCego===undefined)c.caixaCego=false;
+  /* ==========================================================
+     ITEM 4 — O FECHAMENTO NASCE CEGO
+
+     `caixaCego` comecava DESLIGADO. Com ele desligado a tela mostra,
+     antes de o operador contar, quanto o sistema espera em cada forma —
+     e conferencia com o gabarito na frente nao e conferencia: quem
+     confere ajusta o que conta ao numero que esta vendo, sem ma
+     intencao, so por vies. Diferenca de caixa deixa de existir no papel
+     e passa a existir so na gaveta.
+
+     Agora o padrao e CEGO. Continua sendo possivel desligar em
+     Configuracao, para rede que trabalhe de outro jeito, mas quem
+     desliga faz por escolha, e nao por descuido.
+     ========================================================== */
+  if(c.caixaCego===undefined)c.caixaCego=true;
   if(!c.layout)c.layout='normal';
   if(!c.fases)c.fases=['aguardando','preparo','saiu','entregue','cancelado'];
   if(c.taxaPadrao===undefined)c.taxaPadrao=5;
@@ -24443,6 +24466,43 @@ function painelCaixa(){
   h+='</div>';
   modal('Caixa · turno atual',h,'Fechar',function(){return true},'lg');
 }
+function resultadoFechamento(cx,mov,esp){
+  var espG=Number(cx.esperado)||0, contado=Number(cx.contado)||0;
+  var difG=+(contado-espG).toFixed(2);
+  var conf=cx.conferencia||{};
+  var linhas=FORMAS.map(function(f){
+    var e=Number(esp[f.id])||0;
+    var i=(conf[f.id]===undefined||conf[f.id]===null)?null:Number(conf[f.id]);
+    var d=(i===null)?null:+(i-e).toFixed(2);
+    return '<tr><td>'+E(f.n)+'</td>'+
+      '<td style="text-align:right">R$ '+money(e)+'</td>'+
+      '<td style="text-align:right">'+(i===null?'<span style="color:var(--ink-3)">não informado</span>':'R$ '+money(i))+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+
+        (d===null?'var(--ink-3)':(Math.abs(d)<0.01?'var(--acc-d)':'var(--red)'))+'">'+
+        (d===null?'—':(d>0?'+ ':d<0?'− ':'')+'R$ '+money(Math.abs(d)))+'</td></tr>';
+  }).join('');
+  var ok=Math.abs(difG)<0.01;
+  modal('Fechamento realizado',
+   '<div class="mdB">'+
+    '<div class="fcRes '+(ok?'ok':'dif')+'">'+
+     '<span>'+(ok?'Caixa bateu certo':'Diferença no dinheiro')+'</span>'+
+     '<b>'+(ok?'R$ 0,00':(difG>0?'+ ':'− ')+'R$ '+money(Math.abs(difG)))+'</b>'+
+     '<small>'+(ok?'o contado é igual ao esperado'
+       :(difG>0?'sobrou dinheiro na gaveta':'faltou dinheiro na gaveta'))+'</small>'+
+    '</div>'+
+    '<div class="linha" style="margin-top:12px"><span>Esperado em dinheiro</span>'+
+     '<b>R$ '+money(espG)+'</b></div>'+
+    '<div class="linha"><span>Informado pelo operador</span><b>R$ '+money(contado)+'</b></div>'+
+    '<div class="linha"><span>Vendas do turno</span><b>R$ '+money(mov.total||0)+
+     ' <small style="color:var(--ink-3)">('+(mov.qtd||0)+')</small></b></div>'+
+    '<table class="tb2" style="margin-top:12px"><tr><th>Forma</th>'+
+     '<th style="text-align:right">Esperado</th><th style="text-align:right">Informado</th>'+
+     '<th style="text-align:right">Diferença</th></tr>'+linhas+'</table>'+
+    (cx.obs?'<div class="hint" style="margin-top:10px"><b>Observação:</b> '+E(cx.obs)+'</div>':'')+
+    '<div class="hint" style="margin-top:10px">Fechado por '+E(cx.fechadoPor||'')+
+     ' em '+E(cx.fechadoEm||'')+'.</div>'+
+   '</div>','Fechar',function(){ return true; },'lg');
+}
 function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
   toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
 function abrirCaixa(){
@@ -24626,11 +24686,21 @@ function fecharCaixa(){
     (DB.caixas||[]).forEach(function(c){ if(!c.fechadoEm&&c.id!==cx.id)c.fechadoEm=cx.fechadoEm; });
     var nLanc=lancarFechamento(cx,mov);
     salvar();
-    var dif=(conf.dinheiro||0)-esperadoGaveta;
     telaPDV();
-    toast('Caixa fechado por '+opF.nome+'. Diferença no dinheiro: R$ '+money(dif));
     if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));
+    /* ==========================================================
+       O RESULTADO SO APARECE DEPOIS DE FECHAR — E NUMA TELA
+
+       Antes o resultado saia num aviso passageiro no rodape: "Diferenca
+       no dinheiro: R$ -10", que some em segundos. Num caixa cego isso e
+       justamente o momento que importa — e a unica hora em que o
+       operador pode ver o esperado.
+
+       Agora abre uma tela com o comparativo forma a forma: esperado,
+       informado e diferenca.
+       ========================================================== */
+    setTimeout(function(){ resultadoFechamento(cx,mov,esp); },120);
     return true;
   },'lg');
   setTimeout(function(){pedeSenhaCaixa('fc')},80);

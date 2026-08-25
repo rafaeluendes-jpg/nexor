@@ -4138,3 +4138,34 @@ que se digita ali é o que veio da mão do cliente, não o valor da venda.
 (barrada — ali sobra é erro de digitação), misto dinheiro+Pix com e sem troco,
 débito+crédito, e centavos. Em todos, **a receita registrada é a da venda** e o
 troco sai apenas da parcela em dinheiro.
+
+## V154 — ITEM 4 da auditoria do PDV: fechamento às cegas
+
+O fechamento cego **já existia no código**, mas com dois furos:
+
+1. **vinha desligado por padrão**, e estava desligado na Jolô (`config_loja.
+   caixa_cego = false`). Com ele desligado a tela mostra, antes de o operador
+   contar, quanto o sistema espera em cada forma. Conferência com o gabarito na
+   frente não é conferência: quem confere ajusta o que conta ao número que está
+   vendo, sem má intenção, só por viés. A diferença deixa de existir no papel e
+   passa a existir só na gaveta;
+2. **o resultado saía num aviso passageiro no rodapé** ("Diferença no dinheiro:
+   R$ −10"), que some em segundos. No caixa cego esse é justamente o único
+   momento em que o operador pode ver o esperado.
+
+Correções:
+
+- `caixaCego` passou a nascer **ligado**; continua possível desligar em
+  Configuração, mas quem desliga faz por escolha e não por descuido;
+- ligado agora na Jolô;
+- criada a **tela de resultado do fechamento**, que abre depois de confirmar:
+  diferença em destaque (verde quando bate, vermelho quando não), esperado,
+  informado, vendas do turno, e uma tabela forma a forma com esperado,
+  informado e diferença. Forma não informada aparece como "não informado" e
+  **não vira diferença falsa**.
+
+O fluxo pedido no documento já estava atendido no resto: fechar → autenticar
+operador (nome + senha) → conferência cega → confirmar → resultado.
+
+16 testes. **Pendente:** o botão "Imprimir fechamento" é o item 9 — a tela de
+resultado já está pronta para recebê-lo.
