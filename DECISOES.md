@@ -3960,3 +3960,25 @@ Correções:
 **Lição:** sucesso de chamada não é prova de entrega. Toda integração externa
 precisa devolver *o que* foi feito, não apenas que "não deu erro" — senão a
 tela mente com a melhor das intenções e ninguém descobre por dias.
+
+## V147 — a tela de cancelamento saía espremida numa linha só
+
+Ao cancelar um pedido pelo kanban, o cartão aparecia todo em colunas lado a
+lado — data, cliente, total, motivo, observação, senha — com barra de rolagem
+horizontal e campos de um dedo de largura.
+
+Causa: `.cvCard` existe em **três telas diferentes**. A do resumo do caixa usa
+`display:flex;align-items:center` e força `display:block` em `span` e `b`
+filhos. A do cancelamento não redefinia `display`, então o flex do caixa
+continuava valendo. (O bloco de CSS ainda aparece repetido 8× no arquivo, o que
+torna a ordem de precedência difícil de prever — vale limpar isso depois.)
+
+As duas telas de cancelamento (o cartão e o detalhe no relatório) passaram a
+usar `cnc*`, nome exclusivo, com `display` explícito em cada regra para não
+depender de ordem. Os campos ganharam classe própria em vez de estilo solto, e
+a dupla operador+senha vira uma coluna em tela estreita.
+
+**Lição:** nome de classe repetido entre telas é a mesma armadilha das duas
+funções para a mesma coisa (V131, V141) e dos campos com nome divergente
+(V135, V136, V143). Funciona até alguém abrir as duas. Onde uma tela depende de
+estilo compartilhado, `display` precisa ser explícito.

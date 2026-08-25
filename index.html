@@ -4179,6 +4179,46 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .zapPrev:after{content:'';position:absolute;right:-5px;top:12px;width:10px;height:10px;
   background:#DCF8C6;transform:rotate(45deg)}
 
+/* ==========================================================
+   A TELA DE CANCELAMENTO SAIA ESPREMIDA NUMA LINHA SO
+
+   `.cvCard` existe em TRES telas: o resumo do caixa (que usa
+   display:flex e alinha tudo lado a lado), o cartao de cancelamento
+   e o detalhe do cancelamento no relatorio. A regra do caixa vinha
+   antes e definia display:flex; a do cancelamento nao redefinia
+   display, entao o flex continuava valendo — data, cliente, total,
+   motivo, observacao e senha viravam colunas lado a lado, com barra
+   de rolagem horizontal.
+
+   As telas de cancelamento passaram a usar `cnc*`, nome que nao
+   existe em nenhum outro lugar. Nome de classe repetido entre telas
+   diferentes e a mesma armadilha das duas funcoes para a mesma coisa
+   (V131, V141): funciona ate alguem abrir as duas.
+   ========================================================== */
+.cncCard{display:block;background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:16px;margin-top:12px}
+.cncH{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+.cncH b{display:inline;font-size:17px}
+.cncH span{display:inline;font-size:12px;color:var(--ink-3);letter-spacing:normal;
+  font-weight:400;opacity:1}
+.cncCli{font-size:13.5px;color:var(--ink-2);margin-bottom:12px;font-weight:600}
+.cncItens{border-top:1px solid var(--line-2);padding-top:10px}
+.cncItens div{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0}
+.cncTot{display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+.cncTot span{display:inline;font-size:13px;color:var(--ink-2);letter-spacing:normal;
+  font-weight:600;opacity:1}
+.cncTot b{display:inline;font-size:19px;font-weight:700;color:var(--red);margin:0}
+.cncPg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);margin-top:7px}
+.cncAviso{display:flex;gap:9px;margin-top:14px;padding:11px 13px;background:var(--amber-soft);
+  border:1px solid #E8CFA0;border-radius:8px;font-size:12px;color:#8A5A08;line-height:1.55}
+.cncAviso svg{flex:none;margin-top:1px}
+.cncVazio{display:flex;align-items:center;gap:10px;padding:18px;background:var(--alt);
+  border-radius:8px;margin-top:12px;color:var(--ink-3);font-size:12.5px}
+.cncVazio.jaCanc{background:var(--red-soft);color:var(--red)}
+.cncCampo{margin-top:12px}
+.cncDupla{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:560px){ .cncDupla{grid-template-columns:1fr} }
 .cvCard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}
 .cvH{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .cvH b{font-size:16px}
@@ -17242,7 +17282,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V146.0.0';
+var VERSAO='V147.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44850,12 +44890,12 @@ function buscarParaCancelar(num){
   if(!num){box.innerHTML='';return;}
   var p=(DB.pedidos||[]).find(function(x){return String(x.numero)===num});
   if(!p){
-    box.innerHTML='<div class="cvVazio">'+sv('search',20)+
+    box.innerHTML='<div class="cncVazio">'+sv('search',20)+
      '<span>Nenhum pedido com o número <b>'+E(num)+'</b></span></div>';
     return;
   }
   if(ehCancelado(p)){
-    box.innerHTML='<div class="cvVazio jaCanc">'+sv('help',20)+
+    box.innerHTML='<div class="cncVazio jaCanc">'+sv('help',20)+
      '<span>O pedido <b>#'+E(num)+'</b> já está cancelado.</span></div>';
     return;
   }
@@ -44869,17 +44909,17 @@ function cartaoCancelamento(p){
     var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId||x.id===g.forma});
     return (f?f.nome:'—')+' R$ '+money(g.valor);
   }).join(' · ');
-  return '<div class="cvCard">'+
-   '<div class="cvH"><b>#'+E(p.numero)+'</b>'+
+  return '<div class="cncCard">'+
+   '<div class="cncH"><b>#'+E(p.numero)+'</b>'+
     '<span>'+dataBR(String(p.data).slice(0,10))+' às '+E(p.hora||'')+'</span>'+
     '<span class="cidTag">'+(p.tipo==='entrega'?'Entrega':'Frente de caixa')+'</span></div>'+
-   '<div class="cvCli">'+E(p.clienteNome||'Consumidor')+'</div>'+
-   '<div class="cvItens">'+(p.itens||[]).map(function(i){
+   '<div class="cncCli">'+E(p.clienteNome||'Consumidor')+'</div>'+
+   '<div class="cncItens">'+(p.itens||[]).map(function(i){
      return '<div><span>'+i.qtd+'× '+E(i.nome)+'</span><b>R$ '+money(i.total)+'</b></div>';
    }).join('')+'</div>'+
-   '<div class="cvTot"><span>Total</span><b>R$ '+money(p.total)+'</b></div>'+
-   (pg?'<div class="cvPg">'+sv('cash',12)+' '+E(pg)+'</div>':'')+
-   '<div class="fld2" style="margin:14px 0 0"><label>Motivo do cancelamento *</label>'+
+   '<div class="cncTot"><span>Total</span><b>R$ '+money(p.total)+'</b></div>'+
+   (pg?'<div class="cncPg">'+sv('cash',12)+' '+E(pg)+'</div>':'')+
+   '<div class="fld2 cncCampo"><label>Motivo do cancelamento *</label>'+
     '<select id="cvMot">'+
     '<option value="">Escolha o motivo</option>'+
     motivosCancAtivos().map(function(m){
@@ -44888,11 +44928,11 @@ function cartaoCancelamento(p){
     (motivosCancAtivos().length?''
      :'<div class="hint">Nenhum motivo ativo. Cadastre em Configuracao da Loja &rsaquo; Motivo de Cancelamento.</div>')+
    '</div>'+
-   '<div class="fld2" style="margin:10px 0 0"><label>Observação</label>'+
+   '<div class="fld2 cncCampo"><label>Observação</label>'+
     '<input id="cvObs" placeholder="detalhe, se precisar"></div>'+
    /* Quem cancela assina. Antes ia como "Administrador" ou o nome de quem
       abriu o caixa, mesmo que outra pessoa estivesse na maquina. */
-   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 0">'+
+   '<div class="cncDupla">'+
     '<div class="fld2" style="margin:0"><label>Quem esta cancelando *</label>'+
      '<select id="cvOp" onchange="pedeSenhaCancel()">'+
      '<option value="">Selecione</option>'+
@@ -44903,7 +44943,7 @@ function cartaoCancelamento(p){
      '<input id="cvSenha" type="password" inputmode="numeric" placeholder="senha do caixa" autocomplete="off">'+
      '</div>'+
    '</div>'+
-   '<div class="cvAviso">'+sv('help',14)+
+   '<div class="cncAviso">'+sv('help',14)+
     '<div>Ao cancelar: o estoque volta, o valor sai do faturamento e '+
     'o gerente é avisado no WhatsApp.</div></div>'+
    '<button class="btnP2 rdB" style="width:100%;justify-content:center;margin-top:12px" '+
@@ -46505,16 +46545,16 @@ function verCancel(id){
   var itens=p?(p.itens||[]):[];
   modal('Cancelamento do pedido #'+E(c.numero),
   '<div class="mdB">'+
-   '<div class="cvCard" style="margin:0">'+
-    '<div class="cvH"><b>#'+E(c.numero)+'</b>'+
+   '<div class="cncCard" style="margin:0">'+
+    '<div class="cncH"><b>#'+E(c.numero)+'</b>'+
      '<span>'+dataBR(c.data)+' as '+E(c.hora||'')+'</span>'+
      (c.turno?'<span class="cidTag">'+E(c.turno)+'</span>':'')+'</div>'+
-    (p?'<div class="cvCli">'+E(p.clienteNome||'Consumidor')+'</div>':'')+
-    (itens.length?'<div class="cvItens">'+itens.map(function(i){
+    (p?'<div class="cncCli">'+E(p.clienteNome||'Consumidor')+'</div>':'')+
+    (itens.length?'<div class="cncItens">'+itens.map(function(i){
       return '<div><span>'+i.qtd+'x '+E(i.nome)+'</span><b>R$ '+money(i.total)+'</b></div>';
      }).join('')+'</div>'
      :'<div class="hint" style="padding:8px 0">Os itens deste pedido nao estao mais neste aparelho.</div>')+
-    '<div class="cvTot"><span>Valor cancelado</span><b>R$ '+money(c.valor)+'</b></div>'+
+    '<div class="cncTot"><span>Valor cancelado</span><b>R$ '+money(c.valor)+'</b></div>'+
    '</div>'+
    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">'+
     '<div class="fld2"><label>Motivo</label><input value="'+E(c.motivo||'—')+'" readonly></div>'+
