@@ -4263,3 +4263,28 @@ se já existe um aberto na unidade. Duas unidades podem ter caixa ao mesmo tempo
 como deve ser.
 
 16 testes, cobrindo C6, C7 e C8 do documento.
+
+## V158 — ITEM 9 da auditoria do PDV: comprovante de fechamento
+
+Não existia impressão do fechamento: o operador contava, fechava, e não ficava
+papel nenhum. Sem via impressa, qualquer conferência posterior depende de abrir
+o sistema — e uma diferença de caixa discutida dias depois vira palavra contra
+palavra.
+
+Criado `linhasFechamento()` + `imprimirFechamento()`, usando a mesma bobina das
+outras vias (58mm ou 80mm, conforme o modelo cadastrado). O comprovante traz
+tudo o que o documento pediu: unidade, caixa, operador (e quem fechou, se for
+outro), abertura, fechamento, valor de abertura, vendas por forma, total,
+quantidade, cancelamentos, sangrias, suprimentos, esperado, informado,
+diferença, conferência por forma com diferença individual, observação e linha
+para assinatura. **Não imprime senha nem nada sensível.**
+
+Dois pontos de acesso: botão na tela de resultado logo após fechar, e botão
+Imprimir no detalhe de qualquer caixa já fechado (reimpressão pelo histórico).
+
+**Achado no caminho — sexta ocorrência do mesmo erro:** `resumoDoCaixa()` lia
+`g.formaId` nos pagamentos, mas o campo é `g.forma`. Toda linha do aviso de
+fechamento enviado ao gerente pelo WhatsApp saía como "Não informado".
+Corrigido aceitando os dois nomes.
+
+17 testes, incluindo largura de linha nas duas bobinas e ausência de senha.
