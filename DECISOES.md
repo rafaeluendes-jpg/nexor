@@ -4110,3 +4110,31 @@ duplicar) — todos passaram. 13 testes de unidade no pacote.
 
 **Pendente deste item:** as 10 vendas já gravadas sem pagamento precisam ser
 lançadas manualmente — o sistema não tem como adivinhar a forma.
+
+## V153 — ITENS 2 e 3 da auditoria do PDV: dinheiro, troco e pagamento misto
+
+A regra de troco já estava certa desde a V132 — recebido maior que a venda é
+aceito quando há forma que dá troco, o pedido grava o valor da venda (não o
+recebido), e o troco não entra no faturamento. Os testes P2 e os de pagamento
+misto confirmaram isso contra a regra real do código.
+
+Três defeitos reais foram encontrados **na tela**:
+
+1. **o valor só era lido no `onchange`**, que dispara ao sair do campo. Quem
+   digitava 100 e tocava direto em Finalizar dependia de o navegador disparar o
+   evento antes do clique — no toque, às vezes não dispara. Mesma armadilha da
+   V124 (o robô salvando `[]`). Passou a ler a cada tecla, preservando a posição
+   do cursor;
+2. **não havia ENTER para confirmar** — no balcão, tirar a mão do teclado para
+   achar o botão custa tempo em toda venda. Enter no campo de valor finaliza;
+3. **o troco aparecia numa linha discreta**, do mesmo tamanho do resto. É o
+   número que o operador lê em voz alta para o cliente: agora sai em destaque,
+   em caixa verde, com o valor grande.
+
+O rótulo do campo mudou para **"recebido"** nas formas que dão troco, porque o
+que se digita ali é o que veio da mão do cliente, não o valor da venda.
+
+24 testes cobrindo: troco simples, valor exato, falta, sobra em Pix/débito
+(barrada — ali sobra é erro de digitação), misto dinheiro+Pix com e sem troco,
+débito+crédito, e centavos. Em todos, **a receita registrada é a da venda** e o
+troco sai apenas da parcela em dinheiro.

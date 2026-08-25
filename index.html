@@ -4217,6 +4217,14 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   border-radius:8px;margin-top:12px;color:var(--ink-3);font-size:12.5px}
 .cncVazio.jaCanc{background:var(--red-soft);color:var(--red)}
 .cncCampo{margin-top:12px}
+.pgRot{display:block;font-size:10px;font-weight:600;color:var(--ink-3);
+  letter-spacing:.04em;text-transform:uppercase;margin-top:1px}
+.pgFalta{color:var(--red)}
+.pgTroco{display:flex;justify-content:space-between;align-items:center;margin-top:10px;
+  padding:11px 13px;background:var(--green-soft,#E8F5E9);border:1.5px solid var(--green,#2E7D32);
+  border-radius:9px}
+.pgTroco span{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.pgTroco b{font-size:22px;font-weight:800;color:var(--green,#2E7D32)}
 .cncProd{margin-top:14px;padding:12px 13px;border:1px solid var(--line);border-radius:9px;
   background:var(--alt)}
 .cncProdT{font-size:13px;font-weight:700;margin-bottom:9px}
@@ -17316,7 +17324,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V152.0.0';
+var VERSAO='V153.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23881,17 +23889,66 @@ function recalcPag(){
     :(desc?'desconto de R$ '+money(desc):'sem desconto');
   $('pgTot').textContent='R$ '+money(final);
   var pago=_pagos.reduce(function(a,p){return a+p.valor},0);
+  /* ==========================================================
+     ITEM 2 — DINHEIRO, RECEBIDO E TROCO
+
+     Tres defeitos nesta tela:
+
+     1. o valor so era lido no `onchange`, que dispara ao SAIR do campo.
+        Quem digitava 100 e tocava direto em Finalizar dependia da sorte
+        de o navegador disparar o evento antes do clique — no toque, as
+        vezes nao dispara. E a mesma armadilha da V124, que fez o robo
+        salvar `[]`. Agora le a cada tecla (`oninput`).
+
+     2. nao havia como confirmar com ENTER: no balcao, tirar a mao do
+        teclado para achar o botao custa tempo em cada venda.
+
+     3. o troco aparecia numa linha discreta, do mesmo tamanho do resto.
+        E o numero que o operador precisa ler em voz alta para o cliente
+        — merece destaque.
+
+     O rotulo do campo tambem muda: em forma que da troco le-se
+     "Recebido", porque o que se digita ali e o que veio da mao do
+     cliente, nao o valor da venda.
+     ========================================================== */
+  var troco=+(pago-final).toFixed(2);
   $('pgLista').innerHTML=_pagos.map(function(p,i){
     var f=FORMAS.find(function(x){return x.id===p.forma});
-    return '<div class="pgLinha"><b>'+f.n+'</b>'+
-    '<div class="cur" style="width:126px"><span>R$</span><input type="number" step="0.01" value="'+p.valor+'" data-i="'+i+'" class="pgV"></div>'+
+    var daTroco=!!(f&&f.troco);
+    return '<div class="pgLinha"><b>'+f.n+
+      (daTroco?'<small class="pgRot">recebido</small>':'')+'</b>'+
+    '<div class="cur" style="width:126px"><span>R$</span>'+
+     '<input type="number" step="0.01" inputmode="decimal" value="'+p.valor+'" '+
+     'data-i="'+i+'" class="pgV"></div>'+
     '<button class="qtBtn rd2" onclick="remPag('+i+')">'+sv('trash',13)+'</button></div>';
   }).join('')+
-  (_pagos.length?'<div class="linha" style="margin-top:8px"><span>Falta receber</span><b>R$ '+money(Math.max(0,final-pago))+'</b></div>'+
-   (pago>final?'<div class="linha"><span>Troco</span><b>R$ '+money(pago-final)+'</b></div>':''):'');
+  (_pagos.length
+    ?(final-pago>0.009
+       ?'<div class="linha" style="margin-top:8px"><span>Falta receber</span>'+
+        '<b class="pgFalta">R$ '+money(final-pago)+'</b></div>'
+       :'')+
+     (troco>0.009?'<div class="pgTroco"><span>Troco para o cliente</span>'+
+       '<b>R$ '+money(troco)+'</b></div>':'')
+    :'');
   var vs=document.querySelectorAll('.pgV');
-  for(var i=0;i<vs.length;i++)vs[i].onchange=function(){
-    _pagos[this.getAttribute('data-i')].valor=parseFloat(this.value)||0;recalcPag();};
+  for(var i=0;i<vs.length;i++){
+    /* le a cada tecla: nao depende de sair do campo */
+    vs[i].oninput=function(){
+      _pagos[this.getAttribute('data-i')].valor=parseFloat(this.value)||0;
+      var pos=this.selectionStart, idx=this.getAttribute('data-i');
+      recalcPag();
+      var novo=document.querySelector('.pgV[data-i="'+idx+'"]');
+      if(novo){novo.focus(); try{novo.setSelectionRange(pos,pos);}catch(e){}}
+    };
+    /* ENTER confirma a venda direto do campo de valor */
+    vs[i].onkeydown=function(ev){
+      if(ev.key==='Enter'){ ev.preventDefault();
+        _pagos[this.getAttribute('data-i')].valor=parseFloat(this.value)||0;
+        var b=document.querySelector('.mdF .btnP,.mdF .ok');
+        if(b)b.click();
+      }
+    };
+  }
 }
 function addPag(f){
   var taxa=parseFloat($('pgTaxa').value)||0,desc=valorDesconto();
