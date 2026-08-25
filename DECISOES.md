@@ -4169,3 +4169,36 @@ operador (nome + senha) → conferência cega → confirmar → resultado.
 
 16 testes. **Pendente:** o botão "Imprimir fechamento" é o item 9 — a tela de
 resultado já está pronta para recebê-lo.
+
+## V155 — ITEM 5 da auditoria do PDV: a matemática do caixa
+
+**A matemática já estava correta.** Verificado com os cenários exatos do
+documento:
+
+- `esperadoCaixa` = abertura + vendas em dinheiro + suprimentos − sangrias;
+- faturamento = **somente vendas**; a abertura nunca entra;
+- sangria **não** reduz faturamento, só a gaveta;
+- venda cancelada não conta em nenhum dos dois;
+- em pagamento misto, só a parcela em dinheiro vai para a gaveta.
+
+Testes C1/C2/C3 do documento passaram como especificado: abre com R$ 200, vende
+R$ 200 em dinheiro → faturamento R$ 200 e gaveta R$ 400; sangria de R$ 200 →
+faturamento continua R$ 200 e gaveta cai para R$ 200.
+
+**O buraco estava em outro lugar**, e é herança do item 1: quando um pagamento
+fica sem forma, o valor entra em `total` (que soma os pedidos) e **não entra em
+nenhuma forma**. O fechamento mostrava "vendas R$ 300" com as formas somando
+R$ 225, e os R$ 75 restantes não apareciam em linha nenhuma. O operador contava
+a gaveta, batia com o esperado e fechava — com R$ 75 de venda fora de controle,
+sem aviso.
+
+`movimentoCaixa` passou a devolver `semForma` (pagamento com forma nula) e
+`descoberto` (venda sem pagamento algum), e a tela de fechamento mostra um
+alerta somando os dois.
+
+**Decisão:** esse alerta **não** é ocultado pelo caixa cego. O cego esconde
+quanto o sistema espera, para a contagem ser honesta; esconder que existe venda
+sem forma não protege a contagem, só garante que o problema passe despercebido
+de novo.
+
+28 testes entre os dois blocos.

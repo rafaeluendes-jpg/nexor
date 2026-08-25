@@ -4229,6 +4229,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .fcRes.ok b{color:var(--green,#2E7D32)}
 .fcRes.dif b{color:var(--red)}
 .fcRes small{display:block;font-size:11.5px;color:var(--ink-3)}
+.cfAlerta{display:flex;gap:10px;margin-top:12px;padding:11px 13px;background:var(--amber-soft);
+  border:1.5px solid #E8CFA0;border-radius:9px;color:#8A5A08}
+.cfAlerta svg{flex:none;margin-top:2px}
+.cfAlerta b{display:block;font-size:13px}
+.cfAlerta small{display:block;font-size:11.5px;margin-top:3px;line-height:1.5;opacity:.92}
 .pgTroco{display:flex;justify-content:space-between;align-items:center;margin-top:10px;
   padding:11px 13px;background:var(--green-soft,#E8F5E9);border:1.5px solid var(--green,#2E7D32);
   border-radius:9px}
@@ -17333,7 +17338,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V154.0.0';
+var VERSAO='V155.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24338,7 +24343,28 @@ function movimentoCaixa(id){
   var ps=DB.pedidos.filter(function(p){return p.caixaId===id&&!ehCancelado(p)});
   var porForma={},qtdForma={},porEquip={};
   FORMAS.forEach(function(f){porForma[f.id]=0;qtdForma[f.id]=0});
+  /* ==========================================================
+     ITEM 5 — VENDA SEM FORMA SUMIA DO FECHAMENTO
+
+     A conta do caixa esta certa: abertura nao e venda, sangria nao
+     reduz faturamento, e a gaveta e abertura + dinheiro + suprimento −
+     sangria. Os testes C1, C2 e C3 confirmam.
+
+     O buraco esta em outro lugar. Quando um pagamento fica sem forma
+     — o defeito do item 1 —, o valor entra em `total` (que soma os
+     pedidos) e NAO entra em nenhuma forma. O fechamento entao mostra
+     "vendas R$ 300" com as formas somando R$ 225, e os R$ 75 que
+     faltam nao aparecem em lugar nenhum: nao ha linha para eles.
+
+     O operador conta a gaveta, bate com o esperado, fecha o caixa — e
+     R$ 75 de venda ficaram fora do controle sem nenhum aviso.
+
+     Agora esse valor e somado a parte e mostrado como linha propria no
+     fechamento.
+     ========================================================== */
+  var _semForma=0;
   ps.forEach(function(p){(p.pagamentos||[]).forEach(function(x){
+    if(!x.forma){ _semForma+=Number(x.valor)||0; return; }
     porForma[x.forma]=(porForma[x.forma]||0)+x.valor;
     qtdForma[x.forma]=(qtdForma[x.forma]||0)+1;
     /* De qual APARELHO veio o dinheiro. Sem isso, o fechamento junta a
@@ -24349,9 +24375,15 @@ function movimentoCaixa(id){
     porEquip[x.forma][eq]=(porEquip[x.forma][eq]||0)+x.valor;
   })});
   var idDin=(FORMAS.find(function(f){return f.tipo==='dinheiro'})||{}).id;
-  return {qtd:ps.length,total:ps.reduce(function(a,p){return a+p.total},0),
+  var _tot=ps.reduce(function(a,p){return a+p.total},0);
+  var _somaF=FORMAS.reduce(function(a,f){return a+(porForma[f.id]||0)},0);
+  return {qtd:ps.length,total:_tot,
           dinheiro:(idDin?porForma[idDin]:0)||porForma.dinheiro||0,
-          porForma:porForma,qtdForma:qtdForma,porEquip:porEquip};
+          porForma:porForma,qtdForma:qtdForma,porEquip:porEquip,
+          semForma:+_semForma.toFixed(2),
+          /* quanto de venda nao esta em nenhuma forma: pagamento sem forma
+             mais venda que nao chegou a ter pagamento */
+          descoberto:+(_tot-_somaF-_semForma).toFixed(2)};
 }
 /* ao fechar o caixa, cada forma vira um lançamento na conta dela, já com a taxa descontada */
 function lancarFechamento(cx,mov){
@@ -24634,6 +24666,22 @@ function fecharCaixa(){
   '<td class="cSis" style="text-align:right"><b>'+(cego?'oculto':'R$ '+money(FORMAS.reduce(function(a,f){return a+esp[f.id]},0)))+'</b></td>'+
   '<td style="text-align:right"><b id="cfTot">R$ 0,00</b></td>'+
   '<td style="text-align:right"><b id="cfDifTot">—</b></td></tr></tfoot></table>'+
+  /* ==========================================================
+     VENDA QUE NAO ESTA EM NENHUMA FORMA PRECISA APARECER
+
+     Este aviso NAO e ocultado pelo caixa cego, de proposito. O cego
+     esconde o quanto o sistema espera, para a contagem ser honesta.
+     Mas esconder que existe venda sem forma nao protege a contagem:
+     so garante que o problema passe despercebido de novo.
+     ========================================================== */
+  ((mov.descoberto>0.01||mov.semForma>0.01)
+    ? '<div class="cfAlerta">'+sv('help',15)+
+      '<div><b>R$ '+money((mov.descoberto||0)+(mov.semForma||0))+
+      ' em vendas sem forma de pagamento</b>'+
+      '<small>Esse valor entra no total de vendas mas não está em nenhuma linha acima, '+
+      'então não dá para conferir com a gaveta nem com as maquininhas. '+
+      'Lance a forma nas vendas antes de fechar, ou anote na observação.</small></div></div>'
+    : '')+
   '</div>'+
 
   '<div class="blk" style="margin:0;max-width:none">'+
