@@ -17242,7 +17242,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V143.0.0';
+var VERSAO='V144.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42187,7 +42187,25 @@ function horariosPadrao(){
 }
 function cardAtual(){
   baseCard();
-  if(!CD.suc||!DB.cardapio[CD.suc])CD.suc=(sucAtivas()[0]||{}).id||'';
+  /* ==========================================================
+     QUEM ENTROU POR UMA UNIDADE CONFIGURA A UNIDADE DELE
+
+     Antes esta tela abria em `sucAtivas()[0]` — a primeira da lista,
+     que na pratica e a Matriz ou o Alphaville. Quem entrava pelo login
+     de Santa Fe abria a tela do cardapio ja apontando para OUTRA loja,
+     sem perceber, e o que salvasse ia para a loja errada. Foi assim que
+     o fechamento de segunda foi parar no Alphaville enquanto Santa Fe
+     seguia com o horario antigo e o robo respondia "fechada".
+
+     Agora: quem nao circula entre unidades abre travado na dele.
+     ========================================================== */
+  if(!podeTrocarUnidade()){
+    var minha=lojaAtual();
+    if(minha&&sucAtivas().some(function(s){return s.id===minha}))CD.suc=minha;
+  }
+  if(!CD.suc||!DB.cardapio[CD.suc])
+    CD.suc=(podeTrocarUnidade()?(sucAtivas()[0]||{}):(sucAtivas().find(function(s){return s.id===lojaAtual()})||{})).id
+           ||lojaAtual()||(sucAtivas()[0]||{}).id||'';
   var c=DB.cardapio[CD.suc]||{};
   /* horario vazio ganha o padrao SO PARA A TELA TER O QUE MOSTRAR. Sem a
      marca, esse padrao sobe e apaga o horario de verdade — foi o que
@@ -42213,14 +42231,22 @@ function telaCfgCardapio(dentro){
     '<button class="btnP2" onclick="copiarLink()">'+sv('copy',13)+' Copiar link</button>'+
     '<a class="btnP2" href="'+link+'" target="_blank" style="text-decoration:none">'+
      sv('eye',13)+' Ver o cardápio</a>'+
-    '<button class="btnP2 ok" onclick="salvarCardapio(true)">'+sv('check',13)+' Salvar</button>'+
+    /* o botao diz EM QUAL loja vai gravar: com quatro unidades, salvar sem
+       ver o nome ja mandou horario para a loja errada */
+    '<button class="btnP2 ok" onclick="salvarCardapio(true)">'+sv('check',13)+
+      ' Salvar '+E(sucNome(CD.suc))+'</button>'+
    '</div>'+
    '<div class="barraF">'+
-    '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
-     '<select onchange="trocarLojaCardapio(this.value)">'+
-     sucs.map(function(s){
-       return '<option value="'+s.id+'"'+(CD.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
-     }).join('')+'</select></div>'+
+    /* franqueado nao escolhe loja: ve o nome da dele, escrito, sem campo
+       para trocar. Quem circula continua com a lista. */
+    (podeTrocarUnidade()
+      ? '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
+        '<select onchange="trocarLojaCardapio(this.value)">'+
+        sucs.map(function(s){
+          return '<option value="'+s.id+'"'+(CD.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
+        }).join('')+'</select></div>'
+      : '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
+        '<div style="font-weight:700;padding:6px 0">'+E(sucNome(CD.suc))+'</div></div>')+
     '<div class="bfCampo"><label>Situação</label>'+
      '<label class="chkL" style="height:32px;margin:0"><input type="checkbox" id="cdAtivo" '+
       (c.ativo!==false?'checked':'')+'><span>Cardápio no ar</span></label></div>'+
@@ -43218,7 +43244,14 @@ function baseZap(){
 }
 function zapAtual(){
   baseZap();
-  if(!ZP.suc||!DB.zap[ZP.suc])ZP.suc=(sucAtivas()[0]||{}).id||'';
+  /* mesma regra da tela do cardapio: quem entrou por uma unidade mexe na
+     unidade dele, e nao na primeira da lista */
+  if(!podeTrocarUnidade()){
+    var _m=lojaAtual();
+    if(_m&&sucAtivas().some(function(s){return s.id===_m}))ZP.suc=_m;
+  }
+  if(!ZP.suc||!DB.zap[ZP.suc])
+    ZP.suc=(podeTrocarUnidade()?((sucAtivas()[0]||{}).id):lojaAtual())||(sucAtivas()[0]||{}).id||'';
   return DB.zap[ZP.suc]||{};
 }
 async function zapApi(caminho,metodo,corpo){
@@ -43270,11 +43303,14 @@ function telaZap(dentro){
     '<button class="btnP2 ok" onclick="salvarZap()">'+sv('check',13)+' Salvar</button>'+
    '</div>'+
    '<div class="barraF">'+
-    '<div class="bfCampo" style="min-width:230px"><label>Loja</label>'+
+    (podeTrocarUnidade()
+      ? '<div class="bfCampo" style="min-width:230px"><label>Loja</label>'+
      '<select onchange="trocarLojaZap(this.value)">'+
      sucAtivas().map(function(s){
        return '<option value="'+s.id+'"'+(ZP.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
-     }).join('')+'</select></div>'+
+     }).join('')+'</select></div>'
+      : '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
+        '<div style="font-weight:700;padding:6px 0">'+E(sucNome(ZP.suc))+'</div></div>')+
     '<div class="bfCampo"><label>Robô</label>'+
      '<label class="chkL" style="height:32px;margin:0"><input type="checkbox" id="zpAtivo" '+
      (c.ativo!==false?'checked':'')+'><span>responder automaticamente</span></label></div>'+

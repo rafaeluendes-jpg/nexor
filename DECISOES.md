@@ -3853,3 +3853,31 @@ Agora lista vazia significa "ainda não sei": devolve o que já estava e espera.
 
 **Lição:** ausência de dado não é resposta. Toda escolha automática feita
 enquanto o sistema carrega precisa distinguir "não tem" de "ainda não chegou".
+
+## V144 — a tela de configuração abria na loja errada
+
+O fechamento de segunda foi salvo às 22:37 e o robô continuou dizendo "fechada".
+O salvamento tinha funcionado — **mas gravou no Alphaville**, enquanto Santa Fé
+seguia com o horário antigo.
+
+Causa: `cardAtual()` e a tela do robô abriam em `sucAtivas()[0]` — a primeira da
+lista, que na prática é a Matriz ou o Alphaville. Quem entrava pelo login de uma
+unidade abria a tela já apontando para outra loja, sem perceber.
+
+Pergunta do Rafael, que é a regra certa: *"se a loja de Santa Fé entrou pelo
+login de Santa Fé, por que aparece para ela salvar na loja do Alphaville? Esse
+campo só tem que aparecer na matriz."*
+
+Correções, nas duas telas (cardápio e robô):
+
+- quem não circula entre unidades (`podeTrocarUnidade()` falso) abre **travado**
+  na unidade dele, e não consegue apontar para outra;
+- o **seletor de loja desaparece** para o franqueado — no lugar, o nome da loja
+  dele escrito;
+- o botão passou a dizer **"Salvar «nome da loja»"**, para quem circula não
+  gravar na unidade errada sem ver.
+
+**Lição:** onde uma tela grava dado por unidade, a unidade tem que estar escrita
+no botão que grava. Já tinha sido aprendido na V122 (barra de salvar do robô com
+o nome da loja) e não foi aplicado às demais telas por unidade. Vale varrer as
+outras.
