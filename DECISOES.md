@@ -4007,3 +4007,26 @@ de vê-los era o layout quebrado da V147, que espremia o campo de escolha.
 com nome diferente entre quem grava e quem lê. Aqui o efeito foi pior que perder
 dado — foi **desativar uma conferência de segurança sem que ninguém percebesse**.
 Vale rodar a varredura automática de campos em todo o `index.html`.
+
+## V149 — cancelamento pergunta se foi produzido, e o estoque segue a resposta
+
+**Regra definida pelo Rafael:**
+
+- ao levar a venda para cancelado, a **primeira** pergunta é *"esse pedido já foi
+  produzido?"*;
+- **Sim** → o insumo já foi consumido: o estoque **não volta**;
+- **Não** → nada saiu da cuba: o estoque **volta**;
+- o valor **sai do faturamento nos dois casos**;
+- o cancelamento é **sempre da nota inteira** — nunca parcial.
+
+Antes o estoque voltava sempre, sem perguntar. Para gelato montado, cascão
+recheado e batido pronto isso inventava saldo que a loja não tem, e o erro só
+aparecia na contagem semanas depois.
+
+Não há resposta padrão: sem escolher, o cancelamento é barrado. Chutar qualquer
+um dos dois lados produz erro de estoque silencioso.
+
+A decisão fica registrada em `cancelamentos.produzido` e
+`cancelamentos.estoque_voltou` (colunas novas), e **sobe e desce** — conferido
+por teste de ida e volta, para não repetir o esquecimento da V143. Cancelamento
+antigo, sem os campos, continua válido com valor nulo.

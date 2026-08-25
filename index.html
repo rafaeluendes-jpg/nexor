@@ -4217,6 +4217,17 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   border-radius:8px;margin-top:12px;color:var(--ink-3);font-size:12.5px}
 .cncVazio.jaCanc{background:var(--red-soft);color:var(--red)}
 .cncCampo{margin-top:12px}
+.cncProd{margin-top:14px;padding:12px 13px;border:1px solid var(--line);border-radius:9px;
+  background:var(--alt)}
+.cncProdT{font-size:13px;font-weight:700;margin-bottom:9px}
+.cncProdB{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media(max-width:560px){ .cncProdB{grid-template-columns:1fr} }
+.cncOp{display:flex;align-items:flex-start;gap:9px;padding:10px 11px;background:#fff;
+  border:1.5px solid var(--line);border-radius:8px;cursor:pointer}
+.cncOp.on{border-color:var(--acc);background:var(--acc-soft)}
+.cncOp input{margin-top:3px;flex:none}
+.cncOp b{display:block;font-size:12.5px}
+.cncOp small{display:block;font-size:11px;color:var(--ink-3);margin-top:2px;line-height:1.4}
 .cncDupla{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 @media(max-width:560px){ .cncDupla{grid-template-columns:1fr} }
 .cvCard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}
@@ -13982,7 +13993,11 @@ var MAPA=[
     valor:n(x.valor),data:x.data||null,hora:x.hora||null,
     motivo_id:fk('motivosCanc',x.motivoId),motivo_nome:x.motivo||null,
     observacao:x.obs||null,operador_id:x.operadorId||null,operador_nome:x.operador||null,
-    caixa_ref:x.caixaId||null,turno_nome:x.turno||null}}},
+    caixa_ref:x.caixaId||null,turno_nome:x.turno||null,
+    /* sobe junto: sem isso o relatorio nunca saberia se o estoque voltou —
+       o mesmo esquecimento que apagou os vinculos de ficha (V143) */
+    produzido:(x.produzido==null?null:!!x.produzido),
+    estoque_voltou:(x.estoqueVoltou==null?null:!!x.estoqueVoltou)}}},
 
  {col:'estoqueUn', espelha:true, tab:'estoque_unidade',
   campos:function(x){return {sucursal_id:x.sucursalId,item_ref:x.itemId,
@@ -16046,7 +16061,8 @@ function volta(linhas,fn,atual,col){
     pedidoId:x.pedido_ref||'',numero:x.pedido_numero||0,valor:Number(x.valor)||0,
     data:x.data||'',hora:x.hora||'',motivoId:mapaMc[x.motivo_id]||'',
     motivo:x.motivo_nome||'',obs:x.observacao||'',operadorId:x.operador_id||'',
-    operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||''}},null,'cancelamentos');
+    operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||'',
+    produzido:x.produzido,estoqueVoltou:x.estoque_voltou}},null,'cancelamentos');
 
   var me=await baixarTab('movimentacoes_estoque', 'movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
   DB.movEst=volta(me,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
@@ -17282,7 +17298,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V148.0.0';
+var VERSAO='V149.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44945,6 +44961,32 @@ function cartaoCancelamento(p){
     (motivosCancAtivos().length?''
      :'<div class="hint">Nenhum motivo ativo. Cadastre em Configuracao da Loja &rsaquo; Motivo de Cancelamento.</div>')+
    '</div>'+
+   /* ==========================================================
+      A PERGUNTA QUE DECIDE O ESTOQUE
+
+      Antes o cancelamento SEMPRE devolvia tudo ao estoque. Mas gelato
+      montado, cascao recheado e batido pronto ja consumiram o insumo:
+      devolver so inventa saldo que nao existe na loja.
+
+      Agora quem cancela responde: foi produzido?
+        SIM  — o insumo ja foi gasto: o estoque NAO volta.
+        NAO  — nada foi tirado da cuba: o estoque volta.
+
+      O dinheiro sai do faturamento nos dois casos, e o cancelamento e
+      sempre da nota inteira — nunca de parte dela.
+      ========================================================== */
+   '<div class="cncProd">'+
+    '<div class="cncProdT">Esse pedido já foi produzido?</div>'+
+    '<div class="cncProdB">'+
+     '<label class="cncOp"><input type="radio" name="cvProd" value="sim" '+
+      'onchange="pintarProduzido()"><span><b>Sim, já foi feito</b>'+
+      '<small>o insumo já saiu — o estoque não volta</small></span></label>'+
+     '<label class="cncOp"><input type="radio" name="cvProd" value="nao" '+
+      'onchange="pintarProduzido()"><span><b>Não, não chegou a ser feito</b>'+
+      '<small>nada saiu da cuba — o estoque volta</small></span></label>'+
+    '</div>'+
+    '<div class="hint" id="cvProdHint">Escolha uma das duas para continuar.</div>'+
+   '</div>'+
    '<div class="fld2 cncCampo"><label>Observação</label>'+
     '<input id="cvObs" placeholder="detalhe, se precisar"></div>'+
    /* Quem cancela assina. Antes ia como "Administrador" ou o nome de quem
@@ -44968,6 +45010,22 @@ function cartaoCancelamento(p){
   '</div>';
 }
 /* mostra a senha so quando o operador escolhido tem senha cadastrada */
+function produzidoEscolhido(){
+  var r=document.querySelector('input[name="cvProd"]:checked');
+  return r?r.value:'';
+}
+function pintarProduzido(){
+  var v=produzidoEscolhido();
+  Array.prototype.forEach.call(document.querySelectorAll('.cncOp'),function(l){
+    var i=l.querySelector('input');
+    l.classList.toggle('on', !!i&&i.checked);
+  });
+  var h=$('cvProdHint');
+  if(h)h.textContent = v==='sim'
+    ? 'O estoque NÃO volta: o insumo já foi consumido na produção.'
+    : (v==='nao' ? 'O estoque volta: os itens retornam ao saldo da loja.'
+                 : 'Escolha uma das duas para continuar.');
+}
 function pedeSenhaCancel(){
   var i=$('cvSenha');
   if(i){i.value='';i.focus();}
@@ -45020,15 +45078,35 @@ async function confirmarCancelamento(id){
   }else if(sn){
     toast(op.nome+' não tem senha cadastrada — cadastre em Usuários.');return;
   }
+  /* ==========================================================
+     PRODUZIDO DECIDE O ESTOQUE — E NAO TEM PADRAO
+
+     Sem resposta o sistema nao adivinha: chutar "nao produzido" inventa
+     saldo que a loja nao tem, e chutar "produzido" some com item que
+     ainda esta na cuba. Os dois erros so aparecem na contagem, semanas
+     depois, quando ninguem lembra do cancelamento.
+     ========================================================== */
+  var prod=produzidoEscolhido();
+  if(!prod){
+    toast('Responda se o pedido já foi produzido.');
+    var cx0=document.querySelector('.cncProd'); if(cx0)cx0.scrollIntoView({block:'center'});
+    return;
+  }
+  var foiProduzido = (prod==='sim');
   var ok=await confirmar({
     titulo:'Cancelar a venda #'+p.numero,
     texto:E(p.clienteNome||'Consumidor'),
     linhas:[['Valor','R$ '+money(p.total),'vr'],
             ['Itens',String((p.itens||[]).length),''],
             ['Motivo',motivo,''],
+            ['Produzido',foiProduzido?'Sim':'Não',''],
+            ['Estoque',foiProduzido?'não volta':'volta para o saldo',''],
             ['Quem cancela',op.nome,'']],
-    aviso:'O estoque volta, o valor sai do faturamento e o gerente é avisado. '+
-      'Esta ação fica registrada e não pode ser desfeita.',
+    aviso:(foiProduzido
+      ? 'O pedido já foi produzido: o estoque NÃO volta, porque o insumo já foi consumido. '
+      : 'O pedido não foi produzido: os itens voltam para o estoque. ')+
+      'O valor sai do faturamento e o gerente é avisado. A venda é cancelada por '+
+      'inteiro. Esta ação fica registrada e não pode ser desfeita.',
     ok:'Confirmar cancelamento',tipo:'perigo'});
   if(!ok)return;
   var antes=p.fase;
@@ -45042,14 +45120,23 @@ async function confirmarCancelamento(id){
   DB.cancelamentos.push({id:uid('cn'),pedidoId:p.id,numero:p.numero,
     valor:Number(p.total)||0,data:hojeISO(),hora:agoraHM(),
     motivoId:motId,motivo:motivo,obs:obs,
+    produzido:foiProduzido,
+    estoqueVoltou:!foiProduzido,
     operadorId:op.id,operador:op.nome,
     caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''});
-  try{ if(antes!=='cancelado')estornarEstoqueVenda(p); }catch(e){_quieto(e,'confirmarCancelamento')}
+  p.produzidoNoCancelamento=foiProduzido;
+  /* o estoque so volta quando NAO foi produzido. O valor sai do faturamento
+     nos dois casos — quem cuida disso e a fase 'cancelado', que o relatorio
+     ja desconta. */
+  try{
+    if(antes!=='cancelado'&&!foiProduzido)estornarEstoqueVenda(p);
+  }catch(e){_quieto(e,'confirmarCancelamento')}
   salvar();
   fecharModal();
   if(PDV.aba==='pedidos')renderKanban();
   avisarCliente(p,'cancelado');
-  toast('Venda #'+p.numero+' cancelada por '+op.nome+'.');
+  toast('Venda #'+p.numero+' cancelada por '+op.nome+
+    (foiProduzido?' — estoque não voltou (já produzido).':' — itens devolvidos ao estoque.'));
   if(NUVEM.ligada)sincronizar();
   avisarGerente(p.sucursalId||lojaAtualId(),'cancelamento',
     msgCancelamento(p,p.motivoCancelamento));
