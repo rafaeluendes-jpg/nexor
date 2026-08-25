@@ -17376,7 +17376,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V158.0.0';
+var VERSAO='V159.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24535,8 +24535,19 @@ function esperadoCaixa(cx){
   var mov=movimentoCaixa(cx.id);
   return cx.inicial+mov.dinheiro+totalMov(cx,'suprimento')-totalMov(cx,'sangria');
 }
+function pedeSenhaMov(){
+  var sel=$('mvOp'), box=$('boxSenhaMv');
+  if(!sel||!box)return;
+  var op=operAtivos().find(function(o){return o.id===sel.value});
+  box.style.display=(op&&op.senha)?'':'none';
+  if(op&&op.senha){var i=$('mvSenha');if(i){i.value='';i.focus();}}
+}
 function movCaixa(tipo){
   var cx=caixaAberto();if(!cx)return;
+  if(!operadoresPara(tipo).length){
+    toast('Ninguém com permissão para isso. Cadastre um gerente em Operadores do Caixa.');
+    return;
+  }
   var titulo=tipo==='sangria'?'Sangria — retirada de dinheiro':'Suprimento — reforço de caixa';
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
   '<div class="hint" style="margin-bottom:12px">'+
@@ -24544,14 +24555,39 @@ function movCaixa(tipo){
                    :'Coloque dinheiro na gaveta (reforço de troco). O valor entra no total esperado no fechamento.')+'</div>'+
   '<div class="fld2"><label>Valor *</label><div class="cur"><span>R$</span><input id="mvV" type="number" step="0.01" value=""></div></div>'+
   '<div class="fld2"><label>Motivo</label><input id="mvM" placeholder="'+(tipo==='sangria'?'ex: envio ao cofre':'ex: reforço de troco')+'"></div>'+
-  '<div class="fld2" style="margin:0"><label>Responsável</label><input id="mvR" value="'+E(cx.operador||'Administrador')+'"></div>'+
+  /* ==========================================================
+     SANGRIA SEM SENHA ERA O BURACO MAIS SERIO DO MODULO
+
+     Aqui havia um campo de TEXTO LIVRE chamado "Responsavel", ja
+     preenchido com o nome de quem abriu o caixa. Retirar dinheiro da
+     gaveta exigia digitar um nome — qualquer nome, inclusive o de
+     outra pessoa. Sem senha, sem lista, sem permissao.
+
+     Dinheiro que sai sem assinatura nao tem como ser auditado depois:
+     o fechamento mostra a sangria, mas nao ha nada que ligue aquela
+     retirada a uma pessoa de verdade.
+
+     Agora vale a mesma regra do resto: operador da lista, senha, e so
+     quem tem permissao (gerente ou administrador).
+     ========================================================== */
+  '<div class="fld2"><label>Quem está '+(tipo==='sangria'?'retirando':'lançando')+' *</label>'+
+   '<select id="mvOp" onchange="pedeSenhaMov()">'+
+    '<option value="">Selecione</option>'+
+    operadoresPara(tipo).map(function(o){
+      return '<option value="'+E(o.id)+'">'+E(o.nome)+' — '+E(nomeFuncao(o.funcao))+'</option>';
+    }).join('')+'</select></div>'+
+  '<div class="fld2" style="margin:0;display:none" id="boxSenhaMv"><label>Senha *</label>'+
+   '<input id="mvSenha" type="password" autocomplete="off" placeholder="senha de autorização"></div>'+
   '</div></div>';
   modal(titulo,h,'Confirmar',function(){
     var v=parseFloat($('mvV').value)||0;
     if(v<=0){toast('Informe um valor maior que zero.');return false;}
+    var opM=autorizar(tipo,($('mvOp')||{}).value||'',($('mvSenha')||{}).value||'');
+    if(!opM)return false;
     cx.movimentos=cx.movimentos||[];
     cx.movimentos.push({id:uid('mv'),tipo:tipo,valor:v,motivo:$('mvM').value.trim(),
-      responsavel:$('mvR').value.trim(),hora:agoraHM(),data:new Date().toISOString()});
+      responsavel:opM.nome,responsavelId:opM.id,
+      hora:agoraHM(),data:new Date().toISOString()});
     salvar();telaPDV();
     toast((tipo==='sangria'?'Sangria':'Suprimento')+' de R$ '+money(v)+' registrado.');
     if(tipo==='sangria')
@@ -24649,7 +24685,12 @@ function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
 function abrirCaixa(){
   if(caixaAberto()){toast('Já existe um caixa aberto. Feche-o antes de abrir outro.');return;}
   baseOper();baseTurnos();
-  var ops=operAtivos();
+  /* so quem pode abrir caixa aparece na lista (item 12) */
+  var ops=operadoresPara('abrir');
+  if(!ops.length){
+    toast('Ninguém com permissão para abrir o caixa. Cadastre em Operadores do Caixa.');
+    return;
+  }
   var tns=turnosAtivos();
   var sug=turnoDoRelogio();
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
@@ -24683,13 +24724,8 @@ function abrirCaixa(){
   '</div></div>';
   modal('Abrir frente de caixa',h,'Abrir caixa',function(){
     var opId=$('cxOp').value;
-    if(!opId){toast('Selecione quem está abrindo o caixa.');return false;}
-    var op=(DB.operadores||[]).find(function(o){return o.id===opId});
-    if(!op){toast('Operador não encontrado.');return false;}
-    if(op.senha){
-      var s1=($('cxSenha')||{}).value||'';
-      if(s1!==op.senha){toast('Senha incorreta.');return false;}
-    }
+    var op=autorizar('abrir',opId,($('cxSenha')||{}).value||'');
+    if(!op)return false;
     var turnoId='';
     var rt=document.querySelectorAll('input[name="cxTurno"]');
     for(var ti=0;ti<rt.length;ti++)if(rt[ti].checked)turnoId=rt[ti].value;
@@ -24809,7 +24845,7 @@ function fecharCaixa(){
    '<div class="fld2" style="margin:0"><label>Operador que fecha *</label>'+
     '<select id="fcOp" onchange="pedeSenhaCaixa(\'fc\')">'+
     '<option value="">Selecione</option>'+
-    operAtivos().map(function(o){
+    operadoresPara('fechar').map(function(o){
       return '<option value="'+E(o.id)+'"'+(o.id===cx.operadorId?' selected':'')+'>'+
       E(o.nome)+' — '+E(nomeFuncao(o.funcao))+'</option>';
     }).join('')+'</select></div>'+
@@ -24821,14 +24857,8 @@ function fecharCaixa(){
   '<input id="cxObs" placeholder="ex: faltou R$ 2 de troco / maquininha ficou offline às 19h"></div></div></div>';
 
   modal('Fechamento de caixa',h,'Confirmar fechamento',function(){
-    var fcId=($('fcOp')||{}).value||'';
-    if(!fcId){toast('Selecione quem está fechando o caixa.');return false;}
-    var opF=(DB.operadores||[]).find(function(o){return o.id===fcId});
-    if(!opF){toast('Operador não encontrado.');return false;}
-    if(opF.senha){
-      var sf=($('fcSenha')||{}).value||'';
-      if(sf!==opF.senha){toast('Senha incorreta.');return false;}
-    }
+    var opF=autorizar('fechar',($('fcOp')||{}).value||'',($('fcSenha')||{}).value||'');
+    if(!opF)return false;
     var conf={},algum=false,totInf=0;
     var ins=document.querySelectorAll('.cfV');
     for(var i=0;i<ins.length;i++){
@@ -45186,6 +45216,66 @@ function baseOper(){
 /* A função descreve o papel da pessoa na loja e é o que aparece na abertura
    de caixa e nas ordens de produção. Quem manda no que ela enxerga são as
    telas marcadas no cadastro — a função não dá nem tira permissão. */
+/* ==========================================================
+   ITENS 10, 11 e 12 — UMA FONTE SO DE AUTORIZACAO DO CAIXA
+
+   Antes existiam DUAS listas paralelas:
+
+   - abertura e fechamento liam `DB.operadores` (so operadores);
+   - cancelamento lia `operAtivos()` (usuarios + operadores).
+
+   Quem estava cadastrado como usuario nao aparecia para abrir caixa;
+   quem estava como operador nao aparecia igual nos dois lugares. E a
+   mesma pessoa podia ter senha num lugar e nao no outro.
+
+   Pior: SANGRIA E SUPRIMENTO nao pediam senha nenhuma. Tirar dinheiro
+   da gaveta exigia apenas digitar um nome num campo de texto livre —
+   qualquer nome, inclusive o de outra pessoa. Retirada de dinheiro sem
+   assinatura e o buraco mais serio deste modulo.
+
+   Agora toda acao do caixa passa por `autorizar(acao)`, que usa
+   `operAtivos()` — a lista unica — e confere a permissao da funcao.
+
+   PERMISSOES (item 12), por funcao:
+   - abrir/fechar caixa ......... caixa, gerente, administrador
+   - sangria/suprimento ......... gerente, administrador
+   - cancelar venda ............. gerente, administrador
+   Atendente e producao vendem, mas nao mexem em dinheiro nem cancelam.
+   ========================================================== */
+var PERM_CAIXA={
+  abrir:    ['caixa','gerente','administrador'],
+  fechar:   ['caixa','gerente','administrador'],
+  sangria:  ['gerente','administrador'],
+  suprimento:['gerente','administrador'],
+  cancelar: ['gerente','administrador']
+};
+var NOME_ACAO={abrir:'abrir o caixa',fechar:'fechar o caixa',
+  sangria:'fazer sangria',suprimento:'lançar suprimento',cancelar:'cancelar venda'};
+
+function podeFazer(op,acao){
+  if(!op)return false;
+  var lista=PERM_CAIXA[acao];
+  if(!lista)return true;
+  return lista.indexOf(op.funcao||'atendente')>=0;
+}
+/* quem pode aparecer na lista daquela acao */
+function operadoresPara(acao){
+  return operAtivos().filter(function(o){return podeFazer(o,acao)});
+}
+/* confere operador + senha + permissao. Devolve o operador ou null. */
+function autorizar(acao,id,senhaDigitada){
+  var op=operAtivos().find(function(o){return o.id===id});
+  if(!op){toast('Selecione quem está autorizando.');return null;}
+  if(!podeFazer(op,acao)){
+    toast(op.nome+' não tem permissão para '+(NOME_ACAO[acao]||acao)+'.');return null;}
+  if(op.senha){
+    if(!senhaDigitada){toast('Digite a senha de '+op.nome+'.');return null;}
+    if(String(senhaDigitada)!==String(op.senha)){toast('Senha incorreta.');return null;}
+  }else if(senhaDigitada){
+    toast(op.nome+' não tem senha cadastrada — cadastre em Operadores do Caixa.');return null;
+  }
+  return op;
+}
 var FUNCOES=[
  {id:'administrador',n:'Administrador',d:'acesso total ao sistema'},
  {id:'gerente',      n:'Gerente',      d:'acompanha a loja, vê relatórios e fecha caixa'},
@@ -45471,7 +45561,7 @@ function cartaoCancelamento(p){
     '<div class="fld2" style="margin:0"><label>Quem esta cancelando *</label>'+
      '<select id="cvOp" onchange="pedeSenhaCancel()">'+
      '<option value="">Selecione</option>'+
-     operAtivos().map(function(o){
+     operadoresPara('cancelar').map(function(o){
        return '<option value="'+E(o.id)+'">'+E(o.nome)+'</option>'}).join('')+
      '</select></div>'+
     '<div class="fld2" style="margin:0"><label>Senha *</label>'+
@@ -45547,13 +45637,9 @@ async function confirmarCancelamento(id){
   if(!op){toast('Operador nao encontrado.');return;}
   /* sem senha cadastrada, nao ha o que conferir — mas a tela avisa, para
      ninguem achar que houve conferencia quando nao houve */
-  var sn=($('cvSenha')||{}).value||'';
-  if(op.senha){
-    if(!sn){toast('Digite a senha de '+op.nome+'.');return;}
-    if(String(sn)!==String(op.senha)){toast('Senha incorreta.');return;}
-  }else if(sn){
-    toast(op.nome+' não tem senha cadastrada — cadastre em Usuários.');return;
-  }
+  /* mesma porta de todas as acoes do caixa: lista unica, senha e permissao */
+  op=autorizar('cancelar',op.id,($('cvSenha')||{}).value||'');
+  if(!op)return;
   /* ==========================================================
      PRODUZIDO DECIDE O ESTOQUE — E NAO TEM PADRAO
 

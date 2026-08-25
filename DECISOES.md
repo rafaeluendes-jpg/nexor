@@ -4288,3 +4288,43 @@ fechamento enviado ao gerente pelo WhatsApp saía como "Não informado".
 Corrigido aceitando os dois nomes.
 
 17 testes, incluindo largura de linha nas duas bobinas e ausência de senha.
+
+## V159 — ITENS 10, 11 e 12: uma fonte só de autorização do caixa
+
+**Item 10 — havia duas listas paralelas.** Abertura e fechamento liam
+`DB.operadores` (só operadores); cancelamento lia `operAtivos()` (usuários +
+operadores). Quem estava cadastrado como usuário não aparecia para abrir caixa,
+e a mesma pessoa podia ter senha num lugar e não no outro.
+
+**E sangria/suprimento não pediam senha nenhuma.** Havia um campo de **texto
+livre** chamado "Responsável", já preenchido com o nome de quem abriu o caixa.
+Retirar dinheiro da gaveta exigia digitar um nome — qualquer nome, inclusive o
+de outra pessoa. Sem senha, sem lista, sem permissão. Dinheiro que sai sem
+assinatura não tem como ser auditado depois: o fechamento mostra a sangria, mas
+nada liga aquela retirada a uma pessoa de verdade. **Era o buraco mais sério do
+módulo.**
+
+Criada `autorizar(acao, id, senha)`, porta única usada em **abrir caixa, fechar
+caixa, sangria, suprimento e cancelar venda**. Usa `operAtivos()` (lista única),
+confere senha e permissão, e devolve o operador ou nulo.
+
+**Item 12 — permissões por função:**
+
+- abrir/fechar caixa → caixa, gerente, administrador
+- sangria/suprimento → gerente, administrador
+- cancelar venda → gerente, administrador
+
+Atendente e produção vendem, mas não mexem em dinheiro nem cancelam. A lista de
+cada tela mostra **apenas quem pode** aquela ação (`operadoresPara`), e a
+verificação é refeita na confirmação — botão escondido não é permissão.
+
+A sangria passou a gravar `responsavelId`, ligando a retirada a um cadastro.
+
+24 testes cobrindo O1 a O6 do documento.
+
+**Item 11 — pendência registrada:** as senhas ainda ficam em texto plano
+(`usuarios_sistema.senha_caixa` e `operadores`). Para uma senha curta de balcão
+o risco é diferente do de uma senha de acesso, mas o correto é guardar o hash.
+Depende de mover a conferência para o banco (Edge Function ou RPC), porque hash
+conferido no navegador não protege nada. **Fica para a migração do login para o
+Supabase Auth**, já na fila.
