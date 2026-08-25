@@ -17242,7 +17242,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V144.0.0';
+var VERSAO='V145.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -43134,7 +43134,10 @@ async function enviarResumoPedido(ped,online){
     (ped.tipo==='entrega'?'sair para entrega':'estiver pronto')+'! 🍨';
   try{
     var alvo=(await lojaConectada())||suc;
-    var r=await zapApi('/enviar','POST',{loja:alvo,telefone:tel,texto:texto});
+    /* destino:'cliente' obriga a sair pela Carla. A Meta recusa mensagem
+       para quem nunca escreveu para o numero — e o cliente do delivery
+       pede pelo site, nao pelo WhatsApp. */
+    var r=await zapApi('/enviar','POST',{loja:alvo,telefone:tel,texto:texto,destino:'cliente'});
     if(r&&r.ok)toast('Confirmação enviada no WhatsApp para '+nome+'.');
     else if(r&&r.erro)toast('WhatsApp não enviou: '+String(r.erro).slice(0,70));
   }catch(e){toast('Não consegui falar com o robô.');}
@@ -43830,7 +43833,7 @@ async function avisarCliente(ped,fase){
              .replace(/{tempo}/g,cd.tempoEntrega||'alguns minutos');
   try{
     var alvo=(await lojaConectada())||suc;
-    var r=await zapApi('/enviar','POST',{loja:alvo,telefone:cli.tel,texto:texto});
+    var r=await zapApi('/enviar','POST',{loja:alvo,telefone:cli.tel,texto:texto,destino:'cliente'});
     if(r&&r.ok)toast('WhatsApp enviado para '+(cli.nome||'').split(' ')[0]+'.');
     else if(r&&r.erro)toast('Não enviei o WhatsApp: '+String(r.erro).slice(0,70));
   }catch(e){

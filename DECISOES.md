@@ -3881,3 +3881,28 @@ Correções, nas duas telas (cardápio e robô):
 no botão que grava. Já tinha sido aprendido na V122 (barra de salvar do robô com
 o nome da loja) e não foi aplicado às demais telas por unidade. Vale varrer as
 outras.
+
+## V145 — o aviso de fase não chegava ao cliente (Meta recusava)
+
+O pedido chegava no PDV, mas ao mover para "em preparo" o celular do cliente não
+recebia nada e aparecia erro dizendo que a Meta não deixou enviar.
+
+Causa: a rota `/enviar` do robô mandava **tudo** pela Meta quando ela estava
+disponível. Mas a Meta só permite mensagem livre para quem escreveu para o
+número nas últimas 24 horas. O cliente do delivery pede **pelo site** e nunca
+escreveu — então a Meta recusa.
+
+Quem fala com cliente é a **Carla (Baileys)**, que não tem essa restrição. Quem
+fala com gerente pode continuar na Meta, porque o gerente conversa com o
+Assistente todo dia.
+
+- `/enviar` passou a aceitar `destino`; `destino:'cliente'` obriga Baileys;
+- os dois envios do ERP que vão para o cliente (confirmação do pedido e avisos
+  de fase) passaram a mandar `destino:'cliente'`;
+- o aviso ao gerente continua como estava;
+- se a Carla estiver desconectada, a resposta diz isso com todas as letras em
+  vez de falhar em silêncio.
+
+**Lição:** dois canais de WhatsApp com regras diferentes não podem ser
+escolhidos por disponibilidade. Tem que ser escolhido por **para quem é a
+mensagem**.
