@@ -4365,3 +4365,30 @@ pontas — o pacote leva a referência e a função resolve, preservando o vínc
 existente em reenvio.
 
 17 testes.
+
+## V161 — ITEM 2 (rodada 2): senha de operador em hash, conferida no banco
+
+Pendência que ficou aberta na auditoria anterior. Guardar hash sozinho não
+resolveria nada: se a comparação continua no navegador, o dado precisa chegar
+até ele — e quem abre o console vê. Por isso as duas coisas foram feitas juntas.
+
+- tabela `operador_senhas` guarda **bcrypt** (`gen_salt('bf',10)`), fechada por
+  RLS `using(false)`: **nenhuma consulta do cliente lê aquela tabela**;
+- `senha_operador_conferir(op_ref, senha)` compara no banco e devolve **apenas
+  sim ou não**;
+- `senha_operador_definir` grava; `senha_operador_quem_tem` devolve só a lista de
+  identificadores, para a tela saber quando desenhar o campo de senha;
+- as senhas que estavam em texto puro em `usuarios_sistema.senha_caixa` foram
+  migradas para hash e a coluna foi **zerada**; ela não sobe nem desce mais;
+- os formulários deixaram de exibir a senha atual (o navegador não a conhece
+  mais): vazio mantém a que está no cofre.
+
+Verificado no banco: hash não contém a senha, senha certa confere, senha errada
+não confere, zero registros em texto puro.
+
+**Decisão sobre falta de conexão:** sem rede o aparelho não consegue conferir.
+Nesse caso a ação é **recusada**, dizendo o motivo na tela, em vez de liberar por
+omissão — liberar sem conferir é o mesmo buraco que estamos fechando. Abrir
+caixa continua sem exigir senha, então a loja nunca fica impedida de vender.
+
+12 testes.

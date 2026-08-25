@@ -13856,7 +13856,7 @@ var MAPA=[
 
  {col:'usuarios', espelha:false,    tab:'usuarios_sistema',
   campos:function(x){return {nome:x.nome||null,login:x.login||null,senha:x.senha||null,
-    senha_caixa:x.senhaCaixa||null,
+    /* senha_caixa nao sobe mais: a senha vive so no cofre, como hash */
     ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
     sucursais:x.sucursais||[],permissoes:x.permissoes||{}}}},
 
@@ -15489,6 +15489,8 @@ async function baixarTab(nome,url){
 }
 var _baixando=null, _ultimoDownload=0, _ultimoEnvio=0;
 async function baixarDaNuvem(forcar){
+  /* quem tem senha cadastrada — so os identificadores, nenhum hash */
+  try{ await carregarQuemTemSenha(); }catch(e){ _quieto(e,'quemTemSenha'); }
   /* ==========================================================
      INTERVALO MINIMO ENTRE DOWNLOADS
      Medido no aparelho: /insumos levando 2.116 ms e congelamentos de 750 ms
@@ -16042,7 +16044,7 @@ function volta(linhas,fn,atual,col){
     var us=await baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome');
     if(us&&us.length)DB.usuarios=volta(us,function(x){return {id:x.ref_local||x.id,
       nome:x.nome,login:x.login||'',senha:x.senha||'',
-      senhaCaixa:x.senha_caixa||'',
+      /* senha nao desce mais: fica so no cofre */
       ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
       sucursais:x.sucursais||[],permissoes:x.permissoes||{}}},null,'usuarios');
   }catch(e){ logNuvem('não consegui baixar os usuários: '+((e&&e.message)||''),true); }
@@ -16223,7 +16225,7 @@ function volta(linhas,fn,atual,col){
              foi assim que o horario do cardapio voltou ao padrao tres vezes
              (V141), porque a segunda leitura esquecia um campo */
           nome:x.nome||'',login:x.login||'',senha:x.senha||'',
-          senhaCaixa:x.senha_caixa||'',ativo:x.ativo!==false,
+          ativo:x.ativo!==false,
           tudo:!!x.tudo,mestre:!!x.mestre,sucursais:x.sucursais||[],permissoes:x.permissoes||{}};
         if(ja)Object.assign(ja,obj); else locais.push(obj);
       });
@@ -17403,7 +17405,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V160.0.0';
+var VERSAO='V161.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24579,8 +24581,9 @@ function pedeSenhaMov(){
   var sel=$('mvOp'), box=$('boxSenhaMv');
   if(!sel||!box)return;
   var op=operAtivos().find(function(o){return o.id===sel.value});
-  box.style.display=(op&&op.senha)?'':'none';
-  if(op&&op.senha){var i=$('mvSenha');if(i){i.value='';i.focus();}}
+  /* quem decide se ha senha e o cofre, nao o cadastro local */
+  box.style.display=temSenhaCadastrada(op)?'':'none';
+  if(temSenhaCadastrada(op)){var i=$('mvSenha');if(i){i.value='';i.focus();}}
 }
 function movCaixa(tipo){
   var cx=caixaAberto();if(!cx)return;
@@ -24619,10 +24622,10 @@ function movCaixa(tipo){
   '<div class="fld2" style="margin:0;display:none" id="boxSenhaMv"><label>Senha *</label>'+
    '<input id="mvSenha" type="password" autocomplete="off" placeholder="senha de autorização"></div>'+
   '</div></div>';
-  modal(titulo,h,'Confirmar',function(){
+  modal(titulo,h,'Confirmar',async function(){
     var v=parseFloat($('mvV').value)||0;
     if(v<=0){toast('Informe um valor maior que zero.');return false;}
-    var opM=autorizar(tipo,($('mvOp')||{}).value||'',($('mvSenha')||{}).value||'');
+    var opM=await autorizar(tipo,($('mvOp')||{}).value||'',($('mvSenha')||{}).value||'');
     if(!opM)return false;
     cx.movimentos=cx.movimentos||[];
     cx.movimentos.push({id:uid('mv'),tipo:tipo,valor:v,motivo:$('mvM').value.trim(),
@@ -24762,9 +24765,11 @@ function abrirCaixa(){
   '<div class="fld2" style="margin:0"><label>Valor inicial (fundo de troco)</label>'+
    '<div class="cur"><span>R$</span><input id="cxIni" type="number" step="0.01" value="0"></div></div>'+
   '</div></div>';
-  modal('Abrir frente de caixa',h,'Abrir caixa',function(){
+  /* a conferencia agora vai ao banco: a funcao do modal precisa ser async,
+     senao o `if(!op)` roda antes da resposta e libera sem conferir */
+  modal('Abrir frente de caixa',h,'Abrir caixa',async function(){
     var opId=$('cxOp').value;
-    var op=autorizar('abrir',opId,($('cxSenha')||{}).value||'');
+    var op=await autorizar('abrir',opId,($('cxSenha')||{}).value||'');
     if(!op)return false;
     var turnoId='';
     var rt=document.querySelectorAll('input[name="cxTurno"]');
@@ -24799,8 +24804,8 @@ function pedeSenhaCaixa(pref){
   var box=$('boxSenha'+(pref==='cx'?'Cx':'Fc'));
   if(!sel||!box)return;
   var op=(DB.operadores||[]).find(function(o){return o.id===sel.value});
-  box.style.display=(op&&op.senha)?'':'none';
-  if(op&&op.senha){
+  box.style.display=temSenhaCadastrada(op)?'':'none';
+  if(temSenhaCadastrada(op)){
     var i=$(pref+'Senha');
     if(i){i.value='';i.focus();}
   }
@@ -24896,8 +24901,8 @@ function fecharCaixa(){
   '<div class="fld2" style="margin:12px 0 0"><label>Observação do fechamento</label>'+
   '<input id="cxObs" placeholder="ex: faltou R$ 2 de troco / maquininha ficou offline às 19h"></div></div></div>';
 
-  modal('Fechamento de caixa',h,'Confirmar fechamento',function(){
-    var opF=autorizar('fechar',($('fcOp')||{}).value||'',($('fcSenha')||{}).value||'');
+  modal('Fechamento de caixa',h,'Confirmar fechamento',async function(){
+    var opF=await autorizar('fechar',($('fcOp')||{}).value||'',($('fcSenha')||{}).value||'');
     if(!opF)return false;
     var conf={},algum=false,totInf=0;
     var ins=document.querySelectorAll('.cfV');
@@ -45306,13 +45311,57 @@ var EXIGE_SENHA=['sangria','suprimento','cancelar','fechar'];
 var NOME_ACAO={abrir:'abrir o caixa',fechar:'fechar o caixa',
   sangria:'fazer sangria',suprimento:'lançar suprimento',cancelar:'cancelar venda'};
 
+/* ==========================================================
+   ITEM 2 — A SENHA VIRA HASH, E A CONFERENCIA SAI DO NAVEGADOR
+
+   Ate aqui a senha do operador ficava em texto puro no banco e era
+   comparada no navegador (`sn === op.senha`). Guardar hash sozinho nao
+   resolveria nada: se a comparacao continua no navegador, o dado
+   precisa chegar ate ele — e quem abre o console ve.
+
+   Agora sao duas mudancas juntas:
+   - o banco guarda BCRYPT (tabela `operador_senhas`, fechada por RLS:
+     nenhuma consulta do cliente le aquela tabela);
+   - a conferencia acontece NO BANCO (`senha_operador_conferir`), que
+     devolve apenas sim ou nao.
+
+   O navegador nunca ve o hash nem a senha de ninguem. Ele so sabe QUEM
+   tem senha cadastrada, para desenhar o campo — e isso vem de uma
+   funcao que devolve so a lista de identificadores.
+
+   Sem rede o aparelho nao consegue conferir. Nesse caso a acao e
+   recusada com a razao dita na tela, em vez de liberar por omissao:
+   liberar sem conferir e o mesmo buraco de antes.
+   ========================================================== */
+var _quemTemSenha=null;
+async function carregarQuemTemSenha(){
+  if(!NUVEM.ligada)return null;
+  try{
+    var r=await api('rpc/senha_operador_quem_tem','POST',{});
+    _quemTemSenha=Array.isArray(r)?r:(r||[]);
+  }catch(e){ _quieto(e,'carregarQuemTemSenha'); }
+  return _quemTemSenha;
+}
+function temSenhaCadastrada(op){
+  if(!op)return false;
+  if(_quemTemSenha)return _quemTemSenha.indexOf(op.id)>=0;
+  return !!op.senha;           /* aparelho ainda sem a lista: usa o que tem */
+}
+async function conferirSenhaNoBanco(opId,senha){
+  if(!NUVEM.ligada)return {erro:'sem conexão'};
+  try{
+    var r=await api('rpc/senha_operador_conferir','POST',{op_ref:opId,senha:senha||''});
+    var d=(r&&r.length)?r[0]:r;
+    return {confere:!!(d&&d.confere), tem:!!(d&&d.tem_senha)};
+  }catch(e){ _quieto(e,'conferirSenhaNoBanco'); return {erro:'não consegui conferir'}; }
+}
 function podeFazer(op,acao){
   if(!op)return false;
   var lista=PERM_CAIXA[acao];
   if(lista&&lista.length&&lista.indexOf(op.funcao||'atendente')<0)return false;
   /* mexer em dinheiro e cancelar exigem senha cadastrada: sem senha nao ha
      como assinar a operacao, e retirada sem assinatura foi o buraco do item 10 */
-  if(EXIGE_SENHA.indexOf(acao)>=0 && !op.senha)return false;
+  if(EXIGE_SENHA.indexOf(acao)>=0 && !temSenhaCadastrada(op))return false;
   return true;
 }
 /* quem pode aparecer na lista daquela acao */
@@ -45320,20 +45369,22 @@ function operadoresPara(acao){
   return operAtivos().filter(function(o){return podeFazer(o,acao)});
 }
 /* confere operador + senha + permissao. Devolve o operador ou null. */
-function autorizar(acao,id,senhaDigitada){
+async function autorizar(acao,id,senhaDigitada){
   var op=operAtivos().find(function(o){return o.id===id});
   if(!op){toast('Selecione quem está autorizando.');return null;}
   if(!podeFazer(op,acao)){
-    toast(op.senha
+    toast(temSenhaCadastrada(op)
       ? op.nome+' não tem permissão para '+(NOME_ACAO[acao]||acao)+'.'
       : op.nome+' não tem senha de autorização — cadastre em Operadores do Caixa.');
     return null;}
-  if(op.senha){
-    if(!senhaDigitada){toast('Digite a senha de '+op.nome+'.');return null;}
-    if(String(senhaDigitada)!==String(op.senha)){toast('Senha incorreta.');return null;}
-  }else if(senhaDigitada){
-    toast(op.nome+' não tem senha cadastrada — cadastre em Operadores do Caixa.');return null;
+  if(!temSenhaCadastrada(op))return op;      /* acao que nao exige senha */
+  if(!senhaDigitada){toast('Digite a senha de '+op.nome+'.');return null;}
+  var r=await conferirSenhaNoBanco(op.id,senhaDigitada);
+  if(r.erro){
+    toast('Sem conexão para conferir a senha — '+(NOME_ACAO[acao]||acao)+' não autorizado.');
+    return null;
   }
+  if(!r.confere){toast('Senha incorreta.');return null;}
   return op;
 }
 var FUNCOES=[
@@ -45377,7 +45428,8 @@ function operAtivos(){
        servico de login, criptografada, e o navegador nao a enxerga. */
     return {id:u.id,nome:u.nome,
       funcao:(u.mestre?'administrador':(u.tudo?'gerente':'caixa')),
-      senha:u.senhaCaixa||'',ativo:true,sucursais:u.sucursais||[],deUsuario:true};
+      /* `senha` aqui e so um sinal de que existe senha; o valor mora no cofre */
+      senha:'',ativo:true,sucursais:u.sucursais||[],deUsuario:true};
   });
   var antigos=baseOper().filter(function(o){
     if(o.ativo===false)return false;
@@ -45458,8 +45510,8 @@ function formOperador(id){
     '<div class="fld2" style="margin:0"><label>Nome *</label>'+
      '<input id="opNome" value="'+E(o?o.nome:'')+'" placeholder="como aparece no caixa"></div>'+
     '<div class="fld2" style="margin:0"><label>Senha para autorizar</label>'+
-     '<input id="opSenha" type="text" value="'+E(o?o.senha:'')+'" '+
-     'placeholder="4 a 6 dígitos — vazio: não autoriza"></div>'+
+     '<input id="opSenha" type="password" value="" autocomplete="new-password" '+
+     'placeholder="'+(o&&temSenhaCadastrada(o)?'já cadastrada — digite para trocar':'4 a 6 dígitos')+'"></div>'+
    '</div>'+
    '<div class="fld2"><label>Função *</label>'+
     '<div class="tipoEsc">'+FUNCOES.map(function(f){
@@ -45470,7 +45522,7 @@ function formOperador(id){
     }).join('')+'</div></div>'+
    '<label class="chkL"><input type="checkbox" id="opAtivo" '+(!o||o.ativo!==false?'checked':'')+'>'+
     '<span>Operador ativo — aparece na lista ao abrir o caixa</span></label>'+
-  '</div>','Salvar',function(){
+  '</div>','Salvar',async function(){
     var nome=$('opNome').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
     var func='atendente';
@@ -45478,11 +45530,34 @@ function formOperador(id){
     for(var i=0;i<rs.length;i++)if(rs[i].checked)func=rs[i].value;
     var sn=$('opSenha').value.trim();
     if(sn&&sn.length<4){toast('A senha para autorizar precisa ter ao menos 4 dígitos.');return false;}
-    var dados={nome:nome,funcao:func,senha:sn,ativo:$('opAtivo').checked};
+    /* ==========================================================
+       A SENHA VAI PARA O COFRE, NAO PARA O CADASTRO
+
+       `senha:''` de proposito: o cadastro do operador guarda nome,
+       funcao e situacao. A senha vira hash no banco e nunca mais volta
+       para ca. Deixar uma copia aqui — mesmo por engano, mesmo "so por
+       enquanto" — reabre exatamente o buraco que estamos fechando.
+       ========================================================== */
+    var dados={nome:nome,funcao:func,senha:'',ativo:$('opAtivo').checked};
+    var _refOp=id||null;
     if(o)Object.assign(o,dados);
-    else DB.operadores.push(Object.assign({id:uid('op'),sucursais:[]},dados));
-    salvar();telaOperadores();
-    toast('Operador salvo.');
+    else { var novo=Object.assign({id:uid('op'),sucursais:[]},dados);
+           DB.operadores.push(novo); _refOp=novo.id; }
+    salvar();
+    /* a senha sobe separada, e vira hash la */
+    if(sn){
+      if(!NUVEM.ligada){
+        toast('Sem conexão: a senha só pode ser cadastrada online.');
+        telaOperadores(); return true;
+      }
+      try{
+        await api('rpc/senha_operador_definir','POST',{op_ref:_refOp,senha:sn});
+        await carregarQuemTemSenha();
+        toast('Operador salvo e senha cadastrada.');
+      }catch(e){ _quieto(e,'senhaOperador');
+        toast('Operador salvo, mas não consegui gravar a senha.'); }
+    } else toast('Operador salvo.');
+    telaOperadores();
     return true;
   },'lg');
 }
@@ -45698,7 +45773,7 @@ async function confirmarCancelamento(id){
   /* sem senha cadastrada, nao ha o que conferir — mas a tela avisa, para
      ninguem achar que houve conferencia quando nao houve */
   /* mesma porta de todas as acoes do caixa: lista unica, senha e permissao */
-  op=autorizar('cancelar',op.id,($('cvSenha')||{}).value||'');
+  op=await autorizar('cancelar',op.id,($('cvSenha')||{}).value||'');
   if(!op)return;
   /* ==========================================================
      PRODUZIDO DECIDE O ESTOQUE — E NAO TEM PADRAO
@@ -48266,8 +48341,10 @@ function formUsuario(id){
       ========================================================== */
    '<div class="fld2"><label>Senha para autorizar cancelamento '+
      '<small>(diferente da senha de entrar)</small></label>'+
-    '<input id="uSenhaCx" type="text" value="'+E(u&&u.senhaCaixa?u.senhaCaixa:'')+'" '+
-     'placeholder="ex: 4 a 6 dígitos — deixe vazio se não autoriza"></div>'+
+    /* nunca preenche com a senha atual: o navegador nao a conhece mais.
+       Vazio = mantem a que esta no cofre. */
+    '<input id="uSenhaCx" type="password" value="" autocomplete="new-password" '+
+     'placeholder="'+(temSenhaCadastrada({id:(u?u.id:''),senha:1})?'já cadastrada — digite para trocar':'4 a 6 dígitos')+'"></div>'+
    /* A função diz o que a pessoa faz na loja e é o que aparece na abertura
       de caixa. As telas que ela enxerga continuam sendo as marcadas abaixo —
       a função não manda nas permissões, só descreve o papel. */
@@ -48318,8 +48395,9 @@ function formUsuario(id){
     var senhaCx=($('uSenhaCx')?$('uSenhaCx').value:'').trim();
     if(senhaCx&&senhaCx.length<4){
       toast('A senha de autorização precisa ter ao menos 4 caracteres.');return false;}
+    /* a senha de autorizacao nao fica no cadastro: vai para o cofre como hash */
     var dados={nome:nome,login:login,tel:$('uTel').value.trim(),funcao:func,
-      senhaCaixa:senhaCx,
+      senhaCaixa:'',
       tudo:$('uTudo')?$('uTudo').checked:(u?u.tudo:false)};
     if(senha)dados.senha=senha;
     if(u)Object.assign(u,dados);
@@ -48330,7 +48408,18 @@ function formUsuario(id){
       DB.usuarios.push(novo);
       US.sel=novo.id;
     }
-    salvar();telaUsuarios();
+    salvar();
+    /* a senha de autorizacao (cancelar, sangria) vai para o cofre como hash */
+    if(senhaCx){
+      var _ref=(u?u.id:(US.sel||''));
+      if(!NUVEM.ligada)toast('Sem conexão: a senha de autorização não foi cadastrada.');
+      else try{
+        await api('rpc/senha_operador_definir','POST',{op_ref:_ref,senha:senhaCx});
+        await carregarQuemTemSenha();
+      }catch(e){ _quieto(e,'senhaAutorizacaoUsuario');
+        toast('Usuário salvo, mas não consegui gravar a senha de autorização.'); }
+    }
+    telaUsuarios();
     toast('Usuário salvo'+((senha||!u)?' e acesso liberado.':'.'));
     return true;
   },'lg');
