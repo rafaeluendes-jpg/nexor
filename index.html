@@ -15899,8 +15899,26 @@ function volta(linhas,fn,atual,col){
     estoqueMax:Number(x.estoque_max)||0,
     validade:x.validade||'',ean13:x.ean13||'',
     permiteVenda:!!x.permite_venda,unidadeVenda:x.embalagem||'',
-    estoqueAtual:Number(x.estoque_atual)||0,custoMedio:Number(x.custo_medio)||0,
-    destinoNome:x.destino_nome||'',fator:Number(x.fator)||1,
+    estoqueAtual:Number(x.estoque_atual)||0,
+    /* ==========================================================
+       VARREDURA — LEITURA DE COLUNA QUE NAO EXISTE EM `insumos`
+
+       Estas duas linhas liam `x.custo_medio` e `x.destino_nome`, colunas
+       que existem em `fichas_tecnicas` e NAO em `insumos` — codigo
+       copiado de um bloco para o outro. O resultado era sempre 0 e '',
+       sem erro nenhum.
+
+       Nao houve prejuizo ate hoje porque o insumo usa `custo` e
+       `custoUltima`; quem tem custo medio por unidade e a tabela
+       `estoque_unidade` (490 linhas), lida mais abaixo. Mas um campo
+       que finge vir do banco e sempre vale zero e uma armadilha: basta
+       alguem confiar nele um dia.
+
+       Mantidos com valor explicito para nao mudar comportamento —
+       agora esta claro que nao vem do banco.
+       ========================================================== */
+    custoMedio:0, destinoNome:'',
+    fator:Number(x.fator)||1,
     fornecedorId:mapaFo[x.fornecedor_id]||'',descricao:x.descricao||'',
     compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}},_ANT('insumos'),'insumos');
 
@@ -17405,7 +17423,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V162.0.0';
+var VERSAO='V163.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

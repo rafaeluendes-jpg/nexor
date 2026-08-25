@@ -4418,3 +4418,46 @@ administrativo registrado na observação do próprio caixa. Nenhuma venda foi
 tocada.
 
 11 testes.
+
+## V163 — ITEM 4 (rodada 2): varredura automática de campos
+
+Escrita uma varredura que compara, contra o esquema real do banco (77 tabelas,
+extraído do `information_schema`):
+
+- **a subida**: todas as chaves de primeiro nível dos objetos `campos:function(){
+  return {...}}` do MAPA, incluindo blocos `filhos:`;
+- **as consultas**: cada `order=` e cada filtro `campo=eq.` das URLs;
+- **a descida**: todo `x.coluna` lido nos blocos que seguem cada `baixarTab`.
+
+**Resultado da subida: zero divergências.** Nenhum campo enviado ao banco com
+nome que não existe na tabela.
+
+**Resultado das consultas: zero divergências.**
+
+**Resultado da leitura: uma divergência real**, em `insumos`:
+
+    custoMedio:Number(x.custo_medio)||0,
+    destinoNome:x.destino_nome||'',
+
+`custo_medio` e `destino_nome` existem em `fichas_tecnicas` e **não** em
+`insumos` — código copiado de um bloco para o outro. Resultado sempre 0 e '',
+sem erro. Não houve prejuízo até hoje porque o insumo usa `custo`/`custoUltima`,
+e o custo médio por unidade vive em `estoque_unidade` (490 linhas), lida logo
+abaixo. Mas campo que finge vir do banco e sempre vale zero é armadilha: basta
+alguém confiar nele.
+
+Corrigido com valor explícito (`custoMedio:0, destinoNome:''`) — **zero mudança
+de comportamento**, conforme a regra de alteração mínima; agora está claro que
+não vem do banco.
+
+Os demais candidatos (`impressao`, `imposto`, `cor`, `imagem`, `ativa` sob
+`grupos_opcoes`) foram verificados um a um e são **falsos positivos**: pertencem
+a `categorias`, `status_venda` e `formas_pagamento`, que os têm. O recorte da
+varredura atravessava blocos vizinhos.
+
+**Confirmado de passagem:** o sistema traduz `minimo/maximo` → `min/max` na
+descida e usa `min/max` internamente, de forma consistente. Era o **cardápio
+digital** que lia direto do banco sem a tradução — a causa do grupo de 2 sabores
+aceitar só 1, já corrigida.
+
+A varredura ficou em `/home/claude/varre/` e pode ser reexecutada a cada rodada.
