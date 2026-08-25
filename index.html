@@ -17316,7 +17316,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V151.0.0';
+var VERSAO='V152.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24041,6 +24041,31 @@ async function enviarVendaAtomica(ped,mov){
           quantidade:it.qtd||1,unitario:it.preco||0,total:it.total||0,
           opcoes:it.opcoes||[],observacao:it.obs||''};
       }),
+      /* ==========================================================
+         OS PAGAMENTOS SOBEM JUNTO COM A VENDA
+
+         Este pacote levava pedido, itens e movimentacao de estoque —
+         e NAO levava pagamento nenhum. Os pagamentos subiam depois,
+         pela sincronizacao comum, numa segunda viagem.
+
+         Entre uma viagem e outra cabe muita coisa: rede que cai, aba
+         fechada, aparelho desligado no fim do expediente. Quando isso
+         acontecia, a nuvem ficava com a venda CONCLUIDA e sem nenhum
+         pagamento — e ninguem percebia, porque o aparelho que fez a
+         venda mostrava tudo certo (ele tem o dado local).
+
+         Custo real: 10 vendas sem pagamento, R$ 531 — as 6 do dia 24
+         e mais 4 do dia 25.
+
+         Agora pagamento entra na MESMA transacao do pedido: ou grava
+         tudo, ou nao grava nada.
+         ========================================================== */
+      pagamentos:(ped.pagamentos||[]).map(function(pg,i){
+        return {ref_local:(pg.id||(ped.id+'_pg'+i)),
+          forma_ref:pg.forma||pg.formaId||'',
+          valor:Number(pg.valor)||0,
+          equipamento:pg.equipamento||ped.equipamento||''};
+      }),
       movimentacoes:mov?[{ref_local:mov.id,data:mov.data,hora:mov.hora,
         motivo_id:mov.motivoId,identificacao:mov.identificacao,
         observacao:mov.obs||'',origem:'venda',linhas:mov.linhas||[],
@@ -24054,8 +24079,16 @@ async function enviarVendaAtomica(ped,mov){
          estoque = estoque - qtd com a linha travada. */
     };
     var r=await api('rpc/venda_registrar','POST',{p:pacote});
-    logNuvem('venda #'+ped.numero+' gravada inteira na nuvem'+
-      ((r&&r.ja_existia)?' (já existia — não duplicou)':''));
+    var res=(r&&r.length)?r[0]:r;
+    logNuvem('venda #'+ped.numero+' gravada inteira na nuvem — '+
+      ((res&&res.pagamentos)||0)+' pagamento(s)'+
+      ((res&&res.ja_existia)?' (já existia — não duplicou)':''));
+    /* venda concluida precisa fechar com os pagamentos. Se nao fechar, isso
+       aparece no Diagnostico AGORA, e nao no fechamento do caixa a noite. */
+    if(res&&res.fecha===false){
+      logNuvem('venda #'+ped.numero+': os pagamentos NAO fecham com o total '+
+        '(R$ '+money(res.pago||0)+' de R$ '+money(ped.total)+') — confira a venda',true);
+    }
   }catch(e){
     /* nao e falha: a venda esta gravada aqui e sobe pela fila normal */
     logNuvem('venda #'+ped.numero+' ficou na fila: '+((e&&e.message)||''),true);

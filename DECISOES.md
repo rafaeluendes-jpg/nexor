@@ -4077,3 +4077,36 @@ Agora, para nomes repetidos, a senha do operador preenche a lacuna do usuário.
 **Lição:** tela sem porta de entrada é o mesmo que tela inexistente, e pior —
 alguém a mantém no código achando que está em uso. Vale varrer outras funções
 `tela*()` sem rota.
+
+## V152 — ITEM 1 da auditoria do PDV: pagamento não era gravado
+
+**Causa raiz encontrada.** A venda subia por `rpc/venda_registrar`, que grava
+numa única transação: pedido, itens e movimentação de estoque. **Pagamento não
+estava nessa transação** — nem no pacote enviado pelo navegador, nem na função
+do banco.
+
+Os pagamentos subiam **depois**, pela sincronização comum, numa segunda viagem.
+Entre uma viagem e outra cabe rede que cai, aba fechada, aparelho desligado no
+fim do expediente. Quando isso acontecia, a nuvem ficava com a venda
+**concluída e sem nenhum pagamento** — e ninguém percebia, porque o aparelho que
+fez a venda mostra tudo certo (ele tem o dado local).
+
+**Evidência no banco:** 10 vendas concluídas sem pagamento, R$ 531 — as 6
+conhecidas do dia 24 (R$ 379) e mais 4 do dia 25 (nº 341, 345, 346, 348).
+
+Correções:
+
+- o pacote da venda passou a levar `pagamentos` (referência estável, forma,
+  valor, equipamento);
+- `venda_registrar` grava os pagamentos **na mesma transação** do pedido, com
+  `on conflict do update` — reenvio não duplica (teste P4);
+- índice único `(pedido_id, ref_local)` em `pedido_pagamentos`;
+- a função devolve `pagamentos`, `pago` e `fecha`; quando não fecha, o
+  Diagnóstico registra na hora, e não no fechamento do caixa à noite;
+- view `vw_vendas_sem_pagamento` para conferência permanente.
+
+Testes contra o banco real: P1 (débito), P3 (dinheiro + Pix), P4 (reenvio sem
+duplicar) — todos passaram. 13 testes de unidade no pacote.
+
+**Pendente deste item:** as 10 vendas já gravadas sem pagamento precisam ser
+lançadas manualmente — o sistema não tem como adivinhar a forma.
