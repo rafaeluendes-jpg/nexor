@@ -13979,8 +13979,24 @@ var MAPA=[
  {col:'grupos', espelha:true,      tab:'grupos_opcoes',
   campos:function(x,i){return {nome:x.nome,minimo:n(x.min),maximo:(x.max==null?1:Number(x.max)),
     forcado:!!x.forcado,ordem:ordemDe(x,i),canais:x.canais||[]}},
+  /* ==========================================================
+     A FICHA DA OPCAO NAO SUBIA — E O TRABALHO SUMIA NO PROXIMO DOWNLOAD
+
+     A tela deixa vincular uma ficha tecnica a cada opcao (borda, cobertura,
+     sabor) para a venda baixar estoque. A descida LE `ficha_id`. Mas esta
+     subida mandava so nome, preco e ordem: `ficha_id` nunca ia junto.
+
+     Resultado: a pessoa vinculava as 58 opcoes, o botao Salvar dizia que
+     salvou, e estava certo — salvou no aparelho. Na nuvem o campo ficava
+     nulo. No download seguinte o aparelho recebia nulo de volta e apagava
+     o proprio trabalho. Nenhum erro na tela.
+
+     Mesma armadilha da V136 (formaId x forma) e da V135: campo que existe
+     na tela e na descida, mas falta na subida, apaga dado em silencio.
+     ========================================================== */
   filhos:[{lista:'opcoes',tab:'opcoes',pai:'grupo_id',
-    campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k}}}]},
+    campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k,
+      ficha_id:fk('fichas',o.fichaId)}}}]},
 
  {col:'produtos', espelha:true,    tab:'produtos',
   campos:function(x,i){return {nome:x.nome,preco:n(x.preco),codigo:x.codigo||null,
@@ -17127,6 +17143,23 @@ function unidadeDoUsuario(){
 }
 function lojaAtual(){
   var a=lojasCad();
+  /* ==========================================================
+     LISTA VAZIA NAO E "SOU A MATRIZ" — E "AINDA NAO SEI"
+
+     Nos primeiros segundos do carregamento a lista de unidades ainda
+     esta vazia. Como nenhuma unidade "existe", a regra 3 caia em
+     `a[0]` e gravava `suc_matriz` em DB.lojaAtual e S.loja. Segundos
+     depois os dados chegavam e a tela se corrigia sozinha — daí o
+     nome trocar de Matriz para Santa Fe no canto da tela.
+
+     O nome errado era o sintoma bonito. O perigo era o resto: durante
+     esses segundos o sistema inteiro se considerava matriz, e qualquer
+     coisa gravada ali nascia com a loja errada — foi assim que vendas
+     do balcao nasceram sem unidade na V130.
+
+     Sem lista, nao se decide nada: devolve o que ja estava e espera.
+     ========================================================== */
+  if(!a.length) return DB.lojaAtual||S.loja||'';
   var existe=function(id){return !!id&&a.some(function(l){return l.id===id})};
   var fixa=unidadeDoPerfil();
   /* 1. a unidade do perfil manda em quem nao circula */
@@ -17154,7 +17187,9 @@ function lojaAtual(){
 }
 function nomeLojaAtual(){
   var l=lojasCad().find(function(x){return x.id===lojaAtual()});
-  return l?l.nome:'Matriz';
+  /* nao inventa "Matriz" quando ainda nao sabe: quem le o canto da tela
+     acredita no que esta escrito */
+  return l?l.nome:(lojasCad().length?'Matriz':'…');
 }
 /* deixa visivel que a unidade e fixa, em vez de o clique nao fazer nada */
 function pintarTravaUnidade(){
@@ -17207,7 +17242,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V142.0.0';
+var VERSAO='V143.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

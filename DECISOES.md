@@ -3818,3 +3818,38 @@ incidente aberto do fornecedor não prova que ele é a causa. "Não tem o que
 fazer" é conclusão, nunca ponto de partida. No dia 24/08 a loja ficou horas
 parada por causa da máquina Nano marcada como Unhealthy — visível no painel
 desde o primeiro minuto.
+
+## V143 — a ficha da opção não subia, e a lista vazia virava "matriz"
+
+**1. O trabalho de vincular fichas às opções sumia a cada atualização.**
+
+A tela deixa vincular uma ficha técnica a cada opção (borda, cobertura, sabor)
+para a venda baixar estoque. A descida lê `ficha_id`. Mas a subida mandava só
+`nome`, `preco_adicional` e `ordem` — **`ficha_id` não ia junto**.
+
+Consequência: a pessoa vinculava as 58 opções, o botão Salvar dizia que salvou —
+e estava certo, salvou no aparelho. Na nuvem o campo ficava nulo. No download
+seguinte o aparelho recebia nulo e apagava o próprio trabalho. Sem erro nenhum.
+
+O botão Salvar nunca esteve quebrado. O envio é que estava incompleto.
+
+Mesma armadilha da V135 e da V136. **É a terceira vez.** Campo que existe na
+tela e na descida mas falta na subida apaga dado em silêncio. Vale varrer todas
+as coleções comparando os campos das duas pontas.
+
+**2. Enquanto carregava, o sistema se declarava matriz.**
+
+Nos primeiros segundos a lista de unidades está vazia. Como nenhuma unidade
+"existe", `lojaAtual()` caía na regra do `a[0]` e **gravava** `suc_matriz` em
+`DB.lojaAtual` e `S.loja`. Segundos depois os dados chegavam e a tela se
+corrigia — daí o nome trocar de Matriz para Santa Fé no canto.
+
+O nome errado era o sintoma visível. O risco real: durante esses segundos o
+sistema inteiro se considerava matriz, e o que fosse gravado ali nascia com a
+loja errada — exatamente a origem da V130 (vendas do balcão sem unidade).
+
+Agora lista vazia significa "ainda não sei": devolve o que já estava e espera.
+`nomeLojaAtual()` também deixou de inventar "Matriz" quando não sabe.
+
+**Lição:** ausência de dado não é resposta. Toda escolha automática feita
+enquanto o sistema carrega precisa distinguir "não tem" de "ainda não chegou".
