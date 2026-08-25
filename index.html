@@ -17282,7 +17282,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V147.0.0';
+var VERSAO='V148.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44744,8 +44744,25 @@ function operAtivos(){
     if(String(u.login||'').toLowerCase()===ADM_MESTRE)return false;
     return true;
   }).map(function(u){
-    return {id:u.id,nome:u.nome,funcao:u.funcao||'atendente',
-      senha:u.senhaCaixa||'',ativo:true,sucursais:u.sucursais||[],deUsuario:true};
+    /* ==========================================================
+       A SENHA DO USUARIO NUNCA CHEGAVA NA TELA DE CANCELAMENTO
+
+       Aqui se lia `u.senhaCaixa`, campo que NAO EXISTE: a tabela
+       `usuarios_sistema` guarda `senha` (a mesma do login), e a descida
+       monta o usuario com `senha`. Como `senhaCaixa` vinha sempre vazio,
+       `op.senha` ficava vazio, a conferencia era pulada por completo — e
+       a pessoa nao tinha como usar a senha que lhe foi designada.
+
+       `funcao` tambem nao existe em usuarios_sistema; quem manda na
+       rede e o par tudo/mestre. Traduzido aqui para o rotulo da tela.
+
+       Quinta ocorrencia da mesma familia (V135, V136, V143, cardapio):
+       campo com nome diferente entre quem grava e quem le, falhando em
+       silencio.
+       ========================================================== */
+    return {id:u.id,nome:u.nome,
+      funcao:(u.mestre?'administrador':(u.tudo?'gerente':'caixa')),
+      senha:u.senha||'',ativo:true,sucursais:u.sucursais||[],deUsuario:true};
   });
   var antigos=baseOper().filter(function(o){
     if(o.ativo===false)return false;
@@ -44940,7 +44957,7 @@ function cartaoCancelamento(p){
        return '<option value="'+E(o.id)+'">'+E(o.nome)+'</option>'}).join('')+
      '</select></div>'+
     '<div class="fld2" style="margin:0"><label>Senha *</label>'+
-     '<input id="cvSenha" type="password" inputmode="numeric" placeholder="senha do caixa" autocomplete="off">'+
+     '<input id="cvSenha" type="password" placeholder="senha de acesso" autocomplete="off">'+
      '</div>'+
    '</div>'+
    '<div class="cncAviso">'+sv('help',14)+
@@ -44994,9 +45011,14 @@ async function confirmarCancelamento(id){
   if(!opId){toast('Selecione quem esta cancelando.');return;}
   var op=operAtivos().find(function(o){return o.id===opId});
   if(!op){toast('Operador nao encontrado.');return;}
+  /* sem senha cadastrada, nao ha o que conferir — mas a tela avisa, para
+     ninguem achar que houve conferencia quando nao houve */
+  var sn=($('cvSenha')||{}).value||'';
   if(op.senha){
-    var sn=($('cvSenha')||{}).value||'';
-    if(sn!==op.senha){toast('Senha incorreta.');return;}
+    if(!sn){toast('Digite a senha de '+op.nome+'.');return;}
+    if(String(sn)!==String(op.senha)){toast('Senha incorreta.');return;}
+  }else if(sn){
+    toast(op.nome+' não tem senha cadastrada — cadastre em Usuários.');return;
   }
   var ok=await confirmar({
     titulo:'Cancelar a venda #'+p.numero,

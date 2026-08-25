@@ -3982,3 +3982,28 @@ a dupla operador+senha vira uma coluna em tela estreita.
 funções para a mesma coisa (V131, V141) e dos campos com nome divergente
 (V135, V136, V143). Funciona até alguém abrir as duas. Onde uma tela depende de
 estilo compartilhado, `display` precisa ser explícito.
+
+## V148 — a senha do usuário nunca chegava à tela de cancelamento
+
+Em `operAtivos()` a senha era lida de `u.senhaCaixa` — campo que **não existe**.
+A tabela `usuarios_sistema` guarda `senha` (a mesma do login), e a descida monta
+o usuário com `senha`.
+
+Como `senhaCaixa` vinha sempre vazio, `op.senha` ficava vazio e a conferência
+era **pulada por completo**: qualquer pessoa cancelava sem digitar nada, e quem
+tinha senha designada não conseguia usá-la.
+
+`funcao` também não existe nessa tabela — o que existe é o par `tudo`/`mestre`.
+Passou a ser traduzido para o rótulo da tela (administrador / gerente / caixa).
+
+Além disso, a conferência agora exige a senha quando ela existe (antes, campo
+vazio passava direto) e avisa quando o operador não tem senha cadastrada, em vez
+de aceitar em silêncio.
+
+Os sete motivos de cancelamento estão corretos no banco e ativos; o que impedia
+de vê-los era o layout quebrado da V147, que espremia o campo de escolha.
+
+**Quinta ocorrência da mesma família** (V135, V136, V143, cardápio, esta): campo
+com nome diferente entre quem grava e quem lê. Aqui o efeito foi pior que perder
+dado — foi **desativar uma conferência de segurança sem que ninguém percebesse**.
+Vale rodar a varredura automática de campos em todo o `index.html`.
