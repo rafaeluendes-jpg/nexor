@@ -13822,6 +13822,7 @@ var MAPA=[
 
  {col:'usuarios', espelha:false,    tab:'usuarios_sistema',
   campos:function(x){return {nome:x.nome||null,login:x.login||null,senha:x.senha||null,
+    senha_caixa:x.senhaCaixa||null,
     ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
     sucursais:x.sucursais||[],permissoes:x.permissoes||{}}}},
 
@@ -15994,6 +15995,7 @@ function volta(linhas,fn,atual,col){
     var us=await baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome');
     if(us&&us.length)DB.usuarios=volta(us,function(x){return {id:x.ref_local||x.id,
       nome:x.nome,login:x.login||'',senha:x.senha||'',
+      senhaCaixa:x.senha_caixa||'',
       ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
       sucursais:x.sucursais||[],permissoes:x.permissoes||{}}},null,'usuarios');
   }catch(e){ logNuvem('não consegui baixar os usuários: '+((e&&e.message)||''),true); }
@@ -16170,7 +16172,11 @@ function volta(linhas,fn,atual,col){
         if(!lg)return;
         var ja=locais.find(function(u){return String(u.login||'').toLowerCase()===lg});
         var obj={id:x.ref_local||('usr_'+lg.replace(/[^a-z0-9]/g,'').slice(0,12)),
-          nome:x.nome||'',login:x.login||'',senha:x.senha||'',ativo:x.ativo!==false,
+          /* a SEGUNDA descida tambem precisa trazer a senha de autorizacao:
+             foi assim que o horario do cardapio voltou ao padrao tres vezes
+             (V141), porque a segunda leitura esquecia um campo */
+          nome:x.nome||'',login:x.login||'',senha:x.senha||'',
+          senhaCaixa:x.senha_caixa||'',ativo:x.ativo!==false,
           tudo:!!x.tudo,mestre:!!x.mestre,sucursais:x.sucursais||[],permissoes:x.permissoes||{}};
         if(ja)Object.assign(ja,obj); else locais.push(obj);
       });
@@ -17298,7 +17304,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V149.0.0';
+var VERSAO='V150.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -44776,9 +44782,11 @@ function operAtivos(){
        campo com nome diferente entre quem grava e quem le, falhando em
        silencio.
        ========================================================== */
+    /* a senha que vale aqui e a de AUTORIZACAO. A de entrar mora no
+       servico de login, criptografada, e o navegador nao a enxerga. */
     return {id:u.id,nome:u.nome,
       funcao:(u.mestre?'administrador':(u.tudo?'gerente':'caixa')),
-      senha:u.senha||'',ativo:true,sucursais:u.sucursais||[],deUsuario:true};
+      senha:u.senhaCaixa||'',ativo:true,sucursais:u.sucursais||[],deUsuario:true};
   });
   var antigos=baseOper().filter(function(o){
     if(o.ativo===false)return false;
@@ -47630,6 +47638,22 @@ function formUsuario(id){
     '<div class="fld2" style="margin:0"><label>Telefone</label>'+
      '<input id="uTel" value="'+E(u?u.tel:'')+'" placeholder="para contato"></div>'+
    '</div>'+
+   /* ==========================================================
+      SENHA DE AUTORIZACAO — SEPARADA DA SENHA DE ENTRAR
+
+      A senha de entrar fica no servico de login, criptografada: o
+      navegador nao consegue le-la, e nem deve. Por isso o cancelamento
+      dizia "nao tem senha cadastrada" para quem entrava normalmente.
+
+      Esta segunda senha existe so para autorizar o que precisa de
+      assinatura na loja — hoje o cancelamento de venda. E curta de
+      proposito, para digitar rapido no balcao, e pode ser dada ao
+      gerente sem entregar a senha de entrar no sistema.
+      ========================================================== */
+   '<div class="fld2"><label>Senha para autorizar cancelamento '+
+     '<small>(diferente da senha de entrar)</small></label>'+
+    '<input id="uSenhaCx" type="text" value="'+E(u&&u.senhaCaixa?u.senhaCaixa:'')+'" '+
+     'placeholder="ex: 4 a 6 dígitos — deixe vazio se não autoriza"></div>'+
    /* A função diz o que a pessoa faz na loja e é o que aparece na abertura
       de caixa. As telas que ela enxerga continuam sendo as marcadas abaixo —
       a função não manda nas permissões, só descreve o papel. */
@@ -47677,7 +47701,11 @@ function formUsuario(id){
     var func='atendente';
     var rs=document.querySelectorAll('input[name="uFunc"]');
     for(var i=0;i<rs.length;i++)if(rs[i].checked)func=rs[i].value;
+    var senhaCx=($('uSenhaCx')?$('uSenhaCx').value:'').trim();
+    if(senhaCx&&senhaCx.length<4){
+      toast('A senha de autorização precisa ter ao menos 4 caracteres.');return false;}
     var dados={nome:nome,login:login,tel:$('uTel').value.trim(),funcao:func,
+      senhaCaixa:senhaCx,
       tudo:$('uTudo')?$('uTudo').checked:(u?u.tudo:false)};
     if(senha)dados.senha=senha;
     if(u)Object.assign(u,dados);

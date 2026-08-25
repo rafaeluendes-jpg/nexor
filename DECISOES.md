@@ -4030,3 +4030,28 @@ A decisão fica registrada em `cancelamentos.produzido` e
 `cancelamentos.estoque_voltou` (colunas novas), e **sobe e desce** — conferido
 por teste de ida e volta, para não repetir o esquecimento da V143. Cancelamento
 antigo, sem os campos, continua válido com valor nulo.
+
+## V150 — senha de autorização, separada da senha de entrar
+
+O cancelamento dizia "não tem senha cadastrada em usuários" mesmo para quem
+entra normalmente no sistema. Causa: **a senha de entrar não fica no banco**.
+Desde a migração, ela vive no serviço de login (Supabase Auth), criptografada —
+`usuarios_sistema.senha` está vazia para os logins ativos, e o navegador não
+consegue (nem deve) lê-la.
+
+Ou seja: a V148 corrigiu o nome do campo, mas o campo certo também está vazio.
+Conferir a senha de login no navegador é impossível por construção.
+
+Criada a coluna `usuarios_sistema.senha_caixa` e um campo próprio no cadastro de
+usuários: **senha para autorizar cancelamento**. Curta de propósito (mínimo 4),
+para digitar rápido no balcão, e pode ser entregue ao gerente sem dar a senha de
+entrar no sistema. Usuário sem essa senha simplesmente não autoriza.
+
+O campo sobe e desce nas **duas** descidas de usuários — a segunda estava, como
+sempre, esquecida (mesmo padrão da V141 e da V143).
+
+**Pendências de segurança anotadas:** três usuários ainda têm senha em texto
+plano na tabela (`Jolo Alphaville`, `Jolo Gelato`, `Jolô Jales` inativo) —
+resquício de antes do Auth, devem ser limpos. E a senha de autorização também
+fica em texto plano; para uso no balcão é aceitável, mas vale revisar quando o
+login for todo migrado.
