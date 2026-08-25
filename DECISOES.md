@@ -3906,3 +3906,28 @@ Assistente todo dia.
 **Lição:** dois canais de WhatsApp com regras diferentes não podem ser
 escolhidos por disponibilidade. Tem que ser escolhido por **para quem é a
 mensagem**.
+
+## Cardápio digital — três campos lidos com o nome errado
+
+O cascão adicional está cadastrado a R$ 3,00 no ERP, mas no cardápio aparecia
+sem preço e **não somava no total**: o cliente levava dois cascões de graça e o
+pedido chegava na loja com valor menor do que devia.
+
+Causa: o banco guarda `preco_adicional` e o cardápio lia `o.preco`, que não
+existe. Mesmo defeito do `maximo` lido como `max`.
+
+Varredura comparando todos os campos lidos pelo cardápio com as colunas reais
+das tabelas encontrou três divergências:
+
+- `opcoes.preco` → é `preco_adicional` (preço não aparecia nem somava)
+- `grupos_opcoes.max` / `.min` → são `maximo` / `minimo` (já corrigido antes)
+- `areas_zonas.cidade` → não existe; a cidade é o nome da **área**
+
+Corrigido com funções-ponte (`precoOp`, `cidadeZona`) usadas em todos os pontos,
+aceitando os dois nomes. Um lugar só para ler cada campo evita que volte a
+divergir.
+
+**Lição:** esta é a quarta ocorrência da mesma família (V135, V136, V143, esta).
+Campo com nome diferente entre quem grava e quem lê **nunca dá erro na tela** —
+dá zero, nulo ou vazio, e o prejuízo passa despercebido. Vale rodar a mesma
+varredura automática nas outras pontas do sistema.
