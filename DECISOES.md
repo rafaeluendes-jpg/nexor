@@ -4512,3 +4512,42 @@ madrugada, domingo, virada de semana, e quatro fusos brasileiros.
 está **vazia** (zero chaves). A última mensagem foi às 09:12 de hoje. A Carla
 provavelmente está desconectada e precisa reler o QR — sem isso os avisos de
 fase não chegam ao cliente.
+
+## ITENS 11 a 15 (rodada 2): a causa do salto para o topo
+
+**Causa raiz — e não era nenhuma das suspeitas da lista.** Não era `scrollTo`,
+nem `<a href="#">`, nem submit de formulário, nem troca de rota, nem foco
+automático. Era:
+
+    ov.innerHTML = '...';
+
+Cada toque num sabor redesenhava o painel **inteiro**. `innerHTML` destrói todos
+os filhos e cria outros: o elemento que guardava a rolagem — a `.pnlB` — deixava
+de existir, e a nova nascia em zero. **O navegador não voltou ao topo; o lugar
+onde a pessoa estava foi apagado.**
+
+Isso explica por que o remendo anterior (guardar e devolver a posição) só
+funcionava às vezes: entre destruir e recriar, o navegador ainda não recalculou
+a altura da caixa, e devolver 1800px numa caixa que ainda não tem 1800px de
+conteúdo simplesmente não pega.
+
+**Correção: não destruir.** O painel é montado uma vez; a cada escolha
+atualizamos só o que mudou — a marca da opção, o contador do grupo e o rodapé
+(preço e o que falta). A `.pnlB` nunca é recriada, então a rolagem fica onde
+estava **por consequência, não por conserto**.
+
+Detalhe que quase passou: o botão "não quero" também tem a classe `.op` e vem
+**antes** das opções. Sem `:not(.naoq)` no seletor, o índice de cada opção
+andava um, e tocar no primeiro sabor marcaria o segundo.
+
+**Item 15 — mesmo padrão na sacola, e pior.** Cada toque no + ou no − fazia
+`fechar()` + `abrirSacola()` + **dois** `render()`. Com três ou quatro itens o
+cliente via a lista piscar e voltar ao topo a cada ajuste — bem no momento de
+decidir quanto vai gastar. Agora o miolo foi extraído para `mioloSacola()` e só
+ele é trocado; fecha e reabre apenas quando a sacola esvazia.
+
+**Verificados e mantidos:** os dois `window.scrollTo(0,0)` restantes são
+legítimos (trocar de loja e concluir pedido devem ir ao topo). Nenhum `<form>`,
+nenhum `href="#"`, nenhum `scrollIntoView` indevido no cardápio.
+
+27 testes.
