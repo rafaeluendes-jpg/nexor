@@ -17405,7 +17405,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V161.0.0';
+var VERSAO='V162.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23310,8 +23310,45 @@ function caixaDeOutroDia(cx){
 }
 function agoraHM(){return agoraSP().hora}
 
+/* ==========================================================
+   ITEM 3 (rodada 2) — O BANCO MANDA NO ESTADO DO CAIXA
+
+   `caixaAberto()` le a copia local. Isso e proposital: sem rede a loja
+   precisa vender. Mas quando HA rede, a copia local pode estar errada —
+   o caixa pode ter sido fechado no outro computador, ou encerrado
+   administrativamente. Ate agora o aparelho so descobria isso na
+   proxima sincronizacao completa, e ate la seguia vendendo num turno
+   que ja acabou.
+
+   Esta verificacao e leve (uma linha, uma coluna) e roda no maximo uma
+   vez por minuto. Se o banco disser que fechou, o aparelho encerra a
+   sessao e mostra ABRIR CAIXA. O contrario nunca acontece: caixa
+   fechado aqui jamais e reaberto pelo banco.
+   ========================================================== */
+var _ultimaConferenciaCaixa=0;
+async function conferirCaixaNoBanco(){
+  if(!NUVEM.ligada)return;
+  var cx=caixaAberto(); if(!cx)return;
+  if(Date.now()-_ultimaConferenciaCaixa<60000)return;
+  _ultimaConferenciaCaixa=Date.now();
+  try{
+    var r=await api('caixas?ref_local=eq.'+encodeURIComponent(cx.id)+'&select=fechado_txt,fechado_em','GET');
+    var linha=(r&&r.length)?r[0]:null;
+    if(!linha)return;                    /* ainda nao subiu: nao e prova de nada */
+    var fechadoLa=linha.fechado_txt||linha.fechado_em;
+    if(fechadoLa&&!cx.fechadoEm){
+      cx.fechadoEm=linha.fechado_txt||'fechado em outro aparelho';
+      salvar();
+      encerrarSessaoPDV();
+      telaPDV();
+      toast('Este caixa foi fechado em outro aparelho. Abra um novo para vender.');
+    }
+  }catch(e){ _quieto(e,'conferirCaixaNoBanco'); }
+}
 /* ---------- TELA PRINCIPAL ---------- */
 function telaPDV(){
+  /* confere em segundo plano: nao trava o desenho da tela */
+  setTimeout(function(){ conferirCaixaNoBanco(); },50);
   DB.clientes=DB.clientes||[];DB.pedidos=DB.pedidos||[];DB.caixas=DB.caixas||[];
   baseFormas();
   var c=cfg(),cx=caixaAberto();

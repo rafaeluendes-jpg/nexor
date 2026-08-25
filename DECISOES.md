@@ -4392,3 +4392,29 @@ omissão — liberar sem conferir é o mesmo buraco que estamos fechando. Abrir
 caixa continua sem exigir senha, então a loja nunca fica impedida de vender.
 
 12 testes.
+
+## V162 — ITEM 3 (rodada 2): o banco manda no estado do caixa
+
+`caixaAberto()` lê a cópia local, e isso é proposital: sem rede a loja precisa
+vender. Mas quando **há** rede a cópia local pode estar errada — o caixa pode ter
+sido fechado no outro computador ou encerrado administrativamente. Até aqui o
+aparelho só descobria na próxima sincronização completa, e até lá seguia
+vendendo num turno encerrado.
+
+`conferirCaixaNoBanco()` consulta uma linha e uma coluna, no máximo uma vez por
+minuto, em segundo plano (não trava o desenho da tela). Se o banco disser que
+fechou: encerra a sessão do PDV e mostra ABRIR CAIXA.
+
+Três guardas deliberados:
+
+- caixa que **ainda não subiu** (sem linha na nuvem) não é encerrado — ausência
+  de registro não é prova de fechamento;
+- fechamento feito **aqui** nunca é desfeito pelo banco;
+- **offline não encerra nada**.
+
+**Caixa de teste encerrado:** `cx_mt8t8cl769kj`, aberto 25/08 às 12:18,
+R$ 0,00 de abertura, zero vendas, zero pedidos ligados. Encerramento
+administrativo registrado na observação do próprio caixa. Nenhuma venda foi
+tocada.
+
+11 testes.
