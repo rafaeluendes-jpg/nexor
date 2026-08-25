@@ -17242,7 +17242,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V145.0.0';
+var VERSAO='V146.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -43138,8 +43138,9 @@ async function enviarResumoPedido(ped,online){
        para quem nunca escreveu para o numero — e o cliente do delivery
        pede pelo site, nao pelo WhatsApp. */
     var r=await zapApi('/enviar','POST',{loja:alvo,telefone:tel,texto:texto,destino:'cliente'});
-    if(r&&r.ok)toast('Confirmação enviada no WhatsApp para '+nome+'.');
-    else if(r&&r.erro)toast('WhatsApp não enviou: '+String(r.erro).slice(0,70));
+    if(r&&r.ok&&r.para)toast('Confirmação entregue a '+nome+'.');
+    else if(r&&r.erro)toast('WhatsApp não enviou: '+String(r.erro).slice(0,90));
+    else toast('O robô não confirmou a entrega — confira o telefone do cliente.');
   }catch(e){toast('Não consegui falar com o robô.');}
 }
 function formaPorNome(nome){
@@ -43834,8 +43835,21 @@ async function avisarCliente(ped,fase){
   try{
     var alvo=(await lojaConectada())||suc;
     var r=await zapApi('/enviar','POST',{loja:alvo,telefone:cli.tel,texto:texto,destino:'cliente'});
-    if(r&&r.ok)toast('WhatsApp enviado para '+(cli.nome||'').split(' ')[0]+'.');
-    else if(r&&r.erro)toast('Não enviei o WhatsApp: '+String(r.erro).slice(0,70));
+    /* ==========================================================
+       SO DIZ "ENVIADO" SE O ROBO CONFIRMAR O NUMERO
+
+       Antes bastava a chamada nao falhar para a tela escrever
+       "enviado". O robo, por sua vez, considerava enviado qualquer
+       tentativa que nao lancasse erro — e mandar para um numero que
+       nao existe no WhatsApp NAO lanca erro. A loja ficava tranquila
+       achando que o cliente foi avisado, e ninguem avisava ninguem.
+
+       Agora o robo devolve o numero que confirmou. Sem numero
+       confirmado, a tela diz que nao foi.
+       ========================================================== */
+    if(r&&r.ok&&r.para)toast('WhatsApp entregue a '+(cli.nome||'').split(' ')[0]+'.');
+    else if(r&&r.erro)toast('Não enviei o WhatsApp: '+String(r.erro).slice(0,90));
+    else toast('O robô não confirmou a entrega — confira o telefone do cliente.');
   }catch(e){
     toast('Não consegui falar com o robô do WhatsApp.');
   }

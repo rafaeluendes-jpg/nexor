@@ -3931,3 +3931,32 @@ divergir.
 Campo com nome diferente entre quem grava e quem lê **nunca dá erro na tela** —
 dá zero, nulo ou vazio, e o prejuízo passa despercebido. Vale rodar a mesma
 varredura automática nas outras pontas do sistema.
+
+## V146 — "enviada" na tela e nada no celular do cliente
+
+O PDV escrevia "Confirmação enviada" a cada mudança de fase e o cliente não
+recebia nada — nem o resumo do pedido, nem "em preparo", nem "saiu para
+entrega", nem a avaliação.
+
+Causa, no `enviarPeloBaileys`: a função percorria as variações do telefone e
+parava **na primeira que não lançasse erro**. Mas `sendMessage` para um número
+que não existe no WhatsApp **não lança erro** — o servidor aceita o envio para
+um destino inexistente e devolve sucesso.
+
+O cliente cadastra o telefone como `17997677339`, sem o 55. Essa era a primeira
+tentativa, "dava certo", e a função retornava ok. As variações corretas nunca
+chegavam a ser tentadas.
+
+Correções:
+
+- antes de enviar, o robô pergunta ao WhatsApp **quem existe** (`onWhatsApp`) e
+  só envia para o número confirmado; sem confirmação, erro explícito;
+- a ordem das variações mudou: número brasileiro sem o 55 passa a tentar
+  `55+número` primeiro, que é o caso mais comum do cadastro;
+- variações novas: com e sem o nono dígito;
+- o robô devolve o número confirmado, e **a tela só escreve "entregue" quando
+  recebe esse número**. Sem ele, diz que não confirmou.
+
+**Lição:** sucesso de chamada não é prova de entrega. Toda integração externa
+precisa devolver *o que* foi feito, não apenas que "não deu erro" — senão a
+tela mente com a melhor das intenções e ninguém descobre por dias.
