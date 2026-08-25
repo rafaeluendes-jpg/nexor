@@ -4551,3 +4551,29 @@ legítimos (trocar de loja e concluir pedido devem ir ao topo). Nenhum `<form>`,
 nenhum `href="#"`, nenhum `scrollIntoView` indevido no cardápio.
 
 27 testes.
+
+## ITEM 17 (rodada 2): regressão
+
+Bateria completa reexecutada: **314 testes, zero falhas**, distribuídos por
+todas as versões desta rodada e da anterior.
+
+Verificação contra o banco real:
+
+- vendas sem pagamento **depois** da correção (V152): **0**
+- as 10 históricas continuam intocadas, conforme o escopo
+- pedidos duplicados: 0 · pagamentos duplicados: 0
+- caixas abertos: 0 · caixas sem unidade: 0
+- senha em texto puro: 0 · RLS ativa em 78 de 78 tabelas
+- **P20: 7/7** — pedidos, pagamentos, caixas, produtos, clientes, usuários e o
+  cofre de senhas, todos isolando por empresa
+
+**Regressão que eu mesmo introduzi e corrigi antes de fechar:** a migração de
+senhas para o cofre olhou apenas `usuarios_sistema.senha_caixa`, que estava
+vazia. A senha do operador Administrador vivia dentro do jsonb
+`config_operacao.operadores` e não foi migrada — o cofre ficou com zero
+registros, o que impediria qualquer autorização de sangria, cancelamento ou
+fechamento. Migrada para hash e o texto puro apagado de dentro do jsonb.
+
+Lição registrada: quando um dado existe em dois lugares (coluna e jsonb),
+migrar um e esquecer o outro é o mesmo erro de campo divergente, com outra
+roupa.
