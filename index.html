@@ -14137,6 +14137,19 @@ var MAPA=[
        ========================================================== */
     aberto_em:dataDoTexto(x.aberto),
     fechado_em:dataDoTexto(x.fechadoEm),
+    /* ==========================================================
+       ITEM 7 — O CAIXA NAO TINHA UNIDADE
+
+       A tabela `caixas` nao guardava em qual loja o caixa foi aberto, e
+       `caixaAberto()` pegava QUALQUER caixa sem fechamento. Com quatro
+       unidades no mesmo banco, o caixa aberto no Alphaville aparecia
+       como aberto em Santa Fe — e o de Santa Fe podia ser fechado a
+       partir de outra loja.
+
+       O rastro esta no banco: um caixa aberto em 20/08 so foi fechado
+       em 24/08, e outro atravessou de 24 para 25.
+       ========================================================== */
+    sucursal_id:x.sucursalId||lojaAtualId()||null,
     esperado:n(x.esperado),contado:n(x.contado),total_informado:n(x.totalInformado),
     vendas:n(x.vendas),qtd_pedidos:n(x.qtd),conferencia:x.conferencia||{},observacao:x.obs||null}},
   filhos:[{lista:'movimentos',tab:'caixa_movimentos',pai:'caixa_id',
@@ -16256,6 +16269,7 @@ function volta(linhas,fn,atual,col){
     fechadoEm:x.fechado_txt||fechadosAqui[ref]||null,
     operador:x.operador,inicial:Number(x.valor_inicial)||0,
     turnoId:mapaTn[x.turno_id]||'',turno:x.turno_nome||'',operadorId:x.operador_id||'',
+    sucursalId:x.sucursal_id||'',
     vendas:Number(x.vendas)||0,esperado:Number(x.esperado)||0,contado:Number(x.contado)||0,
     totalInformado:Number(x.total_informado)||0,qtd:x.qtd_pedidos||0,
     conferencia:x.conferencia||{},obs:x.observacao||'',
@@ -16263,16 +16277,40 @@ function volta(linhas,fn,atual,col){
       tipo:m2.tipo,
       valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,quando:m2.criado_em}})};
   },null,'caixas');
-  /* segurança: só pode haver um caixa aberto */
+  /* ==========================================================
+     O REMENDO QUE ESCONDIA O PROBLEMA
+
+     Aqui, ao baixar da nuvem, o codigo fechava sozinho todos os caixas
+     abertos menos o mais recente — e datava o fechamento com a hora da
+     ABERTURA, o que apaga o rastro. Foi assim que o caixa de 20/08
+     apareceu "fechado" em 24/08 sem ninguem ter fechado, com vendas
+     zeradas.
+
+     Isso nao era seguranca: era varrer para baixo do tapete. Um caixa
+     aberto por engano em outra unidade nao pode ser encerrado em
+     silencio por um aparelho qualquer que sincronizou.
+
+     Agora so se resolve duplicidade DENTRO DA MESMA UNIDADE, e o caixa
+     que sobra e marcado para o operador ver e decidir — nao apagado.
+     ========================================================== */
   (function(){
-    var abertos=(DB.caixas||[]).filter(function(c){return !c.fechadoEm});
-    if(abertos.length>1){
-      abertos.sort(function(a,b){return String(b.aberto||'').localeCompare(String(a.aberto||''))});
-      abertos.slice(1).forEach(function(c){
-        c.fechadoEm=c.aberto||'fechado automaticamente';
-        c.obs=(c.obs||'')+' [fechado automaticamente: outro caixa foi aberto]';
+    var porSuc={};
+    (DB.caixas||[]).forEach(function(c){
+      if(c.fechadoEm)return;
+      var k=c.sucursalId||'(sem)';
+      (porSuc[k]=porSuc[k]||[]).push(c);
+    });
+    Object.keys(porSuc).forEach(function(k){
+      var ab=porSuc[k];
+      if(ab.length<2)return;
+      ab.sort(function(a,b){return String(b.aberto||'').localeCompare(String(a.aberto||''))});
+      ab.slice(1).forEach(function(c){
+        c.pendente=true;   /* nao fecha: sinaliza */
+        c.obs=(c.obs||'')+' [há outro caixa aberto nesta unidade — confira]';
       });
-    }
+      logNuvem(ab.length+' caixas abertos na mesma unidade — o mais antigo precisa '+
+        'ser conferido e fechado',true);
+    });
   })();
 
   var mapaCx={};cx.forEach(function(x){mapaCx[x.id]=x.ref_local||x.id});
@@ -17338,7 +17376,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V156.0.0';
+var VERSAO='V157.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23222,7 +23260,24 @@ function encerrarSessaoPDV(){
 }
 function caixaAberto(){
   DB.caixas=DB.caixas||[];
-  return DB.caixas.find(function(c){return !c.fechadoEm})||null;
+  var minha=lojaAtualId();
+  /* caixa e da unidade. Sem esse filtro, um caixa aberto no Alphaville
+     valia como caixa aberto em Santa Fe. Caixa antigo, gravado antes de
+     existir a coluna, nao tem unidade: vale para quem estiver olhando,
+     senao a loja fica sem caixa do nada. */
+  return DB.caixas.find(function(c){
+    if(c.fechadoEm)return false;
+    if(!c.sucursalId)return true;
+    return c.sucursalId===minha;
+  })||null;
+}
+/* o caixa aberto e de hoje? gelato fecha as 22:30 — caixa de outro dia e
+   esquecimento, nao turno que atravessa a noite */
+function caixaDeOutroDia(cx){
+  if(!cx||!cx.aberto)return false;
+  var d=String(cx.aberto).slice(0,10);
+  var hoje=new Date().toLocaleDateString('pt-BR');
+  return !!d && d!==hoje;
 }
 function agoraHM(){return agoraSP().hora}
 
@@ -23244,7 +23299,9 @@ function telaPDV(){
    '<div class="pdvFld"><label>Retirada</label><input type="number" id="tRet" value="'+c.tempoRetirada+'"><i>min</i></div>'+
    '<div class="pdvGrow"></div>'+
    (cx?'<button class="cxTag" data-pop="1" onclick="menuCaixa(event)">'+sv('cash',14)+
-       '<div><b>Caixa aberto</b><span>'+(cfg().caixaCego?'valores ocultos':'R$ '+money(esperadoCaixa(cx))+' em gaveta')+'</span></div>'+sv('dn',13)+'</button>'
+       '<div><b>Caixa aberto'+(caixaDeOutroDia(cx)?' <em style="color:var(--red);font-style:normal">de '+E(String(cx.aberto).slice(0,10))+'</em>':'')+'</b><span>'+
+        (caixaDeOutroDia(cx)?'ficou aberto do dia anterior — feche antes de vender'
+          :(cfg().caixaCego?'valores ocultos':'R$ '+money(esperadoCaixa(cx))+' em gaveta'))+'</span></div>'+sv('dn',13)+'</button>'
       :'<button class="btnP2 ok" onclick="abrirCaixa()">'+sv('cash',14)+' Abrir frente de caixa</button>')+
   '</div>'+
   (PDV.comandaId?(function(){var c=comandaPorId(PDV.comandaId);
@@ -24635,9 +24692,17 @@ function abrirCaixa(){
     if(rt.length&&!turnoId){toast('Escolha o turno.');return false;}
     DB.caixas=DB.caixas||[];
     var ag=new Date();
+    /* dois cliques no botao, ou duas abas abertas, nao podem abrir dois
+       caixas na mesma unidade */
+    if(caixaAberto()){
+      toast('Já existe um caixa aberto nesta unidade.');
+      telaPDV(); return true;
+    }
     var novoCx={id:uid('cx'),inicial:parseFloat($('cxIni').value)||0,
       operador:op.nome,operadorId:op.id,funcao:op.funcao,
       turnoId:turnoId,turno:nomeTurno(turnoId),
+      /* o caixa passa a saber de qual loja e */
+      sucursalId:lojaAtualId(),
       movimentos:[],aberto:ag.toLocaleDateString('pt-BR')+' '+agoraHM()};
     DB.caixas.push(novoCx);
     salvar();telaPDV();

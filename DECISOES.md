@@ -4231,3 +4231,35 @@ vale mesmo que algum estado escape no futuro.
 **Observado para o item 7:** `caixaAberto()` procura qualquer caixa sem
 `fechadoEm` **sem filtrar por unidade** — um caixa aberto no Alphaville é visto
 como aberto em Santa Fé. Será tratado no próximo item.
+
+## V157 — ITEM 7 da auditoria do PDV: caixa fantasma
+
+Três causas somadas, todas confirmadas no banco.
+
+**1. A tabela `caixas` não tinha unidade.** `caixaAberto()` pegava qualquer caixa
+sem fechamento. Com quatro lojas no mesmo banco, o caixa aberto no Alphaville
+valia como caixa aberto em Santa Fé — e podia ser fechado de outra loja. Coluna
+`sucursal_id` criada, carimbada na abertura, e os registros antigos atribuídos a
+Santa Fé (única unidade que operou até aqui).
+
+**2. Havia um remendo que escondia o problema.** Ao baixar da nuvem, o código
+fechava sozinho todos os caixas abertos menos o mais recente — e datava o
+fechamento com a hora da **abertura**, apagando o rastro. Foi assim que o caixa
+de 20/08 apareceu "fechado" em 24/08 sem ninguém ter fechado, com vendas
+zeradas; e o de 24/08 foi fechado junto com o de 25/08 às 12:18.
+
+Isso não era segurança, era varrer para baixo do tapete: um caixa aberto por
+engano não pode ser encerrado em silêncio por um aparelho que sincronizou.
+Agora a duplicidade é resolvida **dentro da mesma unidade** e o caixa que sobra
+é **marcado como pendente**, não fechado — o operador vê e decide.
+
+**3. Nada avisava que o caixa era de outro dia.** Gelato fecha às 22:30: caixa
+de dia anterior é esquecimento, nunca turno que atravessa a noite. O botão do
+PDV agora mostra em vermelho "ficou aberto do dia anterior — feche antes de
+vender", com a data.
+
+**Duplicidade por clique repetido** também fechada: abrir caixa verifica antes
+se já existe um aberto na unidade. Duas unidades podem ter caixa ao mesmo tempo,
+como deve ser.
+
+16 testes, cobrindo C6, C7 e C8 do documento.
