@@ -3781,3 +3781,40 @@ Duas correções:
 **Lição:** duas rotinas escrevendo no mesmo objeto, com listas de campos
 diferentes, é a mesma armadilha da V131 (duas funções para a mesma
 configuração). Vale procurar outros pontos onde isso se repete.
+
+## V142 — abrir a tela de horários gravava o padrão sozinho
+
+Depois da V141 o horário de Santa Fé **voltou de novo ao padrão**, às 22:12.
+Havia mais um caminho, e era o pior de todos.
+
+Em `abaLoja()`:
+
+    if(!c.horarios||!c.horarios.length){c.horarios=horariosPadrao();salvar();}
+
+Aquele `salvar()` fazia com que **só abrir a aba de horários** gravasse o padrão
+(14:00 às 22:30, segunda fechada) e o mandasse para a nuvem. Ninguém clicava em
+nada. E como o objeto não recebia a marca `_padrao`, a trava da V137 não pegava.
+
+Segundo caminho: a primeira descida preenchia `horarios` com o padrão quando a
+nuvem vinha vazia, também sem marca.
+
+Correções:
+
+- `abaLoja()` não salva mais; preenche só para a tela, marcando `_padrao`;
+- a descida marca `_padrao` quando a nuvem não trouxe horário;
+- **trava no banco** (`tg_trava_horario`): se alguém tentar gravar exatamente o
+  padrão por cima de um horário já cadastrado e diferente, a atualização é
+  recusada e o horário existente é mantido. Horário vazio também é recusado.
+
+**Lição maior:** tapar os caminhos um a um não resolveu — foram três versões.
+O que resolve é a trava no banco, que vale independente do que o navegador faça.
+Onde existe dado que o sistema semeia sozinho, a proteção precisa estar do lado
+do banco, não só do lado da tela.
+
+**Regra de diagnóstico (do incidente de 24/08):** antes de culpar o fornecedor,
+verificar o próprio projeto — status, tamanho da máquina, limites, cobrança.
+A página de status geral não diz nada sobre um projeto específico, e um
+incidente aberto do fornecedor não prova que ele é a causa. "Não tem o que
+fazer" é conclusão, nunca ponto de partida. No dia 24/08 a loja ficou horas
+parada por causa da máquina Nano marcada como Unhealthy — visível no painel
+desde o primeiro minuto.

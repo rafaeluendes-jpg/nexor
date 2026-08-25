@@ -16056,6 +16056,9 @@ function volta(linhas,fn,atual,col){
       aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false,
       pedeCpf:!!x.pede_cpf,formas:x.formas_aceitas||[],pixChave:x.pix_chave||'',
       aviso:x.aviso||'',
+      /* nuvem sem horario: preenche padrao SO para a tela, e marca para
+         nao subir de volta e apagar o horario de verdade */
+      _padrao:!(x.horarios&&x.horarios.length),
       horarios:(x.horarios&&x.horarios.length)?x.horarios:horariosPadrao()};
   });
 
@@ -17204,7 +17207,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V141.0.0';
+var VERSAO='V142.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42339,7 +42342,20 @@ function limparImg(qual){
 /* ---------- loja e horários ---------- */
 var DIAS_S=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 function abaLoja(c){
-  if(!c.horarios||!c.horarios.length){c.horarios=horariosPadrao();salvar();}
+  /* ==========================================================
+     ABRIR A TELA NAO E ESCOLHER HORARIO
+
+     Aqui estava `salvar()`. Bastava ABRIR esta aba para o sistema
+     gravar o horario padrao (14:00 as 22:30, segunda fechada) e
+     mandar para a nuvem — sem ninguem clicar em nada. Foi assim que
+     o horario de Santa Fe voltou ao padrao varias vezes, inclusive
+     depois de ja ter sido corrigido.
+
+     Agora o padrao entra SO PARA A TELA TER O QUE MOSTRAR, marcado
+     com `_padrao`, e nao sobe. A marca cai no primeiro salvamento
+     de verdade.
+     ========================================================== */
+  if(!c.horarios||!c.horarios.length){c.horarios=horariosPadrao();c._padrao=true;}
   var h=c.horarios;
   return '<div class="cfgDuas">'+
    '<div class="cfgCol"><div class="colH">Horário de funcionamento</div>'+
