@@ -12963,6 +12963,18 @@ var MOD=[
  {id:'dados-fiscais',n:'Dados Fiscais da Empresa'},
  {id:'modelo-impressao',n:'Modelo de Impressão'},
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
+ /* ==========================================================
+    A TELA DE OPERADORES EXISTIA E NAO ESTAVA EM MENU NENHUM
+
+    `telaOperadores()` estava escrita, funcionando, e sem nenhuma porta
+    de entrada: nao havia item de menu nem rota apontando para ela. Quem
+    precisava cadastrar alguem so para assinar cancelamento e abrir caixa
+    era obrigado a criar um USUARIO, com e-mail e senha de acesso ao
+    sistema — um login a mais so para digitar uma senha no balcao.
+
+    Operador e diferente de usuario: nao entra no sistema, so assina.
+    ========================================================== */
+ {id:'operadores',n:'Operadores do Caixa'},
  {id:'status-vendas',n:'Status de Vendas'},
  {id:'mesas',n:'Mesas e QR Code'},
  {id:'totem',n:'Totem de Autoatendimento'},
@@ -17304,7 +17316,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V150.0.0';
+var VERSAO='V151.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17628,6 +17640,7 @@ if(mid==='pdv'&&iid==='pedidos-online'){limparSeloPedidos();return telaPedidosOn
 if(mid==='loja'&&iid==='cfg-pdv')return telaCfgPDV();
 if(mid==='loja'&&iid==='cfg-movimentacao')return telaCfgMovimentacao();
 if(mid==='loja'&&iid==='motivo-cancelamento')return telaMotivosCanc();
+if(mid==='loja'&&iid==='operadores')return telaOperadores();
 if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='mesas')return telaMesas();
 if(mid==='loja'&&iid==='totem')return telaTotem();
@@ -44794,6 +44807,28 @@ function operAtivos(){
     return !dosUsuarios.some(function(u){
       return String(u.nome||'').toLowerCase()===String(o.nome||'').toLowerCase();});
   });
+  /* ==========================================================
+     ENTRE DOIS DE MESMO NOME, VALE QUEM TEM SENHA
+
+     Se a mesma pessoa existe como usuario (para entrar no sistema) e
+     como operador (para assinar no balcao), a versao de usuario vencia
+     por vir primeiro na lista. E comum o usuario estar sem senha de
+     autorizacao e o operador ter — resultado: o nome aparecia, mas a
+     assinatura ficava sem senha, valendo qualquer coisa.
+
+     Agora, para nomes repetidos, a senha do operador preenche a lacuna
+     do usuario. Nao se troca o registro, so se aproveita a senha.
+     ========================================================== */
+  var porNome={};
+  baseOper().forEach(function(o){
+    if(o.ativo===false||!o.senha)return;
+    porNome[String(o.nome||'').toLowerCase()]=o.senha;
+  });
+  dosUsuarios.forEach(function(u){
+    if(u.senha)return;
+    var sn=porNome[String(u.nome||'').toLowerCase()];
+    if(sn)u.senha=sn;
+  });
   return dosUsuarios.concat(antigos);
 }
 function nomeFuncao(id){var f=FUNCOES.find(function(x){return x.id===id});return f?f.n:id}
@@ -44802,8 +44837,10 @@ function telaOperadores(){
   baseMov();baseSuc();baseOper();
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
-    '<div><h1>Operadores</h1>'+
-    '<p>Quem trabalha na loja. O nome aparece no caixa e nos relatórios.</p></div>'+
+    '<div><h1>Operadores do Caixa</h1>'+
+    '<p>Quem trabalha na loja e precisa assinar abertura de caixa e cancelamento. '+
+    '<b>Não entra no sistema</b> — por isso não pede e-mail nem senha de acesso, '+
+    'só nome e uma senha curta para autorizar.</p></div>'+
     '<div style="flex:1"></div>'+
     '<button class="btnP2 ok" onclick="formOperador()">'+sv('plus',14)+' Cadastrar operador</button>'+
    '</div>'+
@@ -44842,8 +44879,9 @@ function formOperador(id){
    '<div class="row2">'+
     '<div class="fld2" style="margin:0"><label>Nome *</label>'+
      '<input id="opNome" value="'+E(o?o.nome:'')+'" placeholder="como aparece no caixa"></div>'+
-    '<div class="fld2" style="margin:0"><label>Senha do caixa</label>'+
-     '<input id="opSenha" type="text" value="'+E(o?o.senha:'')+'" placeholder="opcional, só números"></div>'+
+    '<div class="fld2" style="margin:0"><label>Senha para autorizar</label>'+
+     '<input id="opSenha" type="text" value="'+E(o?o.senha:'')+'" '+
+     'placeholder="4 a 6 dígitos — vazio: não autoriza"></div>'+
    '</div>'+
    '<div class="fld2"><label>Função *</label>'+
     '<div class="tipoEsc">'+FUNCOES.map(function(f){
@@ -44860,7 +44898,9 @@ function formOperador(id){
     var func='atendente';
     var rs=document.querySelectorAll('input[name="opFunc"]');
     for(var i=0;i<rs.length;i++)if(rs[i].checked)func=rs[i].value;
-    var dados={nome:nome,funcao:func,senha:$('opSenha').value.trim(),ativo:$('opAtivo').checked};
+    var sn=$('opSenha').value.trim();
+    if(sn&&sn.length<4){toast('A senha para autorizar precisa ter ao menos 4 dígitos.');return false;}
+    var dados={nome:nome,funcao:func,senha:sn,ativo:$('opAtivo').checked};
     if(o)Object.assign(o,dados);
     else DB.operadores.push(Object.assign({id:uid('op'),sucursais:[]},dados));
     salvar();telaOperadores();

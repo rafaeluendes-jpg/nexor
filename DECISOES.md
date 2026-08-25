@@ -4055,3 +4055,25 @@ plano na tabela (`Jolo Alphaville`, `Jolo Gelato`, `Jolô Jales` inativo) —
 resquício de antes do Auth, devem ser limpos. E a senha de autorização também
 fica em texto plano; para uso no balcão é aceitável, mas vale revisar quando o
 login for todo migrado.
+
+## V151 — a tela de Operadores existia e não estava em menu nenhum
+
+`telaOperadores()` estava escrita e funcionando, sem nenhuma porta de entrada:
+não havia item de menu nem rota apontando para ela. Quem precisava cadastrar
+alguém só para assinar cancelamento e abrir caixa era obrigado a criar um
+**usuário**, com e-mail e senha de acesso ao sistema — um login a mais só para
+digitar uma senha no balcão.
+
+Adicionada em **Configuração da Loja › Operadores do Caixa**, com o texto
+deixando claro que operador **não entra no sistema**: só nome, função e uma
+senha curta para autorizar.
+
+Corrigida também uma armadilha achada por teste: quando a mesma pessoa existe
+como usuário e como operador, a versão de usuário vencia por vir primeiro. Como
+é comum o usuário estar sem senha de autorização e o operador ter, o nome
+aparecia mas a assinatura ficava sem senha — valendo qualquer coisa digitada.
+Agora, para nomes repetidos, a senha do operador preenche a lacuna do usuário.
+
+**Lição:** tela sem porta de entrada é o mesmo que tela inexistente, e pior —
+alguém a mantém no código achando que está em uso. Vale varrer outras funções
+`tela*()` sem rota.
