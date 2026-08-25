@@ -4577,3 +4577,52 @@ fechamento. Migrada para hash e o texto puro apagado de dentro do jsonb.
 Lição registrada: quando um dado existe em dois lugares (coluna e jsonb),
 migrar um e esquecer o outro é o mesmo erro de campo divergente, com outra
 roupa.
+
+## V165 — PERFORMANCE: as três causas medidas
+
+Nada foi otimizado por suposição. Cada mudança tem medição antes e depois.
+
+**Causa nº 1 — 50 consultas uma esperando a outra (4,7 s).** O carregamento fazia
+`await baixarTab(...)` cinquenta vezes seguidas. Cada ida e volta ao banco (que
+está em Ohio) custa 0,15 a 0,50 s; a soma passa de 5 segundos antes de a
+primeira tela aparecer.
+
+Medido contra o banco real, com as 49 consultas do startup:
+
+| | tempo |
+|---|---|
+| sequencial (como estava) | **5,67 s** |
+| paralelo (como ficou) | **0,98 s** |
+
+Ganho de **5,8×**. As consultas passam a ser disparadas juntas e aguardadas na
+ordem original — o processamento continua na mesma sequência, então os mapas de
+identificador que uma etapa monta para a seguinte seguem prontos na hora certa.
+Verificado uma a uma: **nenhuma URL depende do resultado de outra**, todas usam
+filtro fixo de loja e unidade.
+
+**Quatro tabelas eram baixadas duas vezes** no mesmo carregamento
+(`cardapio_config`, `sucursais`, `usuarios_sistema`, `clientes_nexor`). Agora a
+segunda reaproveita a mesma resposta.
+
+**Causa nº 2 — a checagem de versão baixava o sistema inteiro (201 MB/hora).**
+`fetch(location.pathname, {cache:'no-store'})` a cada 45 s, num arquivo de
+2,5 MB. Isso dá 3,4 MB por minuto, **2 GB por loja num turno de 10 horas** —
+quase 8 GB por dia com as quatro unidades. E cada descarga ocupa rede e thread
+com a loja vendendo.
+
+Agora pergunta primeiro com `HEAD` e compara a etiqueta do arquivo. Medido no
+servidor real: **HEAD devolve 895 bytes; GET devolve 2.635.473**. O arquivo só é
+baixado quando a etiqueta muda. Intervalo passou de 45 s para 2 min, e para em
+aba escondida. **De 201 MB/hora para ~2,5 MB/hora.**
+
+**Causa nº 3 — o medidor de travamento atrapalhava o que media.** Acordava
+4 vezes por segundo (240×/min), para sempre, mesmo em segundo plano. Cada
+acordada é uma tarefa na mesma fila onde o sistema desenha as telas. Passou para
+1 s e parou em aba escondida: **de 240 para 60 acordadas por minuto, e zero em
+segundo plano**. A detecção não perde nada — travas de meio segundo para cima
+continuam aparecendo.
+
+**O que NÃO era a causa, e por isso não foi mexido:** o volume de dados. A maior
+tabela tem 758 linhas; insumos, 290; fichas, 145. A lentidão vinha do **número de
+viagens**, não do tamanho da carga — por isso adiar módulos traria pouco ganho e
+não foi feito, conforme a regra de alteração mínima.

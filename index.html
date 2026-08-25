@@ -15722,24 +15722,99 @@ function volta(linhas,fn,atual,col){
    'cardapio_config'+qs]
    .forEach(function(u){ adiantarTab(u.split('?')[0],u); });
   adiantarTab('ficha_itens','ficha_itens?select=*&limit=20000');
-  var cont=await baixarTab('contas_capital', 'contas_capital'+qs);
+  /* ==========================================================
+     GARGALO PRINCIPAL: 50 CONSULTAS UMA ESPERANDO A OUTRA
+
+     Cada `await baixarTab(...)` parava tudo ate a resposta chegar. Sao
+     50 consultas em fila. Medido contra o banco: 0,15 a 0,50 s por
+     consulta (o servidor esta em Ohio), media 0,23 s — ou seja, perto
+     de 8 SEGUNDOS so de ida e volta, antes de o sistema desenhar
+     qualquer coisa. Nao era o banco lento nem o aparelho fraco: era
+     fila.
+
+     Aqui as consultas sao DISPARADAS todas juntas e so depois
+     aguardadas, na mesma ordem de antes. O navegador cuida de varias
+     ao mesmo tempo, e o tempo total passa a ser o da consulta mais
+     lenta, nao a soma de todas.
+
+     Por que e seguro: nenhuma URL depende do resultado de outra —
+     todas usam filtro fixo (loja e unidade). Foi verificado uma a uma.
+     E o PROCESSAMENTO continua na ordem original, entao os mapas de
+     identificador que uma etapa monta para a seguinte seguem prontos
+     na hora certa.
+
+     Quatro tabelas eram baixadas DUAS vezes no mesmo carregamento
+     (cardapio_config, sucursais, usuarios_sistema, clientes_nexor).
+     Agora a segunda reaproveita a mesma resposta.
+     ========================================================== */
+  var _p00=baixarTab('contas_capital', 'contas_capital'+qs);
+  var _pbs=baixarTab('pedidos_base','pedidos_base'+q+
+    '&select=*,pedido_base_itens(*)&order=criado_em.desc&limit=800');
+  var _p01=baixarTab('formas_pagamento', 'formas_pagamento'+qs+'&order=ordem');
+  var _p02=baixarTab('categorias_financeiras', 'categorias_financeiras'+q+'&select=*,subcategorias_financeiras(*)&order=ordem');
+  var _p03=baixarTab('fornecedores', 'fornecedores'+qs);
+  var _p04=baixarTab('clientes', 'clientes'+qs);
+  var _p05=baixarTab('entregadores', 'entregadores'+q+'&select=*,entregador_taxas(*)');
+  var _p06=baixarTab('lancamentos_financeiros', 'lancamentos_financeiros'+q+'&select=*&vencimento=gte.'+_desde+'&order=vencimento.desc&limit=3000');
+  var _p07=baixarTab('categorias', 'categorias'+qs+'&order=ordem');
+  var _p08=baixarTab('produtos', 'produtos'+qs+'&order=ordem');
+  var _p09=baixarTab('grupos_opcoes', 'grupos_opcoes'+q+'&select=*,opcoes(*)&order=ordem');
+  var _p10=baixarTab('cardapio_config', 'cardapio_config'+qs);
+  var _p11=baixarTab('config_operacao', 'config_operacao'+qs+'&limit=1');
+  var _p12=baixarTab('unidades_medida', 'unidades_medida'+qs);
+  var _p13=baixarTab('grupos_ingredientes', 'grupos_ingredientes'+qs);
+  var _p14=baixarTab('insumos', 'insumos'+qs);
+  var _p15=baixarTab('ficha_grupos', 'ficha_grupos'+qs);
+  var _p16=baixarTab('fichas_tecnicas', 'fichas_tecnicas'+qs);
+  var _p17=baixarTab('ficha_itens', 'ficha_itens?select=*&limit=20000');
+  var _p18=baixarTab('bases_catalogo', 'bases_catalogo'+qs);
+  var _p19=baixarTab('baixas_pendentes', 'baixas_pendentes'+qs);
+  var _p20=baixarTab('motivos_movimentacao', 'motivos_movimentacao'+qs);
+  var _p21=baixarTab('motivos_cancelamento', 'motivos_cancelamento'+qs+'&order=ordem');
+  var _p22=baixarTab('status_venda', 'status_venda'+qs+'&order=ordem');
+  var _p23=baixarTab('modelos_impressao', 'modelos_impressao'+qs);
+  var _p24=baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome');
+  var _p25=baixarTab('clientes_nexor', 'clientes_nexor'+q+'&order=rede');
+  var _p26=baixarTab('estoque_unidade', 'estoque_unidade'+qs+'&limit=20000');
+  var _p27=baixarTab('cupons_fiscais', 'cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
+  var _p28=baixarTab('mesa_comandas', 'mesa_comandas'+qs+'&order=aberta_em.desc&limit=500');
+  var _p29=baixarTab('transferencias', 'transferencias'+qs+'&order=numero.desc&limit=1000');
+  var _p30=baixarTab('mesas', 'mesas'+qs+'&order=numero');
+  var _p31=baixarTab('turnos', 'turnos'+qs+'&order=ordem');
+  var _p32=baixarTab('cancelamentos', 'cancelamentos'+q+'&select=*&criado_em=gte.'+_desde+'&order=criado_em.desc&limit=2000');
+  var _p33=baixarTab('movimentacoes_estoque', 'movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
+  var _p34=baixarTab('contagens_estoque', 'contagens_estoque'+qs+'&order=data.desc&limit=500');
+  var _p35=baixarTab('areas_entrega', 'areas_entrega'+q+'&select=*,areas_zonas(*)');
+  var _p36=baixarTab('sucursais', 'sucursais'+qs);
+  var _p37=baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
+  var _p38=baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome.asc&limit=500');
+  var _p39=baixarTab('clientes_nexor', 'clientes_nexor'+qs+'&order=rede.asc&limit=500');
+  var _p40=baixarTab('compras_sem_vinculo', 'compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
+  var _p41=baixarTab('notas_entrada', 'notas_entrada'+qs+'&order=data.desc&limit=1000');
+  var _p42=baixarTab('caixas', 'caixas'+q+'&select=*,caixa_movimentos(*)&order=aberto_em.desc&limit=400');
+  var _p43=baixarTab('pedidos', 'pedidos'+qJan+'&select=*,pedido_itens(*),pedido_pagamentos(*)&order=criado_em.desc&limit=3000');
+  var _p44=baixarTab('acertos', 'acertos'+qs+'&order=data.desc&limit=500');
+  var _p45=baixarTab('cupons', 'cupons'+qs);
+  var _p46=baixarTab('cupom_usos', 'cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
+  var _p47=baixarTab('fiado_movimentos', 'fiado_movimentos'+qs+'&order=data.desc&limit=2000');
+  var cont=await _p00;
   DB.contas=volta(cont,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
     agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},_ANT('contas'),'contas');
-  var fp=await baixarTab('formas_pagamento', 'formas_pagamento'+qs+'&order=ordem');
+  var fp=await _p01;
   var mapaConta={};cont.forEach(function(x){mapaConta[x.id]=x.ref_local||x.id});
   DB.formasPag=volta(fp,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
     taxaPct:Number(x.taxa_pct)||0,taxaFixa:Number(x.taxa_fixa)||0,dias:x.dias_recebimento||0,
     contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0}},null,'formasPag');
-  var cf=await baixarTab('categorias_financeiras', 'categorias_financeiras'+q+'&select=*,subcategorias_financeiras(*)&order=ordem');
+  var cf=await _p02;
   DB.catfin=volta(cf,function(x){
     var paiRef=x.ref_local||x.id;
     return {id:paiRef,nome:x.nome,tipo:x.tipo||'despesa',
       itens:(x.subcategorias_financeiras||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
         .map(function(s){return {id:idFilho(paiRef,s.ref_local,s.id),nome:s.nome}})};},null,'catfin');
-  var fo=await baixarTab('fornecedores', 'fornecedores'+qs);
+  var fo=await _p03;
   DB.fornec=volta(fo,function(x){return {id:x.ref_local||x.id,empresa:x.empresa,nome:x.contato,
     cnpj:x.cnpj,email:x.email,tel:x.telefone,whats:x.whatsapp}},null,'fornec');
-  var cl=await baixarTab('clientes', 'clientes'+qs);
+  var cl=await _p04;
   DB.clientes=volta(cl,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,rua:x.rua,
     numero:x.numero,bairro:x.bairro,cidade:x.cidade,ref:x.referencia,
     compras:x.compras||0,gasto:Number(x.gasto)||0,
@@ -15747,14 +15822,14 @@ function volta(linhas,fn,atual,col){
     zonaId:x.zona_id||'',zona:x.zona||'',
     limiteFiado:Number(x.limite_fiado)||0,saldoFiado:Number(x.saldo_fiado)||0,
     ultima:x.ultima_compra||''}},null,'clientes');
-  var en=await baixarTab('entregadores', 'entregadores'+q+'&select=*,entregador_taxas(*)');
+  var en=await _p05;
   DB.entregadores=volta(en,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
     pix:x.pix,diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false,
     /* mesmo defeito da venda: sem o id de volta, a taxa era reinserida a
        cada sincronizacao */
     taxas:(x.entregador_taxas||[]).map(function(t){return {id:t.ref_local||t.id,
       cidade:t.cidade,valor:Number(t.valor)||0}})}},null,'entregadores');
-  var lf=await baixarTab('lancamentos_financeiros', 'lancamentos_financeiros'+q+'&select=*&vencimento=gte.'+_desde+'&order=vencimento.desc&limit=3000');
+  var lf=await _p06;
   var mapaSub={};(cf||[]).forEach(function(c2){(c2.subcategorias_financeiras||[]).forEach(function(s){
     mapaSub[s.id]=s.ref_local||s.id})});
   var mapaFP={};fp.forEach(function(x){mapaFP[x.id]=x.ref_local||x.id});
@@ -15771,8 +15846,8 @@ function volta(linhas,fn,atual,col){
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
     origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}},null,'lancFin');
   /* cardápio */
-  var rc=await baixarTab('categorias', 'categorias'+qs+'&order=ordem');
-  var rp=await baixarTab('produtos', 'produtos'+qs+'&order=ordem');
+  var rc=await _p07;
+  var rp=await _p08;
   /* o vinculo da opcao com a ficha precisa deste mapa, e as fichas descem
      depois — entao ele e montado aqui, com uma consulta enxuta. */
   var _mapaFichaId={};
@@ -15780,7 +15855,7 @@ function volta(linhas,fn,atual,col){
     var _fl=await api('fichas_tecnicas?select=id,ref_local'+qs.replace('?','&'));
     (_fl||[]).forEach(function(f){_mapaFichaId[f.id]=f.ref_local||f.id});
   }catch(e){_quieto(e,'mapaFicha');}
-  var rg=await baixarTab('grupos_opcoes', 'grupos_opcoes'+q+'&select=*,opcoes(*)&order=ordem');
+  var rg=await _p09;
   var rv=await api('produto_grupos?select=produto_id,grupo_id');
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
   var mapaGr={};rg.forEach(function(x){mapaGr[x.id]=x.ref_local||x.id});
@@ -15828,7 +15903,7 @@ function volta(linhas,fn,atual,col){
   /* Configuracao do cardapio por unidade: subia e nunca voltava. Aparelho
      novo mostrava o cardapio sem cor, sem logo e sem horario. */
   try{
-    var cc=await baixarTab('cardapio_config', 'cardapio_config'+qs);
+    var cc=await _p10;
     if(cc&&cc.length){
       DB.cardapio=DB.cardapio||{};
       cc.forEach(function(x){
@@ -15868,7 +15943,7 @@ function volta(linhas,fn,atual,col){
   }catch(ec2){ logNuvem('não consegui baixar a configuração do cardápio',true); }
 
   try{
-    var co=await baixarTab('config_operacao', 'config_operacao'+qs+'&limit=1');
+    var co=await _p11;
     if(co&&co[0]){
       var o=co[0];
       if(o.gerente&&Object.keys(o.gerente).length)DB.gerente=o.gerente;
@@ -15880,16 +15955,16 @@ function volta(linhas,fn,atual,col){
     }
   }catch(eo){ logNuvem('não consegui baixar a configuração de operação',true); }
   /* ---------- ESTOQUE ---------- */
-  var ue=await baixarTab('unidades_medida', 'unidades_medida'+qs);
+  var ue=await _p12;
   DB.unidExtra=volta(ue,function(x){return {id:x.ref_local||x.id,n:x.nome,ab:x.sigla,
     base:x.base,f:Number(x.fator)||1}},null,'unidExtra');
 
-  var gi=await baixarTab('grupos_ingredientes', 'grupos_ingredientes'+qs);
+  var gi=await _p13;
   var mapaGi={};gi.forEach(function(x){mapaGi[x.id]=x.ref_local||x.id});
   DB.gruposIng=volta(gi,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     compoeCMV:x.compoe_cmv!==false,sucursais:x.sucursais||[]}},null,'gruposIng');
 
-  var ins=await baixarTab('insumos', 'insumos'+qs);
+  var ins=await _p14;
   var mapaIns={};ins.forEach(function(x){mapaIns[x.id]=x.ref_local||x.id});
   DB.insumos=volta(ins,function(x){return {id:x.ref_local||x.id,nome:x.nome,codigo:x.codigo,
     unidade:x.unidade||'un',custo:Number(x.custo)||0,custoUltima:Number(x.custo_ultima)||0,
@@ -15922,7 +15997,7 @@ function volta(linhas,fn,atual,col){
     fornecedorId:mapaFo[x.fornecedor_id]||'',descricao:x.descricao||'',
     compras:x.compras||[],gelatoVenda:!!x.gelato_venda,sucursais:x.sucursais||[]}},_ANT('insumos'),'insumos');
 
-  var fg=await baixarTab('ficha_grupos', 'ficha_grupos'+qs);
+  var fg=await _p15;
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
     paiId:mapaFg[x.pai_id]||'',
@@ -15941,8 +16016,8 @@ function volta(linhas,fn,atual,col){
      costurados aqui, e a propria regra de acesso do banco ja limita as linhas
      as lojas de quem esta pedindo.
      ========================================================== */
-  var ft=await baixarTab('fichas_tecnicas', 'fichas_tecnicas'+qs);
-  var fi=await baixarTab('ficha_itens', 'ficha_itens?select=*&limit=20000');
+  var ft=await _p16;
+  var fi=await _p17;
   var itensPorFicha={};
   (fi||[]).forEach(function(i3){
     if(!i3||!i3.ficha_id)return;
@@ -16004,8 +16079,7 @@ function volta(linhas,fn,atual,col){
     delete p._fichaUid;delete p._insumoUid;
   });
 
-  var pbs=await baixarTab('pedidos_base','pedidos_base'+q+
-    '&select=*,pedido_base_itens(*)&order=criado_em.desc&limit=800');
+  var pbs=await _pbs;
   DB.pedidosBase=volta(pbs,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     sucursalRef:x.sucursal_id,sucursalNome:x.sucursal_nome,data:x.data,
     responsavel:x.responsavel,obs:x.observacao,total:Number(x.total)||0,
@@ -16020,12 +16094,12 @@ function volta(linhas,fn,atual,col){
       baseNome:i.base_nome,fichaRef:i.ficha_ref,qtd:Number(i.quantidade)||0,
       valorUnit:Number(i.valor_unit)||0,total:Number(i.total)||0}})}},DB.pedidosBase,'pedidosBase');
 
-  var bcat=await baixarTab('bases_catalogo', 'bases_catalogo'+qs);
+  var bcat=await _p18;
   DB.basesCat=volta(bcat,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     qtdCaixa:Number(x.qtd_caixa)||1,valorUnit:Number(x.valor_unit)||0,
     fichaRef:x.ficha_ref||'',ativo:x.ativo!==false,ordem:x.ordem||0}},DB.basesCat,'basesCat');
 
-  var bxp=await baixarTab('baixas_pendentes', 'baixas_pendentes'+qs);
+  var bxp=await _p19;
   DB.baixasPend=volta(bxp,function(x){return {id:x.ref_local||x.id,
     sucursalRef:x.sucursal_id,itemRef:x.item_ref,itemNome:x.item_nome,
     itemTipo:x.item_tipo,qtd:Number(x.quantidade)||0,unidade:x.unidade,
@@ -16034,23 +16108,23 @@ function volta(linhas,fn,atual,col){
     obs:x.observacao,situacao:x.situacao||'pendente',movRef:x.mov_ref,
     lancadaEm:x.lancada_em}},DB.baixasPend,'baixasPend');
 
-  var mv=await baixarTab('motivos_movimentacao', 'motivos_movimentacao'+qs);
+  var mv=await _p20;
   var mapaMt={};mv.forEach(function(x){mapaMt[x.id]=x.ref_local||x.id});
   DB.motivosMov=volta(mv,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,
     sistema:!!x.sistema,ativo:x.ativo!==false,lojas:x.lojas_visiveis||[]}},null,'motivosMov');
 
-  var mc=await baixarTab('motivos_cancelamento', 'motivos_cancelamento'+qs+'&order=ordem');
+  var mc=await _p21;
   var mapaMc={};mc.forEach(function(x){mapaMc[x.id]=x.ref_local||x.id});
   DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ativo:x.ativo!==false,ordem:x.ordem||0}},null,'motivosCanc');
 
   baixarLayoutMenu();
-  var stv=await baixarTab('status_venda', 'status_venda'+qs+'&order=ordem');
+  var stv=await _p22;
   DB.statusVenda=volta(stv,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     papel:x.papel||'producao',ordem:x.ordem||0,ativo:x.ativo!==false,cor:x.cor||'',
     minutos:Number(x.minutos)||0,som:!!x.som,confPag:!!x.confere_pagamento}},null,'statusVenda');
 
-  var mi=await baixarTab('modelos_impressao', 'modelos_impressao'+qs);
+  var mi=await _p23;
   DB.modelosImp=volta(mi,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
@@ -16059,7 +16133,7 @@ function volta(linhas,fn,atual,col){
   /* Estas duas subiam e nunca voltavam: trocar de aparelho ou limpar o
      navegador perdia os usuarios e a carteira de clientes Nexor. */
   try{
-    var us=await baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome');
+    var us=await _p24;
     if(us&&us.length)DB.usuarios=volta(us,function(x){return {id:x.ref_local||x.id,
       nome:x.nome,login:x.login||'',senha:x.senha||'',
       /* senha nao desce mais: fica so no cofre */
@@ -16068,7 +16142,7 @@ function volta(linhas,fn,atual,col){
   }catch(e){ logNuvem('não consegui baixar os usuários: '+((e&&e.message)||''),true); }
   if(ehPlataforma&&ehPlataforma()){
     try{
-      var cnx=await baixarTab('clientes_nexor', 'clientes_nexor'+q+'&order=rede');
+      var cnx=await _p25;
       DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
         responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
         documento:x.documento||'',cidade:x.cidade||'',uf:x.uf||'',
@@ -16084,13 +16158,13 @@ function volta(linhas,fn,atual,col){
      cada uma lembrar de filtrar. A matriz nunca e filtrada. */
   filtrarCadastroDaUnidade();
 
-  var eun=await baixarTab('estoque_unidade', 'estoque_unidade'+qs+'&limit=20000');
+  var eun=await _p26;
   DB.estoqueUn=volta(eun,function(x){return {id:x.ref_local||(x.sucursal_id+'|'+x.item_ref),
     sucursalId:x.sucursal_id,itemId:x.item_ref,tipo:x.tipo||'insumo',
     estoque:Number(x.estoque)||0,custoMedio:Number(x.custo_medio)||0,
     atualizadoEm:x.atualizado_em}},null,'estoqueUn');
 
-  var cpf=await baixarTab('cupons_fiscais', 'cupons_fiscais'+qs+'&order=data_venda.desc&limit=2000');
+  var cpf=await _p27;
   DB.cupons_f=volta(cpf,function(x){return {id:x.ref_local||x.id,pedidoId:x.pedido_ref||'',
     pedidoNumero:Number(x.pedido_numero)||0,origem:x.origem||'',serie:Number(x.serie)||0,
     numero:Number(x.numero)||0,chave:x.chave||'',protocolo:x.protocolo||'',
@@ -16100,13 +16174,13 @@ function volta(linhas,fn,atual,col){
     entrega:Number(x.valor_entrega)||0,data:x.data_venda||'',hora:x.hora_venda||'',
     nfeAgrupada:x.nfe_agrupada_ref||'',contingencia:!!x.contingencia}},null,'cupons_f');
 
-  var cmd=await baixarTab('mesa_comandas', 'mesa_comandas'+qs+'&order=aberta_em.desc&limit=500');
+  var cmd=await _p28;
   DB.comandas=volta(cmd,function(x){return {id:x.ref_local||x.id,mesaId:x.mesa_ref||'',
     mesaNumero:Number(x.mesa_numero)||0,nome:x.nome,itens:x.itens||[],
     aberta:x.aberta!==false,abertaEm:x.aberta_em,fechadaEm:x.fechada_em,
     pedidoRef:x.pedido_ref||'',sucursalId:x.sucursal_id||''}},null,'comandas');
 
-  var trf=await baixarTab('transferencias', 'transferencias'+qs+'&order=numero.desc&limit=1000');
+  var trf=await _p29;
   DB.transf=volta(trf,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
     origemSuc:x.origem_suc,destinoSuc:x.destino_suc,situacao:x.situacao||'enviada',
     itens:x.itens||[],valorTotal:Number(x.valor_total)||0,obs:x.observacao||'',
@@ -16114,18 +16188,18 @@ function volta(linhas,fn,atual,col){
     recebidaEm:x.recebida_em,recebidaPor:x.recebida_por||'',
     divergencia:!!x.divergencia,data:x.data_envio||''}},null,'transf');
 
-  var ms=await baixarTab('mesas', 'mesas'+qs+'&order=numero');
+  var ms=await _p30;
   var mapaMs={};ms.forEach(function(x){mapaMs[x.id]=x.ref_local||x.id});
   DB.mesas=volta(ms,function(x){return {id:x.ref_local||x.id,numero:Number(x.numero)||0,
     nome:x.nome||'',lugares:Number(x.lugares)||4,ativa:x.ativa!==false,
     sucursalId:x.sucursal_id||''}},null,'mesas');
 
-  var tn=await baixarTab('turnos', 'turnos'+qs+'&order=ordem');
+  var tn=await _p31;
   var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
   DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     ini:x.hora_inicio||'',fim:x.hora_fim||'',ativo:x.ativo!==false,ordem:x.ordem||0}},null,'turnos');
 
-  var cnc=await baixarTab('cancelamentos', 'cancelamentos'+q+'&select=*&criado_em=gte.'+_desde+'&order=criado_em.desc&limit=2000');
+  var cnc=await _p32;
   DB.cancelamentos=volta(cnc,function(x){return {id:x.ref_local||x.id,
     pedidoId:x.pedido_ref||'',numero:x.pedido_numero||0,valor:Number(x.valor)||0,
     data:x.data||'',hora:x.hora||'',motivoId:mapaMc[x.motivo_id]||'',
@@ -16133,19 +16207,19 @@ function volta(linhas,fn,atual,col){
     operador:x.operador_nome||'',caixaId:x.caixa_ref||'',turno:x.turno_nome||'',
     produzido:x.produzido,estoqueVoltou:x.estoque_voltou}},null,'cancelamentos');
 
-  var me=await baixarTab('movimentacoes_estoque', 'movimentacoes_estoque'+qJanD+'&select=*&order=data.desc&limit=3000');
+  var me=await _p33;
   DB.movEst=volta(me,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     sucursalId:x.sucursal_id||'',
     motivoId:mapaMt[x.motivo_id]||'',identificacao:x.identificacao||'',obs:x.observacao||'',
     origem:x.origem||'',linhas:x.linhas||[]}},null,'movEst');
 
-  var ct=await baixarTab('contagens_estoque', 'contagens_estoque'+qs+'&order=data.desc&limit=500');
+  var ct=await _p34;
   DB.contagens=volta(ct,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     sucursalId:x.sucursal_id||'',loja:x.sucursal_id||'',
     perda:Number(x.perda)||0,ganho:Number(x.ganho)||0,resultado:Number(x.resultado)||0,
     itens:x.itens||[]}},null,'contagens');
 
-  var ae=await baixarTab('areas_entrega', 'areas_entrega'+q+'&select=*,areas_zonas(*)');
+  var ae=await _p35;
   DB.areas=volta(ae,function(x){
     var paiRef=x.ref_local||x.id;
     return {id:paiRef,nome:x.nome,uf:x.uf||'',taxaPadrao:Number(x.taxa_padrao)||0,
@@ -16156,9 +16230,9 @@ function volta(linhas,fn,atual,col){
           tempo:Number(z.tempo)||0,obs:z.observacao||'',ativa:z.ativa!==false}})};
   },null,'areas');
 
-  var scPre=await baixarTab('sucursais', 'sucursais'+qs);
+  var scPre=await _p36;
   var mapaSuc2={};scPre.forEach(function(x){mapaSuc2[x.id]=x.ref_local||x.id});
-  var cd=await baixarTab('cardapio_config', 'cardapio_config'+qs);
+  var cd=await _p10;
   /* DB.cardapioL é derivado de DB.cardapio e recebe id 'cc_<sucursal>' no envio.
      Guardar aqui as linhas cruas da nuvem trocava esses ids por uuid, e no envio
      seguinte o sistema achava que TODOS tinham sido excluídos. Não se toca nele. */
@@ -16203,7 +16277,7 @@ function volta(linhas,fn,atual,col){
       horarios:(x.horarios&&x.horarios.length)?x.horarios:horariosPadrao()};
   });
 
-  var sc=await baixarTab('sucursais', 'sucursais'+qs);
+  var sc=await _p36;
   DB.sucursais=volta(sc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
     apelido:x.apelido||'',cnpj:x.cnpj||'',telefone:x.telefone||'',cidade:x.cidade||'',
     uf:x.uf||'',matriz:!!x.matriz,ativa:x.ativa!==false,cor:x.cor||'#00A08B',
@@ -16213,7 +16287,7 @@ function volta(linhas,fn,atual,col){
   /* uuid da sucursal -> ref_local, para a venda saber de qual loja e */
   var mapaSucPed={};sc.forEach(function(x){mapaSucPed[x.id]=x.ref_local||x.id});
 
-  var op=await baixarTab('ordens_producao', 'ordens_producao'+qs+'&order=data.desc&limit=1000');
+  var op=await _p37;
   DB.ordensProd=volta(op,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     data:x.data,hora:x.hora,resp:x.responsavel||'',obs:x.observacao||'',
     sucursalId:x.sucursal_id||'',
@@ -16230,7 +16304,7 @@ function volta(linhas,fn,atual,col){
        Era esse o ciclo: limpava a nuvem, o aparelho devolvia.
        Agora ela pede so a propria loja, como todas as outras consultas.
        ------------------------------------------------------------------ */
-    var us=await baixarTab('usuarios_sistema', 'usuarios_sistema'+qs+'&order=nome.asc&limit=500');
+    var us=await _p38;
     if(us&&us.length){
       var locais=DB.usuarios||[];
       (us||[]).forEach(function(x){
@@ -16256,7 +16330,7 @@ function volta(linhas,fn,atual,col){
       situacao:meu[0].situacao,plano:meu[0].plano}:null;
   }catch(e){_quieto(e,'baixarDaNuvem')}
   try{
-    var cnx=await baixarTab('clientes_nexor', 'clientes_nexor'+qs+'&order=rede.asc&limit=500');
+    var cnx=await _p39;
     if(cnx&&cnx.length)  /* so substitui a carteira se a nuvem realmente devolveu algo */
     DB.clientesNexor=volta(cnx,function(x){return {id:x.ref_local||x.id,rede:x.rede,
       responsavel:x.responsavel||'',email:x.email||'',telefone:x.telefone||'',
@@ -16265,13 +16339,13 @@ function volta(linhas,fn,atual,col){
       situacao:x.situacao||'ativo',inicio:x.inicio||'',obs:x.observacao||'',
       lojaId:x.loja_id||'',modulos:x.modulos||[],cobrancas:x.cobrancas||[]}},null,'clientesNexor');
   }catch(e){_quieto(e,'baixarDaNuvem')}
-  var csvw=await baixarTab('compras_sem_vinculo', 'compras_sem_vinculo'+qs+'&order=excluido_em.desc&limit=1000');
+  var csvw=await _p40;
   DB.comprasSemVinc=volta(csvw,function(x){return {id:x.ref_local||x.id,
     notaId:x.nota_id||'',notaNumero:x.nota_numero||'',fornecedor:x.fornecedor_nome||'',
     descricao:x.descricao||'',documento:x.documento||'',valor:Number(x.valor)||0,
     vencimento:x.vencimento||'',excluidoPor:x.excluido_por||'',excluidoEm:x.excluido_em||'',
     itens:(x.dados&&x.dados.itens)||[],lanc:(x.dados&&x.dados.lanc)||null}},null,'comprasSemVinc');
-  var nt=await baixarTab('notas_entrada', 'notas_entrada'+qs+'&order=data.desc&limit=1000');
+  var nt=await _p41;
   DB.notas=volta(nt,function(x){return {id:x.ref_local||x.id,numero:x.numero,
     fornecedorId:mapaFo[x.fornecedor_id]||'',fornecedorNome:x.fornecedor_nome||'',
     data:x.data,hora:x.hora,valorMercadorias:Number(x.valor_mercadorias)||0,
@@ -16279,7 +16353,7 @@ function volta(linhas,fn,atual,col){
     pagamento:x.pagamento||{},itens:x.itens||[]}},null,'notas');
 
   /* ---------- OPERAÇÃO ---------- */
-  var cx=await baixarTab('caixas', 'caixas'+q+'&select=*,caixa_movimentos(*)&order=aberto_em.desc&limit=400');
+  var cx=await _p42;
   var fechadosAqui={};
   (DB.caixas||[]).forEach(function(c){ if(c.fechadoEm)fechadosAqui[c.id]=c.fechadoEm; });
   DB.caixas=volta(cx,function(x){
@@ -16365,7 +16439,7 @@ function volta(linhas,fn,atual,col){
   var mapaEnt={};en.forEach(function(x){mapaEnt[x.id]=x.ref_local||x.id});
   var mapaPr={};rp.forEach(function(x){mapaPr[x.id]=x.ref_local||x.id});
 
-  var pd=await baixarTab('pedidos', 'pedidos'+qJan+'&select=*,pedido_itens(*),pedido_pagamentos(*)&order=criado_em.desc&limit=3000');
+  var pd=await _p43;
   DB.pedidos=volta(pd,function(x){return {id:x.ref_local||x.id,numero:x.numero,tipo:x.tipo,
     sucursalId:mapaSucPed[x.sucursal_id]||'',
     fase:x.fase,clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',
@@ -16421,7 +16495,7 @@ function volta(linhas,fn,atual,col){
 
   var mapaPed={};pd.forEach(function(x){mapaPed[x.id]=x.ref_local||x.id});
 
-  var ac=await baixarTab('acertos', 'acertos'+qs+'&order=data.desc&limit=500');
+  var ac=await _p44;
   DB.acertos=volta(ac,function(x){return {id:x.ref_local||x.id,
     entregadorId:mapaEnt[x.entregador_id]||'',data:x.data,de:x.periodo_de,ate:x.periodo_ate,
     qtd:x.qtd||0,taxas:Number(x.taxas)||0,diaria:Number(x.diaria)||0,
@@ -16429,7 +16503,7 @@ function volta(linhas,fn,atual,col){
     vendas:Number(x.vendas)||0,forma:x.forma,contaId:mapaConta[x.conta_id]||'',
     pago:x.pago!==false,obs:x.observacao||''}},null,'acertos');
 
-  var cp=await baixarTab('cupons', 'cupons'+qs);
+  var cp=await _p45;
   var mapaCp={};cp.forEach(function(x){mapaCp[x.id]=x.ref_local||x.id});
   DB.cupons=volta(cp,function(x){return {id:x.ref_local||x.id,codigo:x.codigo,tipo:x.tipo,
     valor:Number(x.valor)||0,tetoDesconto:Number(x.teto)||0,minimo:Number(x.minimo)||0,
@@ -16437,13 +16511,13 @@ function volta(linhas,fn,atual,col){
     quantidade:x.quantidade||0,limiteCliente:x.limite_cliente||0,
     canais:x.canais||[],formas:x.formas||[],ativo:x.ativo!==false}},null,'cupons');
 
-  var cu=await baixarTab('cupom_usos', 'cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
+  var cu=await _p46;
   DB.cupomUsos=volta(cu,function(x){return {id:x.ref_local||x.id,cupomId:mapaCp[x.cupom_id]||'',
     clienteId:mapaCli[x.cliente_id]||'',clienteNome:x.cliente_nome||'',data:x.data,
     valor:Number(x.valor)||0,totalPedido:Number(x.total_pedido)||0,numero:x.numero,
     pedidoId:mapaPed[x.pedido_id]||''}},null,'cupomUsos');
 
-  var fm=await baixarTab('fiado_movimentos', 'fiado_movimentos'+qs+'&order=data.desc&limit=2000');
+  var fm=await _p47;
   DB.fiadoMov=volta(fm,function(x){return {id:x.ref_local||x.id,clienteId:mapaCli[x.cliente_id]||'',
     tipo:x.tipo,valor:Number(x.valor)||0,data:x.data,formaId:mapaFP[x.forma_id]||'',
     contaId:mapaConta[x.conta_id]||'',obs:x.observacao||'',pedidoId:mapaPed[x.pedido_id]||''}},null,'fiadoMov');
@@ -17423,7 +17497,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V163.0.0';
+var VERSAO='V165.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17433,10 +17507,44 @@ function aplicarAtualizacao(){
   location.replace(location.pathname+'?v='+Date.now());
 }
 var _checando=false;
+/* ==========================================================
+   A CHECAGEM DE VERSAO BAIXAVA O SISTEMA INTEIRO, DE 45 EM 45 s
+
+   `fetch(location.pathname, {cache:'no-store'})` — sem cache, de
+   proposito, para pegar o arquivo novo. So que o arquivo tem 2,5 MB.
+
+   A conta: 2,5 MB a cada 45 s = 3,4 MB por minuto = 201 MB por hora =
+   **2 GB por loja num turno de 10 horas**. Com quatro unidades abertas,
+   quase 8 GB por dia — so para descobrir se saiu versao nova. E cada
+   uma dessas descargas ocupa a rede e a thread do navegador enquanto a
+   loja esta vendendo.
+
+   Agora perguntamos primeiro, com HEAD: o servidor responde so o
+   cabecalho, com a etiqueta do arquivo (ETag ou Last-Modified) —
+   algumas centenas de bytes. Se a etiqueta for a mesma da ultima vez,
+   nada mudou e paramos ali. So quando a etiqueta muda o arquivo e
+   baixado, para ler qual e a versao nova.
+
+   De 201 MB/hora para menos de 1 MB/hora em operacao normal.
+   ========================================================== */
+var _etiquetaArquivo=null;
 async function checarVersao(){
   if(_checando)return;
   _checando=true;
   try{
+    var mudou=true;
+    try{
+      var h=await fetch(location.pathname+'?v='+Date.now(),
+        {method:'HEAD',cache:'no-store'});
+      var et=h.headers.get('etag')||h.headers.get('last-modified')||'';
+      if(et){
+        if(_etiquetaArquivo===null){ _etiquetaArquivo=et; mudou=false; }
+        else if(et===_etiquetaArquivo) mudou=false;
+        else _etiquetaArquivo=et;
+      }
+    }catch(e){ /* servidor sem HEAD: cai no jeito antigo */ }
+    if(!mudou)return;
+
     var r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'});
     var t=await r.text();
     var m=t.match(/var VERSAO='(V[0-9.]+)'/);
@@ -17456,7 +17564,9 @@ async function checarVersao(){
   finally{ _checando=false; }
 }
 setTimeout(checarVersao,1500);
-setInterval(checarVersao,45000);
+/* a cada 2 minutos basta: com HEAD o custo e minimo, mas nao ha razao para
+   perguntar de 45 em 45 s. Voltar para a aba continua conferindo na hora. */
+setInterval(function(){ if(!document.hidden)checarVersao(); },120000);
 /* voltar para a aba já confere: quem deixa o sistema aberto o dia todo vê na hora */
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden)checarVersao();
@@ -17548,13 +17658,31 @@ var _ultimaFn='';
 
 /* 2. batimento: um relogio a cada 250 ms. Se atrasar, o navegador congelou —
       e o atraso e exatamente o tempo em que a tela ficou parada. */
+/* ==========================================================
+   O MEDIDOR DE TRAVAMENTO ESTAVA ATRAPALHANDO O QUE MEDIA
+
+   Este relogio acordava 4 VEZES POR SEGUNDO — 240 vezes por minuto,
+   para sempre, mesmo com a tela parada e mesmo em segundo plano. Cada
+   acordada e uma tarefa na mesma fila onde o sistema desenha as telas,
+   e impede o navegador de entrar em repouso (o que, em notebook e
+   celular, tambem gasta bateria).
+
+   O detector continua: 1 segundo e suficiente para perceber que a tela
+   congelou — o que se quer detectar sao travas de meio segundo para
+   cima, e essas aparecem igual. E em aba escondida ele para: tela que
+   ninguem esta vendo nao precisa ser vigiada.
+
+   De 240 acordadas por minuto para 60 com a aba aberta, e ZERO com a
+   aba em segundo plano.
+   ========================================================== */
 (function(){
   var ultimo=Date.now();
   setInterval(function(){
-    var agora=Date.now(), atraso=agora-ultimo-250;
+    if(document.hidden){ ultimo=Date.now(); return; }
+    var agora=Date.now(), atraso=agora-ultimo-1000;
     ultimo=agora;
     if(atraso>400)anotarTrava('congelou', atraso, 'a tela ficou parada');
-  },250);
+  },1000);
 })();
 
 /* 3. gravacao no aparelho: mede tamanho e tempo */
