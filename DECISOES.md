@@ -5337,3 +5337,79 @@ escrito no código, e um teste verifica que continua escrito.
 migração e a simulação de digitar "18" com o redesenho no meio.
 
 Regressão: caixa 67/67, formas 67/67, Postgres 9/9, reconciliação aprovada.
+
+## V181 — auditoria geral: contexto de unidade e isolamento multiempresa
+
+### O bug do item 98, reproduzido e corrigido
+
+Evidência: login `santafe@jologelato.com.br` mostrando **LOJA: Matriz**, a mensagem
+"A unidade do seu acesso não existe mais" e a Gestão de Cardápio vazia.
+
+**No banco estava tudo certo.** O perfil aponta para `suc_mt1unhbx2xrb`, a sucursal
+existe, está ativa e pertence à loja correta. O defeito era do frontend.
+
+**Causa raiz:** `baseSuc()` cria uma Matriz local quando a lista está vazia, para o
+sistema ter alguma unidade no primeiro uso. Ela nasce **antes de a nuvem
+responder**. A sequência:
+
+1. o perfil carrega e diz `sucursal_ref = suc_mt1unhbx2xrb`;
+2. as sucursais da nuvem ainda não chegaram;
+3. `lojasCad()` devolve **uma** unidade: a Matriz semeada;
+4. `existe(fixa)` dá falso — Santa Fé não está na lista;
+5. o sistema avisa "não existe mais" e cai na Matriz.
+
+O guarda `if(!a.length)` da V130 não pegava este caso, porque a lista **não estava
+vazia**: tinha exatamente a unidade errada dentro.
+
+Consequência grave: durante esses segundos o gerente de Santa Fé opera como Matriz.
+Qualquer coisa gravada nasce com a unidade errada, e o cardápio aparece vazio
+porque não há produto na Matriz.
+
+**Correção:** a semente ganha marca `_semente`. Enquanto a lista for só semente, o
+sistema assume que **ainda não sabe** — não avisa, não decide, não grava. É o mesmo
+princípio que a V130 aplicou para lista vazia: ausência de dado não é resposta.
+
+### Item 100 — fallback silencioso eliminado
+
+Mesmo com o aviso, o gerente **caía na Matriz assim mesmo**. O aviso deixava a
+consciência limpa; o acesso continuava errado.
+
+Isso é risco de isolamento, não detalhe de tela: erro ao resolver a unidade virava
+permissão para ver outra. Agora quem tem unidade fixa no perfil e não pode circular
+fica **sem unidade ativa**, com `DB._contextoInvalido` marcado.
+
+**Preferir tela bloqueada a tela com o dado da loja errada.**
+
+### Defeito meu, corrigido
+
+`pagamentos_zerados_removidos`, criada por mim na V177, era a **única tabela
+pública do banco sem RLS**. Não guarda dado sensível, mas guarda número de pedido e
+data de venda — que é dado de cliente. Tabela de auditoria sem RLS é o tipo de
+porta que ninguém lembra de fechar. Corrigida com política pela própria loja.
+
+### O que a auditoria encontrou de BOM (e contraria o registro anterior)
+
+Este arquivo dizia, desde agosto, que **`auth.uid()` era sempre nulo e as políticas
+de RLS eram ineficazes**. **Isso não é mais verdade.** Verificado nesta auditoria:
+
+- o sistema autentica por `signInWithPassword` de verdade;
+- a chave exposta no HTML é a **publishable** (`sb_publishable_...`), não a service
+  role — é a chave que deve mesmo estar no cliente;
+- 85 das 86 tabelas públicas têm RLS ligada (a 86ª era a minha, agora corrigida);
+- as três tabelas de WhatsApp **já estão fechadas**; `whatsapp_sessoes` só aceita
+  `service_role`.
+
+O registro estava desatualizado. Fica corrigido aqui.
+
+### Isolamento testado com sessão real
+
+Não por leitura de política: com `set_config('request.jwt.claims')` e
+`set role authenticated`, simulando a sessão do gerente de Santa Fé contra uma
+segunda empresa criada para o teste. **12 de 12**:
+
+leitura, gravação, alteração e exclusão cruzadas — todas negadas; a própria empresa
+continua visível; autopromoção a `plataforma` recusada; `perfis` devolve só o
+próprio; o dado da Empresa B sobreviveu intacto; nada de teste ficou no banco.
+
+`testes/tenant.js` (novo, no `npm test`): **33 testes**, incluindo o cenário exato
+do item 104 — F5, novo login e nuvem atrasada.
