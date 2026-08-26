@@ -17502,7 +17502,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V167.0.0';
+var VERSAO='V168.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29450,7 +29450,7 @@ function ctPecas(){
     'Só a Carla para de responder.</div>')+
 
    ctCard('4. O App do Franqueado','o painel no celular',
-    ctLinha('Endereço','rafaeluendes-jpg.github.io/nexor-app/')+
+    ctLinha('Endereço','app.joiagest.com.br')+
     ctLinha('Onde o código mora','GitHub, repositório <b>nexor-app</b>')+
     ctLinha('O que mostra','faturamento, ticket médio, mais vendidos, evolução')+
     ctLinha('Como instala','abre no celular e adiciona à tela inicial (PWA)')+
@@ -42791,7 +42791,7 @@ function campoPixel(rot,id,val,ph,dica){
 }
 function blocoApp(){
   baseUsr();baseSuc();
-  var link='https://rafaeluendes-jpg.github.io/nexor-app/';
+  var link='https://app.joiagest.com.br/';
   var usrs=(DB.usuarios||[]).filter(function(u){return u.ativo!==false});
   var pub=usrs.filter(function(u){return u.publicadoEm}).length;
   return '<div class="cfgDuas">'+
@@ -42847,7 +42847,7 @@ function publicarUsuarioApp(id){
   publicarAcesso().then(function(){ telaCanaisIntegracao(); });
 }
 function enviarLinkApp(){
-  var l='https://rafaeluendes-jpg.github.io/nexor-app/';
+  var l='https://app.joiagest.com.br/';
   var msg=encodeURIComponent(
     'Acompanhe o faturamento da sua loja pelo celular 📊\n\n'+
     l+'\n\nAbra o link, instale como aplicativo e entre com seu login e senha.');
@@ -48159,7 +48159,7 @@ var CARTOES_APP=[
  {id:'clientes',    n:'Clientes atendidos',      d:''}
 ];
 function abaAppUsr(u){
-  var link='https://rafaeluendes-jpg.github.io/nexor-app/';
+  var link='https://app.joiagest.com.br/';
   var c=u.cartoes||[];
   var todos=!c.length;
   return '<div class="usrCorpo">'+
@@ -48204,7 +48204,7 @@ function todosCartoes(marcar){
   salvar();semPular(telaUsuarios);
 }
 function copiarLinkApp(){
-  var l='https://rafaeluendes-jpg.github.io/nexor-app/';
+  var l='https://app.joiagest.com.br/';
   try{navigator.clipboard.writeText(l);toast('Link copiado — mande para o franqueado.');}
   catch(e){prompt('Copie o link:',l);}
 }
