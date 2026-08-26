@@ -14169,10 +14169,24 @@ var MAPA=[
        ========================================================== */
     sucursal_id:x.sucursalId||lojaAtualId()||null,
     esperado:n(x.esperado),contado:n(x.contado),total_informado:n(x.totalInformado),
-    vendas:n(x.vendas),qtd_pedidos:n(x.qtd),conferencia:x.conferencia||{},observacao:x.obs||null}},
+    vendas:n(x.vendas),qtd_pedidos:n(x.qtd),conferencia:x.conferencia||{},observacao:x.obs||null,
+    /* a fotografia do fechamento sobe junto: sem ela na nuvem, reimprimir
+       de outro aparelho recalcularia — e o item 19 existe justamente para
+       impedir que dois cupons do mesmo caixa saiam diferentes */
+    snapshot:x.snapshot||null, esperado_por_forma:x.esperadoPorForma||null,
+    fundo_proximo:n(x.fundoProximo), fechado_por:x.fechadoPor||null,
+    fechado_por_id:x.fechadoPorId||null,
+    diferenca_total:n(x.diferencaTotal), conciliado:x.conciliado===true}},
   filhos:[{lista:'movimentos',tab:'caixa_movimentos',pai:'caixa_id',
+    /* destino e lancamento vinham de fora do sync: a sangria subia sem
+       dizer para onde o dinheiro foi, e a contrapartida ficava so no
+       aparelho que fez a retirada. Campo que existe de um lado e nao do
+       outro — o mesmo padrao de sempre. */
     campos:function(o){return {tipo:o.tipo,valor:n(o.valor),motivo:o.motivo||null,
-      responsavel:o.responsavel||null}}}]},
+      responsavel:o.responsavel||null,responsavel_id:o.responsavelId||null,
+      destino_conta_id:fk('contas',o.destinoContaId),destino_nome:o.destinoNome||null,
+      lanc_ref:o.lancRef||null,hora:o.hora||null,
+      data_hora:o.data||null}}}]},
 
  {col:'pedidos',     tab:'pedidos',
   campos:function(x){return {numero:n(x.numero),tipo:x.tipo||'loja',fase:x.fase||'aguardando',
@@ -16385,9 +16399,19 @@ function volta(linhas,fn,atual,col){
     vendas:Number(x.vendas)||0,esperado:Number(x.esperado)||0,contado:Number(x.contado)||0,
     totalInformado:Number(x.total_informado)||0,qtd:x.qtd_pedidos||0,
     conferencia:x.conferencia||{},obs:x.observacao||'',
+    /* o que sobe tem de descer, senao a reimpressao de outro aparelho
+       nao encontra a fotografia e volta a recalcular */
+    snapshot:x.snapshot||null, esperadoPorForma:x.esperado_por_forma||null,
+    fundoProximo:Number(x.fundo_proximo)||0,
+    fechadoPor:x.fechado_por||'', fechadoPorId:x.fechado_por_id||'',
+    diferencaTotal:Number(x.diferenca_total)||0, conciliado:x.conciliado===true,
     movimentos:(x.caixa_movimentos||[]).map(function(m2){return {id:m2.ref_local||m2.id,
       tipo:m2.tipo,
-      valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,quando:m2.criado_em}})};
+      valor:Number(m2.valor)||0,motivo:m2.motivo,responsavel:m2.responsavel,
+      responsavelId:m2.responsavel_id||'',
+      destinoContaId:mapaConta[m2.destino_conta_id]||'',destinoNome:m2.destino_nome||'',
+      lancRef:m2.lanc_ref||'',hora:m2.hora||'',data:m2.data_hora||m2.criado_em,
+      quando:m2.criado_em}})};
   },null,'caixas');
   /* ==========================================================
      ITEM 13 — CAIXA FECHADO NA NUVEM NAO PODE REABRIR AQUI
@@ -17515,7 +17539,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V175.0.0';
+var VERSAO='V176.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24854,19 +24878,116 @@ function pedeSenhaMov(){
   box.style.display=temSenhaCadastrada(op)?'':'none';
   if(temSenhaCadastrada(op)){var i=$('mvSenha');if(i){i.value='';i.focus();}}
 }
+/* ==========================================================
+   MOTIVOS DE SANGRIA E SUPRIMENTO
+
+   Texto livre nao serve para auditoria: cada operador escreve de um
+   jeito e ninguem consegue agrupar depois. A lista fecha o campo, e
+   "outro" continua existindo para o caso que a lista nao previu — mas
+   ai a descricao passa a ser obrigatoria.
+   ========================================================== */
+var MOTIVOS_SANGRIA=[
+  {id:'cofre',   n:'Envio ao cofre'},
+  {id:'deposito',n:'Depósito bancário'},
+  {id:'admin',   n:'Retirada administrativa'},
+  {id:'pagto',   n:'Pagamento autorizado'},
+  {id:'outro',   n:'Outro (descrever)'}];
+var MOTIVOS_SUPRIMENTO=[
+  {id:'troco',   n:'Reforço de troco'},
+  {id:'cofre',   n:'Vindo do cofre'},
+  {id:'aporte',  n:'Aporte do proprietário'},
+  {id:'outro',   n:'Outro (descrever)'}];
+
+/* contas que podem receber ou mandar dinheiro da gaveta. A conta fixa
+   'caixa' e a propria gaveta: ela e a origem, nunca o destino. */
+function contasDestino(){
+  return (DB.contas||[]).filter(function(c){return c.fixa!=='caixa'});
+}
+function contaDaGaveta(){
+  return (DB.contas||[]).find(function(c){return c.fixa==='caixa'})||null;
+}
+function mostraOutroMv(){
+  var s=$('mvMot'), b=$('boxMvDesc');
+  if(!s||!b)return;
+  b.style.display=(s.value==='outro')?'':'none';
+  if(s.value==='outro'){var i=$('mvM');if(i)i.focus();}
+}
+/* ==========================================================
+   SANGRIA E SUPRIMENTO SAO TRANSFERENCIA, NAO DESPESA NEM RECEITA
+
+   Item 11 do documento, e o defeito era grave: a sangria mexia SO na
+   gaveta. R$ 500 saiam do caixa e nao entravam em conta nenhuma —
+   dinheiro que evapora do sistema e reaparece, se reaparecer, como
+   um lancamento manual digitado a mao dias depois.
+
+   Duas consequencias: o cofre nunca batia, e quem digitava o
+   lancamento manual criava a SEGUNDA metade de uma operacao que ja
+   tinha uma metade — sangria contada duas vezes no financeiro.
+
+   Agora e uma operacao so, com as duas pontas: um lancamento do tipo
+   `transferencia`, que o modulo financeiro ja entende (soma no destino,
+   subtrai na origem, e nao entra em receita nem em despesa). O
+   movimento da gaveta guarda a referencia do lancamento; o lancamento
+   guarda a referencia do movimento. Um nao existe sem o outro.
+
+   Faturamento nao e tocado em nenhuma das duas operacoes — e o que
+   os itens 1, 2 e 13 exigem.
+   ========================================================== */
+function lancarTransferenciaCaixa(cx,mv,tipo){
+  DB.lancFin=DB.lancFin||[];
+  /* idempotencia: a mesma movimentacao nunca gera dois lancamentos,
+     nem que esta funcao seja chamada de novo (item 12) */
+  var ja=(DB.lancFin||[]).find(function(l){return l.ref===mv.id&&l.origem==='mov-caixa'});
+  if(ja)return ja;
+  var gaveta=contaDaGaveta();
+  if(!gaveta||!mv.destinoContaId)return null;
+  var de   = (tipo==='sangria')? gaveta.id       : mv.destinoContaId;
+  var para = (tipo==='sangria')? mv.destinoContaId : gaveta.id;
+  var dt=hojeISO();
+  var l={id:uid('lf'),tipo:'transferencia',contaId:de,contaDestinoId:para,metodoId:'',
+    descricao:(tipo==='sangria'?'Sangria':'Suprimento')+' de caixa: '+
+      contaNome(de)+' → '+contaNome(para),
+    categoriaTxt:'Transferência',
+    valor:Number(mv.valor)||0,emissao:dt,vencimento:dt,pagamento:dt,pago:true,
+    origem:'mov-caixa',ref:mv.id,caixaId:cx.id,
+    obs:(mv.motivoNome||'')+(mv.motivo?' — '+mv.motivo:'')+
+        ' · '+(mv.responsavel||'')+' · '+(mv.hora||'')};
+  DB.lancFin.push(l);
+  mv.lancRef=l.id;
+  return l;
+}
 function movCaixa(tipo){
   var cx=caixaAberto();if(!cx)return;
   if(!operadoresPara(tipo).length){
     toast('Ninguém com senha de autorização cadastrada. Cadastre em Operadores do Caixa.');
     return;
   }
+  var dests=contasDestino();
+  if(!dests.length){
+    toast('Cadastre ao menos uma conta em Financeiro › Contas bancárias antes de movimentar o caixa.');
+    return;
+  }
+  var mots=(tipo==='sangria')?MOTIVOS_SANGRIA:MOTIVOS_SUPRIMENTO;
   var titulo=tipo==='sangria'?'Sangria — retirada de dinheiro':'Suprimento — reforço de caixa';
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
   '<div class="hint" style="margin-bottom:12px">'+
-  (tipo==='sangria'?'Retire dinheiro da gaveta (envio ao cofre, pagamento de despesa, troco). O valor sai do total esperado no fechamento.'
-                   :'Coloque dinheiro na gaveta (reforço de troco). O valor entra no total esperado no fechamento.')+'</div>'+
+  (tipo==='sangria'
+    ?'Dinheiro sai da gaveta e <b>entra na conta de destino</b>. Não é despesa e não reduz o faturamento — é transferência entre contas.'
+    :'Dinheiro sai da conta de origem e <b>entra na gaveta</b>. Não é venda e não aumenta o faturamento — é transferência entre contas.')+'</div>'+
   '<div class="fld2"><label>Valor *</label><div class="cur"><span>R$</span><input id="mvV" type="number" step="0.01" value=""></div></div>'+
-  '<div class="fld2"><label>Motivo</label><input id="mvM" placeholder="'+(tipo==='sangria'?'ex: envio ao cofre':'ex: reforço de troco')+'"></div>'+
+  '<div class="fld2"><label>Motivo *</label>'+
+   '<select id="mvMot" onchange="mostraOutroMv()">'+
+   mots.map(function(m){return '<option value="'+m.id+'">'+E(m.n)+'</option>'}).join('')+
+   '</select></div>'+
+  '<div class="fld2" id="boxMvDesc" style="display:none"><label>Descreva *</label>'+
+   '<input id="mvM" placeholder="'+(tipo==='sangria'?'ex: adiantamento autorizado pelo sócio':'ex: troco trazido de casa')+'"></div>'+
+  '<div class="fld2"><label>'+(tipo==='sangria'?'Destino do dinheiro *':'Origem do dinheiro *')+'</label>'+
+   '<select id="mvDest">'+
+   dests.map(function(c){return '<option value="'+E(c.id)+'">'+E(c.nome)+'</option>'}).join('')+
+   '</select>'+
+   '<small style="display:block;color:var(--ink-3);margin-top:4px">'+
+   (tipo==='sangria'?'A conta escolhida recebe o valor no mesmo instante.'
+                    :'A conta escolhida é debitada no mesmo instante.')+'</small></div>'+
   /* ==========================================================
      SANGRIA SEM SENHA ERA O BURACO MAIS SERIO DO MODULO
 
@@ -24894,16 +25015,41 @@ function movCaixa(tipo){
   modal(titulo,h,'Confirmar',async function(){
     var v=parseFloat($('mvV').value)||0;
     if(v<=0){toast('Informe um valor maior que zero.');return false;}
+    var motId=($('mvMot')||{}).value||'';
+    var desc=(($('mvM')||{}).value||'').trim();
+    if(motId==='outro'&&!desc){toast('Descreva o motivo.');return false;}
+    var destId=($('mvDest')||{}).value||'';
+    if(!destId){toast('Selecione o destino.');return false;}
+    /* a gaveta nao pode ter mais saida do que tem dinheiro */
+    if(tipo==='sangria'){
+      var disp=esperadoCaixa(cx);
+      if(v>disp+0.001){
+        toast('A gaveta tem R$ '+money(disp)+'. Não dá para retirar R$ '+money(v)+'.');
+        return false;
+      }
+    }
     var opM=await autorizar(tipo,($('mvOp')||{}).value||'',($('mvSenha')||{}).value||'');
     if(!opM)return false;
+    var motNome=(((tipo==='sangria')?MOTIVOS_SANGRIA:MOTIVOS_SUPRIMENTO)
+      .find(function(m){return m.id===motId})||{}).n||'';
     cx.movimentos=cx.movimentos||[];
-    cx.movimentos.push({id:uid('mv'),tipo:tipo,valor:v,motivo:$('mvM').value.trim(),
+    var mv={id:uid('mv'),tipo:tipo,valor:v,
+      motivoId:motId,motivoNome:motNome,motivo:desc,
+      destinoContaId:destId,destinoNome:contaNome(destId),
       responsavel:opM.nome,responsavelId:opM.id,
-      hora:agoraHM(),data:new Date().toISOString()});
+      hora:agoraHM(),data:new Date().toISOString()};
+    cx.movimentos.push(mv);
+    /* a contrapartida nasce junto. Ou as duas pontas existem, ou nenhuma. */
+    if(!lancarTransferenciaCaixa(cx,mv,tipo)){
+      cx.movimentos.pop();
+      toast('Não consegui gerar a contrapartida no financeiro. Verifique se existe a conta "Caixa da loja".');
+      return false;
+    }
     salvar();telaPDV();
-    toast((tipo==='sangria'?'Sangria':'Suprimento')+' de R$ '+money(v)+' registrado.');
+    toast((tipo==='sangria'?'Sangria':'Suprimento')+' de R$ '+money(v)+' · '+
+      (tipo==='sangria'?'→ ':'← ')+contaNome(destId));
     if(tipo==='sangria')
-      avisarGerente(lojaAtualId(),'sangria',msgSangria(v,$('mvM').value.trim()));
+      avisarGerente(lojaAtualId(),'sangria',msgSangria(v,motNome+(desc?' — '+desc:'')));
     return true;
   });
 }
@@ -24951,86 +25097,206 @@ function painelCaixa(){
   h+='</div>';
   modal('Caixa · turno atual',h,'Fechar',function(){return true},'lg');
 }
-function resultadoFechamento(cx,mov,esp){
-  var espG=Number(cx.esperado)||0, contado=Number(cx.contado)||0;
-  var difG=+(contado-espG).toFixed(2);
-  var conf=cx.conferencia||{};
-  /* ==========================================================
-     O COMPROVANTE PRECISA PODER SER CONFERIDO NA MAO
+/* ==========================================================
+   A FOTOGRAFIA DO FECHAMENTO (item 19)
 
-     Faltava a linha de total. Sem ela nao dava para ver que o esperado
-     somado nao fechava com as vendas do turno — foi assim que R$ 278,00
-     de pagamento duplicado passaram despercebidos por um turno inteiro.
+   Ate aqui a reimpressao RECALCULAVA tudo a partir dos dados de hoje.
+   Se uma venda daquele turno fosse cancelada na semana seguinte, o
+   segundo cupom saia com numeros diferentes do primeiro — e o primeiro
+   ja estava assinado e arquivado.
 
-     Com o total visivel, a conta que qualquer um faz de cabeca passa a
-     valer: a soma das diferencas de cartao tem de espelhar a do
-     dinheiro. Quando nao espelha, ou ha venda sem forma, ou ha
-     pagamento gravado duas vezes. Os dois casos ficam visiveis aqui.
-     ========================================================== */
-  var somaE=0,somaI=0,temI=false;
-  var linhas=FORMAS.map(function(f){
+   Comprovante que muda depois de emitido nao serve para conferir nada.
+   Aqui congela-se tudo o que o fechamento viu: esperado e informado por
+   forma, diferencas, sangrias com motivo e destino, quem abriu, quem
+   fechou e a que horas. A reimpressao le daqui e nunca recalcula.
+   ========================================================== */
+function montarSnapshot(cx,mov,esp,conf){
+  var sup=totalMov(cx,'suprimento'), san=totalMov(cx,'sangria');
+  var formas=FORMAS.map(function(f){
     var e=Number(esp[f.id])||0;
     var i=(conf[f.id]===undefined||conf[f.id]===null)?null:Number(conf[f.id]);
-    var d=(i===null)?null:+(i-e).toFixed(2);
-    somaE+=e; if(i!==null){somaI+=i;temI=true;}
-    return '<tr><td>'+E(f.n)+
-      (f.troco?'<small style="display:block;color:var(--ink-3)">gaveta inteira: '+
-        'fundo de R$ '+money(cx.inicial||0)+' + vendas em dinheiro</small>':'')+'</td>'+
-      '<td style="text-align:right">R$ '+money(e)+'</td>'+
-      '<td style="text-align:right">'+(i===null?'<span style="color:var(--ink-3)">não informado</span>':'R$ '+money(i))+'</td>'+
+    return {id:f.id,nome:f.n,troco:!!f.troco,
+      sistema:+e.toFixed(2),
+      fisico:(i===null?null:+i.toFixed(2)),
+      diferenca:(i===null?null:+(i-e).toFixed(2))};
+  });
+  var somaS=formas.reduce(function(a,x){return a+x.sistema},0);
+  var somaF=formas.reduce(function(a,x){return a+(x.fisico||0)},0);
+  var difTotal=+(somaF-somaS).toFixed(2);
+  /* item 5: diferenca por forma e diferenca geral sao coisas separadas.
+     Se o total bate mas as formas nao, o dinheiro esta todo la — o que
+     errou foi a classificacao da forma na venda. Isso NAO e falta de
+     caixa, e nao pode ser lido como tal. */
+  var houveDivergencia=formas.some(function(x){
+    return x.diferenca!==null&&Math.abs(x.diferenca)>=0.01;
+  });
+  var conciliado=Math.abs(difTotal)<0.01;
+  return {
+    versao:VERSAO, gerado:new Date().toISOString(),
+    loja:sucNome(cx.sucursalId||lojaAtualId()),
+    empresa:cfg().nomePublico||nomeLojaAtual()||'',
+    caixaId:cx.id, turno:cx.turno||'',
+    aberto:cx.aberto||'', fechado:cx.fechadoEm||'',
+    operadorAbriu:cx.operador||'', operadorAbriuId:cx.operadorId||'',
+    operadorFechou:cx.fechadoPor||'', operadorFechouId:cx.fechadoPorId||'',
+    fundoAbertura:+(Number(cx.inicial)||0).toFixed(2),
+    vendasDinheiro:+(Number(mov.dinheiro)||0).toFixed(2),
+    suprimentos:+sup.toFixed(2), sangrias:+san.toFixed(2),
+    faturamento:+(Number(mov.total)||0).toFixed(2),
+    qtdVendas:mov.qtd||0,
+    semForma:+((mov.semForma||0)+(mov.descoberto||0)).toFixed(2),
+    canceladas:(DB.pedidos||[]).filter(function(p){
+      return p.caixaId===cx.id&&ehCancelado(p)}).length,
+    vCanceladas:+(DB.pedidos||[]).filter(function(p){
+      return p.caixaId===cx.id&&ehCancelado(p)})
+      .reduce(function(a,p){return a+(Number(p.total)||0)},0).toFixed(2),
+    formas:formas,
+    totalSistema:+somaS.toFixed(2), totalFisico:+somaF.toFixed(2),
+    diferencaTotal:difTotal,
+    conciliado:conciliado,
+    divergenciaEntreFormas:(conciliado&&houveDivergencia),
+    fundoProximo:+(Number(cx.fundoProximo)||0).toFixed(2),
+    observacao:cx.obs||'',
+    movimentos:(cx.movimentos||[]).map(function(m){
+      return {hora:m.hora||'',tipo:m.tipo,valor:+(Number(m.valor)||0).toFixed(2),
+        motivo:m.motivoNome||m.motivo||'',descricao:m.motivo||'',
+        destino:m.destinoNome||'',responsavel:m.responsavel||'',lancRef:m.lancRef||''};
+    })
+  };
+}
+/* ==========================================================
+   DIFERENCA POR FORMA E DIFERENCA GERAL SAO DUAS COISAS (item 5)
+
+   O comprovante tratava a diferenca do dinheiro como se fosse O
+   resultado do fechamento. Nao e. Uma venda no credito lancada como
+   dinheiro produz -5 no dinheiro e +5 no credito: o dinheiro esta todo
+   la, nada foi perdido, e o operador levava a culpa por uma falta que
+   nao existia.
+
+   Agora sao dois numeros com pesos diferentes:
+
+   - DIFERENCA GERAL: informado total menos sistema total. E este que
+     diz se falta ou sobra dinheiro na loja.
+   - DIFERENCA POR FORMA: mostra onde a classificacao errou.
+
+   Quando a geral e zero e as formas divergem, o cabecalho diz
+   FECHAMENTO CONCILIADO e registra a divergencia para auditoria — sem
+   tocar em nenhuma venda (item 6). Adivinhar qual pagamento foi lancado
+   errado e reescrever historico e pior que o problema.
+   ========================================================== */
+function resultadoFechamento(cx,mov,esp){
+  var s=cx.snapshot||montarSnapshot(cx,mov,esp,cx.conferencia||{});
+  var difG=Number(s.diferencaTotal)||0;
+  var ok=Math.abs(difG)<0.01;
+  var divf=!!s.divergenciaEntreFormas;
+
+  var linhas=s.formas.map(function(x){
+    var d=x.diferenca;
+    return '<tr><td>'+E(x.nome)+
+      (x.troco?'<small style="display:block;color:var(--ink-3)">gaveta inteira: fundo R$ '+
+        money(s.fundoAbertura)+' + vendas R$ '+money(s.vendasDinheiro)+
+        (s.suprimentos?' + supr. R$ '+money(s.suprimentos):'')+
+        (s.sangrias?' − sangrias R$ '+money(s.sangrias):'')+'</small>':'')+'</td>'+
+      '<td style="text-align:right">R$ '+money(x.sistema)+'</td>'+
+      '<td style="text-align:right">'+(x.fisico===null
+        ?'<span style="color:var(--ink-3)">não informado</span>':'R$ '+money(x.fisico))+'</td>'+
       '<td style="text-align:right;font-weight:700;color:'+
         (d===null?'var(--ink-3)':(Math.abs(d)<0.01?'var(--acc-d)':'var(--red)'))+'">'+
         (d===null?'—':(d>0?'+ ':d<0?'− ':'')+'R$ '+money(Math.abs(d)))+'</td></tr>';
   }).join('');
-  var difTot=temI?+(somaI-somaE).toFixed(2):null;
-  linhas+='<tr style="border-top:2px solid var(--ink-3)"><td><b>Total</b></td>'+
-    '<td style="text-align:right"><b>R$ '+money(somaE)+'</b></td>'+
-    '<td style="text-align:right"><b>'+(temI?'R$ '+money(somaI):'—')+'</b></td>'+
+  linhas+='<tr style="border-top:2px solid var(--ink-3)"><td><b>TOTAL</b></td>'+
+    '<td style="text-align:right"><b>R$ '+money(s.totalSistema)+'</b></td>'+
+    '<td style="text-align:right"><b>R$ '+money(s.totalFisico)+'</b></td>'+
     '<td style="text-align:right;font-weight:700;color:'+
-      (difTot===null?'var(--ink-3)':(Math.abs(difTot)<0.01?'var(--acc-d)':'var(--red)'))+'">'+
-      (difTot===null?'—':(difTot>0?'+ ':difTot<0?'− ':'')+'R$ '+money(Math.abs(difTot)))+
-    '</b></td></tr>';
-  /* o esperado somado tem de bater com as vendas do turno mais o fundo e os
-     suprimentos, menos as sangrias. Quando nao bate, o defeito nao esta na
-     contagem: esta no que foi gravado na venda. */
-  var baseTurno=+((Number(mov.total)||0)+(Number(cx.inicial)||0)
-    +totalMov(cx,'suprimento')-totalMov(cx,'sangria')).toFixed(2);
-  var furo=+(somaE-baseTurno).toFixed(2);
-  var ok=Math.abs(difG)<0.01;
+      (ok?'var(--acc-d)':'var(--red)')+'">'+
+      (ok?'R$ 0,00':(difG>0?'+ ':'− ')+'R$ '+money(Math.abs(difG)))+'</b></td></tr>';
+
+  /* o sistema somado tem de bater com faturamento + fundo + suprimentos
+     − sangrias. Quando nao bate, o defeito esta no que foi gravado na
+     venda, nao na contagem. */
+  var baseTurno=+(s.faturamento+s.fundoAbertura+s.suprimentos-s.sangrias).toFixed(2);
+  var furo=+(s.totalSistema-baseTurno).toFixed(2);
+
+  var cab = ok
+    ? (divf
+       ? {cls:'ok',t:'Fechamento total conciliado',v:'R$ 0,00',
+          sub:'o dinheiro fecha — mas houve divergência entre as formas'}
+       : {cls:'ok',t:'Caixa bateu certo',v:'R$ 0,00',
+          sub:'o informado é igual ao esperado em todas as formas'})
+    : {cls:'dif',t:'Diferença geral',
+       v:(difG>0?'+ ':'− ')+'R$ '+money(Math.abs(difG)),
+       sub:(difG>0?'sobrou dinheiro no total do turno':'faltou dinheiro no total do turno')};
+
   modal('Fechamento realizado',
    '<div class="mdB">'+
-    '<div class="fcRes '+(ok?'ok':'dif')+'">'+
-     '<span>'+(ok?'Caixa bateu certo':'Diferença no dinheiro')+'</span>'+
-     '<b>'+(ok?'R$ 0,00':(difG>0?'+ ':'− ')+'R$ '+money(Math.abs(difG)))+'</b>'+
-     '<small>'+(ok?'o contado é igual ao esperado'
-       :(difG>0?'sobrou dinheiro na gaveta':'faltou dinheiro na gaveta'))+'</small>'+
+    '<div class="fcRes '+cab.cls+'">'+
+     '<span>'+cab.t+'</span><b>'+cab.v+'</b><small>'+cab.sub+'</small>'+
     '</div>'+
-    '<div class="linha" style="margin-top:12px"><span>Esperado em dinheiro</span>'+
-     '<b>R$ '+money(espG)+'</b></div>'+
-    '<div class="linha"><span>Informado pelo operador</span><b>R$ '+money(contado)+'</b></div>'+
-    '<div class="linha"><span>Vendas do turno</span><b>R$ '+money(mov.total||0)+
-     ' <small style="color:var(--ink-3)">('+(mov.qtd||0)+')</small></b></div>'+
+    (divf
+      ? '<div class="cfAlerta" style="margin-top:10px">'+sv('help',15)+
+        '<div><b>Divergência entre formas — fechamento total conciliado</b>'+
+        '<small>Uma forma sobrou exatamente o que outra faltou. O dinheiro está todo '+
+        'aqui: o que errou foi a forma de pagamento escolhida em alguma venda. '+
+        '<b>Nenhuma venda foi alterada</b> — corrigir o histórico por adivinhação seria pior. '+
+        'A divergência fica registrada no comprovante.</small></div></div>'
+      : '')+
+    '<div class="linha" style="margin-top:12px"><span>Faturamento do turno</span>'+
+     '<b>R$ '+money(s.faturamento)+' <small style="color:var(--ink-3)">('+s.qtdVendas+' vendas)</small></b></div>'+
+    '<div class="linha"><span>Fundo de abertura <small style="color:var(--ink-3)">(não é faturamento)</small></span>'+
+     '<b>R$ '+money(s.fundoAbertura)+'</b></div>'+
+    (s.suprimentos?'<div class="linha"><span>Suprimentos <small style="color:var(--ink-3)">(não é venda)</small></span>'+
+     '<b>+ R$ '+money(s.suprimentos)+'</b></div>':'')+
+    (s.sangrias?'<div class="linha"><span>Sangrias <small style="color:var(--ink-3)">(não reduz faturamento)</small></span>'+
+     '<b>− R$ '+money(s.sangrias)+'</b></div>':'')+
     '<table class="tb2" style="margin-top:12px"><tr><th>Forma</th>'+
-     '<th style="text-align:right">Esperado</th><th style="text-align:right">Informado</th>'+
+     '<th style="text-align:right">Sistema</th><th style="text-align:right">Físico</th>'+
      '<th style="text-align:right">Diferença</th></tr>'+linhas+'</table>'+
     (Math.abs(furo)>0.01
       ? '<div class="cfAlerta" style="margin-top:10px">'+sv('help',15)+
-        '<div><b>O esperado somado não fecha com as vendas do turno: '+
+        '<div><b>O sistema somado não fecha com o turno: '+
         (furo>0?'R$ ':'− R$ ')+money(Math.abs(furo))+'</b>'+
         '<small>A soma por forma deveria dar R$ '+money(baseTurno)+
-        ' (vendas + fundo + suprimentos − sangrias) e deu R$ '+money(somaE)+'. '+
-        'Isso não é erro de contagem: é pagamento gravado a mais, a menos, '+
-        'ou venda sem forma. Confira as vendas deste turno antes de aceitar a diferença.</small>'+
+        ' (faturamento + fundo + suprimentos − sangrias) e deu R$ '+money(s.totalSistema)+'. '+
+        'Isso não é erro de contagem: é pagamento gravado a mais, a menos, ou venda sem forma.</small>'+
         '</div></div>'
       : '')+
-    (cx.obs?'<div class="hint" style="margin-top:10px"><b>Observação:</b> '+E(cx.obs)+'</div>':'')+
-    '<div class="hint" style="margin-top:10px">Fechado por '+E(cx.fechadoPor||'')+
-     ' em '+E(cx.fechadoEm||'')+'.</div>'+
+    (s.semForma>0.01
+      ? '<div class="cfAlerta" style="margin-top:10px">'+sv('help',15)+
+        '<div><b>R$ '+money(s.semForma)+' em vendas sem forma de pagamento</b>'+
+        '<small>Entram no faturamento mas não estão em nenhuma linha acima.</small></div></div>'
+      : '')+
+    (s.movimentos.length
+      ? '<div class="blk" style="margin:11px 0 0;max-width:none"><h3>Sangrias e suprimentos</h3>'+
+        '<table class="fpgTab">'+s.movimentos.map(function(m){
+          return '<tr><td>'+E(m.hora)+' · '+
+            (m.tipo==='sangria'?'<span class="badge2 rd">Sangria</span>':'<span class="badge2 gr">Suprimento</span>')+
+            '<small style="display:block;color:var(--ink-3)">'+E(m.motivo)+
+            (m.destino?' · destino: '+E(m.destino):'')+' · '+E(m.responsavel)+'</small></td>'+
+            '<td style="text-align:right;color:'+(m.tipo==='sangria'?'var(--red)':'var(--acc-d)')+'">'+
+            (m.tipo==='sangria'?'− ':'+ ')+'R$ '+money(m.valor)+'</td></tr>';
+        }).join('')+'</table></div>'
+      : '')+
+    (s.fundoProximo>0.001
+      ? '<div class="hint" style="margin-top:10px"><b>Fundo do próximo caixa:</b> R$ '+
+        money(s.fundoProximo)+' — o restante saiu por sangria.</div>':'')+
+    (s.observacao?'<div class="hint" style="margin-top:10px"><b>Observação:</b> '+E(s.observacao)+'</div>':'')+
+    '<div class="hint" style="margin-top:10px">Aberto por '+E(s.operadorAbriu)+' em '+E(s.aberto)+
+     ' · fechado por '+E(s.operadorFechou)+' em '+E(s.fechado)+'.</div>'+
    '</div>','Imprimir fechamento',function(){
      try{ imprimirFechamento(cx.id); }catch(e){ _quieto(e,'imprimirFechamento');
        toast('Não consegui montar a impressão.'); }
      return true;
    },'lg');
+}
+/* o fundo que o ultimo fechamento desta loja declarou deixar na gaveta */
+function fundoSugerido(){
+  var suc=lojaAtualId();
+  var fech=(DB.caixas||[]).filter(function(c){
+    return c.fechadoEm&&(!c.sucursalId||!suc||c.sucursalId===suc);
+  });
+  if(!fech.length)return 0;
+  var ult=fech[fech.length-1];
+  return +(Number(ult.fundoProximo)||0).toFixed(2);
 }
 function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
   toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
@@ -25071,8 +25337,21 @@ function abrirCaixa(){
   '<div class="fld2" id="boxSenhaCx" style="display:none"><label>Senha do operador *</label>'+
    '<input id="cxSenha" type="password" inputmode="numeric" placeholder="senha cadastrada" autocomplete="off">'+
    '<div class="hint">A senha confirma quem está assumindo o caixa.</div></div>'+
+  /* ==========================================================
+     A ABERTURA SUGERE O QUE O FECHAMENTO ANTERIOR DEIXOU (item 14)
+
+     Sugere — nao impoe. Se a regra da loja for outra, o operador
+     digita outro valor. O que nao pode e comecar de zero por padrao
+     quando o turno anterior declarou que ficaram R$ 200 na gaveta:
+     o caixa nasceria com R$ 200 de sobra que ninguem consegue explicar.
+     ========================================================== */
   '<div class="fld2" style="margin:0"><label>Valor inicial (fundo de troco)</label>'+
-   '<div class="cur"><span>R$</span><input id="cxIni" type="number" step="0.01" value="0"></div></div>'+
+   '<div class="cur"><span>R$</span><input id="cxIni" type="number" step="0.01" value="'+
+   fundoSugerido()+'"></div>'+
+   (fundoSugerido()>0
+     ?'<div class="hint">Sugerido pelo último fechamento, que declarou este valor '+
+      'como fundo do próximo caixa. Confira a gaveta antes de confirmar.</div>':'')+
+   '</div>'+
   '</div></div>';
   /* a conferencia agora vai ao banco: a funcao do modal precisa ser async,
      senao o `if(!op)` roda antes da resposta e libera sem conferir */
@@ -25182,6 +25461,26 @@ function fecharCaixa(){
   '<div class="linha"><span>Pedidos no turno</span><b>'+mov.qtd+'</b></div>'+
   '</div>'+
 
+  /* ==========================================================
+     O SALDO FINAL NAO VIRA FUNDO DO DIA SEGUINTE SOZINHO (item 14)
+
+     Assumir que tudo o que sobrou na gaveta e o fundo de amanha e uma
+     regra da empresa, nao uma lei. Quem deixa R$ 200 e manda R$ 300
+     para o cofre precisa dizer isso — senao a proxima abertura sugere
+     R$ 500 que nao estao la, e o caixa ja nasce com diferenca.
+
+     O campo e sugestao para a proxima abertura. Nao move dinheiro: o
+     que sai da gaveta sai por sangria, com destino e contrapartida.
+     ========================================================== */
+  '<div class="blk" style="margin:0 0 11px;max-width:none">'+
+  '<h3>Fundo do próximo caixa</h3>'+
+  '<div class="hint" style="margin-bottom:10px">Quanto fica na gaveta para abrir amanhã. '+
+  'O que for retirado além disso precisa sair por <b>sangria</b>, com destino. '+
+  'Deixe zero se a gaveta for esvaziada por completo.</div>'+
+  '<div class="fld2" style="margin:0"><label>Valor deixado como fundo</label>'+
+  '<div class="cur"><span>R$</span><input id="fcFundo" type="number" step="0.01" '+
+  'value="'+(Number(cx.inicial)||0)+'"></div></div></div>'+
+
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
   '<h3>Conferência por forma de pagamento</h3>'+
   '<div class="hint" style="margin-bottom:10px">Informe o valor apurado em cada forma: dinheiro contado na gaveta, '+
@@ -25270,9 +25569,22 @@ function fecharCaixa(){
     cx.esperado=esperadoGaveta;
     cx.totalInformado=totInf;
     cx.qtd=mov.qtd;cx.vendas=mov.total;cx.obs=$('cxObs').value;
+    cx.fundoProximo=parseFloat(($('fcFundo')||{}).value)||0;
     cx.fechadoEm=ag.toLocaleDateString('pt-BR')+' '+agoraHM();
     cx.fechadoPor=opF.nome;
     cx.fechadoPorId=opF.id;
+    /* ==========================================================
+       A FOTOGRAFIA E TIRADA AQUI, E SO AQUI (itens 19 e 20)
+
+       Depois deste ponto o turno acabou. O que o comprovante mostrar
+       daqui para a frente — hoje, amanha ou daqui a um ano — sai desta
+       fotografia, nao de uma nova conta sobre dados que podem ter
+       mudado. E ela ja carrega a trilha: quem abriu, quem fechou, cada
+       sangria com motivo, destino e responsavel.
+       ========================================================== */
+    cx.snapshot=montarSnapshot(cx,mov,esp,conf);
+    cx.diferencaTotal=cx.snapshot.diferencaTotal;
+    cx.conciliado=cx.snapshot.conciliado;
     (DB.caixas||[]).forEach(function(c){ if(!c.fechadoEm&&c.id!==cx.id)c.fechadoEm=cx.fechadoEm; });
     var nLanc=lancarFechamento(cx,mov);
     salvar();
@@ -30975,10 +31287,38 @@ function editarCaixa(id){
       conf[ins[i].getAttribute('data-f')]=n;tot+=n;
     }
     c.conferencia=conf;c.totalInformado=tot;
-    var idDin=(FORMAS.find(function(f){return f.tipo==='dinheiro'})||{}).id;
-    c.contado=conf[idDin]||conf.dinheiro||0;
+    var idDin=(FORMAS.find(function(f){return f.troco})||{}).id;
+    c.contado=(idDin&&conf[idDin])||conf.dinheiro||0;
     c.esperado=esperadoCaixa(c);
     c.vendas=mov.total;c.qtd=mov.qtd;
+    /* ==========================================================
+       EDITAR UM FECHAMENTO NAO PODE APAGAR O ORIGINAL (itens 19 e 20)
+
+       A fotografia e refeita — senao o cupom continuaria mostrando os
+       valores antigos e a edicao nao teria efeito nenhum. Mas a
+       fotografia ANTERIOR fica guardada, com quem alterou e quando.
+
+       Sem isso, alterar um fechamento seria indistinguivel de nunca ter
+       havido diferenca: alguem ajusta o informado para bater com o
+       esperado e a falta desaparece da historia da loja.
+       ========================================================== */
+    var espF={};
+    FORMAS.forEach(function(f){
+      espF[f.id]=f.troco?c.esperado:(mov.porForma[f.id]||0);
+    });
+    c.esperadoPorForma=espF;
+    var anterior=c.snapshot||null;
+    c.snapshot=montarSnapshot(c,mov,espF,conf);
+    c.snapshot.editado={
+      em:new Date().toLocaleString('pt-BR'),
+      por:((typeof usuarioLogado==='function'&&usuarioLogado())||{}).nome||SESSAO.login||'—',
+      anterior:anterior?{
+        totalSistema:anterior.totalSistema,totalFisico:anterior.totalFisico,
+        diferencaTotal:anterior.diferencaTotal,fechado:anterior.fechado
+      }:null
+    };
+    c.diferencaTotal=c.snapshot.diferencaTotal;
+    c.conciliado=c.snapshot.conciliado;
     /* refaz os lançamentos deste caixa */
     DB.lancFin=(DB.lancFin||[]).filter(function(l){return !(l.ref===c.id&&l.origem==='fechamento-caixa')});
     var n2=lancarFechamento(c,mov);
@@ -45283,81 +45623,143 @@ function blocoRotinas() {
    Usa a mesma bobina das outras vias (58mm ou 80mm, pelo modelo
    cadastrado). Nao imprime senha nem nada sensivel.
    ========================================================== */
+/* ==========================================================
+   O CUPOM DO FECHAMENTO (itens 15 a 18)
+
+   Bobina termica, preto e branco, no formato do sistema antigo que o
+   Rafael usou como referencia. Duas regras mandam aqui:
+
+   1. LE DA FOTOGRAFIA, NAO RECALCULA. Um comprovante reimpresso em
+      novembro precisa sair identico ao que foi assinado em agosto. Se
+      recalculasse, uma venda cancelada depois mudaria o cupom antigo —
+      e comprovante que muda nao prova nada.
+
+   2. O DINHEIRO MOSTRA A COMPOSICAO. "Sistema R$ 1.350,05" sozinho nao
+      diz nada a quem confere. Embaixo vem fundo, vendas em dinheiro,
+      suprimentos e sangrias, que e de onde o numero saiu.
+
+   Caixa fechado antes da V175 nao tem fotografia. Nesses casos a conta
+   e refeita, e o cupom avisa que foi reconstruido.
+   ========================================================== */
 function linhasFechamento(cx){
   baseFormas();
   var cols=48;
   try{ var m=modeloImp('ficha'); if(m&&m.colunas)cols=m.colunas; }catch(e){}
-  var mov=movimentoCaixa(cx.id);
-  var esp=cx.esperadoPorForma||{};
-  var conf=cx.conferencia||{};
+  var s=cx.snapshot;
+  var reconstruido=false;
+  if(!s||!s.formas){
+    reconstruido=true;
+    var mv=movimentoCaixa(cx.id);
+    var espOld=cx.esperadoPorForma||{};
+    s=montarSnapshot(cx,mv,espOld,cx.conferencia||{});
+  }
   var L=[];
   var par=function(a,b){
     a=String(a); b=String(b);
-    var esp2=cols-a.length-b.length;
-    return {txt:a+(esp2>0?new Array(esp2+1).join(' '):' ')+b};
+    var e2=cols-a.length-b.length;
+    return {txt:a+(e2>0?new Array(e2+1).join(' '):' ')+b};
   };
-  L.push({txt:(cfg().nomePublico||nomeLojaAtual()||'').slice(0,cols),al:'c',n:true});
-  L.push({txt:'FECHAMENTO DE CAIXA',al:'c',n:true});
-  L.push({txt:sucNome(cx.sucursalId||lojaAtualId()),al:'c',p:true});
+  var bloco=function(t){L.push({tipo:'linha'});L.push({txt:t,n:true});};
+
+  /* --- cabecalho (item 15) --- */
+  L.push({txt:String(s.empresa||'').slice(0,cols),al:'c',n:true});
+  L.push({txt:'RELATORIO DE FECHAMENTO DE CAIXA',al:'c',n:true});
   L.push({tipo:'linha'});
-  L.push(par('Caixa',String(cx.id||'').slice(-8)));
-  L.push(par('Operador',(cx.operador||'').slice(0,cols-12)));
-  if(cx.turno)L.push(par('Turno',cx.turno));
-  L.push(par('Abertura',cx.aberto||'-'));
-  L.push(par('Fechamento',cx.fechadoEm||'-'));
-  if(cx.fechadoPor&&cx.fechadoPor!==cx.operador)
-    L.push(par('Fechado por',(cx.fechadoPor||'').slice(0,cols-14)));
-  L.push({tipo:'linha'});
-  L.push({txt:'VENDAS POR FORMA',n:true});
-  (DB.formasPag||[]).forEach(function(f){
-    var v=mov.porForma[f.id]||0;
-    if(v>0.001)L.push(par(f.nome,'R$ '+money(v)));
+  L.push(par('Unidade',String(s.loja||'').slice(0,cols-10)));
+  L.push(par('Caixa',String(s.caixaId||'').slice(-8)));
+  if(s.turno)L.push(par('Turno',s.turno));
+  L.push(par('Abertura',s.aberto||'-'));
+  L.push(par('Fechamento',s.fechado||'-'));
+  L.push(par('Operador',String(s.operadorAbriu||'').slice(0,cols-12)));
+  if(s.operadorFechou&&s.operadorFechou!==s.operadorAbriu)
+    L.push(par('Fechado por',String(s.operadorFechou).slice(0,cols-14)));
+
+  /* --- dinheiro, com a composicao (item 16) --- */
+  var din=s.formas.filter(function(f){return f.troco});
+  din.forEach(function(f){
+    bloco(String(f.nome).toUpperCase());
+    L.push(par('Sistema','R$ '+money(f.sistema)));
+    L.push(par('Fisico',f.fisico===null?'nao informado':'R$ '+money(f.fisico)));
+    L.push(par('Diferenca',f.diferenca===null?'-'
+      :(Math.abs(f.diferenca)<0.01?'R$ 0,00'
+        :(f.diferenca>0?'+ ':'- ')+'R$ '+money(Math.abs(f.diferenca)))));
+    L.push({txt:' '});
+    L.push(par('Fundo de caixa','R$ '+money(s.fundoAbertura)));
+    L.push(par('Vendas dinheiro','R$ '+money(s.vendasDinheiro)));
+    L.push(par('Suprimentos','R$ '+money(s.suprimentos)));
+    L.push(par('Sangrias','R$ '+money(s.sangrias)));
   });
-  if((mov.semForma||0)+(mov.descoberto||0)>0.01)
-    L.push(par('SEM FORMA','R$ '+money((mov.semForma||0)+(mov.descoberto||0))));
-  L.push({tipo:'linha'});
-  L.push(par('TOTAL DE VENDAS','R$ '+money(mov.total||0)));
-  L.push(par('Qtd. de vendas',String(mov.qtd||0)));
-  var canc=(DB.pedidos||[]).filter(function(p){return p.caixaId===cx.id&&ehCancelado(p)});
-  if(canc.length)
-    L.push(par('Cancelamentos','('+canc.length+') R$ '+
-      money(canc.reduce(function(a,p){return a+(Number(p.total)||0)},0))));
-  L.push({tipo:'linha'});
-  L.push({txt:'DINHEIRO NA GAVETA',n:true});
-  L.push(par('Abertura','R$ '+money(cx.inicial||0)));
-  L.push(par('Vendas em dinheiro','R$ '+money(mov.dinheiro||0)));
-  var sup=totalMov(cx,'suprimento'), san=totalMov(cx,'sangria');
-  if(sup>0.001)L.push(par('Suprimentos','+ R$ '+money(sup)));
-  if(san>0.001)L.push(par('Sangrias','- R$ '+money(san)));
-  L.push(par('ESPERADO','R$ '+money(cx.esperado||0)));
-  L.push(par('INFORMADO','R$ '+money(cx.contado||0)));
-  var dif=+((Number(cx.contado)||0)-(Number(cx.esperado)||0)).toFixed(2);
-  L.push(par('DIFERENCA',(Math.abs(dif)<0.01?'R$ 0,00'
-    :(dif>0?'+ ':'- ')+'R$ '+money(Math.abs(dif)))));
-  var temOutras=(DB.formasPag||[]).some(function(f){
-    return f.tipo!=='dinheiro'&&conf[f.id]!==undefined&&conf[f.id]!==null; });
-  if(temOutras){
-    L.push({tipo:'linha'});
-    L.push({txt:'CONFERENCIA POR FORMA',n:true});
-    (DB.formasPag||[]).forEach(function(f){
-      if(f.tipo==='dinheiro')return;
-      var i=conf[f.id]; if(i===undefined||i===null)return;
-      var e=Number(esp[f.id])||0, d=+(Number(i)-e).toFixed(2);
-      L.push(par(f.nome,'R$ '+money(i)));
-      L.push({txt:'   sistema R$ '+money(e)+'  dif '+
-        (Math.abs(d)<0.01?'0,00':(d>0?'+':'-')+money(Math.abs(d))),p:true});
+
+  /* --- cartao e pix --- */
+  var outras=s.formas.filter(function(f){return !f.troco});
+  if(outras.length){
+    bloco('CARTAO / PIX');
+    outras.forEach(function(f){
+      L.push({txt:f.nome,n:true});
+      L.push(par('  Sistema','R$ '+money(f.sistema)));
+      L.push(par('  Fisico',f.fisico===null?'nao informado':'R$ '+money(f.fisico)));
+      L.push(par('  Diferenca',f.diferenca===null?'-'
+        :(Math.abs(f.diferenca)<0.01?'R$ 0,00'
+          :(f.diferenca>0?'+ ':'- ')+'R$ '+money(Math.abs(f.diferenca)))));
     });
   }
-  if(cx.obs){
-    L.push({tipo:'linha'});
-    L.push({txt:'Observacao:',n:true});
-    String(cx.obs).match(new RegExp('.{1,'+cols+'}','g'))
+
+  /* --- totais e conciliacao (itens 16 e 5) --- */
+  bloco('TOTAIS');
+  L.push(par('TOTAL SISTEMA','R$ '+money(s.totalSistema)));
+  L.push(par('TOTAL INFORMADO','R$ '+money(s.totalFisico)));
+  var dg=Number(s.diferencaTotal)||0;
+  L.push(par('DIFERENCA GERAL',(Math.abs(dg)<0.01?'R$ 0,00'
+    :(dg>0?'+ ':'- ')+'R$ '+money(Math.abs(dg)))));
+  if(s.divergenciaEntreFormas){
+    L.push({txt:' '});
+    L.push({txt:'FECHAMENTO TOTAL CONCILIADO',al:'c',n:true});
+    L.push({txt:'DIVERGENCIA ENTRE FORMAS: SIM',al:'c',p:true});
+    L.push({txt:'nenhuma venda foi alterada',al:'c',p:true});
+  }
+
+  /* --- faturamento, que nao se confunde com gaveta (itens 1 a 3) --- */
+  bloco('FATURAMENTO');
+  L.push(par('Vendas do turno','R$ '+money(s.faturamento)));
+  L.push(par('Qtd. de vendas',String(s.qtdVendas||0)));
+  if(s.canceladas)
+    L.push(par('Cancelamentos','('+s.canceladas+') R$ '+money(s.vCanceladas)));
+  if(s.semForma>0.01)
+    L.push(par('SEM FORMA','R$ '+money(s.semForma)));
+  L.push({txt:'abertura, sangria e suprimento nao entram',p:true});
+  L.push({txt:'no faturamento',p:true});
+
+  /* --- sangrias e suprimentos detalhados (item 17) --- */
+  if((s.movimentos||[]).length){
+    bloco('SANGRIAS E SUPRIMENTOS');
+    s.movimentos.forEach(function(m){
+      L.push(par(m.hora+' '+(m.tipo==='sangria'?'Sangria':'Suprimento'),
+        (m.tipo==='sangria'?'- ':'+ ')+'R$ '+money(m.valor)));
+      if(m.motivo)L.push({txt:'  '+String(m.motivo).slice(0,cols-2),p:true});
+      if(m.descricao&&m.descricao!==m.motivo)
+        L.push({txt:'  '+String(m.descricao).slice(0,cols-2),p:true});
+      if(m.destino)L.push({txt:'  Destino: '+String(m.destino).slice(0,cols-11),p:true});
+      if(m.responsavel)L.push({txt:'  Operador: '+String(m.responsavel).slice(0,cols-12),p:true});
+    });
+  }
+
+  if(s.fundoProximo>0.001){
+    bloco('FUNDO DO PROXIMO CAIXA');
+    L.push(par('Deixado na gaveta','R$ '+money(s.fundoProximo)));
+  }
+
+  if(s.observacao){
+    bloco('OBSERVACAO');
+    String(s.observacao).match(new RegExp('.{1,'+cols+'}','g'))
       .forEach(function(t){L.push({txt:t,p:true})});
   }
+
   L.push({tipo:'linha'});
+  if(reconstruido)
+    L.push({txt:'* fechamento anterior a V175: valores recalculados',p:true});
   L.push({txt:'Conferido por: ______________________',p:true});
   L.push({txt:' '});
-  L.push({txt:'Joia — '+new Date().toLocaleString('pt-BR'),al:'c',p:true});
+  L.push({txt:'Joia - emitido '+new Date().toLocaleString('pt-BR'),al:'c',p:true});
   return {linhas:L,cols:cols};
 }
 function imprimirFechamento(id){

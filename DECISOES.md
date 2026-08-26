@@ -4934,3 +4934,137 @@ todas as quatro acima.
 **Regra que fica:** campo que existe de um lado e não do outro já apareceu **dez
 vezes** neste sistema. Antes de comparar identificador de forma de pagamento em
 qualquer lugar novo, usar `formaDaTroco`/`f.troco` — nunca `f.id === 'dinheiro'`.
+
+## V176 — a lógica financeira do caixa, corrigida por inteiro
+
+Documento de origem: "Correção definitiva da lógica de caixa, fechamento, sangria
+e conciliação", 26 itens. O que segue é o registro do que estava errado e do que
+passou a valer. **Nada fora do PDV/caixa/financeiro foi tocado** (item 25).
+
+### Itens 1 a 3 — as três grandezas eram uma só
+
+O sistema tratava **faturamento**, **saldo físico da gaveta** e **fundo de caixa**
+como se fossem a mesma coisa em vários pontos. As fórmulas agora são explícitas e
+aparecem separadas na tela, no cupom e na fotografia:
+
+```
+FATURAMENTO      = vendas válidas (canceladas fora)
+DINHEIRO_ESPERADO = fundo + vendas_dinheiro + suprimentos − sangrias
+DIFERENÇA        = físico_informado − dinheiro_esperado
+```
+
+Abertura não é faturamento. Sangria não reduz faturamento. Suprimento não é venda.
+Os três aparecem escritos no comprovante, porque foi exatamente aí que a confusão
+aconteceu na conferência com o sistema antigo.
+
+### Item 5 — a diferença por forma não é a diferença do caixa
+
+**Este era o defeito central**, e o teste que o Rafael fez para prová-lo virou
+regra: se a soma das diferenças de cartão não espelha a do dinheiro, o problema
+não está na contagem.
+
+Uma venda no crédito lançada como dinheiro produz −5 no dinheiro e +5 no crédito.
+O dinheiro está todo lá. O sistema tratava isso como **falta de caixa** e o
+operador levava a culpa por um buraco que não existia.
+
+Agora são dois números com pesos diferentes: **diferença geral** (é ela que diz se
+falta dinheiro na loja) e **diferença por forma** (mostra onde a classificação
+errou). Quando a geral é zero e as formas divergem, o cabeçalho diz
+`FECHAMENTO TOTAL CONCILIADO / DIVERGÊNCIA ENTRE FORMAS: SIM`.
+
+### Item 6 — e nenhuma venda é alterada por causa disso
+
+Adivinhar qual pagamento foi lançado errado e reescrever o histórico seria pior
+que o problema. A divergência é **registrada**, não corrigida. Ajuste automático
+de venda histórica não existe e não vai existir sem autorização e trilha.
+
+### Itens 9 a 13 — a sangria não tinha para onde ir
+
+O defeito mais grave do módulo. A sangria mexia **só na gaveta**: R$ 500 saíam do
+caixa e não entravam em conta nenhuma. Dinheiro que evapora do sistema e reaparece,
+se reaparecer, como lançamento manual digitado dias depois — criando a **segunda
+metade** de uma operação que já tinha uma metade. Sangria contada duas vezes.
+
+Agora:
+
+- **motivo é lista fechada** (envio ao cofre, depósito, retirada administrativa,
+  pagamento autorizado, outro). Texto livre não se agrupa em relatório nenhum;
+- **destino é obrigatório**, escolhido entre as contas cadastradas da unidade;
+- a operação gera **um** lançamento `tipo:'transferencia'`, que o financeiro já
+  entende: soma no destino, subtrai na origem, **não entra em receita nem em
+  despesa**;
+- `lancarTransferenciaCaixa` procura por `ref` antes de criar. Chamada três vezes,
+  gera um lançamento (item 12);
+- sangria maior que o dinheiro da gaveta é recusada na hora.
+
+Suprimento é o mesmo caminho invertido: sai da conta escolhida, entra na gaveta.
+
+### Item 14 — o saldo final não vira fundo de amanhã sozinho
+
+Quem deixa R$ 200 e manda R$ 300 ao cofre precisa poder dizer isso. O fechamento
+tem campo próprio e a abertura seguinte **sugere** — não impõe — o valor declarado.
+Começar de zero por padrão fazia o caixa nascer com sobra inexplicável.
+
+### Itens 15 a 18 — o cupom
+
+Bobina térmica, no formato da referência: cabeçalho com unidade/caixa/turno/
+operador; **DINHEIRO com a composição embaixo** (fundo, vendas, suprimentos,
+sangrias — "Sistema R$ 1.350,05" sozinho não diz nada a quem confere);
+CARTÃO/PIX; TOTAIS com diferença geral; FATURAMENTO com o lembrete de que abertura
+e sangria não entram; e **SANGRIAS detalhadas** com horário, motivo, destino e
+operador.
+
+### Item 19 — a fotografia do fechamento
+
+A reimpressão **recalculava** a partir dos dados de hoje. Uma venda cancelada na
+semana seguinte mudava o cupom antigo — que já estava assinado e arquivado.
+Comprovante que muda depois de emitido não prova nada.
+
+`montarSnapshot()` congela tudo no instante da confirmação: esperado e informado
+por forma, diferenças, sangrias com motivo e destino, quem abriu, quem fechou,
+horários. A reimpressão lê de lá. Caixa fechado antes da V176 não tem fotografia:
+nesses casos a conta é refeita e **o cupom avisa que foi reconstruído**.
+
+Editar um fechamento refaz a fotografia, mas **guarda a anterior** com quem alterou
+e quando. Sem isso, ajustar o informado para bater com o esperado faria a diferença
+desaparecer da história da loja.
+
+### Itens 7, 8 e 20 — travas no banco
+
+- `tg_pagamento_nao_duplica` (V175): gêmeo que estouraria o total da venda é
+  recusado; pagamento dividido legítimo passa;
+- `tg_caixa_fechado_trava_movimento` (novo): caixa fechado não aceita movimento
+  novo, **não perde os que tem**, e valor/tipo são imutáveis. Uma sangria apagada
+  depois do fechamento faria o esperado subir R$ 500 sem nada na tela explicar —
+  e o operador levaria a culpa;
+- índices únicos por `ref_local` já existiam em pedidos, itens, pagamentos,
+  movimentos de caixa e lançamentos. Todos exercitados por teste.
+
+### Colunas novas
+
+`caixas`: `snapshot`, `esperado_por_forma`, `fundo_proximo`, `fechado_por`,
+`fechado_por_id`, `diferenca_total`, `conciliado`.
+`caixa_movimentos`: `destino_conta_id`, `destino_nome`, `responsavel_id`,
+`lanc_ref`, `hora`, `data_hora`.
+
+Todas sobem **e descem** no sync. Campo que sobe e não desce é o defeito que já
+apareceu dez vezes neste arquivo — a reimpressão de outro aparelho não acharia a
+fotografia e voltaria a recalcular.
+
+### Testes
+
+`testes/caixa.js`, ligado ao `npm test`. As funções de regra são **extraídas do
+index.html**, não copiadas: se alguém mudar `esperadoCaixa` ou `montarSnapshot`
+amanhã, o teste roda a versão nova e quebra.
+
+**53 de 53 no código** (testes A a E do item 21, sangria do 22, duplicidade do 23,
+estado do PDV do 24, base única do dinheiro, snapshot imutável, trilha de auditoria)
+e **9 de 9 no Postgres** (reenvio de venda, pagamento, sangria; caixa fechado
+contra exclusão, inserção e alteração).
+
+### O que continua em aberto
+
+A distribuição por forma do turno de 25/08 continua divergindo do sistema antigo
+mesmo depois de tudo isto: o Joia registrou R$ 758 em dinheiro onde a gaveta física
+tinha R$ 174. **Não é defeito de fechamento** — é a forma de pagamento sendo
+gravada errada no momento da venda. É a próxima obra, e é maior que as 26 acima.
