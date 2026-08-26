@@ -67,5 +67,59 @@ for (const a of alvos) {
   }
 }
 
-if (falhas) { console.log('\n  REPROVADO — erro de sintaxe ou funcao duplicada.\n'); process.exit(1); }
+
+/* ==========================================================
+   FUNCAO CHAMADA QUE NAO EXISTE (regressao real da V179)
+
+   `fundoSugerido()` foi apagada por engano num recorte de texto, e
+   `abrirCaixa()` continuou chamando. O botao ABRIR FRENTE DE CAIXA
+   parou de responder e a loja nao conseguia vender.
+
+   Nenhuma verificacao anterior pegava isto: `node --check` valida
+   sintaxe, e a varredura de duplicadas procura nome REPETIDO, nao nome
+   que sumiu. Um ReferenceError so aparece quando alguem clica.
+
+   Esta varredura pega antes. Ela cobre as funcoes do caminho critico —
+   as que, se sumirem, param a operacao.
+   ========================================================== */
+const CRITICAS = [
+  'abrirCaixa','_abrirCaixa','fecharCaixa','movCaixa','_movCaixa','protegido','falhouNaTela',
+  'fundoSugerido','montarSnapshot','esperadoCaixa','movimentoCaixa','totalMov',
+  'perguntaImprimirFechamento','imprimirFechamento','linhasFechamento',
+  'lancarFechamento','lancarTransferenciaCaixa','definirSenhaOperador',
+  'moedaHTML','moedaValor','moedaSet','moedaLer','moedaFmt','arred',
+  'addPag','recalcPag','finalizarVenda','travarFecharVenda','liberarFecharVenda',
+  'lojaAtual','lojaAtualId','baseSuc','soSemente','unidadeDoPerfil','podeTrocarUnidade',
+  'dadosDoCaixa','verCaixa','imprimirRelatorioCaixa','rodarHealthCheck','pintaHealth',
+  'temSenhaCadastrada','carregarQuemTemSenha','motivoSemOperador','listaDeSenhasOk',
+  'travarOperacao','liberarOperacao','operadoresPara','autorizar',
+  'hashSenhaLocal','conferirSenhaLocal','tecladoTouchAbrir','tecladoTouchFechar'
+];
+
+for (const a of alvos) {
+  if (!fs.existsSync(a.arq)) continue;
+  const fonte = fs.readFileSync(a.arq, 'utf8');
+  const codigo = [...fonte.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)]
+    .map(m => m[1]).join('\n;\n');
+  /* declarada como function, ou atribuida a uma var (o caso do alias protegido) */
+  const declarada = (n) =>
+    new RegExp('(?:^|\\n)\\s*(?:async\\s+)?function\\s+' + n + '\\s*\\(').test(codigo) ||
+    new RegExp('(?:var|let|const)\\s+' + n + '\\s*=').test(codigo);
+  const sumidas = CRITICAS.filter(n => !declarada(n));
+  /* e as que sao CHAMADAS mas nunca declaradas em lugar nenhum */
+  const chamadas = new Set();
+  for (const m of codigo.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g)) chamadas.add(m[1]);
+  const orfas = CRITICAS.filter(n => chamadas.has(n) && !declarada(n));
+
+  if (sumidas.length) {
+    console.log('   FALHA ' + path.basename(a.arq) +
+      ' — funcao(oes) critica(s) que nao existem: ' + sumidas.join(', '));
+    falhas++;
+  } else {
+    console.log('   ok    ' + CRITICAS.length + ' funcoes criticas presentes' +
+      (orfas.length ? ' (orfas: ' + orfas.join(', ') + ')' : ''));
+  }
+}
+
+if (falhas) { console.log('\n  REPROVADO — erro de sintaxe, funcao duplicada ou funcao ausente.\n'); process.exit(1); }
 console.log('\n  Sintaxe OK.\n');

@@ -17982,7 +17982,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V184.0.0';
+var VERSAO='V185.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25500,6 +25500,7 @@ function pedeSenhaMov(){
   box.style.display=temSenhaCadastrada(op)?'':'none';
   if(temSenhaCadastrada(op)){var i=$('mvSenha');if(i){i.value='';i.focus();}}
 }
+var movCaixa=protegido('sangria/suprimento', _movCaixa);
 /* ==========================================================
    MOTIVOS DE SANGRIA E SUPRIMENTO
 
@@ -25578,7 +25579,7 @@ function lancarTransferenciaCaixa(cx,mv,tipo){
   mv.lancRef=l.id;
   return l;
 }
-async function movCaixa(tipo){
+async function _movCaixa(tipo){
   var cx=caixaAberto();if(!cx)return;
   if(!operadoresPara(tipo).length){
     /* nao mentir: se a lista de senhas nao carregou, o problema e outro */
@@ -25832,9 +25833,80 @@ function perguntaImprimirFechamento(cx){
     sv('print2',13)+' Imprimir fechamento</button></div></div>';
   document.body.appendChild(o);
 }
+/* ==========================================================
+   ESTA FUNCAO FOI APAGADA POR ENGANO NA V179 — E DERRUBOU O CAIXA
+
+   `fundoSugerido()` nasceu na V176 para a abertura sugerir o valor que
+   o fechamento anterior declarou deixar na gaveta. Na V179, ao remover
+   a tela intermediaria de conferencia, eu recortei um trecho maior do
+   que devia e levei esta funcao junto.
+
+   `abrirCaixa()` continuou chamando. Efeito no balcao: o botao ABRIR
+   FRENTE DE CAIXA parou de responder — e a loja nao conseguia vender.
+
+   Duas licoes que ficam, as duas minhas:
+
+   1. Recorte por indice de texto e perigoso. O corte foi de "inicio de
+      resultadoFechamento" ate "inicio de perguntaImprimirFechamento", e
+      no meio havia codigo que nao era de nenhuma das duas.
+
+   2. Pior que o corte foi eu ter tornado `abrirCaixa` async na V182.
+      Erro dentro de funcao async nao aparece na tela: a Promise falha
+      calada. Antes, este ReferenceError teria estourado visivelmente na
+      primeira vez que alguem abrisse o caixa. Depois da minha mudanca,
+      o botao so ficou mudo — e ninguem soube por que.
+
+   A trava contra funcao duplicada, que entrou na V182, nao pegaria
+   isto: ela procura nome repetido, nao nome que sumiu. Por isso agora
+   ha um teste que chama cada funcao usada por `abrirCaixa`.
+   ========================================================== */
+var abrirCaixa=protegido('abrir frente de caixa', _abrirCaixa);
+function fundoSugerido(){
+  var suc=lojaAtualId();
+  var fech=(DB.caixas||[]).filter(function(c){
+    return c.fechadoEm&&(!c.sucursalId||!suc||c.sucursalId===suc);
+  });
+  if(!fech.length)return 0;
+  var ult=fech[fech.length-1];
+  return +(Number(ult.fundoProximo)||0).toFixed(2);
+}
 function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
   toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
-async function abrirCaixa(){
+/* ==========================================================
+   FUNCAO ASYNC NAO PODE FALHAR CALADA (regressao da V182)
+
+   `abrirCaixa` e `movCaixa` viraram async na V182 para poderem esperar
+   a lista de autorizacoes. O efeito colateral quase parou a loja:
+   erro dentro de funcao async nao estoura na tela — a Promise rejeita
+   em silencio e o botao simplesmente nao responde.
+
+   Foi assim que um `ReferenceError` de uma funcao apagada por engano
+   ficou invisivel: o operador clicava em ABRIR FRENTE DE CAIXA e nada
+   acontecia, sem nenhuma pista do motivo.
+
+   `protegido()` devolve o erro para a superficie: registra no
+   Diagnostico e mostra ao operador uma frase que ele pode repassar.
+   Nao esconde nada — faz o contrario.
+   ========================================================== */
+function protegido(nome, fn){
+  return function(){
+    var args=arguments;
+    try{
+      var r=fn.apply(null,args);
+      if(r&&typeof r.catch==='function')
+        r.catch(function(e){ falhouNaTela(nome,e); });
+      return r;
+    }catch(e){ falhouNaTela(nome,e); }
+  };
+}
+function falhouNaTela(nome,e){
+  _quieto(e,nome);
+  var det=String((e&&e.message)||e).slice(0,90);
+  try{
+    toast('Não consegui abrir "'+nome+'". Avise o suporte com esta frase: '+det);
+  }catch(x){ alert('Falha em '+nome+': '+det); }
+}
+async function _abrirCaixa(){
   if(caixaAberto()){toast('Já existe um caixa aberto. Feche-o antes de abrir outro.');return;}
   baseOper();baseTurnos();
   /* so quem pode abrir caixa aparece na lista (item 12) */
