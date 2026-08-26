@@ -342,6 +342,82 @@ grupo('Teste 9 · fechado continua fechado após F5');
   t('após F5, continua fechado', rodar(DB) === null);
 }
 
+grupo('Item 4 · cobertura da migração');
+
+{
+  /* nenhum campo de dinheiro pode ter ficado com type="number" — a
+     excecao e o custo de insumo, que tem 4 casas e esta documentada */
+  const restantes = (fonte.match(/R\$<\/span><input[^>]*type="number"/g) || []);
+  t('restam no máximo 2 campos R$ com type="number"', restantes.length <= 2,
+    restantes.length + ' campo(s)');
+  t('e os que restam são o custo de 4 casas e o total só-leitura',
+    restantes.every(x => /ntItVl|lnVp/.test(x)), restantes.join(' | '));
+  t('o custo de 4 casas tem o motivo escrito no código',
+    /ESTE CAMPO NAO USA O COMPONENTE DE DINHEIRO — DE PROPOSITO/.test(fonte));
+
+  const migrados = [
+    ['PDV · taxa', /id="pgTaxa"[^>]*class="moeda"|class="moeda" '\+\s*'placeholder="0,00" value="'\+\s*\(function/],
+    ['PDV · desconto', /id="pgDesc"/],
+    ['PDV · valor por forma', /class="moeda pgV"/],
+    ['fechamento · conferência', /class="moeda cfV"/],
+    ['abertura de caixa', /moedaHTML\(\{id:'cxIni'/],
+    ['sangria e suprimento', /moedaHTML\(\{id:'mvV'/],
+    ['fundo do próximo caixa', /moedaHTML\(\{id:'fcFundo'/],
+    ['editar fechamento', /class="moeda ecV"/],
+    ['cardápio · preço na grade', /class="moeda pPreco"/],
+    ['produto · preço de venda', /id="pPreco"/],
+    ['variações · preço', /class="moeda prPreco"/],
+    ['grupos de opção · preço', /class="moeda goP"/],
+    ['entregador · taxa por cidade', /class="moeda txV"/],
+    ['acerto · desconto e acréscimo', /id="acDesc"[\s\S]{0,400}id="acAcr"/],
+    ['forma de pagamento · taxa fixa', /id="fpTf"/],
+    ['transferência entre contas', /id="trV"/],
+    ['cliente · limite de fiado', /id="k2L"/],
+    ['fiado · valor a pagar', /id="pfV"/],
+    ['nota de entrada · desconto', /id="ntItDs"/]
+  ];
+  migrados.forEach(([nome, re1]) => {
+    t(nome + ' usa o componente', re1.test(fonte));
+  });
+
+  /* e os leitores acompanharam: parseFloat direto em campo de dinheiro
+     e o defeito que a migracao existe para eliminar */
+  const sobrou = ['acDesc','acAcr','fpTf','trV','k2L','pfV','ntItDs','pPreco','cxIni','mvV','fcFundo']
+    .filter(id => new RegExp("parseFloat\\(\\$\\('" + id + "'\\)").test(fonte));
+  t('nenhum leitor migrado ainda usa parseFloat', sobrou.length === 0, sobrou.join(', '));
+  t('mudarPreco lê pelo componente', /p\.preco=moedaLer\(v\)/.test(fonte));
+  t('taxas por cidade leem pelo componente', /valor:moedaValor\(v\[i\]\)/.test(fonte));
+  t('opções leem pelo componente', /preco:moedaValor\(p\[i\]\)/.test(fonte));
+}
+
+grupo('PDV · digitar não é atrapalhado pelo redesenho a cada tecla');
+
+{
+  t('o campo em edição mantém o texto cru',
+    /_pgEditando===i\)\?_pgTexto/.test(fonte));
+  t('os demais saem formatados em pt-BR',
+    /_pgEditando===i\)\?_pgTexto:\(\(Number\(p\.valor\)\|\|0\)\?money\(p\.valor\)/.test(fonte));
+  t('e data-v carrega o valor real nos dois casos',
+    /data-v="'\+\(Number\(p\.valor\)\|\|0\)\+'" data-i/.test(fonte));
+  t('sair do campo encerra a edição', /vs\[i\]\.onblur[\s\S]{0,180}_pgEditando=null/.test(fonte));
+  t('o valor da forma é lido com moedaLer', /_pagos\[idx\]\.valor=moedaLer\(this\.value\)/.test(fonte));
+
+  /* simula digitar "18" com o redesenho no meio */
+  let editando = null, texto = '', valor = 0;
+  const teclar = (d) => {
+    texto = (editando === 0 ? texto : '') + d;
+    editando = 0;
+    valor = M.moedaLer(texto);
+    /* redesenho: o campo em edicao volta com o texto cru */
+    return (editando === 0) ? texto : (valor ? M.moedaFmt(valor) : '');
+  };
+  t('digitar 1 mostra "1"', teclar('1') === '1');
+  t('digitar 8 em seguida mostra "18", não "1,00"', teclar('8') === '18');
+  t('e o valor é 18', perto(valor, 18));
+  editando = null;
+  t('ao sair, formata para 18,00', M.moedaFmt(valor) === '18,00');
+}
+
 /* ---------- resultado ---------- */
 console.log('\n' + '═'.repeat(52));
 console.log('Joia ' + versaoDoSistema() + ' · UX do PDV e relatório');

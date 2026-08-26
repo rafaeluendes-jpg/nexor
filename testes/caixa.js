@@ -376,12 +376,12 @@ grupo('PDV · tocar outra forma troca, não cria linha morta');
   const rodar = (formaNova, total, lista) => {
     pagos = lista;
     avisos = [];
-    new Function('_pagos', '_totPag', 'FORMAS', '$', 'valorDesconto',
+    new Function('_pagos', '_totPag', 'FORMAS', '$', 'valorDesconto', 'moedaValor',
       'recalcPag', 'toast', 'f', `${codigoAdd}\n addPag(f);`)(
       pagos, total,
       [{ id: 'fp_dinheiro', n: 'Dinheiro' }, { id: 'fp_debito', n: 'Cartão débito' },
        { id: 'fp_credito', n: 'Cartão crédito' }],
-      () => ({ value: '0' }), () => 0, () => {}, m => avisos.push(m), formaNova);
+      () => ({ value: '0' }), () => 0, () => 0, () => {}, m => avisos.push(m), formaNova);
     return pagos;
   };
 

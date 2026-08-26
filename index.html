@@ -17860,7 +17860,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V179.0.0';
+var VERSAO='V180.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18570,7 +18570,7 @@ function renderProdutos(){
       h+='<tr draggable="true" data-id="'+p.id+'">'+
       '<td><div class="pNome"><span class="grip">⠿</span><span class="txt"><b>'+E(p.nome)+'</b>'+
       '<small>'+(c2?E(c2.nome):'sem categoria')+(p.codigo?' · cód. '+E(p.codigo):'')+'</small></span></div></td>'+
-      '<td><div class="cur" style="width:118px"><span>R$</span><input class="pPreco" type="number" step="0.01" value="'+(p.preco||0)+'" onchange="mudarPreco(\''+p.id+'\',this.value)"></div></td>'+
+      '<td><div class="cur" style="width:118px"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda pPreco" value="'+((p.preco||0)?money(p.preco):'')+'" onchange="mudarPreco(\''+p.id+'\',this.value)"></div></td>'+
       '<td><button class="dispBtn" data-pop="1" onclick="menuCanais(event,\''+p.id+'\')"><span>'+resumoCanais(p)+'</span>'+sv('dn',13)+'</button></td>'+
       '<td><div style="display:flex;align-items:center;gap:8px">'+
       '<button class="sw'+(p.ativo!==false?' on':'')+'" onclick="toggleProd(\''+p.id+'\')"></button>'+
@@ -18597,7 +18597,7 @@ function resumoCanais(p){
 }
 function mudarPreco(id,v){
   var p=DB.produtos.find(function(x){return x.id===id});
-  p.preco=parseFloat(v)||0;salvar();
+  p.preco=moedaLer(v);salvar();
   toast('Preço atualizado em todos os canais.');
 }
 function toggleProd(id){
@@ -18797,7 +18797,7 @@ function abaDados(){
   $('fpBody').innerHTML='<div class="blk"><h3>Dados do produto</h3>'+
   '<div class="row2">'+
   '<div class="fld2"><label>Nome do produto *</label><input id="pNome" value="'+E(p.nome)+'" placeholder="Insira o nome deste produto"></div>'+
-  '<div class="fld2"><label>Preço de venda</label><div class="cur"><span>R$</span><input id="pPreco" type="number" step="0.01" value="'+(p.preco||0)+'"></div></div>'+
+  '<div class="fld2"><label>Preço de venda</label><div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="pPreco" value="'+((p.preco||0)?money(p.preco):'')+'"></div></div>'+
   '</div>'+
   '<label class="chkL"><input type="checkbox" id="pPesado" '+(p.pesado?'checked':'')+'>'+
   '<span>Este produto é pesado em balança ou vendido em meia porção</span></label>'+
@@ -18900,7 +18900,7 @@ function abaDisp(){
     '<div class="fld2" style="margin:0"><label>Canal</label><input value="'+(canal?canal.n:pr.canal)+'" disabled style="background:#fff"></div>'+
     '<div class="fld2" style="margin:0"><label>Preço original</label><input value="R$ '+money(p.preco)+'" disabled style="background:#fff"></div>'+
     '<div class="fld2" style="margin:0"><label>Preço promocional</label>'+
-    '<div class="cur"><span>R$</span><input class="prPreco" data-i="'+i+'" type="number" step="0.01" value="'+(pr.preco||0)+'"></div></div>'+
+    '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda prPreco" data-i="'+i+'" value="'+((pr.preco||0)?money(pr.preco):'')+'"></div></div>'+
     '</div>'+
     '<div class="fld2" style="margin-bottom:9px"><label>Dias da semana</label><div class="dias">'+
     DIAS.map(function(d,di){return '<button class="diaBtn'+((pr.dias||[]).indexOf(di)>=0?' on':'')+'" onclick="toggleDia('+i+','+di+')">'+d+'</button>'}).join('')+
@@ -18925,7 +18925,7 @@ function toggleDia(i,d){
 function lerFormProduto(){
   var p=_prod;if(!p)return;
   if($('pNome'))p.nome=$('pNome').value;
-  if($('pPreco'))p.preco=parseFloat($('pPreco').value)||0;
+  if($('pPreco'))p.preco=moedaValor('pPreco');
   if($('pPesado'))p.pesado=$('pPesado').checked;
   var rv=document.querySelector('input[name=pvar]:checked');
   if(rv)p.variacao=rv.value==='sim';
@@ -18947,7 +18947,7 @@ function lerFormProduto(){
     else p.cst=soDigitos($('pdCst').value);
   }
   var pp=document.querySelectorAll('.prPreco');
-  for(var k=0;k<pp.length;k++)p.promocoes[pp[k].getAttribute('data-i')].preco=parseFloat(pp[k].value)||0;
+  for(var k=0;k<pp.length;k++)p.promocoes[pp[k].getAttribute('data-i')].preco=moedaValor(pp[k]);
   var pd=document.querySelectorAll('.prDe');
   for(var m=0;m<pd.length;m++)p.promocoes[pd[m].getAttribute('data-i')].de=pd[m].value;
   var pa=document.querySelectorAll('.prAte');
@@ -19088,7 +19088,7 @@ function renderOps(){
        ========================================================== */
     return '<div class="opRow2">'+
     '<input value="'+E(o.nome)+'" placeholder="nome da opção" class="goN">'+
-    '<div class="cur" style="width:118px"><span>R$</span><input type="number" step="0.01" value="'+(o.preco||0)+'" class="goP"></div>'+
+    '<div class="cur" style="width:118px"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda goP" value="'+((o.preco||0)?money(o.preco):'')+'"></div>'+
     /* ==========================================================
        LISTA DE 139 FICHAS NAO CABE NUM SELECT
 
@@ -19117,7 +19117,7 @@ function lerOps(){
     if(txt.trim()&&!fid)toast('Não achei a ficha "'+txt.trim()+'" — a opção ficou sem baixa de estoque.');
     _gops.push({
       id:(antes[i]&&antes[i].id)||undefined,
-      nome:n[i].value,preco:parseFloat(p[i].value)||0,
+      nome:n[i].value,preco:moedaValor(p[i]),
       fichaId:fid});
   }
 }
@@ -24477,7 +24477,7 @@ function trocaZonaPDV(zid){
   if(z){
     PDV.cliente.zona=z.nome;
     if(!PDV.cliente.cidade)PDV.cliente.cidade=z.cidade;
-    if($('pgTaxa')){$('pgTaxa').value=Number(z.taxa)||0;recalcPag();}
+    if($('pgTaxa')){moedaSet('pgTaxa',Number(z.taxa)||0,true);recalcPag();}
   }
   /* guarda no cadastro do cliente, para a próxima venda vir sozinha */
   var cli=(DB.clientes||[]).find(function(x){return x.id===PDV.cliente.id});
@@ -24522,11 +24522,13 @@ function irPagamento(){
    :'')+
   '<div class="fld2" style="margin:0"><label>'+
    (PDV.mesaPag?'Taxa de serviço':'Taxa de entrega')+'</label><div class="cur"><span>R$</span>'+
-  '<input id="pgTaxa" type="number" step="0.01" value="'+
-   (PDV.mesaPag?((MESA_PAG&&MESA_PAG.taxa)||0)
+  '<input id="pgTaxa" type="text" inputmode="decimal" autocomplete="off" class="moeda" '+
+  'placeholder="0,00" value="'+
+   (function(_t){return _t?money(_t):''})(PDV.mesaPag?((MESA_PAG&&MESA_PAG.taxa)||0)
     :(PDV.tipo==='entrega'?taxaSugerida():0))+'">'+
   (PDV.tipo==='entrega'?blocoZona():'')+'</div></div>'+
-  '<div class="fld2" style="margin:0"><label>Desconto</label>'+'<div class="descBox">'+'<div class="segm2"><button id="dRS" class="on" onclick="tipoDesc(\'rs\')">R$</button>'+'<button id="dPC" onclick="tipoDesc(\'pc\')">%</button></div>'+'<input id="pgDesc" type="number" step="0.01" value="0"></div>'+'<div class="hint" id="descInfo"></div></div></div>'+
+  '<div class="fld2" style="margin:0"><label>Desconto</label>'+'<div class="descBox">'+'<div class="segm2"><button id="dRS" class="on" onclick="tipoDesc(\'rs\')">R$</button>'+'<button id="dPC" onclick="tipoDesc(\'pc\')">%</button></div>'+'<input id="pgDesc" type="text" inputmode="decimal" autocomplete="off" class="moeda" '+
+  'placeholder="0,00" value=""></div>'+'<div class="hint" id="descInfo"></div></div></div>'+
   '<div class="linha tot"><span>Total a pagar</span><span id="pgTot">R$ '+money(tot)+'</span></div></div>'+
   '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Forma de pagamento</h3>'+
   '<div class="pgGrid">'+FORMAS.map(function(f){
@@ -24556,7 +24558,7 @@ function irPagamento(){
   modal('Pagamento',h,'Finalizar venda',function(){
     /* uma venda por vez: clique duplo nao gera dois pedidos */
     if(!travarFecharVenda()){toast('Aguarde — a venda está sendo fechada.');return false;}
-    var taxa=parseFloat($('pgTaxa').value)||0,desc=valorDesconto();
+    var taxa=moedaValor('pgTaxa'),desc=valorDesconto();
     var final=tot+taxa-desc;
     var somaPg=_pagos.reduce(function(a,p){return a+p.valor},0);
     if(!_pagos.length){toast('Selecione ao menos uma forma de pagamento.');liberarFecharVenda();return false;}
@@ -24713,7 +24715,7 @@ function irPagamento(){
   var pc=$('pgCidade');
   if(pc)pc.onchange=function(){
     var op=this.options[this.selectedIndex];
-    $('pgTaxa').value=op.getAttribute('data-v')||0;
+    moedaSet('pgTaxa',Number(op.getAttribute('data-v'))||0,true);
     recalcPag();
   };
   recalcPag();
@@ -24726,17 +24728,17 @@ function tipoDesc(t){
   recalcPag();
 }
 function valorDesconto(){
-  var v=parseFloat($('pgDesc').value)||0;
+  var v=moedaValor('pgDesc');
   var d=(_tpDesc==='pc')?+(_totPag*v/100).toFixed(2):v;
   if(_cupomAtivo)d+=valorCupom(_cupomAtivo,_totPag);
   return +d.toFixed(2);
 }
 function recalcPag(){
-  var taxa=parseFloat($('pgTaxa').value)||0,desc=valorDesconto();
+  var taxa=moedaValor('pgTaxa'),desc=valorDesconto();
   var final=_totPag+taxa-desc;
   var di=$('descInfo');
   if(di)di.textContent=_tpDesc==='pc'
-    ?(parseFloat($('pgDesc').value)||0)+'% sobre R$ '+money(_totPag)+' = R$ '+money(desc)
+    ?money(moedaValor('pgDesc'))+'% sobre R$ '+money(_totPag)+' = R$ '+money(desc)
     :(desc?'desconto de R$ '+money(desc):'sem desconto');
   $('pgTot').textContent='R$ '+money(final);
   var pago=_pagos.reduce(function(a,p){return a+p.valor},0);
@@ -24782,8 +24784,21 @@ function recalcPag(){
       (daTroco?'<small class="pgRot">recebido</small>':'')+
       (zero?'<small class="pgRot" style="color:var(--red)">sem valor</small>':'')+'</b>'+
     '<div class="cur" style="width:126px"><span>R$</span>'+
-     '<input type="number" step="0.01" inputmode="decimal" value="'+p.valor+'" '+
-     'data-i="'+i+'" class="pgV"></div>'+
+     /* ==========================================================
+        O CAMPO EM EDICAO NAO PODE SER FORMATADO POR BAIXO
+
+        `recalcPag` redesenha esta lista a CADA TECLA. Se o campo que
+        esta sendo digitado voltasse formatado, quem digita "18" veria
+        "1,00" depois do primeiro toque e nao conseguiria terminar o
+        numero.
+
+        Entao: o campo com o foco mantem o texto cru que a pessoa
+        digitou; os outros saem formatados em pt-BR. `data-v` carrega
+        o valor de verdade nos dois casos.
+        ========================================================== */
+     '<input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" '+
+     'value="'+((_pgEditando===i)?_pgTexto:((Number(p.valor)||0)?money(p.valor):''))+'" '+
+     'data-v="'+(Number(p.valor)||0)+'" data-i="'+i+'" class="moeda pgV"></div>'+
     '<button class="qtBtn rd2" onclick="remPag('+i+')">'+sv('trash',13)+'</button></div>';
   }).join('')+
   (_pagos.length
@@ -24796,24 +24811,42 @@ function recalcPag(){
     :'');
   var vs=document.querySelectorAll('.pgV');
   for(var i=0;i<vs.length;i++){
-    /* le a cada tecla: nao depende de sair do campo */
+    /* le a cada tecla: nao depende de sair do campo.
+       `moedaLer` aceita virgula, ponto e milhar — o operador que digita
+       "1.234,56" na correria nao perde os centavos, que era o que
+       `parseFloat` fazia calado. */
     vs[i].oninput=function(){
-      _pagos[this.getAttribute('data-i')].valor=parseFloat(this.value)||0;
-      var pos=this.selectionStart, idx=this.getAttribute('data-i');
+      var idx=this.getAttribute('data-i');
+      _pgEditando=Number(idx); _pgTexto=this.value;
+      _pagos[idx].valor=moedaLer(this.value);
+      var pos=this.selectionStart;
       recalcPag();
       var novo=document.querySelector('.pgV[data-i="'+idx+'"]');
       if(novo){novo.focus(); try{novo.setSelectionRange(pos,pos);}catch(e){}}
     };
+    /* sair do campo devolve o texto formatado e encerra a edicao */
+    vs[i].onblur=function(){
+      _pagos[this.getAttribute('data-i')].valor=moedaLer(this.value);
+      _pgEditando=null; _pgTexto='';
+    };
+    vs[i].onfocus=function(){
+      _pgEditando=Number(this.getAttribute('data-i')); _pgTexto=this.value;
+    };
     /* ENTER confirma a venda direto do campo de valor */
     vs[i].onkeydown=function(ev){
-      if(ev.key==='Enter'){ ev.preventDefault();
-        _pagos[this.getAttribute('data-i')].valor=parseFloat(this.value)||0;
-        var b=document.querySelector('.mdF .btnP,.mdF .ok');
-        if(b)b.click();
-      }
+      if(ev.key!=='Enter')return;
+      ev.preventDefault();
+      _pagos[this.getAttribute('data-i')].valor=moedaLer(this.value);
+      _pgEditando=null; _pgTexto='';
+      if(typeof tecladoTouchFechar==='function')tecladoTouchFechar();
+      var b=document.querySelector('.mdF .btnP,.mdF .ok');
+      if(b)b.click();
     };
   }
 }
+/* qual campo de pagamento esta sendo digitado agora, e com que texto.
+   Sem isto, o redesenho a cada tecla formataria o numero pela metade. */
+var _pgEditando=null,_pgTexto='';
 /* ==========================================================
    O PRIMEIRO BOTAO TOCADO FICAVA COM A VENDA INTEIRA
 
@@ -24837,7 +24870,7 @@ function recalcPag(){
    explica.
    ========================================================== */
 function addPag(f){
-  var taxa=parseFloat($('pgTaxa').value)||0,desc=valorDesconto();
+  var taxa=moedaValor('pgTaxa'),desc=valorDesconto();
   var final=_totPag+taxa-desc;
   var pago=_pagos.reduce(function(a,p){return a+p.valor},0);
   var falta=+(final-pago).toFixed(2);
@@ -26588,7 +26621,7 @@ function renderTaxas(){
          ?'<option value="'+E(t.cidade)+'" selected>'+E(t.cidade)+' (fora das áreas)</option>':'')+
        '</select>'
       :'<input value="'+E(t.cidade)+'" placeholder="cidade" class="txC">')+
-    '<div class="cur" style="width:130px"><span>R$</span><input type="number" step="0.01" value="'+(t.valor||0)+'" class="txV"></div>'+
+    '<div class="cur" style="width:130px"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda txV" value="'+((t.valor||0)?money(t.valor):'')+'"></div>'+
     '<button onclick="remTaxa('+i+')">'+sv('trash',13)+'</button></div>';}).join('')
     :'<div class="hint">Nenhuma cidade nesta lista.</div>')+
    (cid.length
@@ -26600,7 +26633,7 @@ function renderTaxas(){
 }
 function lerTaxas(){
   var c=document.querySelectorAll('.txC'),v=document.querySelectorAll('.txV');
-  _taxasTmp=[];for(var i=0;i<c.length;i++)_taxasTmp.push({cidade:c[i].value,valor:parseFloat(v[i].value)||0});
+  _taxasTmp=[];for(var i=0;i<c.length;i++)_taxasTmp.push({cidade:c[i].value,valor:moedaValor(v[i])});
 }
 function addTaxa(){lerTaxas();_taxasTmp.push({cidade:'',valor:0});renderTaxas();}
 function puxarCidadesAreas(){
@@ -26787,9 +26820,9 @@ function modalRealizarAcerto(entId){
   '<div class="linha"><span>Subtotal</span><b>R$ '+money(r.aPagar)+'</b></div>'+
   '<div class="row2" style="margin-top:12px">'+
   '<div class="fld2" style="margin:0"><label>Descontos (adiantamento, avaria)</label>'+
-  '<div class="cur"><span>R$</span><input id="acDesc" type="number" step="0.01" value="0"></div></div>'+
+  '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="acDesc" value=""></div></div>'+
   '<div class="fld2" style="margin:0"><label>Acréscimos (ajuda de custo)</label>'+
-  '<div class="cur"><span>R$</span><input id="acAcr" type="number" step="0.01" value="0"></div></div></div>'+
+  '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="acAcr" value=""></div></div></div>'+
   '<div class="linha tot"><span>Valor a pagar</span><span id="acTot">R$ '+money(r.aPagar)+'</span></div></div>'+
 
   '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Conta de saída do dinheiro</h3>'+
@@ -26812,7 +26845,7 @@ function modalRealizarAcerto(entId){
   '</div></div>';
 
   modal('Realizar acerto — '+e.nome,h,'Confirmar pagamento',function(){
-    var desc=parseFloat($('acDesc').value)||0, acr=parseFloat($('acAcr').value)||0;
+    var desc=moedaValor('acDesc'), acr=moedaValor('acAcr');
     var pago=r.aPagar-desc+acr;
     if(pago<0){toast('O valor a pagar ficou negativo. Revise os descontos.');return false;}
     var ctSel=document.querySelector('input[name=ctA]:checked');
@@ -26848,7 +26881,7 @@ function modalRealizarAcerto(entId){
   },'lg');
 
   function rec(){
-    var d=parseFloat($('acDesc').value)||0,a=parseFloat($('acAcr').value)||0;
+    var d=moedaValor('acDesc'),a=moedaValor('acAcr');
     $('acTot').textContent='R$ '+money(r.aPagar-d+a);
   }
   $('acDesc').oninput=rec;$('acAcr').oninput=rec;
@@ -27384,7 +27417,7 @@ function modalForma(id){
   '<div class="fld2"><label>Taxa por transação (%)</label>'+
   '<div class="cur"><span>%</span><input id="fpTx" type="number" step="0.01" value="'+(f?(f.taxaPct||0):0)+'"></div></div>'+
   '<div class="fld2"><label>Taxa fixa por transação</label>'+
-  '<div class="cur"><span>R$</span><input id="fpTf" type="number" step="0.01" value="'+(f?(f.taxaFixa||0):0)+'"></div></div>'+
+  '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="fpTf" value="'+((f&&f.taxaFixa)?money(f.taxaFixa):'')+'"></div></div>'+
   '<div class="fld2"><label>Dias para recebimento</label><input id="fpD" type="number" value="'+(f?(f.dias||0):0)+'"></div>'+
   '</div>'+
   '<div class="hint">Ex.: crédito com 3,49% e recebimento em 30 dias. Em dinheiro e Pix, deixe 0.</div></div>'+
@@ -27408,7 +27441,7 @@ function modalForma(id){
     if(nome.length<2){toast('A descrição precisa de pelo menos 2 caracteres.');return false;}
     var ct=document.querySelector('input[name=fpC]:checked');
     var o={nome:nome,tipo:$('fpT').value,bandeira:$('fpB').value,
-      taxaPct:parseFloat($('fpTx').value)||0,taxaFixa:parseFloat($('fpTf').value)||0,
+      taxaPct:parseFloat($('fpTx').value)||0,taxaFixa:moedaValor('fpTf'),
       dias:parseInt($('fpD').value)||0,contaId:ct?ct.value:'',
       ativa:$('fpA').value==='1',online:$('fpO').checked};
     if(f)Object.assign(f,o);
@@ -30889,12 +30922,12 @@ function modalTransf(){
   '<div class="fld2"><label>Saiu da conta *</label><select id="trDe"><option value="">Selecione uma opção</option>'+op+'</select></div>'+
   '<div class="fld2"><label>Entrou na conta *</label><select id="trPara"><option value="">Selecione uma opção</option>'+op+'</select></div>'+
   '<div class="row2"><div class="fld2" style="margin:0"><label>Valor *</label>'+
-   '<div class="cur"><span>R$</span><input id="trV" type="number" step="0.01"></div></div>'+
+   '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="trV"></div></div>'+
    '<div class="fld2" style="margin:0"><label>Data</label><input id="trD" type="date" value="'+hojeISO()+'"></div></div>'+
   '<div class="fld2" style="margin:12px 0 0"><label>Observação</label><input id="trO" placeholder="opcional"></div>'+
   '</div></div>';
   modal('Nova transferência',h,'Salvar',function(){
-    var de=$('trDe').value,para=$('trPara').value,v=parseFloat($('trV').value)||0;
+    var de=$('trDe').value,para=$('trPara').value,v=moedaValor('trV');
     if(!de||!para){toast('Selecione as duas contas.');return false;}
     if(de===para){toast('As contas precisam ser diferentes.');return false;}
     if(!v){toast('Informe o valor.');return false;}
@@ -32426,7 +32459,7 @@ function formCliente2(id){
   '</div>'+
   '<div class="blk" style="margin:0;max-width:none"><h3>Conta fiado e observações</h3>'+
   '<div class="row2"><div class="fld2" style="margin:0"><label>Limite de crédito (fiado)</label>'+
-  '<div class="cur"><span>R$</span><input id="k2L" type="number" step="0.01" value="'+(c?(c.limiteFiado||0):0)+'"></div>'+
+  '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="k2L" value="'+((c&&c.limiteFiado)?money(c.limiteFiado):'')+'"></div>'+
   '<div class="hint">Zero significa que o cliente não pode comprar fiado.</div></div>'+
   '<div class="fld2" style="margin:0"><label>Observações</label><input id="k2O" value="'+E(c?c.obs:'')+'"></div></div>'+
   '</div></div>';
@@ -32442,7 +32475,7 @@ function formCliente2(id){
     var o={nome:nome,tel:tel,cpf:$('k2C').value.trim(),nascimento:$('k2A').value,
       rua:$('k2R').value.trim(),numero:$('k2Nu').value.trim(),bairro:$('k2B').value.trim(),
       cidade:$('k2Ci').value,ref:$('k2Rf').value.trim(),
-      limiteFiado:parseFloat($('k2L').value)||0,obs:$('k2O').value.trim()};
+      limiteFiado:moedaValor('k2L'),obs:$('k2O').value.trim()};
     if(c)Object.assign(c,o);
     else{o.id=uid('cli');o.compras=0;o.gasto=0;o.saldoFiado=0;DB.clientes.push(o);}
     salvar();telaClientes();toast('Cliente salvo.');
@@ -32464,7 +32497,7 @@ function pagarFiado(id){
   '<div class="linha tot"><span>Saldo devedor</span><span>R$ '+money(c.saldoFiado||0)+'</span></div></div>'+
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
   '<div class="row2"><div class="fld2" style="margin:0"><label>Valor recebido</label>'+
-  '<div class="cur"><span>R$</span><input id="pfV" type="number" step="0.01" value="'+(c.saldoFiado||0)+'"></div></div>'+
+  '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="pfV" value="'+((c.saldoFiado||0)?money(c.saldoFiado):'')+'"></div></div>'+
   '<div class="fld2" style="margin:0"><label>Data</label><input id="pfD" type="date" value="'+hojeISO()+'"></div></div>'+
   '<div class="fld2" style="margin:12px 0 0"><label>Forma de pagamento</label><select id="pfF">'+
    (DB.formasPag||[]).filter(function(f){return f.ativa!==false&&f.tipo!=='fiado'}).map(function(f){
@@ -32479,7 +32512,7 @@ function pagarFiado(id){
     '<span><b>'+E(ct.nome)+'</b><small>saldo R$ '+money(saldoConta(ct))+'</small></span></label>';}).join('')+
   '</div></div></div>';
   modal('Receber fiado',h,'Confirmar recebimento',function(){
-    var v=parseFloat($('pfV').value)||0;
+    var v=moedaValor('pfV');
     if(v<=0){toast('Informe o valor.');return false;}
     if(v>(c.saldoFiado||0)+0.01){toast('Valor maior que o saldo devedor.');return false;}
     var ct=document.querySelector('input[name=pfC]:checked');
@@ -39041,10 +39074,26 @@ function desenhaNota(){
     '<div class="f2" style="max-width:110px"><label>Qtd.</label>'+
      '<input id="ntItQt" type="number" step="0.001" value=""></div>'+
     '<div class="f2" style="max-width:120px"><label>Valor un.</label>'+
+     /* ==========================================================
+        ESTE CAMPO NAO USA O COMPONENTE DE DINHEIRO — DE PROPOSITO
+
+        O custo de insumo tem QUATRO casas decimais (`step="0.0001"`).
+        Farinha a R$ 0,0043 o grama e valor normal aqui, e e este numero
+        que alimenta a media ponderada do custo — que por sua vez
+        alimenta a ficha tecnica e o CMV.
+
+        `moedaFmt` arredonda para duas casas. Passar este campo pelo
+        componente truncaria R$ 0,0043 para R$ 0,00 e o custo do insumo
+        iria a zero em silencio — exatamente o tipo de estrago que este
+        arquivo ja documentou dez vezes.
+
+        Quando o componente ganhar casas configuraveis, este campo
+        migra. Ate la, fica como esta e o motivo fica escrito.
+        ========================================================== */
      '<div class="cur"><span>R$</span><input id="ntItVl" type="number" step="0.0001" value="'+
       (_itemSel?custoAtual(_itemSel):'')+'"></div></div>'+
     '<div class="f2" style="max-width:110px"><label>Desconto</label>'+
-     '<div class="cur"><span>R$</span><input id="ntItDs" type="number" step="0.01" value="0"></div></div>'+
+     '<div class="cur"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda" id="ntItDs" value=""></div></div>'+
     '<div class="f2" style="max-width:130px"><label>Total</label>'+
      '<div class="cur"><span>R$</span><input id="ntItTt" value="0,00" disabled style="background:var(--alt)"></div></div>'+
     '<button class="btnP2 ok" style="height:30px" onclick="addItemNota()">Ok</button>'+
@@ -39122,7 +39171,7 @@ function pintaLinhaMerc(){
   if(v&&_itemSel&&!(parseFloat(v.value)>0))v.value=custoAtual(_itemSel)||'';
   var t=$('ntItTt');
   if(t){var q=parseFloat(($('ntItQt')||{}).value)||0,vl=parseFloat((v||{}).value)||0,
-    d=parseFloat(($('ntItDs')||{}).value)||0;t.value=money(Math.max(0,q*vl-d));}
+    d=moedaValor('ntItDs');t.value=money(Math.max(0,q*vl-d));}
 }
 function navSug(e){
   var cx=$('ntSug');
@@ -39145,7 +39194,7 @@ function ligarLinhaNota(){
   function calc(){
     var q=parseFloat($('ntItQt').value)||0;
     var v=parseFloat($('ntItVl').value)||0;
-    var d=parseFloat($('ntItDs').value)||0;
+    var d=moedaValor('ntItDs');
     $('ntItTt').value=money(Math.max(0,q*v-d));
   }
   ['ntItQt','ntItVl','ntItDs'].forEach(function(k){
@@ -39262,7 +39311,7 @@ function addItemNota(){
   if(q<=0){toast('Informe a quantidade.');return;}
   var v=parseFloat($('ntItVl').value)||0;
   if(v<=0){toast('Informe o valor unitário.');return;}
-  var d=parseFloat($('ntItDs').value)||0;
+  var d=moedaValor('ntItDs');
   _nota.itens.push({insumoId:_itemSel.id,nome:_itemSel.nome,unidade:_itemSel.unidade,
     qtd:q,valorUn:v,desconto:d,total:+(q*v-d).toFixed(2),ncm:_itemSel.ncm||''});
   _itemSel=null;

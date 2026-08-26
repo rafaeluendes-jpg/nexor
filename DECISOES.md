@@ -5288,3 +5288,52 @@ o cardápio não passam por botão nenhum.
 
 Regressão: caixa **67/67**, formas **67/67**, Postgres **9/9**, reconciliação
 aprovada, sintaxe ok.
+
+## V180 — a migração dos campos monetários, terminada
+
+A V179 criou o componente e migrou cinco telas. Faltavam duas coisas, e uma delas
+era grave.
+
+### O que estava faltando: o próprio PDV
+
+A prioridade 1 do documento era o PDV, e eu tinha migrado o fechamento, a abertura
+e a sangria — mas **não a tela de pagamento**, que é onde o operador digita mais.
+Taxa, desconto e o valor de cada forma continuavam em `type="number"` com
+`parseFloat`. Corrigido.
+
+**O campo em edição não pode ser formatado por baixo.** `recalcPag` redesenha a
+lista de pagamentos a **cada tecla**. Se o campo sendo digitado voltasse formatado,
+quem digita "18" veria "1,00" depois do primeiro toque e não conseguiria terminar o
+número. A solução: `_pgEditando` e `_pgTexto` guardam qual campo está em edição e
+com que texto cru; os demais saem formatados. `data-v` carrega o valor real nos
+dois casos.
+
+### Migração completa
+
+Além do PDV: cardápio (preço na grade), produto (preço de venda), variações,
+grupos de opção, taxa por cidade do entregador, acerto (desconto e acréscimo),
+taxa fixa da forma de pagamento, transferência entre contas, limite de fiado,
+valor a pagar do fiado e desconto do item na nota de entrada.
+
+Todos os leitores acompanharam — `parseFloat` direto em campo de dinheiro **é** o
+defeito que a migração existe para eliminar. Um teste varre os identificadores
+migrados e falha se algum voltar a usar `parseFloat`.
+
+### Dois campos ficaram de fora, de propósito
+
+**`ntItVl` — custo unitário do insumo.** Tem `step="0.0001"`. Farinha a
+R$ 0,0043 o grama é valor normal, e é este número que alimenta a média ponderada
+do custo, que alimenta a ficha técnica e o CMV. `moedaFmt` arredonda para duas
+casas: passar este campo pelo componente truncaria R$ 0,0043 para R$ 0,00 e o custo
+iria a zero **em silêncio** — exatamente o estrago que este arquivo já documentou
+dez vezes. Migra quando o componente ganhar casas configuráveis. O motivo está
+escrito no código, e um teste verifica que continua escrito.
+
+**`lnVp` — total calculado, só leitura.** Não recebe digitação.
+
+### Testes
+
+`testes/pdv-ux.js` subiu de 99 para **134**, com 26 verificações de cobertura da
+migração e a simulação de digitar "18" com o redesenho no meio.
+
+Regressão: caixa 67/67, formas 67/67, Postgres 9/9, reconciliação aprovada.

@@ -51,9 +51,9 @@ const NUVEM = {
 /* ---------- addPag REAL ---------- */
 const codigoAdd = corpoDaFuncao('addPag', fonte);
 function tocar(pagos, forma, total, avisos) {
-  new Function('_pagos', '_totPag', 'FORMAS', '$', 'valorDesconto',
+  new Function('_pagos', '_totPag', 'FORMAS', '$', 'valorDesconto', 'moedaValor',
     'recalcPag', 'toast', 'f', `${codigoAdd}\n addPag(f);`)(
-    pagos, total, FORMAS, () => ({ value: '0' }), () => 0, () => {},
+    pagos, total, FORMAS, () => ({ value: '0' }), () => 0, () => 0, () => {},
     m => avisos.push(m), forma);
   return pagos;
 }
@@ -278,7 +278,7 @@ grupo('Item 12 · Enter e clique percorrem o mesmo caminho');
   t('finalizarVenda aparece 2× (definição + 1 chamada)', chamadas === 2,
     chamadas + ' ocorrência(s)');
   t('o Enter clica o botão do modal, não um handler próprio',
-    /onkeydown[\s\S]{0,400}Enter[\s\S]{0,200}\.mdF[\s\S]{0,60}click\(\)/.test(fonte));
+    /onkeydown[\s\S]{0,600}ev\.key!=='Enter'\)return[\s\S]{0,400}\.mdF \.btnP[\s\S]{0,60}click\(\)/.test(fonte));
 }
 
 /* ==========================================================
