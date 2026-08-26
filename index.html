@@ -796,6 +796,83 @@ body.pdvFull .wTitle{display:none}
 .cur span{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12.5px;
   font-weight:700;color:var(--ink-3);pointer-events:none}
 .cur input{padding-left:32px!important;text-align:right}
+/* ---------- relatorio de frente de caixa ---------- */
+.vcBox{max-width:1040px}
+.vcWrap{padding:0}
+.vcCab{display:flex;gap:20px;align-items:flex-start;padding:20px 22px 16px;
+  border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.vcCabL{flex:1;min-width:260px}
+.vcEmp{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.vcCab h2{font-size:19px;font-weight:600;margin:2px 0 10px}
+.vcMeta{display:flex;flex-wrap:wrap;gap:5px 20px;font-size:12px;color:var(--ink-2)}
+.vcMeta span{white-space:nowrap}
+.vcMeta b{display:block;font-size:10px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:1px}
+.vcStatus{min-width:170px;text-align:right;padding:12px 16px;border-radius:11px;flex:none}
+.vcStatus span{font-size:10.5px;font-weight:700;letter-spacing:.06em;display:block}
+.vcStatus b{font-size:24px;font-weight:600;display:block;margin:3px 0 1px;letter-spacing:-.5px}
+.vcStatus small{font-size:11px;opacity:.8}
+.vcStatus.ok{background:#E7F5EC;color:#0B6E3A}
+.vcStatus.df{background:#FDECEA;color:#96201A}
+.vcStatus.ab{background:var(--acc-soft);color:var(--acc-d)}
+.vcAbas{display:flex;gap:2px;padding:10px 22px 0;border-bottom:1px solid var(--line-2);
+  overflow-x:auto;scrollbar-width:none}
+.vcAbas::-webkit-scrollbar{display:none}
+.vcAbas button{background:none;border:0;border-bottom:2.5px solid transparent;
+  padding:9px 14px;font-size:13px;font-weight:500;color:var(--ink-3);cursor:pointer;
+  white-space:nowrap;transition:color .12s,border-color .12s}
+.vcAbas button:hover{color:var(--ink-2)}
+.vcAbas button.on{color:var(--acc-d);border-bottom-color:var(--acc-d);font-weight:600}
+.vcCorpo{padding:18px 22px 22px;min-height:230px}
+.vcGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px}
+.vcCard{border:1px solid var(--line);border-radius:11px;padding:15px 16px;background:var(--panel)}
+.vcCardT{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:11px}
+.vcL{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:5px 0;font-size:13px;color:var(--ink-2)}
+.vcL b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.vcL.tot{border-top:1px solid var(--line-2);margin-top:5px;padding-top:8px}
+.vcL.tot span{font-weight:600;color:var(--ink)}
+.vcL.tot b{font-size:15px}
+.vcSelo{margin-top:12px;text-align:center;padding:7px;border-radius:8px;
+  font-size:11.5px;font-weight:700;letter-spacing:.05em}
+.vcSelo.ok{background:#E7F5EC;color:#0B6E3A}
+.vcSelo.df{background:#FDECEA;color:#96201A}
+.vcTab{width:100%;border-collapse:collapse}
+.vcTab th{background:var(--bg);font-size:10.5px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);padding:9px 11px;text-align:left;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+.vcTab td{padding:10px 11px;font-size:13px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.vcTab td small{display:block;font-size:11px;color:var(--ink-3);margin-top:2px}
+.vcTab .num,.vcTab th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vcTab tfoot td{border-top:1.5px solid var(--ink-3);border-bottom:0;
+  font-weight:700;background:var(--bg);font-size:13.5px}
+.vcTab tbody tr:hover{background:var(--bg)}
+.vcExp{cursor:pointer}
+.vcSeta{display:inline-block;transition:transform .15s;color:var(--ink-3);font-size:11px}
+.vcSeta.ab{transform:rotate(90deg)}
+.vcSub td{background:var(--bg);padding:0 11px 12px}
+.vcSub:hover td{background:var(--bg)}
+.vcComp{border-left:2.5px solid var(--acc-d);padding:10px 14px;margin-left:8px}
+.vcComp div{display:flex;justify-content:space-between;gap:14px;padding:3px 0;
+  font-size:12.5px;color:var(--ink-2)}
+.vcComp div b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.vcComp div.tot{border-top:1px solid var(--line);margin-top:5px;padding-top:7px;font-weight:600;color:var(--ink)}
+.vcMais{color:#0B6E3A;font-weight:600}
+.vcMenos{color:var(--red);font-weight:600}
+.vcZero{color:var(--ink-3)}
+.vcNulo{color:var(--ink-3);font-style:italic;font-size:12px}
+.vcVazio{text-align:center;padding:44px 20px;color:var(--ink-3);font-size:13.5px}
+.vcAviso{display:flex;gap:11px;align-items:flex-start;padding:13px 15px;border-radius:10px;
+  margin-top:14px;font-size:13px}
+.vcAviso.am{background:#FFF6E5;border:1px solid #E8CFA0;color:#6B4E10}
+.vcAviso.vd{background:#E7F5EC;border:1px solid #B7DFC7;color:#0B6E3A}
+.vcAviso small{display:block;margin-top:3px;opacity:.9;font-size:12px;line-height:1.5}
+@media(max-width:720px){
+  .vcStatus{width:100%;text-align:left}
+  .vcCorpo{padding:14px}
+  .vcTab td,.vcTab th{padding:8px 7px;font-size:12px}
+}
 /* ---------- campo de dinheiro padrao + teclado de toque ---------- */
 .moeda::placeholder{color:var(--ink-3);opacity:.45}
 .tclOv{position:fixed;inset:auto 0 0 0;z-index:9000;display:none;
@@ -17783,7 +17860,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V178.0.0';
+var VERSAO='V179.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25560,139 +25637,23 @@ function montarSnapshot(cx,mov,esp,conf){
   };
 }
 /* ==========================================================
-   DIFERENCA POR FORMA E DIFERENCA GERAL SAO DUAS COISAS (item 5)
+   A TELA INTERMEDIARIA DE CONFERENCIA FOI REMOVIDA (itens 11 e 12)
 
-   O comprovante tratava a diferenca do dinheiro como se fosse O
-   resultado do fechamento. Nao e. Uma venda no credito lancada como
-   dinheiro produz -5 no dinheiro e +5 no credito: o dinheiro esta todo
-   la, nada foi perdido, e o operador levava a culpa por uma falta que
-   nao existia.
+   `resultadoFechamento()` vivia aqui: abria depois de fechar o caixa e
+   mostrava previsto x fisico forma a forma, para o operador
+   "confirmar". Ela nao confirmava nada — o caixa ja estava gravado
+   quando abria — e mostrava o esperado justamente a quem o fechamento
+   cego existe para nao mostrar.
 
-   Agora sao dois numeros com pesos diferentes:
+   A conferencia NAO se perdeu. Ela vive no snapshot e aparece inteira
+   em `verCaixa()` (Resumo, Recebimentos, Movimentacoes, Cancelamentos,
+   Descontos, Vendas, Operadores, Auditoria), na impressao gerencial e
+   no cupom. O que saiu foi a obrigacao de o operador olhar aquilo para
+   terminar o turno.
 
-   - DIFERENCA GERAL: informado total menos sistema total. E este que
-     diz se falta ou sobra dinheiro na loja.
-   - DIFERENCA POR FORMA: mostra onde a classificacao errou.
-
-   Quando a geral e zero e as formas divergem, o cabecalho diz
-   FECHAMENTO CONCILIADO e registra a divergencia para auditoria — sem
-   tocar em nenhuma venda (item 6). Adivinhar qual pagamento foi lancado
-   errado e reescrever historico e pior que o problema.
+   A funcao foi apagada, nao apenas desligada: funcao que ninguem chama
+   volta a ser chamada por engano seis meses depois.
    ========================================================== */
-function resultadoFechamento(cx,mov,esp){
-  var s=cx.snapshot||montarSnapshot(cx,mov,esp,cx.conferencia||{});
-  var difG=Number(s.diferencaTotal)||0;
-  var ok=Math.abs(difG)<0.01;
-  var divf=!!s.divergenciaEntreFormas;
-
-  var linhas=s.formas.map(function(x){
-    var d=x.diferenca;
-    return '<tr><td>'+E(x.nome)+
-      (x.troco?'<small style="display:block;color:var(--ink-3)">gaveta inteira: fundo R$ '+
-        money(s.fundoAbertura)+' + vendas R$ '+money(s.vendasDinheiro)+
-        (s.suprimentos?' + supr. R$ '+money(s.suprimentos):'')+
-        (s.sangrias?' − sangrias R$ '+money(s.sangrias):'')+'</small>':'')+'</td>'+
-      '<td style="text-align:right">R$ '+money(x.sistema)+'</td>'+
-      '<td style="text-align:right">'+(x.fisico===null
-        ?'<span style="color:var(--ink-3)">não informado</span>':'R$ '+money(x.fisico))+'</td>'+
-      '<td style="text-align:right;font-weight:700;color:'+
-        (d===null?'var(--ink-3)':(Math.abs(d)<0.01?'var(--acc-d)':'var(--red)'))+'">'+
-        (d===null?'—':(d>0?'+ ':d<0?'− ':'')+'R$ '+money(Math.abs(d)))+'</td></tr>';
-  }).join('');
-  linhas+='<tr style="border-top:2px solid var(--ink-3)"><td><b>TOTAL</b></td>'+
-    '<td style="text-align:right"><b>R$ '+money(s.totalSistema)+'</b></td>'+
-    '<td style="text-align:right"><b>R$ '+money(s.totalFisico)+'</b></td>'+
-    '<td style="text-align:right;font-weight:700;color:'+
-      (ok?'var(--acc-d)':'var(--red)')+'">'+
-      (ok?'R$ 0,00':(difG>0?'+ ':'− ')+'R$ '+money(Math.abs(difG)))+'</b></td></tr>';
-
-  /* o sistema somado tem de bater com faturamento + fundo + suprimentos
-     − sangrias. Quando nao bate, o defeito esta no que foi gravado na
-     venda, nao na contagem. */
-  var baseTurno=+(s.faturamento+s.fundoAbertura+s.suprimentos-s.sangrias).toFixed(2);
-  var furo=+(s.totalSistema-baseTurno).toFixed(2);
-
-  var cab = ok
-    ? (divf
-       ? {cls:'ok',t:'Fechamento total conciliado',v:'R$ 0,00',
-          sub:'o dinheiro fecha — mas houve divergência entre as formas'}
-       : {cls:'ok',t:'Caixa bateu certo',v:'R$ 0,00',
-          sub:'o informado é igual ao esperado em todas as formas'})
-    : {cls:'dif',t:'Diferença geral',
-       v:(difG>0?'+ ':'− ')+'R$ '+money(Math.abs(difG)),
-       sub:(difG>0?'sobrou dinheiro no total do turno':'faltou dinheiro no total do turno')};
-
-  modal('Fechamento realizado',
-   '<div class="mdB">'+
-    '<div class="fcRes '+cab.cls+'">'+
-     '<span>'+cab.t+'</span><b>'+cab.v+'</b><small>'+cab.sub+'</small>'+
-    '</div>'+
-    (divf
-      ? '<div class="cfAlerta" style="margin-top:10px">'+sv('help',15)+
-        '<div><b>Divergência entre formas — fechamento total conciliado</b>'+
-        '<small>Uma forma sobrou exatamente o que outra faltou. O dinheiro está todo '+
-        'aqui: o que errou foi a forma de pagamento escolhida em alguma venda. '+
-        '<b>Nenhuma venda foi alterada</b> — corrigir o histórico por adivinhação seria pior. '+
-        'A divergência fica registrada no comprovante.</small></div></div>'
-      : '')+
-    '<div class="linha" style="margin-top:12px"><span>Faturamento do turno</span>'+
-     '<b>R$ '+money(s.faturamento)+' <small style="color:var(--ink-3)">('+s.qtdVendas+' vendas)</small></b></div>'+
-    '<div class="linha"><span>Fundo de abertura <small style="color:var(--ink-3)">(não é faturamento)</small></span>'+
-     '<b>R$ '+money(s.fundoAbertura)+'</b></div>'+
-    (s.suprimentos?'<div class="linha"><span>Suprimentos <small style="color:var(--ink-3)">(não é venda)</small></span>'+
-     '<b>+ R$ '+money(s.suprimentos)+'</b></div>':'')+
-    (s.sangrias?'<div class="linha"><span>Sangrias <small style="color:var(--ink-3)">(não reduz faturamento)</small></span>'+
-     '<b>− R$ '+money(s.sangrias)+'</b></div>':'')+
-    '<table class="tb2" style="margin-top:12px"><tr><th>Forma</th>'+
-     '<th style="text-align:right">Sistema</th><th style="text-align:right">Físico</th>'+
-     '<th style="text-align:right">Diferença</th></tr>'+linhas+'</table>'+
-    (Math.abs(furo)>0.01
-      ? '<div class="cfAlerta" style="margin-top:10px">'+sv('help',15)+
-        '<div><b>O sistema somado não fecha com o turno: '+
-        (furo>0?'R$ ':'− R$ ')+money(Math.abs(furo))+'</b>'+
-        '<small>A soma por forma deveria dar R$ '+money(baseTurno)+
-        ' (faturamento + fundo + suprimentos − sangrias) e deu R$ '+money(s.totalSistema)+'. '+
-        'Isso não é erro de contagem: é pagamento gravado a mais, a menos, ou venda sem forma.</small>'+
-        '</div></div>'
-      : '')+
-    (s.semForma>0.01
-      ? '<div class="cfAlerta" style="margin-top:10px">'+sv('help',15)+
-        '<div><b>R$ '+money(s.semForma)+' em vendas sem forma de pagamento</b>'+
-        '<small>Entram no faturamento mas não estão em nenhuma linha acima.</small></div></div>'
-      : '')+
-    (s.movimentos.length
-      ? '<div class="blk" style="margin:11px 0 0;max-width:none"><h3>Sangrias e suprimentos</h3>'+
-        '<table class="fpgTab">'+s.movimentos.map(function(m){
-          return '<tr><td>'+E(m.hora)+' · '+
-            (m.tipo==='sangria'?'<span class="badge2 rd">Sangria</span>':'<span class="badge2 gr">Suprimento</span>')+
-            '<small style="display:block;color:var(--ink-3)">'+E(m.motivo)+
-            (m.destino?' · destino: '+E(m.destino):'')+' · '+E(m.responsavel)+'</small></td>'+
-            '<td style="text-align:right;color:'+(m.tipo==='sangria'?'var(--red)':'var(--acc-d)')+'">'+
-            (m.tipo==='sangria'?'− ':'+ ')+'R$ '+money(m.valor)+'</td></tr>';
-        }).join('')+'</table></div>'
-      : '')+
-    (s.fundoProximo>0.001
-      ? '<div class="hint" style="margin-top:10px"><b>Fundo do próximo caixa:</b> R$ '+
-        money(s.fundoProximo)+' — o restante saiu por sangria.</div>':'')+
-    (s.observacao?'<div class="hint" style="margin-top:10px"><b>Observação:</b> '+E(s.observacao)+'</div>':'')+
-    '<div class="hint" style="margin-top:10px">Aberto por '+E(s.operadorAbriu)+' em '+E(s.aberto)+
-     ' · fechado por '+E(s.operadorFechou)+' em '+E(s.fechado)+'.</div>'+
-   '</div>','Imprimir fechamento',function(){
-     try{ imprimirFechamento(cx.id); }catch(e){ _quieto(e,'imprimirFechamento');
-       toast('Não consegui montar a impressão.'); }
-     return true;
-   },'lg');
-}
-/* o fundo que o ultimo fechamento desta loja declarou deixar na gaveta */
-function fundoSugerido(){
-  var suc=lojaAtualId();
-  var fech=(DB.caixas||[]).filter(function(c){
-    return c.fechadoEm&&(!c.sucursalId||!suc||c.sucursalId===suc);
-  });
-  if(!fech.length)return 0;
-  var ult=fech[fech.length-1];
-  return +(Number(ult.fundoProximo)||0).toFixed(2);
-}
 /* ==========================================================
    O FIM DO FECHAMENTO: UMA PERGUNTA, DUAS RESPOSTAS
 
@@ -31618,81 +31579,493 @@ function caixaConciliado(id){
 }
 
 /* ---------- DETALHE DO CAIXA ---------- */
+/* ==========================================================
+   RELATORIO DE FRENTE DE CAIXA — UMA FONTE SO (item 25)
+
+   A regra que mais importa aqui e negativa: NENHUMA aba faz conta
+   propria. Todas leem `dadosDoCaixa()`, que monta o retrato uma vez.
+   Sem isso, uma venda vale R$ 100 no Resumo e R$ 90 em Recebimentos —
+   e quando os dois numeros divergem ninguem sabe qual acreditar.
+
+   Para caixa FECHADO, a fonte e o snapshot congelado no fechamento
+   (item 26). Reimprimir em novembro tem de dar o mesmo que foi
+   assinado em agosto, mesmo que uma venda tenha sido cancelada no
+   meio do caminho.
+   ========================================================== */
+var VC={aba:'resumo',id:null,dinAberto:false};
+function dadosDoCaixa(c){
+  var fechado=!!c.fechadoEm;
+  var mov=movimentoCaixa(c.id);
+  var s=(fechado&&c.snapshot&&c.snapshot.formas)?c.snapshot:null;
+
+  /* vendas do turno, sempre da mesma origem */
+  var peds=(DB.pedidos||[]).filter(function(p){return p.caixaId===c.id});
+  var ok=peds.filter(function(p){return !ehCancelado(p)});
+  var canc=peds.filter(function(p){return ehCancelado(p)});
+  var bruto=ok.reduce(function(a,p){return a+(Number(p.total)||0)},0)+
+            canc.reduce(function(a,p){return a+(Number(p.total)||0)},0);
+  var vCanc=canc.reduce(function(a,p){return a+(Number(p.total)||0)},0);
+  var liquido=+(bruto-vCanc).toFixed(2);
+
+  var fundo   = s?s.fundoAbertura : (Number(c.inicial)||0);
+  var supri   = s?s.suprimentos   : totalMov(c,'suprimento');
+  var sangria = s?s.sangrias      : totalMov(c,'sangria');
+  var vendDin = s?s.vendasDinheiro: (Number(mov.dinheiro)||0);
+
+  /* recebimentos: sistema x fisico x diferenca */
+  var formas;
+  if(s){ formas=s.formas.slice(); }
+  else {
+    var espG=esperadoCaixa(c);
+    formas=FORMAS.map(function(f){
+      var e=f.troco?espG:(mov.porForma[f.id]||0);
+      var i=(c.conferencia&&c.conferencia[f.id]!==undefined&&c.conferencia[f.id]!==null)
+        ?Number(c.conferencia[f.id]):null;
+      return {id:f.id,nome:f.n,troco:!!f.troco,sistema:+e.toFixed(2),
+        fisico:i===null?null:+i.toFixed(2),
+        diferenca:i===null?null:+(i-e).toFixed(2)};
+    });
+  }
+  var totSis=+formas.reduce(function(a,x){return a+x.sistema},0).toFixed(2);
+  var totFis=+formas.reduce(function(a,x){return a+(x.fisico||0)},0).toFixed(2);
+  var difGer=s?Number(s.diferencaTotal)||0:+(totFis-totSis).toFixed(2);
+  var conciliado=Math.abs(difGer)<0.01;
+  var divergeForma=s?!!s.divergenciaEntreFormas
+    :(conciliado&&formas.some(function(x){return x.diferenca!==null&&Math.abs(x.diferenca)>=0.01}));
+  var din=formas.filter(function(x){return x.troco})[0]||
+          {sistema:0,fisico:null,diferenca:null,nome:'Dinheiro'};
+
+  var movs=(s&&s.movimentos)?s.movimentos:(c.movimentos||[]).map(function(m){
+    return {hora:m.hora||'',tipo:m.tipo,valor:Number(m.valor)||0,
+      motivo:m.motivoNome||m.motivo||'',descricao:m.motivo||'',
+      destino:m.destinoNome||'',responsavel:m.responsavel||'',lancRef:m.lancRef||''};
+  });
+
+  var cancels=(DB.cancelamentos||[]).filter(function(x){return x.caixaId===c.id});
+  var descs=ok.filter(function(p){return (Number(p.desconto)||0)>0.001||p.cupom});
+
+  return {c:c,fechado:fechado,doSnapshot:!!s,mov:mov,
+    peds:peds,ok:ok,canc:canc,
+    bruto:+bruto.toFixed(2),vCanc:+vCanc.toFixed(2),liquido:liquido,
+    qtd:ok.length,ticket:ok.length?+(liquido/ok.length).toFixed(2):0,
+    fundo:fundo,suprimentos:supri,sangrias:sangria,vendasDinheiro:vendDin,
+    formas:formas,totSis:totSis,totFis:totFis,difGeral:difGer,
+    conciliado:conciliado,divergeForma:divergeForma,dinheiro:din,
+    movimentos:movs,cancelamentos:cancels,descontos:descs,
+    semForma:s?s.semForma:+((mov.semForma||0)+(mov.descoberto||0)).toFixed(2),
+    lanc:(DB.lancFin||[]).filter(function(l){return l.ref===c.id&&l.origem==='fechamento-caixa'})};
+}
+function sinalRS(v){
+  if(v===null||v===undefined)return '<span class="vcNulo">—</span>';
+  if(Math.abs(v)<0.01)return '<span class="vcZero">R$ 0,00</span>';
+  return '<span class="'+(v>0?'vcMais':'vcMenos')+'">'+(v>0?'+ ':'− ')+'R$ '+money(Math.abs(v))+'</span>';
+}
 function verCaixa(id){
+  VC.id=id; VC.aba='resumo'; VC.dinAberto=false;
   var c=(DB.caixas||[]).find(function(x){return x.id===id});
   if(!c)return;
-  var mov=movimentoCaixa(c.id);
-  var fechado=!!c.fechadoEm;
-  var dif=(Number(c.contado)||0)-(Number(c.esperado)||0);
-  var lanc=(DB.lancFin||[]).filter(function(l){return l.ref===c.id&&l.origem==='fechamento-caixa'});
-  var movs=(c.movimentos||[]);
+  var o=document.getElementById('mdOv');
+  if(!o){
+    o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+    document.body.appendChild(o);
+  }
+  desenharVerCaixa();
+  fecharSoForaDeVerdade(document.getElementById('mdOv'));
+}
+function vcAba(a){ VC.aba=a; desenharVerCaixa(); }
+function vcDinheiro(){ VC.dinAberto=!VC.dinAberto; desenharVerCaixa(); }
+function desenharVerCaixa(){
+  var c=(DB.caixas||[]).find(function(x){return x.id===VC.id});
+  if(!c)return;
+  var d=dadosDoCaixa(c);
+  var abas=[['resumo','Resumo'],['receb','Recebimentos'],['movs','Movimentações'],
+            ['canc','Cancelamentos'],['desc','Descontos'],['vendas','Vendas'],
+            ['oper','Operadores'],['aud','Auditoria']];
 
-  var h='<div class="mdB">'+
-  '<div class="acHead"><div class="av3" style="width:44px;height:44px">'+sv('cash',20)+'</div>'+
-  '<div><b>'+(fechado?'Turno encerrado':'Turno em andamento')+'</b>'+
-  '<span>Abertura: '+E(c.aberto)+(fechado?' · Fechamento: '+E(c.fechadoEm):'')+'</span>'+
-  '<span>Operador: '+E(c.operador||'—')+'</span></div></div>'+
-
-  '<div class="acKpis">'+
-   '<div class="acK"><span>Fundo de troco</span><b>R$ '+money(c.inicial||0)+'</b></div>'+
-   '<div class="acK"><span>Pedidos</span><b>'+(fechado?(c.qtd||0):mov.qtd)+'</b></div>'+
-   '<div class="acK"><span>Vendas</span><b>R$ '+money(fechado?(c.vendas||0):mov.total)+'</b></div>'+
-   '<div class="acK"><span>Esperado em gaveta</span><b>R$ '+money(fechado?(c.esperado||0):esperadoCaixa(c))+'</b></div>'+
-   (fechado?'<div class="acK"><span>Contado</span><b>R$ '+money(c.contado||0)+'</b></div>'+
-    '<div class="acK '+(Math.abs(dif)<0.01?'dest3':'')+'"><span>Diferença</span>'+
-    '<b class="'+(Math.abs(dif)<0.01?'':'vr')+'">'+(dif>0?'+ ':dif<0?'- ':'')+'R$ '+money(Math.abs(dif))+'</b></div>':'')+
-  '</div>'+
-
-  '<div class="blk" style="margin:0 0 11px;max-width:none;padding:0;overflow:hidden">'+
-   '<div class="acTit">Recebimentos por forma de pagamento</div>'+
-   '<div class="acTabW"><table class="acTab"><tbody>'+
-   (DB.formasPag||[]).map(function(f){
-     var v=mov.porForma[f.id]||0;
-     var inf=(c.conferencia&&c.conferencia[f.id]!==undefined)?c.conferencia[f.id]:null;
-     if(!v&&inf===null)return '';
-     var d2=inf!==null?inf-v:0;
-     return '<tr><td>'+E(f.nome)+'</td>'+
-     '<td style="text-align:right;width:130px">R$ '+money(v)+'</td>'+
-     (fechado?'<td style="text-align:right;width:130px">'+(inf!==null?'R$ '+money(inf):'—')+'</td>'+
-      '<td style="text-align:right;width:120px" class="'+(Math.abs(d2)<0.01?'':'vr')+'">'+
-      (inf!==null?((d2>0?'+ ':d2<0?'- ':'')+'R$ '+money(Math.abs(d2))):'—')+'</td>':'')+
-     '</tr>';}).join('')+
-   '<tr><td><b>Total</b></td><td style="text-align:right"><b>R$ '+money(mov.total)+'</b></td>'+
-   (fechado?'<td style="text-align:right"><b>R$ '+money(c.totalInformado||0)+'</b></td><td></td>':'')+'</tr>'+
-   '</tbody></table></div></div>'+
-
-  (movs.length?'<div class="blk" style="margin:0 0 11px;max-width:none;padding:0;overflow:hidden">'+
-   '<div class="acTit">Sangrias e suprimentos</div><div class="acTabW"><table class="acTab"><tbody>'+
-   movs.map(function(m){
-     return '<tr><td>'+m.hora+' · '+(m.tipo==='sangria'?'<span class="badge2 rd">Sangria</span>':'<span class="badge2 gr">Suprimento</span>')+
-     (m.motivo?' <span style="color:var(--ink-3)">'+E(m.motivo)+'</span>':'')+'</td>'+
-     '<td style="text-align:right;width:130px;color:'+(m.tipo==='sangria'?'var(--red)':'var(--acc-d)')+'">'+
-     (m.tipo==='sangria'?'- ':'+ ')+'R$ '+money(m.valor)+'</td></tr>';}).join('')+
-   '</tbody></table></div></div>':'')+
-
-  (lanc.length?'<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">'+
-   '<div class="acTit">Lançamentos gerados no financeiro</div><div class="acTabW"><table class="acTab"><tbody>'+
-   lanc.map(function(l){
-     return '<tr><td>'+E(l.descricao)+'<small style="display:block;color:var(--ink-3)">'+E(contaNome(l.contaId))+
-     ' · '+(l.pago?'recebido':'a receber em '+dataBR(l.vencimento))+'</small></td>'+
-     '<td style="text-align:right;width:140px"><b class="vg">R$ '+money(l.valor)+'</b>'+
-     (l.conciliado?' <span class="concTag">'+sv('nike',12)+'</span>':'')+'</td></tr>';}).join('')+
-   '</tbody></table></div></div>':'')+
-  (c.obs?'<div class="hint" style="margin-top:10px">Observação: '+E(c.obs)+'</div>':'')+
+  /* ---------- cabecalho (item 13) ---------- */
+  var cab='<div class="vcCab">'+
+    '<div class="vcCabL">'+
+      '<span class="vcEmp">'+E(cfg().nomePublico||nomeLojaAtual()||'')+'</span>'+
+      '<h2>'+E(sucNome(c.sucursalId||lojaAtualId()))+'</h2>'+
+      '<div class="vcMeta">'+
+        '<span><b>Caixa</b>'+E(String(c.id||'').slice(-8))+'</span>'+
+        (c.turno?'<span><b>Turno</b>'+E(c.turno)+'</span>':'')+
+        '<span><b>Abertura</b>'+E(c.aberto||'—')+'</span>'+
+        '<span><b>Fechamento</b>'+E(c.fechadoEm||'—')+'</span>'+
+        '<span><b>Abriu</b>'+E(c.operador||'—')+'</span>'+
+        '<span><b>Fechou</b>'+E(c.fechadoPor||'—')+'</span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="vcStatus '+(!d.fechado?'ab':(d.conciliado?'ok':'df'))+'">'+
+      '<span>'+(!d.fechado?'CAIXA ABERTO':(d.conciliado?(d.divergeForma?'CONCILIADO':'CONFERE'):'COM DIVERGÊNCIA'))+'</span>'+
+      (d.fechado?'<b>'+(Math.abs(d.difGeral)<0.01?'R$ 0,00'
+        :(d.difGeral>0?'+ ':'− ')+'R$ '+money(Math.abs(d.difGeral)))+'</b>'+
+        '<small>diferença geral</small>':'<b>R$ '+money(esperadoCaixa(c))+'</b><small>na gaveta</small>')+
+    '</div>'+
   '</div>';
 
-  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
-  o.innerHTML='<div class="mdBox xl"><div class="mdH"><b>Frente de caixa</b>'+
-  '<button onclick="fecharModal()">&times;</button></div>'+h+
-  '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
-  /* reimpressao pelo historico — pedida no item 9 */
-  (fechado?'<button class="btnP2" onclick="imprimirFechamento(\''+c.id+'\')">'+
-    sv('print2',13)+' Imprimir</button>':'')+
-  (fechado?'<button class="btnP2 ok" onclick="editarCaixa(\''+c.id+'\')">'+sv('edit',13)+' Editar fechamento</button>':
-   '<button class="btnP2 ok" onclick="fecharModal();abrir(\'pdv\',\'pdv\')">Ir ao PDV</button>')+
-  '</div></div>';
-  document.body.appendChild(o);
-  fecharSoForaDeVerdade(o);
+  var nav='<div class="vcAbas">'+abas.map(function(a){
+    return '<button class="'+(VC.aba===a[0]?'on':'')+'" onclick="vcAba(\''+a[0]+'\')">'+a[1]+'</button>';
+  }).join('')+'</div>';
+
+  var corpo='';
+
+  /* ---------- RESUMO (item 15) ---------- */
+  if(VC.aba==='resumo'){
+    corpo=
+    '<div class="vcGrid">'+
+      '<div class="vcCard"><div class="vcCardT">Faturamento</div>'+
+        '<div class="vcL"><span>Bruto</span><b>R$ '+money(d.bruto)+'</b></div>'+
+        '<div class="vcL"><span>(−) cancelamentos</span><b class="vcMenos">R$ '+money(d.vCanc)+'</b></div>'+
+        '<div class="vcL tot"><span>Líquido</span><b>R$ '+money(d.liquido)+'</b></div>'+
+        '<div class="vcL"><span>Vendas</span><b>'+d.qtd+'</b></div>'+
+        '<div class="vcL"><span>Ticket médio</span><b>R$ '+money(d.ticket)+'</b></div>'+
+      '</div>'+
+      '<div class="vcCard"><div class="vcCardT">Dinheiro na gaveta</div>'+
+        '<div class="vcL"><span>Fundo inicial</span><b>R$ '+money(d.fundo)+'</b></div>'+
+        '<div class="vcL"><span>Vendas em dinheiro</span><b>+ R$ '+money(d.vendasDinheiro)+'</b></div>'+
+        '<div class="vcL"><span>Suprimentos</span><b>+ R$ '+money(d.suprimentos)+'</b></div>'+
+        '<div class="vcL"><span>Sangrias</span><b>− R$ '+money(d.sangrias)+'</b></div>'+
+        '<div class="vcL tot"><span>Esperado</span><b>R$ '+money(d.dinheiro.sistema)+'</b></div>'+
+        '<div class="vcL"><span>Físico informado</span><b>'+
+          (d.dinheiro.fisico===null?'—':'R$ '+money(d.dinheiro.fisico))+'</b></div>'+
+        '<div class="vcL tot"><span>Diferença</span><b>'+sinalRS(d.dinheiro.diferenca)+'</b></div>'+
+      '</div>'+
+      '<div class="vcCard"><div class="vcCardT">Conferência geral</div>'+
+        '<div class="vcL"><span>Total sistema</span><b>R$ '+money(d.totSis)+'</b></div>'+
+        '<div class="vcL"><span>Total físico</span><b>R$ '+money(d.totFis)+'</b></div>'+
+        '<div class="vcL tot"><span>Diferença geral</span><b>'+sinalRS(d.difGeral)+'</b></div>'+
+        '<div class="vcSelo '+(d.conciliado?'ok':'df')+'">'+
+          (d.conciliado?'CONCILIADO':'COM DIVERGÊNCIA')+'</div>'+
+      '</div>'+
+    '</div>'+
+    (d.divergeForma?avisoDivergencia():'')+
+    (d.semForma>0.01?'<div class="vcAviso am">'+sv('help',15)+
+      '<div><b>R$ '+money(d.semForma)+' em vendas sem forma de pagamento</b>'+
+      '<small>Entram no faturamento mas não estão em nenhuma linha de recebimento.</small></div></div>':'');
+  }
+
+  /* ---------- RECEBIMENTOS (itens 16, 17 e 18) ---------- */
+  if(VC.aba==='receb'){
+    corpo='<table class="vcTab"><thead><tr><th>Forma</th>'+
+      '<th class="num">Sistema</th><th class="num">Físico</th><th class="num">Diferença</th></tr></thead><tbody>'+
+      d.formas.map(function(f){
+        var linha='<tr'+(f.troco?' class="vcExp" onclick="vcDinheiro()"':'')+'>'+
+          '<td>'+(f.troco?'<span class="vcSeta'+(VC.dinAberto?' ab':'')+'">▸</span> ':'')+E(f.nome)+
+          (f.troco?'<small>toque para ver a composição</small>':'')+'</td>'+
+          '<td class="num">R$ '+money(f.sistema)+'</td>'+
+          '<td class="num">'+(f.fisico===null?'<span class="vcNulo">não informado</span>':'R$ '+money(f.fisico))+'</td>'+
+          '<td class="num">'+sinalRS(f.diferenca)+'</td></tr>';
+        /* item 17: de onde saiu o numero do dinheiro */
+        if(f.troco&&VC.dinAberto){
+          linha+='<tr class="vcSub"><td colspan="4"><div class="vcComp">'+
+            '<div><span>Fundo de caixa</span><b>R$ '+money(d.fundo)+'</b></div>'+
+            '<div><span>+ vendas em dinheiro</span><b>R$ '+money(d.vendasDinheiro)+'</b></div>'+
+            '<div><span>+ suprimentos</span><b>R$ '+money(d.suprimentos)+'</b></div>'+
+            '<div><span>− sangrias</span><b>R$ '+money(d.sangrias)+'</b></div>'+
+            '<div class="tot"><span>= dinheiro esperado</span><b>R$ '+money(f.sistema)+'</b></div>'+
+          '</div></td></tr>';
+        }
+        return linha;
+      }).join('')+
+      '</tbody><tfoot><tr><td><b>TOTAL</b></td>'+
+      '<td class="num"><b>R$ '+money(d.totSis)+'</b></td>'+
+      '<td class="num"><b>R$ '+money(d.totFis)+'</b></td>'+
+      '<td class="num"><b>'+sinalRS(d.difGeral)+'</b></td></tr></tfoot></table>'+
+      (d.divergeForma?avisoDivergencia():'');
+  }
+
+  /* ---------- MOVIMENTACOES (item 19) ---------- */
+  if(VC.aba==='movs'){
+    var linhas=[];
+    linhas.push({hora:(c.aberto||'').slice(-5),tipo:'Abertura',valor:d.fundo,
+      quem:c.operador||'—',motivo:'Fundo de troco',orig:'—',dest:'Caixa PDV',cls:'gr'});
+    d.movimentos.forEach(function(m){
+      linhas.push({hora:m.hora,tipo:m.tipo==='sangria'?'Sangria':'Suprimento',
+        valor:m.valor,quem:m.responsavel||'—',
+        motivo:(m.motivo||'')+(m.descricao&&m.descricao!==m.motivo?' — '+m.descricao:''),
+        orig:m.tipo==='sangria'?'Caixa PDV':(m.destino||'—'),
+        dest:m.tipo==='sangria'?(m.destino||'—'):'Caixa PDV',
+        cls:m.tipo==='sangria'?'rd':'gr'});
+    });
+    if(d.fechado)linhas.push({hora:(c.fechadoEm||'').slice(-5),tipo:'Fechamento',
+      valor:d.dinheiro.fisico||0,quem:c.fechadoPor||'—',motivo:'Contagem da gaveta',
+      orig:'Caixa PDV',dest:'—',cls:''});
+    corpo=linhas.length
+     ?'<table class="vcTab"><thead><tr><th>Hora</th><th>Tipo</th><th class="num">Valor</th>'+
+      '<th>Motivo</th><th>Origem</th><th>Destino</th><th>Operador</th></tr></thead><tbody>'+
+      linhas.map(function(l){
+        return '<tr><td>'+E(l.hora||'—')+'</td>'+
+          '<td><span class="badge2 '+l.cls+'">'+E(l.tipo)+'</span></td>'+
+          '<td class="num">R$ '+money(l.valor)+'</td>'+
+          '<td>'+E(l.motivo||'—')+'</td><td>'+E(l.orig)+'</td>'+
+          '<td>'+E(l.dest)+'</td><td>'+E(l.quem)+'</td></tr>';
+      }).join('')+'</tbody></table>'
+     :vcVazio('Nenhuma movimentação neste turno.');
+  }
+
+  /* ---------- CANCELAMENTOS (item 20) ---------- */
+  if(VC.aba==='canc'){
+    corpo=d.cancelamentos.length
+     ?'<table class="vcTab"><thead><tr><th>Hora</th><th>Pedido</th><th class="num">Valor</th>'+
+      '<th>Motivo</th><th>Autorizou</th><th>Estoque</th></tr></thead><tbody>'+
+      d.cancelamentos.map(function(x){
+        var p=(DB.pedidos||[]).find(function(y){return y.id===x.pedidoId});
+        var fp=p&&(p.pagamentos||[])[0];
+        var fn=fp?((FORMAS.find(function(f){return f.id===fp.forma})||{}).n||'—'):'—';
+        return '<tr><td>'+E(x.hora||'—')+'</td>'+
+          '<td>#'+E(String(x.numero||'—'))+'<small>'+E(fn)+'</small></td>'+
+          '<td class="num vcMenos">R$ '+money(x.valor)+'</td>'+
+          '<td>'+E(x.motivo||'—')+(x.obs?'<small>'+E(x.obs)+'</small>':'')+'</td>'+
+          '<td>'+E(x.operador||'—')+'</td>'+
+          '<td>'+(x.estoqueVoltou?'<span class="badge2 gr">devolvido</span>'
+                                 :'<span class="badge2 rd">produzido, não voltou</span>')+'</td></tr>';
+      }).join('')+'</tbody><tfoot><tr><td colspan="2"><b>Total cancelado</b></td>'+
+      '<td class="num"><b class="vcMenos">R$ '+money(d.vCanc)+'</b></td>'+
+      '<td colspan="3"></td></tr></tfoot></table>'
+     :vcVazio('Nenhum cancelamento neste turno.');
+  }
+
+  /* ---------- DESCONTOS (item 21) ---------- */
+  if(VC.aba==='desc'){
+    var totD=d.descontos.reduce(function(a,p){return a+(Number(p.desconto)||0)},0);
+    corpo=d.descontos.length
+     ?'<table class="vcTab"><thead><tr><th>Pedido</th><th class="num">Original</th>'+
+      '<th class="num">Desconto</th><th class="num">Final</th><th>Cupom</th><th>Operador</th></tr></thead><tbody>'+
+      d.descontos.map(function(p){
+        var desc=Number(p.desconto)||0;
+        return '<tr><td>#'+E(String(p.numero||''))+'<small>'+E(p.hora||'')+'</small></td>'+
+          '<td class="num">R$ '+money((Number(p.total)||0)+desc)+'</td>'+
+          '<td class="num vcMenos">R$ '+money(desc)+'</td>'+
+          '<td class="num">R$ '+money(p.total)+'</td>'+
+          '<td>'+(p.cupom?E(p.cupom.codigo||''):'—')+'</td>'+
+          '<td>'+E(c.operador||'—')+'</td></tr>';
+      }).join('')+'</tbody><tfoot><tr><td colspan="2"><b>Total de descontos</b></td>'+
+      '<td class="num"><b class="vcMenos">R$ '+money(totD)+'</b></td>'+
+      '<td colspan="3"></td></tr></tfoot></table>'
+     :vcVazio('Nenhum desconto concedido neste turno.');
+  }
+
+  /* ---------- VENDAS (item 22) ---------- */
+  if(VC.aba==='vendas'){
+    corpo='<div class="vcGrid">'+
+      '<div class="vcCard"><div class="vcCardT">Indicadores</div>'+
+      '<div class="vcL"><span>Pedidos</span><b>'+d.qtd+'</b></div>'+
+      '<div class="vcL"><span>Faturamento bruto</span><b>R$ '+money(d.bruto)+'</b></div>'+
+      '<div class="vcL"><span>Cancelamentos</span><b class="vcMenos">R$ '+money(d.vCanc)+'</b></div>'+
+      '<div class="vcL tot"><span>Faturamento líquido</span><b>R$ '+money(d.liquido)+'</b></div>'+
+      '<div class="vcL"><span>Ticket médio</span><b>R$ '+money(d.ticket)+'</b></div>'+
+      '</div></div>'+
+      (d.ok.length
+        ?'<table class="vcTab" style="margin-top:14px"><thead><tr><th>Pedido</th><th>Hora</th>'+
+         '<th>Canal</th><th>Formas</th><th class="num">Valor</th></tr></thead><tbody>'+
+         d.ok.slice().sort(function(a,b){return (b.hora||'').localeCompare(a.hora||'')})
+          .map(function(p){
+            var fs=(p.pagamentos||[]).map(function(g){
+              return (FORMAS.find(function(f){return f.id===g.forma})||{}).n||'sem forma';
+            }).join(' + ');
+            return '<tr><td>#'+E(String(p.numero||''))+'</td><td>'+E(p.hora||'')+'</td>'+
+              '<td>'+E(p.canal||'pdv')+'</td><td>'+E(fs||'—')+'</td>'+
+              '<td class="num">R$ '+money(p.total)+'</td></tr>';
+          }).join('')+'</tbody></table>'
+        :vcVazio('Nenhuma venda neste turno.'));
+  }
+
+  /* ---------- OPERADORES (item 23) ---------- */
+  if(VC.aba==='oper'){
+    var papeis=[];
+    var add=function(nome,papel,det){
+      if(!nome)return;
+      var j=papeis.find(function(x){return x.nome===nome});
+      if(!j){j={nome:nome,papeis:[]};papeis.push(j);}
+      if(j.papeis.indexOf(papel)<0)j.papeis.push(papel+(det?' ('+det+')':''));
+    };
+    add(c.operador,'abriu o caixa');
+    if(d.qtd)add(c.operador,'vendas',d.qtd);
+    d.movimentos.forEach(function(m){
+      add(m.responsavel,m.tipo==='sangria'?'sangria':'suprimento','R$ '+money(m.valor));
+    });
+    d.cancelamentos.forEach(function(x){ add(x.operador,'autorizou cancelamento'); });
+    if(c.fechadoPor)add(c.fechadoPor,'fechou o caixa');
+    corpo=papeis.length
+     ?'<table class="vcTab"><thead><tr><th>Pessoa</th><th>O que fez neste turno</th></tr></thead><tbody>'+
+      papeis.map(function(x){
+        return '<tr><td><b>'+E(x.nome)+'</b></td><td>'+
+          x.papeis.map(function(p){return '<span class="badge2">'+E(p)+'</span>'}).join(' ')+
+          '</td></tr>';
+      }).join('')+'</tbody></table>'+
+      '<div class="hint" style="margin-top:10px">Nenhuma senha ou credencial é exibida aqui.</div>'
+     :vcVazio('Sem registro de operadores neste turno.');
+  }
+
+  /* ---------- AUDITORIA (item 24) ---------- */
+  if(VC.aba==='aud'){
+    var ev=[];
+    ev.push({q:c.aberto||'',e:'Abertura de caixa',
+      det:'Fundo de R$ '+money(d.fundo),quem:c.operador||'—'});
+    d.movimentos.forEach(function(m){
+      ev.push({q:m.hora,e:m.tipo==='sangria'?'Sangria':'Suprimento',
+        det:'R$ '+money(m.valor)+(m.destino?' → '+m.destino:'')+
+            (m.motivo?' · '+m.motivo:'')+(m.lancRef?' · lanç. '+m.lancRef:''),
+        quem:m.responsavel||'—'});
+    });
+    d.cancelamentos.forEach(function(x){
+      ev.push({q:x.hora||'',e:'Cancelamento de venda',
+        det:'#'+(x.numero||'')+' · R$ '+money(x.valor)+(x.motivo?' · '+x.motivo:''),
+        quem:x.operador||'—'});
+    });
+    if(d.fechado)ev.push({q:c.fechadoEm||'',e:'Fechamento de caixa',
+      det:'Diferença geral '+(Math.abs(d.difGeral)<0.01?'R$ 0,00'
+        :(d.difGeral>0?'+ ':'− ')+'R$ '+money(Math.abs(d.difGeral)))+
+        (d.doSnapshot?' · fotografia gravada':''),
+      quem:c.fechadoPor||'—'});
+    var ed=c.snapshot&&c.snapshot.editado;
+    if(ed)ev.push({q:ed.em||'',e:'Edição administrativa do fechamento',
+      det:'Valores refeitos; fotografia anterior preservada',quem:ed.por||'—'});
+    corpo='<table class="vcTab"><thead><tr><th>Quando</th><th>Evento</th>'+
+      '<th>Detalhe</th><th>Responsável</th></tr></thead><tbody>'+
+      ev.map(function(x){
+        return '<tr><td>'+E(x.q||'—')+'</td><td><b>'+E(x.e)+'</b></td>'+
+          '<td>'+E(x.det)+'</td><td>'+E(x.quem)+'</td></tr>';
+      }).join('')+'</tbody></table>'+
+      (d.doSnapshot
+        ?'<div class="vcAviso vd">'+sv('check',15)+'<div><b>Conferência congelada</b>'+
+         '<small>Os números acima vêm da fotografia gravada no fechamento. '+
+         'Não mudam se algo for alterado depois.</small></div></div>'
+        :'');
+  }
+
+  var o=document.getElementById('mdOv');
+  o.innerHTML='<div class="mdBox xl vcBox"><div class="mdH"><b>Relatório de frente de caixa</b>'+
+    '<button onclick="fecharModal()">&times;</button></div>'+
+    '<div class="mdB vcWrap">'+cab+nav+'<div class="vcCorpo">'+corpo+'</div></div>'+
+    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
+    (d.fechado?'<button class="btnP2" onclick="imprimirFechamento(\''+c.id+'\')">'+
+      sv('print2',13)+' Cupom</button>'+
+      '<button class="btnP2" onclick="imprimirRelatorioCaixa(\''+c.id+'\')">'+
+      sv('print2',13)+' Imprimir relatório</button>':'')+
+    (d.fechado?'<button class="btnP2 ok" onclick="editarCaixa(\''+c.id+'\')">'+sv('edit',13)+' Editar fechamento</button>'
+     :'<button class="btnP2 ok" onclick="fecharModal();abrir(\'pdv\',\'pdv\')">Ir ao PDV</button>')+
+    '</div></div>';
+}
+function vcVazio(t){ return '<div class="vcVazio">'+E(t)+'</div>'; }
+function avisoDivergencia(){
+  return '<div class="vcAviso am">'+sv('help',15)+
+    '<div><b>Divergência de classificação entre formas de recebimento</b>'+
+    '<small>Uma forma sobrou exatamente o que outra faltou: a diferença geral é R$ 0,00. '+
+    'O dinheiro está todo aqui — o que errou foi a forma escolhida em alguma venda. '+
+    '<b>Isto não é falta de caixa</b> e nenhuma venda foi alterada.</small></div></div>';
+}
+/* ==========================================================
+   IMPRESSAO GERENCIAL (parte E)
+
+   Folha A4, mais completa que a bobina. A bobina continua objetiva —
+   quem confere a gaveta no fim da noite nao precisa da lista de
+   descontos; quem audita o mes, sim.
+   ========================================================== */
+function imprimirRelatorioCaixa(id){
+  var c=(DB.caixas||[]).find(function(x){return x.id===id});
+  if(!c){toast('Caixa não encontrado.');return;}
+  var d=dadosDoCaixa(c);
+  var lin=function(a,b,cls){return '<tr><td>'+a+'</td><td class="n '+(cls||'')+'">'+b+'</td></tr>';};
+  var sec=function(t,html){return '<h3>'+t+'</h3>'+html;};
+  var dif=function(v){
+    if(v===null)return '—';
+    return (Math.abs(v)<0.01?'R$ 0,00':(v>0?'+ ':'- ')+'R$ '+money(Math.abs(v)));
+  };
+  var h='<html><head><meta charset="utf-8"><title>Fechamento de caixa</title><style>'+
+   'body{font:12px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a1a;margin:26px}'+
+   'h1{font-size:17px;margin:0 0 2px}h2{font-size:13px;margin:0 0 14px;color:#666;font-weight:500}'+
+   'h3{font-size:12px;margin:20px 0 6px;padding-bottom:4px;border-bottom:1.5px solid #2F4A32;color:#2F4A32}'+
+   'table{width:100%;border-collapse:collapse;margin-bottom:4px}'+
+   'td,th{padding:5px 7px;border-bottom:1px solid #e4e0d8;text-align:left;font-size:11px}'+
+   'th{background:#2F4A32;color:#fff;font-size:10.5px}'+
+   '.n{text-align:right;white-space:nowrap}.tot td{font-weight:700;border-top:1.5px solid #333}'+
+   '.m{color:#B3261E}.p{color:#0E8A46}'+
+   '.meta{display:flex;flex-wrap:wrap;gap:4px 22px;font-size:11px;color:#444;margin-bottom:6px}'+
+   '.meta b{color:#000}.selo{display:inline-block;padding:4px 10px;border-radius:4px;'+
+   'font-size:11px;font-weight:700;margin-top:8px}'+
+   '.ok{background:#E7F5EC;color:#0E8A46}.df{background:#FDECEA;color:#B3261E}'+
+   '@media print{body{margin:12mm}}</style></head><body>'+
+   '<h1>'+E(cfg().nomePublico||nomeLojaAtual()||'')+' — Fechamento de caixa</h1>'+
+   '<h2>'+E(sucNome(c.sucursalId||lojaAtualId()))+'</h2>'+
+   '<div class="meta">'+
+     '<span><b>Caixa:</b> '+E(String(c.id||'').slice(-8))+'</span>'+
+     (c.turno?'<span><b>Turno:</b> '+E(c.turno)+'</span>':'')+
+     '<span><b>Abertura:</b> '+E(c.aberto||'—')+'</span>'+
+     '<span><b>Fechamento:</b> '+E(c.fechadoEm||'—')+'</span>'+
+     '<span><b>Abriu:</b> '+E(c.operador||'—')+'</span>'+
+     '<span><b>Fechou:</b> '+E(c.fechadoPor||'—')+'</span>'+
+   '</div>'+
+   '<div class="selo '+(d.conciliado?'ok':'df')+'">'+
+     (d.conciliado?(d.divergeForma?'FECHAMENTO TOTAL CONCILIADO — divergência entre formas':'CONFERE'):
+      'COM DIVERGÊNCIA')+'</div>'+
+
+   sec('Recebimentos',
+     '<table><tr><th>Forma</th><th class="n">Sistema</th><th class="n">Físico</th><th class="n">Diferença</th></tr>'+
+     d.formas.map(function(f){
+       return '<tr><td>'+E(f.nome)+'</td><td class="n">R$ '+money(f.sistema)+'</td>'+
+        '<td class="n">'+(f.fisico===null?'—':'R$ '+money(f.fisico))+'</td>'+
+        '<td class="n '+(f.diferenca===null||Math.abs(f.diferenca)<0.01?'':(f.diferenca>0?'p':'m'))+'">'+
+        dif(f.diferenca)+'</td></tr>';
+     }).join('')+
+     '<tr class="tot"><td>TOTAL</td><td class="n">R$ '+money(d.totSis)+'</td>'+
+     '<td class="n">R$ '+money(d.totFis)+'</td><td class="n">'+dif(d.difGeral)+'</td></tr></table>')+
+
+   sec('Composição do dinheiro',
+     '<table>'+lin('Fundo de caixa','R$ '+money(d.fundo))+
+     lin('+ vendas em dinheiro','R$ '+money(d.vendasDinheiro))+
+     lin('+ suprimentos','R$ '+money(d.suprimentos))+
+     lin('− sangrias','R$ '+money(d.sangrias))+
+     '<tr class="tot"><td>= dinheiro esperado</td><td class="n">R$ '+money(d.dinheiro.sistema)+'</td></tr>'+
+     lin('Físico informado',d.dinheiro.fisico===null?'—':'R$ '+money(d.dinheiro.fisico))+
+     '</table>')+
+
+   sec('Faturamento',
+     '<table>'+lin('Bruto','R$ '+money(d.bruto))+
+     lin('(−) cancelamentos','R$ '+money(d.vCanc),'m')+
+     '<tr class="tot"><td>Líquido</td><td class="n">R$ '+money(d.liquido)+'</td></tr>'+
+     lin('Vendas',String(d.qtd))+lin('Ticket médio','R$ '+money(d.ticket))+
+     '</table>')+
+
+   (d.movimentos.length?sec('Movimentações',
+     '<table><tr><th>Hora</th><th>Tipo</th><th class="n">Valor</th><th>Motivo</th><th>Destino</th><th>Operador</th></tr>'+
+     d.movimentos.map(function(m){
+       return '<tr><td>'+E(m.hora||'')+'</td><td>'+(m.tipo==='sangria'?'Sangria':'Suprimento')+'</td>'+
+        '<td class="n">R$ '+money(m.valor)+'</td><td>'+E(m.motivo||'')+'</td>'+
+        '<td>'+E(m.destino||'—')+'</td><td>'+E(m.responsavel||'—')+'</td></tr>';
+     }).join('')+'</table>'):'')+
+
+   (d.cancelamentos.length?sec('Cancelamentos',
+     '<table><tr><th>Hora</th><th>Pedido</th><th class="n">Valor</th><th>Motivo</th><th>Autorizou</th></tr>'+
+     d.cancelamentos.map(function(x){
+       return '<tr><td>'+E(x.hora||'')+'</td><td>#'+E(String(x.numero||''))+'</td>'+
+        '<td class="n m">R$ '+money(x.valor)+'</td><td>'+E(x.motivo||'')+'</td>'+
+        '<td>'+E(x.operador||'—')+'</td></tr>';
+     }).join('')+
+     '<tr class="tot"><td colspan="2">Total cancelado</td><td class="n m">R$ '+money(d.vCanc)+
+     '</td><td colspan="2"></td></tr></table>'):'')+
+
+   (d.descontos.length?sec('Descontos',
+     '<table><tr><th>Pedido</th><th class="n">Original</th><th class="n">Desconto</th>'+
+     '<th class="n">Final</th><th>Cupom</th></tr>'+
+     d.descontos.map(function(p){
+       var ds=Number(p.desconto)||0;
+       return '<tr><td>#'+E(String(p.numero||''))+'</td>'+
+        '<td class="n">R$ '+money((Number(p.total)||0)+ds)+'</td>'+
+        '<td class="n m">R$ '+money(ds)+'</td><td class="n">R$ '+money(p.total)+'</td>'+
+        '<td>'+(p.cupom?E(p.cupom.codigo||''):'—')+'</td></tr>';
+     }).join('')+'</table>'):'')+
+
+   (d.doSnapshot?'<p style="font-size:10px;color:#666;margin-top:18px">'+
+     'Valores congelados na fotografia gravada no fechamento. Não mudam com alterações posteriores.</p>':'')+
+   '<p style="font-size:10px;color:#666;margin-top:6px">Emitido em '+
+     new Date().toLocaleString('pt-BR')+' · Joia '+VERSAO+'</p>'+
+   '</body></html>';
+  var w=window.open('','_blank');
+  if(!w){toast('Permita janelas para imprimir o relatório.');return;}
+  w.document.write(h); w.document.close();
+  setTimeout(function(){ try{w.print();}catch(e){} },300);
 }
 
 /* ---------- EDITAR FECHAMENTO ---------- */

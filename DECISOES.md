@@ -5186,3 +5186,105 @@ real** (20/08 R$ 15, 25/08 R$ 75).
 **Nada foi migrado**, conforme o item 2: não se adivinha forma de pagamento
 passada. Ficam como evidência. Da V178 em diante o banco recusa gravar pagamento
 sem forma, então a lista não cresce mais.
+
+## V179 — campo de dinheiro, teclado touch, fechamento rápido e relatório gerencial
+
+Documento: "Evolução final do PDV", partes A a G. **Nada das regras matemáticas
+aprovadas foi reescrito** — esperadoCaixa, montarSnapshot, sangria, suprimento,
+fechamento cego, snapshot, conciliação e travas de duplicidade continuam como
+estavam.
+
+### Parte A — um campo de dinheiro para o sistema inteiro
+
+Havia 18 campos de valor espalhados, cada um `type="number"` com `value="0"`. Três
+problemas, todos os dias:
+
+1. **o zero era valor, não rótulo.** Quem tocava e digitava 25 obtinha "025" ou
+   tinha de apagar o zero antes;
+2. **trocar 125,90 por 80** exigia apagar dígito por dígito;
+3. `type="number"` num aparelho em português aceita vírgula **e** ponto, e
+   `parseFloat("1.234,56")` devolve **1.234** — silenciosamente.
+
+`moedaHTML()` / `moedaValor()` / `moedaSet()` resolvem os três, e são o **único**
+lugar onde texto vira número. O valor real vive em `data-v`; o que aparece é
+apresentação. Nenhum cálculo sai de string formatada.
+
+Os três comportamentos são ligados **uma vez no documento**, por delegação. As
+telas são redesenhadas o tempo todo (333 pontos chamam `telaX()` depois de salvar);
+ligar evento em cada campo criado significaria religar em cada redesenho e esquecer
+em algum.
+
+Migrados nesta rodada: fechamento (conferência por forma), abertura, sangria,
+suprimento, fundo do próximo caixa e edição de fechamento. Os campos de cardápio,
+produto e financeiro continuam funcionando como antes e migram na sequência — o
+componente já está pronto para eles.
+
+### Parte B — teclado numérico de toque
+
+Só no PDV e no fechamento. Abrir isto na tela de cadastro de produto, onde a pessoa
+está num computador com teclado de verdade, seria estorvo.
+
+O teclado do sistema operacional cobre metade da tela do tablet — inclusive o botão
+de finalizar — e some sem avisar. Este fica ancorado embaixo, e
+`body.comTeclado .mdBox` garante que não cubra o rodapé do modal. ESC devolve o
+valor anterior; ENTER recolhe; OK avança para o próximo campo de dinheiro. **O
+teclado físico continua funcionando o tempo todo.**
+
+### Parte C — fechamento muito mais rápido
+
+**ENTER percorre as formas.** A ordem é a das formas efetivamente cadastradas e
+ativas na unidade — forma desabilitada não entra no caminho, porque a lista vem de
+`FORMAS`, que já filtra por `ativa!==false`. No último campo, ENTER leva ao botão
+de fechar. O primeiro campo já nasce focado.
+
+**A tela intermediária foi removida.** `resultadoFechamento()` abria depois de
+fechar o caixa e mostrava previsto × físico para o operador "confirmar". Ela não
+confirmava nada — o caixa já estava gravado quando abria — e mostrava o esperado
+justamente a quem o fechamento cego existe para não mostrar.
+
+Ficou só: **"Caixa fechado com sucesso. Deseja imprimir?"**
+
+A função foi **apagada, não desligada**: função que ninguém chama volta a ser
+chamada por engano seis meses depois.
+
+**A conferência não se perdeu** (item 12): vive no snapshot e aparece inteira no
+relatório gerencial, no histórico e na impressão, para gestor e administrador.
+
+### Parte D — relatório de frente de caixa
+
+Oito abas: Resumo, Recebimentos, Movimentações, Cancelamentos, Descontos, Vendas,
+Operadores, Auditoria.
+
+**A regra que mais importa aqui é negativa: nenhuma aba faz conta própria.** Todas
+leem `dadosDoCaixa()`, que monta o retrato uma vez. Sem isso, uma venda vale R$ 100
+no Resumo e R$ 90 em Recebimentos — e quando os dois divergem ninguém sabe qual
+acreditar.
+
+Para caixa fechado a fonte é o **snapshot** (item 26). Testado: cancelar uma venda
+depois não muda os recebimentos do relatório.
+
+Em Recebimentos, a linha do dinheiro **expande** e mostra de onde o número saiu:
+fundo + vendas em dinheiro + suprimentos − sangrias = esperado.
+
+### Parte E — impressão
+
+O cupom térmico continua objetivo. A impressão **gerencial** é folha A4 e traz
+movimentações, cancelamentos e descontos detalhados. Quem confere a gaveta no fim
+da noite não precisa da lista de descontos; quem audita o mês, sim.
+
+### Parte F — duplo toque
+
+`travarOperacao()` cobre FECHAR CAIXA, SANGRIA e SUPRIMENTO (FINALIZAR VENDA já
+tinha a sua). Em tela de toque o duplo toque acidental é comum, e uma sangria de
+R$ 200 tocada duas vezes vira R$ 400 fora da gaveta.
+
+**Isto é a primeira barreira, não a única.** As travas do banco continuam valendo,
+porque confiar só no botão seria confiar no navegador — e o robô, a sincronização e
+o cardápio não passam por botão nenhum.
+
+### Testes
+
+`testes/pdv-ux.js` (novo, no `npm test`): **99/99**.
+
+Regressão: caixa **67/67**, formas **67/67**, Postgres **9/9**, reconciliação
+aprovada, sintaxe ok.
