@@ -17515,7 +17515,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V172.0.0';
+var VERSAO='V173.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19469,10 +19469,42 @@ function baseFormas(){
   }
   syncFormas();
 }
+/* ==========================================================
+   AQUI ESTAVA O TROCO BLOQUEADO
+
+   A conferencia da venda pergunta `forma.troco` para saber se aquela
+   forma aceita receber a mais. A lista ANTIGA, escrita no codigo,
+   trazia `{id:'dinheiro', n:'Dinheiro', troco:true}`.
+
+   Quando as formas passaram a vir do banco, esta funcao virou a fonte
+   da lista — e ela monta o objeto campo a campo, sem `troco`. O banco
+   guarda `tipo` ('dinheiro', 'pix', 'debito'...), nunca guardou uma
+   coluna `troco`.
+
+   Resultado: `f.troco` passou a ser SEMPRE indefinido. Nem o dinheiro
+   dava troco. Venda de R$ 18, cliente entrega R$ 20, a tela calculava
+   e mostrava "Troco R$ 2,00" — e o botao de finalizar recusava, com
+   uma mensagem que nao fazia sentido nenhum para quem estava no
+   balcao.
+
+   E o mesmo padrao que ja apareceu sete vezes neste sistema: campo que
+   existe de um lado e nao do outro. Aqui o efeito foi travar a venda em
+   dinheiro, que e a forma mais usada na loja.
+
+   O troco agora e deduzido do TIPO, que o banco realmente guarda.
+   ========================================================== */
+function formaDaTroco(f){
+  if(!f)return false;
+  if(f.troco===true||f.troco===false)return !!f.troco;   /* respeita quem definiu */
+  var t=String(f.tipo||'').toLowerCase();
+  return t==='dinheiro'||t==='especie'||t==='cash';
+}
 function syncFormas(){
   FORMAS=(DB.formasPag||[]).filter(function(f){return f.ativa!==false})
     .sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
-    .map(function(f){return {id:f.id,n:f.nome,tipo:f.tipo,contaId:f.contaId,taxaPct:f.taxaPct,taxaFixa:f.taxaFixa,dias:f.dias}});
+    .map(function(f){return {id:f.id,n:f.nome,tipo:f.tipo,contaId:f.contaId,
+      taxaPct:f.taxaPct,taxaFixa:f.taxaFixa,dias:f.dias,
+      troco:formaDaTroco(f)}});
 }
 function formaPag(id){return (DB.formasPag||[]).find(function(f){return f.id===id})||null}
 var FASES_DISP=[
@@ -24177,7 +24209,9 @@ function irPagamento(){
        O pedido guarda o valor da venda, nao o que entrou na mao: o
        troco volta para o cliente e nao e faturamento.
        ========================================================== */
-    var _daTroco=_pagos.some(function(pg){var f=formaPag(pg.forma);return f&&f.troco;});
+    /* pergunta pela funcao, nao pelo campo: se a lista for montada em outro
+       lugar amanha e esquecer `troco`, a venda em dinheiro nao trava de novo */
+    var _daTroco=_pagos.some(function(pg){return formaDaTroco(formaPag(pg.forma));});
     if(somaPg<final-0.01){
       toast('Faltam R$ '+money(final-somaPg)+' — os pagamentos somam R$ '+money(somaPg)+
             ' e o total é R$ '+money(final)+'.');
@@ -24194,11 +24228,25 @@ function irPagamento(){
     var entSel=document.querySelector('input[name=pgEnt]:checked');
     /* o que entra no caixa e o valor da venda; o excedente volta ao
        cliente. Sem isso o faturamento do dia sairia inflado pelo troco. */
+    /* ==========================================================
+       DOIS NUMEROS DIFERENTES, GUARDADOS SEPARADOS
+
+       `valor`     = quanto daquela quantia QUITA a venda (o que vale
+                     para faturamento, caixa e conferencia)
+       `recebido`  = quanto o cliente entregou de fato
+
+       Venda de R$ 18 com R$ 20 na mao: valor 18, recebido 20, troco 2.
+       So o 18 entra em qualquer soma. O 20 fica registrado para quem
+       precisar conferir a gaveta nota a nota.
+       ========================================================== */
     var _pagosVenda=JSON.parse(JSON.stringify(_pagos));
+    _pagosVenda.forEach(function(pv,ix){
+      if(_pagos[ix])pv.recebido=+(Number(_pagos[ix].valor)||0).toFixed(2);
+    });
     if(_troco>0.009){
       for(var ti=_pagosVenda.length-1;ti>=0&&_troco>0.009;ti--){
         var fT=formaPag(_pagosVenda[ti].forma);
-        if(!fT||!fT.troco)continue;
+        if(!formaDaTroco(fT))continue;
         var tira=Math.min(_pagosVenda[ti].valor,_troco);
         _pagosVenda[ti].valor=+(_pagosVenda[ti].valor-tira).toFixed(2);
         _troco=+(_troco-tira).toFixed(2);
@@ -24277,7 +24325,7 @@ function recalcPag(){
   var troco=+(pago-final).toFixed(2);
   $('pgLista').innerHTML=_pagos.map(function(p,i){
     var f=FORMAS.find(function(x){return x.id===p.forma});
-    var daTroco=!!(f&&f.troco);
+    var daTroco=formaDaTroco(f);
     return '<div class="pgLinha"><b>'+f.n+
       (daTroco?'<small class="pgRot">recebido</small>':'')+'</b>'+
     '<div class="cur" style="width:126px"><span>R$</span>'+

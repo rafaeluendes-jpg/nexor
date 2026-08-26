@@ -4773,3 +4773,41 @@ Pior que o incômodo: quem visse aquilo publicaria de novo achando que não tinh
 dado certo. A verdade é a tabela `app_usuarios` — é ela que o aplicativo
 consulta para deixar alguém entrar. Criada a função `app_publicados()`, e a tela
 passou a perguntar ao banco em vez de acreditar no aparelho.
+
+## V173 — o troco em dinheiro estava bloqueado
+
+Venda de R$ 18, cliente entrega R$ 20: a tela calculava e mostrava "Troco
+R$ 2,00", e o botão de finalizar recusava com "Recebido a mais em forma que não
+dá troco". Trava na forma mais usada da loja.
+
+**Causa raiz.** A conferência pergunta `forma.troco`. A lista **antiga**, escrita
+no código, trazia `{id:'dinheiro', n:'Dinheiro', troco:true}`.
+
+Quando as formas passaram a vir do banco, `syncFormas()` virou a fonte da lista —
+e ela monta o objeto campo a campo, **sem `troco`**. O banco guarda `tipo`
+('dinheiro', 'pix', 'debito'…) e nunca teve coluna `troco`.
+
+Resultado: `f.troco` passou a ser **sempre indefinido**. Nem o dinheiro dava
+troco. A regra da V132 estava correta; o dado que ela consultava é que deixou de
+existir.
+
+**Oitava ocorrência do mesmo padrão** — campo que existe de um lado e não do
+outro, falhando em silêncio.
+
+Correções:
+
+- `formaDaTroco(f)` deduz do **tipo**, que o banco realmente guarda, e respeita
+  um `troco` explícito se alguém definir um dia;
+- os três pontos que liam `f.troco` passaram a chamar a função — se a lista for
+  montada em outro lugar amanhã e esquecer o campo, a venda em dinheiro não
+  trava de novo;
+- o pagamento passou a guardar **`recebido`** (o que o cliente entregou) ao lado
+  de **`valor`** (o que quita a venda). Só o `valor` entra em faturamento, caixa
+  e conferência.
+
+Venda R$ 18 com R$ 20: faturamento R$ 18, caixa +R$ 18, troco R$ 2, recebido
+R$ 20 registrado.
+
+21 testes acrescentados à suíte permanente, rodando a função real extraída do
+`index.html` — inclusive o misto (Pix 40 + dinheiro 100 numa venda de 100 dá
+troco 40, dinheiro aplicado 60, Pix inteiro, faturamento 100).

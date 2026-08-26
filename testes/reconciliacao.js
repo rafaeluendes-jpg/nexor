@@ -145,6 +145,73 @@ t('e o pagamento registrado é 50, não 100',
   totalPago(doDia(TROCO, '2026-08-25')) === 50);
 
 /* ==========================================================
+   TROCO EM DINHEIRO
+
+   Entrou na suite depois de um defeito real: `formaDaTroco` deixou de
+   existir na lista montada a partir do banco, e a venda em dinheiro com
+   troco — a mais comum da loja — passou a ser recusada no botao de
+   finalizar, depois de a propria tela ter mostrado o troco.
+
+   Estes testes rodam a funcao de verdade, extraida do index.html.
+   ========================================================== */
+grupo('Troco em dinheiro');
+const FDT = carregar(['formaDaTroco']).formaDaTroco;
+t('dinheiro dá troco', FDT({ tipo: 'dinheiro' }) === true);
+t('pix não dá troco', FDT({ tipo: 'pix' }) === false);
+t('débito não dá troco', FDT({ tipo: 'debito' }) === false);
+t('crédito não dá troco', FDT({ tipo: 'credito' }) === false);
+t('voucher não dá troco', FDT({ tipo: 'voucher' }) === false);
+t('forma sem tipo não dá troco', FDT({}) === false);
+t('quem definiu explicitamente é respeitado', FDT({ tipo: 'pix', troco: true }) === true);
+
+function fecharVenda(total, pagos, formas) {
+  const f = id => formas.find(x => x.id === id);
+  const soma = r2(pagos.reduce((a, p) => a + p.valor, 0));
+  const daTroco = pagos.some(p => FDT(f(p.forma)));
+  if (soma < total - 0.01) return { erro: 'falta', falta: r2(total - soma) };
+  if (soma > total + 0.01 && !daTroco) return { erro: 'sobra sem troco' };
+  const troco = r2(soma - total);
+  const venda = JSON.parse(JSON.stringify(pagos));
+  venda.forEach((v, i) => { v.recebido = r2(pagos[i].valor); });
+  let sobra = troco;
+  for (let i = venda.length - 1; i >= 0 && sobra > 0.009; i--) {
+    if (!FDT(f(venda[i].forma))) continue;
+    const tira = Math.min(venda[i].valor, sobra);
+    venda[i].valor = r2(venda[i].valor - tira); sobra = r2(sobra - tira);
+  }
+  const fim = venda.filter(x => x.valor > 0.009);
+  return { troco, pagos: fim, faturamento: r2(fim.reduce((a, p) => a + p.valor, 0)) };
+}
+const FORMAS_BANCO = [
+  { id: 'fp_dinheiro', tipo: 'dinheiro' }, { id: 'fp_pix', tipo: 'pix' },
+  { id: 'fp_debito', tipo: 'debito' }, { id: 'fp_credito', tipo: 'credito' }];
+
+const V18 = fecharVenda(18, [{ forma: 'fp_dinheiro', valor: 20 }], FORMAS_BANCO);
+t('venda R$ 18 com R$ 20: finaliza', !V18.erro, V18.erro);
+t('troco R$ 2,00', V18.troco === 2, V18.troco);
+t('faturamento R$ 18,00 (não 20)', V18.faturamento === 18, V18.faturamento);
+t('o recebido fica registrado como 20', V18.pagos[0].recebido === 20);
+t('venda R$ 50 com R$ 100: troco 50',
+  fecharVenda(50, [{ forma: 'fp_dinheiro', valor: 100 }], FORMAS_BANCO).troco === 50);
+t('valor exato: troco zero',
+  fecharVenda(18, [{ forma: 'fp_dinheiro', valor: 18 }], FORMAS_BANCO).troco === 0);
+t('faltando dinheiro: barra',
+  fecharVenda(18, [{ forma: 'fp_dinheiro', valor: 10 }], FORMAS_BANCO).erro === 'falta');
+t('Pix a mais: barra',
+  fecharVenda(18, [{ forma: 'fp_pix', valor: 20 }], FORMAS_BANCO).erro === 'sobra sem troco');
+
+const MIX = fecharVenda(100,
+  [{ forma: 'fp_pix', valor: 40 }, { forma: 'fp_dinheiro', valor: 100 }], FORMAS_BANCO);
+t('misto Pix 40 + dinheiro 100: finaliza', !MIX.erro);
+t('troco R$ 40,00', MIX.troco === 40, MIX.troco);
+t('dinheiro aplicado R$ 60,00',
+  MIX.pagos.find(p => p.forma === 'fp_dinheiro').valor === 60);
+t('Pix continua inteiro', MIX.pagos.find(p => p.forma === 'fp_pix').valor === 40);
+t('faturamento R$ 100 (não 140)', MIX.faturamento === 100, MIX.faturamento);
+const CENT = fecharVenda(18.90, [{ forma: 'fp_dinheiro', valor: 20 }], FORMAS_BANCO);
+t('centavos: 18,90 recebe 20 dá troco 1,10', CENT.troco === 1.10, CENT.troco);
+
+/* ==========================================================
    CANCELAMENTO
    ========================================================== */
 grupo('Cancelamento');
