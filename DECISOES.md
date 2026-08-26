@@ -4686,3 +4686,36 @@ Mês anterior) e os números só aparecem depois da escolha. Atalho "Ontem" cria
 - vendas sem baixa de estoque: **0** (as 35 vendas têm movimentação)
 - vendas duplicadas: **0**
 - unidades misturadas: **0**
+
+## V169 — duas senhas diferentes, e a tela não dizia isso
+
+Observação do Rafael: *"pra acessar esse aplicativo tem a mesma senha pra
+acessar o Joia? essas lojas já têm login... ali está confuso."*
+
+Ele estava certo. Existem **dois acessos separados**:
+
+- **sistema** (computador da loja): criado no cadastro da sucursal, vai para o
+  Supabase Auth;
+- **aplicativo** (celular): tabela `app_usuarios`, com senha própria, publicada
+  em Canais de Venda.
+
+A tela da sucursal dizia apenas "Quem entra nesta loja". Quem cadastrava ali
+achava — com razão — que tinha liberado o celular também, e depois batia no erro
+"este acesso está sem senha" sem entender por quê, já que tinha acabado de
+cadastrar uma.
+
+Pior: para publicar o app era preciso sair da tela, abrir Usuários, digitar a
+senha, salvar, voltar e publicar. **Três telas para uma coisa só** — e a senha
+digitada lá era a do sistema, não a do aplicativo.
+
+Correções:
+
+- o bloco da sucursal passou a se chamar **"Acesso ao sistema (computador da
+  loja)"**, dizendo em seguida que o aplicativo tem senha própria e onde ela
+  fica;
+- a lista do aplicativo ganhou a coluna **"Senha do app"**: digita na linha e
+  clica em Publicar, sem sair da tela;
+- o texto explica que essa senha é só do aplicativo e **pode ser simples**,
+  porque serve apenas para ver os números no celular;
+- a mensagem de erro passou a dizer exatamente onde digitar, em vez de mandar
+  editar o usuário.

@@ -4234,6 +4234,9 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .fcRes.ok b{color:var(--green,#2E7D32)}
 .fcRes.dif b{color:var(--red)}
 .fcRes small{display:block;font-size:11.5px;color:var(--ink-3)}
+.senhaApp{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;
+  font-size:12.5px;background:#fff}
+.senhaApp:focus{border-color:var(--acc);outline:none}
 .cfAlerta{display:flex;gap:10px;margin-top:12px;padding:11px 13px;background:var(--amber-soft);
   border:1.5px solid #E8CFA0;border-radius:9px;color:#8A5A08}
 .cfAlerta svg{flex:none;margin-top:2px}
@@ -17502,7 +17505,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V168.0.0';
+var VERSAO='V169.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41169,13 +41172,29 @@ function formSucursal(id){
      e o acesso dela saem do mesmo formulario, de uma vez.
      ========================================================== */
   '<div class="mdSep"></div>'+
-  '<b style="font-size:13px">Quem entra nesta loja</b>'+
+  /* ==========================================================
+     DUAS SENHAS DIFERENTES, E A TELA NAO DIZIA ISSO
+
+     Este bloco cria o acesso ao SISTEMA — o Joia no computador da loja.
+     O APLICATIVO do celular tem outro acesso, publicado em Canais de
+     Venda, com senha propria.
+
+     A tela dizia so "Quem entra nesta loja", entao quem cadastrava aqui
+     achava, com razao, que ja tinha liberado o celular tambem — e
+     depois batia no erro "este acesso esta sem senha" sem entender por
+     que, ja que tinha acabado de cadastrar uma.
+
+     Agora cada tela diz de qual acesso esta falando.
+     ========================================================== */
+  '<b style="font-size:13px">Acesso ao sistema (computador da loja)</b>'+
   '<p class="hint" style="margin:4px 0 10px">'+
    (acessoDaSuc(s)
-     ? 'Já existe um acesso para esta unidade. Deixe a senha em branco para '+
-       'não trocá-la.'
-     : 'O responsável da unidade entra com este e-mail e senha. Ele enxerga '+
-       'só esta loja.')+'</p>'+
+     ? 'Já existe um acesso ao sistema para esta unidade. Deixe a senha em '+
+       'branco para não trocá-la.'
+     : 'O responsável da unidade entra no sistema com este e-mail e senha, e '+
+       'enxerga só esta loja.')+
+   '<br><b>O aplicativo do celular tem senha própria</b>, definida em '+
+   'Canais de Venda › Aplicativo.</p>'+
   '<div class="row2">'+
    '<div class="fld2"><label>E-mail (login)</label>'+
     '<input id="scMail" value="'+E((acessoDaSuc(s)||{}).login||'')+'" '+
@@ -42800,7 +42819,8 @@ function blocoApp(){
     '<table class="etTab semBusca"><thead><tr>'+
      '<th>Pessoa</th><th style="width:150px">Login</th>'+
      '<th style="width:170px">Lojas</th>'+
-     '<th style="width:150px;text-align:center">No aplicativo</th>'+
+     '<th style="width:130px;text-align:center">No aplicativo</th>'+
+     '<th style="width:150px">Senha do app</th>'+
      '<th style="width:120px"></th></tr></thead><tbody>'+
     usrs.map(function(u){
       var lojas=(u.mestre||u.tudo||!(u.sucursais||[]).length)?'todas'
@@ -42812,11 +42832,29 @@ function blocoApp(){
       '<td style="text-align:center">'+(u.publicadoEm
         ?'<span class="badge2">'+sv('check',10)+' liberado</span>'
         :'<span class="badge2 am">não publicado</span>')+'</td>'+
+      /* ==========================================================
+         A SENHA DO APLICATIVO SE DEFINE AQUI
+
+         Antes era preciso sair desta tela, abrir Usuarios (ou o cadastro
+         da loja), digitar a senha, salvar, voltar aqui e publicar. Tres
+         telas para uma coisa so — e a senha que se digitava la era a do
+         sistema, nao a do aplicativo.
+
+         Agora o campo esta na propria linha: digita e publica. E o texto
+         diz o que a senha e: simples, so para ver os numeros no celular.
+         ========================================================== */
+      '<td><input class="senhaApp" id="sa_'+E(u.id)+'" type="text" '+
+       'placeholder="'+(u.publicadoEm?'trocar senha':'senha do app')+'" '+
+       'autocomplete="off"></td>'+
       '<td><button class="btnP2" onclick="publicarUsuarioApp(\''+u.id+'\')">'+
        sv('cloud',12)+' '+(u.publicadoEm?'Republicar':'Publicar')+'</button></td></tr>';
     }).join('')+'</tbody></table>'+
-    '<div class="hint" style="padding:14px">Publique o acesso de cada pessoa. '+
-    'Republique sempre que mudar a senha ou as lojas.<br>'+
+    '<div class="hint" style="padding:14px">'+
+    '<b>Esta senha é só do aplicativo</b> — não é a mesma de entrar no sistema. '+
+    'Como serve apenas para ver os números no celular, pode ser simples: '+
+    'o nome da pessoa e alguns números já bastam.<br>'+
+    'Digite a senha na linha e clique em Publicar. Republique sempre que trocar '+
+    'a senha ou as lojas.<br>'+
     'Para escolher o que cada um vê, use <b>Usuários e Permissões</b>, aba <b>Aplicativo</b>.</div>'+
     '</div></div>'+
    '<div class="cfgCol estreita"><div class="colH">Link para enviar</div>'+
@@ -48239,17 +48277,26 @@ async function publicarAcesso(){
                 {'Prefer':'resolution=merge-duplicates'});
     /* a senha vai por funcao, que cifra dentro do banco. Mandar o texto puro
        na tabela deixaria a senha legivel para quem lesse a linha. */
-    if(u.senha){
+    /* a senha digitada na propria linha manda; se estiver vazia, vale a que
+       o usuario ja tiver no cadastro (compatibilidade com o jeito antigo) */
+    var _campo=$('sa_'+u.id);
+    var _senhaApp=(_campo?String(_campo.value||'').trim():'')||u.senha||'';
+    if(_senhaApp&&_senhaApp.length<4){
+      throw new Error('A senha do aplicativo precisa ter ao menos 4 caracteres.');
+    }
+    if(_senhaApp){
       var rs=await api('rpc/app_definir_senha','POST',
-        {p_login:u.login,p_senha:u.senha});
+        {p_login:u.login,p_senha:_senhaApp});
       var dd=Array.isArray(rs)?rs[0]:rs;
       if(dd&&dd.erro)throw new Error(dd.erro);
+      if(_campo)_campo.value='';
     }else if(!existia){
       /* so e erro quando o acesso esta NASCENDO sem senha. Para quem ja
          existe, campo de senha em branco significa "mantem a que tem" —
          antes isso barrava a republicacao de qualquer permissao. */
-      throw new Error('Este acesso está sem senha. Edite o usuário, informe uma '+
-        'senha e publique de novo — é ela que abre o aplicativo.');
+      throw new Error('Digite a senha do aplicativo na coluna "Senha do app", '+
+        'nesta mesma linha, e clique em Publicar. É ela que abre o aplicativo — '+
+        'não é a senha de entrar no sistema.');
     }
     u.publicadoEm=new Date().toISOString();
     salvar();telaUsuarios();
