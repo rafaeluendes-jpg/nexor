@@ -14191,8 +14191,25 @@ var MAPA=[
     cor:x.cor||null,imagem:x.imagem||null,ativa:x.ativo!==false,ordem:ordemDe(x,i),sucursais:x.sucursais||[]}}},
 
  {col:'grupos', espelha:true,      tab:'grupos_opcoes',
+  /* ==========================================================
+     `sucursais` NAO SUBIA — E A LIBERACAO EVAPORAVA NO CAMINHO
+
+     Este cadastro esta na lista de liberaveis desde a V109: a matriz
+     libera grupo por grupo na tela de Liberacao por Unidade. Mas o
+     campo nunca fez parte do que sobe, e a coluna nem existia no
+     banco.
+
+     A matriz liberava, o valor ficava no aparelho dela, e o proximo
+     download devolvia o grupo sem `sucursais`. `liberadoNa()` le lista
+     vazia como "ninguem" — e Santa Fe abria o produto e via
+     "Nenhum grupo cadastrado".
+
+     Campo que existe de um lado e nao do outro. O mesmo padrao que este
+     arquivo ja registrou onze vezes.
+     ========================================================== */
   campos:function(x,i){return {nome:x.nome,minimo:n(x.min),maximo:(x.max==null?1:Number(x.max)),
-    forcado:!!x.forcado,ordem:ordemDe(x,i),canais:x.canais||[]}},
+    forcado:!!x.forcado,ordem:ordemDe(x,i),canais:x.canais||[],
+    sucursais:x.sucursais||[]}},
   /* ==========================================================
      A FICHA DA OPCAO NAO SUBIA — E O TRABALHO SUMIA NO PROXIMO DOWNLOAD
 
@@ -16001,6 +16018,9 @@ function volta(linhas,fn,atual,col){
     imposto:x.imposto,cor:x.cor,imagem:x.imagem,ativo:x.ativa!==false,ordem:x.ordem||0,sucursais:x.sucursais||[]}},null,'categorias');
   DB.grupos=volta(rg,function(x){return {id:x.ref_local||x.id,nome:x.nome,min:x.minimo||0,max:x.maximo||1,
     forcado:!!x.forcado,ordem:x.ordem||0,canais:x.canais||[],
+    /* o que sobe tem de descer: sem isto a liberacao feita pela matriz
+       nao chegava a unidade (V187) */
+    sucursais:x.sucursais||[],
     /* A opcao voltava da nuvem SEM identificador. No envio seguinte ela era
        renumerada pela posicao, entao qualquer reordenacao criava linha nova
        em vez de atualizar a existente. Duas bordas viraram 2.000 linhas.
@@ -17982,7 +18002,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V186.0.0';
+var VERSAO='V187.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19158,8 +19178,21 @@ function formGrupo(id){
    'por exemplo: no cardápio o cliente escolhe sozinho; na frente de caixa quem '+
    'atende já ouviu o sabor, e marcar de novo só atrasa a fila.</div></div>'+
   '</div>'+
-  '<div class="blk" style="margin:0;max-width:none"><h3>Opções deste grupo</h3><div id="gopsBox"></div>'+
-  '<button class="btn" onclick="addOp()" style="margin-top:6px">'+sv('plus',13)+' Adicionar opção</button></div></div>';
+  '<div class="blk" style="margin:0 0 12px;max-width:none"><h3>Opções deste grupo</h3><div id="gopsBox"></div>'+
+  '<button class="btn" onclick="addOp()" style="margin-top:6px">'+sv('plus',13)+' Adicionar opção</button></div>'+
+  /* ==========================================================
+     FALTAVA O BLOCO DE QUEM ENXERGA (V187)
+
+     Este cadastro esta na lista de liberaveis desde a V109, mas o
+     formulario nunca teve o bloco. Sem ele, grupo criado aqui nascia
+     sem `sucursais`, e a unidade abria o produto e via
+     "Nenhum grupo cadastrado".
+
+     E o `Object.assign(g,obj)` abaixo, que nao carregava `sucursais`,
+     APAGAVA a liberacao feita na tela de Liberacao por Unidade toda vez
+     que alguem editasse o grupo. Liberar funcionava; editar desfazia.
+     ========================================================== */
+  blocoUnidades(g,'grpUn')+'</div>';
   modal((g?'Editar grupo de opções':'Criar grupo de opções'),corpo,'Salvar',function(){
     var nome=$('gNome').value.trim();
     if(!nome){toast('Informe o nome do grupo.');return false;}
@@ -19175,8 +19208,10 @@ function formGrupo(id){
     var obj={nome:nome,min:parseInt($('gMin').value)||0,max:parseInt($('gMax').value)||1,
       forcado:$('gForc').checked,canais:cn,
       opcoes:_gops.filter(function(o){return o.nome&&o.nome.trim()})};
-    if(g){Object.assign(g,obj);}
-    else{obj.id=uid('grp');DB.grupos.push(obj);}
+    var alvo;
+    if(g){Object.assign(g,obj);alvo=g;}      /* `sucursais` fica fora de obj: nao se apaga */
+    else{obj.id=uid('grp');obj.sucursais=[];DB.grupos.push(obj);alvo=obj;}
+    lerUnidades('grpUn',alvo);
     salvar();
     toast(g?'Grupo atualizado.':'Grupo criado.');
     if(_prod)return renderAbaProd(),true;

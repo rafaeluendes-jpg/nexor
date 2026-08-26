@@ -329,7 +329,7 @@ grupo('Liberação por unidade · todo cadastro liberável tem o bloco');
 
   [['produto', 'pdUn'], ['ingrediente', 'insUn'], ['grupo de ingredientes', 'gi'],
    ['ficha técnica', 'ftUn'], ['categoria de ficha', 'cfUn'],
-   ['categoria do cardápio', 'catUn']].forEach(([nome, pref]) => {
+   ['categoria do cardápio', 'catUn'], ['grupo de opções', 'grpUn']].forEach(([nome, pref]) => {
     t(nome + ' tem o bloco de unidades',
       new RegExp("blocoUnidades\\([^,]+,'" + pref + "'\\)").test(fonte));
     t(nome + ' lê o bloco ao salvar',
@@ -343,6 +343,16 @@ grupo('Liberação por unidade · todo cadastro liberável tem o bloco');
     /c\.imagem=tmp\.imagem;alvo=c;\}/.test(fonte));
   t('categoria de ficha preserva sucursais ao editar',
     /if\(c\)\{c\.nome=nome;c\.destinoId=\$\('cfD'\)\.value;alvo=c;\}/.test(fonte));
+  t('grupo de opções preserva sucursais ao editar (obj não carrega o campo)',
+    /var obj=\{nome:nome,[\s\S]{0,220}\}\;\s*var alvo;\s*if\(g\)\{Object\.assign\(g,obj\);alvo=g;\}/.test(fonte));
+  t('e o campo NÃO está dentro de obj — senão o assign apagaria',
+    !/var obj=\{nome:nome,[\s\S]{0,220}sucursais/.test(fonte));
+
+  /* o campo tem de subir E descer: sem isso a liberação evapora no caminho */
+  t('grupo de opções SOBE com sucursais',
+    /forcado:!!x\.forcado,ordem:ordemDe\(x,i\),canais:x\.canais\|\|\[\],\s*sucursais:x\.sucursais\|\|\[\]/.test(fonte));
+  t('grupo de opções DESCE com sucursais',
+    /forcado:!!x\.forcado,ordem:x\.ordem\|\|0,canais:x\.canais\|\|\[\],[\s\S]{0,180}sucursais:x\.sucursais\|\|\[\]/.test(fonte));
 
   /* a regra de leitura continua a mesma */
   const codigo = corpoDaFuncao('liberadoNa', fonte);

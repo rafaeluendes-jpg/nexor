@@ -5723,3 +5723,49 @@ Os 484 testes estavam verdes. Nenhum deles chamava `filtrarCadastroDaUnidade` co
 contexto vazio — porque eu escrevi os testes da V181 provando que `lojaAtual()`
 devolve vazio, sem perguntar **quem consome esse vazio**. Corrigir uma função e não
 percorrer quem depende dela é o mesmo erro em outra forma.
+
+## V187 — a liberação por unidade evaporava no caminho
+
+O Rafael liberou os grupos pela matriz e a unidade continuou vendo "Nenhum grupo
+cadastrado". A liberação **funcionava na tela e sumia antes de chegar ao banco**.
+
+### A causa, e ela era maior do que o sintoma
+
+`CADASTROS_LIB` tem 18 cadastros. A tela de Liberação por Unidade deixa a matriz
+liberar item por item em todos, e `filtrarCadastroDaUnidade` filtra a unidade por
+`sucursais`.
+
+**Sete tinham a coluna no banco. Onze não tinham.** Nesses onze:
+
+1. a matriz libera e o valor fica no aparelho dela;
+2. a sincronização sobe o item — sem o campo, que não tem coluna;
+3. o download devolve sem o campo;
+4. `liberadoNa()` lê lista vazia como "ninguém";
+5. a unidade abre a tela e não vê nada.
+
+Sem erro em lugar nenhum. O campo não tinha onde pousar.
+
+`grupos_opcoes` — o caso que ele reportou — era um dos onze. E tinha um agravante:
+o salvamento fazia `Object.assign(g,obj)` sem `sucursais`, então **editar o grupo
+apagava a liberação**. Liberar funcionava; editar desfazia.
+
+### O que foi feito
+
+- **11 colunas `sucursais` criadas**, todas com `["*"]` nos registros existentes.
+  Lista vazia esconderia forma de pagamento, conta bancária e motivo de cancelamento
+  de todas as unidades ao mesmo tempo — quebraria a operação para consertar um
+  defeito de visibilidade. A matriz restringe depois, item a item.
+- `grupos_opcoes` passou a **subir e descer** com o campo.
+- Formulário do grupo de opções ganhou o bloco "Quem enxerga este item", e o
+  salvamento deixou de apagar a liberação.
+- Somados à V186: **7 formulários** com o bloco, contra 4 antes.
+
+### A verificação que faltava
+
+Um teste agora exige que `blocoUnidades` e `lerUnidades` apareçam o mesmo número de
+vezes, e verifica os 7 formulários por nome. **Mas isso é frontend.** O que este
+defeito ensina é outra coisa: um cadastro pode estar na lista de liberáveis e não ter
+a coluna no banco, e nenhum teste de JavaScript pegaria.
+
+Regra que fica: **cadastro entra em `CADASTROS_LIB` só depois de a coluna
+`sucursais` existir na tabela.** As duas pontas, ou nenhuma.
