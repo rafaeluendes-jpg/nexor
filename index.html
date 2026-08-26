@@ -17509,7 +17509,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V170.0.0';
+var VERSAO='V171.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42816,7 +42816,11 @@ function blocoApp(){
   baseUsr();baseSuc();
   var link='https://app.joiagest.com.br/';
   var usrs=(DB.usuarios||[]).filter(function(u){return u.ativo!==false});
-  var pub=usrs.filter(function(u){return u.publicadoEm}).length;
+  var pub=usrs.filter(function(u){return estaPublicadoNoApp(u)}).length;
+  /* confere no banco em segundo plano e redesenha se algo mudou */
+  if(_appPublicados===null)setTimeout(function(){
+    carregarPublicadosApp().then(function(){ try{telaCanaisIntegracao();}catch(e){} });
+  },60);
   return '<div class="cfgDuas">'+
    '<div class="cfgCol"><div class="colH">Quem tem acesso ao aplicativo</div>'+
     '<div class="colB" style="padding:0">'+
@@ -42849,7 +42853,7 @@ function blocoApp(){
        'value="'+E(u.loginApp||u.login||'')+'" autocomplete="off" '+
        'placeholder="ex: santafe"></td>'+
       '<td>'+E(lojas)+'</td>'+
-      '<td style="text-align:center">'+(u.publicadoEm
+      '<td style="text-align:center">'+(estaPublicadoNoApp(u)
         ?'<span class="badge2">'+sv('check',10)+' liberado</span>'
         :'<span class="badge2 am">não publicado</span>')+'</td>'+
       /* ==========================================================
@@ -42864,10 +42868,10 @@ function blocoApp(){
          diz o que a senha e: simples, so para ver os numeros no celular.
          ========================================================== */
       '<td><input class="senhaApp" id="sa_'+E(u.id)+'" type="text" '+
-       'placeholder="'+(u.publicadoEm?'trocar senha':'senha do app')+'" '+
+       'placeholder="'+(estaPublicadoNoApp(u)?'trocar senha':'senha do app')+'" '+
        'autocomplete="off"></td>'+
       '<td><button class="btnP2" onclick="publicarUsuarioApp(\''+u.id+'\')">'+
-       sv('cloud',12)+' '+(u.publicadoEm?'Republicar':'Publicar')+'</button></td></tr>';
+       sv('cloud',12)+' '+(estaPublicadoNoApp(u)?'Republicar':'Publicar')+'</button></td></tr>';
     }).join('')+'</tbody></table>'+
     '<div class="hint" style="padding:14px">'+
     '<b>O login e a senha aqui são só do aplicativo</b> — não são os de entrar no sistema. '+
@@ -42902,6 +42906,42 @@ function blocoApp(){
      '<div class="hint" style="margin-top:12px">'+pub+' de '+usrs.length+' pessoa(s) com acesso liberado.</div>'+
     '</div></div></div>';
 }
+/* ==========================================================
+   QUEM ESTA PUBLICADO E O BANCO QUE SABE
+
+   `publicadoEm` era gravado so no aparelho e nunca subia. Bastava
+   recarregar a pagina, ou abrir o sistema no outro computador, para
+   todo mundo voltar a aparecer como "nao publicado" — mesmo com o
+   acesso funcionando no celular.
+
+   Pior que o incomodo: quem visse aquilo publicaria de novo, achando
+   que nao tinha dado certo. A verdade e a tabela `app_usuarios`; e ela
+   que o aplicativo consulta na hora de deixar alguem entrar.
+   ========================================================== */
+var _appPublicados=null;
+async function carregarPublicadosApp(){
+  if(!NUVEM.ligada)return null;
+  try{
+    var r=await api('rpc/app_publicados','POST',{});
+    _appPublicados=Array.isArray(r)?r:(r||[]);
+    /* guarda no aparelho tambem, para a tela nao piscar quando abrir offline */
+    (DB.usuarios||[]).forEach(function(u){
+      var e=_appPublicados.find(function(x){return x.ref===u.id});
+      if(e&&e.tem_senha){ if(!u.publicadoEm)u.publicadoEm=new Date().toISOString();
+                          u.loginApp=u.loginApp||e.login; }
+      else if(e&&!e.tem_senha){ u.publicadoEm=''; }
+    });
+    salvar();
+  }catch(e){ _quieto(e,'carregarPublicadosApp'); }
+  return _appPublicados;
+}
+function estaPublicadoNoApp(u){
+  if(_appPublicados){
+    var e=_appPublicados.find(function(x){return x.ref===u.id});
+    return !!(e&&e.tem_senha&&e.ativo!==false);
+  }
+  return !!u.publicadoEm;
+}
 function publicarUsuarioApp(id){
   US.sel=id;
   /* o que estiver digitado na linha vale: login e senha do aplicativo */
@@ -42920,7 +42960,11 @@ function publicarUsuarioApp(id){
     u.loginApp=novo;
     salvar();
   }
-  publicarAcesso().then(function(){ telaCanaisIntegracao(); });
+  publicarAcesso().then(function(){
+    /* recarrega a verdade do banco antes de redesenhar, senao a linha
+       continuaria dizendo "Publicar" logo depois de publicar */
+    carregarPublicadosApp().then(function(){ telaCanaisIntegracao(); });
+  });
 }
 function enviarLinkApp(){
   var l='https://app.joiagest.com.br/';

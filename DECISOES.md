@@ -4745,3 +4745,31 @@ loja dele e mais nada — não lança, não apaga, não cancela. Exigir
   entender.
 
 13 testes.
+
+## V171 — o aplicativo não mostrava faturamento, e o botão voltava para "Publicar"
+
+**Problema 1 — faturamento zerado. Sétima ocorrência do mesmo padrão.**
+
+O `app.js` lia `p.data`, `p.itens` e `p.pagamentos`. Na tabela `pedidos` **os
+três não existem**: a data chama-se `data_venda`, e itens e pagamentos moram em
+tabelas separadas.
+
+Como `p.data` vinha vazio, **nenhum pedido batia com nenhum período** — o app
+mostrava "nenhuma venda" e faturamento zero, com a loja tendo vendido
+R$ 1.291,00 no dia.
+
+`app_dados` passou a devolver os três campos prontos. E o campo `data` já sai
+como o **dia da loja** (America/Sao_Paulo), não em UTC — senão a venda das 21:43
+apareceria no dia seguinte, o mesmo defeito corrigido na V167. O `app.js` também
+ganhou `diaDoPedido()`, que entende o formato novo e o antigo.
+
+**Problema 2 — o botão voltava para "Publicar".**
+
+`publicadoEm` era gravado só no aparelho e nunca subia. Bastava recarregar, ou
+abrir o sistema no outro computador, para todos voltarem a "não publicado" —
+mesmo com o acesso funcionando no celular.
+
+Pior que o incômodo: quem visse aquilo publicaria de novo achando que não tinha
+dado certo. A verdade é a tabela `app_usuarios` — é ela que o aplicativo
+consulta para deixar alguém entrar. Criada a função `app_publicados()`, e a tela
+passou a perguntar ao banco em vez de acreditar no aparelho.
