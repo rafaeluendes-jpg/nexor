@@ -17515,7 +17515,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V174.0.0';
+var VERSAO='V175.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24829,8 +24829,10 @@ function tabelaFormas(mov,cego){
   var h='<table class="fpgTab">';
   FORMAS.forEach(function(f){
     var v=mov.porForma[f.id]||0;
-    h+='<tr'+(f.id==='dinheiro'?' class="dest"':'')+'><td>'+f.n+
-    (f.id==='dinheiro'?' <small style="color:var(--ink-3)">(vai para a gaveta)</small>':'')+'</td>'+
+    /* mesmo defeito das outras duas: o destaque procurava id 'dinheiro',
+       que nao existe, e a gaveta nunca aparecia marcada */
+    h+='<tr'+(f.troco?' class="dest"':'')+'><td>'+f.n+
+    (f.troco?' <small style="color:var(--ink-3)">(vai para a gaveta)</small>':'')+'</td>'+
     '<td>'+(cego?'—':'R$ '+money(v))+'</td></tr>';
   });
   h+='<tr><td><b>Total recebido</b></td><td><b>'+(cego?'—':'R$ '+money(mov.total))+'</b></td></tr></table>';
@@ -24953,17 +24955,47 @@ function resultadoFechamento(cx,mov,esp){
   var espG=Number(cx.esperado)||0, contado=Number(cx.contado)||0;
   var difG=+(contado-espG).toFixed(2);
   var conf=cx.conferencia||{};
+  /* ==========================================================
+     O COMPROVANTE PRECISA PODER SER CONFERIDO NA MAO
+
+     Faltava a linha de total. Sem ela nao dava para ver que o esperado
+     somado nao fechava com as vendas do turno — foi assim que R$ 278,00
+     de pagamento duplicado passaram despercebidos por um turno inteiro.
+
+     Com o total visivel, a conta que qualquer um faz de cabeca passa a
+     valer: a soma das diferencas de cartao tem de espelhar a do
+     dinheiro. Quando nao espelha, ou ha venda sem forma, ou ha
+     pagamento gravado duas vezes. Os dois casos ficam visiveis aqui.
+     ========================================================== */
+  var somaE=0,somaI=0,temI=false;
   var linhas=FORMAS.map(function(f){
     var e=Number(esp[f.id])||0;
     var i=(conf[f.id]===undefined||conf[f.id]===null)?null:Number(conf[f.id]);
     var d=(i===null)?null:+(i-e).toFixed(2);
-    return '<tr><td>'+E(f.n)+'</td>'+
+    somaE+=e; if(i!==null){somaI+=i;temI=true;}
+    return '<tr><td>'+E(f.n)+
+      (f.troco?'<small style="display:block;color:var(--ink-3)">gaveta inteira: '+
+        'fundo de R$ '+money(cx.inicial||0)+' + vendas em dinheiro</small>':'')+'</td>'+
       '<td style="text-align:right">R$ '+money(e)+'</td>'+
       '<td style="text-align:right">'+(i===null?'<span style="color:var(--ink-3)">não informado</span>':'R$ '+money(i))+'</td>'+
       '<td style="text-align:right;font-weight:700;color:'+
         (d===null?'var(--ink-3)':(Math.abs(d)<0.01?'var(--acc-d)':'var(--red)'))+'">'+
         (d===null?'—':(d>0?'+ ':d<0?'− ':'')+'R$ '+money(Math.abs(d)))+'</td></tr>';
   }).join('');
+  var difTot=temI?+(somaI-somaE).toFixed(2):null;
+  linhas+='<tr style="border-top:2px solid var(--ink-3)"><td><b>Total</b></td>'+
+    '<td style="text-align:right"><b>R$ '+money(somaE)+'</b></td>'+
+    '<td style="text-align:right"><b>'+(temI?'R$ '+money(somaI):'—')+'</b></td>'+
+    '<td style="text-align:right;font-weight:700;color:'+
+      (difTot===null?'var(--ink-3)':(Math.abs(difTot)<0.01?'var(--acc-d)':'var(--red)'))+'">'+
+      (difTot===null?'—':(difTot>0?'+ ':difTot<0?'− ':'')+'R$ '+money(Math.abs(difTot)))+
+    '</b></td></tr>';
+  /* o esperado somado tem de bater com as vendas do turno mais o fundo e os
+     suprimentos, menos as sangrias. Quando nao bate, o defeito nao esta na
+     contagem: esta no que foi gravado na venda. */
+  var baseTurno=+((Number(mov.total)||0)+(Number(cx.inicial)||0)
+    +totalMov(cx,'suprimento')-totalMov(cx,'sangria')).toFixed(2);
+  var furo=+(somaE-baseTurno).toFixed(2);
   var ok=Math.abs(difG)<0.01;
   modal('Fechamento realizado',
    '<div class="mdB">'+
@@ -24981,6 +25013,16 @@ function resultadoFechamento(cx,mov,esp){
     '<table class="tb2" style="margin-top:12px"><tr><th>Forma</th>'+
      '<th style="text-align:right">Esperado</th><th style="text-align:right">Informado</th>'+
      '<th style="text-align:right">Diferença</th></tr>'+linhas+'</table>'+
+    (Math.abs(furo)>0.01
+      ? '<div class="cfAlerta" style="margin-top:10px">'+sv('help',15)+
+        '<div><b>O esperado somado não fecha com as vendas do turno: '+
+        (furo>0?'R$ ':'− R$ ')+money(Math.abs(furo))+'</b>'+
+        '<small>A soma por forma deveria dar R$ '+money(baseTurno)+
+        ' (vendas + fundo + suprimentos − sangrias) e deu R$ '+money(somaE)+'. '+
+        'Isso não é erro de contagem: é pagamento gravado a mais, a menos, '+
+        'ou venda sem forma. Confira as vendas deste turno antes de aceitar a diferença.</small>'+
+        '</div></div>'
+      : '')+
     (cx.obs?'<div class="hint" style="margin-top:10px"><b>Observação:</b> '+E(cx.obs)+'</div>':'')+
     '<div class="hint" style="margin-top:10px">Fechado por '+E(cx.fechadoPor||'')+
      ' em '+E(cx.fechadoEm||'')+'.</div>'+
@@ -25083,10 +25125,30 @@ function fecharCaixa(){
   var cego=cfg().caixaCego;
   var esperadoGaveta=esperadoCaixa(cx);
 
-  /* o que o sistema espera de cada forma */
+  /* ==========================================================
+     A LINHA DO DINHEIRO NUNCA ERA A LINHA DA GAVETA
+
+     Aqui estava escrito `f.id==='dinheiro'`. Nenhuma forma tem esse
+     identificador: o banco grava `fp_dinheiro`. A comparacao dava
+     falso SEMPRE, e a linha do dinheiro recebia apenas as vendas em
+     especie — sem fundo de troco, sem suprimento, sem sangria.
+
+     O bloco de cima do comprovante usa `cx.esperado`, que E a gaveta
+     inteira. Resultado: os dois numeros da mesma tela saiam de bases
+     diferentes, e o operador informa a gaveta CONTADA, que tem o fundo
+     dentro. Comparava-se gaveta com venda.
+
+     Medido no fechamento de 25/08 em Santa Fe: bloco de cima dizia
+     esperar R$ 1.350,05 e a tabela dizia R$ 851,00 na mesma linha —
+     exatamente os R$ 499,05 de fundo de troco de diferenca.
+
+     O tipo ja e resolvido por `formaDaTroco` desde a V173, e e ele que
+     vale aqui. Mesmo defeito, mesma familia: identificador de um lado,
+     tipo do outro.
+     ========================================================== */
   var esp={};
   FORMAS.forEach(function(f){
-    esp[f.id]=(f.id==='dinheiro')?esperadoGaveta:(mov.porForma[f.id]||0);
+    esp[f.id]=f.troco?esperadoGaveta:(mov.porForma[f.id]||0);
   });
 
   var NOME_EQ={balcao:'balcão',totem:'totem',mesa:'mesa',entrega:'entrega'};
@@ -25101,8 +25163,9 @@ function fecharCaixa(){
       :(kEq.length===1&&kEq[0]!=='balcao'
         ?'<small style="display:block;color:var(--ink-3);margin-top:3px">'+
           (NOME_EQ[kEq[0]]||kEq[0])+'</small>':'');
-    return '<tr'+(f.id==='dinheiro'?' class="dest"':'')+'>'+
-    '<td><b>'+f.n+'</b>'+(f.id==='dinheiro'?'<small style="display:block;color:var(--ink-3)">conferência física da gaveta</small>':det)+'</td>'+
+    return '<tr'+(f.troco?' class="dest"':'')+'>'+
+    '<td><b>'+f.n+'</b>'+(f.troco?'<small style="display:block;color:var(--ink-3)">'+
+      'conte a gaveta inteira, com o fundo de R$ '+money(cx.inicial||0)+' dentro</small>':det)+'</td>'+
     '<td class="cSis" style="text-align:right">'+(cego?'<span style="color:var(--ink-3)">oculto</span>':'R$ '+money(esp[f.id]))+'</td>'+
     '<td style="width:150px"><div class="cur"><span>R$</span>'+
     '<input type="number" step="0.01" class="cfV" data-f="'+f.id+'" value=""></div></td>'+
@@ -25183,7 +25246,27 @@ function fecharCaixa(){
     var ag=new Date();
     cx.conferencia=conf;
     cx.esperadoPorForma=esp;
-    cx.contado=conf.dinheiro||0;
+    /* ==========================================================
+       O VALOR CONTADO NA GAVETA NUNCA CHEGAVA A SER GRAVADO
+
+       `conf` e montado com as chaves reais das formas (`fp_dinheiro`),
+       lidas do atributo `data-f` de cada campo. Aqui se lia
+       `conf.dinheiro` — chave que nao existe. O `||0` engolia o vazio
+       sem erro nenhum, e o caixa fechava com contado ZERO.
+
+       Efeito na tela: "Informado pelo operador R$ 0,00" ao lado de uma
+       tabela mostrando R$ 673,05 informados. E a diferenca destacada
+       virava a gaveta inteira: R$ -1.350,05 em vez de R$ -177,95.
+
+       Pior que a tela: `contado` alimenta o historico de fechamentos e
+       os lancamentos no financeiro. Todo fechamento anterior a esta
+       correcao esta gravado com contado zero.
+
+       A tela "Editar fechamento" ja fazia certo (procura pelo tipo).
+       Era o caminho principal que estava errado.
+       ========================================================== */
+    var idDin=(FORMAS.find(function(f){return f.troco})||{}).id;
+    cx.contado=(idDin&&conf[idDin])||conf.dinheiro||0;
     cx.esperado=esperadoGaveta;
     cx.totalInformado=totInf;
     cx.qtd=mov.qtd;cx.vendas=mov.total;cx.obs=$('cxObs').value;

@@ -4846,3 +4846,91 @@ Correções:
 
 Testado de ponta a ponta contra o banco: senha certa confere, errada não
 confere, e a senha `1234` foi definida para o Administrador.
+
+## O fechamento de caixa comparava gaveta com venda (V175)
+
+Rodamos o sistema antigo e o Joia em paralelo, com as **mesmas vendas** lançadas
+nos dois. Deu diferença grande de caixa. O teste que o Rafael fez para provar que
+havia defeito é o certo e vale como regra: **a soma das diferenças de cartão tem
+de espelhar a diferença do dinheiro**. Se um cartão sobra R$ 100, é porque o
+dinheiro faltou R$ 100 — a venda foi para a forma errada, mas o total não muda.
+Quando não espelha, o defeito não está na contagem: está no que foi gravado.
+
+Não espelhou. Eram **quatro defeitos somados**, três deles a mesma família.
+
+### 1. `f.id === 'dinheiro'` — a comparação que nunca dava certo
+
+Aparecia em três lugares: no esperado por forma do fechamento, no destaque da
+tabela de recebimentos e (por consequência) no comprovante. **Nenhuma forma de
+pagamento tem o identificador `dinheiro`** — o banco grava `fp_dinheiro`.
+
+A comparação dava falso sempre. Efeito: a linha do dinheiro recebia só as vendas
+em espécie, sem fundo de troco, sem suprimento, sem sangria — enquanto o bloco do
+topo usava `cx.esperado`, que é a gaveta inteira. **Dois números da mesma tela,
+saídos de bases diferentes.** E o operador informa a gaveta contada, que tem o
+fundo dentro: comparava-se gaveta com venda.
+
+Medido no fechamento de 25/08 em Santa Fe: topo dizia R$ 1.350,05, tabela dizia
+R$ 851,00 na mesma linha. A diferença eram exatamente os R$ 499,05 de fundo.
+
+Corrigido com `f.troco`, que `formaDaTroco` já resolvia pelo tipo desde a V173.
+
+### 2. `cx.contado = conf.dinheiro` — chave que não existe
+
+`conf` é montado com as chaves reais das formas, lidas do `data-f` de cada campo.
+Lia-se `conf.dinheiro`. O `||0` engolia o vazio **sem erro nenhum**, e todo caixa
+fechava com contado zero. Na tela: "Informado pelo operador R$ 0,00" ao lado de
+uma tabela mostrando R$ 673,05 informados.
+
+Pior que a tela: `contado` alimenta o histórico de fechamentos e os lançamentos
+no financeiro. **Todo fechamento anterior a esta correção está gravado com contado
+zero.** A tela "Editar fechamento" já fazia certo — era o caminho principal que
+estava errado.
+
+### 3. R$ 278,00 de pagamento duplicado (rastro da V152→V167)
+
+Sete vendas seguidas (353–359) tinham a linha de pagamento gravada duas vezes,
+com dois nomes para a mesma coisa: `ped_xxx_0` e `ped_xxx_pg0`. É o defeito que a
+V167 já corrigiu no código, mas **os dados duplicados continuaram no banco** e
+entraram no fechamento de ontem. Removidos: 7 pares, R$ 278,00. Depois da limpeza,
+pagamentos e pedidos fecham em R$ 1.377,00 exatos.
+
+### 4. Faltava a linha de total no comprovante
+
+Sem ela não dava para ver que o esperado somado (R$ 1.637,00) não fechava com as
+vendas do turno (R$ 1.359,00). Foi por isso que R$ 278,00 passaram um turno
+inteiro sem ninguém notar. Agora o comprovante tem total e avisa, com o valor,
+quando a soma por forma não bate com `vendas + fundo + suprimentos − sangrias`.
+
+### Trava no banco: `tg_pagamento_nao_duplica`
+
+O índice único de `pedido_pagamentos` é por `ref_local`. Ele só protege quando os
+dois caminhos de gravação usam **exatamente** a mesma chave — e chave igual é
+acordo entre dois trechos de código, que já quebrou uma vez.
+
+A trava nova é regra do banco e vale para qualquer caminho, inclusive os que ainda
+não existem. É deliberadamente estreita: só recusa quando existe um gêmeo (mesma
+venda, mesma forma, mesmo valor) **e** a soma passaria do total da venda. Pagamento
+dividido legítimo — dois de R$ 50 numa venda de R$ 100 — continua passando.
+
+### O que ainda não está explicado
+
+Depois de tudo corrigido, a distribuição por forma **continua muito diferente** do
+sistema antigo, e isso não é defeito de fechamento:
+
+| Forma | Joia (limpo) | Antigo | Gaveta física |
+|---|---|---|---|
+| Dinheiro | 758,00 | 179,00 | 174,00 |
+| Débito | 194,00 | 260,00 | — |
+| Crédito | 345,00 | 562,00 | — |
+| Pix | 80,00 | 310,00 | — |
+
+A contagem física dá razão ao antigo: R$ 673,05 na gaveta menos R$ 499,05 de fundo
+são **R$ 174 de dinheiro real**. O Joia acha que entraram R$ 758. **A forma de
+pagamento está sendo gravada errada no momento da venda** — provável seleção que
+não persiste, ou queda para dinheiro por padrão. É a próxima obra, e é maior que
+todas as quatro acima.
+
+**Regra que fica:** campo que existe de um lado e não do outro já apareceu **dez
+vezes** neste sistema. Antes de comparar identificador de forma de pagamento em
+qualquer lugar novo, usar `formaDaTroco`/`f.troco` — nunca `f.id === 'dinheiro'`.
