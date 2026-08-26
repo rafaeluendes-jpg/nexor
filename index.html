@@ -17893,7 +17893,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V181.0.0';
+var VERSAO='V182.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25489,10 +25489,11 @@ function lancarTransferenciaCaixa(cx,mv,tipo){
   mv.lancRef=l.id;
   return l;
 }
-function movCaixa(tipo){
+async function movCaixa(tipo){
   var cx=caixaAberto();if(!cx)return;
   if(!operadoresPara(tipo).length){
-    toast('Ninguém com senha de autorização cadastrada. Cadastre em Operadores do Caixa.');
+    /* nao mentir: se a lista de senhas nao carregou, o problema e outro */
+    toast(await motivoSemOperador('senha de autorização'));
     return;
   }
   var dests=contasDestino();
@@ -25744,13 +25745,13 @@ function perguntaImprimirFechamento(cx){
 }
 function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
   toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
-function abrirCaixa(){
+async function abrirCaixa(){
   if(caixaAberto()){toast('Já existe um caixa aberto. Feche-o antes de abrir outro.');return;}
   baseOper();baseTurnos();
   /* so quem pode abrir caixa aparece na lista (item 12) */
   var ops=operadoresPara('abrir');
   if(!ops.length){
-    toast('Ninguém com permissão para abrir o caixa. Cadastre em Operadores do Caixa.');
+    toast(await motivoSemOperador('permissão para abrir o caixa'));
     return;
   }
   var tns=turnosAtivos();
@@ -45006,33 +45007,26 @@ function lerCardapio(silencioso){
   if($('cdPix'))c.pixChave=$('cdPix').value.trim();
   if(!silencioso)salvar();
 }
-async function salvarCardapio(){
-  lerCardapio();
-  salvar();
-  /* A frase "a página pública já está atualizada" era dita sem esperar o
-     envio: sincronizar() era chamada sem await. Quando a nuvem recusava ou
-     a rede caia, o cardapio no ar continuava o antigo e a tela dizia que
-     estava atualizado. Prometer publicacao e diferente de prometer
-     gravacao — esta espera a confirmacao. */
-  if(NUVEM.ligada){
-    try{
-      await sincronizar();
-      if(NUVEM.erros&&NUVEM.erros.length)
-        throw new Error(NUVEM.erros[0].motivo||'a nuvem recusou');
-      toast('Cardápio salvo — a página pública já está atualizada.');
-    }catch(e){
-      await confirmar({titulo:'Salvei aqui, mas não publiquei',
-        texto:'As mudanças estão guardadas neste aparelho, porém a página '+
-          'pública ainda mostra a versão anterior.',
-        aviso:'Detalhe: '+E(String((e&&e.message)||e).slice(0,120))+
-          '<br>Assim que a nuvem voltar, o envio acontece sozinho.',
-        ok:'Entendi',cancelar:null});
-    }
-  }else{
-    toast('Cardápio salvo neste aparelho — a página pública será atualizada '+
-      'quando a nuvem voltar.');
-  }
-}
+/* ==========================================================
+   HAVIA DUAS `salvarCardapio` — A MELHOR ESTAVA MORTA (item 29)
+
+   Duas funcoes com o MESMO nome neste arquivo. Em JavaScript a segunda
+   declaracao vence: a versao que ficava aqui, `async`, NUNCA rodava.
+   Os botoes chamavam a de baixo.
+
+   E a morta era a boa. Ela esperava `sincronizar()` terminar antes de
+   dizer que o cardapio estava publicado, e abria um aviso claro quando
+   a nuvem recusava: "Salvei aqui, mas nao publiquei". A viva dizia
+   "Cardapio salvo." e agendava o envio — se a nuvem recusasse, a
+   pagina publica continuava a antiga e ninguem ficava sabendo.
+
+   E o mesmo padrao que ja derrubou 33 funcoes neste sistema: codigo
+   legado que sobrevive ao lado do novo e ganha por acidente de ordem.
+
+   As duas foram FUNDIDAS na de baixo, com a espera e o aviso da morta.
+   Nao ficou nenhuma sobra: a varredura de nomes duplicados roda no
+   `npm test` e quebra se acontecer de novo.
+   ========================================================== */
 function copiarLink(){
   var l=linkCardapio(CD.suc);
   try{navigator.clipboard.writeText(l);toast('Link copiado: '+l);}
@@ -45093,7 +45087,7 @@ function trocarLojaCardapio(id){
   DB.cardapio[id]=DB.cardapio[id]||{};
   telaCfgCardapio();
 }
-function salvarCardapio(avisar){
+async function salvarCardapio(avisar){
   var c=cardapioAtual();
   var txt={cdTitulo:'titulo',cdSlogan:'slogan',cdZap:'whatsapp',cdInsta:'instagram',
     cdEnd:'endereco',cdAviso:'aviso',cdPix:'pixChave',cdTE:'tempoEntrega',cdTR:'tempoRetirada'};
@@ -45106,8 +45100,39 @@ function salvarCardapio(avisar){
   c._salvoEm=Date.now();          /* protege da descida ate o envio acontecer */
   delete c._padrao;               /* deixou de ser padrao: agora e escolha */
   salvar();
-  if(NUVEM.ligada)agendarSync();
-  if(avisar)toast('Cardápio salvo.');
+  /* ==========================================================
+     PROMETER PUBLICACAO E DIFERENTE DE PROMETER GRAVACAO
+
+     Herdado da versao que estava morta acima. Dizer "salvo" e agendar
+     o envio faz a tela prometer uma coisa e entregar outra: quando a
+     nuvem recusa, a pagina publica continua a anterior e a loja so
+     descobre pelo cliente reclamando do preco antigo.
+
+     Salvar em silencio (troca de aba, troca de loja) continua
+     agendando o envio, porque ali ninguem prometeu nada.
+     ========================================================== */
+  if(!avisar){
+    if(NUVEM.ligada)agendarSync();
+    return c;
+  }
+  if(!NUVEM.ligada){
+    toast('Cardápio salvo neste aparelho — a página pública será atualizada '+
+      'quando a nuvem voltar.');
+    return c;
+  }
+  try{
+    await sincronizar();
+    if(NUVEM.erros&&NUVEM.erros.length)
+      throw new Error(NUVEM.erros[0].motivo||NUVEM.erros[0].msg||'a nuvem recusou');
+    toast('Cardápio salvo — a página pública já está atualizada.');
+  }catch(e){
+    await confirmar({titulo:'Salvei aqui, mas não publiquei',
+      texto:'As mudanças estão guardadas neste aparelho, porém a página '+
+        'pública ainda mostra a versão anterior.',
+      aviso:'Detalhe: '+E(String((e&&e.message)||e).slice(0,120))+
+        '<br>Assim que a nuvem voltar, o envio acontece sozinho.',
+      ok:'Entendi',cancelar:null});
+  }
   return c;
 }
 function trocarAbaCardapio(a){
@@ -46762,7 +46787,11 @@ function telaGerente(){
    '</div>'+
    '<div class="barraF">'+
     '<div class="bfCampo" style="min-width:230px"><label>Loja</label>'+
-     '<select onchange="GE.suc=this.value;telaGerente();window.scrollTo(0,0)">'+
+     /* trocar de loja aqui jogava a tela para o topo — o `window.scrollTo(0,0)`
+        que estava nesta linha. Quem estava conferindo o rodape da configuracao
+        perdia o lugar a cada troca. O sistema ja guarda e devolve a rolagem
+        pelo `_rolChave`; nao precisa de empurrao. */
+     '<select onchange="GE.suc=this.value;telaGerente()">'+
      sucAtivas().map(function(s){
        return '<option value="'+s.id+'"'+(GE.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'+
@@ -47251,6 +47280,32 @@ var NOME_ACAO={abrir:'abrir o caixa',fechar:'fechar o caixa',
    liberar sem conferir e o mesmo buraco de antes.
    ========================================================== */
 var _quemTemSenha=null;
+/* ==========================================================
+   "A SENHA DO OPERADOR SUMIU DEPOIS DA ATUALIZACAO" (itens 8 e 26)
+
+   A senha NUNCA some: ela vive como hash no banco e nao depende de
+   arquivo, build ou navegador. O que some e a LISTA de quem tem senha.
+
+   `carregarQuemTemSenha` engolia qualquer erro num `catch` silencioso e
+   deixava `_quemTemSenha` como estava — nulo. Ai `temSenhaCadastrada`
+   caia no `!!op.senha`, que e SEMPRE falso de proposito (o cadastro
+   local nao guarda senha, por seguranca).
+
+   Resultado na tela: todo mundo aparece sem senha, `operadoresPara`
+   devolve lista vazia e o sistema diz "Ninguem com senha de autorizacao
+   cadastrada" — a sangria, o cancelamento e o fechamento ficam
+   impossiveis. Parece que a atualizacao apagou as senhas. Nao apagou:
+   a consulta falhou e ninguem foi avisado.
+
+   Erro silencioso em operacao critica e proibido (item 26). Agora:
+
+   1. a falha e registrada e a tela avisa;
+   2. `_quemTemSenha` distingue tres estados — nunca carregou (null),
+      falhou (false) e carregou (lista);
+   3. quando falhou, a mensagem diz o motivo real em vez de mentir que
+      nao ha senha cadastrada;
+   4. uma nova tentativa e feita antes de bloquear a operacao.
+   ========================================================== */
 async function carregarQuemTemSenha(){
   if(!NUVEM.ligada)return null;
   try{
@@ -47258,12 +47313,47 @@ async function carregarQuemTemSenha(){
        valor se a sessao nao souber dizer */
     var r=await api('rpc/senha_operador_quem_tem','POST',{p_loja:NUVEM.loja||null});
     _quemTemSenha=Array.isArray(r)?r:(r||[]);
-  }catch(e){ _quieto(e,'carregarQuemTemSenha'); }
+    _falhouQuemTemSenha=false;
+  }catch(e){
+    _quieto(e,'carregarQuemTemSenha');
+    _falhouQuemTemSenha=true;
+    /* nao zera o que ja tinha: lista velha e melhor que lista nenhuma */
+    if(!Array.isArray(_quemTemSenha))_quemTemSenha=null;
+  }
   return _quemTemSenha;
 }
+var _falhouQuemTemSenha=false;
+/* ==========================================================
+   POR QUE NAO HA NINGUEM NA LISTA? (item 27)
+
+   Tres motivos diferentes davam a MESMA mensagem: "cadastre em
+   Operadores do Caixa". Duas dessas vezes a mensagem estava errada e
+   mandava a loja procurar solucao no lugar errado, no meio do
+   expediente.
+
+   Agora cada motivo tem a sua frase, e a lista de senhas ganha uma
+   segunda chance antes de o sistema desistir.
+   ========================================================== */
+async function motivoSemOperador(oque){
+  if(!NUVEM.ligada)
+    return 'Sem conexão com a nuvem — não dá para conferir quem tem '+oque+'. '+
+           'Verifique a internet e tente de novo.';
+  if(!listaDeSenhasOk()){
+    await carregarQuemTemSenha();          /* segunda chance */
+    if(!listaDeSenhasOk())
+      return 'Não consegui carregar a lista de autorizações. '+
+             'As senhas continuam cadastradas no banco — é a consulta que falhou. '+
+             'Tente de novo em alguns segundos.';
+  }
+  if(!operAtivos().length)
+    return 'Nenhum usuário ativo nesta unidade. Cadastre em Usuários e Permissões.';
+  return 'Ninguém com '+oque+'. Cadastre em Operadores do Caixa.';
+}
+/* a lista de quem tem senha esta confiavel? */
+function listaDeSenhasOk(){ return Array.isArray(_quemTemSenha); }
 function temSenhaCadastrada(op){
   if(!op)return false;
-  if(_quemTemSenha)return _quemTemSenha.indexOf(op.id)>=0;
+  if(Array.isArray(_quemTemSenha))return _quemTemSenha.indexOf(op.id)>=0;
   return !!op.senha;           /* aparelho ainda sem a lista: usa o que tem */
 }
 async function conferirSenhaNoBanco(opId,senha){

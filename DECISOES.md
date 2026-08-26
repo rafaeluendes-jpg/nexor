@@ -5413,3 +5413,65 @@ próprio; o dado da Empresa B sobreviveu intacto; nada de teste ficou no banco.
 
 `testes/tenant.js` (novo, no `npm test`): **33 testes**, incluindo o cenário exato
 do item 104 — F5, novo login e nuvem atrasada.
+
+## V182 — auditoria: senhas, funções duplicadas e superfície exposta
+
+### "A senha do operador some depois da atualização" — resolvido
+
+**A senha nunca some.** Ela vive como hash no banco e não depende de arquivo,
+build ou navegador. O que some é a **lista de quem tem senha**.
+
+`carregarQuemTemSenha` engolia qualquer erro num `catch` silencioso e deixava
+`_quemTemSenha` nulo. Aí `temSenhaCadastrada` caía no `!!op.senha`, que é **sempre
+falso de propósito** — o cadastro local não guarda senha, por segurança.
+
+Na tela: todo mundo aparece sem senha, a lista de autorizadores fica vazia e o
+sistema diz "Ninguém com senha de autorização cadastrada". Sangria, cancelamento e
+fechamento ficam impossíveis. Parece que a atualização apagou as senhas. Não
+apagou: a consulta falhou e ninguém foi avisado.
+
+Correção: três estados distintos (nunca carregou / falhou / carregou), nova
+tentativa antes de desistir, e `motivoSemOperador()` — cada motivo com a sua frase.
+"Sem conexão", "não consegui carregar a lista, as senhas continuam no banco" e
+"ninguém com permissão" são coisas diferentes e agora dizem coisas diferentes.
+
+### Havia duas `salvarCardapio` — e a boa estava morta
+
+Em JavaScript a segunda declaração vence, em silêncio. A versão `async`, que
+esperava `sincronizar()` confirmar antes de dizer "publicado" e abria um aviso
+claro quando a nuvem recusava, era a **primeira** — e portanto nunca rodava. A que
+valia dizia "Cardápio salvo." e agendava o envio; se a nuvem recusasse, a página
+pública continuava a antiga e ninguém ficava sabendo.
+
+É o mesmo padrão que já derrubou 33 funções neste sistema. As duas foram fundidas,
+e a varredura de nomes duplicados entrou no `npm test`: quebra se acontecer de novo.
+
+### Regra de segurança escrita ao contrário
+
+`exportar_schema` começava com:
+
+```
+if auth.uid() is not null and not sou_plataforma() then bloqueia
+```
+
+Lido em voz alta: "se estiver logado E não for plataforma, bloqueia". O que sobra é
+**não estar logado passa**. A função devolve o schema inteiro — tabelas, restrições,
+o corpo de todas as funções e o texto de todas as políticas de RLS.
+
+No teste empírico ela bloqueou, então **não houve vazamento**. Mas passou por
+acidente, não por regra. Regra de segurança que funciona por sorte é defeito.
+Agora é afirmativa: só a plataforma exporta.
+
+E o `EXECUTE` foi revogado do `anon` nas funções que nunca precisam de chamada sem
+sessão, e de `anon` e `authenticated` nas **funções de gatilho** — que não são para
+ser chamadas por RPC nenhuma. Testado depois: os gatilhos continuam funcionando
+normalmente, porque gatilho roda por evento, não por permissão de EXECUTE.
+
+### O que a auditoria confirmou como correto
+
+- 86 de 86 tabelas com RLS ligada (a última era minha, corrigida na V181);
+- `app_definir_senha` como anônimo: recusado — `minha_rede()` falha fechado;
+- chave no HTML é a **publishable**, não a service role;
+- nenhum segredo no código, no bundle ou no histórico do Git;
+- `href="#"` e `<form>`: **zero** ocorrências — as causas clássicas de salto ao
+  topo não existem neste sistema.
