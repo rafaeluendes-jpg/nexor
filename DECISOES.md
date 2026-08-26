@@ -5491,3 +5491,70 @@ dependências, health check administrativo e pesquisa externa de boas práticas
 está presente. As ressalvas, em ordem de peso: (1) nada está publicado — a loja roda
 a V174; (2) backup não verificado e restore não testado; (3) revogação de sessão de
 usuário desativado não testada; (4) nenhum teste de navegador executado.
+
+## V183 — fechamento final: senha, performance e isolamento
+
+### P0 — a senha viajava em texto puro
+
+O login offline comparava `x.senha === sn`. Para isso funcionar, a senha de cada
+pessoa era gravada em `usuarios_sistema.senha`, **subia para a nuvem e descia para
+todos os aparelhos da loja**. Quatro estavam preenchidas.
+
+Três consequências, todas sérias:
+
+1. quem abrisse a tabela via API com a sessão de qualquer usuário da loja lia a
+   senha de todo mundo em claro;
+2. são as **mesmas senhas do Supabase Auth** — vazar aqui é vazar o sistema inteiro;
+3. cada aparelho novo recebia uma cópia.
+
+A capacidade offline não podia acabar: a loja não para quando a internet cai. Então
+ela continua — comparando **hash**, não texto. `crypto.subtle` é nativo do navegador
+e o login entra como sal.
+
+SHA-256 não é bcrypt, não tem custo ajustável. Mas isto é o segundo fator de um
+acesso que já passou pelo Supabase Auth, e a alternativa real era **texto puro**.
+
+No banco: `tg_senha_nunca_em_claro` anula qualquer senha que chegue, em qualquer
+caminho. As quatro foram limpas. Aparelho legado ainda entra uma vez e converte.
+
+### Performance — medida, não estimada
+
+`pg_stat_statements` mostrou que **mais de metade do tempo do banco** estava em
+quatro operações de escrita:
+
+| Operação | Chamadas | Média | % do tempo |
+|---|---|---|---|
+| INSERT pedido_itens | 37.322 | 1.342 ms | 27,9% |
+| INSERT ficha_itens | 25.754 | 962 ms | 13,8% |
+| INSERT pedido_pagamentos | 19.508 | 978 ms | 10,6% |
+| DELETE ficha_itens | 25.669 | 326 ms | 4,7% |
+
+**Causa: chave estrangeira sem índice.** Toda gravação de linha filha exige conferir
+a FK; sem índice, essa conferência varre a tabela inteira — e essas tabelas crescem
+a cada venda. `ficha_itens` era o pior: salvar uma ficha apaga todos os itens e
+regrava, e cada um dos 25 mil DELETEs varria tudo.
+
+10 índices criados. Prova: `EXPLAIN ANALYZE` passou de varredura para
+`Index Only Scan`, 1,17 ms.
+
+Também corrigidos: `auth.uid()` reavaliado linha a linha na política de `perfis`
+(agora `(select auth.uid())`, calculado uma vez) e **7 pares de índices idênticos**
+removidos — cada par custava tempo de escrita em toda inserção.
+
+### Reconciliação com dados reais
+
+PDV × ITENS: **bate exato** (R$ 53.277,38 dos dois lados).
+
+PDV × PAGAMENTOS: divergência de **R$ 531,00** em 10 vendas de 24–25/08 sem nenhuma
+linha de pagamento. **Verificado que não foi causado pelas limpezas desta sessão** —
+zero sobreposição com a tabela de evidência. São anteriores à V152, que corrigiu
+exatamente isto ("pagamentos sobem na mesma transação da venda").
+
+Conforme a Fase 20, **nenhuma forma foi adivinhada**. Confirmado: zero vendas sem
+pagamento criadas após as correções, e a view `vw_vendas_sem_pagamento` monitora.
+
+### Backup
+
+`wal_level=logical` e `archive_mode=on` — a base para PITR existe. Restore em schema
+separado **comprovado**: `bkp_jolo_20260811` com 61 tabelas e 12 MB. Plano
+contratado, retenção e PITR continuam pendentes por dependerem do painel de billing.

@@ -13973,7 +13973,9 @@ var MAPA=[
     campos:function(o,k){return {nome:o.nome,ordem:k}}}]},
 
  {col:'usuarios', espelha:false,    tab:'usuarios_sistema',
-  campos:function(x){return {nome:x.nome||null,login:x.login||null,senha:x.senha||null,
+  /* `senha` sobe SEMPRE nulo: a senha nao mora mais na nuvem. Quem manda
+     e o Supabase Auth; o aparelho guarda so o hash local, que nunca sobe. */
+  campos:function(x){return {nome:x.nome||null,login:x.login||null,senha:null,
     /* o login simples do aplicativo sobe junto: sem isso ele so existiria no
        aparelho onde foi digitado, e o outro computador republicaria com o
        e-mail de volta — a pessoa deixaria de entrar sem ninguem entender */
@@ -17431,6 +17433,60 @@ function usuarioDaNuvem(x,lg,sn){
     ativo:!x||x.ativo!==false,tudo:!!(x&&x.tudo),mestre:!!(x&&x.mestre),
     sucursais:(x&&x.sucursais)||[],permissoes:(x&&x.permissoes)||{}};
 }
+/* ==========================================================
+   A SENHA DEIXA DE VIAJAR EM TEXTO PURO (P0 da auditoria final)
+
+   O login offline comparava `x.senha === sn` — texto puro contra texto
+   puro. Para isso funcionar, a senha de cada pessoa era gravada em
+   `usuarios_sistema.senha`, subia para a nuvem e descia para TODOS os
+   aparelhos da loja.
+
+   Tres consequencias, todas serias:
+   1. quem abrisse a tabela via API com a sessao de qualquer usuario da
+      loja lia a senha de todo mundo em claro;
+   2. sao as MESMAS senhas do Supabase Auth — vazar aqui e vazar o
+      acesso ao sistema inteiro;
+   3. cada aparelho novo recebia uma copia.
+
+   A capacidade offline nao pode acabar: a loja nao para quando a
+   internet cai. Entao ela continua — mas comparando HASH, nao texto.
+
+   `crypto.subtle` e nativo do navegador (nao precisa de biblioteca) e
+   exige HTTPS, que e o caso do joiagest.com.br. O login entra na
+   receita como sal, para que a mesma senha em dois logins diferentes
+   gere hashes diferentes.
+
+   SHA-256 nao e bcrypt — nao tem custo ajustavel. Mas isto e o segundo
+   fator de um acesso que ja passou pelo Supabase Auth, e a alternativa
+   real aqui era TEXTO PURO. A troca vale.
+
+   Transicao: aparelho com senha antiga em texto puro ainda entra uma
+   vez, e nesse momento o texto e apagado e trocado pelo hash.
+   ========================================================== */
+async function hashSenhaLocal(senha, login){
+  try{
+    var dados = new TextEncoder().encode('joia:'+String(login||'').toLowerCase()+':'+String(senha||''));
+    var buf = await crypto.subtle.digest('SHA-256', dados);
+    return Array.from(new Uint8Array(buf))
+      .map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+  }catch(e){ _quieto(e,'hashSenhaLocal'); return ''; }
+}
+/* confere o acesso guardado neste aparelho, sem internet */
+async function conferirSenhaLocal(u, senhaDigitada){
+  if(!u)return false;
+  if(u.senhaLocal){
+    var h = await hashSenhaLocal(senhaDigitada, u.login);
+    return !!h && h === u.senhaLocal;
+  }
+  /* aparelho ainda nao migrado: aceita o texto puro UMA vez e ja converte */
+  if(u.senha && u.senha === senhaDigitada){
+    u.senhaLocal = await hashSenhaLocal(senhaDigitada, u.login);
+    u.senha = '';
+    try{ salvar(); }catch(e){ _quieto(e,'migrarSenhaLocal'); }
+    return true;
+  }
+  return false;
+}
 async function entrar(){
   try{ if(!DB||!DB.usuarios)carregar(); }catch(e){_quieto(e,'entrar')}
   baseUsr();
@@ -17447,6 +17503,9 @@ async function entrar(){
          pessoa nao conseguia entrar de jeito nenhum. */
       baseUsr();
       var nu=usuarioDaNuvem(res.linha,lg,sn);
+      /* o que fica guardado neste aparelho e o hash, nunca a senha */
+      nu.senhaLocal=await hashSenhaLocal(sn,lg);
+      nu.senha='';
       var ja=(DB.usuarios||[]).find(function(x){
         return String(x.login||'').toLowerCase()===String(nu.login||'').toLowerCase();});
       if(ja){Object.assign(ja,nu);u=ja;}
@@ -17461,8 +17520,9 @@ async function entrar(){
     }else{
       /* internet caiu: a loja nao pode parar. Confere no cadastro deste
          aparelho e entra em modo local, com o aviso vermelho do rodape. */
-      u=(DB.usuarios||[]).find(function(x){
-        return String(x.login||'').toLowerCase()===lg&&x.senha&&x.senha===sn;});
+      var cand=(DB.usuarios||[]).find(function(x){
+        return String(x.login||'').toLowerCase()===lg;});
+      u=(cand && await conferirSenhaLocal(cand,sn)) ? cand : null;
       if(!u){
         lgAviso('Não consegui falar com o servidor e este acesso não está '+
           'guardado neste aparelho.<br><small style="opacity:.85">Verifique a internet.</small>');
@@ -17893,7 +17953,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V182.0.0';
+var VERSAO='V183.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

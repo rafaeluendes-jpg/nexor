@@ -182,6 +182,36 @@ grupo('Item 54 · contexto de unidade é único no sistema');
     /loja_origem/.test(fonte));
 }
 
+/* ==========================================================
+   SENHA NUNCA EM TEXTO PURO (P0 da auditoria final)
+   ========================================================== */
+grupo('Senha · o login offline não guarda mais texto puro');
+
+{
+  t('existe hash local para o login offline', /function hashSenhaLocal/.test(fonte));
+  t('usa crypto.subtle nativo, sem biblioteca', /crypto\.subtle\.digest\('SHA-256'/.test(fonte));
+  t('o login entra como sal', /'joia:'\+String\(login\|\|''\)\.toLowerCase\(\)\+':'/.test(fonte));
+  t('o login online guarda o hash, não a senha',
+    /nu\.senhaLocal=await hashSenhaLocal\(sn,lg\)[\s\S]{0,40}nu\.senha=''/.test(fonte));
+  t('o fallback offline compara por hash',
+    /conferirSenhaLocal\(cand,sn\)/.test(fonte));
+  t('NÃO existe mais comparação de senha em texto puro no login',
+    !/x\.senha&&x\.senha===sn/.test(fonte));
+  t('a senha não sobe mais para a nuvem', /login:x\.login\|\|null,senha:null,/.test(fonte));
+  t('aparelho legado migra o texto para hash de uma vez',
+    /u\.senhaLocal = await hashSenhaLocal\(senhaDigitada, u\.login\)[\s\S]{0,60}u\.senha = ''/.test(fonte));
+
+  /* o hash tem de ser estável e diferente por login */
+  const crypto = require('crypto');
+  const h = (senha, login) => crypto.createHash('sha256')
+    .update('joia:' + String(login).toLowerCase() + ':' + senha).digest('hex');
+  t('mesmo par login+senha gera o mesmo hash', h('abc123', 'a@b.com') === h('abc123', 'a@b.com'));
+  t('a mesma senha em logins diferentes gera hashes diferentes',
+    h('abc123', 'a@b.com') !== h('abc123', 'c@d.com'));
+  t('o hash tem 64 caracteres', h('abc123', 'a@b.com').length === 64);
+  t('e não contém a senha', h('abc123', 'a@b.com').indexOf('abc123') < 0);
+}
+
 /* ---------- resultado ---------- */
 console.log('\n' + '═'.repeat(52));
 console.log('Joia ' + versaoDoSistema() + ' · contexto de unidade e isolamento');
