@@ -4811,3 +4811,38 @@ R$ 20 registrado.
 21 testes acrescentados à suíte permanente, rodando a função real extraída do
 `index.html` — inclusive o misto (Pix 40 + dinheiro 100 numa venda de 100 dá
 troco 40, dinheiro aplicado 60, Pix inteiro, faturamento 100).
+
+## V174 — a conferência de senha travava o cancelamento
+
+Depois da V161 o cancelamento passou a recusar com "Sem conexão para conferir a
+senha", mesmo com a senha certa e a nuvem ligada.
+
+**Duas causas somadas, ambas introduzidas por mim.**
+
+**1. `crypt` não era encontrado.** As funções foram criadas com
+`search_path = 'public'`, mas o **pgcrypto vive no esquema `extensions`**. Sem
+ele no caminho, `crypt` não existe e a função falha. Testado: o erro real era
+`function crypt(text, text) does not exist`.
+
+**2. A conferência dependia da sessão estar perfeita.** `senha_operador_conferir`
+chamava `confere_origem`, que exige `minha_loja()` — e essa depende de
+`auth.uid()`, do perfil e do horário de emissão do token. Qualquer um desses
+tropeçando, a função lançava "sessão sem empresa", o sistema traduzia como "sem
+conexão", e **ninguém conseguia cancelar venda**.
+
+Travar a operação da loja por causa de um detalhe de sessão é pior que o risco
+que se queria evitar.
+
+Correções:
+
+- `search_path` passou a incluir `extensions` nas três funções;
+- a empresa vem da sessão **quando existe**; senão, de um parâmetro que o próprio
+  sistema já conhece e não é segredo;
+- **a proteção real virou o limite de tentativas**: cinco erros seguidos e o
+  operador fica cinco minutos bloqueado (tabela `operador_tentativas`, fechada
+  por RLS). É o que impede alguém de ficar testando senhas — que era o ponto;
+- a mensagem passou a dizer o **motivo real**. "Sem conexão" mandava a loja
+  procurar problema de internet quando o defeito era outro.
+
+Testado de ponta a ponta contra o banco: senha certa confere, errada não
+confere, e a senha `1234` foi definida para o Administrador.

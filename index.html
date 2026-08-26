@@ -17515,7 +17515,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V173.0.0';
+var VERSAO='V174.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -45827,7 +45827,9 @@ var _quemTemSenha=null;
 async function carregarQuemTemSenha(){
   if(!NUVEM.ligada)return null;
   try{
-    var r=await api('rpc/senha_operador_quem_tem','POST',{});
+    /* manda a loja junto: a funcao tenta pela sessao primeiro, e usa este
+       valor se a sessao nao souber dizer */
+    var r=await api('rpc/senha_operador_quem_tem','POST',{p_loja:NUVEM.loja||null});
     _quemTemSenha=Array.isArray(r)?r:(r||[]);
   }catch(e){ _quieto(e,'carregarQuemTemSenha'); }
   return _quemTemSenha;
@@ -45838,12 +45840,26 @@ function temSenhaCadastrada(op){
   return !!op.senha;           /* aparelho ainda sem a lista: usa o que tem */
 }
 async function conferirSenhaNoBanco(opId,senha){
-  if(!NUVEM.ligada)return {erro:'sem conexão'};
+  if(!NUVEM.ligada)return {erro:'sem conexão com a nuvem'};
   try{
-    var r=await api('rpc/senha_operador_conferir','POST',{op_ref:opId,senha:senha||''});
+    var r=await api('rpc/senha_operador_conferir','POST',
+      {op_ref:opId,senha:senha||'',p_loja:NUVEM.loja||null});
     var d=(r&&r.length)?r[0]:r;
+    /* cinco erros seguidos bloqueiam por cinco minutos: e o que impede
+       alguem de ficar testando senha, agora que a conferencia nao depende
+       mais da sessao estar perfeita */
+    if(d&&d.bloqueado){
+      var q=d.ate?new Date(d.ate).toLocaleTimeString('pt-BR').slice(0,5):'';
+      return {erro:'muitas tentativas — tente de novo'+(q?' às '+q:' em 5 minutos')};
+    }
     return {confere:!!(d&&d.confere), tem:!!(d&&d.tem_senha)};
-  }catch(e){ _quieto(e,'conferirSenhaNoBanco'); return {erro:'não consegui conferir'}; }
+  }catch(e){
+    _quieto(e,'conferirSenhaNoBanco');
+    /* diz o motivo REAL. A mensagem generica "sem conexão" mandava a loja
+       procurar problema de internet quando o defeito era outro. */
+    var m=String((e&&(e.message||e.hint))||'').slice(0,90);
+    return {erro:m||'não consegui conferir a senha'};
+  }
 }
 function podeFazer(op,acao){
   if(!op)return false;
@@ -45871,7 +45887,7 @@ async function autorizar(acao,id,senhaDigitada){
   if(!senhaDigitada){toast('Digite a senha de '+op.nome+'.');return null;}
   var r=await conferirSenhaNoBanco(op.id,senhaDigitada);
   if(r.erro){
-    toast('Sem conexão para conferir a senha — '+(NOME_ACAO[acao]||acao)+' não autorizado.');
+    toast(r.erro+' — '+(NOME_ACAO[acao]||acao)+' não autorizado.');
     return null;
   }
   if(!r.confere){toast('Senha incorreta.');return null;}
@@ -46041,7 +46057,8 @@ function formOperador(id){
         telaOperadores(); return true;
       }
       try{
-        await api('rpc/senha_operador_definir','POST',{op_ref:_refOp,senha:sn});
+        await api('rpc/senha_operador_definir','POST',
+          {op_ref:_refOp,senha:sn,p_loja:NUVEM.loja||null});
         await carregarQuemTemSenha();
         toast('Operador salvo e senha cadastrada.');
       }catch(e){ _quieto(e,'senhaOperador');
@@ -48923,7 +48940,8 @@ function formUsuario(id){
       var _ref=(u?u.id:(US.sel||''));
       if(!NUVEM.ligada)toast('Sem conexão: a senha de autorização não foi cadastrada.');
       else try{
-        await api('rpc/senha_operador_definir','POST',{op_ref:_ref,senha:senhaCx});
+        await api('rpc/senha_operador_definir','POST',
+          {op_ref:_ref,senha:senhaCx,p_loja:NUVEM.loja||null});
         await carregarQuemTemSenha();
       }catch(e){ _quieto(e,'senhaAutorizacaoUsuario');
         toast('Usuário salvo, mas não consegui gravar a senha de autorização.'); }
