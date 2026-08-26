@@ -5641,3 +5641,35 @@ internacional (o banco fica nos Estados Unidos) e a ausência de expurgo automá
 
 Os termos **não prometem SLA** e **não prometem backup não comprovado**. Um teste
 verifica que continuam sem prometer.
+
+## GL-02 — backup comprovado em 26/08/2026
+
+Verificado no painel do Supabase pelo proprietário, com evidência visual.
+
+| | |
+|---|---|
+| Provedor / plano | Supabase **Pro** |
+| Projeto | Joia Gestão Inteligente · `cevghkndzpzvnzwifhnm` · us-east-2 |
+| Backup automático | **SIM** — diário, por volta da meia-noite da região |
+| Retenção | **7 dias** (19 a 25/08 visíveis) |
+| Último backup | **25/08/2026 09:34:24 UTC** |
+| Tipo | físico |
+| Falhas | nenhuma na janela |
+| PITR | **não contratado** |
+| **RPO** | **até 24 horas** |
+| **RTO** | 15 a 60 min (restore de um clique no painel) |
+
+Somado ao que já estava comprovado por SQL — `wal_level=logical`, `archive_mode=on`
+e restore em schema separado (`bkp_jolo_20260811`, 61 tabelas, 12 MB) — o item **sai
+de "não comprovado" para COMPROVADO**.
+
+### Duas ressalvas que a evidência trouxe
+
+**1. Storage não entra no backup.** O próprio painel avisa: os backups cobrem o banco,
+não os objetos enviados pela API de Armazenamento. **Fotos de produto e arquivos do
+cardápio não são recuperáveis por restore.** Registrado como pendência nova.
+
+**2. RPO de 24 h é uma decisão, não um esquecimento.** Se o banco cair às 20h, volta
+com os dados das 06:34 — um dia de vendas. Com seis lojas isso é aceitável, e o risco
+real é menor porque cada aparelho guarda os dados localmente e ressincroniza. Passando
+de ~20 unidades, PITR (RPO de minutos, ~US$ 100/mês) deixa de ser opcional.
