@@ -5769,3 +5769,58 @@ a coluna no banco, e nenhum teste de JavaScript pegaria.
 
 Regra que fica: **cadastro entra em `CADASTROS_LIB` só depois de a coluna
 `sucursais` existir na tabela.** As duas pontas, ou nenhuma.
+
+## V188 — o botão de liberar tem de funcionar. Sempre.
+
+Três versões seguidas quebraram no mesmo ponto:
+
+- **V186** — três formulários sem o bloco "Quem enxerga este item"
+- **V187** — onze tabelas sem a coluna `sucursais` no banco
+- **V187** — `grupos_opcoes` não subia nem descia com o campo
+
+Sempre o mesmo desenho: a tela oferece o botão, a matriz clica, e o valor morre em
+algum ponto do caminho. Ninguém vê erro. A loja abre a tela e não encontra nada.
+
+Corrigir o terceiro caso não resolve. O que faltava era garantia estrutural.
+
+### O que tornava isso grave não era o bug — era a regra de leitura
+
+`liberadoNa()` trata ausência de dado como "ninguém liberou". Numa liberação de
+verdade isso está certo: lista vazia significa lista vazia.
+
+**Mas quando o campo não chega por defeito de encanamento, a mesma regra transforma
+um problema técnico invisível em cadastro invisível para a loja inteira.** Foi
+exatamente o que aconteceu: o Rafael liberou, o sistema não guardou, e a unidade
+concluiu que nada tinha sido liberado.
+
+### As três camadas da correção
+
+**1. O cano foi aberto nos 18.** Todos os cadastros liberáveis agora sobem **e
+descem** com `sucursais`. Meia correção é pior que nenhuma — campo que sobe e não
+desce faz a liberação parecer salva e sumir no próximo download.
+
+**2. Cano quebrado não esconde mais nada.** `canaisDeLiberacao()` pergunta ao próprio
+`MAPA` — a configuração real de sincronização — se o campo sobe para aquele cadastro.
+Não consulta o banco, não depende de internet. Se o cano estiver quebrado,
+`filtrarCadastroDaUnidade` **não filtra aquele cadastro**: a unidade vê tudo.
+
+Esconder por engano é pior do que mostrar demais. **Dado escondido parece perda de
+dado, e a loja para.**
+
+**3. O defeito é denunciado, não engolido.** Fica no Diagnóstico com o nome do
+cadastro e a frase "a liberação por unidade não está funcionando em X".
+
+### O teste que impede a quarta vez
+
+`testes/tenant.js` percorre os 18 cadastros liberáveis, monta um item de mentira,
+**roda a função de envio de verdade** e confere se `sucursais` sai. Depois faz o
+mesmo com a descida. Não é verificação de texto — é execução.
+
+Se alguém acrescentar um cadastro à lista sem ligar o campo, a suíte quebra **antes**
+de chegar na loja.
+
+### Regra que fica
+
+**Cadastro só entra em `CADASTROS_LIB` depois que o campo sobe, desce e tem coluna.
+As duas pontas, ou nenhuma.** Está escrita no código, no ponto onde a próxima pessoa
+vai mexer.

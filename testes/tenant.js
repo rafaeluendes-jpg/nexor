@@ -393,6 +393,98 @@ grupo('Regressão da V181 · sem unidade não se apaga cadastro');
     /unidade ainda não resolvida — o cadastro não foi filtrado/.test(fonte));
 }
 
+/* ==========================================================
+   O BOTÃO DE LIBERAR TEM DE FUNCIONAR — TODOS OS 18 (V188)
+
+   Três versões seguidas quebraram no mesmo ponto: a tela oferece o
+   botão de liberar, a matriz clica, e o valor morre no caminho. A loja
+   abre a tela e não vê nada.
+
+   Este teste percorre os 18 cadastros liberáveis e, para cada um,
+   pergunta ao MAPA REAL do sistema se o campo `sucursais` sobe. Não é
+   verificação de texto: monta um item de mentira, roda a função de
+   envio de verdade e olha o que ela produz.
+
+   Se alguém acrescentar um cadastro à lista de liberáveis sem ligar o
+   campo, este teste quebra antes de chegar na loja.
+   ========================================================== */
+grupo('V188 · o cano da liberação está aberto nos 18 cadastros');
+
+{
+  const js = [...fonte.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)]
+    .map(m => m[1]).join('\n;\n');
+  const bloco = (txt, ini) => {
+    let i = txt.indexOf('[', ini), d = 0;
+    for (let k = i; k < txt.length; k++) {
+      if (txt[k] === '[') d++;
+      else if (txt[k] === ']') { d--; if (!d) return txt.slice(i, k + 1); }
+    }
+  };
+  /* auxiliares que as funções de envio usam */
+  const ctx = {
+    n: v => Number(v) || 0, fk: () => null, fkSub: () => null,
+    ordemDe: (x, i) => i || 0, uid: () => 'x', hojeISO: () => '2026-01-01',
+    _quieto: () => {}, normModo: v => v || '', diaLocal: () => '2026-01-01'
+  };
+  const avaliar = (txt) => new Function(...Object.keys(ctx),
+    'return ' + txt)(...Object.values(ctx));
+
+  const MAPA = avaliar(bloco(js, js.indexOf('var MAPA=[')));
+  const LIB = avaliar(bloco(js, js.indexOf('var CADASTROS_LIB=[')));
+
+  t('a lista de liberáveis foi lida', Array.isArray(LIB) && LIB.length >= 18,
+    (LIB || []).length + ' cadastro(s)');
+
+  const amostra = { id: 'x', ref_local: 'x', nome: 'x', empresa: 'x', n: 'x',
+                    tipo: 'x', sucursais: ['suc_teste'] };
+  const quebrados = [];
+  LIB.forEach(c => {
+    const m = MAPA.find(x => x.col === c.col);
+    if (!m || typeof m.campos !== 'function') {
+      quebrados.push(c.n + ' (não sincroniza)'); return;
+    }
+    let sobe = false;
+    try {
+      const saida = m.campos(amostra, 0);
+      sobe = !!saida && Object.prototype.hasOwnProperty.call(saida, 'sucursais');
+    } catch (e) { quebrados.push(c.n + ' (erro: ' + e.message.slice(0, 30) + ')'); return; }
+    if (!sobe) quebrados.push(c.n + ' (o campo não sobe)');
+  });
+
+  t('TODOS os cadastros liberáveis enviam sucursais para a nuvem',
+    quebrados.length === 0, quebrados.join(' · '));
+
+  /* a rede de proteção: cano quebrado NÃO pode esconder o cadastro */
+  t('existe a verificação do cano em tempo de execução',
+    /function canaisDeLiberacao/.test(fonte));
+  t('filtrarCadastroDaUnidade pula o cadastro com cano quebrado',
+    /if\(cano\[c\.col\]&&!cano\[c\.col\]\.ok\)\{ pulados\.push\(c\.n\); return; \}/.test(fonte));
+  t('e denuncia em vez de esconder em silêncio',
+    /AVISO: a liberação por unidade não está funcionando em/.test(fonte));
+  t('a regra está escrita no código para a próxima pessoa',
+    /CADASTRO SO ENTRA EM `CADASTROS_LIB` DEPOIS/.test(fonte));
+
+  /* ==========================================================
+     O QUE SOBE TEM DE DESCER
+
+     Meia correção é pior que nenhuma: o campo subindo e não descendo
+     faz a liberação parecer salva e sumir no próximo download.
+     ========================================================== */
+  const naoDesce = [];
+  LIB.forEach(c => {
+    const i = fonte.indexOf('DB.' + c.col + '=volta(');
+    if (i < 0) return;                    /* não desce por volta(): outro caminho */
+    let d = 0, fim = i;
+    for (let k = fonte.indexOf('(', i); k < fonte.length; k++) {
+      if (fonte[k] === '(') d++;
+      else if (fonte[k] === ')') { d--; if (!d) { fim = k; break; } }
+    }
+    if (fonte.slice(i, fim).indexOf('sucursais') < 0) naoDesce.push(c.n);
+  });
+  t('TODOS os cadastros liberáveis recebem sucursais da nuvem',
+    naoDesce.length === 0, naoDesce.join(' · '));
+}
+
 /* ---------- resultado ---------- */
 console.log('\n' + '═'.repeat(52));
 console.log('Joia ' + versaoDoSistema() + ' · contexto de unidade e isolamento');

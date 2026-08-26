@@ -13965,10 +13965,16 @@ setInterval(function(){
 var MAPA=[
  {col:'contas', espelha:true,      tab:'contas_capital',
   campos:function(x){return {nome:x.nome,tipo:x.tipo||'Banco',banco:x.banco||null,agencia:x.agencia||null,
-    numero:x.numero||null,saldo_inicial:n(x.saldoInicial),fixa:x.fixa||null}}},
+    numero:x.numero||null,saldo_inicial:n(x.saldoInicial),fixa:x.fixa||null,
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  {col:'catfin', espelha:true,      tab:'categorias_financeiras',
-  campos:function(x,i){return {nome:x.nome,ordem:i,tipo:x.tipo||'despesa'}},
+  campos:function(x,i){return {nome:x.nome,ordem:i,tipo:x.tipo||'despesa',
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}},
   filhos:[{lista:'itens',tab:'subcategorias_financeiras',pai:'categoria_id',
     campos:function(o,k){return {nome:o.nome,ordem:k}}}]},
 
@@ -13986,15 +13992,24 @@ var MAPA=[
 
  {col:'fornec', espelha:false,      tab:'fornecedores',
   campos:function(x){return {empresa:x.empresa,contato:x.nome||null,cnpj:x.cnpj||null,
-    email:x.email||null,telefone:x.tel||null,whatsapp:x.whats||null}}},
+    email:x.email||null,telefone:x.tel||null,whatsapp:x.whats||null,
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  {col:'formasPag', espelha:true,   tab:'formas_pagamento',
   campos:function(x,i){return {nome:x.nome,tipo:x.tipo||'outro',bandeira:x.bandeira||null,
     taxa_pct:n(x.taxaPct),taxa_fixa:n(x.taxaFixa),dias_recebimento:n(x.dias),
-    conta_id:fk('contas',x.contaId),ativa:x.ativa!==false,online:!!x.online,ordem:ordemDe(x,i)}}},
+    conta_id:fk('contas',x.contaId),ativa:x.ativa!==false,online:!!x.online,ordem:ordemDe(x,i),
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  {col:'unidExtra', espelha:true,   tab:'unidades_medida',
-  campos:function(x){return {nome:x.n,sigla:x.ab,base:x.base,fator:n(x.f)}}},
+  campos:function(x){return {nome:x.n,sigla:x.ab,base:x.base,fator:n(x.f),
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  {col:'gruposIng', espelha:false,   tab:'grupos_ingredientes',
   campos:function(x){return {nome:x.nome,compoe_cmv:x.compoeCMV!==false,
@@ -14095,22 +14110,34 @@ var MAPA=[
     lancada_em:x.lancadaEm||null};}},
  {col:'motivosMov', espelha:true,  tab:'motivos_movimentacao',
   campos:function(x){return {nome:x.nome,tipo:x.tipo,sistema:!!x.sistema,
-    ativo:x.ativo!==false,lojas_visiveis:x.lojas||[]}}},
+    ativo:x.ativo!==false,lojas_visiveis:x.lojas||[],
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  /* Motivo de cancelamento virou cadastro. Antes era uma lista fixa dentro do
     codigo: o dono da loja nao conseguia trocar sem mexer no sistema. */
  {col:'motivosCanc', espelha:true, tab:'motivos_cancelamento',
-  campos:function(x,i){return {nome:x.nome,ativo:x.ativo!==false,ordem:ordemDe(x,i)}}},
+  campos:function(x,i){return {nome:x.nome,ativo:x.ativo!==false,ordem:ordemDe(x,i),
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  {col:'statusVenda', espelha:true, tab:'status_venda',
   campos:function(x,i){return {nome:x.nome,papel:x.papel||'producao',ordem:ordemDe(x,i),
     ativo:x.ativo!==false,cor:x.cor||null,minutos:n(x.minutos),som:!!x.som,
-    confere_pagamento:!!x.confPag}}},
+    confere_pagamento:!!x.confPag,
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  {col:'modelosImp', espelha:true, tab:'modelos_impressao',
   campos:function(x){return {tipo:x.tipo,nome:x.nome,colunas:n(x.colunas)||48,
     vias:n(x.vias)||1,corte:x.corte!==false,gaveta:!!x.gaveta,
-    modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,ativo:x.ativo!==false}}},
+    modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,ativo:x.ativo!==false,
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  /* Turno tem que vir antes de caixas no MAPA: o caixa aponta para o turno,
     e o vinculo so resolve se o turno ja subiu. */
@@ -14143,7 +14170,10 @@ var MAPA=[
 
  {col:'turnos', espelha:true, tab:'turnos',
   campos:function(x,i){return {nome:x.nome,hora_inicio:x.ini||null,hora_fim:x.fim||null,
-    ativo:x.ativo!==false,ordem:ordemDe(x,i)}}},
+    ativo:x.ativo!==false,ordem:ordemDe(x,i),
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}}},
 
  /* O cancelamento tem registro proprio, e nao so um campo no pedido. Assim o
     relatorio nasce de uma trilha, com quem fez, quando e por que. */
@@ -14253,7 +14283,10 @@ var MAPA=[
 
  {col:'entregadores', espelha:true,tab:'entregadores',
   campos:function(x){return {nome:x.nome,telefone:x.tel||null,cpf:x.cpf||null,pix:x.pix||null,
-    diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false}},
+    diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false,
+    /* `sucursais` sobe: sem isto a liberacao por unidade morre no
+       caminho e a loja nao ve o cadastro (V188) */
+    sucursais:x.sucursais||[]}},
   filhos:[{lista:'taxas',tab:'entregador_taxas',pai:'entregador_id',
     campos:function(o){return {cidade:o.cidade,valor:n(o.valor)}}}]},
 
@@ -15953,21 +15986,21 @@ function volta(linhas,fn,atual,col){
   var _p46=baixarTab('cupom_usos', 'cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
   var _p47=baixarTab('fiado_movimentos', 'fiado_movimentos'+qs+'&order=data.desc&limit=2000');
   var cont=await _p00;
-  DB.contas=volta(cont,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
+  DB.contas=volta(cont,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
     agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},_ANT('contas'),'contas');
   var fp=await _p01;
   var mapaConta={};cont.forEach(function(x){mapaConta[x.id]=x.ref_local||x.id});
-  DB.formasPag=volta(fp,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
+  DB.formasPag=volta(fp,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
     taxaPct:Number(x.taxa_pct)||0,taxaFixa:Number(x.taxa_fixa)||0,dias:x.dias_recebimento||0,
     contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0}},null,'formasPag');
   var cf=await _p02;
   DB.catfin=volta(cf,function(x){
     var paiRef=x.ref_local||x.id;
-    return {id:paiRef,nome:x.nome,tipo:x.tipo||'despesa',
+    return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:paiRef,nome:x.nome,tipo:x.tipo||'despesa',
       itens:(x.subcategorias_financeiras||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
         .map(function(s){return {id:idFilho(paiRef,s.ref_local,s.id),nome:s.nome}})};},null,'catfin');
   var fo=await _p03;
-  DB.fornec=volta(fo,function(x){return {id:x.ref_local||x.id,empresa:x.empresa,nome:x.contato,
+  DB.fornec=volta(fo,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,empresa:x.empresa,nome:x.contato,
     cnpj:x.cnpj,email:x.email,tel:x.telefone,whats:x.whatsapp}},null,'fornec');
   var cl=await _p04;
   DB.clientes=volta(cl,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,rua:x.rua,
@@ -15978,7 +16011,7 @@ function volta(linhas,fn,atual,col){
     limiteFiado:Number(x.limite_fiado)||0,saldoFiado:Number(x.saldo_fiado)||0,
     ultima:x.ultima_compra||''}},null,'clientes');
   var en=await _p05;
-  DB.entregadores=volta(en,function(x){return {id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
+  DB.entregadores=volta(en,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
     pix:x.pix,diarias:x.diarias||{},padrao:!!x.padrao,ativo:x.ativo!==false,
     /* mesmo defeito da venda: sem o id de volta, a taxa era reinserida a
        cada sincronizacao */
@@ -16114,7 +16147,7 @@ function volta(linhas,fn,atual,col){
   }catch(eo){ logNuvem('não consegui baixar a configuração de operação',true); }
   /* ---------- ESTOQUE ---------- */
   var ue=await _p12;
-  DB.unidExtra=volta(ue,function(x){return {id:x.ref_local||x.id,n:x.nome,ab:x.sigla,
+  DB.unidExtra=volta(ue,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,n:x.nome,ab:x.sigla,
     base:x.base,f:Number(x.fator)||1}},null,'unidExtra');
 
   var gi=await _p13;
@@ -16268,22 +16301,22 @@ function volta(linhas,fn,atual,col){
 
   var mv=await _p20;
   var mapaMt={};mv.forEach(function(x){mapaMt[x.id]=x.ref_local||x.id});
-  DB.motivosMov=volta(mv,function(x){return {id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,
+  DB.motivosMov=volta(mv,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,
     sistema:!!x.sistema,ativo:x.ativo!==false,lojas:x.lojas_visiveis||[]}},null,'motivosMov');
 
   var mc=await _p21;
   var mapaMc={};mc.forEach(function(x){mapaMc[x.id]=x.ref_local||x.id});
-  DB.motivosCanc=volta(mc,function(x){return {id:x.ref_local||x.id,nome:x.nome,
+  DB.motivosCanc=volta(mc,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,
     ativo:x.ativo!==false,ordem:x.ordem||0}},null,'motivosCanc');
 
   baixarLayoutMenu();
   var stv=await _p22;
-  DB.statusVenda=volta(stv,function(x){return {id:x.ref_local||x.id,nome:x.nome,
+  DB.statusVenda=volta(stv,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,
     papel:x.papel||'producao',ordem:x.ordem||0,ativo:x.ativo!==false,cor:x.cor||'',
     minutos:Number(x.minutos)||0,som:!!x.som,confPag:!!x.confere_pagamento}},null,'statusVenda');
 
   var mi=await _p23;
-  DB.modelosImp=volta(mi,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
+  DB.modelosImp=volta(mi,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,tipo:x.tipo,nome:x.nome,
     colunas:Number(x.colunas)||48,vias:Number(x.vias)||1,corte:x.corte!==false,
     gaveta:!!x.gaveta,modelo:x.modelo||'',blocos:x.blocos||[],manual:!!x.manual,
     ativo:x.ativo!==false}},null,'modelosImp');
@@ -16354,7 +16387,7 @@ function volta(linhas,fn,atual,col){
 
   var tn=await _p31;
   var mapaTn={};tn.forEach(function(x){mapaTn[x.id]=x.ref_local||x.id});
-  DB.turnos=volta(tn,function(x){return {id:x.ref_local||x.id,nome:x.nome,
+  DB.turnos=volta(tn,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,
     ini:x.hora_inicio||'',fim:x.hora_fim||'',ativo:x.ativo!==false,ordem:x.ordem||0}},null,'turnos');
 
   var cnc=await _p32;
@@ -18002,7 +18035,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V187.0.0';
+var VERSAO='V188.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20678,6 +20711,80 @@ function soLiberados(lista,suc){
    saber nada. Ausencia de contexto nao autoriza remocao — a mesma
    licao da V130 e da V181, agora no terceiro lugar.
    ========================================================== */
+/* ==========================================================
+   O BOTAO DE LIBERAR TEM DE FUNCIONAR — SEMPRE (V188)
+
+   Este arquivo ja registrou o mesmo estrago tres vezes seguidas, e da
+   terceira a loja ficou sem ver os grupos:
+
+     V186 — tres formularios sem o bloco "Quem enxerga este item"
+     V187 — ONZE tabelas sem a coluna `sucursais` no banco
+     V187 — `grupos_opcoes` nao subia nem descia com o campo
+
+   Em todos, o mesmo desenho de falha: a tela de Liberacao por Unidade
+   oferece o botao, a matriz clica, e o valor morre em algum ponto do
+   caminho — no formulario que nao le, no envio que nao manda, na
+   coluna que nao existe. Ninguem ve erro. A unidade so abre a tela e
+   nao encontra nada.
+
+   O que torna isso grave nao e o bug em si: e a REGRA de leitura.
+   `liberadoNa()` trata ausencia de dado como "ninguem liberou". Numa
+   liberacao de verdade isso esta certo — lista vazia significa lista
+   vazia. Mas quando o campo nao chega por defeito de encanamento, a
+   mesma regra transforma um problema tecnico invisivel em CADASTRO
+   INVISIVEL para a loja inteira.
+
+   A correcao estrutural nao e consertar o terceiro caso. E garantir
+   que a leitura nunca esconda dado por causa do encanamento:
+
+   1. `canaLiberacao(col)` pergunta ao proprio MAPA se aquele cadastro
+      leva `sucursais` na subida. Nao consulta o banco, nao depende de
+      internet: usa a configuracao real que o sistema usa para
+      sincronizar.
+
+   2. `filtrarCadastroDaUnidade` NAO FILTRA os cadastros cujo cano esta
+      quebrado. A unidade passa a ver tudo daquele cadastro — que e o
+      comportamento seguro. Esconder por engano e pior do que mostrar
+      demais: dado escondido parece perda de dado, e a loja para.
+
+   3. O defeito e denunciado, nao engolido: fica no Diagnostico e no
+      health check, com o nome do cadastro.
+
+   Regra que fica escrita: CADASTRO SO ENTRA EM `CADASTROS_LIB` DEPOIS
+   QUE O CAMPO SOBE, DESCE E TEM COLUNA. As duas pontas, ou nenhuma.
+   ========================================================== */
+var _canoLib=null;
+function canaisDeLiberacao(){
+  if(_canoLib)return _canoLib;
+  _canoLib={};
+  (CADASTROS_LIB||[]).forEach(function(c){
+    var m=(MAPA||[]).find(function(x){return x.col===c.col});
+    if(!m||typeof m.campos!=='function'){
+      /* cadastro que nao sincroniza nao pode ser filtrado por algo que
+         so existe na nuvem */
+      _canoLib[c.col]={ok:false,motivo:'não sincroniza'};
+      return;
+    }
+    try{
+      /* pergunta ao proprio mapa: o campo sobe? */
+      var amostra=m.campos({id:'x',ref_local:'x',nome:'x',sucursais:['suc_teste']},0);
+      var sobe=amostra&&Object.prototype.hasOwnProperty.call(amostra,'sucursais');
+      _canoLib[c.col]=sobe?{ok:true}:{ok:false,motivo:'o campo não sobe para a nuvem'};
+    }catch(e){
+      _quieto(e,'canaisDeLiberacao');
+      _canoLib[c.col]={ok:false,motivo:'não consegui verificar'};
+    }
+  });
+  return _canoLib;
+}
+/* lista dos cadastros cujo botao de liberar NAO esta funcionando */
+function liberacoesQuebradas(){
+  var c=canaisDeLiberacao(),fora=[];
+  (CADASTROS_LIB||[]).forEach(function(x){
+    if(c[x.col]&&!c[x.col].ok)fora.push({col:x.col,nome:x.n,motivo:c[x.col].motivo});
+  });
+  return fora;
+}
 function filtrarCadastroDaUnidade(){
   var suc=lojaAtualId();
   if(!suc){                              /* contexto ainda nao resolvido */
@@ -20685,13 +20792,19 @@ function filtrarCadastroDaUnidade(){
     return 0;
   }
   if(ehSucMatriz(suc))return 0;          /* a matriz ve tudo */
-  var n=0;
+  var cano=canaisDeLiberacao(),n=0,pulados=[];
   CADASTROS_LIB.forEach(function(c){
     var antes=(DB[c.col]||[]).length;
     if(!antes)return;
+    /* cano quebrado: mostra tudo em vez de esconder tudo */
+    if(cano[c.col]&&!cano[c.col].ok){ pulados.push(c.n); return; }
     DB[c.col]=soLiberados(DB[c.col],suc);
     n+=antes-DB[c.col].length;
   });
+  if(pulados.length)
+    logNuvem('AVISO: a liberação por unidade não está funcionando em '+
+      pulados.join(', ')+' — estes cadastros aparecem inteiros nesta unidade '+
+      'em vez de sumirem. Avise o suporte.');
   if(n)logNuvem(n+' item(ns) de cadastro não liberados para '+sucNome(suc)+' ficaram de fora');
   return n;
 }
