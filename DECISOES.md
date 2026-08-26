@@ -5475,3 +5475,19 @@ normalmente, porque gatilho roda por evento, não por permissão de EXECUTE.
 - nenhum segredo no código, no bundle ou no histórico do Git;
 - `href="#"` e `<form>`: **zero** ocorrências — as causas clássicas de salto ao
   topo não existem neste sistema.
+
+### Auditoria geral — o que ficou de fora (registro honesto)
+
+A auditoria pedia 116 itens. Foram executados os P0 e P1 de segurança, isolamento,
+persistência e integridade. **Não foram executados**, e estão na planilha de
+pendências: performance e N+1 (exigem medição com dados reais), padrão de layout e
+corte de conteúdo (exigem inspeção visual), cardápio digital (repositório separado),
+LGPD (exige validação jurídica), revogação de sessão (exige dois navegadores),
+backup e restore (exigem acesso ao painel e autorização), vulnerabilidades de
+dependências, health check administrativo e pesquisa externa de boas práticas
+(sem acesso nesta sessão).
+
+**Veredicto: PRONTO PARA PRODUÇÃO COM RESSALVAS.** Nenhum bloqueador P0 do item 96
+está presente. As ressalvas, em ordem de peso: (1) nada está publicado — a loja roda
+a V174; (2) backup não verificado e restore não testado; (3) revogação de sessão de
+usuário desativado não testada; (4) nenhum teste de navegador executado.
