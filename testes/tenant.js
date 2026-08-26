@@ -212,6 +212,105 @@ grupo('Senha · o login offline não guarda mais texto puro');
   t('e não contém a senha', h('abc123', 'a@b.com').indexOf('abc123') < 0);
 }
 
+/* ==========================================================
+   FECHAMENTO GL-01 a GL-14
+   ========================================================== */
+grupo('GL-04 · uma fonte só para a senha de autorização');
+
+{
+  const chamadas = (fonte.match(/rpc\/senha_operador_definir/g) || []).length;
+  t('a RPC de senha é chamada de UM lugar só', chamadas === 1, chamadas + ' chamada(s)');
+  t('existe a função única', /async function definirSenhaOperador/.test(fonte));
+  t('campo vazio mantém a senha atual', /if\(!senha\)return \{ok:true, msg:''\}/.test(fonte));
+  t('exige 4 dígitos no mínimo', /String\(senha\)\.length<4/.test(fonte));
+  t('recusa quando está sem conexão', /if\(!NUVEM\.ligada\)[\s\S]{0,120}só pode ser cadastrada online/.test(fonte));
+  t('recarrega a lista depois de gravar',
+    /definirSenhaOperador[\s\S]{0,700}await carregarQuemTemSenha\(\)/.test(fonte));
+  t('a tela de Operadores usa a função única',
+    /var rs=await definirSenhaOperador\(_refOp, sn\)/.test(fonte));
+  t('a tela de Usuários usa a função única',
+    /var _rs=await definirSenhaOperador\(_ref, senhaCx\)/.test(fonte));
+  t('a senha nunca volta ao navegador', !/senha_operador_ler|retornar_senha/.test(fonte));
+}
+
+grupo('GL-12 · health check não finge OK');
+
+{
+  t('o health check existe', /async function rodarHealthCheck/.test(fonte));
+  t('é restrito à plataforma', /if\(!ehPlataforma\(\)\)return telaRestrita\('Diagnóstico do Sistema'\)/.test(fonte));
+  ['Banco','Autenticação','Contexto de unidade','Sincronização','WhatsApp (Carla)','Backup do provedor']
+    .forEach(x => t('verifica ' + x, fonte.indexOf("pr('" + x) >= 0));
+  t('o backup diz NÃO VERIFICADO, não OK', /pr\('Backup do provedor','naoverif'/.test(fonte));
+  t('e aponta onde o proprietário deve olhar',
+    /Project Settings › Database › Backups/.test(fonte));
+  t('mede o tempo de resposta do banco', /respondeu em '\+cron\(t1\)/.test(fonte));
+  t('compara versão instalada com a publicada', /Versão publicada/.test(fonte));
+  t('nenhum secret aparece no resultado',
+    !/pr\('[^']*',[^,]*,\s*NUVEM\.(chave|token)/.test(fonte));
+}
+
+grupo('GL-11 · precisão de custo não é truncada no frontend');
+
+{
+  /* o campo de custo de insumo continua fora do componente de 2 casas,
+     e o motivo continua escrito — se alguém migrar sem pensar, o teste quebra */
+  t('o campo de custo mantém 4 casas', /id="ntItVl" type="number" step="0\.0001"/.test(fonte));
+  t('e o motivo está documentado no código',
+    /ESTE CAMPO NAO USA O COMPONENTE DE DINHEIRO — DE PROPOSITO/.test(fonte));
+  t('moedaFmt formata em 2 casas (uso de venda)',
+    /minimumFractionDigits:2,maximumFractionDigits:2/.test(fonte));
+
+  /* ==========================================================
+     O DEFEITO QUE ESTA AUDITORIA ENCONTROU
+
+     250 x 0,0043 = 1,075 exato. Em binario vira 1,0749999999999999556,
+     e `toFixed(2)` devolve "1.07". O Postgres, que usa decimal exato,
+     devolve 1.08. Um centavo de diferenca entre a tela e o banco, no
+     MESMO calculo — e na ficha tecnica isso multiplica por insumo.
+     ========================================================== */
+  const arred = new Function('v', 'casas',
+    corpoDaFuncao('arred', fonte) + '\nreturn arred(v,casas);');
+
+  t('a função arred() existe no sistema', /function arred\(v, casas\)/.test(fonte));
+  t('250 x 0,0043 = 1,08 (igual ao Postgres)', arred(250 * 0.0043) === 1.08,
+    'deu ' + arred(250 * 0.0043));
+  t('toFixed daria 1,07 — o defeito', (250 * 0.0043).toFixed(2) === '1.07');
+  t('100 x 0,0157 = 1,57', arred(100 * 0.0157) === 1.57);
+  t('8 x 0,125 = 1,00', arred(8 * 0.125) === 1);
+  t('3 x 1,2345 = 3,7035 com 4 casas', arred(3 * 1.2345, 4) === 3.7035);
+  t('1,005 arredonda para 1,01', arred(1.005) === 1.01);
+  t('arredondar no meio zeraria o custo', 250 * +(0.0043).toFixed(2) === 0);
+  t('0,0043 não vira 0,00 ao ser lido', +(0.0043).toFixed(4) === 0.0043);
+  const usos = (fonte.match(/arred\(/g) || []).length;
+  t('arred() é usada nos cálculos de custo', usos >= 6, usos + ' uso(s)');
+  t('estoque × custo usa arred', /arred\(\(Number\(i\.estoqueAtual\)\|\|0\)\*custoAtual\(i\)\)/.test(fonte));
+  t('nota de entrada usa arred', /arred\(x\.l\.qtd\*x\.l\.custo\)/.test(fonte));
+}
+
+grupo('GL-05 · minutas jurídicas existem e são honestas');
+
+{
+  const fs2 = require('fs'), path = require('path');
+  const dir = path.join(__dirname, '..', 'juridico');
+  const pp = path.join(dir, 'POLITICA_DE_PRIVACIDADE.md');
+  const tu = path.join(dir, 'TERMOS_DE_USO.md');
+  t('Política de Privacidade criada', fs2.existsSync(pp));
+  t('Termos de Uso criados', fs2.existsSync(tu));
+  if (fs2.existsSync(pp)) {
+    const txt = fs2.readFileSync(pp, 'utf8');
+    t('a política avisa que é minuta', /NÃO PUBLICAR SEM VALIDAÇÃO/.test(txt));
+    t('marca os pontos que exigem advogado', (txt.match(/\[VALIDAR\]/g) || []).length >= 10);
+    t('não declara conformidade jurídica', !/estamos em conformidade com a LGPD/i.test(txt));
+    t('registra a transferência internacional', /fora do Brasil/.test(txt));
+    t('admite que não há expurgo automático', /não apaga nada automaticamente/.test(txt));
+  }
+  if (fs2.existsSync(tu)) {
+    const txt = fs2.readFileSync(tu, 'utf8');
+    t('os termos não prometem SLA inexistente', /Não há SLA definido/.test(txt));
+    t('e não prometem backup não comprovado', /ainda não foram verificados/.test(txt));
+  }
+}
+
 /* ---------- resultado ---------- */
 console.log('\n' + '═'.repeat(52));
 console.log('Joia ' + versaoDoSistema() + ' · contexto de unidade e isolamento');

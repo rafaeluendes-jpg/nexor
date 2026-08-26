@@ -5558,3 +5558,86 @@ pagamento criadas após as correções, e a view `vw_vendas_sem_pagamento` monit
 `wal_level=logical` e `archive_mode=on` — a base para PITR existe. Restore em schema
 separado **comprovado**: `bkp_jolo_20260811` com 61 tabelas e 12 MB. Plano
 contratado, retenção e PITR continuam pendentes por dependerem do painel de billing.
+
+## V184 — fechamento GL-01 a GL-14
+
+### GL-11 — o defeito que esta rodada encontrou
+
+Uma diferença de **um centavo entre a tela e o banco**, no mesmo cálculo:
+
+```
+250 g de insumo a R$ 0,0043
+valor exato .......... 1,075
+no binário do JS ..... 1,0749999999999999556
+toFixed(2) ........... 1,07
+Postgres (numeric) ... 1,08
+```
+
+JavaScript guarda número em binário e nem todo decimal cabe. Na ficha técnica isso
+multiplica: cada insumo erra um centavo **para baixo**, o CMV fica menor do que é, e
+a margem parece maior do que é.
+
+Criada `arred(v, casas)` com correção de `Number.EPSILON`, aplicada nos quatro
+cálculos de custo. Agora bate com o banco. Testado com 0,0043 · 0,0157 · 0,1250 ·
+1,2345 · 10,0000 e o caso clássico 1,005 (que `toFixed` erra).
+
+As colunas do banco já estavam certas: `insumos.custo` com 4 casas,
+`fichas_tecnicas.custo_medio` com 6. **Nenhuma migration foi necessária.**
+
+### GL-14 — 156 tabelas sem PK eram 150 falsos positivos
+
+O advisor conta **todos** os schemas. Em `public` há 86 tabelas reais, **80 com
+chave primária**. As 6 sem PK são `bkp_*`, cópias de segurança. Os outros 150 estão
+nos schemas `bkp_jolo_20260811`, `bkp_rafaelos_20260811` e afins — snapshots, onde
+PK não faz sentido.
+
+**Zero tabelas de produção sem chave primária. Nenhuma PK foi adicionada, e essa é
+a resposta certa** — adicionar PK em cópia de segurança só criaria risco.
+
+### GL-04 — a lógica de senha estava em dois lugares
+
+`telaOperadores` e `Usuários e Permissões` continuam existindo: quem só assina no
+balcão é diferente de quem entra no sistema, e juntar seria pior. O que não podia
+continuar era o **código** duplicado — dois blocos parecidos divergem com o tempo.
+
+Agora as duas chamam `definirSenhaOperador()`. A RPC é invocada de **um lugar só**.
+
+### GL-03 — revogação de sessão testada
+
+O mecanismo já existia (`conta_ativa()` confere `usuarios_sistema.ativo` e
+`perfis.sessoes_desde` contra o `iat` do token). Faltava prova. Testado com a
+**mesma sessão e o mesmo token**: desativar o usuário corta consulta, gravação e
+tudo mais na hora. Token emitido antes de uma revogação também é recusado.
+
+### GL-10 — carga de 20 lojas
+
+300 vendas completas (pedido + item + pagamento) em 20 lojas, **zero erros**:
+
+| Operação | P50 | P95 | P99 |
+|---|---|---|---|
+| Venda completa | 0,66 ms | 1,61 ms | 2,33 ms |
+| Abrir caixa | 0,40 ms | 0,85 ms | 2,44 ms |
+| Relatório por forma | 0,45 ms | 0,84 ms | 1,11 ms |
+| Dashboard | 0,16 ms | 0,24 ms | 0,38 ms |
+
+Isolamento durante a carga: 20 lojas distintas, **zero** pagamento com forma de
+outra loja, zero venda duplicada, zero venda sem pagamento. Tudo removido no fim.
+
+**Ressalva:** isto mede o **banco**, não a rede nem o navegador. O caminho completo
+do operador ainda depende de teste em aparelho real.
+
+### GL-12 — health check que não finge
+
+Regra: o que não pode ser verificado diz **"não verificado"**, nunca verde. O backup
+é o exemplo — `wal_level` e `archive_mode` são lidos do banco, mas plano e retenção
+vivem no painel, então a linha aponta onde olhar em vez de mentir.
+
+### GL-05 — minutas jurídicas
+
+`juridico/POLITICA_DE_PRIVACIDADE.md` e `juridico/TERMOS_DE_USO.md`, escritos a
+partir das 57 tabelas com dado pessoal levantadas no banco. **21 marcações
+`[VALIDAR]`** nos pontos que exigem advogado — entre eles a transferência
+internacional (o banco fica nos Estados Unidos) e a ausência de expurgo automático.
+
+Os termos **não prometem SLA** e **não prometem backup não comprovado**. Um teste
+verifica que continuam sem prometer.

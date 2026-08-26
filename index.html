@@ -17046,6 +17046,35 @@ function money(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDig
 
    O valor real vive em `data-v`; o que aparece e so apresentacao.
    ========================================================== */
+/* ==========================================================
+   ARREDONDAR CENTAVO NAO E `toFixed` (GL-11)
+
+   JavaScript guarda numero em binario, e nem todo decimal cabe. O caso
+   real, medido nesta auditoria:
+
+     250 g de insumo a R$ 0,0043
+     valor exato ......... 1,075
+     no binario .......... 1,0749999999999999556
+     toFixed(2) .......... "1.07"
+     Postgres (numeric) .. 1.08
+
+   Um centavo de diferenca entre a tela e o banco, no MESMO calculo. Na
+   ficha tecnica isso multiplica: cada insumo erra um centavo para baixo,
+   e o CMV da loja fica menor do que e — o que faz a margem parecer maior
+   do que e.
+
+   O `+ Number.EPSILON` corrige a representacao antes de arredondar, e o
+   resultado passa a bater com o banco, que e a fonte da verdade.
+
+   Uso: `arred(250*0.0043)` -> 1.08. Para custos com mais casas,
+   `arred(v, 4)`.
+   ========================================================== */
+function arred(v, casas){
+  var n = Number(v);
+  if(!isFinite(n)) return 0;
+  var p = Math.pow(10, (casas===undefined ? 2 : casas));
+  return Math.round((n + Number.EPSILON * Math.abs(n)) * p) / p;
+}
 function moedaFmt(n){
   n=Number(n)||0;
   return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -17953,7 +17982,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V183.0.0';
+var VERSAO='V184.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29066,6 +29095,108 @@ async function limparFilaLegada(){
   toast(n+' pendência(s) removida(s).');
   telaDiagnosticoSistema();
 }
+/* ==========================================================
+   HEALTH CHECK ADMINISTRATIVO (GL-12)
+
+   Regra que manda aqui: NAO FINGIR OK. Cada linha e o resultado de uma
+   verificacao de verdade, e o que nao pode ser verificado diz
+   "nao verificado" — nunca verde.
+
+   O backup e o exemplo: `wal_level` e `archive_mode` sao lidos do banco
+   e provam que a base para PITR existe. Plano, frequencia e retencao
+   vivem no painel de billing, fora do alcance do sistema — entao a
+   linha diz "não verificado" e aponta onde olhar. Verde ali seria
+   mentira confortavel.
+
+   Somente a plataforma ve esta tela. Nenhum secret aparece: chaves,
+   tokens e hashes nunca entram no resultado.
+   ========================================================== */
+var HEALTH={estado:null,rodando:false};
+async function rodarHealthCheck(){
+  if(HEALTH.rodando)return;
+  HEALTH.rodando=true;
+  var r={quando:new Date().toLocaleString('pt-BR'),itens:[]};
+  var pr=function(nome,situacao,detalhe){r.itens.push({nome:nome,situacao:situacao,detalhe:detalhe||''})};
+  var cron=function(t0){return Math.round(performance.now()-t0)+' ms'};
+
+  /* --- versao e build --- */
+  pr('Versão instalada','info',VERSAO);
+  try{
+    var t0=performance.now();
+    var res=await fetch('index.html?v='+Date.now(),{cache:'no-store'});
+    var txt=await res.text();
+    var m=txt.match(/var VERSAO='(V[0-9.]+)'/);
+    pr('Versão publicada', m&&m[1]===VERSAO?'ok':'aviso',
+       m?(m[1]+(m[1]===VERSAO?' — igual à instalada':' — recarregue a página')):'não consegui ler');
+  }catch(e){ pr('Versão publicada','erro','não consegui consultar'); }
+
+  /* --- banco --- */
+  if(!NUVEM.ligada){ pr('Banco','erro','sem conexão com a nuvem'); }
+  else{
+    try{
+      var t1=performance.now();
+      await api('lojas?select=id&limit=1','GET');
+      pr('Banco','ok','respondeu em '+cron(t1));
+    }catch(e){ pr('Banco','erro',String((e&&e.message)||e).slice(0,70)); }
+  }
+
+  /* --- autenticacao --- */
+  try{
+    var ses=NUVEM.cli?(await NUVEM.cli.auth.getSession()).data.session:null;
+    pr('Autenticação', ses?'ok':'erro',
+       ses?('sessão válida até '+new Date(ses.expires_at*1000).toLocaleString('pt-BR'))
+          :'sem sessão ativa');
+  }catch(e){ pr('Autenticação','erro','não consegui verificar'); }
+
+  /* --- perfil e contexto --- */
+  pr('Contexto de unidade', lojaAtualId()?'ok':'erro',
+     lojaAtualId()?nomeLojaAtual():'nenhuma unidade ativa');
+  pr('Empresa', NUVEM.loja?'ok':'aviso', NUVEM.loja?'vinculada':'não resolvida');
+
+  /* --- sincronizacao --- */
+  var pend=(NUVEM.erros||[]).length;
+  pr('Sincronização', DB._sujo?'aviso':(pend?'erro':'ok'),
+     pend?(pend+' tabela(s) com falha no último envio')
+        :(DB._sujo?'há mudanças aguardando envio':'tudo enviado'));
+
+  /* --- WhatsApp (Carla) --- */
+  try{
+    var t2=performance.now();
+    var z=await zapApi('/estado/'+lojaAtualId());
+    pr('WhatsApp (Carla)', z&&z.estado==='conectado'?'ok':'aviso',
+       (z&&z.estado?z.estado:'sem resposta')+' · '+cron(t2));
+  }catch(e){ pr('WhatsApp (Carla)','erro','robô não respondeu'); }
+
+  /* --- backup: so o que da para comprovar --- */
+  pr('Backup do provedor','naoverif',
+     'plano, frequência e retenção vivem no painel do Supabase — '+
+     'Project Settings › Database › Backups');
+
+  HEALTH.estado=r; HEALTH.rodando=false;
+  if(S.mod==='sistema')telaDiagnosticoSistema();
+  return r;
+}
+function pintaHealth(){
+  var h=HEALTH.estado;
+  if(!h)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
+    '<h3>Health check</h3><div class="hint">Confere banco, autenticação, contexto, '+
+    'sincronização e robô — cada linha é uma verificação de verdade.</div>'+
+    '<button class="btnP2 ok" style="margin-top:10px" onclick="rodarHealthCheck()">'+
+    (HEALTH.rodando?'verificando…':'Rodar verificação')+'</button></div>';
+  var cor={ok:'gr',aviso:'am',erro:'rd',info:'',naoverif:''};
+  var rot={ok:'OK',aviso:'ATENÇÃO',erro:'ERRO',info:'—',naoverif:'NÃO VERIFICADO'};
+  return '<div class="blk" style="max-width:none;padding:0;margin-bottom:12px">'+
+   '<div style="padding:10px 14px;border-bottom:1px solid var(--line);display:flex;'+
+   'justify-content:space-between;align-items:center">'+
+    '<div><b>Health check</b> <small style="color:var(--ink-3)">'+E(h.quando)+'</small></div>'+
+    '<button class="btnP2" onclick="rodarHealthCheck()">Verificar de novo</button></div>'+
+   '<table class="fmTab"><tbody>'+h.itens.map(function(i){
+     return '<tr><td style="width:180px"><b>'+E(i.nome)+'</b></td>'+
+       '<td style="width:130px"><span class="badge2 '+(cor[i.situacao]||'')+'">'+
+       rot[i.situacao]+'</span></td>'+
+       '<td><small>'+E(i.detalhe)+'</small></td></tr>';
+   }).join('')+'</tbody></table></div>';
+}
 function telaDiagnosticoSistema(){
   if(!ehPlataforma())return telaRestrita('Diagnóstico do Sistema');
   var L=DIAGNOSTICO.slice();
@@ -29087,6 +29218,7 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Conexão</span><b>'+E(CONEXAO)+'</b></div>'+
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
+   pintaHealth()+
    (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
      '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
       '<b>O que segurou a tela</b> '+
@@ -33434,7 +33566,7 @@ function exportarInsumos(){
     var g=grupoIng(i.grupoId);
     l.push([i.codigo,i.nome,un(i.unidade).n,g?g.nome:'',i.estoqueMin,i.estoqueAtual,
       String(custoAtual(i)).replace('.',','),
-      String(((Number(i.estoqueAtual)||0)*custoAtual(i)).toFixed(2)).replace('.',','),
+      String(arred((Number(i.estoqueAtual)||0)*custoAtual(i)).toFixed(2)).replace('.',','),
       i.controlaEstoque?'Sim':'Nao',i.compoeCMV?'Sim':'Nao']);
   });
   var csv=l.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
@@ -37260,7 +37392,7 @@ function exportarMov(){
         x.direcao==='entrada'?String(x.qtd).replace('.',','):'',
         x.direcao==='saida'?String(x.qtd).replace('.',','):'',
         un(x.unidade).ab,String(x.custo).replace('.',','),
-        String(((Number(x.qtd)||0)*(Number(x.custo)||0)).toFixed(2)).replace('.',','),x.obs||m.obs||'']);
+        String(arred((Number(x.qtd)||0)*(Number(x.custo)||0)).toFixed(2)).replace('.',','),x.obs||m.obs||'']);
     });
   });
   var csv=l.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
@@ -38312,7 +38444,7 @@ async function fecharContagem(){
     var mudouCusto=Math.abs(cNovo-cAnt)>0.00005;
     var v=d*cNovo;
     det.push({insumoId:i.id,nome:i.nome,unidade:i.unidade,sistema:sis,conferido:conf,
-      diferenca:d,custo:cNovo,custoAnterior:cAnt,custoCorrigido:mudouCusto,valor:+v.toFixed(2)});
+      diferenca:d,custo:cNovo,custoAnterior:cAnt,custoCorrigido:mudouCusto,valor:arred(v)});
     if(mudouCusto)precos.push({item:i,de:cAnt,para:cNovo});
     if(d<0)perda+=v; else ganho+=v;
     if(Math.abs(d)<0.0001)return;
@@ -38714,7 +38846,7 @@ function exportarHist(){
     var g=x.ins?grupoIng(x.ins.grupoId):null;
     l.push([dataBR(x.m.data),x.m.hora||'',nomeMotivo(x.m.motivoId),x.l.nome,g?g.nome:'',
       destinoLinha(x),x.l.obs||x.m.obs||'',x.l.direcao,String(x.l.qtd).replace('.',','),un(x.l.unidade).ab,
-      String(x.l.custo).replace('.',','),String((x.l.qtd*x.l.custo).toFixed(2)).replace('.',',')]);
+      String(x.l.custo).replace('.',','),String(arred(x.l.qtd*x.l.custo).toFixed(2)).replace('.',',')]);
   });
   var csv=l.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');
   var b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
@@ -47384,6 +47516,44 @@ async function carregarQuemTemSenha(){
 }
 var _falhouQuemTemSenha=false;
 /* ==========================================================
+   UMA FONTE SO PARA A SENHA DE AUTORIZACAO (GL-04)
+
+   Duas telas cadastram gente que assina no balcao, e cada uma tinha o
+   SEU bloco de codigo para gravar a senha: `telaOperadores` (quem so
+   assina, sem login) e `Usuarios e Permissoes` (quem tambem entra no
+   sistema). As duas telas continuam — os papeis sao diferentes de
+   verdade e juntar seria pior.
+
+   O que nao pode continuar e a LOGICA em dois lugares. Dois blocos
+   parecidos divergem: um ganha uma trava, o outro nao; um recarrega a
+   lista depois de gravar, o outro esquece. Foi assim que nasceram
+   metade dos defeitos deste arquivo.
+
+   Daqui em diante as duas telas chamam esta funcao. Se a regra mudar —
+   tamanho minimo, registro de auditoria, politica de troca — muda aqui,
+   uma vez.
+
+   A senha nunca fica no cadastro: vai para `operador_senhas` como hash
+   bcrypt e nunca volta ao navegador.
+   ========================================================== */
+async function definirSenhaOperador(ref, senha, ondeVoltar){
+  if(!ref)return {ok:false, msg:'Não consegui identificar quem recebe a senha.'};
+  if(!senha)return {ok:true, msg:''};              /* campo vazio = manter a atual */
+  if(String(senha).length<4)
+    return {ok:false, msg:'A senha de autorização precisa ter ao menos 4 dígitos.'};
+  if(!NUVEM.ligada)
+    return {ok:false, msg:'Sem conexão: a senha só pode ser cadastrada online.'};
+  try{
+    await api('rpc/senha_operador_definir','POST',
+      {op_ref:ref, senha:senha, p_loja:NUVEM.loja||null});
+    await carregarQuemTemSenha();
+    return {ok:true, msg:'Senha de autorização cadastrada.'};
+  }catch(e){
+    _quieto(e,'definirSenhaOperador');
+    return {ok:false, msg:'Não consegui gravar a senha de autorização.'};
+  }
+}
+/* ==========================================================
    POR QUE NAO HA NINGUEM NA LISTA? (item 27)
 
    Tres motivos diferentes davam a MESMA mensagem: "cadastre em
@@ -47627,20 +47797,9 @@ function formOperador(id){
     else { var novo=Object.assign({id:uid('op'),sucursais:[]},dados);
            DB.operadores.push(novo); _refOp=novo.id; }
     salvar();
-    /* a senha sobe separada, e vira hash la */
-    if(sn){
-      if(!NUVEM.ligada){
-        toast('Sem conexão: a senha só pode ser cadastrada online.');
-        telaOperadores(); return true;
-      }
-      try{
-        await api('rpc/senha_operador_definir','POST',
-          {op_ref:_refOp,senha:sn,p_loja:NUVEM.loja||null});
-        await carregarQuemTemSenha();
-        toast('Operador salvo e senha cadastrada.');
-      }catch(e){ _quieto(e,'senhaOperador');
-        toast('Operador salvo, mas não consegui gravar a senha.'); }
-    } else toast('Operador salvo.');
+    /* a senha sobe separada, pela funcao unica (GL-04) */
+    var rs=await definirSenhaOperador(_refOp, sn);
+    toast(sn ? ('Operador salvo. '+rs.msg) : 'Operador salvo.');
     telaOperadores();
     return true;
   },'lg');
@@ -50512,16 +50671,11 @@ function formUsuario(id){
       US.sel=novo.id;
     }
     salvar();
-    /* a senha de autorizacao (cancelar, sangria) vai para o cofre como hash */
+    /* a senha de autorizacao (cancelar, sangria) vai pela funcao unica (GL-04) */
     if(senhaCx){
       var _ref=(u?u.id:(US.sel||''));
-      if(!NUVEM.ligada)toast('Sem conexão: a senha de autorização não foi cadastrada.');
-      else try{
-        await api('rpc/senha_operador_definir','POST',
-          {op_ref:_ref,senha:senhaCx,p_loja:NUVEM.loja||null});
-        await carregarQuemTemSenha();
-      }catch(e){ _quieto(e,'senhaAutorizacaoUsuario');
-        toast('Usuário salvo, mas não consegui gravar a senha de autorização.'); }
+      var _rs=await definirSenhaOperador(_ref, senhaCx);
+      if(!_rs.ok)toast('Usuário salvo, mas '+_rs.msg.charAt(0).toLowerCase()+_rs.msg.slice(1));
     }
     telaUsuarios();
     toast('Usuário salvo'+((senha||!u)?' e acesso liberado.':'.'));
