@@ -1,0 +1,11 @@
+{
+  "name": "joia-erp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Joia ERP — testes de regressao",
+  "scripts": {
+    "test:reconciliacao": "node testes/reconciliacao.js",
+    "test:sintaxe": "node testes/sintaxe.js",
+    "test": "npm run test:sintaxe && npm run test:reconciliacao"
+  }
+}

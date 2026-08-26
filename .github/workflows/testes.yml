@@ -1,0 +1,46 @@
+# ==========================================================
+# TESTES DE REGRESSAO — RODAM SOZINHOS A CADA PUBLICACAO
+#
+# Este arquivo faz o GitHub rodar a suite toda vez que algo e enviado
+# para o repositorio. Se qualquer teste falhar, aparece um X vermelho
+# no commit e o e-mail de falha chega — antes de alguem descobrir na
+# loja.
+#
+# A suite roda ANTES do deploy das paginas (pages.yml) por ordem de
+# nome, mas os dois sao independentes: um teste vermelho nao impede
+# tecnicamente a publicacao no GitHub Pages. O que ele faz e avisar,
+# alto e claro, que aquela versao nao deveria ir para a loja.
+# ==========================================================
+name: Testes de regressão
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  reconciliacao:
+    name: Reconciliação PDV × Faturamento × Pagamentos × Itens × Estoque
+    runs-on: ubuntu-latest
+    steps:
+      - name: Buscar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar o Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Conferir a sintaxe do sistema
+        run: node testes/sintaxe.js
+
+      - name: Rodar a reconciliação
+        run: node testes/reconciliacao.js
+
+      - name: Resultado
+        if: failure()
+        run: |
+          echo "::error::A reconciliação falhou. Esta versão NÃO deve ir para a loja."
+          exit 1
