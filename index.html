@@ -17539,7 +17539,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V176.0.0';
+var VERSAO='V177.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24275,7 +24275,27 @@ function irPagamento(){
         _pagosVenda[ti].valor=+(_pagosVenda[ti].valor-tira).toFixed(2);
         _troco=+(_troco-tira).toFixed(2);
       }
-      _pagosVenda=_pagosVenda.filter(function(x){return x.valor>0.009});
+    }
+    /* ==========================================================
+       PAGAMENTO DE R$ 0,00 NAO E PAGAMENTO
+
+       Esta limpeza existia, mas so rodava DENTRO do `if(_troco>0.009)`
+       — ou seja, apenas quando havia troco. Sem troco, as linhas
+       zeradas subiam para o banco.
+
+       Nao movem dinheiro, mas sujam tudo o que conta transacao: a taxa
+       fixa por transacao no fechamento (`taxaFixa * qtd`) cobrava por
+       linhas que nao existiram, e a conferencia mostrava formas que a
+       loja nao usou naquela venda.
+
+       Ficaram 6 linhas assim no turno de 25/08. Agora a limpeza e
+       incondicional.
+       ========================================================== */
+    _pagosVenda=_pagosVenda.filter(function(x){return (Number(x.valor)||0)>0.009});
+    if(!_pagosVenda.length){
+      toast('Nenhuma forma de pagamento com valor. Informe quanto foi pago.');
+      liberarFecharVenda();
+      return false;
     }
     var fiado=_pagos.filter(function(p){var f=formaPag(p.forma);return f&&f.tipo==='fiado'})
       .reduce(function(a,p){return a+p.valor},0);
@@ -24350,8 +24370,21 @@ function recalcPag(){
   $('pgLista').innerHTML=_pagos.map(function(p,i){
     var f=FORMAS.find(function(x){return x.id===p.forma});
     var daTroco=formaDaTroco(f);
-    return '<div class="pgLinha"><b>'+f.n+
-      (daTroco?'<small class="pgRot">recebido</small>':'')+'</b>'+
+    /* ==========================================================
+       QUEM ESTA COM O DINHEIRO PRECISA SALTAR AOS OLHOS
+
+       No balcao, com fila, o operador toca a forma e olha o total —
+       nao le linha por linha. Era possivel finalizar uma venda de
+       R$ 44 com "Dinheiro R$ 44" e "Debito R$ 0,00" na tela sem
+       perceber que o valor tinha ficado na forma errada.
+
+       A linha que carrega o valor fica em destaque; a zerada fica
+       apagada e diz que nao vale nada.
+       ========================================================== */
+    var zero=(Number(p.valor)||0)<=0.009;
+    return '<div class="pgLinha"'+(zero?' style="opacity:.55"':'')+'><b>'+f.n+
+      (daTroco?'<small class="pgRot">recebido</small>':'')+
+      (zero?'<small class="pgRot" style="color:var(--red)">sem valor</small>':'')+'</b>'+
     '<div class="cur" style="width:126px"><span>R$</span>'+
      '<input type="number" step="0.01" inputmode="decimal" value="'+p.valor+'" '+
      'data-i="'+i+'" class="pgV"></div>'+
@@ -24385,11 +24418,49 @@ function recalcPag(){
     };
   }
 }
+/* ==========================================================
+   O PRIMEIRO BOTAO TOCADO FICAVA COM A VENDA INTEIRA
+
+   `addPag` lancava a forma nova com o que FALTA receber. Na primeira
+   forma isso e o total; da segunda em diante, zero — porque a venda ja
+   esta coberta.
+
+   Consequencia no balcao: o operador toca Dinheiro por habito, percebe
+   que e cartao e toca Debito. O Debito entra com R$ 0,00. A tela mostra
+   as duas linhas, nada reclama, a venda finaliza — e o valor inteiro
+   ficou gravado em DINHEIRO. Do lado de fora parece que funcionou.
+
+   Foi isso que inflou o dinheiro do turno de 25/08 em Santa Fe: o banco
+   registrou R$ 758 em especie onde a gaveta tinha R$ 174. As linhas de
+   R$ 0,00 ficaram no banco como rastro — vendas 371, 372, 380 e 385.
+
+   Agora, quando a venda ja esta coberta e ha UMA forma so, tocar outra
+   TROCA a forma em vez de criar uma linha morta: e o que a pessoa quis
+   dizer, e continua reversivel com outro toque. Com pagamento dividido
+   em duas ou mais formas, adivinhar seria pior — ai o sistema recusa e
+   explica.
+   ========================================================== */
 function addPag(f){
   var taxa=parseFloat($('pgTaxa').value)||0,desc=valorDesconto();
   var final=_totPag+taxa-desc;
   var pago=_pagos.reduce(function(a,p){return a+p.valor},0);
-  _pagos.push({forma:f,valor:Math.max(0,+(final-pago).toFixed(2))});
+  var falta=+(final-pago).toFixed(2);
+
+  if(falta<=0.009){
+    if(_pagos.length===1){
+      if(_pagos[0].forma===f){ toast('Esta forma já está lançada.'); return; }
+      var antes=(FORMAS.find(function(x){return x.id===_pagos[0].forma})||{}).n||'';
+      var agora=(FORMAS.find(function(x){return x.id===f})||{}).n||'';
+      _pagos[0].forma=f;
+      recalcPag();
+      toast('Forma trocada de '+antes+' para '+agora+'.');
+      return;
+    }
+    toast('A venda já está coberta. Ajuste ou remova uma das formas antes de '+
+          'lançar outra.');
+    return;
+  }
+  _pagos.push({forma:f,valor:falta});
   recalcPag();
 }
 function remPag(i){_pagos.splice(i,1);recalcPag();}

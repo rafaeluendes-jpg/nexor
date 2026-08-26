@@ -364,6 +364,67 @@ grupo('Item 24 · o fechamento sobrevive ao F5 e ao novo login');
   t('caixa aberto em outra unidade não vale aqui', caixaAbertoReal() === null);
 }
 
+/* ==========================================================
+   A FORMA DE PAGAMENTO NO MOMENTO DA VENDA
+   ========================================================== */
+grupo('PDV · tocar outra forma troca, não cria linha morta');
+
+{
+  /* addPag real, extraida do index.html */
+  const codigoAdd = corpoDaFuncao('addPag', fonte);
+  let pagos, avisos;
+  const rodar = (formaNova, total, lista) => {
+    pagos = lista;
+    avisos = [];
+    new Function('_pagos', '_totPag', 'FORMAS', '$', 'valorDesconto',
+      'recalcPag', 'toast', 'f', `${codigoAdd}\n addPag(f);`)(
+      pagos, total,
+      [{ id: 'fp_dinheiro', n: 'Dinheiro' }, { id: 'fp_debito', n: 'Cartão débito' },
+       { id: 'fp_credito', n: 'Cartão crédito' }],
+      () => ({ value: '0' }), () => 0, () => {}, m => avisos.push(m), formaNova);
+    return pagos;
+  };
+
+  let r = rodar('fp_dinheiro', 44, []);
+  t('primeira forma recebe o total', r.length === 1 && perto(r[0].valor, 44));
+
+  r = rodar('fp_debito', 44, [{ forma: 'fp_dinheiro', valor: 44 }]);
+  t('tocar outra forma NÃO cria linha de R$ 0,00', r.length === 1,
+    'ficaram ' + r.length + ' linha(s)');
+  t('a forma passa a ser débito', r[0].forma === 'fp_debito');
+  t('o valor continua R$ 44', perto(r[0].valor, 44));
+  t('o operador é avisado da troca', avisos.some(a => /trocada/i.test(a)));
+
+  r = rodar('fp_dinheiro', 44, [{ forma: 'fp_dinheiro', valor: 44 }]);
+  t('tocar a mesma forma não duplica', r.length === 1);
+
+  /* pagamento dividido: adivinhar seria pior que recusar */
+  r = rodar('fp_credito', 100, [
+    { forma: 'fp_dinheiro', valor: 60 }, { forma: 'fp_debito', valor: 40 }]);
+  t('com pagamento dividido, recusa em vez de adivinhar', r.length === 2);
+  t('e explica por quê', avisos.some(a => /já está coberta/i.test(a)));
+
+  /* falta receber: comportamento normal preservado */
+  r = rodar('fp_debito', 100, [{ forma: 'fp_dinheiro', valor: 60 }]);
+  t('com saldo a receber, a forma nova entra normalmente', r.length === 2);
+  t('e recebe exatamente o que falta (R$ 40)', perto(r[1].valor, 40));
+}
+
+grupo('PDV · pagamento de R$ 0,00 nunca é gravado');
+
+{
+  const limpar = lista => lista.filter(x => (Number(x.valor) || 0) > 0.009);
+  t('linha zerada sem troco é descartada',
+    limpar([{ forma: 'fp_dinheiro', valor: 18 }, { forma: 'fp_debito', valor: 0 }]).length === 1);
+  t('a linha que sobra é a que tem valor',
+    limpar([{ forma: 'fp_dinheiro', valor: 18 }, { forma: 'fp_debito', valor: 0 }])[0].forma === 'fp_dinheiro');
+  t('venda 371 do turno real: 4 linhas viram 1',
+    limpar([{ forma: 'fp_dinheiro', valor: 18 }, { forma: 'fp_dinheiro', valor: 0 },
+            { forma: 'fp_debito', valor: 0 }, { forma: 'fp_credito', valor: 0 }]).length === 1);
+  t('pagamento dividido legítimo sobrevive à limpeza',
+    limpar([{ forma: 'fp_dinheiro', valor: 60 }, { forma: 'fp_pix', valor: 40 }]).length === 2);
+}
+
 /* ---------- resultado ---------- */
 console.log('\n' + '═'.repeat(52));
 console.log('Joia ' + versaoDoSistema() + ' · caixa e conciliação');

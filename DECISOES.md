@@ -5068,3 +5068,62 @@ A distribuição por forma do turno de 25/08 continua divergindo do sistema anti
 mesmo depois de tudo isto: o Joia registrou R$ 758 em dinheiro onde a gaveta física
 tinha R$ 174. **Não é defeito de fechamento** — é a forma de pagamento sendo
 gravada errada no momento da venda. É a próxima obra, e é maior que as 26 acima.
+
+## V177 — o primeiro botão tocado ficava com a venda inteira
+
+Esta é a causa que faltava do dinheiro inflado, e não era do fechamento: era do
+**momento da venda**.
+
+### O mecanismo
+
+`addPag(f)` lançava a forma nova com **o que falta receber**. Na primeira forma
+isso é o total; da segunda em diante, **zero** — porque a venda já está coberta.
+
+No balcão: o operador toca Dinheiro por hábito, percebe que é cartão, toca Débito.
+O Débito entra com R$ 0,00. A tela mostra as duas linhas, nada reclama, a venda
+finaliza — e o valor inteiro ficou gravado em **Dinheiro**. Do lado de fora parece
+que funcionou.
+
+A venda 371 do turno de 25/08 é a prova gravada: R$ 18,00 em Dinheiro mais três
+linhas de R$ 0,00 (dinheiro, débito, crédito). O operador tocou quatro botões; o
+valor ficou no primeiro.
+
+### As linhas de R$ 0,00 eram o rastro, e ninguém as via
+
+A limpeza de zerados existia, mas só rodava **dentro** do `if(_troco>0.009)` — ou
+seja, apenas quando havia troco. Sem troco, subiam para o banco.
+
+Não movem dinheiro, mas sujam tudo o que conta transação: a taxa fixa por transação
+no fechamento (`taxaFixa * qtd`) cobrava por linhas que não existiram. E eram a
+**prova** de que a venda tinha sido classificada errado.
+
+14 linhas em 10 vendas, de 01/08 a 26/08. Removidas — mas guardadas antes na tabela
+`pagamentos_zerados_removidos`, porque apagar a evidência de uma classificação
+errada seria repetir o problema.
+
+### O que mudou
+
+- quando a venda já está coberta e há **uma** forma só, tocar outra **troca a
+  forma** em vez de criar linha morta, com aviso na tela. É o que a pessoa quis
+  dizer, e continua reversível com outro toque;
+- com pagamento **dividido** em duas ou mais formas, adivinhar seria pior: o sistema
+  recusa e explica;
+- a limpeza de zerados virou **incondicional**, e a venda não finaliza se sobrar
+  nenhuma forma com valor;
+- na tela, a linha zerada fica apagada e marcada **"sem valor"**. Com fila no
+  balcão ninguém lê linha por linha — o defeito precisa saltar aos olhos;
+- `tg_pagamento_sem_valor` no banco: linha zerada é recusada em qualquer caminho,
+  inclusive robô, sincronização e cardápio.
+
+### Honestidade sobre o alcance
+
+O rastro de linhas zeradas explica **R$ 18** dos R$ 584 de diferença do turno de
+25/08. O mecanismo está provado e corrigido, mas quando o operador toca Dinheiro e
+**não** toca mais nada, não fica rastro nenhum no banco — é indistinguível de uma
+venda que foi mesmo em dinheiro. Os totais dos dois sistemas naquele dia também
+diferem (R$ 1.377 contra R$ 1.311), então os conjuntos de venda lançados não eram
+idênticos.
+
+**Conclusão:** o defeito era real e está fechado daqui para a frente. O turno de
+25/08 não dá para reconstruir, e o Rafael já decidiu deixá-lo como está. A prova
+de que a correção funciona vem do próximo turno.
