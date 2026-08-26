@@ -5673,3 +5673,53 @@ cardápio não são recuperáveis por restore.** Registrado como pendência nova
 com os dados das 06:34 — um dia de vendas. Com seis lojas isso é aceitável, e o risco
 real é menor porque cada aparelho guarda os dados localmente e ressincroniza. Passando
 de ~20 unidades, PITR (RPO de minutos, ~US$ 100/mês) deixa de ser opcional.
+
+## V186 — "liberei e não apareceu, e ainda perdi tudo"
+
+Dois defeitos somados, um deles meu, desta mesma semana.
+
+### 1. O cadastro nascia sem liberação (defeito antigo)
+
+Desde a V109 vale: cadastro sem marcação de unidade fica **só na matriz**. Todo
+formulário de cadastro ganhou o bloco "Quem enxerga este item" — **menos três**:
+grupo de ingredientes, categoria do cardápio e categoria de ficha.
+
+Efeito: item criado nesses três nascia com `sucursais` ausente, e a unidade nunca
+via. Pior — salvar o item de novo **apagava a liberação** feita na tela de Liberação
+por Unidade, porque o salvamento reatribuía nome e demais campos sem preservar
+`sucursais`. Era isso que fazia a liberação "não pegar": ela pegava, e o salvamento
+seguinte desfazia.
+
+Os três ganharam o bloco. Um teste verifica que `blocoUnidades` e `lerUnidades`
+aparecem o mesmo número de vezes — se alguém criar um cadastro liberável novo e
+esquecer o bloco, a suíte quebra.
+
+### 2. Contexto sem unidade apagava o cadastro inteiro (regressão minha, V181)
+
+Na V181 corrigi o contexto para **não cair na Matriz** quando a unidade do perfil
+não resolve: `lojaAtual()` passou a devolver string vazia. Aquilo estava certo —
+melhor sem unidade do que na unidade errada.
+
+**O que eu não previ foi o efeito em `filtrarCadastroDaUnidade`.** Ela recebe a
+unidade vazia, `ehSucMatriz('')` dá falso, e então pergunta se cada cadastro está
+liberado para `""` — que nunca está. Resultado: **apaga da memória do aparelho os
+grupos, as categorias, os produtos, os insumos e as fichas. Todos.**
+
+Foi isso que o Rafael viu: *"atualizou e eu perdi tudo"*. Na nuvem nada se perdeu —
+`espelha:false` protege esses cadastros contra remoção em massa, e a conferência
+confirmou 33 grupos, 290 insumos, 145 fichas e 42 produtos intactos. Mas a tela
+ficou vazia, e a liberação recém-feita parecia não ter funcionado.
+
+**Filtrar é operação destrutiva na memória local. Fazer isso sem saber para qual
+unidade é o pior dos mundos: apaga tudo por não saber nada.** Ausência de contexto
+não autoriza remoção — mesma lição da V130 e da V181, agora no terceiro lugar.
+
+`soLiberados` também passou a devolver a lista inteira quando não há unidade, em vez
+de esvaziar.
+
+### O que a auditoria não pegou, e por quê
+
+Os 484 testes estavam verdes. Nenhum deles chamava `filtrarCadastroDaUnidade` com
+contexto vazio — porque eu escrevi os testes da V181 provando que `lojaAtual()`
+devolve vazio, sem perguntar **quem consome esse vazio**. Corrigir uma função e não
+percorrer quem depende dela é o mesmo erro em outra forma.

@@ -311,6 +311,78 @@ grupo('GL-05 · minutas jurídicas existem e são honestas');
   }
 }
 
+/* ==========================================================
+   CADASTRO QUE NASCE SEM LIBERAÇÃO A UNIDADE NUNCA VÊ
+   ========================================================== */
+grupo('Liberação por unidade · todo cadastro liberável tem o bloco');
+
+{
+  /* Desde a V109 vale: cadastro sem marcação de unidade fica SÓ na matriz.
+     Se o formulário não tem o bloco "Quem enxerga este item", o cadastro
+     nasce invisível para a unidade — e salvar de novo apaga a liberação
+     feita pela tela de Liberação por Unidade. Foi o que aconteceu com os
+     grupos de ingredientes. */
+  const comBloco = (fonte.match(/blocoUnidades\(/g) || []).length;
+  const comLeitura = (fonte.match(/lerUnidades\(/g) || []).length;
+  t('blocoUnidades e lerUnidades aparecem o mesmo número de vezes',
+    comBloco === comLeitura, comBloco + ' vs ' + comLeitura);
+
+  [['produto', 'pdUn'], ['ingrediente', 'insUn'], ['grupo de ingredientes', 'gi'],
+   ['ficha técnica', 'ftUn'], ['categoria de ficha', 'cfUn'],
+   ['categoria do cardápio', 'catUn']].forEach(([nome, pref]) => {
+    t(nome + ' tem o bloco de unidades',
+      new RegExp("blocoUnidades\\([^,]+,'" + pref + "'\\)").test(fonte));
+    t(nome + ' lê o bloco ao salvar',
+      new RegExp("lerUnidades\\('" + pref + "'").test(fonte));
+  });
+
+  /* e o salvamento não pode apagar sucursais ao editar */
+  t('grupo de ingredientes preserva sucursais ao editar',
+    /if\(g\)\{ g\.nome=nome; g\.compoeCMV=\$\('giC'\)\.checked; alvo=g; \}/.test(fonte));
+  t('categoria do cardápio preserva sucursais ao editar',
+    /c\.imagem=tmp\.imagem;alvo=c;\}/.test(fonte));
+  t('categoria de ficha preserva sucursais ao editar',
+    /if\(c\)\{c\.nome=nome;c\.destinoId=\$\('cfD'\)\.value;alvo=c;\}/.test(fonte));
+
+  /* a regra de leitura continua a mesma */
+  const codigo = corpoDaFuncao('liberadoNa', fonte);
+  const lib = new Function('item', 'suc', 'ehSucMatriz', 'lojaAtualId', 'TODAS_UN',
+    codigo + '\nreturn liberadoNa(item,suc);');
+  const eMatriz = (s2) => s2 === 'suc_matriz';
+  const SF = 'suc_mt1unhbx2xrb';
+  t('sem sucursais, a unidade NÃO vê', lib({}, SF, eMatriz, () => SF, '*') === false);
+  t('com a própria unidade na lista, vê',
+    lib({ sucursais: [SF] }, SF, eMatriz, () => SF, '*') === true);
+  t('com "*" na lista, todas veem',
+    lib({ sucursais: ['*'] }, SF, eMatriz, () => SF, '*') === true);
+  t('com outra unidade na lista, NÃO vê',
+    lib({ sucursais: ['suc_outra'] }, SF, eMatriz, () => SF, '*') === false);
+  t('a matriz vê sempre, mesmo sem liberação',
+    lib({}, 'suc_matriz', eMatriz, () => 'suc_matriz', '*') === true);
+}
+
+grupo('Regressão da V181 · sem unidade não se apaga cadastro');
+
+{
+  const cod = corpoDaFuncao('soLiberados', fonte);
+  const sl = new Function('lista', 'suc', 'lojaAtualId', 'liberadoNa',
+    cod + '\nreturn soLiberados(lista,suc);');
+  const libFake = (x, s2) => (x.sucursais || []).indexOf(s2) >= 0;
+  const cadastro = [{ sucursais: ['suc_a'] }, { sucursais: ['suc_b'] }, { sucursais: [] }];
+
+  t('com unidade conhecida, filtra normalmente',
+    sl(cadastro, 'suc_a', () => 'suc_a', libFake).length === 1);
+  t('SEM unidade, devolve a lista inteira — não apaga',
+    sl(cadastro, '', () => '', libFake).length === 3);
+  t('e não é a mesma referência (não devolve o array original por engano)',
+    sl(cadastro, '', () => '', libFake) !== cadastro);
+
+  t('filtrarCadastroDaUnidade desiste quando não há unidade',
+    /if\(!suc\)\{\s*\/\* contexto ainda nao resolvido \*\/[\s\S]{0,160}return 0;/.test(fonte));
+  t('e registra o motivo em vez de apagar em silêncio',
+    /unidade ainda não resolvida — o cadastro não foi filtrado/.test(fonte));
+}
+
 /* ---------- resultado ---------- */
 console.log('\n' + '═'.repeat(52));
 console.log('Joia ' + versaoDoSistema() + ' · contexto de unidade e isolamento');

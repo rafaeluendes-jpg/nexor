@@ -17982,7 +17982,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V185.0.0';
+var VERSAO='V186.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18589,15 +18589,22 @@ function formCategoria(id){
       '<div class="fotoPrev" id="catPrev">'+(tmp.imagem?'<img src="'+tmp.imagem+'">':sv('img',24))+'</div>'+
       '<div><input type="file" id="catFile" accept="image/*" style="font-size:12px">'+
       '<div class="hint">Formato JPG ou PNG, até 1 MB.</div></div></div></div>'+
-  '</div></div>';
+  '</div>'+
+  /* mesmo defeito do grupo de ingredientes: nascia sem liberacao e a
+     unidade abria o cardapio sem categoria nenhuma */
+  blocoUnidades(c,'catUn')+'</div>';
   modal((c?'Editar categoria':'Cadastrar categoria'),corpo,'Salvar',function(){
     var nome=$('cNome').value.trim();
     if(!nome){toast('Informe o nome da categoria.');return false;}
-    if(c){c.nome=nome;c.impressao=$('cImp').value;c.imposto=$('cImp2').value;c.cor=tmp.cor;c.imagem=tmp.imagem;}
+    var alvo;
+    if(c){c.nome=nome;c.impressao=$('cImp').value;c.imposto=$('cImp2').value;
+      c.cor=tmp.cor;c.imagem=tmp.imagem;alvo=c;}
     else{
-      DB.categorias.push({id:uid('cat'),nome:nome,impressao:$('cImp').value,imposto:$('cImp2').value,
-        cor:tmp.cor,imagem:tmp.imagem,ativo:true,ordem:DB.categorias.length});
+      alvo={id:uid('cat'),nome:nome,impressao:$('cImp').value,imposto:$('cImp2').value,
+        cor:tmp.cor,imagem:tmp.imagem,ativo:true,ordem:DB.categorias.length,sucursais:[]};
+      DB.categorias.push(alvo);
     }
+    lerUnidades('catUn',alvo);
     salvar();renderCategorias();renderProdutos();toast(c?'Categoria atualizada.':'Categoria cadastrada.');
     return true;
   });
@@ -20605,12 +20612,43 @@ function liberadoNa(item,suc){
 /* usada pelas telas: so o que esta liberado nesta unidade */
 function soLiberados(lista,suc){
   var s=suc||lojaAtualId();
+  /* sem unidade nao se decide nada: devolve a lista inteira em vez de
+     esvaziar. Filtro que nao sabe o alvo nao filtra — apaga. */
+  if(!s)return (lista||[]).slice();
   return (lista||[]).filter(function(x){return liberadoNa(x,s)});
 }
 /* Tira da memoria desta unidade o cadastro que nao foi liberado para ela.
    Nada e apagado da nuvem — a matriz continua com tudo. */
+/* ==========================================================
+   SEM UNIDADE RESOLVIDA, NAO SE FILTRA NADA (regressao da V181)
+
+   Na V181 eu corrigi o contexto para NAO cair na Matriz quando a
+   unidade do perfil nao resolve — `lojaAtual()` passou a devolver
+   string vazia em vez de escolher a unidade errada. Aquilo estava
+   certo: melhor sem unidade do que na unidade errada.
+
+   O que eu nao previ foi o efeito AQUI. Esta funcao recebe a unidade
+   vazia, `ehSucMatriz('')` da falso, e entao ela pergunta a
+   `liberadoNa()` se cada cadastro esta liberado para "" — que nunca
+   esta. Resultado: ela apaga da memoria do aparelho os grupos, as
+   categorias, os produtos, os insumos e as fichas. TODOS.
+
+   Foi isso que o Rafael viu: "atualizou e eu perdi tudo". Na nuvem
+   nada se perdeu — `espelha:false` protege esses cadastros contra
+   remocao em massa — mas a tela ficou vazia, e a liberacao que ele
+   acabara de fazer parecia nao ter funcionado.
+
+   Filtrar e uma operacao destrutiva na memoria local. Fazer isso sem
+   saber para QUAL unidade e o pior dos mundos: apaga tudo por nao
+   saber nada. Ausencia de contexto nao autoriza remocao — a mesma
+   licao da V130 e da V181, agora no terceiro lugar.
+   ========================================================== */
 function filtrarCadastroDaUnidade(){
   var suc=lojaAtualId();
+  if(!suc){                              /* contexto ainda nao resolvido */
+    logNuvem('unidade ainda não resolvida — o cadastro não foi filtrado');
+    return 0;
+  }
   if(ehSucMatriz(suc))return 0;          /* a matriz ve tudo */
   var n=0;
   CADASTROS_LIB.forEach(function(c){
@@ -33734,12 +33772,36 @@ function modalGrupoIng(id){
   '<label class="optCard"><input type="checkbox" id="giC" '+(!g||g.compoeCMV!==false?'checked':'')+'>'+
   '<span><b>Compõe CMV</b><span>os itens deste grupo entram no custo da mercadoria vendida. '+
   'Desmarque para grupos como limpeza e escritório.</span></span></label>'+
-  '</div></div>';
+  '</div>'+
+  /* ==========================================================
+     O GRUPO NASCIA SEM LIBERACAO E A UNIDADE NUNCA VIA
+
+     Desde a V109 vale a regra: cadastro sem marcacao de unidade fica
+     SO na matriz. Todos os formularios de cadastro ganharam o bloco
+     "Quem enxerga este item" — menos este.
+
+     Efeito: todo grupo de ingredientes criado aqui nascia com
+     `sucursais` ausente. `liberadoNa()` le lista vazia como "ninguem",
+     e a unidade abria a Ficha Tecnica sem grupo nenhum. Pior: nem pela
+     tela de Liberacao por Unidade dava para consertar, porque salvar o
+     grupo por aqui apagava de novo — `g.nome` e `g.compoeCMV` eram
+     reatribuidos e `sucursais` nao era preservado.
+
+     Era isso que fazia a liberacao "nao pegar": ela pegava, e o proximo
+     salvamento do grupo desfazia.
+     ========================================================== */
+  blocoUnidades(g,'gi')+
+  '</div>';
   modal(g?'Editar grupo':'Novo grupo de ingredientes',h,'Salvar',function(){
     var nome=$('giN').value.trim();
     if(!nome){toast('Informe a descrição.');return false;}
-    if(g){g.nome=nome;g.compoeCMV=$('giC').checked;}
-    else DB.gruposIng.push({id:uid('gi'),nome:nome,compoeCMV:$('giC').checked});
+    var alvo;
+    if(g){ g.nome=nome; g.compoeCMV=$('giC').checked; alvo=g; }
+    else { alvo={id:uid('gi'),nome:nome,compoeCMV:$('giC').checked,sucursais:[]};
+           DB.gruposIng.push(alvo); }
+    /* le o bloco de unidades; se o bloco nao estiver na tela (loja unica
+       ou usuario que nao e matriz), `lerUnidades` nao mexe no que existe */
+    lerUnidades('gi',alvo);
     salvar();telaGruposIng();toast('Grupo salvo.');return true;
   },'sm2');
 }
@@ -34180,13 +34242,17 @@ function modalCatFicha(id){
      return '<option value="'+x.id+'"'+(c&&c.destinoId===x.id?' selected':'')+'>'+E(x.nome)+'</option>'}).join('')+
    '</optgroup>'+
   '</select><div class="hint">Ao produzir qualquer ficha deste grupo, o estoque entra neste item. '+
-  'Ex.: todos os sabores de gelato geram estoque em <b>Gelato Venda</b>.</div></div></div></div>';
+  'Ex.: todos os sabores de gelato geram estoque em <b>Gelato Venda</b>.</div></div></div>'+
+  /* mesmo defeito do grupo de ingredientes: nascia sem liberacao */
+  blocoUnidades(c,'cfUn')+'</div>';
   modal(c?'Editar grupo':'Novo grupo',h,'Salvar',function(){
     var nome=$('cfN').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
-    if(c){c.nome=nome;c.destinoId=$('cfD').value;}
-    else{var novo={id:uid('fc'),nome:nome,paiId:'',subs:[],destinoId:$('cfD').value};
-      DB.fichaCats.push(novo);FT.abertas[novo.id]=true;}
+    var alvo;
+    if(c){c.nome=nome;c.destinoId=$('cfD').value;alvo=c;}
+    else{alvo={id:uid('fc'),nome:nome,paiId:'',subs:[],destinoId:$('cfD').value,sucursais:[]};
+      DB.fichaCats.push(alvo);FT.abertas[alvo.id]=true;}
+    lerUnidades('cfUn',alvo);
     salvar();telaFichaTecnica();return true;
   },'sm2');
 }
