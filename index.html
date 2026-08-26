@@ -3694,6 +3694,11 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
  .cvLat .cvCard{flex:1;min-width:180px}}
 
 /* ---------- faturamento ---------- */
+.ftVazio{display:flex;align-items:center;gap:14px;margin:16px;padding:22px 24px;
+  background:var(--alt);border:1px dashed var(--line);border-radius:11px;color:var(--ink-2)}
+.ftVazio svg{flex:none;color:var(--ink-3)}
+.ftVazio b{display:block;font-size:15px;color:var(--ink)}
+.ftVazio span{display:block;font-size:12.5px;color:var(--ink-3);margin-top:3px;line-height:1.5}
 .kpiFaixa{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;padding:13px 16px}
 .kpiC{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:9px;
   background:var(--c);color:#fff}
@@ -17497,7 +17502,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V165.0.0';
+var VERSAO='V167.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21189,7 +21194,7 @@ function proxSenhaTotem(){
   var hoje=hojeISO(), suc=lojaAtualId(), max=0;
   (DB.pedidos||[]).forEach(function(p){
     if(p.canal!=='totem')return;
-    if(String(p.data||'').slice(0,10)!==hoje)return;
+    if(diaLocal(p.data)!==hoje)return;
     if((p.sucursalId||'')!==suc)return;
     var s=Number(p.senha)||0;
     if(s>max)max=s;
@@ -21707,7 +21712,7 @@ function abaReceber(pend){
     return '<div class="trCard">'+
      '<div class="trCardH"><b>#'+t.numero+'</b>'+
       '<span>de '+E(sucNome(t.origemSuc))+'</span>'+
-      '<i>'+dataBR(String(t.data||'').slice(0,10))+'</i></div>'+
+      '<i>'+dataBR(diaLocal(t.data))+'</i></div>'+
      '<div class="trCardI">'+t.itens.slice(0,5).map(function(i){
        return '<div><span>'+E(i.nome)+'</span><b>'+i.qtd+' '+E(i.unidade)+'</b></div>';
      }).join('')+(t.itens.length>5?'<div class="mais">+ '+(t.itens.length-5)+' itens</div>':'')+'</div>'+
@@ -21736,7 +21741,7 @@ function abaHistorico(saidas,entradas){
      var cor=t.situacao==='recebida'?(t.divergencia?'#B4542F':'#0E8A46')
             :t.situacao==='cancelada'?'#C94141':'#8A8578';
      return '<tr><td><b>#'+t.numero+'</b></td>'+
-      '<td>'+dataBR(String(t.data||'').slice(0,10))+'</td>'+
+      '<td>'+dataBR(diaLocal(t.data))+'</td>'+
       '<td>'+(saiu?sv('up3',11):sv('dn',11))+' '+
        E(sucNome(t.origemSuc))+' → '+E(sucNome(t.destinoSuc))+'</td>'+
       '<td style="text-align:center">'+(t.itens||[]).length+'</td>'+
@@ -21893,7 +21898,7 @@ function telaSincronizacao(){
   var contas={};
   try{ MAPA.forEach(function(m){ contas[m.col]=(DB[m.col]||[]).length; }); }catch(e){_quieto(e,'telaSincronizacao')}
   var vendasHoje=(DB.pedidos||[]).filter(function(p){
-    return String(p.data||'').slice(0,10)===hojeISO();}).length;
+    return diaLocal(p.data)===hojeISO();}).length;
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo"><div><h1>Sincronização</h1>'+
@@ -22200,7 +22205,7 @@ function baseCuponsFiscais(){DB.cupons_f=DB.cupons_f||[];return DB.cupons_f;}
 /* a venda e o cupom podem ser de dias diferentes: emitir depois é permitido,
    e quem concilia com a contabilidade precisa escolher por qual data filtra */
 function dataDoCupom(c){
-  return String((CFI.tipoPeriodo==='emissao'?(c.emitidoEm||c.data):c.data)||'').slice(0,10);
+  return diaLocal(CFI.tipoPeriodo==='emissao'?(c.emitidoEm||c.data):c.data);
 }
 function situacaoVenda(c){
   var p=(DB.pedidos||[]).find(function(x){return x.id===c.pedidoId});
@@ -22333,7 +22338,7 @@ function telaCuponsFiscais(){
       '<td><b>'+E(c.origem==='salao'?'Salão':c.origem==='entrega'?'Entrega':
         c.origem==='mesa'?'Mesa':'Online')+'</b>'+
        (c.pedidoNumero?'<small>#'+c.pedidoNumero+'</small>':'')+'</td>'+
-      '<td>'+dataBR(String(c.data||'').slice(0,10))+(c.hora?', '+E(c.hora):'')+'</td>'+
+      '<td>'+dataBR(diaLocal(c.data))+(c.hora?', '+E(c.hora):'')+'</td>'+
       '<td>'+(c.numero||'—')+'</td>'+
       '<td>'+(c.nfeAgrupada?'<span class="cfNfe">agrupada</span>':'—')+'</td>'+
       '<td>'+E(c.consumidor||'Consumidor não identificado')+
@@ -22375,7 +22380,7 @@ function verCupom(id){
    '<div class="linha"><span>Situação</span><b style="color:'+corStatusCupom(c.status)+'">'+
     E(nomeStatusCupom(c.status))+'</b></div>'+
    '<div class="linha"><span>Venda</span><b>#'+(c.pedidoNumero||'—')+' · '+
-    dataBR(String(c.data||'').slice(0,10))+' '+E(c.hora||'')+'</b></div>'+
+    dataBR(diaLocal(c.data))+' '+E(c.hora||'')+'</b></div>'+
    '<div class="linha"><span>Origem</span><b>'+E(c.origem||'—')+'</b></div>'+
    '<div class="linha"><span>Consumidor</span><b>'+E(c.consumidor||'não identificado')+
     (c.doc?' ('+E(c.doc)+')':'')+'</b></div>'+
@@ -22406,7 +22411,7 @@ async function cancelarCupom(id){
   if(c.status!=='autorizado'){toast('Só dá para cancelar cupom autorizado.');return;}
   var ok=await confirmar({
     titulo:'Cancelar o cupom '+(c.numero||''),
-    texto:'R$ '+money(c.total)+' — '+dataBR(String(c.data||'').slice(0,10)),
+    texto:'R$ '+money(c.total)+' — '+dataBR(diaLocal(c.data)),
     aviso:'O cancelamento vai para a SEFAZ e tem prazo curto, que varia por estado '+
      '(em geral 30 minutos após a autorização). Passado o prazo, o caminho é a nota '+
      'de devolução — fale com seu contador.',
@@ -22458,7 +22463,7 @@ function exportarCupons(){
           'Consumidor','Documento','Pagamento','Status da nota','Status da venda',
           'Entrega','Desconto','Total']];
   lst.forEach(function(c){
-    l.push([dataBR(String(c.data||'').slice(0,10)),c.hora||'',c.pedidoNumero||'',c.origem||'',
+    l.push([dataBR(diaLocal(c.data)),c.hora||'',c.pedidoNumero||'',c.origem||'',
       c.numero||'',c.nfeAgrupada||'',c.chave||'',c.consumidor||'',c.doc||'',c.pagamento||'',
       nomeStatusCupom(c.status),situacaoVenda(c),
       String(c.entrega||0).replace('.',','),String(c.desconto||0).replace('.',','),
@@ -24475,8 +24480,26 @@ async function enviarVendaAtomica(ped,mov){
          Agora pagamento entra na MESMA transacao do pedido: ou grava
          tudo, ou nao grava nada.
          ========================================================== */
+      /* ==========================================================
+         A REFERENCIA TEM QUE SER A MESMA DOS DOIS CAMINHOS
+
+         Aqui eu escrevi `ped.id+'_pg'+i`, enquanto a sincronizacao
+         comum grava o mesmo pagamento como `ped.id+'_'+i`. Como o banco
+         so evita repeticao quando a referencia bate, o MESMO pagamento
+         entrava duas vezes — uma por cada caminho.
+
+         Resultado medido: 30 pares duplicados, R$ 1.046,00 a mais nos
+         pagamentos. O faturamento (que soma os pedidos) continuava
+         certo, mas a conferencia por forma e o fechamento de caixa
+         viam quase o dobro.
+
+         Foi defeito meu, introduzido na correcao dos pagamentos. A
+         licao e a mesma que ja aparece varias vezes neste arquivo: dois
+         caminhos gravando o mesmo dado precisam usar exatamente a mesma
+         chave, senao um nao enxerga o outro.
+         ========================================================== */
       pagamentos:(ped.pagamentos||[]).map(function(pg,i){
-        return {ref_local:(pg.id||(ped.id+'_pg'+i)),
+        return {ref_local:(pg.id||(ped.id+'_'+i)),
           forma_ref:pg.forma||pg.formaId||'',
           valor:Number(pg.valor)||0,
           equipamento:pg.equipamento||ped.equipamento||''};
@@ -24562,7 +24585,7 @@ function renderKanban(){
       (p.tipo==='entrega'?'Entrega':'Loja')+'</span></div>'+
       '<div class="cli2">'+E(p.clienteNome)+'</div>'+(p.entregadorId?'<div class="cli2" style="color:var(--acc-d);font-weight:600">'+sv('moto',12)+' '+E((ent(p.entregadorId)||{}).nome||'')+'</div>':'')+'<div class="vl2">R$ '+money(p.total)+'</div>'+
       '<div class="hr">'+
-       (String(p.data||'').slice(0,10)!==hojeISO()
+       (diaLocal(p.data)!==hojeISO()
          ? dataBR(String(p.data).slice(0,10))+' · ' : '')+
        p.hora+' · '+p.itens.length+' itens'+
        /* o relogio do status: verde dentro do prazo, vermelho passou */
@@ -25296,6 +25319,49 @@ function agoraSP(){
   }
 }
 function hojeISO(){return agoraSP().data}
+/* ==========================================================
+   O DIA DA VENDA E O DIA DA LOJA, NAO O DIA DO MERIDIANO DE GREENWICH
+
+   AQUI ESTAVA A DIFERENCA ENTRE O PDV E O FATURAMENTO.
+
+   `pedido.data` vem de `data_venda`, que o banco entrega em UTC:
+   "2026-08-26T00:43:56+00:00". Cortar os 10 primeiros caracteres da
+   "2026-08-26" — o dia em Greenwich.
+
+   Só que em Sao Paulo ainda era dia 25, as 21:43. Toda venda feita
+   depois das 21:00 (horario de Brasilia) era carimbada com a data do
+   DIA SEGUINTE em todos os relatorios.
+
+   O efeito medido no banco: R$ 1.370,00 fora do lugar, sendo
+   R$ 1.070,00 so das vendas de hoje. O PDV mostrava 1.070 (ele conta o
+   caixa aberto, nao a data) e o Faturamento mostrava outro numero. Os
+   dois liam a mesma tabela; um deles lia a data errada.
+
+   E o pior horario possivel para uma gelateria: das 21h ate fechar e
+   justamente o movimento forte.
+
+   `diaLocal()` converte para o dia da loja antes de comparar. Aceita
+   tanto a data com fuso (da nuvem) quanto a data simples "2026-08-25"
+   (gravada pelo aparelho), porque as duas convivem.
+   ========================================================== */
+function diaLocal(v){
+  var t=String(v||'');
+  if(!t)return '';
+  /* ja e uma data simples: nao ha fuso para converter */
+  if(t.length<=10)return t.slice(0,10);
+  if(!/[TZ+]|\d\d:\d\d/.test(t))return t.slice(0,10);
+  var d=new Date(t);
+  if(isNaN(d))return t.slice(0,10);
+  try{
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',
+      year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+  }catch(e){
+    var l=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+    return l.toISOString().slice(0,10);
+  }
+}
+/* atalho para o caso mais comum: o dia de um pedido */
+function diaDoPedido(p){ return diaLocal(p&&p.data); }
 function diasAtrasISO(n){
   var d=new Date(hojeISO()+'T12:00:00');
   d.setDate(d.getDate()-n);
@@ -25313,7 +25379,7 @@ function entregasDe(entId,de,ate,incluirAcertadas){
     if(entId&&p.entregadorId!==entId)return false;
     if(!entId&&!p.entregadorId)return false;
     if(!incluirAcertadas&&p.acertoId)return false;
-    var d=(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     if(de&&d<de)return false;
     if(ate&&d>ate)return false;
     return true;
@@ -25327,7 +25393,7 @@ function diariaDoDia(e,iso){
 /* diárias dos dias em que ele efetivamente trabalhou */
 function diariasPeriodo(e,lista){
   var dias={};
-  lista.forEach(function(p){dias[(p.data||'').slice(0,10)]=true});
+  lista.forEach(function(p){dias[diaLocal(p.data)]=true});
   var tot=0,det=[];
   Object.keys(dias).sort().forEach(function(d){
     var v=diariaDoDia(e,d);tot+=v;det.push({dia:d,valor:v});
@@ -25465,7 +25531,7 @@ function pendentesSemEntregador(){
   var lista=(DB.pedidos||[]).filter(function(p){
     if(!ehEntrega(p)||ehCancelado(p)||p.acertoId)return false;
     if(p.entregadorId)return false;
-    var d=(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     if(AC.de&&d<AC.de)return false;
     if(AC.ate&&d>AC.ate)return false;
     return true;
@@ -25716,7 +25782,7 @@ function historicoDias(e,de,ate){
   var todas=entregasDe(e.id,de,ate,true);
   var mapa={};
   todas.forEach(function(p){
-    var d=(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     if(!mapa[d])mapa[d]={dia:d,qtd:0,taxas:0,vendas:0,pagos:0,pend:0,acertoId:null};
     var m=mapa[d];
     m.qtd++;m.taxas+=taxaPedido(e,p);m.vendas+=Number(p.total)||0;
@@ -30802,7 +30868,7 @@ function statsCliente(c){
   var tot=ps.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var dias={},prods={};
   ps.forEach(function(p){
-    var d=new Date((p.data||'').slice(0,10)+'T12:00:00');
+    var d=new Date(diaLocal(p.data)+'T12:00:00');
     if(!isNaN(d))dias[d.getDay()]=(dias[d.getDay()]||0)+1;
     (p.itens||[]).forEach(function(it){
       prods[it.nome]=(prods[it.nome]||0)+(Number(it.qtd)||1);
@@ -30812,7 +30878,7 @@ function statsCliente(c){
   Object.keys(dias).forEach(function(k){if(dias[k]>maxD){maxD=dias[k];diaTop=DIASEM[k]}});
   var prodTop='',maxP=0;
   Object.keys(prods).forEach(function(k){if(prods[k]>maxP){maxP=prods[k];prodTop=k}});
-  var ult=ps.length?(ps[0].data||'').slice(0,10):'';
+  var ult=ps.length?diaLocal(ps[0].data):'';
   var dd=ult?Math.floor((new Date()-new Date(ult+'T12:00:00'))/86400000):null;
   return {ps:ps,qtd:ps.length,total:tot,ticket:ps.length?tot/ps.length:0,
           ultima:ult,diasSem:dd,diaTop:diaTop,prodTop:prodTop,prods:prods};
@@ -36181,7 +36247,7 @@ function baixarEstoqueVenda(ped){
       toast(semVinc.length+' produto(s) sem ficha técnica vinculada — o estoque não baixou.');
     return 0;
   }
-  var mov={id:uid('mv'),data:(ped.data||'').slice(0,10)||hojeISO(),hora:ped.hora||agoraHM(),
+  var mov={id:uid('mv'),data:diaLocal(ped.data)||hojeISO(),hora:ped.hora||agoraHM(),
     motivoId:'mv_venda',identificacao:'Pedido #'+ped.numero,
     obs:ped.clienteNome||'',linhas:linhas,origem:'venda',pedidoId:ped.id};
   DB.movEst.push(mov);
@@ -39046,7 +39112,7 @@ function canaisVenda(){
 }
 function pedidosFiltrados(f){
   return (DB.pedidos||[]).filter(function(p){
-    var d=String(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     if(f.de&&d<f.de)return false;
     if(f.ate&&d>f.ate)return false;
     if(f.canais&&f.canais.length&&f.canais.indexOf(p.canal||p.tipo||'loja')<0)return false;
@@ -39091,7 +39157,7 @@ function telaFaturamentoDia(){
   var peds=pedidosFiltrados(FD);
   var porDia={};
   peds.forEach(function(p){
-    var d=String(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     porDia[d]=porDia[d]||{qtd:0,valor:0,itens:0,taxa:0,desc:0,acresc:0,canc:0,vcanc:0};
     var x=porDia[d];
     if(ehCancelado(p)){x.canc++;x.vcanc+=Number(p.total)||0;return;}
@@ -39295,7 +39361,7 @@ function explicaFaturamentoDia(){
 function exportarFatDia(){
   var peds=pedidosFiltrados(FD), porDia={};
   peds.forEach(function(p){
-    var d=String(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     porDia[d]=porDia[d]||{qtd:0,valor:0,itens:0,taxa:0,desc:0,canc:0,vcanc:0};
     var x=porDia[d];
     if(ehCancelado(p)){x.canc++;x.vcanc+=Number(p.total)||0;return;}
@@ -39344,7 +39410,7 @@ function telaItensConsumidos(){
     IC.ate=hojeISO();}
   var por={};
   (DB.movEst||[]).forEach(function(m){
-    var d=String(m.data||'').slice(0,10);
+    var d=diaLocal(m.data);
     if(IC.de&&d<IC.de)return;
     if(IC.ate&&d>IC.ate)return;
     if(IC.motivos.length&&IC.motivos.indexOf(m.motivoId)<0)return;
@@ -39382,7 +39448,7 @@ function telaItensConsumidos(){
      var mots=(DB.motivosMov||[]).map(function(m){
        var q=(DB.movEst||[]).filter(function(mv){
          if(mv.motivoId!==m.id)return false;
-         var d2=String(mv.data||'').slice(0,10);
+         var d2=diaLocal(mv.data);
          return (!IC.de||d2>=IC.de)&&(!IC.ate||d2<=IC.ate);
        }).length;
        return {id:m.id,nome:m.nome,n:q||''};
@@ -41272,7 +41338,7 @@ function pedsPeriodo(o){
   return (DB.pedidos||[]).filter(function(p){
     if(ehCancelado(p))return false;
     if(!vendaDaUnidadeAberta(p))return false;   /* unidade nao ve a venda da outra */
-    var d=String(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     if(o.de&&d<o.de)return false;
     if(o.ate&&d>o.ate)return false;
     if(o.sucs&&o.sucs.length&&o.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return false;
@@ -41430,7 +41496,7 @@ function telaCanaisVenda(){
   });
   var dias=diasEntre(CV2.de,CV2.ate);
   var porDia=dias.map(function(d){
-    return peds.filter(function(p){return String(p.data).slice(0,10)===d})
+    return peds.filter(function(p){return diaLocal(p.data)===d})
       .reduce(function(a,p){return a+(Number(p.total)||0)},0);
   });
   var rot=dias.map(function(d){return d.slice(8,10)+'/'+d.slice(5,7)});
@@ -41513,8 +41579,19 @@ function explicaCanais(){
 var FTP={de:'',ate:'',sucs:[],canais:[]};
 function telaFaturamento(){
   baseMov();baseSuc();
-  periodoPadrao(FTP);
-  var peds=pedsPeriodo(FTP);
+  /* ==========================================================
+     ITEM 10 — A TELA ABRE NEUTRA
+
+     Antes `periodoPadrao(FTP)` preenchia sozinho o mes inteiro assim
+     que a tela abria. Dois problemas: o numero grande que aparecia nao
+     era o que a pessoa foi ver (ela quase sempre quer o dia), e o mes
+     inteiro era percorrido a toa toda vez.
+
+     Agora nao se presume periodo nenhum. A tela mostra os filtros e os
+     atalhos; os numeros so aparecem depois da escolha.
+     ========================================================== */
+  var semPeriodo=!FTP.de&&!FTP.ate;
+  var peds=semPeriodo?[]:pedsPeriodo(FTP);
   function tk(lista){
     var v=lista.reduce(function(a,p){return a+(Number(p.total)||0)},0);
     return {v:v,q:lista.length,t:lista.length?v/lista.length:0};
@@ -41558,15 +41635,26 @@ function telaFaturamento(){
     '<button class="btnP2 ok" onclick="FTP.de=$(\'ftDe\').value;FTP.ate=$(\'ftAte\').value;telaFaturamento()">'+
      sv('search',13)+' Buscar</button>'+
     '<div class="bfAtalhos">'+
-     '<button onclick="perFT(0)">Mês</button><button onclick="perFT(-1)">Anterior</button>'+
-     '<button onclick="perFT(1)">Hoje</button><button onclick="perFT(7)">7d</button></div>'+
+     '<button onclick="perFT(1)">Hoje</button>'+
+     '<button onclick="perFT(-2)">Ontem</button>'+
+     '<button onclick="perFT(7)">7 dias</button>'+
+     '<button onclick="perFT(0)">Este mês</button>'+
+     '<button onclick="perFT(-1)">Mês anterior</button></div>'+
    '</div>'+
-   '<div class="kpiFaixa">'+KPI.map(function(k){
+   /* sem periodo escolhido: diz o que fazer, em vez de mostrar zeros que
+      parecem defeito */
+   (semPeriodo
+     ? '<div class="ftVazio">'+sv('chart',26)+
+       '<div><b>Escolha o período</b>'+
+       '<span>Use um atalho acima — Hoje, Ontem, 7 dias, Este mês — '+
+       'ou informe as datas e clique em Buscar.</span></div></div>'
+     : '')+
+   (semPeriodo?'':'<div class="kpiFaixa">')+(semPeriodo?'':KPI.map(function(k){
      return '<div class="kpiC" style="--c:'+k[2]+'">'+
       '<div class="kpiIc">'+sv(k[3],20)+'</div>'+
       '<div><span>'+E(k[0])+'</span><b>'+E(k[1])+'</b></div></div>';
-   }).join('')+'</div>'+
-   '<div class="etTabW plano2" id="relArea">'+
+   }).join('')+'</div>')+
+   (semPeriodo?'':'<div class="etTabW plano2" id="relArea">'+
    '<table class="etTab semBusca"><thead><tr>'+
     '<th style="width:30px"></th><th>Loja</th>'+
     '<th style="width:140px;text-align:right">Faturamento</th>'+
@@ -41617,8 +41705,9 @@ function telaFaturamento(){
       });
       return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'">'+g+eixo+b+'</svg>';
     })()+'</div></div>'+
-   '</div></div>';
-  rodape('R$ '+money(tot.v)+' · '+porLoja.length+' loja(s)');
+   '</div>')+'</div>';
+  rodape(semPeriodo?'escolha o período'
+    :('R$ '+money(tot.v)+' · '+porLoja.length+' loja(s)'));
 }
 function togFT(s){togFiltro(FTP.sucs,s);telaFaturamento();}
 function togTodosFT(){FTP.sucs=FTP.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaFaturamento();}
@@ -41628,6 +41717,7 @@ function perFT(n){
   else if(n===-1){FTP.de=new Date(d.getFullYear(),d.getMonth()-1,1).toISOString().slice(0,10);
     FTP.ate=new Date(d.getFullYear(),d.getMonth(),0).toISOString().slice(0,10);}
   else if(n===1){FTP.de=hojeISO();FTP.ate=hojeISO();}
+  else if(n===-2){FTP.de=diasAtrasISO(1);FTP.ate=diasAtrasISO(1);}
   else {FTP.de=diasAtrasISO(n);FTP.ate=hojeISO();}
   telaFaturamento();
 }
@@ -41668,7 +41758,7 @@ function telaVendaDataHora(){
   /* por dia da semana */
   var sem=[];for(var d=0;d<7;d++)sem.push({v:0,q:0,dias:{}});
   peds.forEach(function(p){
-    var k=diaSemana(String(p.data).slice(0,10));
+    var k=diaSemana(diaLocal(p.data));
     sem[k].v+=Number(p.total)||0;sem[k].q++;sem[k].dias[p.data]=true;
   });
   sem.forEach(function(x){x.nd=Object.keys(x.dias).length;x.media=x.nd?x.v/x.nd:0;});
@@ -46261,7 +46351,7 @@ function telaRelMesas(){
   var peds=(DB.pedidos||[]).filter(function(p){
     if(!p.mesaId&&!p.mesa)return false;
     if(ehCancelado(p))return false;
-    var d=String(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     return (!RM.de||d>=RM.de)&&(!RM.ate||d<=RM.ate);
   });
   var porMesa={};
@@ -46333,7 +46423,7 @@ function exportarMesas(){
   var peds=(DB.pedidos||[]).filter(function(p){
     if(!p.mesaId&&!p.mesa)return false;
     if(ehCancelado(p))return false;
-    var d=String(p.data||'').slice(0,10);
+    var d=diaLocal(p.data);
     return (!RM.de||d>=RM.de)&&(!RM.ate||d<=RM.ate);});
   if(!peds.length){toast('Nada para exportar no período.');return;}
   var l=[['Pedido','Data','Hora','Mesa','Comanda','Itens','Taxa de servico','Total']];

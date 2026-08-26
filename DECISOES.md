@@ -4626,3 +4626,63 @@ continuam aparecendo.
 tabela tem 758 linhas; insumos, 290; fichas, 145. A lentidão vinha do **número de
 viagens**, não do tamanho da carga — por isso adiar módulos traria pouco ganho e
 não foi feito, conforme a regra de alteração mínima.
+
+## V167 — RECONCILIAÇÃO PDV × DASHBOARDS
+
+**Duas causas raiz, ambas medidas no banco.**
+
+### Causa 1 — o dia da venda era o dia de Greenwich
+
+`pedido.data` vem de `data_venda`, que o banco entrega em UTC. Os relatórios
+faziam `String(p.data).slice(0,10)` — cortavam os 10 primeiros caracteres e
+ficavam com o dia **em UTC**.
+
+Uma venda às 21:43 de 25/08 em São Paulo é `2026-08-26T00:43Z`. O relatório a
+carimbava como **dia 26**. Toda venda feita depois das 21:00 caía no dia
+seguinte — e some do "hoje".
+
+O PDV mostrava certo porque ele conta o **caixa aberto**, não a data. Os dois
+liam a mesma tabela; um deles lia a data errada.
+
+**Medido:** R$ 1.370,00 fora do lugar, sendo R$ 1.070,00 das vendas de hoje.
+E é o pior horário possível para uma gelateria — das 21h até fechar é o
+movimento forte.
+
+Criada `diaLocal()`, que converte para o dia da unidade (America/Sao_Paulo)
+antes de comparar, e aceita tanto a data com fuso (nuvem) quanto a data simples
+(aparelho). Aplicada em **28 pontos**: faturamento, itens vendidos, ticket
+médio, vendas por forma, por unidade, por período, cancelamentos, cupons
+fiscais, transferências e a data da movimentação de estoque.
+
+### Causa 2 — pagamento gravado duas vezes (defeito meu)
+
+Na correção dos pagamentos (V152) escrevi a referência como `ped.id+'_pg'+i`,
+enquanto a sincronização comum usa `ped.id+'_'+i`. O banco só evita repetição
+quando a referência bate — então o **mesmo pagamento entrava duas vezes**, uma
+por cada caminho.
+
+**Medido:** 30 pares duplicados, **R$ 1.046,00 a mais** nos pagamentos. O
+faturamento continuava certo (soma os pedidos), mas a conferência por forma e o
+fechamento de caixa viam quase o dobro.
+
+Corrigido: a mesma chave nos dois caminhos. As 30 duplicatas foram removidas
+(as duas cópias eram idênticas; ficou a da sincronização comum). Criada a trava
+`tg_pagamento_repetido`, que recusa pagamento igual vindo pelo outro caminho —
+testada e funcionando.
+
+**Reconciliação depois da correção:** faturamento R$ 1.070,00 · pagamentos
+R$ 1.070,00 · **diferença R$ 0,00**.
+
+### Item 10 — a tela de Faturamento abre neutra
+
+`periodoPadrao()` preenchia sozinho o mês inteiro ao abrir. Agora não se presume
+período: a tela mostra os filtros e os atalhos (Hoje, Ontem, 7 dias, Este mês,
+Mês anterior) e os números só aparecem depois da escolha. Atalho "Ontem" criado.
+
+### Verificações contra o banco
+
+- vendas de hoje: 27 · todas com caixa, unidade, pagamento e fase entregue
+- itens sem produto vinculado: **0**
+- vendas sem baixa de estoque: **0** (as 35 vendas têm movimentação)
+- vendas duplicadas: **0**
+- unidades misturadas: **0**
