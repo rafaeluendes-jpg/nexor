@@ -4719,3 +4719,29 @@ Correções:
   porque serve apenas para ver os números no celular;
 - a mensagem de erro passou a dizer exatamente onde digitar, em vez de mandar
   editar o usuário.
+
+## V170 — o login do aplicativo pode ser simples
+
+Observação do Rafael: *"não era legal colocar o login também? um login simples,
+o nome da pessoa — porque ali não tem nada pra ninguém roubar."*
+
+Ele tem razão. O aplicativo é **somente leitura**: quem entra vê os números da
+loja dele e mais nada — não lança, não apaga, não cancela. Exigir
+`santafe@jologelato.com.br` num teclado de celular, todo dia, é atrito à toa.
+
+`app_entrar` procura pelo login como texto livre; nunca exigiu e-mail.
+
+- o login virou **editável na própria linha**, com o e-mail do sistema como
+  sugestão. Quem quiser deixa "santafe"; quem preferir o e-mail, mantém;
+- validação: mínimo 3 caracteres, sem espaço, e **não pode repetir** — dois
+  logins iguais no aplicativo se atropelam, e um entraria na conta do outro sem
+  erro nenhum;
+- a busca na publicação passou a ser pela **referência do usuário**, não pelo
+  login: se o login mudou, procurar pelo login novo não acharia a linha antiga e
+  nasceria um acesso duplicado, com a pessoa aparecendo duas vezes;
+- `login_app` sobe e desce (coluna nova em `usuarios_sistema`). Sem isso, o
+  login só existiria no aparelho onde foi digitado, e o outro computador
+  republicaria com o e-mail de volta — a pessoa deixaria de entrar sem ninguém
+  entender.
+
+13 testes.

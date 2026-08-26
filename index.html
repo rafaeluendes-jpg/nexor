@@ -13864,6 +13864,10 @@ var MAPA=[
 
  {col:'usuarios', espelha:false,    tab:'usuarios_sistema',
   campos:function(x){return {nome:x.nome||null,login:x.login||null,senha:x.senha||null,
+    /* o login simples do aplicativo sobe junto: sem isso ele so existiria no
+       aparelho onde foi digitado, e o outro computador republicaria com o
+       e-mail de volta — a pessoa deixaria de entrar sem ninguem entender */
+    login_app:x.loginApp||null,
     /* senha_caixa nao sobe mais: a senha vive so no cofre, como hash */
     ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
     sucursais:x.sucursais||[],permissoes:x.permissoes||{}}}},
@@ -16143,7 +16147,7 @@ function volta(linhas,fn,atual,col){
   try{
     var us=await _p24;
     if(us&&us.length)DB.usuarios=volta(us,function(x){return {id:x.ref_local||x.id,
-      nome:x.nome,login:x.login||'',senha:x.senha||'',
+      nome:x.nome,login:x.login||'',senha:x.senha||'',loginApp:x.login_app||'',
       /* senha nao desce mais: fica so no cofre */
       ativo:x.ativo!==false,tudo:!!x.tudo,mestre:!!x.mestre,
       sucursais:x.sucursais||[],permissoes:x.permissoes||{}}},null,'usuarios');
@@ -16324,7 +16328,7 @@ function volta(linhas,fn,atual,col){
           /* a SEGUNDA descida tambem precisa trazer a senha de autorizacao:
              foi assim que o horario do cardapio voltou ao padrao tres vezes
              (V141), porque a segunda leitura esquecia um campo */
-          nome:x.nome||'',login:x.login||'',senha:x.senha||'',
+          nome:x.nome||'',login:x.login||'',senha:x.senha||'',loginApp:x.login_app||'',
           ativo:x.ativo!==false,
           tudo:!!x.tudo,mestre:!!x.mestre,sucursais:x.sucursais||[],permissoes:x.permissoes||{}};
         if(ja)Object.assign(ja,obj); else locais.push(obj);
@@ -17505,7 +17509,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V169.0.0';
+var VERSAO='V170.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42817,7 +42821,7 @@ function blocoApp(){
    '<div class="cfgCol"><div class="colH">Quem tem acesso ao aplicativo</div>'+
     '<div class="colB" style="padding:0">'+
     '<table class="etTab semBusca"><thead><tr>'+
-     '<th>Pessoa</th><th style="width:150px">Login</th>'+
+     '<th>Pessoa</th><th style="width:150px">Login do app</th>'+
      '<th style="width:170px">Lojas</th>'+
      '<th style="width:130px;text-align:center">No aplicativo</th>'+
      '<th style="width:150px">Senha do app</th>'+
@@ -42827,7 +42831,23 @@ function blocoApp(){
         :(u.sucursais||[]).map(function(id){return sucNome(id)}).join(', ');
       return '<tr>'+
       '<td><b>'+E(u.nome)+'</b></td>'+
-      '<td><code class="lg2">'+E(u.login)+'</code></td>'+
+      /* ==========================================================
+         O LOGIN DO APLICATIVO PODE SER SIMPLES
+
+         Aqui so se mostrava o e-mail do sistema, sem poder mudar. Mas o
+         aplicativo e somente leitura — quem entra ve os numeros da loja
+         dele e mais nada, nao lanca, nao apaga, nao cancela.
+
+         Exigir "santafe@jologelato.com.br" num teclado de celular, todo
+         dia, e atrito a toa. `app_entrar` procura pelo login como texto
+         livre: nao precisa ser e-mail.
+
+         Entao o campo virou editavel, com o e-mail como sugestao. Quem
+         quiser deixa "santafe"; quem preferir o e-mail, mantem.
+         ========================================================== */
+      '<td><input class="senhaApp" id="lo_'+E(u.id)+'" type="text" '+
+       'value="'+E(u.loginApp||u.login||'')+'" autocomplete="off" '+
+       'placeholder="ex: santafe"></td>'+
       '<td>'+E(lojas)+'</td>'+
       '<td style="text-align:center">'+(u.publicadoEm
         ?'<span class="badge2">'+sv('check',10)+' liberado</span>'
@@ -42850,11 +42870,13 @@ function blocoApp(){
        sv('cloud',12)+' '+(u.publicadoEm?'Republicar':'Publicar')+'</button></td></tr>';
     }).join('')+'</tbody></table>'+
     '<div class="hint" style="padding:14px">'+
-    '<b>Esta senha é só do aplicativo</b> — não é a mesma de entrar no sistema. '+
+    '<b>O login e a senha aqui são só do aplicativo</b> — não são os de entrar no sistema. '+
     'Como serve apenas para ver os números no celular, pode ser simples: '+
     'o nome da pessoa e alguns números já bastam.<br>'+
-    'Digite a senha na linha e clique em Publicar. Republique sempre que trocar '+
-    'a senha ou as lojas.<br>'+
+    'O login pode ser o nome da pessoa ou da loja — "santafe", "jales" — sem '+
+    'espaço e com no mínimo 3 letras.<br>'+
+    'Preencha login e senha na linha e clique em Publicar. Republique sempre que '+
+    'trocar a senha, o login ou as lojas.<br>'+
     'Para escolher o que cada um vê, use <b>Usuários e Permissões</b>, aba <b>Aplicativo</b>.</div>'+
     '</div></div>'+
    '<div class="cfgCol estreita"><div class="colH">Link para enviar</div>'+
@@ -42882,6 +42904,22 @@ function blocoApp(){
 }
 function publicarUsuarioApp(id){
   US.sel=id;
+  /* o que estiver digitado na linha vale: login e senha do aplicativo */
+  var u=(DB.usuarios||[]).find(function(x){return x.id===id});
+  var cl=$('lo_'+id);
+  if(u&&cl){
+    var novo=String(cl.value||'').trim().toLowerCase();
+    if(!novo){ toast('Informe o login do aplicativo.'); return; }
+    if(novo.length<3){ toast('O login precisa ter ao menos 3 caracteres.'); return; }
+    if(/\s/.test(novo)){ toast('O login não pode ter espaço.'); return; }
+    /* dois logins iguais no aplicativo se atropelam: um entraria na conta do
+       outro sem erro nenhum */
+    var repetido=(DB.usuarios||[]).some(function(x){
+      return x.id!==id && String(x.loginApp||x.login||'').toLowerCase()===novo; });
+    if(repetido){ toast('Já existe outro acesso com esse login.'); return; }
+    u.loginApp=novo;
+    salvar();
+  }
   publicarAcesso().then(function(){ telaCanaisIntegracao(); });
 }
 function enviarLinkApp(){
@@ -48262,15 +48300,25 @@ async function publicarAcesso(){
        existia apagava a senha dele, e o franqueado ficava trancado para fora
        do aplicativo sem ninguem entender por que. PATCH so toca no que vai
        escrito; a senha, ultimo_acesso e bloqueado_ate ficam onde estao. */
+    /* o login do APLICATIVO pode ser simples (ver comentario na tela). Quem
+       nunca escolheu um continua com o e-mail do sistema. */
+    var loginApp=String(u.loginApp||u.login||'').trim().toLowerCase();
+    if(!loginApp)throw new Error('Este acesso está sem login.');
     var campos={
       loja_id:NUVEM.loja,
-      nome:u.nome,login:u.login,
+      nome:u.nome,login:loginApp,
       ativo:u.ativo!==false,mestre:!!u.mestre,tudo:!!u.tudo,
       sucursais:sucs,permissoes:u.permissoes||{},
       cartoes:u.cartoes||[],ref_local:u.id
     };
-    var ja=await api('app_usuarios?login=eq.'+encodeURIComponent(u.login),
+    /* procura pela referencia do usuario, nao pelo login: se o login mudou,
+       procurar pelo login novo nao acharia a linha antiga e nasceria um
+       acesso duplicado, com a pessoa aparecendo duas vezes na lista */
+    var ja=await api('app_usuarios?ref_local=eq.'+encodeURIComponent(u.id),
                      'PATCH',campos,{'Prefer':'return=representation'});
+    if(!(Array.isArray(ja)&&ja.length))
+      ja=await api('app_usuarios?login=eq.'+encodeURIComponent(loginApp),
+                   'PATCH',campos,{'Prefer':'return=representation'});
     var existia=Array.isArray(ja)&&ja.length>0;
     if(!existia)
       await api('app_usuarios?on_conflict=login','POST',[campos],
@@ -48286,7 +48334,7 @@ async function publicarAcesso(){
     }
     if(_senhaApp){
       var rs=await api('rpc/app_definir_senha','POST',
-        {p_login:u.login,p_senha:_senhaApp});
+        {p_login:loginApp,p_senha:_senhaApp});
       var dd=Array.isArray(rs)?rs[0]:rs;
       if(dd&&dd.erro)throw new Error(dd.erro);
       if(_campo)_campo.value='';
@@ -48300,7 +48348,7 @@ async function publicarAcesso(){
     }
     u.publicadoEm=new Date().toISOString();
     salvar();telaUsuarios();
-    toast('Acesso publicado — '+u.nome+' já pode entrar no aplicativo.');
+    toast('Acesso publicado — '+u.nome+' entra com o login "'+loginApp+'".');
   }catch(e){
     var det=String((e&&(e.message||e.hint||e.details))||e||'').slice(0,140);
     await confirmar({titulo:'Não consegui publicar o acesso',
