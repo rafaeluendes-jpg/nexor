@@ -17539,7 +17539,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V177.0.0';
+var VERSAO='V178.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24233,6 +24233,41 @@ function irPagamento(){
        O pedido guarda o valor da venda, nao o que entrou na mao: o
        troco volta para o cliente e nao e faturamento.
        ========================================================== */
+    /* ==========================================================
+       FORMA INVALIDA BLOQUEIA A VENDA — NUNCA VIRA DINHEIRO
+
+       Em nenhum ponto deste sistema existe `forma || 'dinheiro'`, e a
+       auditoria confirmou isso caminho a caminho. Mas o silencio era
+       possivel por outra porta: um pagamento cuja forma nao existe mais
+       em FORMAS (desativada no meio do turno, aparelho com lista velha,
+       forma de outra unidade) subia com a referencia solta. O gatilho do
+       banco nao achava o vinculo, gravava `forma_id` nulo, e o valor ia
+       parar na linha "sem forma" do fechamento.
+
+       Nao virava dinheiro — mas sumia da conferencia, que da no mesmo
+       para quem esta fechando o caixa.
+
+       Agora a venda para aqui, com o nome do problema na tela. Recusar
+       uma venda e ruim; gravar uma venda com a classificacao errada e
+       pior, porque ninguem descobre no mesmo dia.
+       ========================================================== */
+    var _formaRuim=null;
+    for(var fi=0;fi<_pagos.length;fi++){
+      var _idF=_pagos[fi].forma;
+      if(!_idF){ _formaRuim='uma das linhas está sem forma de pagamento'; break; }
+      if(!FORMAS.some(function(x){return x.id===_idF})){
+        var _fc=formaPag(_idF);
+        _formaRuim=_fc
+          ? 'a forma "'+_fc.nome+'" não está ativa nesta loja'
+          : 'a forma "'+_idF+'" não existe no cadastro desta loja';
+        break;
+      }
+    }
+    if(_formaRuim){
+      toast('Não dá para finalizar: '+_formaRuim+'. Remova a linha e escolha '+
+            'uma forma da lista.');
+      liberarFecharVenda();return false;
+    }
     /* pergunta pela funcao, nao pelo campo: se a lista for montada em outro
        lugar amanha e esquecer `troco`, a venda em dinheiro nao trava de novo */
     var _daTroco=_pagos.some(function(pg){return formaDaTroco(formaPag(pg.forma));});
@@ -24296,6 +24331,24 @@ function irPagamento(){
       toast('Nenhuma forma de pagamento com valor. Informe quanto foi pago.');
       liberarFecharVenda();
       return false;
+    }
+    /* ==========================================================
+       RECONCILIACAO ANTES DE GRAVAR (item 18)
+
+       A soma do que QUITA a venda tem de bater com o total. O recebido
+       pode ser maior — e o troco —, mas o aplicado nao. Esta conferencia
+       roda DEPOIS da deducao do troco, que e o unico ponto onde os dois
+       numeros se separam.
+
+       O banco ja devolvia `fecha:false` quando nao batia, mas isso so
+       virava um aviso no Diagnostico: a venda ja estava gravada. Aviso
+       depois do fato nao e trava.
+       ========================================================== */
+    var _aplicado=+_pagosVenda.reduce(function(a,x){return a+(Number(x.valor)||0)},0).toFixed(2);
+    if(Math.abs(_aplicado-final)>0.01){
+      toast('A venda não fecha: as formas aplicam R$ '+money(_aplicado)+
+            ' para um total de R$ '+money(final)+'. Confira os valores.');
+      liberarFecharVenda();return false;
     }
     var fiado=_pagos.filter(function(p){var f=formaPag(p.forma);return f&&f.tipo==='fiado'})
       .reduce(function(a,p){return a+p.valor},0);

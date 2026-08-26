@@ -5127,3 +5127,62 @@ idênticos.
 **Conclusão:** o defeito era real e está fechado daqui para a frente. O turno de
 25/08 não dá para reconstruir, e o Rafael já decidiu deixá-lo como está. A prova
 de que a correção funciona vem do próximo turno.
+
+## V178 — auditoria completa da gravação das formas de pagamento
+
+Documento: "Correção crítica da gravação das formas de pagamento no PDV", 24 itens.
+**Nada do fechamento aprovado foi tocado** (item 22).
+
+### O que a auditoria NÃO encontrou
+
+Não existe, em nenhum ponto do sistema, conversão de Pix, débito ou crédito em
+dinheiro. Foram percorridos os seis identificadores, os dois caminhos de gravação,
+a RPC e os gatilhos. **Não há `forma || 'dinheiro'`, não há fallback por tipo, e
+nenhuma regra escolhe forma por texto de tela.** A correspondência
+`fp_pix → uuid` é 1:1 e resolvida sempre dentro da loja.
+
+Isso está agora protegido por teste: a suíte varre o código sem comentários
+procurando fallback, e quebra se algum aparecer.
+
+### A causa raiz, que é outra
+
+`addPag(f)` lançava a forma nova com **o que falta receber** — total na primeira,
+**zero** da segunda em diante. Já registrado na V177; este documento confirmou por
+rastreio ponta a ponta que é a única causa.
+
+### As travas que faltavam
+
+1. **Forma inválida bloqueia a venda** (item 5). Antes, forma fora do cadastro
+   subia com a referência solta, o gatilho não achava o vínculo e o pagamento era
+   gravado com `forma_id` nulo. Não virava dinheiro — mas sumia da conferência,
+   que dá no mesmo para quem fecha o caixa.
+2. **Reconciliação antes de gravar** (item 18). O banco já devolvia `fecha:false`,
+   mas isso virava aviso no Diagnóstico com a venda **já gravada**. Aviso depois do
+   fato não é trava.
+3. **`resolve_forma_pagamento` endurecida** (itens 5, 16 e 17): levanta exceção
+   quando não resolve, e recusa forma de outra empresa mesmo com o id correto.
+4. **Gatilho duplicado removido.** `tg_resolve_forma` já existia; criar
+   `tg_resolve_forma_pagamento` fez a mesma função rodar duas vezes por linha.
+   Lição repetida: conferir os gatilhos existentes antes de criar um.
+
+### Testes
+
+`testes/formas-pagamento.js` (novo, no `npm test`): **67/67**. Percorre botão →
+`_pagos` → dedução do troco → limpeza → payload → resolução no banco → leitura do
+caixa, com o `addPag` real extraído do index.html.
+
+22 vendas distribuídas entre as quatro formas, quatro com troco e duas mistas:
+**R$ 0,00 de diferença** entre selecionado e banco, verificado duas vezes — na
+suíte JS e por consulta agregada direta no Postgres.
+
+Regressão: caixa **67/67**, banco **9/9**, reconciliação aprovada.
+
+### Achado adicional: 314 pagamentos sem forma
+
+R$ 50.853,38 com `forma_id` nulo. **312 são da carga histórica de 01 a 19/08** —
+pedidos sem caixa, importados, que nunca tiveram forma. Apenas **2 vieram de venda
+real** (20/08 R$ 15, 25/08 R$ 75).
+
+**Nada foi migrado**, conforme o item 2: não se adivinha forma de pagamento
+passada. Ficam como evidência. Da V178 em diante o banco recusa gravar pagamento
+sem forma, então a lista não cresce mais.

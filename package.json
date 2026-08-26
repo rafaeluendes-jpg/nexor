@@ -6,7 +6,8 @@
   "scripts": {
     "test:reconciliacao": "node testes/reconciliacao.js",
     "test:sintaxe": "node testes/sintaxe.js",
-    "test": "npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa",
-    "test:caixa": "node testes/caixa.js"
+    "test": "npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa && npm run test:formas",
+    "test:caixa": "node testes/caixa.js",
+    "test:formas": "node testes/formas-pagamento.js"
   }
 }
