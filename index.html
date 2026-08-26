@@ -796,6 +796,33 @@ body.pdvFull .wTitle{display:none}
 .cur span{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12.5px;
   font-weight:700;color:var(--ink-3);pointer-events:none}
 .cur input{padding-left:32px!important;text-align:right}
+/* ---------- campo de dinheiro padrao + teclado de toque ---------- */
+.moeda::placeholder{color:var(--ink-3);opacity:.45}
+.tclOv{position:fixed;inset:auto 0 0 0;z-index:9000;display:none;
+  background:linear-gradient(to top,rgba(0,0,0,.20),rgba(0,0,0,0))}
+.tclOv.on{display:block}
+.tclBox{background:var(--panel);border-top:1px solid var(--line);
+  border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.18);
+  padding:12px 14px calc(14px + env(safe-area-inset-bottom));
+  max-width:420px;margin:0 auto}
+.tclEco{display:flex;align-items:baseline;gap:8px;justify-content:flex-end;
+  padding:8px 14px 12px;border-bottom:1px solid var(--line-2);margin-bottom:12px}
+.tclEco span{font-size:14px;font-weight:700;color:var(--ink-3)}
+.tclEco b{font-size:30px;font-weight:600;letter-spacing:-.5px}
+.tclGrade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tclT{height:56px;font-size:22px;font-weight:600;border:1px solid var(--line);
+  background:var(--bg);border-radius:11px;color:var(--ink);cursor:pointer;
+  transition:transform .06s,background .12s;-webkit-tap-highlight-color:transparent}
+.tclT:active{transform:scale(.96);background:var(--line-2)}
+.tclApg{font-size:20px;color:var(--red)}
+.tclRodape{display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin-top:10px}
+.tclLimpar,.tclOk{height:52px;font-size:15px;font-weight:600;border-radius:11px;
+  cursor:pointer;border:1px solid var(--line)}
+.tclLimpar{background:var(--bg);color:var(--ink-2)}
+.tclOk{background:var(--acc-d);color:#fff;border-color:var(--acc-d)}
+.tclOk:active,.tclLimpar:active{transform:scale(.98)}
+body.comTeclado .mdBox{padding-bottom:290px}
+@media(max-height:620px){.tclT{height:46px;font-size:19px}.tclEco b{font-size:24px}}
 .pgV.cur2{padding-left:30px}
 
 /* configuracoes do PDV com respiro */
@@ -16805,7 +16832,224 @@ function IT(m,id){return m?(m.it.find(function(x){return x.id===id})||null):null
 function E(t){return String(t==null?'':t)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+/* ==========================================================
+   TECLADO NUMERICO PARA TELA DE TOQUE (parte B)
+
+   O PDV roda em tablet e totem, onde o teclado do sistema operacional
+   cobre metade da tela — inclusive o botao de finalizar — e some sem
+   avisar. Este e proprio, fica ancorado embaixo e nunca cobre o rodape
+   do modal.
+
+   SO no PDV e no fechamento de caixa. Abrir isto na tela de cadastro de
+   produto, onde a pessoa esta num computador com teclado de verdade,
+   seria estorvo.
+
+   O teclado fisico continua funcionando o tempo todo: quem digita
+   direto nao percebe que ele existe.
+   ========================================================== */
+var TECLADO={alvo:null,antes:null};
+function tecladoTouchPermitido(){
+  try{
+    if(cfg().tecladoTouch===false)return false;
+    /* aparelho sem toque nao precisa: teclado fisico ja resolve */
+    var toque=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+    if(!toque&&cfg().tecladoTouch!==true)return false;
+    return (S.mod==='pdv')||!!document.getElementById('cfTot')||!!document.getElementById('fcFundo');
+  }catch(e){ return false; }
+}
+function tecladoTouchAbrir(el){
+  if(!el||!tecladoTouchPermitido())return;
+  if(el.getAttribute('data-semteclado')==='1')return;
+  TECLADO.alvo=el;
+  TECLADO.antes=el.value;
+  var box=document.getElementById('tecladoTouch');
+  if(!box){
+    box=document.createElement('div');
+    box.id='tecladoTouch';
+    box.className='tclOv';
+    box.innerHTML=
+      '<div class="tclBox">'+
+        '<div class="tclEco"><span>R$</span><b id="tclEco">0,00</b></div>'+
+        '<div class="tclGrade">'+
+          ['7','8','9','4','5','6','1','2','3'].map(function(d){
+            return '<button class="tclT" data-d="'+d+'">'+d+'</button>';
+          }).join('')+
+          '<button class="tclT" data-d=",">,</button>'+
+          '<button class="tclT" data-d="0">0</button>'+
+          '<button class="tclT tclApg" data-d="del">&#9003;</button>'+
+        '</div>'+
+        '<div class="tclRodape">'+
+          '<button class="tclLimpar" data-d="clr">Limpar</button>'+
+          '<button class="tclOk" data-d="ok">OK</button>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(box);
+    box.addEventListener('mousedown',function(ev){ ev.preventDefault(); });
+    box.addEventListener('click',function(ev){
+      var b=ev.target.closest('[data-d]');
+      if(b){ tecladoTouchTecla(b.getAttribute('data-d')); return; }
+      if(ev.target===box)tecladoTouchFechar(true);
+    });
+  }
+  box.classList.add('on');
+  document.body.classList.add('comTeclado');
+  tecladoTouchEco(el);
+}
+function tecladoTouchEco(el){
+  var e=document.getElementById('tclEco');
+  if(e&&(!el||el===TECLADO.alvo))e.textContent=(el&&el.value)||'0,00';
+}
+function tecladoTouchTecla(d){
+  var el=TECLADO.alvo; if(!el)return;
+  if(d==='ok'){ tecladoTouchFechar(); tecladoTouchProximo(el); return; }
+  if(d==='clr'){ el.value=''; }
+  else if(d==='del'){ el.value=el.value.slice(0,-1); }
+  else if(d===','){ if(el.value.indexOf(',')<0)el.value=(el.value||'0')+','; }
+  else {
+    /* o campo comeca vazio de verdade: digitar 25 da 25, nunca 025 */
+    el.value=(el.value||'')+d;
+  }
+  el.setAttribute('data-v',moedaLer(el.value));
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  tecladoTouchEco(el);
+}
+/* item 7: OK avanca para o proximo campo de dinheiro da mesma tela */
+function tecladoTouchProximo(el){
+  var campos=[].slice.call(document.querySelectorAll('.moeda:not([disabled])'))
+    .filter(function(x){return x.offsetParent!==null});
+  var i=campos.indexOf(el);
+  if(i>=0&&i<campos.length-1){ campos[i+1].focus(); }
+}
+function tecladoTouchFechar(cancelar){
+  var box=document.getElementById('tecladoTouch');
+  if(box)box.classList.remove('on');
+  document.body.classList.remove('comTeclado');
+  var el=TECLADO.alvo;
+  if(el){
+    /* ESC devolve o valor que estava antes — nao altera nada indevidamente */
+    if(cancelar==='esc'&&TECLADO.antes!==null){
+      el.value=TECLADO.antes;
+      el.setAttribute('data-v',moedaLer(el.value));
+      el.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  TECLADO.alvo=null; TECLADO.antes=null;
+}
+document.addEventListener('keydown',function(e){
+  if(!TECLADO.alvo)return;
+  if(e.key==='Escape'){ e.preventDefault(); tecladoTouchFechar('esc'); }
+  /* ENTER e tratado por quem e dono do campo (fechamento, pagamento);
+     aqui so recolhe o teclado para nao cobrir o botao */
+  if(e.key==='Enter'){ tecladoTouchFechar(); }
+});
 function money(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+/* ==========================================================
+   CAMPO DE DINHEIRO — UM SO, PARA O SISTEMA INTEIRO
+
+   Havia 18 campos de valor espalhados, cada um `type="number"` com
+   `value="0"`. Tres problemas, todos os dias, em toda tela:
+
+   1. o zero era VALOR, nao rotulo. Quem tocava e digitava 25 obtinha
+      "025" ou tinha de apagar o zero antes;
+   2. trocar 125,90 por 80 exigia apagar digito por digito;
+   3. `type="number"` num aparelho em portugues aceita virgula E ponto,
+      e `parseFloat("1.234,56")` devolve 1.234 — silenciosamente.
+
+   O componente resolve os tres de uma vez, e e o UNICO lugar onde a
+   conversao texto->numero acontece. Nada de calculo em cima de string
+   formatada.
+
+   Uso:
+     moedaHTML({id:'cxIni', valor:0})       -> HTML do campo
+     moedaValor('cxIni')                    -> numero, sempre
+     moedaSet('cxIni', 12.5)                -> escreve formatado
+
+   O valor real vive em `data-v`; o que aparece e so apresentacao.
+   ========================================================== */
+function moedaFmt(n){
+  n=Number(n)||0;
+  return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+/* le qualquer coisa que o usuario digitou e devolve numero.
+   Aceita "1.234,56", "1234.56", "1234,56", "R$ 80" e vazio. */
+function moedaLer(txt){
+  if(txt===null||txt===undefined)return 0;
+  var s=String(txt).replace(/[^\d,.-]/g,'').trim();
+  if(!s)return 0;
+  var v=s.lastIndexOf(','), p=s.lastIndexOf('.');
+  if(v>=0&&p>=0){
+    /* o ultimo separador manda: e o decimal */
+    if(v>p) s=s.replace(/\./g,'').replace(',','.');
+    else    s=s.replace(/,/g,'');
+  } else if(v>=0){
+    /* so virgula: decimal, a menos que sejam milhares (1,234) */
+    s=(/,\d{3}$/.test(s)&&s.replace(/[^,]/g,'').length===1&&s.indexOf(',')>0&&s.length>4)
+      ? s.replace(',','') : s.replace(',','.');
+  }
+  var n=parseFloat(s);
+  return isFinite(n)?n:0;
+}
+function moedaHTML(o){
+  o=o||{};
+  var v=Number(o.valor)||0;
+  var vazio=(v===0&&o.zeroVazio!==false);
+  return '<div class="cur moedaBox"'+(o.estilo?' style="'+o.estilo+'"':'')+'>'+
+    '<span>R$</span>'+
+    '<input type="text" inputmode="decimal" autocomplete="off" class="moeda'+
+      (o.classe?' '+o.classe:'')+'" '+
+      (o.id?'id="'+o.id+'" ':'')+
+      (o.attrs||'')+
+      ' data-v="'+v+'" value="'+(vazio?'':moedaFmt(v))+'" placeholder="0,00">'+
+  '</div>';
+}
+function moedaEl(ref){
+  return (typeof ref==='string')?document.getElementById(ref):ref;
+}
+function moedaValor(ref){
+  var el=moedaEl(ref);
+  if(!el)return 0;
+  /* o texto na tela manda: `data-v` pode estar atrasado se o evento
+     de digitacao ainda nao rodou (toque em Finalizar sem sair do campo) */
+  var n=moedaLer(el.value);
+  if(!el.value&&el.getAttribute('data-v'))n=Number(el.getAttribute('data-v'))||0;
+  return +n.toFixed(2);
+}
+function moedaSet(ref,valor,vazioSeZero){
+  var el=moedaEl(ref); if(!el)return;
+  var n=Number(valor)||0;
+  el.setAttribute('data-v',n);
+  el.value=(n===0&&vazioSeZero)?'':moedaFmt(n);
+}
+/* ==========================================================
+   OS TRES COMPORTAMENTOS, LIGADOS UMA VEZ SO NO DOCUMENTO
+
+   Delegacao: as telas sao redesenhadas o tempo todo (333 pontos
+   chamam telaX() depois de salvar). Ligar evento em cada campo criado
+   significaria religar em cada redesenho e esquecer em algum.
+   ========================================================== */
+document.addEventListener('focusin',function(e){
+  var el=e.target;
+  if(!el.classList||!el.classList.contains('moeda'))return;
+  /* item 2: tocar seleciona tudo — trocar 125,90 por 80 e digitar 80 */
+  setTimeout(function(){ try{ el.select(); }catch(x){} },0);
+  if(typeof tecladoTouchAbrir==='function')tecladoTouchAbrir(el);
+});
+document.addEventListener('input',function(e){
+  var el=e.target;
+  if(!el.classList||!el.classList.contains('moeda'))return;
+  el.setAttribute('data-v',moedaLer(el.value));
+  if(typeof tecladoTouchEco==='function')tecladoTouchEco(el);
+  if(el.dataset.aoDigitar&&window[el.dataset.aoDigitar])window[el.dataset.aoDigitar](el);
+});
+document.addEventListener('focusout',function(e){
+  var el=e.target;
+  if(!el.classList||!el.classList.contains('moeda'))return;
+  var n=moedaLer(el.value);
+  el.setAttribute('data-v',n);
+  /* vazio continua vazio: o "0,00" cinza e placeholder, nao valor */
+  el.value=(el.value.trim()==='')?'':moedaFmt(n);
+});
 function toast(m){var o=$('ts');if(o)o.remove();var d=document.createElement('div');
 d.className='toast';d.id='ts';d.textContent=m;document.body.appendChild(d);
 setTimeout(function(){if(d.parentNode)d.remove()},2400);}
@@ -22738,6 +22982,28 @@ function travarFecharVenda(){
   return true;
 }
 function liberarFecharVenda(){_fechandoVenda=false;}
+/* ==========================================================
+   TRAVA GENERICA DE DUPLO TOQUE (item 30)
+
+   A venda ja tinha a sua (`travarFecharVenda`). Fechar caixa, sangria,
+   suprimento e cancelamento nao tinham nenhuma: em tela de toque, o
+   duplo toque acidental e comum, e uma sangria de R$ 200 tocada duas
+   vezes vira R$ 400 fora da gaveta.
+
+   Isto e a PRIMEIRA barreira, nao a unica. As travas do banco
+   (`ref_local` unico, `tg_pagamento_nao_duplica`,
+   `tg_caixa_fechado_trava_movimento`) continuam valendo, porque
+   confiar so no botao seria confiar no navegador — e o robo, a
+   sincronizacao e o cardapio nao passam por botao nenhum.
+   ========================================================== */
+var _emCurso={};
+function travarOperacao(chave,segundos){
+  if(_emCurso[chave])return false;
+  _emCurso[chave]=true;
+  setTimeout(function(){delete _emCurso[chave]},(segundos||8)*1000);
+  return true;
+}
+function liberarOperacao(chave){ delete _emCurso[chave]; }
 function proximoNumeroMesa(){
   baseMesas();
   var max=0;
@@ -25098,7 +25364,7 @@ function movCaixa(tipo){
   (tipo==='sangria'
     ?'Dinheiro sai da gaveta e <b>entra na conta de destino</b>. Não é despesa e não reduz o faturamento — é transferência entre contas.'
     :'Dinheiro sai da conta de origem e <b>entra na gaveta</b>. Não é venda e não aumenta o faturamento — é transferência entre contas.')+'</div>'+
-  '<div class="fld2"><label>Valor *</label><div class="cur"><span>R$</span><input id="mvV" type="number" step="0.01" value=""></div></div>'+
+  '<div class="fld2"><label>Valor *</label>'+moedaHTML({id:'mvV',valor:0})+'</div>'+
   '<div class="fld2"><label>Motivo *</label>'+
    '<select id="mvMot" onchange="mostraOutroMv()">'+
    mots.map(function(m){return '<option value="'+m.id+'">'+E(m.n)+'</option>'}).join('')+
@@ -25137,23 +25403,27 @@ function movCaixa(tipo){
    '<input id="mvSenha" type="password" autocomplete="off" placeholder="senha de autorização"></div>'+
   '</div></div>';
   modal(titulo,h,'Confirmar',async function(){
-    var v=parseFloat($('mvV').value)||0;
-    if(v<=0){toast('Informe um valor maior que zero.');return false;}
+    /* item 30: duplo toque em SANGRIA nao tira o dinheiro duas vezes */
+    if(!travarOperacao('mov-caixa-'+tipo))return false;
+    var v=moedaValor('mvV');
+    if(v<=0){liberarOperacao('mov-caixa-'+tipo);toast('Informe um valor maior que zero.');return false;}
     var motId=($('mvMot')||{}).value||'';
     var desc=(($('mvM')||{}).value||'').trim();
-    if(motId==='outro'&&!desc){toast('Descreva o motivo.');return false;}
+    var _lib=function(){liberarOperacao('mov-caixa-'+tipo)};
+    if(motId==='outro'&&!desc){_lib();toast('Descreva o motivo.');return false;}
     var destId=($('mvDest')||{}).value||'';
-    if(!destId){toast('Selecione o destino.');return false;}
+    if(!destId){_lib();toast('Selecione o destino.');return false;}
     /* a gaveta nao pode ter mais saida do que tem dinheiro */
     if(tipo==='sangria'){
       var disp=esperadoCaixa(cx);
       if(v>disp+0.001){
+        _lib();
         toast('A gaveta tem R$ '+money(disp)+'. Não dá para retirar R$ '+money(v)+'.');
         return false;
       }
     }
     var opM=await autorizar(tipo,($('mvOp')||{}).value||'',($('mvSenha')||{}).value||'');
-    if(!opM)return false;
+    if(!opM){_lib();return false;}
     var motNome=(((tipo==='sangria')?MOTIVOS_SANGRIA:MOTIVOS_SUPRIMENTO)
       .find(function(m){return m.id===motId})||{}).n||'';
     cx.movimentos=cx.movimentos||[];
@@ -25166,6 +25436,7 @@ function movCaixa(tipo){
     /* a contrapartida nasce junto. Ou as duas pontas existem, ou nenhuma. */
     if(!lancarTransferenciaCaixa(cx,mv,tipo)){
       cx.movimentos.pop();
+      _lib();
       toast('Não consegui gerar a contrapartida no financeiro. Verifique se existe a conta "Caixa da loja".');
       return false;
     }
@@ -25422,6 +25693,28 @@ function fundoSugerido(){
   var ult=fech[fech.length-1];
   return +(Number(ult.fundoProximo)||0).toFixed(2);
 }
+/* ==========================================================
+   O FIM DO FECHAMENTO: UMA PERGUNTA, DUAS RESPOSTAS
+
+   Sem numero nenhum na tela. O caixa ja esta fechado e gravado quando
+   isto aparece; nem imprimir nem nao imprimir muda qualquer valor.
+   ========================================================== */
+function perguntaImprimirFechamento(cx){
+  var h='<div class="mdB"><div class="fcRes ok" style="margin:0">'+
+    '<span>Caixa fechado com sucesso</span>'+
+    '<b>'+E(cx.fechadoEm||'')+'</b>'+
+    '<small>fechado por '+E(cx.fechadoPor||'')+'</small></div>'+
+    '<div class="hint" style="margin-top:12px">A conferência completa — sistema, físico '+
+    'e diferença por forma — fica no <b>Relatório de frente de caixa</b> e no histórico.</div>'+
+   '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox"><div class="mdH"><b>Fechamento realizado</b>'+
+    '<button onclick="fecharModal()">&times;</button></div>'+h+
+    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não imprimir</button>'+
+    '<button class="btnP2 ok" onclick="fecharModal();imprimirFechamento(\''+cx.id+'\')">'+
+    sv('print2',13)+' Imprimir fechamento</button></div></div>';
+  document.body.appendChild(o);
+}
 function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
   toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
 function abrirCaixa(){
@@ -25470,8 +25763,7 @@ function abrirCaixa(){
      o caixa nasceria com R$ 200 de sobra que ninguem consegue explicar.
      ========================================================== */
   '<div class="fld2" style="margin:0"><label>Valor inicial (fundo de troco)</label>'+
-   '<div class="cur"><span>R$</span><input id="cxIni" type="number" step="0.01" value="'+
-   fundoSugerido()+'"></div>'+
+   moedaHTML({id:'cxIni',valor:fundoSugerido()})+
    (fundoSugerido()>0
      ?'<div class="hint">Sugerido pelo último fechamento, que declarou este valor '+
       'como fundo do próximo caixa. Confira a gaveta antes de confirmar.</div>':'')+
@@ -25495,7 +25787,7 @@ function abrirCaixa(){
       toast('Já existe um caixa aberto nesta unidade.');
       telaPDV(); return true;
     }
-    var novoCx={id:uid('cx'),inicial:parseFloat($('cxIni').value)||0,
+    var novoCx={id:uid('cx'),inicial:moedaValor('cxIni'),
       operador:op.nome,operadorId:op.id,funcao:op.funcao,
       turnoId:turnoId,turno:nomeTurno(turnoId),
       /* o caixa passa a saber de qual loja e */
@@ -25571,7 +25863,7 @@ function fecharCaixa(){
       'conte a gaveta inteira, com o fundo de R$ '+money(cx.inicial||0)+' dentro</small>':det)+'</td>'+
     '<td class="cSis" style="text-align:right">'+(cego?'<span style="color:var(--ink-3)">oculto</span>':'R$ '+money(esp[f.id]))+'</td>'+
     '<td style="width:150px"><div class="cur"><span>R$</span>'+
-    '<input type="number" step="0.01" class="cfV" data-f="'+f.id+'" value=""></div></td>'+
+    '<input type="text" inputmode="decimal" autocomplete="off" class="moeda cfV" data-f="'+f.id+'" data-i="'+ci+'" value="" placeholder="0,00"></div></td>'+
     '<td class="cDif" data-f="'+f.id+'" style="text-align:right;width:120px;color:var(--ink-3)">—</td></tr>';
   }).join('');
 
@@ -25602,8 +25894,7 @@ function fecharCaixa(){
   'O que for retirado além disso precisa sair por <b>sangria</b>, com destino. '+
   'Deixe zero se a gaveta for esvaziada por completo.</div>'+
   '<div class="fld2" style="margin:0"><label>Valor deixado como fundo</label>'+
-  '<div class="cur"><span>R$</span><input id="fcFundo" type="number" step="0.01" '+
-  'value="'+(Number(cx.inicial)||0)+'"></div></div></div>'+
+  moedaHTML({id:'fcFundo',valor:Number(cx.inicial)||0})+'</div></div>'+
 
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
   '<h3>Conferência por forma de pagamento</h3>'+
@@ -25655,17 +25946,20 @@ function fecharCaixa(){
   '<input id="cxObs" placeholder="ex: faltou R$ 2 de troco / maquininha ficou offline às 19h"></div></div></div>';
 
   modal('Fechamento de caixa',h,'Confirmar fechamento',async function(){
+    /* item 30: duplo toque em FECHAR CAIXA nao gera dois fechamentos */
+    if(!travarOperacao('fechar-caixa'))return false;
     var opF=await autorizar('fechar',($('fcOp')||{}).value||'',($('fcSenha')||{}).value||'');
-    if(!opF)return false;
+    if(!opF){liberarOperacao('fechar-caixa');return false;}
+    if(cx.fechadoEm){liberarOperacao('fechar-caixa');toast('Este caixa já foi fechado.');return true;}
     var conf={},algum=false,totInf=0;
     var ins=document.querySelectorAll('.cfV');
     for(var i=0;i<ins.length;i++){
       var v=ins[i].value;
       if(v!=='')algum=true;
-      var n=parseFloat(v)||0;
+      var n=moedaValor(ins[i]);
       conf[ins[i].getAttribute('data-f')]=n;totInf+=n;
     }
-    if(!algum){toast('Informe ao menos o valor contado em dinheiro.');return false;}
+    if(!algum){liberarOperacao('fechar-caixa');toast('Informe ao menos o valor contado em dinheiro.');return false;}
     var ag=new Date();
     cx.conferencia=conf;
     cx.esperadoPorForma=esp;
@@ -25693,7 +25987,7 @@ function fecharCaixa(){
     cx.esperado=esperadoGaveta;
     cx.totalInformado=totInf;
     cx.qtd=mov.qtd;cx.vendas=mov.total;cx.obs=$('cxObs').value;
-    cx.fundoProximo=parseFloat(($('fcFundo')||{}).value)||0;
+    cx.fundoProximo=moedaValor('fcFundo');
     cx.fechadoEm=ag.toLocaleDateString('pt-BR')+' '+agoraHM();
     cx.fechadoPor=opF.nome;
     cx.fechadoPorId=opF.id;
@@ -25718,17 +26012,22 @@ function fecharCaixa(){
     if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));
     /* ==========================================================
-       O RESULTADO SO APARECE DEPOIS DE FECHAR — E NUMA TELA
+       O FECHAMENTO ACABA AQUI (itens 11 e 12)
 
-       Antes o resultado saia num aviso passageiro no rodape: "Diferenca
-       no dinheiro: R$ -10", que some em segundos. Num caixa cego isso e
-       justamente o momento que importa — e a unica hora em que o
-       operador pode ver o esperado.
+       Havia uma tela intermediaria mostrando previsto x fisico para o
+       operador "confirmar". Ela nao confirmava nada: o caixa ja estava
+       gravado quando ela abria. Era um passo a mais no fim do
+       expediente, e — pior — mostrava o esperado justamente a quem o
+       fechamento cego existe para nao mostrar.
 
-       Agora abre uma tela com o comparativo forma a forma: esperado,
-       informado e diferenca.
+       A conferencia NAO some. Ela vive no snapshot e aparece inteira
+       no relatorio gerencial, no historico de caixas e na impressao,
+       para gestor e administrador. O que sai e a obrigacao de o
+       operador olhar aquilo para terminar o turno.
+
+       Fica so a pergunta que ele precisa responder: imprime ou nao.
        ========================================================== */
-    setTimeout(function(){ resultadoFechamento(cx,mov,esp); },120);
+    setTimeout(function(){ perguntaImprimirFechamento(cx); },120);
     return true;
   },'lg');
   setTimeout(function(){pedeSenhaCaixa('fc')},80);
@@ -25739,7 +26038,7 @@ function fecharCaixa(){
     var ins=document.querySelectorAll('.cfV');
     for(var i=0;i<ins.length;i++){
       var f=ins[i].getAttribute('data-f');
-      var v=ins[i].value===''?null:(parseFloat(ins[i].value)||0);
+      var v=ins[i].value===''?null:moedaValor(ins[i]);
       var cel=document.querySelector('.cDif[data-f="'+f+'"]');
       if(v===null){cel.textContent='—';cel.style.color='var(--ink-3)';continue;}
       tot+=v;
@@ -25759,6 +26058,36 @@ function fecharCaixa(){
   }
   var ins=document.querySelectorAll('.cfV');
   for(var k=0;k<ins.length;k++)ins[k].oninput=recalcConf;
+  /* ==========================================================
+     ENTER PERCORRE AS FORMAS (itens 8 e 9)
+
+     Fechar um caixa com cinco formas exigia cinco toques de mouse ou
+     um TAB que passava por botoes e selects no meio do caminho. No
+     balcao, no fim do expediente, isso e atrito puro.
+
+     A ordem e a das formas EFETIVAMENTE cadastradas e ativas na
+     unidade — a lista vem de FORMAS, entao forma desabilitada nao
+     entra no caminho. No ultimo campo, ENTER leva ao botao de fechar,
+     nao ao inicio.
+
+     O fechamento continua CEGO: isto muda so o caminho do foco, nunca
+     o que aparece na tela.
+     ========================================================== */
+  for(var k2=0;k2<ins.length;k2++){
+    ins[k2].onkeydown=function(ev){
+      if(ev.key!=='Enter')return;
+      ev.preventDefault();
+      var lista=[].slice.call(document.querySelectorAll('.cfV'))
+        .filter(function(x){return x.offsetParent!==null});
+      var i=lista.indexOf(this);
+      if(i>=0&&i<lista.length-1){ lista[i+1].focus(); lista[i+1].select(); return; }
+      /* ultima forma: recolhe o teclado e leva ao botao de fechar */
+      if(typeof tecladoTouchFechar==='function')tecladoTouchFechar();
+      var b=document.querySelector('.mdF .btnP,.mdF .ok');
+      if(b)b.focus();
+    };
+  }
+  if(ins.length){ ins[0].focus(); }
 }
 
 /* ---------- WHATSAPP ---------- */
@@ -31391,7 +31720,7 @@ function editarCaixa(id){
     return '<tr><td><b>'+E(f.nome)+'</b></td>'+
     '<td style="text-align:right">R$ '+money(v)+'</td>'+
     '<td style="width:150px"><div class="cur"><span>R$</span>'+
-    '<input type="number" step="0.01" class="ecV" data-f="'+f.id+'" value="'+inf+'"></div></td></tr>';
+    '<input type="text" inputmode="decimal" autocomplete="off" class="moeda ecV" data-f="'+f.id+'" value="'+(inf===''?'':money(inf))+'" placeholder="0,00"></div></td></tr>';
   }).join('')+'</tbody></table></div>'+
   '<div class="blk" style="margin:0;max-width:none">'+
   '<div class="fld2" style="margin:0"><label>Observação do fechamento</label>'+
@@ -31401,13 +31730,13 @@ function editarCaixa(id){
   '</div></div>';
 
   modal('Editar fechamento de caixa',h,'Salvar alterações',function(){
-    c.inicial=parseFloat($('ecIni').value)||0;
+    c.inicial=moedaValor('ecIni');
     c.operador=$('ecOp').value.trim();
     c.obs=$('ecObs').value;
     var conf={},tot=0;
     var ins=document.querySelectorAll('.ecV');
     for(var i=0;i<ins.length;i++){
-      var n=ins[i].value===''?0:(parseFloat(ins[i].value)||0);
+      var n=ins[i].value===''?0:moedaValor(ins[i]);
       conf[ins[i].getAttribute('data-f')]=n;tot+=n;
     }
     c.conferencia=conf;c.totalInformado=tot;
