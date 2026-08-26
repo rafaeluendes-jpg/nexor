@@ -2751,7 +2751,10 @@ table tbody tr:hover{background:var(--blue-soft)}
 .logo .logoIco{width:18px;height:18px;object-fit:contain;border-radius:4px;
   margin-right:7px;vertical-align:-4px}
 img.orb{object-fit:contain;background:transparent!important;border-radius:22%}
-.appIco img{width:100%;height:100%;object-fit:contain;border-radius:inherit;display:block}
+/* o icone do app preenche a caixa inteira: `contain` deixava uma borda
+   escura em volta da arte */
+.appIco img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.appIco{overflow:hidden;background:transparent!important}
 
 /* ===== TELA DE ACESSO — arquivo oficial do Nexor =====
    Estilo do arquivo, com os seletores presos ao #login e as variáveis com
@@ -8315,7 +8318,10 @@ table tbody tr:hover{background:var(--blue-soft)}
 .logo .logoIco{width:18px;height:18px;object-fit:contain;border-radius:4px;
   margin-right:7px;vertical-align:-4px}
 img.orb{object-fit:contain;background:transparent!important;border-radius:22%}
-.appIco img{width:100%;height:100%;object-fit:contain;border-radius:inherit;display:block}
+/* o icone do app preenche a caixa inteira: `contain` deixava uma borda
+   escura em volta da arte */
+.appIco img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.appIco{overflow:hidden;background:transparent!important}
 
 /* a nota abrindo por cima do lançamento */
 .mdOv.notaOv{z-index:1400;background:rgba(12,26,38,.45)}
@@ -17509,7 +17515,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V171.0.0';
+var VERSAO='V172.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42871,7 +42877,12 @@ function blocoApp(){
        'placeholder="'+(estaPublicadoNoApp(u)?'trocar senha':'senha do app')+'" '+
        'autocomplete="off"></td>'+
       '<td><button class="btnP2" onclick="publicarUsuarioApp(\''+u.id+'\')">'+
-       sv('cloud',12)+' '+(estaPublicadoNoApp(u)?'Republicar':'Publicar')+'</button></td></tr>';
+       sv('cloud',12)+' '+(estaPublicadoNoApp(u)?'Republicar':'Publicar')+'</button>'+
+       /* enviar o acesso de UMA pessoa, com o login dela na mensagem */
+       (estaPublicadoNoApp(u)
+         ?' <button class="btnP2" title="Enviar o acesso pelo WhatsApp" '+
+          'onclick="enviarLinkAppDe(\''+u.id+'\')">'+sv('link',12)+' Enviar</button>':'')+
+      '</td></tr>';
     }).join('')+'</tbody></table>'+
     '<div class="hint" style="padding:14px">'+
     '<b>O login e a senha aqui são só do aplicativo</b> — não são os de entrar no sistema. '+
@@ -42886,8 +42897,19 @@ function blocoApp(){
    '<div class="cfgCol estreita"><div class="colH">Link para enviar</div>'+
     '<div class="colB" style="padding:16px">'+
      '<div class="appQr">'+
-      '<div class="appIco"><img src="joia-icone.png" alt="Joia"></div>'+
-      '<b>Joia</b>'+
+      /* ==========================================================
+         O CARTAO MOSTRA O ICONE DO APLICATIVO, NAO O DA MARCA
+
+         Aqui aparecia `joia-icone.png` — o icone do sistema. Quem
+         olhasse esta tela para saber "como e o aplicativo que vou
+         mandar para o franqueado" via a marca errada, e no celular
+         chegava outra coisa.
+
+         Agora e o proprio icone do aplicativo, o mesmo que o franqueado
+         vai ver na tela do celular dele.
+         ========================================================== */
+      '<div class="appIco"><img src="app-icone.png" alt="Joia Gestão"></div>'+
+      '<b>Joia Gestão</b>'+
       '<span>painel da loja no celular</span>'+
      '</div>'+
      '<div class="linkGrande">'+E(link)+'</div>'+
@@ -42968,9 +42990,36 @@ function publicarUsuarioApp(id){
 }
 function enviarLinkApp(){
   var l='https://app.joiagest.com.br/';
+  /* ==========================================================
+     A MENSAGEM LEVA O LOGIN DA PESSOA
+
+     Antes dizia so "entre com seu login e senha" — e o franqueado
+     recebia o link sem saber QUAL era o login dele. Como agora o login
+     pode ser simples ("santafe"), ele nao tem como adivinhar.
+
+     Se houver um so acesso publicado, a mensagem ja diz qual e. Com
+     varios, nao chuta: pede para escolher antes.
+     ========================================================== */
+  var pubs=(DB.usuarios||[]).filter(function(u){return estaPublicadoNoApp(u)});
+  var quem='';
+  if(pubs.length===1)quem=String(pubs[0].loginApp||pubs[0].login||'');
   var msg=encodeURIComponent(
     'Acompanhe o faturamento da sua loja pelo celular 📊\n\n'+
-    l+'\n\nAbra o link, instale como aplicativo e entre com seu login e senha.');
+    l+'\n\n'+
+    (quem?('Seu login: '+quem+'\nA senha foi combinada com você.\n\n'):'')+
+    'Abra o link e toque em instalar para ficar como aplicativo no celular.');
+  window.open('https://wa.me/?text='+msg,'_blank');
+}
+/* manda o link de UMA pessoa, com o login dela escrito */
+function enviarLinkAppDe(id){
+  var u=(DB.usuarios||[]).find(function(x){return x.id===id});
+  if(!u)return;
+  var lg=String(u.loginApp||u.login||'');
+  var msg=encodeURIComponent(
+    'Acompanhe o faturamento da '+(u.nome||'sua loja')+' pelo celular 📊\n\n'+
+    'https://app.joiagest.com.br/\n\n'+
+    'Seu login: '+lg+'\nA senha foi combinada com você.\n\n'+
+    'Abra o link e toque em instalar para ficar como aplicativo no celular.');
   window.open('https://wa.me/?text='+msg,'_blank');
 }
 function blocoTEF(c){
