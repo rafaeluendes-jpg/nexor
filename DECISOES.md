@@ -6264,3 +6264,35 @@ Todas com zero produtos e zero itens vendidos — eram recadastros do mesmo item
 cada sumiço. Removidas as três primeiras, **guardadas antes** em
 `categorias_removidas_duplicadas`. Ficou a de 18:26, que já nasceu com a liberação
 correta para Santa Fé.
+
+## V199 — mostrar a fila em vez de adivinhar
+
+Três versões tentando descobrir por que um produto não chega ao banco, olhando o
+código de fora. `auditarFila()` existe desde a V148 e classifica cada registro que
+não subiu — válido, sem permissão, tenant desconhecido, de outra empresa, legado.
+**Mas só aparecia num relatório técnico que ninguém abre.**
+
+A resposta estava dentro do sistema o tempo todo. Bastava mostrar.
+
+`pintaFilaPendente()` na tela de Diagnóstico, com botão de copiar, trazendo:
+
+- quantos registros estão parados e em qual classificação
+- os nomes e as tabelas de cada um
+- **o último erro de cada envio** — que hoje some da tela em segundos
+
+Junto com o registrador de sumiços da V197, o aparelho passa a poder responder
+sozinho: *o que não subiu, por quê, e o que sumiu, quando*.
+
+### Sobre o canal do produto
+
+Verificado: `disponivelNo()` está **correto**. Produto marcado só para Delivery
+retorna `false` para o canal `pdv` e `true` para `cardapio`. É o comportamento
+esperado — quem marca só Delivery não quer o item no balcão.
+
+O que a loja relatou não é defeito de canal: o produto **não existe no banco**.
+Nenhum produto foi criado hoje, nas quatro tentativas.
+
+### Lição
+
+Quando a reprodução local passa e a produção falha, o caminho não é mais uma
+hipótese: é **instrumentar e pedir o dado**. Levei três versões para fazer isso.

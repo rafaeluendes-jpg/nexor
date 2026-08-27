@@ -18143,7 +18143,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V198.0.0';
+var VERSAO='V199.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29768,6 +29768,76 @@ async function rodarHealthCheck(){
   return r;
 }
 /* ==========================================================
+   O QUE ESTA PARADO NA FILA, E POR QUE (V199)
+
+   `auditarFila()` existe desde a V148 e classifica cada registro que
+   ainda nao subiu: valido, sem permissao, tenant desconhecido, de
+   outra empresa, legado. Mas ela so aparecia num relatorio tecnico que
+   ninguem abre.
+
+   Passei tres versoes tentando descobrir por que um produto nao chegava
+   ao banco, olhando o codigo de fora. A resposta estava aqui dentro o
+   tempo todo — bastava mostrar.
+
+   Junto vai o ultimo erro de cada tabela: quando o banco recusa um
+   lote, o motivo fica em `FALHAS` e some da tela em segundos. Aqui ele
+   fica.
+   ========================================================== */
+function pintaFilaPendente(){
+  var f,e2;
+  try{ f=auditarFila(); }catch(x){ return ''; }
+  var total=f.VALIDA.length+f.PERMISSAO.length+f.TENANT_DESCONHECIDO.length+
+            f.OUTRA_EMPRESA.length+f.LEGADO.length;
+  /* FALHAS e uma lista, com o mais recente na frente */
+  var falhas=[];
+  try{
+    falhas=(FALHAS||[]).slice(0,8).map(function(x){
+      return {tab:(x.h||'')+' · '+(x.onde||'?'), msg:String(x.msg||'').slice(0,150)};
+    });
+  }catch(x){}
+  var grupo=function(nome,lista,cor,expl){
+    if(!lista.length)return '';
+    return '<tr><td style="width:150px"><span class="badge2 '+cor+'">'+nome+'</span>'+
+      '<small style="display:block;color:var(--ink-3);margin-top:3px">'+expl+'</small></td>'+
+      '<td><b>'+lista.length+' registro(s)</b>'+
+      '<small style="display:block;color:var(--ink-3)">'+
+      E(lista.slice(0,8).map(function(i){return i.tab+': '+i.nome}).join(' · '))+
+      (lista.length>8?' … e mais '+(lista.length-8):'')+'</small></td></tr>';
+  };
+  if(!total&&!falhas.length)
+    return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
+      '<h3>Fila de envio</h3><div class="hint">Nada pendente — tudo o que este aparelho '+
+      'tem já está na nuvem.</div></div>';
+  return '<div class="blk" style="max-width:none;padding:0;margin-bottom:12px">'+
+   '<div style="padding:10px 14px;border-bottom:1px solid var(--line);display:flex;'+
+   'justify-content:space-between;align-items:center">'+
+    '<div><b>Fila de envio</b> <small style="color:var(--ink-3)">'+total+
+    ' registro(s) ainda não enviados</small></div>'+
+    '<button class="btnP2" onclick="copiarFila()">Copiar para enviar</button></div>'+
+   '<table class="fmTab"><tbody>'+
+   grupo('AGUARDANDO',f.VALIDA,'am','vai subir na próxima sincronização')+
+   grupo('SEM PERMISSÃO',f.PERMISSAO,'rd','o banco recusou — regra de acesso')+
+   grupo('SEM EMPRESA',f.TENANT_DESCONHECIDO,'rd','criado antes de a sessão existir')+
+   grupo('DE OUTRA EMPRESA',f.OUTRA_EMPRESA,'','fica retido de propósito')+
+   grupo('LEGADO',f.LEGADO,'','criado antes do carimbo de origem')+
+   (falhas.length?falhas.map(function(x){
+     return '<tr><td style="width:150px"><span class="badge2 rd">ERRO NO ENVIO</span>'+
+       '<small style="display:block;color:var(--ink-3);margin-top:3px">'+E(x.tab)+'</small></td>'+
+       '<td><small>'+E(x.msg)+'</small></td></tr>';
+   }).join(''):'')+
+   '</tbody></table></div>';
+}
+function copiarFila(){
+  var t2='';
+  try{
+    t2='JOIA '+VERSAO+' — fila de envio\n'+JSON.stringify(auditarFila(),null,1)+
+       '\n\nFALHAS:\n'+JSON.stringify(FALHAS||{},null,1)+
+       '\n\nSUMIÇOS:\n'+JSON.stringify((DB._sumicos||[]).slice(0,6),null,1);
+  }catch(e){ t2='erro ao montar: '+e.message; }
+  try{ navigator.clipboard.writeText(t2); toast('Copiado. Cole na conversa com o suporte.'); }
+  catch(e){ try{ prompt('Copie este texto:',t2); }catch(x){ toast('Não consegui copiar.'); } }
+}
+/* ==========================================================
    O QUE O REGISTRADOR VIU
 
    Uma tabela do que sumiu, com botao de copiar. E o que a loja manda
@@ -29850,6 +29920,7 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
    pintaHealth()+
+   pintaFilaPendente()+
    pintaSumicos()+
    (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
      '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
