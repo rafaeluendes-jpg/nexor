@@ -2034,6 +2034,23 @@ function nomeForma(id){
 /* ---------- teste em tela cheia ---------- */
 function abrirTotemCheio(){
   var t=cfgTotem(), ps=produtosTotem();
+  /* ==========================================================
+     A MARCACAO DE UNIDADE DO TOTEM NAO VALIA NADA (V204)
+
+     A configuracao tem uma caixinha por unidade — "o totem vale aqui" —
+     e `totemLigadoNa(suc)` responde exatamente essa pergunta. Ela nunca
+     foi chamada por ninguem: dava para abrir o totem numa unidade que
+     nao estava marcada, e a marcacao era enfeite.
+
+     A matriz continua passando sempre (e de la que se configura), e
+     lista de unidades vazia continua significando "todas" — a mesma
+     convencao de `podeSucursal`.
+     ========================================================== */
+  if(!totemLigadoNa()){
+    toast(t.ativo ? 'O totem não está liberado para ' + sucNome(lojaAtualId()) + '.'
+                  : 'O totem está desligado nesta configuração.');
+    return;
+  }
   if(!ps.length){toast('Nenhum produto ativo para mostrar.');return;}
   var d=document.createElement('div');
   d.id='tmCheio';d.className='tmCheio';

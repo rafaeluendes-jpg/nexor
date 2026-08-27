@@ -193,35 +193,6 @@ function abreSelMulti(ev,id){
 
 /* filtros num painel só, que recolhe — e mostra o que está ativo */
 var _filtroAberto={};
-function painelFiltros(chave,html,ativos,onBuscar,onLimpar){
-  var ab=_filtroAberto[chave]!==false;
-  return '<div class="fBar">'+
-   '<button class="fBarT" onclick="_filtroAberto[\''+chave+'\']='+(ab?'false':'true')+';'+onBuscar+'">'+
-    '<span class="ftSeta'+(ab?' ab':'')+'">'+sv('tri',10)+'</span>'+
-    sv('gear2',13)+' Filtros'+
-    (ativos.length?'<span class="fAtivos">'+ativos.length+' ativo(s)</span>':'')+
-   '</button>'+
-   (ativos.length?'<div class="fTags">'+ativos.map(function(a){
-     return '<span class="fTag">'+E(a)+'</span>';}).join('')+'</div>':'')+
-   '<div style="flex:1"></div>'+
-   '<button class="btnP2 ok" onclick="'+onBuscar+'">'+sv('search',13)+' Buscar</button>'+
-   '<button class="btnP2" onclick="'+onLimpar+'">Limpar</button>'+
-  '</div>'+
-  (ab?'<div class="fCorpo">'+html+'</div>':'');
-}
-function grupoChips(titulo,itens,arr,onChange,todosFn){
-  return '<div class="fGrupo">'+
-   '<div class="fGrupoT">'+E(titulo)+
-    (todosFn?'<button class="fTodos" onclick="'+todosFn+'">'+
-     (arr.length?'limpar':'marcar todos')+'</button>':'')+'</div>'+
-   '<div class="rfChips">'+itens.map(function(x){
-     var on=arr.indexOf(x.id)>=0;
-     return '<label class="chip'+(on?' on':'')+(x.vazio?' vazio':'')+'"'+
-     (x.dica?' title="'+E(x.dica)+'"':'')+'>'+
-     '<input type="checkbox"'+(on?' checked':'')+' onchange="'+onChange+'(\''+x.id+'\')">'+
-     E(x.nome)+(x.n?'<span class="chipN">'+x.n+'</span>':'')+'</label>';
-   }).join('')+'</div></div>';
-}
 function togFiltro(arr,v){
   var i=arr.indexOf(v);
   if(i>=0)arr.splice(i,1); else arr.push(v);
@@ -2241,11 +2212,6 @@ function vendaDaUnidadeAberta(p){
   return (p&&(p.sucursalId||'suc_matriz'))===suc;
 }
 /* filtro de sucursais usado nos painéis */
-function pedidosDeSuc(peds,sucs){
-  var l=(peds||[]).filter(vendaDaUnidadeAberta);
-  if(!sucs||!sucs.length)return l;
-  return l.filter(function(p){return sucs.indexOf(p.sucursalId||'suc_matriz')>=0});
-}
 
 /* ==========================================================
    PAINÉIS — base comum

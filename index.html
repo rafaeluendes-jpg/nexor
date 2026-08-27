@@ -4492,6 +4492,15 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .caTip i{font-style:normal;font-weight:700}
 .caTip i.sobe{color:#5FE0CB} .caTip i.desce{color:#FF9B9B}
 
+/* acoes em lote da lista de lancamentos: aparecem so quando ha selecao */
+.selInfo .selAcoes{display:flex;gap:6px;margin-top:8px}
+.selInfo .selAcoes button{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.10);color:#fff;font-size:11.5px;font-weight:600;
+  padding:5px 10px;border-radius:7px;cursor:pointer;transition:.15s}
+.selInfo .selAcoes button:hover{background:rgba(255,255,255,.20)}
+.selInfo .selAcoes button.ok{background:#0E8A46;border-color:#0E8A46}
+.selInfo .selAcoes button.ok:hover{background:#12A455}
+
 /* ================= RELATÓRIOS ================= */
 .relFiltros{display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--alt);
   border-bottom:1px solid var(--line)}
@@ -11253,7 +11262,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V203.0.0';
+var VERSAO='V204.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15411,6 +15420,23 @@ function nomeForma(id){
 /* ---------- teste em tela cheia ---------- */
 function abrirTotemCheio(){
   var t=cfgTotem(), ps=produtosTotem();
+  /* ==========================================================
+     A MARCACAO DE UNIDADE DO TOTEM NAO VALIA NADA (V204)
+
+     A configuracao tem uma caixinha por unidade — "o totem vale aqui" —
+     e `totemLigadoNa(suc)` responde exatamente essa pergunta. Ela nunca
+     foi chamada por ninguem: dava para abrir o totem numa unidade que
+     nao estava marcada, e a marcacao era enfeite.
+
+     A matriz continua passando sempre (e de la que se configura), e
+     lista de unidades vazia continua significando "todas" — a mesma
+     convencao de `podeSucursal`.
+     ========================================================== */
+  if(!totemLigadoNa()){
+    toast(t.ativo ? 'O totem não está liberado para ' + sucNome(lojaAtualId()) + '.'
+                  : 'O totem está desligado nesta configuração.');
+    return;
+  }
   if(!ps.length){toast('Nenhum produto ativo para mostrar.');return;}
   var d=document.createElement('div');
   d.id='tmCheio';d.className='tmCheio';
@@ -19994,7 +20020,13 @@ function painelWhats(){
    '<button onclick="fecharModal()">&times;</button></div>'+
    '<div class="mdB"><div id="zapPdv"><div class="carregandoP">verificando a conexão...</div></div></div>'+
    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
-   '<button class="btnP2" onclick="fecharModal();CN.aba=\'whatsapp\';abrir(\'loja\',\'canais-integracao\')">'+
+   /* Era `CN.aba`. `CN` existe, mas e o filtro de OUTRA tela
+      ({situacao,busca}, dos lancamentos): a atribuicao criava um campo
+      solto num objeto alheio e nao dizia nada a ninguem. A tela de
+      Canais le `CN2.aba`, entao "Configurar mensagens" abria na aba
+      padrao em vez da do WhatsApp — botao que responde e vai para o
+      lugar errado, que e pior do que botao que nao responde. */
+   '<button class="btnP2" onclick="fecharModal();CN2.aba=\'whatsapp\';abrir(\'loja\',\'canais-integracao\')">'+
     sv('gear2',13)+' Configurar mensagens</button></div></div>';
   document.body.appendChild(ov);
   fecharSoForaDeVerdade(ov);
@@ -20264,6 +20296,19 @@ function telaAcertos(){
      '<div class="entBtns">'+
       '<button class="btnP2" onclick="modalEntregador(\''+e.id+'\')">'+sv('edit',14)+' Editar cadastro</button>'+
       '<button class="btnP2" onclick="verEntregador(\''+e.id+'\')">'+sv('eye',14)+' Ver ficha</button>'+
+      /* ==========================================================
+         TORNAR PADRAO NAO TINHA COMO SER FEITO (V204)
+
+         `tornarPadrao` so era alcancavel por `menuEntregador`, um menu
+         suspenso que ninguem abria — era uma versao antiga desta barra
+         de botoes, e na troca a acao se perdeu no caminho.
+
+         E ela importa: `entregadorPadrao()` decide a taxa sugerida das
+         entregas sem entregador. Sem como marcar quem e o padrao, o
+         sistema usava o primeiro da lista, que e ordem de cadastro.
+         ========================================================== */
+      (e.padrao?'':'<button class="btnP2" onclick="tornarPadrao(\''+e.id+'\')" '+
+        'title="Usar como entregador padrão">'+sv('moto',14)+' Tornar padrão</button>')+
       '<button class="btnP2 rdB" onclick="excluirEntregador(\''+e.id+'\')" title="Excluir">'+sv('trash',14)+'</button>'+
      '</div>'+
     '</div>'+
@@ -20308,6 +20353,24 @@ function telaAcertos(){
    '<div class="kpi2"><span>Entregas no período</span><b>'+totQtd+'</b></div>'+
    '<div class="kpi2 dest2"><span>Total a pagar</span><b>R$ '+money(totPagar)+'</b></div>'+
   '</div>'+
+
+  /* ==========================================================
+     ENTREGA SEM ENTREGADOR NAO APARECIA EM LUGAR NENHUM (V204)
+
+     `pendentesSemEntregador()` monta o painel inteiro — a lista das
+     entregas do periodo que ninguem assumiu, com pedido, cliente,
+     cidade, valor, a taxa que o entregador padrao receberia, e o botao
+     "Definir entregador" ja ligado em `atribuirEntregador`. Devolve
+     vazio quando nao ha nenhuma.
+
+     Nunca foi chamada. A entrega ficava sem dono e sem aviso: nao entra
+     em acerto nenhum (o filtro exige `entregadorId`), entao ela some do
+     pagamento e ninguem percebe ate a conta nao fechar.
+
+     Entra aqui, entre os indicadores e os cartoes: e aviso do que falta
+     resolver antes de acertar.
+     ========================================================== */
+  pendentesSemEntregador()+
 
   '<div class="entWrap">'+
   (lista.length?cards
@@ -20394,15 +20457,6 @@ function historicoAcertos(){
   }).join('')+'</tbody></table></div></div>';
 }
 
-function menuEntregador(ev,id){
-  ev.stopPropagation();
-  var e=ent(id);
-  pop(ev,'<button onclick="modalEntregador(\''+id+'\');fecharPops()">'+sv('edit',15)+' Editar cadastro</button>'+
-  '<button onclick="verEntregador(\''+id+'\');fecharPops()">'+sv('eye',15)+' Ver ficha completa</button>'+
-  (e.padrao?'':'<button onclick="tornarPadrao(\''+id+'\');fecharPops()">'+sv('moto',15)+' Tornar entregador padrão</button>')+
-  '<div class="popSep"></div>'+
-  '<button class="rd" onclick="excluirEntregador(\''+id+'\');fecharPops()">'+sv('trash',15)+' Excluir entregador</button>');
-}
 function tornarPadrao(id){
   DB.entregadores.forEach(function(x){x.padrao=(x.id===id)});
   var n=vincularPendentes(id);
@@ -20477,6 +20531,18 @@ function modalEntregador(id){
   '<div class="blk" style="margin:0;max-width:none"><h3>Taxa de entrega por cidade <small>o valor muda conforme a cidade</small></h3>'+
   '<div id="taxasBox"></div>'+
   '<button class="btnP2" onclick="addTaxa()" style="margin-top:8px">'+sv('plus',13)+' Adicionar cidade</button>'+
+  /* ==========================================================
+     AS CIDADES JA ESTAVAM CADASTRADAS EM OUTRO LUGAR (V204)
+
+     As areas de entrega ja tem a lista de cidades onde a loja entrega.
+     `puxarCidadesAreas()` traz essa lista para as taxas do entregador
+     de uma vez, pulando as que ja estao la — e nunca foi chamada. Sem
+     ela, quem cadastra um entregador digita cidade por cidade uma
+     lista que o sistema ja conhece, com o risco de escrever diferente
+     e a taxa nunca casar (a busca e por nome).
+     ========================================================== */
+  '<button class="btnP2" onclick="puxarCidadesAreas()" style="margin-top:8px;margin-left:6px" '+
+   'title="Traz as cidades já cadastradas em Áreas de Entrega">'+sv('down2',13)+' Puxar das áreas</button>'+
   '<div class="hint" style="margin-top:9px">Quando o pedido já tiver taxa lançada no PDV, ela tem prioridade sobre esta tabela.</div></div>'+
   '</div>';
   modal(e?'Editar entregador':'Cadastrar entregador',h,'Salvar',function(){
@@ -20559,11 +20625,6 @@ function valorCidade(cidade){
 }
 function entregadorPadrao(){
   return (DB.entregadores||[]).find(function(x){return x.padrao})||(DB.entregadores||[])[0]||null;
-}
-function taxaPorCidade(e,cidade){
-  if(!e||!cidade)return 0;
-  var t=(e.taxas||[]).find(function(x){return (x.cidade||'').trim().toLowerCase()===cidade.trim().toLowerCase()});
-  return t?Number(t.valor)||0:0;
 }
 /* passa todas as entregas sem entregador para este entregador */
 function vincularPendentes(entId){
@@ -21069,13 +21130,6 @@ async function excluirSub(pid,k){
   p.itens.splice(k,1);salvar();telaCatFin();
 }
 /* lista pronta para os lançamentos financeiros */
-function opcoesCategorias(){
-  var out=[];
-  (DB.catfin||[]).forEach(function(p){
-    (p.itens||[]).forEach(function(it){out.push({id:it.id,nome:p.nome+' › '+it.nome,pasta:p.nome,tipo:p.tipo})});
-  });
-  return out;
-}
 
 /* ==========================================================
    CONTAS BANCÁRIAS
@@ -21581,12 +21635,30 @@ function telaLancamentos(){
       '<td><div class="acoesLf">'+
        '<button class="joia '+(l.pago?'on':'')+'" onclick="togglePago(\''+l.id+'\')" title="'+(l.pago?'Pago':'Não pago')+'">'+
         sv(l.pago?'up4':'dn4',14)+'</button>'+
+       /* o codigo de barras ja e digitado no cadastro (campo lnCB) e sobe
+          para a nuvem como codigo_barras. `copiarBoleto` existia para
+          devolve-lo para a area de transferencia na hora de pagar, e
+          nunca foi chamada: o dado era guardado e nao tinha como sair.
+          O botao so aparece na linha que tem codigo. */
+       (l.codigoBarras
+        ?'<button class="rBtn" onclick="copiarBoleto(\''+l.id+'\')" title="Copiar código de barras">'+
+          sv('copy',12)+'</button>':'')+
        '<button class="rBtn" onclick="modalLanc(\''+l.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
        '<button class="rBtn rd" onclick="excluirLanc(\''+l.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
       '</div></td></tr>';
     }).join('')+'</tbody></table>'
    :'<div class="lfVazio"><b>Nenhum lançamento no período</b>'+
     'Use o botão <b>+</b> para incluir despesa, receita ou transferência entre contas.</div>')+
+   /* ==========================================================
+      O RODAPE DAS CONTAS EXISTIA E NAO ERA DESENHADO (V204)
+
+      `rodapeCaixa()` monta o rodape com o saldo: uma conta so quando ha
+      filtro de conta, ou a lista de todas com o total no meio quando nao
+      ha. O CSS dele (.lfRodape, .lfRodape.centro, .rcUm, .rcTot) esta na
+      folha desde sempre — estilo escrito para uma coisa que nunca era
+      posta na tela.
+      ========================================================== */
+   rodapeCaixa()+
    '</div></div>';
 
   ligarSelecao();
@@ -21691,9 +21763,29 @@ function atualizaSelecao(){
     else{rec+=l.valor;tot+=l.valor;}
   }
   box.classList.add('on');
+  /* ==========================================================
+     A SELECAO EM LOTE EXISTIA INTEIRA, MENOS O BOTAO (V204)
+
+     Tudo ja estava construido: a caixinha por linha, o "marcar todas",
+     esta barra com a soma do que foi selecionado, e `modalPagamento`
+     aceitando uma LISTA — ela escreve "N lançamentos selecionados",
+     soma o total e ainda avisa quantos conciliados ficaram de fora.
+
+     Faltava so o caminho entre uma coisa e outra. `mudarPago(v)` e
+     exatamente essa ponte, e era uma das 42 funcoes que ninguem
+     chamava: junta os marcados e manda para `modalPagamento` quando e
+     para pagar, ou desmarca o pago quando nao e.
+
+     Sem os botoes, quem selecionava via a soma aparecer e nao tinha o
+     que fazer com ela.
+     ========================================================== */
   box.innerHTML='<span>'+c.length+' selecionado'+(c.length>1?'s':'')+'</span>'+
    '<b class="'+(tot<0?'vr':'vg')+'">R$ '+money(Math.abs(tot))+'</b>'+
-   (det&&rec?'<small>despesas R$ '+money(det)+' · receitas R$ '+money(rec)+'</small>':'');
+   (det&&rec?'<small>despesas R$ '+money(det)+' · receitas R$ '+money(rec)+'</small>':'')+
+   '<div class="selAcoes">'+
+    '<button class="ok" onclick="mudarPago(true)">'+sv('cash',12)+' Marcar pago</button>'+
+    '<button onclick="mudarPago(false)">Desmarcar</button>'+
+   '</div>';
 }
 function selTodasLF(el){
   var c=document.querySelectorAll('.chkLF');
@@ -22320,7 +22412,6 @@ function baseRedes(){
   }
   return DB.redes;
 }
-function semAcento(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 
 /* ==========================================================
    PAINEL DA PLATAFORMA — Administração da Nexor
@@ -24139,25 +24230,6 @@ function explicaImport(){
 }
 
 /* a importacao por arquivo unico continua existindo como opcao avancada */
-function lerArquivoCarga(el){
-  var f=el.files&&el.files[0];if(!f)return;
-  var fr=new FileReader();
-  fr.onload=function(){
-    try{
-      var d=JSON.parse(fr.result);
-      if(!d.insumos||!d.fichas)throw new Error('arquivo sem ingredientes ou fichas');
-      if(!d.resumo)d.resumo={grupos:(d.grupos||[]).length,insumos:d.insumos.length,
-        fichas:d.fichas.length,fornecedores:(d.fornec||[]).length,
-        linhasComposicao:d.fichas.reduce(function(a,x){return a+((x.itens||[]).length)},0),
-        comEstoque:d.insumos.filter(function(i){return i.estoqueAtual}).length,
-        comCusto:d.insumos.filter(function(i){return i.custo>0}).length,
-        comPreparo:d.fichas.filter(function(x){return x.receita}).length,
-        valorEstoque:d.insumos.reduce(function(a,i){return a+(i.estoqueAtual||0)*(i.custo||0)},0)};
-      CARGA_SFS=d;telaCarga();toast('Arquivo lido. Confira antes de aplicar.');
-    }catch(e){ toast('Arquivo inválido: '+((e&&e.message)||'erro')); }
-  };
-  fr.readAsText(f);
-}
 async function aplicarCarga(){
   if(!CARGA_SFS){toast('Escolha o arquivo primeiro.');return;}
   var C=CARGA_SFS,r=C.resumo||{};
@@ -28919,41 +28991,6 @@ function qtdNoDestino(f,qtd){
 }
 
 /* ---------- CONFIGURAÇÃO DOS MOTIVOS ---------- */
-function modalMotivo(id){
-  baseMov();
-  var m=id?motivo(id):null;
-  var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
-  '<div class="fld2"><label>Descrição do motivo *</label>'+
-  '<input id="mtN" value="'+E(m?m.nome:'')+'" placeholder="ex: Produção de gelato, Perda, Transferência"'+
-  (m&&m.sistema?' disabled style="background:var(--alt)"':'')+'></div>'+
-  '<div class="fld2"><label>Tipo *</label><select id="mtT"'+(m&&m.sistema?' disabled style="background:var(--alt)"':'')+'>'+
-   TIPOS_MOV.map(function(t){return '<option value="'+t.id+'"'+(m&&m.tipo===t.id?' selected':'')+'>'+
-     t.n+' — '+t.d+'</option>'}).join('')+'</select>'+
-   '<div class="hint" style="margin-top:6px">Só os motivos do tipo <b>Saída</b> aparecem na '+
-   'baixa manual de estoque. <b>Entrada</b> e <b>Produzir</b> ficam reservados para a nota de '+
-   'entrada, a ordem de produção e a contagem.</div></div>'+
-  '<label class="chkL"><input type="checkbox" id="mtA" '+(!m||m.ativo!==false?'checked':'')+'>'+
-  '<span>Ativo<small style="display:block;color:var(--ink-3)">aparece na lista ao lançar movimentação</small></span></label>'+
-  '</div>'+
-  '<div class="blk" style="margin:11px 0 0;max-width:none"><h3>Sucursais que enxergam este motivo</h3>'+
-  '<div class="hint" style="margin-bottom:10px">Nenhuma marcada significa que o motivo vale para todas as lojas.</div>'+
-  '<div class="contaGrid">'+lojasCad().map(function(l){
-    return '<label class="contaBox"><input type="checkbox" class="mtL" value="'+l.id+'"'+
-    (m&&(m.lojas||[]).indexOf(l.id)>=0?' checked':'')+'>'+
-    '<span><b>'+E(l.nome)+'</b></span></label>';}).join('')+
-  '</div></div></div>';
-  modal(m?'Editar motivo':'Novo motivo de movimentação',h,'Salvar',function(){
-    var nome=$('mtN').value.trim();
-    if(!nome){toast('Informe a descrição.');return false;}
-    var ls=[];
-    var cks=document.querySelectorAll('.mtL');
-    for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value);
-    if(m){if(!m.sistema){m.nome=nome;m.tipo=$('mtT').value;}m.ativo=$('mtA').checked;m.lojas=ls;}
-    else DB.motivosMov.push({id:uid('mt'),nome:nome,tipo:$('mtT').value,
-      ativo:$('mtA').checked,sistema:false,lojas:ls});
-    salvar();telaCfgMovimentacao();toast('Motivo salvo.');return true;
-  },'sm2');
-}
 /* removida: era a versao antiga do motivo de estoque, substituida pela
    de baixo e sem nenhuma chamada apontando para ela */
 
@@ -31340,11 +31377,31 @@ function desenhaMovimento(){
      '<input type="date" id="mvD" value="'+(_movData||hojeISO())+'"></div>'+
     '<div class="f2" style="max-width:110px"><label>Hora</label>'+
      '<input type="time" id="mvH" value="'+(_movHora||agoraHM())+'"></div>'+
+    /* ==========================================================
+       O ATALHO DE CADASTRAR MOTIVO ESTAVA COMBINADO E NAO EXISTIA (V204)
+
+       O DECISOES.md registra, desde a V10.4.1: "O atalho na baixa manual
+       diz (cadastrar em Configuração da Loja)". A funcao que faz isso —
+       `cadastrarMotivoBaixa()` — estava escrita, fecha a janela e abre a
+       configuracao certa. O estilo do link — `.incNovo`, azul, negrito,
+       sublinha ao passar — tambem estava na folha.
+
+       Faltava so o elemento entre os dois. Sem ele, quem precisava de um
+       motivo novo tinha de sair da baixa, procurar a tela, e voltar
+       perdendo o que ja tinha digitado.
+
+       Botao, e nao ancora: a suite E2E varre o TEXTO do arquivo atras
+       de ancora vazia, e reprova ate quando ela aparece dentro de um
+       comentario — foi o que esta versao deste comentario causou.
+       ========================================================== */
     '<div class="f2"><label>Motivo da baixa *</label>'+
      '<select id="mvM" onchange="mudouMotivo(this)">'+
      motivosBaixa().map(function(m){
        return '<option value="'+m.id+'"'+(_movMotivo===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
-    '</select></div>'+
+     '</select>'+
+     '<button type="button" class="incNovo" style="border:0;background:none;padding:4px 0 0" '+
+      'onclick="cadastrarMotivoBaixa()">cadastrar em Configuração da Loja</button>'+
+    '</div>'+
    '</div>'+
    '<div class="mvItens">'+
     '<table class="mvItTab"><thead><tr>'+
@@ -34770,35 +34827,6 @@ function abreSelMulti(ev,id){
 
 /* filtros num painel só, que recolhe — e mostra o que está ativo */
 var _filtroAberto={};
-function painelFiltros(chave,html,ativos,onBuscar,onLimpar){
-  var ab=_filtroAberto[chave]!==false;
-  return '<div class="fBar">'+
-   '<button class="fBarT" onclick="_filtroAberto[\''+chave+'\']='+(ab?'false':'true')+';'+onBuscar+'">'+
-    '<span class="ftSeta'+(ab?' ab':'')+'">'+sv('tri',10)+'</span>'+
-    sv('gear2',13)+' Filtros'+
-    (ativos.length?'<span class="fAtivos">'+ativos.length+' ativo(s)</span>':'')+
-   '</button>'+
-   (ativos.length?'<div class="fTags">'+ativos.map(function(a){
-     return '<span class="fTag">'+E(a)+'</span>';}).join('')+'</div>':'')+
-   '<div style="flex:1"></div>'+
-   '<button class="btnP2 ok" onclick="'+onBuscar+'">'+sv('search',13)+' Buscar</button>'+
-   '<button class="btnP2" onclick="'+onLimpar+'">Limpar</button>'+
-  '</div>'+
-  (ab?'<div class="fCorpo">'+html+'</div>':'');
-}
-function grupoChips(titulo,itens,arr,onChange,todosFn){
-  return '<div class="fGrupo">'+
-   '<div class="fGrupoT">'+E(titulo)+
-    (todosFn?'<button class="fTodos" onclick="'+todosFn+'">'+
-     (arr.length?'limpar':'marcar todos')+'</button>':'')+'</div>'+
-   '<div class="rfChips">'+itens.map(function(x){
-     var on=arr.indexOf(x.id)>=0;
-     return '<label class="chip'+(on?' on':'')+(x.vazio?' vazio':'')+'"'+
-     (x.dica?' title="'+E(x.dica)+'"':'')+'>'+
-     '<input type="checkbox"'+(on?' checked':'')+' onchange="'+onChange+'(\''+x.id+'\')">'+
-     E(x.nome)+(x.n?'<span class="chipN">'+x.n+'</span>':'')+'</label>';
-   }).join('')+'</div></div>';
-}
 function togFiltro(arr,v){
   var i=arr.indexOf(v);
   if(i>=0)arr.splice(i,1); else arr.push(v);
@@ -36818,11 +36846,6 @@ function vendaDaUnidadeAberta(p){
   return (p&&(p.sucursalId||'suc_matriz'))===suc;
 }
 /* filtro de sucursais usado nos painéis */
-function pedidosDeSuc(peds,sucs){
-  var l=(peds||[]).filter(vendaDaUnidadeAberta);
-  if(!sucs||!sucs.length)return l;
-  return l.filter(function(p){return sucs.indexOf(p.sucursalId||'suc_matriz')>=0});
-}
 
 /* ==========================================================
    PAINÉIS — base comum
@@ -38535,7 +38558,6 @@ function cfgCanal(id){
   if(k&&k.tela){abrir(k.tela[0],k.tela[1]);return;}
   avisar((k?k.n:'Canal'),(k?k.det:''),'info');
 }
-function abrirCfgCardapio(){ CN2.aba='cardapio'; abrir('loja','canais-integracao'); }
 function salvarPixels(){
   var c=baseCanais();
   ['fbPixel','fbToken','ga4','gtm','tiktok','googleAds'].forEach(function(k){
@@ -38855,6 +38877,25 @@ function abaLoja(c){
       '</div>'+
       '<div class="hint" style="width:100%;margin:2px 0 0">Marca o horário acima nos dias '+
       'escolhidos e reabre quem estava fechado. Depois é só ajustar a exceção.</div>'+
+      /* ==========================================================
+         FECHAR EM LOTE ERA A METADE QUE FALTAVA (V204)
+
+         `aplicarHorario(dias)` marca o horário e REABRE os dias — e o
+         próprio texto acima diz isso. `fecharDias(dias)` é a metade
+         oposta, escrita com o mesmo formato e a mesma contagem, e
+         nunca foi chamada: para fechar a semana inteira era preciso
+         desligar dia por dia, sete vezes.
+         ========================================================== */
+      '<span class="horTit" style="width:100%;margin-top:10px">Fechar de uma vez</span>'+
+      '<div class="horBt">'+
+       [['Seg a Sex',[1,2,3,4,5]],['Seg a Sáb',[1,2,3,4,5,6]],
+        ['Sáb e Dom',[6,0]],['Todos os dias',[0,1,2,3,4,5,6]]]
+        .map(function(o){
+          return '<button class="btnP2" onclick="fecharDias('+JSON.stringify(o[1])+')">'+
+                 o[0]+'</button>';}).join('')+
+      '</div>'+
+      '<div class="hint" style="width:100%;margin:2px 0 0">Marca os dias escolhidos como '+
+      'fechados, sem mexer no horário guardado.</div>'+
      '</div>'+
      '<div class="horG">'+h.map(function(x,k){
        return '<div class="horL'+(x.fechado?' off':'')+'">'+
@@ -44421,10 +44462,6 @@ function togAtivoUsr(){
   salvar();semPular(telaUsuarios);
 }
 function novoUsuario(){US.novaSuc=null;formUsuario();}
-function novoUsuarioNa(sucId){
-  US.novaSuc=sucId;          /* o formulario ja abre com esta unidade marcada */
-  formUsuario();
-}
 function editarUsuario(){formUsuario(US.sel);}
 function formUsuario(id){
   baseUsr();

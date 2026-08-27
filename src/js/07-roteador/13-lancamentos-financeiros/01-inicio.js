@@ -229,12 +229,30 @@ function telaLancamentos(){
       '<td><div class="acoesLf">'+
        '<button class="joia '+(l.pago?'on':'')+'" onclick="togglePago(\''+l.id+'\')" title="'+(l.pago?'Pago':'Não pago')+'">'+
         sv(l.pago?'up4':'dn4',14)+'</button>'+
+       /* o codigo de barras ja e digitado no cadastro (campo lnCB) e sobe
+          para a nuvem como codigo_barras. `copiarBoleto` existia para
+          devolve-lo para a area de transferencia na hora de pagar, e
+          nunca foi chamada: o dado era guardado e nao tinha como sair.
+          O botao so aparece na linha que tem codigo. */
+       (l.codigoBarras
+        ?'<button class="rBtn" onclick="copiarBoleto(\''+l.id+'\')" title="Copiar código de barras">'+
+          sv('copy',12)+'</button>':'')+
        '<button class="rBtn" onclick="modalLanc(\''+l.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
        '<button class="rBtn rd" onclick="excluirLanc(\''+l.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
       '</div></td></tr>';
     }).join('')+'</tbody></table>'
    :'<div class="lfVazio"><b>Nenhum lançamento no período</b>'+
     'Use o botão <b>+</b> para incluir despesa, receita ou transferência entre contas.</div>')+
+   /* ==========================================================
+      O RODAPE DAS CONTAS EXISTIA E NAO ERA DESENHADO (V204)
+
+      `rodapeCaixa()` monta o rodape com o saldo: uma conta so quando ha
+      filtro de conta, ou a lista de todas com o total no meio quando nao
+      ha. O CSS dele (.lfRodape, .lfRodape.centro, .rcUm, .rcTot) esta na
+      folha desde sempre — estilo escrito para uma coisa que nunca era
+      posta na tela.
+      ========================================================== */
+   rodapeCaixa()+
    '</div></div>';
 
   ligarSelecao();
@@ -339,9 +357,29 @@ function atualizaSelecao(){
     else{rec+=l.valor;tot+=l.valor;}
   }
   box.classList.add('on');
+  /* ==========================================================
+     A SELECAO EM LOTE EXISTIA INTEIRA, MENOS O BOTAO (V204)
+
+     Tudo ja estava construido: a caixinha por linha, o "marcar todas",
+     esta barra com a soma do que foi selecionado, e `modalPagamento`
+     aceitando uma LISTA — ela escreve "N lançamentos selecionados",
+     soma o total e ainda avisa quantos conciliados ficaram de fora.
+
+     Faltava so o caminho entre uma coisa e outra. `mudarPago(v)` e
+     exatamente essa ponte, e era uma das 42 funcoes que ninguem
+     chamava: junta os marcados e manda para `modalPagamento` quando e
+     para pagar, ou desmarca o pago quando nao e.
+
+     Sem os botoes, quem selecionava via a soma aparecer e nao tinha o
+     que fazer com ela.
+     ========================================================== */
   box.innerHTML='<span>'+c.length+' selecionado'+(c.length>1?'s':'')+'</span>'+
    '<b class="'+(tot<0?'vr':'vg')+'">R$ '+money(Math.abs(tot))+'</b>'+
-   (det&&rec?'<small>despesas R$ '+money(det)+' · receitas R$ '+money(rec)+'</small>':'');
+   (det&&rec?'<small>despesas R$ '+money(det)+' · receitas R$ '+money(rec)+'</small>':'')+
+   '<div class="selAcoes">'+
+    '<button class="ok" onclick="mudarPago(true)">'+sv('cash',12)+' Marcar pago</button>'+
+    '<button onclick="mudarPago(false)">Desmarcar</button>'+
+   '</div>';
 }
 function selTodasLF(el){
   var c=document.querySelectorAll('.chkLF');
@@ -968,7 +1006,6 @@ function baseRedes(){
   }
   return DB.redes;
 }
-function semAcento(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 
 /* ==========================================================
    PAINEL DA PLATAFORMA — Administração da Nexor

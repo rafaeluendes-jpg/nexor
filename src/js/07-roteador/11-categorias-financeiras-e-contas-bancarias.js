@@ -166,13 +166,6 @@ async function excluirSub(pid,k){
   p.itens.splice(k,1);salvar();telaCatFin();
 }
 /* lista pronta para os lançamentos financeiros */
-function opcoesCategorias(){
-  var out=[];
-  (DB.catfin||[]).forEach(function(p){
-    (p.itens||[]).forEach(function(it){out.push({id:it.id,nome:p.nome+' › '+it.nome,pasta:p.nome,tipo:p.tipo})});
-  });
-  return out;
-}
 
 /* ==========================================================
    CONTAS BANCÁRIAS

@@ -406,25 +406,6 @@ function explicaImport(){
 }
 
 /* a importacao por arquivo unico continua existindo como opcao avancada */
-function lerArquivoCarga(el){
-  var f=el.files&&el.files[0];if(!f)return;
-  var fr=new FileReader();
-  fr.onload=function(){
-    try{
-      var d=JSON.parse(fr.result);
-      if(!d.insumos||!d.fichas)throw new Error('arquivo sem ingredientes ou fichas');
-      if(!d.resumo)d.resumo={grupos:(d.grupos||[]).length,insumos:d.insumos.length,
-        fichas:d.fichas.length,fornecedores:(d.fornec||[]).length,
-        linhasComposicao:d.fichas.reduce(function(a,x){return a+((x.itens||[]).length)},0),
-        comEstoque:d.insumos.filter(function(i){return i.estoqueAtual}).length,
-        comCusto:d.insumos.filter(function(i){return i.custo>0}).length,
-        comPreparo:d.fichas.filter(function(x){return x.receita}).length,
-        valorEstoque:d.insumos.reduce(function(a,i){return a+(i.estoqueAtual||0)*(i.custo||0)},0)};
-      CARGA_SFS=d;telaCarga();toast('Arquivo lido. Confira antes de aplicar.');
-    }catch(e){ toast('Arquivo inválido: '+((e&&e.message)||'erro')); }
-  };
-  fr.readAsText(f);
-}
 async function aplicarCarga(){
   if(!CARGA_SFS){toast('Escolha o arquivo primeiro.');return;}
   var C=CARGA_SFS,r=C.resumo||{};

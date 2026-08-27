@@ -203,41 +203,6 @@ function qtdNoDestino(f,qtd){
 }
 
 /* ---------- CONFIGURAÇÃO DOS MOTIVOS ---------- */
-function modalMotivo(id){
-  baseMov();
-  var m=id?motivo(id):null;
-  var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
-  '<div class="fld2"><label>Descrição do motivo *</label>'+
-  '<input id="mtN" value="'+E(m?m.nome:'')+'" placeholder="ex: Produção de gelato, Perda, Transferência"'+
-  (m&&m.sistema?' disabled style="background:var(--alt)"':'')+'></div>'+
-  '<div class="fld2"><label>Tipo *</label><select id="mtT"'+(m&&m.sistema?' disabled style="background:var(--alt)"':'')+'>'+
-   TIPOS_MOV.map(function(t){return '<option value="'+t.id+'"'+(m&&m.tipo===t.id?' selected':'')+'>'+
-     t.n+' — '+t.d+'</option>'}).join('')+'</select>'+
-   '<div class="hint" style="margin-top:6px">Só os motivos do tipo <b>Saída</b> aparecem na '+
-   'baixa manual de estoque. <b>Entrada</b> e <b>Produzir</b> ficam reservados para a nota de '+
-   'entrada, a ordem de produção e a contagem.</div></div>'+
-  '<label class="chkL"><input type="checkbox" id="mtA" '+(!m||m.ativo!==false?'checked':'')+'>'+
-  '<span>Ativo<small style="display:block;color:var(--ink-3)">aparece na lista ao lançar movimentação</small></span></label>'+
-  '</div>'+
-  '<div class="blk" style="margin:11px 0 0;max-width:none"><h3>Sucursais que enxergam este motivo</h3>'+
-  '<div class="hint" style="margin-bottom:10px">Nenhuma marcada significa que o motivo vale para todas as lojas.</div>'+
-  '<div class="contaGrid">'+lojasCad().map(function(l){
-    return '<label class="contaBox"><input type="checkbox" class="mtL" value="'+l.id+'"'+
-    (m&&(m.lojas||[]).indexOf(l.id)>=0?' checked':'')+'>'+
-    '<span><b>'+E(l.nome)+'</b></span></label>';}).join('')+
-  '</div></div></div>';
-  modal(m?'Editar motivo':'Novo motivo de movimentação',h,'Salvar',function(){
-    var nome=$('mtN').value.trim();
-    if(!nome){toast('Informe a descrição.');return false;}
-    var ls=[];
-    var cks=document.querySelectorAll('.mtL');
-    for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value);
-    if(m){if(!m.sistema){m.nome=nome;m.tipo=$('mtT').value;}m.ativo=$('mtA').checked;m.lojas=ls;}
-    else DB.motivosMov.push({id:uid('mt'),nome:nome,tipo:$('mtT').value,
-      ativo:$('mtA').checked,sistema:false,lojas:ls});
-    salvar();telaCfgMovimentacao();toast('Motivo salvo.');return true;
-  },'sm2');
-}
 /* removida: era a versao antiga do motivo de estoque, substituida pela
    de baixo e sem nenhuma chamada apontando para ela */
 

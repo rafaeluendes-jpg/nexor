@@ -282,10 +282,6 @@ function togAtivoUsr(){
   salvar();semPular(telaUsuarios);
 }
 function novoUsuario(){US.novaSuc=null;formUsuario();}
-function novoUsuarioNa(sucId){
-  US.novaSuc=sucId;          /* o formulario ja abre com esta unidade marcada */
-  formUsuario();
-}
 function editarUsuario(){formUsuario(US.sel);}
 function formUsuario(id){
   baseUsr();

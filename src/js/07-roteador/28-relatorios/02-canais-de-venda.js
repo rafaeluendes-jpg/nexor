@@ -1546,7 +1546,6 @@ function cfgCanal(id){
   if(k&&k.tela){abrir(k.tela[0],k.tela[1]);return;}
   avisar((k?k.n:'Canal'),(k?k.det:''),'info');
 }
-function abrirCfgCardapio(){ CN2.aba='cardapio'; abrir('loja','canais-integracao'); }
 function salvarPixels(){
   var c=baseCanais();
   ['fbPixel','fbToken','ga4','gtm','tiktok','googleAds'].forEach(function(k){
@@ -1866,6 +1865,25 @@ function abaLoja(c){
       '</div>'+
       '<div class="hint" style="width:100%;margin:2px 0 0">Marca o horário acima nos dias '+
       'escolhidos e reabre quem estava fechado. Depois é só ajustar a exceção.</div>'+
+      /* ==========================================================
+         FECHAR EM LOTE ERA A METADE QUE FALTAVA (V204)
+
+         `aplicarHorario(dias)` marca o horário e REABRE os dias — e o
+         próprio texto acima diz isso. `fecharDias(dias)` é a metade
+         oposta, escrita com o mesmo formato e a mesma contagem, e
+         nunca foi chamada: para fechar a semana inteira era preciso
+         desligar dia por dia, sete vezes.
+         ========================================================== */
+      '<span class="horTit" style="width:100%;margin-top:10px">Fechar de uma vez</span>'+
+      '<div class="horBt">'+
+       [['Seg a Sex',[1,2,3,4,5]],['Seg a Sáb',[1,2,3,4,5,6]],
+        ['Sáb e Dom',[6,0]],['Todos os dias',[0,1,2,3,4,5,6]]]
+        .map(function(o){
+          return '<button class="btnP2" onclick="fecharDias('+JSON.stringify(o[1])+')">'+
+                 o[0]+'</button>';}).join('')+
+      '</div>'+
+      '<div class="hint" style="width:100%;margin:2px 0 0">Marca os dias escolhidos como '+
+      'fechados, sem mexer no horário guardado.</div>'+
      '</div>'+
      '<div class="horG">'+h.map(function(x,k){
        return '<div class="horL'+(x.fechado?' off':'')+'">'+

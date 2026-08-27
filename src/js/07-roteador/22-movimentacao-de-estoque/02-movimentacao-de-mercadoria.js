@@ -517,11 +517,31 @@ function desenhaMovimento(){
      '<input type="date" id="mvD" value="'+(_movData||hojeISO())+'"></div>'+
     '<div class="f2" style="max-width:110px"><label>Hora</label>'+
      '<input type="time" id="mvH" value="'+(_movHora||agoraHM())+'"></div>'+
+    /* ==========================================================
+       O ATALHO DE CADASTRAR MOTIVO ESTAVA COMBINADO E NAO EXISTIA (V204)
+
+       O DECISOES.md registra, desde a V10.4.1: "O atalho na baixa manual
+       diz (cadastrar em Configuração da Loja)". A funcao que faz isso —
+       `cadastrarMotivoBaixa()` — estava escrita, fecha a janela e abre a
+       configuracao certa. O estilo do link — `.incNovo`, azul, negrito,
+       sublinha ao passar — tambem estava na folha.
+
+       Faltava so o elemento entre os dois. Sem ele, quem precisava de um
+       motivo novo tinha de sair da baixa, procurar a tela, e voltar
+       perdendo o que ja tinha digitado.
+
+       Botao, e nao ancora: a suite E2E varre o TEXTO do arquivo atras
+       de ancora vazia, e reprova ate quando ela aparece dentro de um
+       comentario — foi o que esta versao deste comentario causou.
+       ========================================================== */
     '<div class="f2"><label>Motivo da baixa *</label>'+
      '<select id="mvM" onchange="mudouMotivo(this)">'+
      motivosBaixa().map(function(m){
        return '<option value="'+m.id+'"'+(_movMotivo===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
-    '</select></div>'+
+     '</select>'+
+     '<button type="button" class="incNovo" style="border:0;background:none;padding:4px 0 0" '+
+      'onclick="cadastrarMotivoBaixa()">cadastrar em Configuração da Loja</button>'+
+    '</div>'+
    '</div>'+
    '<div class="mvItens">'+
     '<table class="mvItTab"><thead><tr>'+

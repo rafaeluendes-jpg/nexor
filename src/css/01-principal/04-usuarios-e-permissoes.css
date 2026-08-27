@@ -1536,3 +1536,12 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .caCol.fino .caMes{font-size:9px}
 .caTip i{font-style:normal;font-weight:700}
 .caTip i.sobe{color:#5FE0CB} .caTip i.desce{color:#FF9B9B}
+
+/* acoes em lote da lista de lancamentos: aparecem so quando ha selecao */
+.selInfo .selAcoes{display:flex;gap:6px;margin-top:8px}
+.selInfo .selAcoes button{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.10);color:#fff;font-size:11.5px;font-weight:600;
+  padding:5px 10px;border-radius:7px;cursor:pointer;transition:.15s}
+.selInfo .selAcoes button:hover{background:rgba(255,255,255,.20)}
+.selInfo .selAcoes button.ok{background:#0E8A46;border-color:#0E8A46}
+.selInfo .selAcoes button.ok:hover{background:#12A455}

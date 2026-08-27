@@ -2305,7 +2305,13 @@ function painelWhats(){
    '<button onclick="fecharModal()">&times;</button></div>'+
    '<div class="mdB"><div id="zapPdv"><div class="carregandoP">verificando a conexão...</div></div></div>'+
    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
-   '<button class="btnP2" onclick="fecharModal();CN.aba=\'whatsapp\';abrir(\'loja\',\'canais-integracao\')">'+
+   /* Era `CN.aba`. `CN` existe, mas e o filtro de OUTRA tela
+      ({situacao,busca}, dos lancamentos): a atribuicao criava um campo
+      solto num objeto alheio e nao dizia nada a ninguem. A tela de
+      Canais le `CN2.aba`, entao "Configurar mensagens" abria na aba
+      padrao em vez da do WhatsApp — botao que responde e vai para o
+      lugar errado, que e pior do que botao que nao responde. */
+   '<button class="btnP2" onclick="fecharModal();CN2.aba=\'whatsapp\';abrir(\'loja\',\'canais-integracao\')">'+
     sv('gear2',13)+' Configurar mensagens</button></div></div>';
   document.body.appendChild(ov);
   fecharSoForaDeVerdade(ov);

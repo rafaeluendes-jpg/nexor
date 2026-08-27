@@ -1,118 +1,90 @@
-# Joia — as funções que ninguém chama
+# Joia — as funções que ninguém chamava
 
 Uma função que ninguém chama não é código morto por definição. Pode ser
-resto de tela removida — ou pode ser **a proteção que alguém escreveu e
-esqueceu de ligar**, que é o mesmo que não existir. Foi o defeito da V191
-(`marcarNovoAqui`), e a V192 existiu só para consertar isso.
+resto de tela removida, pode ser duplicata que perdeu — ou pode ser **a
+proteção que alguém escreveu e esqueceu de ligar**, que é o mesmo que não
+existir. Foi o defeito da V191 (`marcarNovoAqui`), e a V192 existiu só
+para consertar isso.
 
-Na Fase 6 as 42 foram lidas uma a uma. Duas eram bug de verdade e já
-foram corrigidas. Este documento é a lista do que sobrou, classificada,
-para o trabalho não se perder.
+Eram **42**. Hoje são **2**. Cada uma foi lida na tela onde deveria
+morar, antes de qualquer decisão — ligar às cegas é como nasceu a V179.
 
 Regenerar a lista: `node ferramentas/mapear.js` e ler o fim do `MAPA.md`.
 
-## Corrigidas na V202
+## Ligadas — eram recurso construído sem porta de entrada
 
-| Função | O que era |
+| Função | O que voltou a existir |
 |---|---|
-| `podeSucursal(sid)` | decide se a pessoa opera naquela unidade. **Nunca foi chamada.** `trocarLoja` não conferia o destino — dava para entrar em qualquer unidade da rede. Agora confere |
-| `sucursaisDoUsuario()` | filtra as unidades liberadas para a pessoa. **Nunca foi chamada.** O menu do topo listava `lojasCad()`, a rede inteira. Agora lista esta |
-| `liberacoesQuebradas()` | diz quais cadastros têm a liberação por unidade quebrada. **Nunca foi chamada** desde a V188 — o diagnóstico existia e nunca aparecia. Agora sai na tela de Diagnóstico, via `pintaLiberacoes()` |
+| `podeSucursal` | **a separação por unidade.** `trocarLoja` não conferia o destino: dava para entrar em qualquer unidade da rede (V202) |
+| `sucursaisDoUsuario` | o menu do topo listava a rede inteira; agora lista só as unidades liberadas (V202) |
+| `liberacoesQuebradas` | o diagnóstico de "marquei a unidade e a loja continua sem ver", parado desde a V188 |
+| `mudarPago` | **marcar vários lançamentos como pagos de uma vez.** A seleção, a soma e o `modalPagamento` aceitando lista já existiam — faltavam os dois botões |
+| `pendentesSemEntregador` | o painel das entregas que ninguém assumiu. Sem entregador elas não entram em acerto nenhum: sumiam do pagamento sem aviso |
+| `tornarPadrao` | **não havia como marcar o entregador padrão.** Só o menu suspenso `menuEntregador` chegava nele, e esse menu ninguém abria. `entregadorPadrao()` decide a taxa sugerida — o sistema usava o primeiro da lista |
+| `copiarBoleto` | o código de barras já era digitado e sincronizado, e não tinha como sair para a área de transferência |
+| `rodapeCaixa` | o rodapé com o saldo da conta filtrada. O CSS dele estava na folha desde sempre |
+| `cadastrarMotivoBaixa` | o atalho combinado no `DECISOES.md` desde a V10.4.1. A função existia, o estilo `.incNovo` existia; faltava o elemento entre os dois |
+| `fecharDias` | **fechar a semana de uma vez.** `aplicarHorario` reabre os dias; esta é a metade oposta. Sem ela, era desligar dia por dia, sete vezes |
+| `totemLigadoNa` | a marcação "o totem vale nesta unidade" não valia nada — dava para abrir o totem em unidade não marcada |
+| `puxarCidadesAreas` | traz as cidades das áreas de entrega para as taxas do entregador. Sem ela, digita-se à mão uma lista que o sistema já conhece — e nome escrito diferente faz a taxa nunca casar |
 
-## Achados que ainda não têm correção
+## Um botão que respondia e ia para o lugar errado
 
-### `novoUsuarioNa(sucId)` — meio caminho
+No modal do WhatsApp, "Configurar mensagens" fazia `CN.aba='whatsapp'`.
+`CN` existe — mas é o filtro de **outra tela** (`{situacao, busca}`, dos
+lançamentos). A atribuição criava um campo solto num objeto alheio, e a
+tela de Canais, que lê `CN2.aba`, abria na aba padrão.
 
-`US.novaSuc` é lido em três lugares (o formulário já abre com a unidade
-marcada), mas quem deveria escrever esse estado é `novoUsuarioNa`, que
-ninguém chama. O atalho "novo usuário nesta unidade" nunca chega a
-existir.
+Botão que responde e vai para o lugar errado é pior do que botão que não
+responde: ninguém desconfia dele.
 
-### `totemLigadoNa(suc)` — trava de unidade do totem
+## Apagadas — 30 ao todo
 
-Mesma forma do `podeSucursal`: decide se o totem vale para aquela
-unidade, e não é chamada. Precisa de leitura da tela do totem antes de
-ligar — não é mecânico.
+**Duplicatas que perderam.** Em cada par, quem estava ligado continuou:
 
-## Apagadas na V203 — 19 ao todo
+| Apagada | Quem já fazia |
+|---|---|
+| `modalMotivo` | `formMotivo` |
+| `menuEntregador` | os botões do próprio cartão (menos `tornarPadrao`, que foi religado) |
+| `opcoesCategorias` | o mesmo laço, inline, no formulário de lançamento |
+| `taxaPorCidade` | `taxaPedido`, que faz isso e mais |
+| `pedidosDeSuc` | `vendaDaUnidadeAberta`, chamada direto nos painéis |
+| `painelFiltros`, `grupoChips` | os filtros inline (`.fGrupo`) que as telas usam |
+| `custoMedio30` | `custoMedioPond` |
 
-Restos de tela removida: `salvarChaveZap` (o campo `zpChave` não existe
-mais em lugar nenhum), `telaCargaJSON`, `semearRedeJolo`, `semearInsumos`
-e `semearDemo` (as duas já eram `{ return; }`).
+**Recurso aposentado de propósito.** `novoUsuarioNa` era o botão da linha
+"unidade sem acesso", retirada na V79 — desde então a unidade e o acesso
+nascem juntos. Religar contrariaria uma decisão tomada.
 
-Ajudantes escritos e nunca aproveitados: `uuidOuNulo`, `limparIds`,
-`soDom`, `apelidoLogin`, `custoMedio30` (era apelido de
-`custoMedioPond`), `_limparMapaInsumos`, `diaDoPedido`, `nomeCanalRel`,
+**Restos de tela removida.** `salvarChaveZap` (o campo `zpChave` não
+existe mais), `telaCargaJSON`, `abrirCfgCardapio`, `semearRedeJolo`,
+`semearInsumos`, `semearDemo`, `toggleCego`.
+
+**Ajudantes nunca aproveitados.** `uuidOuNulo`, `limparIds`, `soDom`,
+`apelidoLogin`, `_limparMapaInsumos`, `diaDoPedido`, `nomeCanalRel`,
 `sucMatrizId`, `empresaDe`, `unidadesDaRede`, `qrDataURL`, `reservado`,
-`podeDesconciliar` (era `return true`).
+`podeDesconciliar`, `semAcento`, `lerArquivoCarga`.
 
-E `toggleCego`, que o Rafael pediu para tirar: o caixa cego virou regra,
-sem interruptor.
+A remoção foi feita por `ferramentas/podar.js`, que corta por contagem de
+chaves e **recusa o corte se o arquivo deixar de compilar sozinho**.
+Depois de cada poda, o E2E com DOM real acusou zero ReferenceError.
 
-A remoção foi feita por `ferramentas/podar.js`, que corta por contagem
-de chaves e **recusa o corte se o arquivo deixar de compilar sozinho** —
-apagar 19 funções à mão num arquivo grande é exatamente como nasceu a
-V179. Depois da poda, o E2E com DOM real acusa zero ReferenceError.
+## As 2 que sobraram — precisam de decisão sua
 
-## As 21 que sobraram — para o Rafael decidir uma a uma
+### `barraKanban(peds, abertos)`
+Monta uma barra no PDV com o **movimento do turno em dinheiro**. Não
+liguei porque briga com a regra que você acabou de fixar: o caixa é cego
+justamente para o operador não ver valor antes de contar a gaveta. Ligar
+isso devolveria o número para a tela dele por outro caminho.
 
-Nenhuma é lixo. Cada uma foi escrita para alguma coisa e não chegou a ser
-ligada. Diga o número das que você quer e eu ligo.
+**Se você quiser essa barra, ela precisa ou respeitar o cego, ou aparecer
+só para gerência.** Diga qual e eu ligo.
 
-### Financeiro
+### `taxaDaZona(cidade, zona)`
+Devolve a taxa da zona de entrega. O texto da própria tela promete que
+"ao lançar uma entrega, o PDV busca a zona do cliente e traz a taxa" — e
+essa função é quem faria isso.
 
-| | Função | O que ela faria |
-|---|---|---|
-| 1 | `mudarPago(v)` | marcar **vários lançamentos de uma vez** como pagos ou não pagos, pelas caixinhas da lista |
-| 2 | `copiarBoleto(id)` | copiar o código de barras do boleto de um lançamento |
-| 3 | `opcoesCategorias()` | lista pronta de categorias para escolher no lançamento |
-| 4 | `rodapeCaixa()` | rodapé com o resumo por conta na tela de caixa |
-
-### Delivery e entregadores
-
-| | Função | O que ela faria |
-|---|---|---|
-| 5 | `pendentesSemEntregador()` | mostrar as entregas **pendentes sem entregador atribuído** |
-| 6 | `menuEntregador(ev,id)` | menu de ações do entregador na lista |
-| 7 | `taxaPorCidade(e,cidade)` | a taxa daquele entregador para aquela cidade |
-| 8 | `taxaDaZona(cidade,zona)` | a taxa da zona de entrega |
-| 9 | `puxarCidadesAreas()` | trazer as cidades já cadastradas para o formulário de taxas |
-
-### Estoque e cardápio
-
-| | Função | O que ela faria |
-|---|---|---|
-| 10 | `modalMotivo(id)` | janela para cadastrar/editar motivo de movimentação |
-| 11 | `cadastrarMotivoBaixa()` | atalho da baixa manual direto para cadastrar um motivo novo |
-| 12 | `abrirCfgCardapio()` | pular direto para a configuração do cardápio |
-| 13 | `fecharDias(dias)` | fechar de uma vez todos os dias marcados, sem desligar um a um |
-| 14 | `totemLigadoNa(suc)` | **trava por unidade do totem** — mesma forma do `podeSucursal` que estava quebrado |
-
-### Usuários e painéis
-
-| | Função | O que ela faria |
-|---|---|---|
-| 15 | `novoUsuarioNa(sucId)` | "novo usuário **nesta unidade**", já com a unidade marcada |
-| 16 | `pedidosDeSuc(peds,sucs)` | filtrar pedidos por unidade nos painéis |
-| 17 | `barraKanban(peds,abertos)` | barra de resumo do Kanban: valor total e pedidos abertos |
-| 18 | `painelFiltros(...)` | painel de filtros que recolhe e mostra o que está ativo |
-| 19 | `grupoChips(...)` | grupo de "chips" de filtro (componente do painel acima) |
-
-### Ficaram órfãs por causa da minha poda
-
-| | Função | O que é |
-|---|---|---|
-| 20 | `semAcento(t)` | tira acentos de um texto. Era usada só por `apelidoLogin`, que apaguei |
-| 21 | `lerArquivoCarga(el)` | lê o arquivo de importação. Era usada só por `telaCargaJSON`, que apaguei |
-
-Estas duas são consequência direta da limpeza: apagar uma função deixou
-órfã a que ela chamava. Se ninguém for usá-las, saem na próxima poda.
-
-## O caminho para ligar cada uma
-
-Não é mecânico, e é por isso que não fiz sozinho: para cada uma é preciso
-abrir a tela onde ela deveria estar e ver se a ação já existe por outro
-nome — senão o sistema fica com dois caminhos para a mesma coisa, que foi
-como nasceu metade dos defeitos deste arquivo (`cardAtual` × `cardapioAtual`).
-
-Agora isso é possível: cada módulo cabe inteiro numa leitura.
+Não liguei porque **mexe em dinheiro cobrado do cliente**. Preciso saber
+de você como a taxa é calculada hoje na prática, e se a zona deve ganhar
+da taxa por cidade ou o contrário. Errar aqui cobra errado de gente real.

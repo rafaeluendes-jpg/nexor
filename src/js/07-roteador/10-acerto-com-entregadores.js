@@ -177,6 +177,19 @@ function telaAcertos(){
      '<div class="entBtns">'+
       '<button class="btnP2" onclick="modalEntregador(\''+e.id+'\')">'+sv('edit',14)+' Editar cadastro</button>'+
       '<button class="btnP2" onclick="verEntregador(\''+e.id+'\')">'+sv('eye',14)+' Ver ficha</button>'+
+      /* ==========================================================
+         TORNAR PADRAO NAO TINHA COMO SER FEITO (V204)
+
+         `tornarPadrao` so era alcancavel por `menuEntregador`, um menu
+         suspenso que ninguem abria — era uma versao antiga desta barra
+         de botoes, e na troca a acao se perdeu no caminho.
+
+         E ela importa: `entregadorPadrao()` decide a taxa sugerida das
+         entregas sem entregador. Sem como marcar quem e o padrao, o
+         sistema usava o primeiro da lista, que e ordem de cadastro.
+         ========================================================== */
+      (e.padrao?'':'<button class="btnP2" onclick="tornarPadrao(\''+e.id+'\')" '+
+        'title="Usar como entregador padrão">'+sv('moto',14)+' Tornar padrão</button>')+
       '<button class="btnP2 rdB" onclick="excluirEntregador(\''+e.id+'\')" title="Excluir">'+sv('trash',14)+'</button>'+
      '</div>'+
     '</div>'+
@@ -221,6 +234,24 @@ function telaAcertos(){
    '<div class="kpi2"><span>Entregas no período</span><b>'+totQtd+'</b></div>'+
    '<div class="kpi2 dest2"><span>Total a pagar</span><b>R$ '+money(totPagar)+'</b></div>'+
   '</div>'+
+
+  /* ==========================================================
+     ENTREGA SEM ENTREGADOR NAO APARECIA EM LUGAR NENHUM (V204)
+
+     `pendentesSemEntregador()` monta o painel inteiro — a lista das
+     entregas do periodo que ninguem assumiu, com pedido, cliente,
+     cidade, valor, a taxa que o entregador padrao receberia, e o botao
+     "Definir entregador" ja ligado em `atribuirEntregador`. Devolve
+     vazio quando nao ha nenhuma.
+
+     Nunca foi chamada. A entrega ficava sem dono e sem aviso: nao entra
+     em acerto nenhum (o filtro exige `entregadorId`), entao ela some do
+     pagamento e ninguem percebe ate a conta nao fechar.
+
+     Entra aqui, entre os indicadores e os cartoes: e aviso do que falta
+     resolver antes de acertar.
+     ========================================================== */
+  pendentesSemEntregador()+
 
   '<div class="entWrap">'+
   (lista.length?cards
@@ -307,15 +338,6 @@ function historicoAcertos(){
   }).join('')+'</tbody></table></div></div>';
 }
 
-function menuEntregador(ev,id){
-  ev.stopPropagation();
-  var e=ent(id);
-  pop(ev,'<button onclick="modalEntregador(\''+id+'\');fecharPops()">'+sv('edit',15)+' Editar cadastro</button>'+
-  '<button onclick="verEntregador(\''+id+'\');fecharPops()">'+sv('eye',15)+' Ver ficha completa</button>'+
-  (e.padrao?'':'<button onclick="tornarPadrao(\''+id+'\');fecharPops()">'+sv('moto',15)+' Tornar entregador padrão</button>')+
-  '<div class="popSep"></div>'+
-  '<button class="rd" onclick="excluirEntregador(\''+id+'\');fecharPops()">'+sv('trash',15)+' Excluir entregador</button>');
-}
 function tornarPadrao(id){
   DB.entregadores.forEach(function(x){x.padrao=(x.id===id)});
   var n=vincularPendentes(id);
@@ -390,6 +412,18 @@ function modalEntregador(id){
   '<div class="blk" style="margin:0;max-width:none"><h3>Taxa de entrega por cidade <small>o valor muda conforme a cidade</small></h3>'+
   '<div id="taxasBox"></div>'+
   '<button class="btnP2" onclick="addTaxa()" style="margin-top:8px">'+sv('plus',13)+' Adicionar cidade</button>'+
+  /* ==========================================================
+     AS CIDADES JA ESTAVAM CADASTRADAS EM OUTRO LUGAR (V204)
+
+     As areas de entrega ja tem a lista de cidades onde a loja entrega.
+     `puxarCidadesAreas()` traz essa lista para as taxas do entregador
+     de uma vez, pulando as que ja estao la — e nunca foi chamada. Sem
+     ela, quem cadastra um entregador digita cidade por cidade uma
+     lista que o sistema ja conhece, com o risco de escrever diferente
+     e a taxa nunca casar (a busca e por nome).
+     ========================================================== */
+  '<button class="btnP2" onclick="puxarCidadesAreas()" style="margin-top:8px;margin-left:6px" '+
+   'title="Traz as cidades já cadastradas em Áreas de Entrega">'+sv('down2',13)+' Puxar das áreas</button>'+
   '<div class="hint" style="margin-top:9px">Quando o pedido já tiver taxa lançada no PDV, ela tem prioridade sobre esta tabela.</div></div>'+
   '</div>';
   modal(e?'Editar entregador':'Cadastrar entregador',h,'Salvar',function(){
@@ -472,11 +506,6 @@ function valorCidade(cidade){
 }
 function entregadorPadrao(){
   return (DB.entregadores||[]).find(function(x){return x.padrao})||(DB.entregadores||[])[0]||null;
-}
-function taxaPorCidade(e,cidade){
-  if(!e||!cidade)return 0;
-  var t=(e.taxas||[]).find(function(x){return (x.cidade||'').trim().toLowerCase()===cidade.trim().toLowerCase()});
-  return t?Number(t.valor)||0:0;
 }
 /* passa todas as entregas sem entregador para este entregador */
 function vincularPendentes(entId){
