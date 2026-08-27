@@ -137,7 +137,6 @@ function baseFicha(){
    sem nunca ter cadastrado nada. A funcao continua existindo, e vazia, porque
    ha chamadas dela espalhadas; botao que aponta para funcao inexistente quebra
    a tela. Cadastro de insumo agora so nasce de quem cadastrou. */
-function semearInsumos(){ return; }
 
 /* ---------- LISTA ---------- */
 function telaFichaTecnica(){

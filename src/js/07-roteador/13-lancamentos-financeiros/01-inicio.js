@@ -1710,6 +1710,42 @@ function copiarSumicos(){
     try{ prompt('Copie este texto:',t); }catch(x){ toast('Não consegui copiar.'); }
   }
 }
+/* ==========================================================
+   A LIBERACAO POR UNIDADE ESTA MESMO FUNCIONANDO? (V202)
+
+   `liberacoesQuebradas()` existia desde a V188 e nunca foi chamada por
+   ninguem — estava entre as 42 funcoes orfas do MAPA.md. Ela responde
+   exatamente a pergunta que mais deu dor de cabeca: "marquei a unidade
+   no cadastro, e a loja continua sem ver".
+
+   Quando um cadastro nao sincroniza a coluna `sucursais`, a marcacao e
+   feita na tela, guardada no aparelho, e desaparece no primeiro
+   download — porque a nuvem nunca soube dela. Da tela, isso parece
+   exatamente "o botao nao funciona".
+
+   Agora a resposta aparece, com o nome do cadastro e o motivo, em vez
+   de virar meia hora procurando no lugar errado.
+   ========================================================== */
+function pintaLiberacoes(){
+  var fora=[];
+  try{ fora=liberacoesQuebradas()||[]; }catch(e){ _quieto(e,'pintaLiberacoes'); return ''; }
+  if(!fora.length)
+    return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
+      '<b>Liberação por unidade</b> '+
+      '<small style="color:var(--ink-3)">os cadastros liberáveis sobem e descem '+
+      'com a marcação de unidade — nada quebrado</small></div>';
+  return '<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
+    '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
+     '<b class="vr">Liberação por unidade quebrada em '+fora.length+' cadastro(s)</b> '+
+     '<small style="color:var(--ink-3)">marcar a unidade nestes não adianta: '+
+     'a marcação não chega à nuvem e some no próximo download</small></div>'+
+    '<table class="fmTab"><thead><tr><th>Cadastro</th><th style="width:220px">Motivo</th>'+
+    '</tr></thead><tbody>'+
+    fora.map(function(x){
+      return '<tr><td><b>'+E(x.nome||x.col)+'</b> <small style="color:var(--ink-3)">'+
+        E(x.col)+'</small></td><td>'+E(x.motivo||'—')+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
 function pintaHealth(){
   var h=HEALTH.estado;
   if(!h)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
@@ -1753,6 +1789,7 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
    pintaHealth()+
+   pintaLiberacoes()+
    pintaFilaPendente()+
    pintaSumicos()+
    (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+

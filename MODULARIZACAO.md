@@ -73,7 +73,7 @@ uma coisa diferente do que a fonte diz.
 | 3 | A virada — `src/` passa a ser a fonte, `index.html` gerado | **feita** |
 | 4 | Segurança completa — os 103 alertas e a escrita robusta | **feita** |
 | 5 | Backup e recuperação | **feita** |
-| 6 | Limpeza + auditoria dos botões e permissões que não funcionam | a fazer |
+| 6 | Limpeza + auditoria dos botões e permissões que não funcionam | **feita em parte** |
 
 ### Fase 3 — a virada
 
@@ -108,6 +108,36 @@ e tirou `anon` e `PUBLIC` das cinco funções. Conferido depois de aplicar:
 Fica para a Fase 4: apertar `conferir`/`quem_tem` do mesmo jeito, depois de
 apagar as 7 contas de teste que ainda vivem no Supabase Auth de produção
 (`admin@teste.local`, `gestor.a@teste.local`, `p20a@teste.com`…).
+
+### Fase 6 — os botões que não funcionavam
+
+**O bug da separação por unidade, corrigido (V202).** `podeSucursal` e
+`sucursaisDoUsuario` foram escritas para restringir em que unidade cada
+pessoa opera, e **nenhuma das duas havia sido chamada por ninguém**. O
+menu do topo listava `lojasCad()` — a rede inteira — e `trocarLoja` não
+conferia o destino. Como a RLS do banco trabalha por *loja* e todas as
+sucursais de uma loja são da mesma, essa era a única trava que existia.
+Era a queixa de "um entrava pela outra loja".
+
+**O diagnóstico que nunca aparecia.** `liberacoesQuebradas()` existe
+desde a V188 e nunca foi chamada. Agora sai na tela de Diagnóstico: diz
+quais cadastros têm a liberação por unidade quebrada e por quê — que era
+meia hora de procura no lugar errado.
+
+`testes/permissao-unidade.js` guarda as duas pontas: o comportamento de
+`podeSucursal` rodando de verdade, **e a ligação** — porque foi ela que
+faltou.
+
+O que sobrou está em **`AUDITORIA-ORFAS.md`**: as 37 funções órfãs
+restantes, lidas uma a uma e classificadas. Inclui um achado sem
+correção: o **caixa cego nasce ligado e não existe botão para desligar**
+(`toggleCego` nunca é chamada).
+
+**O CSS duplicado não foi mexido, de propósito.** Remover um bloco
+repetido só é seguro se nada entre as duas cópias sobrescrever as mesmas
+propriedades — é análise de cascata, e errar muda o layout na frente de
+caixa. É o item de menor valor e maior risco da lista; fica para quando
+houver como conferir visualmente.
 
 ### Fase 5 — backup
 

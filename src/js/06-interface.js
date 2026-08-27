@@ -294,8 +294,28 @@ if(!podeTrocarUnidade()){
 if($('sucMenu')){fecharSuc();return;}
 fecharDrop();
 lojaAtual();
+/* ==========================================================
+   O MENU OFERECIA UNIDADES QUE A PESSOA NAO PODE OPERAR (V202)
+
+   Aqui estava `lojasCad()`, que e a lista INTEIRA de unidades ativas.
+   Quem passasse por `podeTrocarUnidade()` — e passa todo perfil sem
+   `sucursal_ref`, pela regra do "perfil antigo" — via no menu e podia
+   entrar em qualquer unidade da rede, mesmo tendo so uma ou duas
+   liberadas no cadastro. Era a queixa de "um entrava pela outra loja".
+
+   A separacao por unidade nao existe no banco: a RLS trabalha por LOJA,
+   e todas as sucursais de uma loja sao da mesma. Entao esta lista e a
+   unica trava que existe — e ela nao estava travando nada.
+
+   `sucursaisDoUsuario()` ja fazia exatamente este filtro, e nunca havia
+   sido chamada por ninguem. Estava no MAPA.md, entre as 42 funcoes que
+   ninguem chamava. Foi escrita para isto.
+
+   Quem nao tem lista de unidades continua vendo todas — a lista vazia
+   sempre significou "sem restricao", e mudar isso trancaria gente.
+   ========================================================== */
 $('sucBox').innerHTML='<div class="sucMenu" id="sucMenu"><div class="h">Trocar de loja</div>'+
-lojasCad().map(function(l){
+sucursaisDoUsuario().map(function(l){
   return '<button class="'+(S.loja===l.id?'on':'')+'" onclick="trocarLoja(\''+l.id+'\')">'+
   '<span>'+E(l.nome)+'</span>'+(S.loja===l.id?sv('cr',13):'')+'</button>';}).join('')+
 '<div style="padding:9px 10px;font-size:11.5px;color:var(--ink-3)">Cadastre outras lojas em Configuração da Loja.</div></div>';
@@ -305,6 +325,14 @@ function trocarLoja(id){
      senao a separacao de estoque e de cadastro nao vale nada. */
   if(!podeTrocarUnidade()){
     toast('Seu acesso é da unidade '+sucNome(unidadeDoPerfil())+'.');
+    fecharSuc();return;
+  }
+  /* E circular entre unidades nao e circular entre TODAS: a conferencia
+     do destino faltava, entao esconder do menu nao bastava — bastaria
+     chamar trocarLoja('outra') pelo console. `podeSucursal` foi escrita
+     para esta pergunta e tambem nunca havia sido chamada. */
+  if(!podeSucursal(id)){
+    toast('Sua conta não opera na unidade '+sucNome(id)+'.');
     fecharSuc();return;
   }
   DB.lojaAtual=id;S.loja=id;
@@ -329,7 +357,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V201.0.0';
+var VERSAO='V202.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

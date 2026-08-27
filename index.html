@@ -18156,8 +18156,28 @@ if(!podeTrocarUnidade()){
 if($('sucMenu')){fecharSuc();return;}
 fecharDrop();
 lojaAtual();
+/* ==========================================================
+   O MENU OFERECIA UNIDADES QUE A PESSOA NAO PODE OPERAR (V202)
+
+   Aqui estava `lojasCad()`, que e a lista INTEIRA de unidades ativas.
+   Quem passasse por `podeTrocarUnidade()` — e passa todo perfil sem
+   `sucursal_ref`, pela regra do "perfil antigo" — via no menu e podia
+   entrar em qualquer unidade da rede, mesmo tendo so uma ou duas
+   liberadas no cadastro. Era a queixa de "um entrava pela outra loja".
+
+   A separacao por unidade nao existe no banco: a RLS trabalha por LOJA,
+   e todas as sucursais de uma loja sao da mesma. Entao esta lista e a
+   unica trava que existe — e ela nao estava travando nada.
+
+   `sucursaisDoUsuario()` ja fazia exatamente este filtro, e nunca havia
+   sido chamada por ninguem. Estava no MAPA.md, entre as 42 funcoes que
+   ninguem chamava. Foi escrita para isto.
+
+   Quem nao tem lista de unidades continua vendo todas — a lista vazia
+   sempre significou "sem restricao", e mudar isso trancaria gente.
+   ========================================================== */
 $('sucBox').innerHTML='<div class="sucMenu" id="sucMenu"><div class="h">Trocar de loja</div>'+
-lojasCad().map(function(l){
+sucursaisDoUsuario().map(function(l){
   return '<button class="'+(S.loja===l.id?'on':'')+'" onclick="trocarLoja(\''+l.id+'\')">'+
   '<span>'+E(l.nome)+'</span>'+(S.loja===l.id?sv('cr',13):'')+'</button>';}).join('')+
 '<div style="padding:9px 10px;font-size:11.5px;color:var(--ink-3)">Cadastre outras lojas em Configuração da Loja.</div></div>';
@@ -18167,6 +18187,14 @@ function trocarLoja(id){
      senao a separacao de estoque e de cadastro nao vale nada. */
   if(!podeTrocarUnidade()){
     toast('Seu acesso é da unidade '+sucNome(unidadeDoPerfil())+'.');
+    fecharSuc();return;
+  }
+  /* E circular entre unidades nao e circular entre TODAS: a conferencia
+     do destino faltava, entao esconder do menu nao bastava — bastaria
+     chamar trocarLoja('outra') pelo console. `podeSucursal` foi escrita
+     para esta pergunta e tambem nunca havia sido chamada. */
+  if(!podeSucursal(id)){
+    toast('Sua conta não opera na unidade '+sucNome(id)+'.');
     fecharSuc();return;
   }
   DB.lojaAtual=id;S.loja=id;
@@ -18191,7 +18219,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V201.0.0';
+var VERSAO='V202.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -30005,6 +30033,42 @@ function copiarSumicos(){
     try{ prompt('Copie este texto:',t); }catch(x){ toast('Não consegui copiar.'); }
   }
 }
+/* ==========================================================
+   A LIBERACAO POR UNIDADE ESTA MESMO FUNCIONANDO? (V202)
+
+   `liberacoesQuebradas()` existia desde a V188 e nunca foi chamada por
+   ninguem — estava entre as 42 funcoes orfas do MAPA.md. Ela responde
+   exatamente a pergunta que mais deu dor de cabeca: "marquei a unidade
+   no cadastro, e a loja continua sem ver".
+
+   Quando um cadastro nao sincroniza a coluna `sucursais`, a marcacao e
+   feita na tela, guardada no aparelho, e desaparece no primeiro
+   download — porque a nuvem nunca soube dela. Da tela, isso parece
+   exatamente "o botao nao funciona".
+
+   Agora a resposta aparece, com o nome do cadastro e o motivo, em vez
+   de virar meia hora procurando no lugar errado.
+   ========================================================== */
+function pintaLiberacoes(){
+  var fora=[];
+  try{ fora=liberacoesQuebradas()||[]; }catch(e){ _quieto(e,'pintaLiberacoes'); return ''; }
+  if(!fora.length)
+    return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
+      '<b>Liberação por unidade</b> '+
+      '<small style="color:var(--ink-3)">os cadastros liberáveis sobem e descem '+
+      'com a marcação de unidade — nada quebrado</small></div>';
+  return '<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
+    '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
+     '<b class="vr">Liberação por unidade quebrada em '+fora.length+' cadastro(s)</b> '+
+     '<small style="color:var(--ink-3)">marcar a unidade nestes não adianta: '+
+     'a marcação não chega à nuvem e some no próximo download</small></div>'+
+    '<table class="fmTab"><thead><tr><th>Cadastro</th><th style="width:220px">Motivo</th>'+
+    '</tr></thead><tbody>'+
+    fora.map(function(x){
+      return '<tr><td><b>'+E(x.nome||x.col)+'</b> <small style="color:var(--ink-3)">'+
+        E(x.col)+'</small></td><td>'+E(x.motivo||'—')+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
 function pintaHealth(){
   var h=HEALTH.estado;
   if(!h)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
@@ -30048,6 +30112,7 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
    pintaHealth()+
+   pintaLiberacoes()+
    pintaFilaPendente()+
    pintaSumicos()+
    (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
@@ -34674,7 +34739,6 @@ function baseFicha(){
    sem nunca ter cadastrado nada. A funcao continua existindo, e vazia, porque
    ha chamadas dela espalhadas; botao que aponta para funcao inexistente quebra
    a tela. Cadastro de insumo agora so nasce de quem cadastrou. */
-function semearInsumos(){ return; }
 
 /* ---------- LISTA ---------- */
 function telaFichaTecnica(){
@@ -39412,7 +39476,6 @@ var _semeando=false;
    Morango Gelato, Coco Zero Acucar...) em qualquer loja com o cadastro vazio.
    Foi o que encheu a Rafaelos de dados que nao eram dela — nao vieram da Jolo,
    nasceram aqui. Mantida vazia porque varias telas ainda a chamam. */
-function semearDemo(){ return; }
 
 /* todas as linhas de movimento, achatadas */
 function linhasHist(filtro){

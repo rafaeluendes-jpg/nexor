@@ -10,7 +10,6 @@ var _semeando=false;
    Morango Gelato, Coco Zero Acucar...) em qualquer loja com o cadastro vazio.
    Foi o que encheu a Rafaelos de dados que nao eram dela — nao vieram da Jolo,
    nasceram aqui. Mantida vazia porque varias telas ainda a chamam. */
-function semearDemo(){ return; }
 
 /* todas as linhas de movimento, achatadas */
 function linhasHist(filtro){
