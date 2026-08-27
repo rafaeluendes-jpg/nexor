@@ -43,7 +43,10 @@ const faixas = {};
 
 const funcoes = [];
 linhas.forEach((l, i) => {
-  const m = l.match(/^ *function ([a-zA-Z0-9_$]+)/);
+  /* `async function` conta igual. Sem o `async` aqui, o mapa dizia zero
+     orfas e havia orfa async no arquivo — foi assim que aplicarCarga
+     passou batida quando telaCargaJSON, a unica que a chamava, saiu. */
+  const m = l.match(/^ *(?:async )?function ([a-zA-Z0-9_$]+)/);
   if (m) funcoes.push({ nome: m[1], linha: i + 1 });
 });
 
