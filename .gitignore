@@ -1,1 +1,7 @@
 node_modules/
+
+# saida gerada a partir do index.html — ele e a unica fonte.
+# um recorte ou um mapa commitado ficaria velho na proxima versao,
+# e mapa com linha errada e pior do que mapa nenhum.
+src/
+MAPA.md
