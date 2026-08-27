@@ -54,21 +54,65 @@ de chaves e **recusa o corte se o arquivo deixar de compilar sozinho** —
 apagar 19 funções à mão num arquivo grande é exatamente como nasceu a
 V179. Depois da poda, o E2E com DOM real acusa zero ReferenceError.
 
-## Manipuladores de tela sem botão
+## As 21 que sobraram — para o Rafael decidir uma a uma
 
-Cada um destes desenha ou trata alguma coisa e não é chamado por nada.
-Não dá para saber, sem abrir a tela, se a funcionalidade foi cancelada ou
-se o botão se perdeu numa edição. **É aqui que mora o resto da auditoria
-de "o botão não funciona".**
+Nenhuma é lixo. Cada uma foi escrita para alguma coisa e não chegou a ser
+ligada. Diga o número das que você quer e eu ligo.
 
-`mudarPago` (marcar vários lançamentos como pagos de uma vez),
-`copiarBoleto`, `menuEntregador`, `modalMotivo`, `cadastrarMotivoBaixa`,
-`abrirCfgCardapio`, `fecharDias`, `painelFiltros`, `grupoChips`,
-`opcoesCategorias`, `rodapeCaixa`, `barraKanban`,
-`pendentesSemEntregador`, `pedidosDeSuc`, `puxarCidadesAreas`,
-`taxaPorCidade`, `taxaDaZona`.
+### Financeiro
 
-O caminho para cada uma é o mesmo: abrir a tela onde ela deveria estar,
-ver se a ação existe por outro nome, e então ligar ou apagar. É trabalho
-de tela, não de arquivo — e agora é possível, porque cada módulo cabe
-inteiro numa leitura.
+| | Função | O que ela faria |
+|---|---|---|
+| 1 | `mudarPago(v)` | marcar **vários lançamentos de uma vez** como pagos ou não pagos, pelas caixinhas da lista |
+| 2 | `copiarBoleto(id)` | copiar o código de barras do boleto de um lançamento |
+| 3 | `opcoesCategorias()` | lista pronta de categorias para escolher no lançamento |
+| 4 | `rodapeCaixa()` | rodapé com o resumo por conta na tela de caixa |
+
+### Delivery e entregadores
+
+| | Função | O que ela faria |
+|---|---|---|
+| 5 | `pendentesSemEntregador()` | mostrar as entregas **pendentes sem entregador atribuído** |
+| 6 | `menuEntregador(ev,id)` | menu de ações do entregador na lista |
+| 7 | `taxaPorCidade(e,cidade)` | a taxa daquele entregador para aquela cidade |
+| 8 | `taxaDaZona(cidade,zona)` | a taxa da zona de entrega |
+| 9 | `puxarCidadesAreas()` | trazer as cidades já cadastradas para o formulário de taxas |
+
+### Estoque e cardápio
+
+| | Função | O que ela faria |
+|---|---|---|
+| 10 | `modalMotivo(id)` | janela para cadastrar/editar motivo de movimentação |
+| 11 | `cadastrarMotivoBaixa()` | atalho da baixa manual direto para cadastrar um motivo novo |
+| 12 | `abrirCfgCardapio()` | pular direto para a configuração do cardápio |
+| 13 | `fecharDias(dias)` | fechar de uma vez todos os dias marcados, sem desligar um a um |
+| 14 | `totemLigadoNa(suc)` | **trava por unidade do totem** — mesma forma do `podeSucursal` que estava quebrado |
+
+### Usuários e painéis
+
+| | Função | O que ela faria |
+|---|---|---|
+| 15 | `novoUsuarioNa(sucId)` | "novo usuário **nesta unidade**", já com a unidade marcada |
+| 16 | `pedidosDeSuc(peds,sucs)` | filtrar pedidos por unidade nos painéis |
+| 17 | `barraKanban(peds,abertos)` | barra de resumo do Kanban: valor total e pedidos abertos |
+| 18 | `painelFiltros(...)` | painel de filtros que recolhe e mostra o que está ativo |
+| 19 | `grupoChips(...)` | grupo de "chips" de filtro (componente do painel acima) |
+
+### Ficaram órfãs por causa da minha poda
+
+| | Função | O que é |
+|---|---|---|
+| 20 | `semAcento(t)` | tira acentos de um texto. Era usada só por `apelidoLogin`, que apaguei |
+| 21 | `lerArquivoCarga(el)` | lê o arquivo de importação. Era usada só por `telaCargaJSON`, que apaguei |
+
+Estas duas são consequência direta da limpeza: apagar uma função deixou
+órfã a que ela chamava. Se ninguém for usá-las, saem na próxima poda.
+
+## O caminho para ligar cada uma
+
+Não é mecânico, e é por isso que não fiz sozinho: para cada uma é preciso
+abrir a tela onde ela deveria estar e ver se a ação já existe por outro
+nome — senão o sistema fica com dois caminhos para a mesma coisa, que foi
+como nasceu metade dos defeitos deste arquivo (`cardAtual` × `cardapioAtual`).
+
+Agora isso é possível: cada módulo cabe inteiro numa leitura.
