@@ -406,37 +406,6 @@ function explicaImport(){
 }
 
 /* a importacao por arquivo unico continua existindo como opcao avancada */
-async function aplicarCarga(){
-  if(!CARGA_SFS){toast('Escolha o arquivo primeiro.');return;}
-  var C=CARGA_SFS,r=C.resumo||{};
-  var ok=await confirmar({titulo:'Aplicar a importação',
-    texto:'Os cadastros atuais de estoque serão substituídos pelos do arquivo.',
-    linhas:[['Ingredientes',String(r.insumos||0),''],['Fichas técnicas',String(r.fichas||0),''],
-            ['Fornecedores',String(r.fornecedores||0),''],
-            ['Valor do estoque','R$ '+money(r.valorEstoque||0),'']],
-    aviso:'Grupos, ingredientes, fichas, fornecedores, movimentações, contagens e notas '+
-      'serão <b>apagados e substituídos</b>.<br>Cardápio, pedidos e financeiro não são tocados.',
-    ok:'Aplicar',tipo:'perigo'});
-  if(!ok)return;
-  try{
-    if(NUVEM.ligada){toast('Guardando um backup antes...');await criarBackup('antes-da-importacao');}
-  }catch(e){ toast('Não consegui guardar o backup — a importação foi cancelada por segurança.'); return; }
-  try{
-    if(C.grupos)   DB.gruposIng = JSON.parse(JSON.stringify(C.grupos));
-    if(C.fichaCats)DB.fichaCats = JSON.parse(JSON.stringify(C.fichaCats));
-    DB.insumos = JSON.parse(JSON.stringify(C.insumos));
-    DB.fichas  = JSON.parse(JSON.stringify(C.fichas));
-    if(C.fornec)   DB.fornec = JSON.parse(JSON.stringify(C.fornec));
-    DB.movEst=[];DB.contagens=[];DB.notas=[];DB.ordensProd=[];
-    DB._cargaFeita=C.versao||'arquivo';DB._ultimoBackup='';
-    repararDestinos();salvar();
-    await confirmar({titulo:'Importação concluída',
-      texto:C.insumos.length+' ingredientes e '+C.fichas.length+' fichas técnicas entraram no sistema.',
-      aviso:'Confira em <b>Gestão de Estoque</b>. A página será recarregada.',
-      ok:'Recarregar',cancelar:'Depois',tipo:'check'});
-    location.reload();
-  }catch(e){ toast('Falhou ao aplicar: '+((e&&e.message)||'erro')); }
-}
 
 /* ==========================================================
    BACKUP
