@@ -73,7 +73,7 @@ uma coisa diferente do que a fonte diz.
 | 3 | A virada — `src/` passa a ser a fonte, `index.html` gerado | **feita** |
 | 4 | Segurança completa — os 103 alertas e a escrita robusta | **feita** |
 | 5 | Backup e recuperação | **feita** |
-| 6 | Limpeza + auditoria dos botões e permissões que não funcionam | **feita em parte** |
+| 6 | Limpeza + auditoria dos botões e permissões que não funcionam | **feita** |
 
 ### Fase 3 — a virada
 
@@ -133,11 +133,33 @@ restantes, lidas uma a uma e classificadas. Inclui um achado sem
 correção: o **caixa cego nasce ligado e não existe botão para desligar**
 (`toggleCego` nunca é chamada).
 
-**O CSS duplicado não foi mexido, de propósito.** Remover um bloco
-repetido só é seguro se nada entre as duas cópias sobrescrever as mesmas
-propriedades — é análise de cascata, e errar muda o layout na frente de
-caixa. É o item de menor valor e maior risco da lista; fica para quando
-houver como conferir visualmente.
+**O CSS duplicado saiu (V203).** Eu tinha adiado por medo de mexer no
+layout da frente de caixa, e o medo estava no lado errado da conta: em
+CSS, entre regras de mesma especificidade **vence a última**. Então a
+cópia que funciona é sempre a de baixo, e as de cima não produzem efeito
+nenhum. Apagar uma cópia *anterior* é sempre seguro; apagar a última é
+que mudaria o resultado — e essa nunca sai.
+
+`ferramentas/css-podar.js` removeu **5.869 regras repetidas**. O
+`index.html` caiu de 2,79 MB para 2,31 MB e de 51.708 para 44.654 linhas
+— **466 KB e 7.054 linhas a menos**, sem uma única mudança visual.
+
+Conferido por dois caminhos independentes:
+1. o script monta o mapa final (contexto + seletor + propriedade →
+   último valor) antes e depois e recusa a poda se diferirem. Na
+   primeira tentativa **ele recusou** — e estava certo: o leitor não
+   consumia o `}` do `@media`, e o seletor seguinte saía corrompido;
+2. o Chromium calculou o estilo das **1.693 classes** do sistema antes e
+   depois: **zero diferença**.
+
+**As órfãs.** 17 removidas com `ferramentas/podar.js`, que corta por
+contagem de chaves e recusa o corte se o arquivo deixar de compilar.
+O E2E com DOM real acusa zero ReferenceError depois da poda.
+
+**O caixa cego virou regra (V203)**, a pedido do Rafael: não existe mais
+interruptor, a nuvem não desliga, e o valor continua inteiro nos
+relatórios — que são a tela do dono, nunca a do operador.
+`testes/caixa-cego.js` tranca isso com 13 testes.
 
 ### Fase 5 — backup
 

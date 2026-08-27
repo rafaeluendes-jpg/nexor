@@ -77,7 +77,6 @@ function diaLocal(v){
   }
 }
 /* atalho para o caso mais comum: o dia de um pedido */
-function diaDoPedido(p){ return diaLocal(p&&p.data); }
 function diasAtrasISO(n){
   var d=new Date(hojeISO()+'T12:00:00');
   d.setDate(d.getDate()-n);

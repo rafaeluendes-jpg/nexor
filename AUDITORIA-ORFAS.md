@@ -21,19 +21,6 @@ Regenerar a lista: `node ferramentas/mapear.js` e ler o fim do `MAPA.md`.
 
 ## Achados que ainda não têm correção
 
-### `toggleCego()` — o caixa cego não tem como ser desligado
-
-`caixaCego` é lido em cinco lugares, sincroniza com o banco como
-`caixa_cego`, e muda o que o PDV mostra: com ele ligado, o valor em
-gaveta aparece como "valores ocultos".
-
-E ele **nasce ligado** (`if(c.caixaCego===undefined)c.caixaCego=true`).
-
-`toggleCego()` é a única coisa no sistema que inverte esse valor, e
-ninguém a chama. Ou seja: toda loja opera com os valores escondidos e
-**não existe botão para mudar isso**. Falta decidir onde o botão entra —
-por isso não corrigi sozinho.
-
 ### `novoUsuarioNa(sucId)` — meio caminho
 
 `US.novaSuc` é lido em três lugares (o formulário já abre com a unidade
@@ -47,22 +34,25 @@ Mesma forma do `podeSucursal`: decide se o totem vale para aquela
 unidade, e não é chamada. Precisa de leitura da tela do totem antes de
 ligar — não é mecânico.
 
-## Restos de tela removida — apagar é seguro
+## Apagadas na V203 — 19 ao todo
 
-`salvarChaveZap` (o campo `zpChave` não existe mais em lugar nenhum),
-`telaCargaJSON`, `semearRedeJolo` (o corpo já diz "removido").
+Restos de tela removida: `salvarChaveZap` (o campo `zpChave` não existe
+mais em lugar nenhum), `telaCargaJSON`, `semearRedeJolo`, `semearInsumos`
+e `semearDemo` (as duas já eram `{ return; }`).
 
-`semearInsumos` e `semearDemo` já eram `{ return; }` e foram apagadas.
+Ajudantes escritos e nunca aproveitados: `uuidOuNulo`, `limparIds`,
+`soDom`, `apelidoLogin`, `custoMedio30` (era apelido de
+`custoMedioPond`), `_limparMapaInsumos`, `diaDoPedido`, `nomeCanalRel`,
+`sucMatrizId`, `empresaDe`, `unidadesDaRede`, `qrDataURL`, `reservado`,
+`podeDesconciliar` (era `return true`).
 
-## Ajudantes que só não têm quem os use
+E `toggleCego`, que o Rafael pediu para tirar: o caixa cego virou regra,
+sem interruptor.
 
-Não são bug; são função escrita e não aproveitada. Apagar é seguro,
-manter também é — o custo é só ruído na lista.
-
-`uuidOuNulo`, `limparIds`, `soDom`, `apelidoLogin`, `custoMedio30` (é
-apelido de `custoMedioPond`), `_limparMapaInsumos`, `diaDoPedido`,
-`nomeCanalRel`, `sucMatrizId`, `empresaDe`, `unidadesDaRede`,
-`qrDataURL`, `reservado`, `podeDesconciliar` (é `return true`).
+A remoção foi feita por `ferramentas/podar.js`, que corta por contagem
+de chaves e **recusa o corte se o arquivo deixar de compilar sozinho** —
+apagar 19 funções à mão num arquivo grande é exatamente como nasceu a
+V179. Depois da poda, o E2E com DOM real acusa zero ReferenceError.
 
 ## Manipuladores de tela sem botão
 

@@ -613,15 +613,6 @@ function blocoChaveZap(){
      'qualquer loja. Agora o comando fica preso a quem mandou.</div>'+
     '</div></div></div>';
 }
-function salvarChaveZap(){
-  var i=$('zpChave'); if(!i)return;
-  var v=(i.value||'').trim();
-  if(!v){ toast('Digite a chave para guardar.'); return; }
-  gravarZapChave(v);
-  ZP.estado={};
-  toast('Chave guardada neste aparelho.');
-  telaZap(true);
-}
 async function limparChaveZap(){
   var ok=await confirmar({titulo:'Apagar a chave deste aparelho',
     texto:'Este computador deixa de conseguir comandar o robô.',

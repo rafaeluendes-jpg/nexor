@@ -406,47 +406,6 @@ function explicaImport(){
 }
 
 /* a importacao por arquivo unico continua existindo como opcao avancada */
-function telaCargaJSON(){
-  var r=(CARGA_SFS&&CARGA_SFS.resumo)||null;
-  $('content').innerHTML='<div class="ctWrap">'+
-   '<div class="ctTopo"><h1>Importar Dados</h1>'+
-    '<p>Traz para a Joia os cadastros de um sistema anterior: grupos, ingredientes com estoque e '+
-    'custo, fichas técnicas com composição e modo de preparo, e fornecedores. '+
-    'Os dados vêm de um <b>arquivo de importação</b> — nada fica escrito dentro do sistema.</p></div>'+
-   '<div class="blk" style="max-width:820px">'+
-    '<div class="acTit">1. Escolha o arquivo</div>'+
-    '<input type="file" id="cgArq" accept=".json,application/json" onchange="lerArquivoCarga(this)">'+
-    '<div class="hint">Arquivo <b>.json</b> de importação da Joia. Se você tem planilhas do sistema '+
-    'antigo, me envie que eu gero este arquivo a partir delas.</div>'+
-   '</div>'+
-   (r?'<div class="ctGrade">'+
-     ctCard('O que vai entrar','conferido antes de aplicar',
-      ctLinha('Origem',E(CARGA_SFS.origem||CARGA_SFS.versao||'—'))+
-      ctLinha('Grupos de ingredientes',String(r.grupos||0))+
-      ctLinha('Ingredientes e mercadorias',String(r.insumos||0))+
-      ctLinha('Com saldo em estoque',String(r.comEstoque||0))+
-      ctLinha('Com custo médio',String(r.comCusto||0))+
-      ctLinha('Valor do estoque','R$ '+money(r.valorEstoque||0))+
-      ctLinha('Fichas técnicas',String(r.fichas||0))+
-      ctLinha('Linhas de composição',String(r.linhasComposicao||0))+
-      ctLinha('Com modo de preparo',String(r.comPreparo||0))+
-      ctLinha('Fornecedores',String(r.fornecedores||0)))+
-     ctCard('O que vai ser substituído','só isto',
-      ctLinha('Grupos, ingredientes, fichas','substituídos')+
-      ctLinha('Fornecedores','substituídos')+
-      ctLinha('Movimentações, contagens, notas','apagadas — o saldo vem do arquivo')+
-      '<div class="ctNota ctOk">Não são tocados: cardápio, produtos do PDV, pedidos, caixas, '+
-      'financeiro, clientes, sucursais e usuários.</div>')+
-     '</div>'+
-     '<div class="bkBotoes" style="margin-top:14px">'+
-      '<button class="btnP2 ok" onclick="aplicarCarga()">Aplicar a importação</button></div>'+
-     '<div class="ctNota ctAt" style="max-width:820px">Antes de trocar qualquer coisa, o sistema guarda '+
-     'um backup do estado atual.</div>'
-    :'<div class="mvVazio" style="padding:56px">'+sv('file2',26)+'<b>Nenhum arquivo carregado</b>'+
-     '<span>Escolha o arquivo de importação acima para conferir o conteúdo antes de aplicar.</span></div>')+
-  '</div>';
-  rodape(r?'pronto para importar':'importar dados');
-}
 function lerArquivoCarga(el){
   var f=el.files&&el.files[0];if(!f)return;
   var fr=new FileReader();

@@ -2113,14 +2113,6 @@ function telaUsuarios(){
          if(r0&&r0.nome)return r0.nome;
          return 'Minha empresa';
        }
-       function empresaDe(u){
-         var r=redeDoUsuario(u);
-         if(r&&r.nome)return r.nome;
-         var sid=(u.sucursais||[])[0];
-         var sc=(DB.sucursais||[]).find(function(x){return x.id===sid});
-         if(sc&&sc.redeNome)return sc.redeNome;
-         return empresaPadrao();
-       }
        /* o dono da Joia nao pertence a empresa nenhuma: fica na secao de cima */
        function ehDono(u){
          return String(u.login||'').toLowerCase()===ADM_MESTRE||!!u.plataforma;

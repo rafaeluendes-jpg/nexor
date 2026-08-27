@@ -474,7 +474,10 @@ function volta(linhas,fn,atual,col){
   var cfgS=await api('config_loja?loja_id=eq.'+l+'&select=*');
   if(cfgS&&cfgS[0]){var c3=cfg();
     c3.lojaAberta=cfgS[0].loja_aberta!==false;c3.tempoEntrega=cfgS[0].tempo_entrega;
-    c3.tempoRetirada=cfgS[0].tempo_retirada;c3.caixaCego=!!cfgS[0].caixa_cego;
+    c3.tempoRetirada=cfgS[0].tempo_retirada;
+    /* caixa_cego nao volta da nuvem: e regra do sistema, nao ajuste de
+       loja. Uma linha antiga com false no banco desligaria o cego numa
+       unidade sem ninguem pedir. O envio continua gravando true. */
     c3.layout=cfgS[0].layout||'normal';c3.fases=cfgS[0].fases||c3.fases;
     if(cfgS[0].cfg_dre)DB.cfgDre=cfgS[0].cfg_dre;
     if(cfgS[0].cfg_mesa)c3.mesa=cfgS[0].cfg_mesa;

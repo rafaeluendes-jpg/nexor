@@ -2028,7 +2028,6 @@ function soSemente(){
    Idempotente: confere antes de criar, nunca duplica e nunca
    mexe em senha de usuario que ja existe.
    ---------------------------------------------------------- */
-function semearRedeJolo(){ /* removido: o Nexor nao nasce com rede nenhuma */ }
 function sucAtivas(){return baseSuc().filter(function(s){return s.ativa!==false})}
 function sucNome(id){var s=baseSuc().find(function(x){return x.id===id});return s?s.nome:'—'}
 var CORES_SUC=['#00A08B','#2C6FD1','#B8730B','#8B5CF6','#C94141','#0E8A46','#D9488A','#0891B2'];
@@ -2275,10 +2274,6 @@ var CANAIS_REL=[
  {id:'cardapio',n:'Cardápio digital',cor:'#F5A623'},
  {id:'whatsapp',n:'WhatsApp',        cor:'#7E57C2'}
 ];
-function nomeCanalRel(id){
-  var c=CANAIS_REL.find(function(x){return x.id===id});
-  return c?c.n:id;
-}
 /* Porta unica dos relatorios: filtrar o canal AQUI faz o filtro valer em
    todas as telas de uma vez, em vez de cada uma ter a sua regra. */
 function pedsPeriodo(o){

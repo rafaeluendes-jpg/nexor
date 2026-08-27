@@ -177,7 +177,6 @@ function insumo(id){
   return _mapaIns[id]||null;
 }
 /* quem altera a lista de insumos avisa, para o mapa ser refeito */
-function _limparMapaInsumos(){_mapaIns=null;_mapaInsL=null;_mapaInsN=-1;}
 /* ----------------------------------------------------------
    CUSTO MEDIO PONDERADO  (padrao do sistema)
 
@@ -195,7 +194,6 @@ function custoMedioPond(i){
   return Number(i.custoUltima)||0;
 }
 /* compatibilidade: chamadas antigas continuam valendo */
-function custoMedio30(i){return custoMedioPond(i)}
 var MODOS_CUSTO=[
  {id:'media',  n:'Custo médio'},
  {id:'ultima', n:'Custo da última compra'}

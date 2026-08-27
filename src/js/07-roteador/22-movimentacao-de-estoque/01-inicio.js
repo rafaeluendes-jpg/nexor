@@ -717,10 +717,6 @@ async function receberPedidoBase(id){
   telaPedidoBase();
 }
 
-function sucMatrizId(){
-  var m = baseSuc().find(function (s) { return s.matriz; });
-  return m ? m.id : lojaAtualId();
-}
 
 /* ==========================================================
    ETAPA 4 — AS AUTOMAÇÕES

@@ -1873,8 +1873,6 @@ function fundoSugerido(){
   var ult=fech[fech.length-1];
   return +(Number(ult.fundoProximo)||0).toFixed(2);
 }
-function toggleCego(){cfg().caixaCego=!cfg().caixaCego;salvar();telaPDV();
-  toast(cfg().caixaCego?'Caixa cego ativado.':'Caixa cego desativado.');}
 /* ==========================================================
    FUNCAO ASYNC NAO PODE FALHAR CALADA (regressao da V182)
 

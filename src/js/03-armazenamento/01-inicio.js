@@ -513,27 +513,8 @@ function ehUuid(v){
   return _RX_UUID.test(t);
 }
 /* devolve o uuid, ou null de verdade — nunca a palavra "null" */
-function uuidOuNulo(v){ return ehUuid(v)?String(v).trim():null; }
 /* limpa um objeto inteiro antes de subir: campo *_id que nao for uuid vira
    null de verdade. Sem isto, um "undefined" perdido derruba a tabela toda. */
-function limparIds(o){
-  if(!o||typeof o!=='object')return o;
-  for(var k in o){
-    if(!/(^|_)(id)$/.test(k))continue;
-    var v=o[k];
-    if(v==null)continue;
-    var t=String(v).trim();
-    if(_NAO_VALOR[t]||t===''){ o[k]=null; continue; }
-    /* ref_local e texto de propósito: só valida o que termina em _id */
-    if(!_RX_UUID.test(t)&&k!=='ref_local'&&k!=='motivo_id'&&k!=='sucursal_id'
-       &&k!=='operador_id'&&k!=='item_ref'){
-      /* identificador local (ins_xxx, ped_xxx) e legitimo em ref_local,
-         mas nao numa coluna uuid: registra e anula */
-      if(/^(ins|ped|cli|prod|mv|lf|cx|nt)_/.test(t)){ o[k]=null; }
-    }
-  }
-  return o;
-}
 
 /* ==========================================================
    CLASSIFICACAO E REGISTRO DE FALHAS

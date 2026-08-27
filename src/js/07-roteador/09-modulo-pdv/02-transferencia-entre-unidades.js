@@ -1141,9 +1141,6 @@ function qrSVG(txt,px){
    '<rect width="'+t+'" height="'+t+'" fill="#fff"/>'+
    '<path d="'+e.join('')+'" fill="#1B2419"/></svg>';
 }
-function qrDataURL(txt,px){
-  return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(qrSVG(txt,px))));
-}
 /* Uma fonte so era frágil: se o unpkg estivesse fora do ar ou bloqueado na
    rede da loja, o QR simplesmente nao aparecia e ninguem sabia por que.
    Agora tenta a segunda, e o erro aparece na tela em vez de sumir. */
@@ -2002,11 +1999,16 @@ function cfg(){
      intencao, so por vies. Diferenca de caixa deixa de existir no papel
      e passa a existir so na gaveta.
 
-     Agora o padrao e CEGO. Continua sendo possivel desligar em
-     Configuracao, para rede que trabalhe de outro jeito, mas quem
-     desliga faz por escolha, e nao por descuido.
+     Agora e REGRA, nao preferencia (V203). O comentario antigo dizia
+     que dava para desligar em Configuracao — nao dava: `toggleCego` era
+     a unica coisa que invertia o valor, e ninguem a chamava. A tela que
+     ele descrevia nunca existiu.
+
+     A Jolo opera cego, e a decisao e essa: quem fecha o caixa conta a
+     gaveta sem ver o que o sistema espera. O numero continua inteiro
+     nos relatorios, que sao a tela do dono — nunca a do operador.
      ========================================================== */
-  if(c.caixaCego===undefined)c.caixaCego=true;
+  c.caixaCego = true;
   if(!c.layout)c.layout='normal';
   if(!c.fases)c.fases=['aguardando','preparo','saiu','entregue','cancelado'];
   if(c.taxaPadrao===undefined)c.taxaPadrao=5;

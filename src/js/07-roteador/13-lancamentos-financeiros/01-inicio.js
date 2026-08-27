@@ -968,20 +968,7 @@ function baseRedes(){
   }
   return DB.redes;
 }
-function unidadesDaRede(id){
-  /* unidade que perdeu o vinculo (sincronizacao antiga) volta para a primeira rede */
-  if(DB.redes&&DB.redes.length&&DB.redes[0].id===id){
-    var mudou=false;
-    (DB.sucursais||[]).forEach(function(x){
-      if(!x.matriz&&!x.redeId){x.redeId=id;x.redeNome=DB.redes[0].nome;mudou=true;}
-    });
-    if(mudou)gravarLocal();
-  }
-  return (DB.sucursais||[]).filter(function(x){return x.redeId===id&&!x.matriz});
-}
-function soDom(t){ t=String(t||'').trim(); if(t.indexOf('@')>=0)t=t.split('@').pop(); return t.replace(/^\.+|\.+$/g,''); }
 function semAcento(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
-function apelidoLogin(n){return semAcento(n).toLowerCase().replace(/[^a-z0-9]/g,'')}
 
 /* ==========================================================
    PAINEL DA PLATAFORMA — Administração da Nexor

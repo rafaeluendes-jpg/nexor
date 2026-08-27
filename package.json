@@ -6,7 +6,7 @@
   "scripts": {
     "test:reconciliacao": "node testes/reconciliacao.js",
     "test:sintaxe": "node testes/sintaxe.js",
-    "test": "npm run test:montagem && npm run test:versao && npm run test:backup && npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa && npm run test:formas && npm run test:ux && npm run test:tenant && npm run test:unidade && npm run test:e2e",
+    "test": "npm run test:montagem && npm run test:versao && npm run test:backup && npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa && npm run test:formas && npm run test:ux && npm run test:tenant && npm run test:unidade && npm run test:cego && npm run test:e2e",
     "test:caixa": "node testes/caixa.js",
     "test:formas": "node testes/formas-pagamento.js",
     "test:ux": "node testes/pdv-ux.js",
@@ -18,7 +18,8 @@
     "test:versao": "node testes/versao.js",
     "test:backup": "node testes/backup.js",
     "backup": "node ferramentas/backup.js",
-    "test:unidade": "node testes/permissao-unidade.js"
+    "test:unidade": "node testes/permissao-unidade.js",
+    "test:cego": "node testes/caixa-cego.js"
   },
   "devDependencies": {
     "jsdom": "^30.0.1"

@@ -224,7 +224,6 @@ function conciliarSelecionadas(){
   CB.marcadas={};salvar();telaConciliacao();
   toast(n+' movimento(s) conciliado(s). Eles ficam travados nos lançamentos.');
 }
-function podeDesconciliar(){return true}
 async function desconciliar(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(!await pergunta('Desconciliar "'+l.descricao+'"?\n\nEle volta a ficar editável nos lançamentos financeiros.'))return;

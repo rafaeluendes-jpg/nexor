@@ -212,10 +212,6 @@ var QRN=(function(){
       }
     }
   }
-  function reservado(v,n,r,c){
-    var m=novaMatriz(n);funcoes(m,v);
-    return m[r][c]!==null;
-  }
   function colocar(m,dados,v){
     var n=m.length,base=novaMatriz(n);funcoes(base,v);
     var bit=0,cima=true;
