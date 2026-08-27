@@ -5824,3 +5824,79 @@ de chegar na loja.
 **Cadastro só entra em `CADASTROS_LIB` depois que o campo sobe, desce e tem coluna.
 As duas pontas, ou nenhuma.** Está escrita no código, no ponto onde a próxima pessoa
 vai mexer.
+
+## V189/V190 — `ci is not defined`: a loja não conseguiu fechar o caixa
+
+### O defeito
+
+`FORMAS.map(function(f){ ... data-i="'+ci+'" ... })` — o `map` não tem segundo
+parâmetro. **`ci` nunca existiu em lugar nenhum.** Toda montagem da tela de
+fechamento estourava `ReferenceError` antes de desenhar, e o modal não abria.
+
+Introduzido por mim na **V179**, ao migrar o campo para o componente monetário:
+copiei `data-i` de outro `map` que tinha o índice e não acrescentei o parâmetro.
+**Dez dias no ar.**
+
+Patch: `function(f)` → `function(f,ci)`. Uma palavra. E o índice serve — é por ele
+que o ENTER encontra o próximo campo.
+
+Verificado no banco antes de qualquer coisa: o caixa real continuava aberto e
+íntegro, sem snapshot parcial, sem movimento ou fechamento duplicado. O erro
+impedia a tela de abrir, então nada chegou a ser gravado.
+
+### Por que 523 testes verdes não pegaram — medido, não suposto
+
+| Suíte | Uso de DOM | Verificações por regex |
+|---|---|---|
+| caixa.js | **0** | 0 |
+| formas-pagamento.js | **0** | 2 |
+| pdv-ux.js | **0** | 50 |
+| tenant.js | **0** | 59 |
+
+E `fecharCaixa()` **nunca era executada por teste nenhum**.
+
+As suítes faziam duas coisas, e nenhuma delas era executar a tela:
+
+1. **Extraíam funções** com `corpoDaFuncao` e rodavam a matemática isolada. Isso
+   pega erro de conta, e pegou muitos. Mas `montarSnapshot` calcular certo não diz
+   nada sobre a tela conseguir abrir.
+2. **Verificavam o texto** do arquivo com expressão regular. Isso confirma que um
+   trecho está escrito — não que ele roda. **`ci` estava escrito exatamente como eu
+   queria. O regex teria aprovado.**
+
+E a varredura de "funções críticas presentes", que eu criei na V186 depois do
+apagão do `fundoSugerido`, confere que a **função** existe. `ci` é variável. Passou
+reto.
+
+### A prova de que a correção resolve o mecanismo, não só o caso
+
+Reintroduzi o defeito exato e rodei tudo:
+
+- `test:sintaxe` → **verde**
+- `test:caixa` → **67/67 verde**
+- `test:ux` → **134/134 verde**
+- `test:e2e` → **reprova em 5 pontos**, com `ci is not defined`
+
+### `testes/e2e.js` — o que faltava
+
+Carrega o `index.html` inteiro num DOM real (jsdom), deixa o sistema inicializar e
+**clica**. Recolhe `window.onerror`, `unhandledrejection`, `console.error` e erros
+do jsdom. **Qualquer `ReferenceError` ou `TypeError` reprova a suíte, mesmo que a
+tela pareça ter aberto.**
+
+Cobre: carga sem erro; fechamento de caixa montando com os 4 campos e os índices
+0,1,2,3; abrir caixa, sangria, suprimento e PDV montando; e handlers apontando para
+funções que existem.
+
+Achou na primeira execução três handlers de atribuição tardia (`_respAviso`,
+`_respConfirma`) — legítimos, a varredura foi refinada para distinguir isso de
+função que não existe em lugar nenhum.
+
+### Regra que fica
+
+**Teste que não executa a tela não prova que a tela abre.** Matemática isolada e
+verificação de texto são úteis e continuam — mas nenhuma versão é aprovada sem a
+E2E, que agora está no `npm test`.
+
+jsdom entrou como `devDependency`. O sistema publicado continua sem dependência
+nenhuma.
