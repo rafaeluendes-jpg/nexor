@@ -37,9 +37,36 @@ function lerDe(pasta) {
 
 module.exports = { montar, lerDe };
 
-if (require.main === module) {
-  const pasta = path.join(__dirname, '..', 'src');
+/* le src/ e devolve o index.html inteiro, como texto */
+function montarDoSrc(raiz) {
+  const pasta = path.join(raiz || path.join(__dirname, '..'), 'src');
   const ordem = JSON.parse(fs.readFileSync(path.join(pasta, 'ordem.json'), 'utf8'));
-  const texto = montar(ordem, lerDe(pasta));
-  process.stdout.write(texto);
+  return montar(ordem, lerDe(pasta));
+}
+
+module.exports.montarDoSrc = montarDoSrc;
+
+/* ==========================================================
+   `node ferramentas/montar.js --escrever` grava o index.html
+
+   Depois da virada e assim que o arquivo publicado nasce. Ninguem
+   edita o index.html a mao: edita-se o modulo em src/ e roda-se isto.
+   Quem esquecer nao passa no npm test — testes/montagem.js compara os
+   dois e reprova.
+   ========================================================== */
+if (require.main === module) {
+  const texto = montarDoSrc();
+  if (process.argv.includes('--escrever')) {
+    const alvo = path.join(__dirname, '..', 'index.html');
+    const antes = fs.existsSync(alvo) ? fs.readFileSync(alvo, 'utf8') : null;
+    if (antes === texto) { console.log('index.html ja estava em dia — nada a fazer'); }
+    else {
+      fs.writeFileSync(alvo, texto);
+      console.log('index.html gerado a partir de src/ · ' +
+        texto.split('\n').length.toLocaleString('pt-BR') + ' linhas, ' +
+        texto.length.toLocaleString('pt-BR') + ' bytes');
+    }
+  } else {
+    process.stdout.write(texto);
+  }
 }

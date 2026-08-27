@@ -1,0 +1,37 @@
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login">
+<div class="shell">
+    <header class="topbar"></header>
+    <main class="stage">
+      
+      <section class="card" aria-labelledby="title">
+        <h1 id="lgTit">Bem-vindo</h1><div class="lgRisco"></div><p class="intro">Entre com seus dados para acessar o sistema</p>
+        <div class="loginForm" id="loginForm">
+          <div class="group"><label for="lgU">E-mail</label><input id="lgU" type="text" placeholder="Digite seu e-mail" autocomplete="username" required></div>
+          <div class="group"><label for="lgP">Senha</label><div class="wrap pass"><input id="lgP" type="password" placeholder="Digite sua senha" autocomplete="current-password" required><button class="eye" id="tg" type="button" aria-label="Mostrar senha">◉</button></div></div>
+          <div class="options"><label class="check"><input type="checkbox" id="lgK" checked><span>Manter conectado</span></label><button class="forgot" id="lgEsq" type="button">Esqueci minha senha</button></div>
+          <button class="submit" id="lgB" type="button">Entrar</button>
+          <div class="security"><span class="badge">♢</span><span>Ambiente seguro e dados protegidos</span></div><p class="message lgErr" id="lgE" aria-live="polite"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hide">
+  <header class="hdr" id="hdr"></header>
+  <div class="band">
+    <div class="bandRow" id="bandRow"></div>
+    <div id="mnuBox"></div>
+    <div id="sucBox"></div>
+  </div>
+  <div class="work">
+    <div class="wTitle" id="wTitle"></div>
+    <div id="content"></div>
+  </div>
+  <div class="stat" id="stat"></div>
+</div>

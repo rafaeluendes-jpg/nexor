@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<!-- ==========================================================
+     AUDITORIA — POLITICA DE SEGURANCA DE CONTEUDO (CSP)
+     A sessao do Supabase fica no localStorage, legivel por JavaScript. A
+     defesa contra roubo de sessao e impedir que JavaScript estranho rode
+     nesta pagina. Esta politica diz ao navegador de onde ele PODE carregar
+     e para onde PODE falar:
+       script-src  — so o proprio arquivo e o cliente do Supabase
+       connect-src — so o proprio projeto Supabase e o robo
+       object-src none — sem Flash/applet
+     NAO tem frame-ancestors: essa regra so vale em cabecalho HTTP. Numa
+     etiqueta <meta> o navegador descarta a POLITICA INTEIRA por causa dela —
+     foi o que aconteceu na V37.0.0, e a protecao nao valeu nada.
+     Como o GitHub Pages nao deixa definir cabecalho, isso fica pendente.
+     'unsafe-inline' e necessario porque o sistema inteiro e um arquivo so,
+     com o script dentro do HTML. Fica registrado como limitacao conhecida:
+     so sai se o JavaScript for separado em arquivo proprio.
+     ========================================================== -->
+<!-- ==========================================================
+     CSP REMOVIDA DA ETIQUETA <meta>
+     Report-Only NAO funciona em <meta> — so em cabecalho HTTP. O navegador
+     descartava a politica inteira e ainda escrevia um erro vermelho no
+     Console a cada carregamento, atrapalhando justamente o diagnostico que
+     eu preciso ler. Protecao que nao protege e ainda polui o Console sai.
+     Para valer de verdade, precisa de cabecalho HTTP — o GitHub Pages nao
+     permite definir. Fica registrado como pendencia; a defesa contra roubo
+     de sessao hoje e o escape completo do E() e a validacao de entrada.
+     ========================================================== -->
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
+<title>Joia</title>
+<link rel="icon" type="image/png" sizes="512x512" href="joia-icone.png">
+<link rel="icon" type="image/png" sizes="192x192" href="joia-icone-192.png">
+<link rel="apple-touch-icon" href="joia-icone.png">
+<link rel="manifest" href="manifest.json">
+<script>
+/* Guarda o sistema no aparelho. Sem isso, recarregar a pagina com a
+   internet fora deixava a loja sem sistema — que era o unico momento
+   em que o Nexor realmente parava. */
+/* ==========================================================
+   O APARELHO TEM DE SE ATUALIZAR SOZINHO (V195)
+
+   Ate aqui o service worker era registrado e esquecido. Ele guarda o
+   sistema para a loja nao parar sem internet — mas ninguem nunca lhe
+   pedia para conferir se havia versao nova. O navegador so faz isso
+   por conta propria de vez em quando, e sem garantia.
+
+   Resultado: aparelho preso numa versao antiga, sem erro, sem aviso.
+   Aconteceu com a V193 e a V194 — publicadas, e a loja continuou na
+   V192. A unica saida virava mandar um link diferente para cada
+   pessoa, o que nao e solucao: nao funciona para quatro lojas e muito
+   menos para sessenta.
+
+   Agora o registro pede `update()` na carga e a cada 5 minutos, e
+   quando o service worker novo assume o controle a pagina recarrega
+   uma vez. A atualizacao deixa de depender de alguem lembrar.
+   ========================================================== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      if(!reg)return;
+      try{ reg.update(); }catch(e){}
+      setInterval(function(){ try{ reg.update(); }catch(e){} },300000);
+    }).catch(function(){});
+    /* service worker novo assumiu: recarrega UMA vez para a pagina
+       passar a rodar o codigo novo */
+    var _jaTrocou=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(_jaTrocou)return; _jaTrocou=true;
+      location.reload();
+    });
+  });
+}
+</script>
+<meta name="theme-color" content="#0b8a93">
+<meta name="apple-mobile-web-app-title" content="Nexor">
+<meta name="application-name" content="Nexor">
+<!-- A biblioteca vem do PROPRIO repositorio, nao de CDN. O Edge bloqueava o
+     unpkg como rastreador e o sistema simplesmente nao abria — e numa loja
+     que voce nao controla, o antivirus ou a rede fariam o mesmo. Mesma
+     licao do QR Code: dependencia externa e ponto de falha na loja.
+     A CDN fica como segunda tentativa, caso o arquivo local falte. -->
+<script src="supabase.js"></script>
+<script>
+if(!window.supabase){
+  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

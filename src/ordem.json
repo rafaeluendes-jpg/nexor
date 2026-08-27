@@ -1,0 +1,80 @@
+[
+  {
+    "tipo": "bruto",
+    "arquivo": "01-cabeca.html"
+  },
+  {
+    "tipo": "envolto",
+    "abre": "<style>",
+    "fecha": "</style>",
+    "arquivos": [
+      "css/01-principal/01-inicio.css",
+      "css/01-principal/02-ficha-tecnica.css",
+      "css/01-principal/03-usuarios-e-permissoes.css",
+      "css/01-principal/04-usuarios-e-permissoes.css",
+      "css/01-principal/05-relatorios.css",
+      "css/01-principal/06-usuarios-e-permissoes.css"
+    ]
+  },
+  {
+    "tipo": "envolto",
+    "abre": "<style>",
+    "fecha": "</style>",
+    "arquivos": [
+      "css/02-complemento.css"
+    ]
+  },
+  {
+    "tipo": "bruto",
+    "arquivo": "02-corpo.html"
+  },
+  {
+    "tipo": "envolto",
+    "abre": "<script>",
+    "fecha": "</script>",
+    "arquivos": [
+      "js/00-abertura.js",
+      "js/01-icones.js",
+      "js/02-modulos.js",
+      "js/03-armazenamento/01-inicio.js",
+      "js/03-armazenamento/02-medir-nunca-pode-quebrar-o-que-esta-sendo-me.js",
+      "js/04-utilitarios.js",
+      "js/05-login.js",
+      "js/06-interface.js",
+      "js/07-roteador/00-navegacao.js",
+      "js/07-roteador/08-modulo-cardapio.js",
+      "js/07-roteador/09-modulo-pdv/01-inicio.js",
+      "js/07-roteador/09-modulo-pdv/02-transferencia-entre-unidades.js",
+      "js/07-roteador/09-modulo-pdv/03-item-3-rodada-2-o-banco-manda-no-estado-do-c.js",
+      "js/07-roteador/10-acerto-com-entregadores.js",
+      "js/07-roteador/11-categorias-financeiras-e-contas-bancarias.js",
+      "js/07-roteador/12-formas-de-pagamento.js",
+      "js/07-roteador/13-lancamentos-financeiros/01-inicio.js",
+      "js/07-roteador/13-lancamentos-financeiros/02-importacao-por-area.js",
+      "js/07-roteador/14-fluxo-de-caixa.js",
+      "js/07-roteador/15-conciliacao-bancaria.js",
+      "js/07-roteador/16-fornecedores.js",
+      "js/07-roteador/17-frente-de-caixa-financeiro.js",
+      "js/07-roteador/18-gestao-de-clientes-crm.js",
+      "js/07-roteador/19-cupons-de-desconto.js",
+      "js/07-roteador/20-base-do-estoque-unidades-grupos-insumos.js",
+      "js/07-roteador/21-ficha-tecnica.js",
+      "js/07-roteador/22-movimentacao-de-estoque/01-inicio.js",
+      "js/07-roteador/22-movimentacao-de-estoque/02-movimentacao-de-mercadoria.js",
+      "js/07-roteador/23-estoque-total-e-contagem.js",
+      "js/07-roteador/24-historico-de-posicao-de-estoque.js",
+      "js/07-roteador/25-notas-de-entrada.js",
+      "js/07-roteador/26-producao-ordem-de-producao-com-conferencia-d.js",
+      "js/07-roteador/27-comparativo-anual.js",
+      "js/07-roteador/28-relatorios/01-inicio.js",
+      "js/07-roteador/28-relatorios/02-canais-de-venda.js",
+      "js/07-roteador/28-relatorios/03-pedidos-do-cardapio-chegando-no-pdv.js",
+      "js/07-roteador/28-relatorios/04-cancelar-venda-pelo-numero-com-motivo.js",
+      "js/07-roteador/28-relatorios/05-tirar-o-acesso-total-sem-derrubar-ninguem.js"
+    ]
+  },
+  {
+    "tipo": "bruto",
+    "arquivo": "03-rodape.html"
+  }
+]

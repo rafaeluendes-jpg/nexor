@@ -36,19 +36,32 @@ O teste não lê `src/` do disco: ele recorta em memória. Por isso continua
 valendo depois da V201, da V210 e de qualquer correção publicada. Não há
 nada para manter em dia.
 
-## Enquanto não termina: quem manda é o index.html
+## A virada já aconteceu: quem manda é o src/
 
-`src/` **não é uma segunda cópia**. É saída, gerada por
-`node ferramentas/dividir.js` a partir do `index.html` atual. Se ficar velha,
-não se sincroniza nada — regenera-se em segundos.
+Até a Fase 2, o `index.html` era a fonte e o `src/` era saída descartável.
+Na Fase 3 isso inverteu:
 
-Por isso `src/` e `MAPA.md` **não são commitados** nesta fase (estão no
-`.gitignore`). Um mapa guardado apontaria as linhas de duas versões atrás, e
-linha errada é justamente o erro que se quer evitar. Uma verdade só, sempre:
-o `index.html`.
+| | antes | agora |
+|---|---|---|
+| Fonte | `index.html` | **`src/`** |
+| Gerado | `src/` | **`index.html`** (`npm run montar`) |
+| Commitado | só o `index.html` | os dois |
 
-Isso responde à pergunta que dá medo: **não dá para as duas versões
-divergirem, porque não existem duas versões.**
+O `index.html` continua commitado porque é ele que o GitHub Pages publica e
+que o service worker guarda no aparelho. Ele virou artefato de build — como
+um lockfile: gerado, versionado, e **nunca editado à mão**.
+
+Isso cria o único risco novo da virada: o `index.html` pode ficar fora de
+compasso com o `src/` e ninguém perceber — até a loja abrir a versão errada.
+
+É o que `testes/montagem.js` impede. Ele lê o `src/` do disco, emenda, e
+compara com o `index.html` do disco byte a byte:
+
+- editou o `index.html` à mão? **reprova**
+- mexeu no `src/` e esqueceu o `npm run montar`? **reprova**
+
+Roda no `npm test` e no CI a cada envio. Não existe caminho para publicar
+uma coisa diferente do que a fonte diz.
 
 ## Fases
 
@@ -57,14 +70,29 @@ divergirem, porque não existem duas versões.**
 | 0 | Ferramentas de recorte e a prova de diff-zero | **feita** |
 | 1 | Fechar o furo crítico de acesso (senha de operador) | **feita (1A)** |
 | 2 | O recorte por módulo de negócio | **feita** |
-| 3 | A virada — `src/` passa a ser a fonte, `index.html` gerado | a fazer |
+| 3 | A virada — `src/` passa a ser a fonte, `index.html` gerado | **feita** |
 | 4 | Segurança completa — os 103 alertas e a escrita robusta | a fazer |
 | 5 | Backup e recuperação | a fazer |
 | 6 | Limpeza + auditoria dos botões e permissões que não funcionam | a fazer |
 
-A virada (Fase 3) é o único momento delicado, e é um commit só, em hora
-escolhida — de preferência com a loja fechada. Mesmo nela o risco é baixo:
-o diff-zero garante que o arquivo publicado é idêntico ao que já estava lá.
+### Fase 3 — a virada
+
+O `index.html` publicado é **byte a byte o mesmo** de antes da virada
+(sha256 `a0d1c8ef`, 2.776.900 bytes). A loja não vê diferença nenhuma: mesmo
+arquivo, mesmo service worker, mesmo cache.
+
+Duas travas novas entraram no `npm test` e no CI:
+
+**`testes/montagem.js`** — o `index.html` tem de ser exatamente o que o
+`src/` produz. Conferido: uma linha acrescentada à mão no `index.html` faz o
+teste reprovar apontando o número da linha.
+
+**`testes/versao.js`** — `VERSAO` (em `src/js/06-interface.js`) e `VERSAO_SW`
+(em `sw.js`) têm de ser a mesma. Foi o defeito da V195: o `index.html` subiu
+novo e o `sw.js` ficou velho, o navegador não trocou o service worker, e a
+loja ficou presa na versão antiga. Regra que depende de alguém lembrar é a
+que falha; agora ela reprova a publicação. Conferido: subir só a `VERSAO`
+para V202 faz o teste reprovar.
 
 ### Fase 1 — o que foi corrigido
 
@@ -150,9 +178,21 @@ deu nome a ela.
 ## Comandos
 
 ```
-node ferramentas/dividir.js    # recorta o index.html atual em src/
-node ferramentas/montar.js     # emenda src/ e escreve na saída padrão
-node ferramentas/mapear.js     # regenera o MAPA.md
-node testes/montagem.js        # recorta e emenda: tem que dar idêntico
-npm test                       # a suíte inteira, montagem incluída
+npm run montar     # gera o index.html a partir do src/   ← depois de editar
+npm test           # as 10 suítes, montagem e versão incluídas
+npm run mapa       # regenera o MAPA.md
+
+node ferramentas/dividir.js    # re-recorta o src/ a partir do index.html.
+                               # So faz sentido para refazer o recorte do zero:
+                               # depois da virada, quem manda e o src/.
 ```
+
+## Como corrigir um bug agora
+
+1. Ache o módulo em `src/js/07-roteador/` (ou rode `npm run mapa` e leia o `MAPA.md`)
+2. **Leia o arquivo inteiro** — nenhum passa de 2.500 linhas, todos cabem
+3. Edite ali
+4. Suba `VERSAO` em `src/js/06-interface.js` **e** `VERSAO_SW` em `sw.js`
+5. `npm run montar`
+6. `npm test`
+7. Commit. O `index.html` vai no mesmo commit, como consequência.
