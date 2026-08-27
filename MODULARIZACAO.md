@@ -72,7 +72,7 @@ uma coisa diferente do que a fonte diz.
 | 2 | O recorte por módulo de negócio | **feita** |
 | 3 | A virada — `src/` passa a ser a fonte, `index.html` gerado | **feita** |
 | 4 | Segurança completa — os 103 alertas e a escrita robusta | **feita** |
-| 5 | Backup e recuperação | a fazer |
+| 5 | Backup e recuperação | **feita** |
 | 6 | Limpeza + auditoria dos botões e permissões que não funcionam | a fazer |
 
 ### Fase 3 — a virada
@@ -108,6 +108,25 @@ e tirou `anon` e `PUBLIC` das cinco funções. Conferido depois de aplicar:
 Fica para a Fase 4: apertar `conferir`/`quem_tem` do mesmo jeito, depois de
 apagar as 7 contas de teste que ainda vivem no Supabase Auth de produção
 (`admin@teste.local`, `gestor.a@teste.local`, `p20a@teste.com`…).
+
+### Fase 5 — backup
+
+O que existia: o backup do sistema (foto do navegador, dentro do mesmo
+Supabase) e o backup diário do Supabase (7 dias, plano Pro). Faltava a
+cópia **fora** — nenhuma das duas sobrevive a perder a conta.
+
+`ferramentas/backup.js` lê o banco tabela por tabela e escreve um arquivo
+com manifesto e soma de conferência. Falha em qualquer tabela: não
+escreve nada. `testes/backup.js` roda o script de verdade contra um
+servidor que imita o PostgREST — 15 testes.
+
+O procedimento de recuperação, caso a caso, está em **`RESTAURACAO.md`**.
+
+Achado no caminho: **285 mil das 296 mil linhas do `audit_log`
+registravam que nada mudou** — a sincronização reenvia cada linha a cada
+45 s, o upsert grava o mesmo conteúdo e o gatilho guardava duas cópias
+idênticas em jsonb. Eram 395 MB, 73% do banco, crescendo 2 GB por mês.
+`tg_auditar()` passou a ignorar `UPDATE` que não mudou nada.
 
 ### Fase 4 — a auditoria de segurança
 

@@ -4,3 +4,6 @@ node_modules/
 # Um mapa commitado apontaria as linhas de duas versoes atras, e linha
 # errada e pior do que mapa nenhum.
 MAPA.md
+
+# copias do banco: nunca no repositorio
+backup/
