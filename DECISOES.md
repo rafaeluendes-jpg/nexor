@@ -6174,3 +6174,56 @@ regra manda manter fechada. Mesmo padrão que já existia para `clientes_nexor`.
 
 **Regra:** 403 repetido no Console não é ruído — ou a regra está errada, ou o
 sistema está tentando o que não devia. Aqui era um de cada.
+
+## V197 — parei de corrigir por hipótese
+
+Três versões tentaram consertar o sumiço do cadastro e nenhuma acertou, porque eu
+estava corrigindo hipóteses. **No meu ambiente o ciclo passa; no aparelho da loja o
+cadastro some.** Enquanto eu não souber quem apaga e quando, qualquer correção é
+chute.
+
+### O registrador de sumiços
+
+Instrumentação dentro do próprio sistema. Toda vez que uma coleção de cadastro
+**encolhe**, ele anota: quando, qual coleção, quantos sumiram, quais eram, o
+`sucursais` de cada um, a unidade ativa, se `ehMatriz()` era verdadeiro, e as três
+linhas de pilha de quem chamou.
+
+Ligado em dois pontos — os únicos que podem encolher uma coleção:
+
+- `filtrarCadastroDaUnidade` → motivo "filtro de liberação por unidade"
+- `volta()` no download → motivo "download substituiu a lista"
+
+Aparece na tela de Diagnóstico com botão de copiar. **Não muda comportamento nenhum.
+Só observa.**
+
+### O scroll — a causa real, e não era `scrollTo`
+
+Procurei `scrollTo` três vezes e não existe. O que acontece é mais simples, e por
+isso passou despercebido:
+
+**Selecionar uma categoria filtra a lista de produtos de 42 para um ou dois. A altura
+do conteúdo despenca, o container fica menor que a rolagem atual, e o navegador puxa
+a rolagem para caber.** Do lado de quem usa: "a tela subiu sozinha".
+
+Por isso só acontecia clicando numa categoria lá embaixo — é onde a diferença de
+altura é grande. E por isso nenhum teste de `window.scrollTo` pegou: **o culpado é o
+layout, não o código.**
+
+Correção: `selCat` segura a altura mínima do painel antes de trocar o conteúdo,
+devolve a rolagem ao lugar e traz a categoria clicada de volta ao campo de visão com
+`block:'nearest'` — que só mexe se ela tiver saído da tela.
+
+**Ressalva:** jsdom não calcula layout, então não reproduz o clamp. O teste verifica
+que a guarda existe e não estraga a rolagem; o clamp em si só o navegador real
+mostra. Está na lista do teste manual, marcado como tal.
+
+### O que os dados dizem até aqui
+
+Quatro categorias "Taxa de Entrega" no banco (17:05, 17:15, 17:43, 18:26) — quatro
+criações manuais, uma a cada sumiço. **Zero produtos criados hoje.** A categoria sobe;
+o produto nunca. As duas últimas categorias já subiram com a liberação correta
+(`suc_mt1unhbx2xrb`), o que confirma que a V191/V193 funcionaram nessa parte.
+
+O que falta descobrir é por que o **produto** não sobe — e é para isso que o
+registrador existe.

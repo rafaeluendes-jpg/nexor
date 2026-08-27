@@ -15913,6 +15913,7 @@ function _ANT(col){
   try{ var a=DB[col]; return Array.isArray(a)?a:null; }catch(e){ return null; }
 }
 function volta(linhas,fn,atual,col){
+    var _antesVolta=Array.isArray(atual)?atual.slice():null;
     if(col)guardarIds(col,linhas);
     var r=(linhas||[]).map(fn);
     if(!r.length&&atual&&atual.length)return atual;
@@ -15977,6 +15978,9 @@ function volta(linhas,fn,atual,col){
             'mantidos na lista');
       }
     }
+    /* o download substitui a coleção inteira: se algo encolheu aqui, foi a
+       nuvem que devolveu menos do que o aparelho tinha */
+    if(col&&_antesVolta)registrarSumico(col,_antesVolta,r,'download substituiu a lista');
     return r;
   }
   try{
@@ -18139,7 +18143,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V196.0.0';
+var VERSAO='V197.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18745,7 +18749,52 @@ function moverCat(id,passo){
   semPular(renderCategorias);
   toast('Ordem: '+l.map(function(x){return x.nome}).join(' → '));
 }
-function selCat(id){S.cat=id;renderCategorias();renderProdutos();}
+/* ==========================================================
+   A TELA SUBIA PORQUE O CONTEUDO ENCOLHIA (V197)
+
+   Nao ha `scrollTo` nenhum aqui — procurei tres vezes e nao existe.
+   O que acontece e mais simples e por isso passou despercebido:
+
+   selecionar uma categoria filtra a lista de produtos de 42 para um ou
+   dois. A altura do conteudo despenca, o container fica menor que a
+   rolagem atual, e o navegador PUXA a rolagem para caber. Do lado de
+   quem usa, "a tela subiu sozinha".
+
+   Por isso so acontecia clicando numa categoria la embaixo: e onde a
+   diferenca de altura e grande. E por isso nenhum teste de
+   `window.scrollTo` pegou — o culpado e o layout, nao o codigo.
+
+   Duas correcoes, as duas pequenas:
+
+   1. o painel de produtos guarda uma altura minima antes de trocar o
+      conteudo, para o container nao encolher no meio do clique;
+   2. depois de redesenhar, a categoria clicada e trazida de volta ao
+      campo de visao com `block:'nearest'` — que so mexe se ela tiver
+      saido da tela.
+   ========================================================== */
+function selCat(id){
+  S.cat=id;
+  var cx=document.querySelector('.etScroll');
+  var alvo=document.querySelector('.catRow[data-id="'+id+'"]')||
+           document.querySelector('.catAll');
+  var pos=cx?cx.scrollTop:0;
+  var prod=document.getElementById('colProd');
+  /* segura a altura para o conteudo nao despencar durante a troca */
+  if(prod&&prod.offsetHeight)prod.style.minHeight=prod.offsetHeight+'px';
+  renderCategorias();renderProdutos();
+  try{
+    if(cx&&pos)cx.scrollTop=pos;                 /* devolve o lugar */
+    var novo=document.querySelector('.catRow[data-id="'+id+'"]')||
+             document.querySelector('.catAll');
+    if(novo&&novo.scrollIntoView)novo.scrollIntoView({block:'nearest'});
+  }catch(e){ _quieto(e,'selCat'); }
+  /* a altura travada sai depois do desenho, senao a tela fica com um
+     vazio grande embaixo quando a categoria tem poucos produtos */
+  setTimeout(function(){
+    var p2=document.getElementById('colProd');
+    if(p2)p2.style.minHeight='';
+  },400);
+}
 function toggleCat(id){
   var c=DB.categorias.find(function(x){return x.id===id});
   c.ativo=c.ativo===false;salvar();renderCategorias();
@@ -20884,6 +20933,47 @@ function aNuvemNaoConhece(x,col){
   try{ return !(DB._uuid&&DB._uuid[col]&&DB._uuid[col][x.id]); }
   catch(e){ return false; }
 }
+/* ==========================================================
+   O REGISTRADOR DE SUMICO (V197)
+
+   Tres versoes tentaram consertar isto e nenhuma acertou, porque eu
+   estava corrigindo hipoteses. No meu ambiente o ciclo passa; no
+   aparelho da loja o cadastro some. Enquanto eu nao souber QUEM apaga
+   e QUANDO, qualquer correcao e chute.
+
+   Este registrador anota, dentro do proprio sistema, toda vez que um
+   cadastro encolhe: quando foi, qual colecao, quantos sumiram, quais
+   eram, e de onde veio a chamada. Fica guardado no aparelho e aparece
+   na tela de Diagnostico, para a loja poder me mandar.
+
+   Nao muda comportamento nenhum. So observa.
+   ========================================================== */
+var SUMICOS_MAX=40;
+function registrarSumico(col,antes,depois,motivo){
+  try{
+    if(!Array.isArray(antes)||!Array.isArray(depois))return;
+    if(depois.length>=antes.length)return;
+    var ficaram={}; depois.forEach(function(x){ if(x&&x.id)ficaram[x.id]=true; });
+    var foram=antes.filter(function(x){ return x&&x.id&&!ficaram[x.id]; })
+      .map(function(x){
+        return {id:x.id,nome:x.nome||x.login||'—',
+                suc:JSON.stringify(x.sucursais||[]),
+                loja:x._loja||'—',novo:x._novoAqui===true};
+      }).slice(0,10);
+    DB._sumicos=DB._sumicos||[];
+    DB._sumicos.unshift({
+      quando:new Date().toLocaleString('pt-BR'),
+      col:col, motivo:motivo,
+      unidade:(function(){try{return lojaAtualId()}catch(e){return '?'}})(),
+      matriz:(function(){try{return ehMatriz()}catch(e){return '?'}})(),
+      de:antes.length, para:depois.length, itens:foram,
+      pilha:(new Error()).stack.split('\n').slice(2,5).join(' <- ').slice(0,240)
+    });
+    if(DB._sumicos.length>SUMICOS_MAX)DB._sumicos.length=SUMICOS_MAX;
+    logNuvem('SUMIÇO em '+col+': '+antes.length+' -> '+depois.length+
+      ' ('+motivo+') — '+foram.map(function(f){return f.nome}).join(', '),true);
+  }catch(e){ _quieto(e,'registrarSumico'); }
+}
 function soLiberados(lista,suc,col){
   var s=suc||lojaAtualId();
   /* sem unidade nao se decide nada: devolve a lista inteira em vez de
@@ -21024,7 +21114,9 @@ function filtrarCadastroDaUnidade(){
     /* cano quebrado: mostra tudo em vez de esconder tudo */
     if(cano[c.col]&&!cano[c.col].ok){ pulados.push(c.n); return; }
     /* passa a coluna: e por ela que se sabe o que a nuvem ja conhece */
+    var _antes=DB[c.col];
     DB[c.col]=soLiberados(DB[c.col],suc,c.col);
+    registrarSumico(c.col,_antes,DB[c.col],'filtro de liberação por unidade');
     n+=antes-DB[c.col].length;
   });
   if(pulados.length)
@@ -29675,6 +29767,46 @@ async function rodarHealthCheck(){
   if(S.mod==='sistema')telaDiagnosticoSistema();
   return r;
 }
+/* ==========================================================
+   O QUE O REGISTRADOR VIU
+
+   Uma tabela do que sumiu, com botao de copiar. E o que a loja manda
+   quando o cadastro desaparece — em vez de eu adivinhar de longe.
+   ========================================================== */
+function pintaSumicos(){
+  var l=(DB._sumicos||[]);
+  if(!l.length)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
+    '<h3>Registro de sumiços</h3><div class="hint">Nada sumiu desde que este aparelho '+
+    'foi aberto. Se um cadastro desaparecer, ele aparece aqui com a hora e o motivo.</div></div>';
+  return '<div class="blk" style="max-width:none;padding:0;margin-bottom:12px">'+
+   '<div style="padding:10px 14px;border-bottom:1px solid var(--line);display:flex;'+
+   'justify-content:space-between;align-items:center">'+
+    '<div><b>Registro de sumiços</b> <small style="color:var(--ink-3)">'+l.length+
+    ' ocorrência(s)</small></div>'+
+    '<button class="btnP2" onclick="copiarSumicos()">Copiar para enviar</button></div>'+
+   '<table class="fmTab"><tbody>'+l.slice(0,12).map(function(s2){
+     return '<tr><td style="width:130px"><b>'+E(s2.quando)+'</b>'+
+       '<small style="display:block;color:var(--ink-3)">'+E(s2.col)+'</small></td>'+
+       '<td style="width:110px">'+s2.de+' → '+s2.para+
+       '<small style="display:block;color:var(--red)">'+(s2.de-s2.para)+' sumiram</small></td>'+
+       '<td><b>'+E(s2.motivo)+'</b>'+
+       '<small style="display:block;color:var(--ink-3)">unidade: '+E(String(s2.unidade))+
+       ' · matriz: '+E(String(s2.matriz))+'</small>'+
+       '<small style="display:block;color:var(--ink-3)">'+
+       E((s2.itens||[]).map(function(i){return i.nome+' ['+i.suc+']'}).join(' · '))+
+       '</small></td></tr>';
+   }).join('')+'</tbody></table></div>';
+}
+function copiarSumicos(){
+  var t='JOIA '+VERSAO+' — registro de sumiços\n'+
+    JSON.stringify(DB._sumicos||[],null,1);
+  try{
+    navigator.clipboard.writeText(t);
+    toast('Copiado. Cole na conversa com o suporte.');
+  }catch(e){
+    try{ prompt('Copie este texto:',t); }catch(x){ toast('Não consegui copiar.'); }
+  }
+}
 function pintaHealth(){
   var h=HEALTH.estado;
   if(!h)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
@@ -29718,6 +29850,7 @@ function telaDiagnosticoSistema(){
     '<div class="hpN"><span>Versão</span><b>'+E(VERSAO)+'</b></div>'+
    '</div>'+
    pintaHealth()+
+   pintaSumicos()+
    (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
      '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
       '<b>O que segurou a tela</b> '+

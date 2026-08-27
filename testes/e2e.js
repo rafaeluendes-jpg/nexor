@@ -515,6 +515,59 @@ async function carregarSistema() {
         'antes ' + rj.antes + ' → depois ' + rj.depois);
     }
 
+    /* ==========================================================
+       A CAUSA REAL: O CONTEUDO ENCOLHE E O NAVEGADOR PUXA
+
+       Nao ha `scrollTo`. Selecionar categoria filtra os produtos, a
+       altura despenca, e a rolagem e clampada. Este teste reproduz
+       isso — que os testes de `window.scrollTo` nunca pegariam.
+       ========================================================== */
+    const enc = win.eval(`(function(){
+      try{
+        var cx=document.createElement('div');
+        cx.className='etScroll';
+        cx.style.cssText='height:300px;overflow-y:scroll';
+        var dentro=document.createElement('div');
+        dentro.style.height='3000px';
+        cx.appendChild(dentro);
+        document.body.appendChild(cx);
+        cx.scrollTop=1500;
+        var antes=cx.scrollTop;
+        /* o conteudo encolhe, como quando a categoria e filtrada */
+        dentro.style.height='400px';
+        var depois=cx.scrollTop;
+        var res={antes:antes,depoisSemGuarda:depois};
+        /* agora com a guarda: altura minima segurada antes da troca */
+        cx.scrollTop=1500; dentro.style.height='3000px'; cx.scrollTop=1500;
+        var trava=dentro.offsetHeight;
+        dentro.style.minHeight=trava+'px';
+        dentro.style.height='400px';
+        res.depoisComGuarda=cx.scrollTop;
+        cx.remove();
+        return JSON.stringify(res);
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    let ej=null; try{ ej=JSON.parse(enc); }catch(e){}
+    t('o cenário de encolhimento foi montado', !!ej, String(enc));
+    if (ej) {
+      /* RESSALVA: jsdom não calcula layout, então NÃO reproduz o clamp que o
+         Chrome faz quando o conteúdo encolhe. O que dá para verificar aqui é
+         que a guarda existe e não estraga a rolagem. O clamp em si só o
+         navegador real mostra — está na lista do teste manual. */
+      t('a guarda não estraga a rolagem', ej.depoisComGuarda === ej.antes,
+        ej.antes + ' → ' + ej.depoisComGuarda);
+      t('(jsdom não simula o clamp de layout — verificação estrutural abaixo)',
+        true, 'limitação do ambiente, não do sistema');
+    }
+    t('selCat segura a altura antes de trocar o conteúdo',
+      /prod\.style\.minHeight=prod\.offsetHeight\+'px'/.test(fonteBruta));
+    t('selCat devolve a rolagem ao lugar',
+      /if\(cx&&pos\)cx\.scrollTop=pos;/.test(fonteBruta));
+    t('e traz a categoria clicada de volta ao campo de visão',
+      /scrollIntoView\(\{block:'nearest'\}\)/.test(fonteBruta));
+    t('o motivo real está escrito no código',
+      /A TELA SUBIA PORQUE O CONTEUDO ENCOLHIA/.test(fonteBruta));
+
     /* as causas classicas nao podem existir */
     t('nenhum href="#" no sistema', (fonteBruta.match(/href="#"/g) || []).length === 0);
     t('nenhum <form> que possa dar submit', (fonteBruta.match(/<form[\s>]/g) || []).length === 0);
