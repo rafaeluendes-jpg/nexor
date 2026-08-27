@@ -481,7 +481,44 @@ async function carregarSistema() {
         require('fs').readFileSync(require('path').join(__dirname,'..','DECISOES.md'),'utf8')));
   }
 
-grupo('V200 · "salvo" tem de significar "está na nuvem"');
+grupo('V201 · sumir da lista NÃO é ser excluído');
+
+  {
+    const r = win.eval(`(function(){
+      try{
+        DB._apagados={};
+        /* dois registros sumiram da lista: um foi excluído pela tela,
+           o outro apenas saiu por filtro */
+        declararExclusao('produtos','prod_apagado');
+        var d=DB._apagados.produtos||{};
+        return JSON.stringify({
+          declarado: d['prod_apagado']===true,
+          naoDeclarado: d['prod_filtrado']===undefined
+        });
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    let rj=null; try{ rj=JSON.parse(r); }catch(e){}
+    t('a declaração de exclusão funciona', !!rj && rj.declarado === true, String(r));
+    t('quem sumiu por filtro NÃO fica declarado', !!rj && rj.naoDeclarado === true);
+
+    t('o espelhamento só apaga o que foi declarado',
+      /var deVerdade=sumiram\.filter\(function\(r\)\{ return declarados\[r\]===true; \}\)/.test(fonteBruta));
+    t('e avisa quando algo sumiu sem ter sido excluído',
+      /sumiram da lista sem terem sido/.test(fonteBruta));
+    t('não apaga nada quando nada foi declarado',
+      /if\(!deVerdade\.length\)\{ DB\._snap\[chave\]=idsAgora\.slice\(\); return; \}/.test(fonteBruta));
+    t('o motivo está escrito no código',
+      /AUSENCIA NA LISTA NAO E EXCLUSAO/.test(fonteBruta));
+
+    /* as telas de exclusão precisam declarar */
+    ['categorias','produtos','grupos','gruposIng','insumos','fornec','contas',
+     'formasPag','entregadores','cupons','mesas'].forEach(col => {
+      t('excluir ' + col + ' declara',
+        fonteBruta.indexOf("declararExclusao('" + col + "',id)") >= 0);
+    });
+  }
+
+  grupo('V200 · "salvo" tem de significar "está na nuvem"');
 
   {
     t('existe a confirmação na nuvem', /async function confirmarNaNuvem/.test(fonteBruta));

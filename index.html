@@ -14876,6 +14876,18 @@ var TABS_CADASTRO_REDE=['insumos','fichas_tecnicas','produtos','categorias','fic
  'grupos_ingredientes','grupos_opcoes','motivos_movimentacao','motivos_cancelamento',
  'fornecedores','formas_pagamento','categorias_financeiras','contas_capital',
  'unidades_medida','turnos','status_venda','entregadores','modelos_impressao'];
+/* ==========================================================
+   EXCLUSAO DECLARADA (V201)
+
+   Chamada por quem apaga de verdade, pela tela. E a unica coisa que
+   autoriza o espelhamento a apagar da nuvem.
+   ========================================================== */
+function declararExclusao(col,id){
+  if(!col||!id)return;
+  DB._apagados=DB._apagados||{};
+  DB._apagados[col]=DB._apagados[col]||{};
+  DB._apagados[col][id]=true;
+}
 async function apagarRemovidos(tab,chave,idsAgora){
   try{
     /* veio cortada pelo limite: a ausencia nao significa exclusao */
@@ -14931,10 +14943,46 @@ async function apagarRemovidos(tab,chave,idsAgora){
       return;
     }
 
-    await api(tab+'?ref_local=in.('+sumiram.map(function(r){
+    /* ==========================================================
+       AUSENCIA NA LISTA NAO E EXCLUSAO (V201)
+
+       Ate aqui, qualquer registro que sumisse da lista local era
+       apagado da nuvem. As travas acima cobrem o caso grosseiro —
+       lista vazia, muitos de uma vez — mas nao o caso fino, que e o que
+       destruiu o trabalho da loja:
+
+       o produto novo sobe, o filtro de liberacao por unidade o tira da
+       lista local, e no ciclo seguinte este codigo conclui que ele foi
+       "excluido por voce" e o apaga do banco. Um registro so, dentro de
+       todos os limites, sem disparar trava nenhuma.
+
+       Nenhum produto criado pela tela chegou a sobreviver no banco
+       desde 20/08. Os 42 que existem vieram todos de uma importacao em
+       massa, no mesmo segundo.
+
+       Agora exclusao precisa ser DECLARADA. Quem apaga pela tela marca
+       o identificador em `DB._apagados`. O espelhamento apaga da nuvem
+       SOMENTE o que esta marcado ali. Sumir da lista por filtro, por
+       erro, por contexto errado ou por qualquer outro motivo deixa de
+       significar exclusao.
+
+       E a mesma regra que este arquivo ja registrou tres vezes em
+       outras formas: ausencia de dado nao e resposta.
+       ========================================================== */
+    DB._apagados=DB._apagados||{};
+    var declarados=DB._apagados[chave]||{};
+    var deVerdade=sumiram.filter(function(r){ return declarados[r]===true; });
+    var semDeclaracao=sumiram.length-deVerdade.length;
+    if(semDeclaracao)
+      logNuvem(tab+': '+semDeclaracao+' registro(s) sumiram da lista sem terem sido '+
+        'excluídos — mantidos na nuvem',true);
+    if(!deVerdade.length){ DB._snap[chave]=idsAgora.slice(); return; }
+    await api(tab+'?ref_local=in.('+deVerdade.map(function(r){
       return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')','DELETE');
+    deVerdade.forEach(function(r){ delete declarados[r]; });
+    DB._apagados[chave]=declarados;
     DB._snap[chave]=idsAgora.slice();      /* só depois de apagar de verdade */
-    logNuvem(tab+': '+sumiram.length+' excluído(s) por você');
+    logNuvem(tab+': '+deVerdade.length+' excluído(s) por você');
   }catch(e){console.error('apagarRemovidos',tab,e);logNuvem('aviso ao excluir em '+tab,true);}
 }
 
@@ -18143,7 +18191,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V200.0.0';
+var VERSAO='V201.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18812,7 +18860,7 @@ async function excluirCat(id){
   if(qtd){toast('Esta categoria tem '+qtd+' produto(s). Mova-os antes de excluir.');return;}
   var c=DB.categorias.find(function(x){return x.id===id});
   if(!await pergunta('Excluir a categoria "'+c.nome+'"?'))return;
-  DB.categorias=DB.categorias.filter(function(x){return x.id!==id});
+  DB.categorias=DB.categorias.filter(function(x){return x.id!==id}); declararExclusao('categorias',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   if(S.cat===id)S.cat='todos';
   salvar();renderCategorias();renderProdutos();toast('Categoria excluída.');
 }
@@ -19017,7 +19065,7 @@ function duplicarProd(id){
 async function excluirProd(id){
   var p=DB.produtos.find(function(x){return x.id===id});
   if(!await pergunta('Excluir o produto "'+p.nome+'"?'))return;
-  DB.produtos=DB.produtos.filter(function(x){return x.id!==id});
+  DB.produtos=DB.produtos.filter(function(x){return x.id!==id}); declararExclusao('produtos',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();renderProdutos();toast('Produto excluído.');
 }
 
@@ -19603,7 +19651,7 @@ function remOp(i){lerOps();_gops.splice(i,1);renderOps();}
 async function excluirGrupo(id){
   var g=DB.grupos.find(function(x){return x.id===id});
   if(!await pergunta('Excluir o grupo "'+g.nome+'"?'))return;
-  DB.grupos=DB.grupos.filter(function(x){return x.id!==id});
+  DB.grupos=DB.grupos.filter(function(x){return x.id!==id}); declararExclusao('grupos',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   DB.produtos.forEach(function(p){p.grupos=(p.grupos||[]).filter(function(x){return x!==id})});
   salvar();var m=$('mdOv');if(m)m.remove();abrirGrupos();toast('Grupo excluído.');
 }
@@ -23868,7 +23916,7 @@ async function excluirMesa(id){
      'Se for só para tirar de uso, desative em vez de excluir.',
     ok:'Excluir',tipo:'perigo'});
   if(!ok)return;
-  DB.mesas=DB.mesas.filter(function(x){return x.id!==id});
+  DB.mesas=DB.mesas.filter(function(x){return x.id!==id}); declararExclusao('mesas',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   delete MS.sel[id];
   salvar();telaMesas();toast('Mesa excluída.');
   if(NUVEM.ligada)sincronizar();
@@ -27309,7 +27357,7 @@ async function excluirEntregador(id){
   var pend=(DB.pedidos||[]).filter(function(p){return p.entregadorId===id&&!p.acertoId}).length;
   if(pend){toast('Este entregador tem '+pend+' entrega(s) sem acerto. Faça o acerto ou remova as entregas antes.');return;}
   if(!await pergunta('Excluir o entregador "'+e.nome+'"?\n\nOs acertos já realizados continuam no histórico.'))return;
-  DB.entregadores=DB.entregadores.filter(function(x){return x.id!==id});
+  DB.entregadores=DB.entregadores.filter(function(x){return x.id!==id}); declararExclusao('entregadores',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();telaAcertos();toast('Entregador excluído.');
 }
 function verEntregador(id){
@@ -28100,7 +28148,7 @@ async function excluirConta(id){
   var usos=(DB.lancamentos||[]).filter(function(l){return l.contaId===id}).length;
   if(usos){toast('Esta conta tem '+usos+' lançamento(s). Não é possível excluir.');return;}
   if(!await pergunta('Excluir a conta "'+c.nome+'"?'))return;
-  DB.contas=DB.contas.filter(function(x){return x.id!==id});
+  DB.contas=DB.contas.filter(function(x){return x.id!==id}); declararExclusao('contas',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();telaContas();toast('Conta excluída.');
 }
 
@@ -28181,7 +28229,7 @@ async function excluirForma(id){
   var usos=(DB.pedidos||[]).filter(function(p){return (p.pagamentos||[]).some(function(x){return x.forma===id})}).length;
   if(usos){toast('Esta forma já foi usada em '+usos+' pedido(s). Inative em vez de excluir.');return;}
   if(!await pergunta('Excluir a forma "'+f.nome+'"?'))return;
-  DB.formasPag=DB.formasPag.filter(function(x){return x.id!==id});
+  DB.formasPag=DB.formasPag.filter(function(x){return x.id!==id}); declararExclusao('formasPag',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   syncFormas();salvar();telaFormasPag();toast('Forma excluída.');
 }
 function modalForma(id){
@@ -32508,7 +32556,7 @@ async function excluirForn(id){
   var usos=(DB.lancFin||[]).filter(function(l){return l.fornecedorId===id}).length;
   if(usos){toast('Este fornecedor tem '+usos+' lançamento(s). Não é possível excluir.');return;}
   if(!await pergunta('Excluir "'+f.empresa+'"?'))return;
-  DB.fornec=DB.fornec.filter(function(x){return x.id!==id});
+  DB.fornec=DB.fornec.filter(function(x){return x.id!==id}); declararExclusao('fornec',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();telaFornecedores();toast('Fornecedor excluído.');
 }
 
@@ -33767,7 +33815,7 @@ async function excluirCupom(id){
   var u=usosDoCupom(id).length;
   if(u){toast('Este cupom já foi usado '+u+' vez(es). Inative em vez de excluir.');return;}
   if(!await pergunta('Excluir o cupom "'+cp.codigo+'"?'))return;
-  DB.cupons=DB.cupons.filter(function(x){return x.id!==id});
+  DB.cupons=DB.cupons.filter(function(x){return x.id!==id}); declararExclusao('cupons',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();telaCupons();toast('Cupom excluído.');
 }
 
@@ -34337,7 +34385,7 @@ async function excluirInsumo(id){
       return;
     }
   }
-  DB.insumos=DB.insumos.filter(function(x){return x.id!==id});
+  DB.insumos=DB.insumos.filter(function(x){return x.id!==id}); declararExclusao('insumos',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   try{ if(DB._uuid&&DB._uuid.insumos)delete DB._uuid.insumos[id]; }
   catch(e2){ _quieto(e2,'excluirInsumo'); }
   salvar();telaInsumos();toast('Ingrediente excluído.');
@@ -34483,7 +34531,7 @@ async function excluirGrupoIng(id){
   if(q){toast('Este grupo tem '+q+' ingrediente(s). Mova-os antes de excluir.');return;}
   var g=grupoIng(id);
   if(!await pergunta('Excluir o grupo "'+g.nome+'"?'))return;
-  DB.gruposIng=DB.gruposIng.filter(function(x){return x.id!==id});
+  DB.gruposIng=DB.gruposIng.filter(function(x){return x.id!==id}); declararExclusao('gruposIng',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();telaGruposIng();toast('Grupo excluído.');
 }
 
@@ -34977,7 +35025,7 @@ async function excluirLinhaGrupoFicha(id){
       return false;
     }
   }
-  DB.fichaCats=DB.fichaCats.filter(function(x){return x.id!==id});
+  DB.fichaCats=DB.fichaCats.filter(function(x){return x.id!==id}); declararExclusao('fichaCats',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   try{ if(DB._uuid&&DB._uuid.fichaCats)delete DB._uuid.fichaCats[id]; }
   catch(e2){ _quieto(e2,'excluirLinhaGrupoFicha'); }
   normalizaGruposFicha();

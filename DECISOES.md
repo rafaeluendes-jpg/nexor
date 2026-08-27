@@ -6350,3 +6350,58 @@ Aplicado a produto e categoria. Serve para qualquer cadastro.
 **Interface não pode prometer o que não verificou.** "Salvo" sem confirmação é uma
 afirmação sobre o futuro, não sobre o presente — e quando ela falha, a pessoa perde a
 confiança no sistema inteiro, com razão.
+
+## V201 — o produto era APAGADO da nuvem, e a causa estava no espelhamento
+
+Sete versões tentando entender por que o produto não chegava ao banco. A pergunta
+estava errada: **ele chegava, e era apagado logo depois.**
+
+### O que os dados mostraram
+
+Os 42 produtos do banco foram criados **todos em 20/08 às 21:09:32** — no mesmo
+segundo. Foi uma importação em massa. **Nenhum produto criado pela tela jamais
+sobreviveu no banco.**
+
+### A causa
+
+`apagarRemovidos` tratava **ausência na lista local como exclusão**. As travas
+existentes cobrem o caso grosseiro — lista vazia, mais de 200 de uma vez, mais de 60%
+do total. Nenhuma cobre **um registro só**.
+
+A sequência:
+
+1. o produto é criado e sobe para a nuvem;
+2. `filtrarCadastroDaUnidade` o tira da lista local por algum motivo;
+3. no ciclo seguinte, `apagarRemovidos` vê que ele "sumiu" e conclui que foi
+   **excluído por você**;
+4. `DELETE` na nuvem. Um registro, dentro de todos os limites, sem disparar trava.
+
+E o log dizia `"1 excluído(s) por você"` — o sistema afirmando com confiança algo que
+nunca aconteceu.
+
+### A correção
+
+**Exclusão precisa ser declarada.** Quem apaga pela tela chama
+`declararExclusao(col, id)`. O espelhamento apaga da nuvem **somente** o que está
+declarado. Sumir da lista por filtro, por erro, por contexto errado ou por qualquer
+outro motivo deixa de significar exclusão — e o sistema **avisa** quando isso
+acontece, em vez de apagar calado.
+
+Aplicado a 12 cadastros: categorias, produtos, grupos de opções, grupos de
+ingredientes, insumos, fichas, fornecedores, contas, formas de pagamento,
+entregadores, cupons e mesas.
+
+### Contraprova
+
+Reintroduzi o defeito (`deVerdade = sumiram`) e a suíte reprovou em "o espelhamento
+só apaga o que foi declarado". Com a correção: 625 testes verdes.
+
+### A regra, pela quarta vez
+
+**Ausência de dado não é resposta.** Este arquivo já registrou isso na V130 (lista
+vazia não é "sou a matriz"), na V181 (unidade não resolvida não é "não vê nada") e na
+V192 (registro não enviado não é "pode apagar"). Agora: **sumir da lista não é ter
+sido excluído.**
+
+Eu deveria ter procurado aqui na segunda versão, não na sétima. O sinal estava no
+próprio log — "excluído por você" aparecendo sem ninguém ter excluído nada.
