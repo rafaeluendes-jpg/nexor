@@ -138,26 +138,6 @@ function ligarBuscaKanban(){
     if(n){n.focus();n.setSelectionRange(p,p);}
   };
 }
-function barraKanban(peds,abertos){
-  var val=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
-  var cx=caixaAberto();
-  return '<div class="kanBar">'+
-   '<div class="kanTurno">'+sv('cash',14)+
-    (cx?'<div><b>Movimento do turno</b><span>caixa aberto às '+E(String(cx.aberto||'').slice(11))+'</span></div>'
-       :'<div><b>Caixa fechado</b><span>mostrando apenas pedidos em aberto</span></div>')+
-   '</div>'+
-   '<div class="kanBusca">'+sv('search',13)+
-    '<input id="kanB" value="'+E(KAN.busca)+'" placeholder="número do pedido ou cliente">'+
-    (KAN.busca?'<button onclick="KAN.busca=\'\';renderKanban()">'+sv('x2',12)+'</button>':'')+
-   '</div>'+
-   '<div class="kanTot">'+
-    '<span><b>'+peds.length+'</b> no turno</span>'+
-    '<span><b>'+abertos.length+'</b> em aberto</span>'+
-    '<span class="v"><b>R$ '+money(val)+'</b></span>'+
-    '<button class="btnP2" onclick="abrir(\'relatorios\',\'vendas-periodo\')" '+
-     'title="Ver o histórico completo">'+sv('file',12)+' Histórico</button>'+
-   '</div></div>';
-}
 function abaPDV(a){PDV.aba=a;telaPDV();}
 function sairPdvCheio(){document.body.classList.remove('pdvFull');toast('Menu do sistema liberado.');}
 function toggleLoja(){

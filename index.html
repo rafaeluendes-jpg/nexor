@@ -11262,7 +11262,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V204.0.0';
+var VERSAO='V205.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17852,26 +17852,6 @@ function ligarBuscaKanban(){
     var n=$('kanB');
     if(n){n.focus();n.setSelectionRange(p,p);}
   };
-}
-function barraKanban(peds,abertos){
-  var val=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
-  var cx=caixaAberto();
-  return '<div class="kanBar">'+
-   '<div class="kanTurno">'+sv('cash',14)+
-    (cx?'<div><b>Movimento do turno</b><span>caixa aberto às '+E(String(cx.aberto||'').slice(11))+'</span></div>'
-       :'<div><b>Caixa fechado</b><span>mostrando apenas pedidos em aberto</span></div>')+
-   '</div>'+
-   '<div class="kanBusca">'+sv('search',13)+
-    '<input id="kanB" value="'+E(KAN.busca)+'" placeholder="número do pedido ou cliente">'+
-    (KAN.busca?'<button onclick="KAN.busca=\'\';renderKanban()">'+sv('x2',12)+'</button>':'')+
-   '</div>'+
-   '<div class="kanTot">'+
-    '<span><b>'+peds.length+'</b> no turno</span>'+
-    '<span><b>'+abertos.length+'</b> em aberto</span>'+
-    '<span class="v"><b>R$ '+money(val)+'</b></span>'+
-    '<button class="btnP2" onclick="abrir(\'relatorios\',\'vendas-periodo\')" '+
-     'title="Ver o histórico completo">'+sv('file',12)+' Histórico</button>'+
-   '</div></div>';
 }
 function abaPDV(a){PDV.aba=a;telaPDV();}
 function sairPdvCheio(){document.body.classList.remove('pdvFull');toast('Menu do sistema liberado.');}
@@ -37764,18 +37744,6 @@ function explicaAreas(){
    'zonas marcadas como inativas, que somem do PDV e do cardápio mas continuam no histórico.');
 }
 /* usada pelo PDV e pelos relatórios */
-function taxaDaZona(cidade,zona){
-  baseAreas();
-  var a=(DB.areas||[]).find(function(x){
-    return String(x.nome||'').toLowerCase()===String(cidade||'').toLowerCase()});
-  if(!a)return 0;
-  if(zona){
-    var z=(a.zonas||[]).find(function(y){
-      return String(y.nome||'').toLowerCase()===String(zona||'').toLowerCase()});
-    if(z&&z.ativa!==false)return Number(z.taxa)||0;
-  }
-  return Number(a.taxaPadrao)||0;
-}
 function cidadesEntrega(){
   baseAreas();
   var l=[];

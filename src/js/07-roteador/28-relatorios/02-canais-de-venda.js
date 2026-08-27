@@ -752,18 +752,6 @@ function explicaAreas(){
    'zonas marcadas como inativas, que somem do PDV e do cardápio mas continuam no histórico.');
 }
 /* usada pelo PDV e pelos relatórios */
-function taxaDaZona(cidade,zona){
-  baseAreas();
-  var a=(DB.areas||[]).find(function(x){
-    return String(x.nome||'').toLowerCase()===String(cidade||'').toLowerCase()});
-  if(!a)return 0;
-  if(zona){
-    var z=(a.zonas||[]).find(function(y){
-      return String(y.nome||'').toLowerCase()===String(zona||'').toLowerCase()});
-    if(z&&z.ativa!==false)return Number(z.taxa)||0;
-  }
-  return Number(a.taxaPadrao)||0;
-}
 function cidadesEntrega(){
   baseAreas();
   var l=[];

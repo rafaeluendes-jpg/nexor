@@ -69,22 +69,32 @@ A remoção foi feita por `ferramentas/podar.js`, que corta por contagem de
 chaves e **recusa o corte se o arquivo deixar de compilar sozinho**.
 Depois de cada poda, o E2E com DOM real acusou zero ReferenceError.
 
-## As 2 que sobraram — precisam de decisão sua
+## As 2 últimas — resolvidas na V205
 
-### `barraKanban(peds, abertos)`
-Monta uma barra no PDV com o **movimento do turno em dinheiro**. Não
-liguei porque briga com a regra que você acabou de fixar: o caixa é cego
-justamente para o operador não ver valor antes de contar a gaveta. Ligar
-isso devolveria o número para a tela dele por outro caminho.
+**`barraKanban` — apagada.** Mostrava o movimento do turno em dinheiro no
+PDV, o que confronta a regra do caixa cego. O Rafael decidiu: não faz
+sentido, sai.
 
-**Se você quiser essa barra, ela precisa ou respeitar o cego, ou aparecer
-só para gerência.** Diga qual e eu ligo.
+**`taxaDaZona` — apagada, porque o sistema já faz melhor.** O modelo é
+cidade + zonas por raio, cada raio com seu valor. Fui conferir e o PDV já
+implementa exatamente isso, em `taxaSugerida()`, com uma ordem que
+`taxaDaZona` não tem:
 
-### `taxaDaZona(cidade, zona)`
-Devolve a taxa da zona de entrega. O texto da própria tela promete que
-"ao lançar uma entrega, o PDV busca a zona do cliente e traz a taxa" — e
-essa função é quem faria isso.
+1. a zona guardada no cadastro do cliente (por `zonaId` — casamento exato)
+2. a zona pelo nome do bairro informado
+3. a taxa padrão da cidade
+4. a tabela do entregador, como era antes
 
-Não liguei porque **mexe em dinheiro cobrado do cliente**. Preciso saber
-de você como a taxa é calculada hoje na prática, e se a zona deve ganhar
-da taxa por cidade ou o contrário. Errar aqui cobra errado de gente real.
+`taxaDaZona` fazia só os passos 2 e 3, e por NOME — que é frágil: cidade
+escrita diferente não casa. `taxaSugerida` prefere o `zonaId`, que é
+exato. Além disso `trocaZonaPDV` guarda a zona escolhida no cadastro do
+cliente, então a próxima venda já vem certa sozinha.
+
+Conferido também que **o cardápio digital aplica as mesmas zonas**: ele lê
+`areas_entrega` com as zonas aninhadas em `areas_zonas`, a mesma fonte que
+o sistema grava. Não há divergência entre o preço do balcão e o do
+delivery online.
+
+---
+
+**Zero funções órfãs.** Eram 42.
