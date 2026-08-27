@@ -6296,3 +6296,57 @@ Nenhum produto foi criado hoje, nas quatro tentativas.
 
 Quando a reprodução local passa e a produção falha, o caminho não é mais uma
 hipótese: é **instrumentar e pedir o dado**. Levei três versões para fazer isso.
+
+## V200 — dois defeitos reais, e "salvo" passa a significar "está na nuvem"
+
+**Nenhum produto foi criado no banco desde 20/08.** Sete dias, várias tentativas, e a
+tela dizendo "Produto salvo." toda vez.
+
+### 1. O produto nascia com canais que não existem
+
+O padrão era `{delivery, salao, online, digital}`. Os canais reais do sistema, em
+`CANAIS`, são: **pdv, delivery, cardapio, mesa, totem**. `salao`, `online` e
+`digital` **não existem em lugar nenhum** — sobraram de uma versão antiga.
+
+`disponivelNo()` só devolve "aparece em todo lugar" quando **nenhum** canal está
+marcado. Aqui havia três marcados, todos inválidos — então o produto nascia
+**invisível na frente de caixa**. No cardápio digital aparecia só por causa do
+`d.online` legado, que a função ainda aceita.
+
+Era exatamente o que a loja via: some no PDV, aparece no Delivery.
+
+### 2. Editar produto fora da lista o fazia evaporar
+
+```js
+var i = DB.produtos.findIndex(...);
+DB.produtos[i] = p;          // i === -1
+```
+
+`DB.produtos[-1] = p` **não insere nada**: cria uma propriedade solta no array e o
+produto desaparece. Acontece quando o produto sai da lista entre abrir o formulário e
+salvar — que é justamente o cenário destas últimas versões.
+
+### 3. "Salvo" era mentira, e agora não é
+
+O botão dizia "Produto salvo." assim que gravava no aparelho. O envio ficava agendado
+para depois, e quando falhava **ninguém ficava sabendo**. O produto sumia na
+sincronização seguinte e a pessoa jurava que tinha salvado — porque tinha.
+
+`confirmarNaNuvem()` espera a sincronização e consulta `DB._uuid[col][id]`, o mapa de
+identificadores que só é preenchido quando a nuvem devolve o registro. **É a única
+prova que vale.**
+
+- confirmou → "salvo e enviado"
+- não confirmou → aviso na hora, **com o motivo** (permissão, sem empresa, recusa da
+  nuvem), e a orientação de abrir a fila de envio
+
+**Nada é desfeito**: o registro continua no aparelho e sobe sozinho quando der. O que
+muda é a pessoa **saber**.
+
+Aplicado a produto e categoria. Serve para qualquer cadastro.
+
+### A regra
+
+**Interface não pode prometer o que não verificou.** "Salvo" sem confirmação é uma
+afirmação sobre o futuro, não sobre o presente — e quando ela falha, a pessoa perde a
+confiança no sistema inteiro, com razão.

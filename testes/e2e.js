@@ -481,6 +481,37 @@ async function carregarSistema() {
         require('fs').readFileSync(require('path').join(__dirname,'..','DECISOES.md'),'utf8')));
   }
 
+grupo('V200 · "salvo" tem de significar "está na nuvem"');
+
+  {
+    t('existe a confirmação na nuvem', /async function confirmarNaNuvem/.test(fonteBruta));
+    t('ela olha o mapa de identificadores, não a tela',
+      /DB\._uuid\[col\]&&DB\._uuid\[col\]\[id\]/.test(fonteBruta));
+    t('espera a sincronização antes de decidir',
+      /toast\(rotulo\+' salvo — enviando…'\)[\s\S]{0,120}await sincronizar\(\)/.test(fonteBruta));
+    t('avisa com o motivo quando não sobe',
+      /ainda não chegou à nuvem/.test(fonteBruta));
+    t('e deixa claro que o dado não se perde',
+      /vai continuar tentando sozinho/.test(fonteBruta));
+    t('salvarProduto usa a confirmação',
+      /await confirmarNaNuvem\('produtos',p\.id,'Produto'\)/.test(fonteBruta));
+    t('a categoria também', /confirmarNaNuvem\('categorias',alvo\.id/.test(fonteBruta));
+
+    /* o produto sumia da lista ao editar quando findIndex dava -1 */
+    t('editar produto fora da lista não o faz evaporar',
+      /if\(i>=0\)DB\.produtos\[i\]=p; else DB\.produtos\.push\(p\);/.test(fonteBruta));
+
+    /* canais padrão têm de existir de verdade */
+    const canais = (fonteBruta.match(/var CANAIS=\[([\s\S]*?)\];/) || ['',''])[1];
+    const ids = [...canais.matchAll(/id:'([a-z]+)'/g)].map(m => m[1]);
+    const padrao = (fonteBruta.match(/disponivel:\{([a-z:true,]+)\}/) || ['',''])[1];
+    const usados = [...padrao.matchAll(/([a-z]+):true/g)].map(m => m[1]);
+    t('os canais existem no sistema', ids.length === 5, ids.join(','));
+    t('o produto novo nasce só com canais que existem',
+      usados.every(c => ids.indexOf(c) >= 0), usados.join(',') + ' vs ' + ids.join(','));
+    t('e nasce visível na frente de caixa', usados.indexOf('pdv') >= 0, usados.join(','));
+  }
+
   /* ==========================================================
      A TELA NAO PODE VOLTAR AO TOPO AO CLICAR
      ========================================================== */

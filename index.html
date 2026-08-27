@@ -18143,7 +18143,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V199.0.0';
+var VERSAO='V200.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18858,7 +18858,9 @@ function formCategoria(id){
       DB.categorias.push(alvo);
     }
     lerUnidades('catUn',alvo);
-    salvar();renderCategorias();renderProdutos();toast(c?'Categoria atualizada.':'Categoria cadastrada.');
+    salvar();renderCategorias();renderProdutos();
+    /* mesma regra do produto: só diz salvo quando a nuvem confirma */
+    confirmarNaNuvem('categorias',alvo.id,c?'Categoria atualizada':'Categoria');
     return true;
   });
   var cb=document.querySelectorAll('#coresBox .corBtn');
@@ -19145,7 +19147,24 @@ var _prod=null,_abaProd='dados';
 function formProduto(id){
   var p=id?JSON.parse(JSON.stringify(DB.produtos.find(function(x){return x.id===id}))):{
     id:null,nome:'',preco:0,pesado:false,variacao:false,categoriaId:S.cat!=='todos'?S.cat:(DB.categorias[0]?DB.categorias[0].id:''),
-    disponivel:{delivery:true,salao:true,online:true,digital:true},codigo:'',imagem:'',ativo:true,
+    /* ==========================================================
+       O PRODUTO NASCIA COM CANAIS QUE NAO EXISTEM (V200)
+
+       O padrao era {delivery, salao, online, digital}. Os canais reais
+       do sistema, em `CANAIS`, sao: pdv, delivery, cardapio, mesa,
+       totem. `salao`, `online` e `digital` nao existem em lugar nenhum
+       — sobraram de uma versao antiga.
+
+       Efeito: produto novo nascia com `pdv` AUSENTE. Como
+       `disponivelNo()` so devolve "todos" quando NENHUM canal esta
+       marcado, e aqui havia tres marcados (todos invalidos), o produto
+       ficava invisivel na frente de caixa desde o instante em que era
+       criado. E no cardapio digital aparecia so por causa do
+       `d.online` legado.
+
+       Agora nasce marcado nos canais que existem.
+       ========================================================== */
+    disponivel:{pdv:true,delivery:true,cardapio:true},codigo:'',imagem:'',ativo:true,
     nomeOnline:'',detalhes:'',grupos:[],promocoes:[{ativo:false,canal:'online',preco:0,dias:[],de:'',ate:''},
     {ativo:false,canal:'digital',preco:0,dias:[],de:'',ate:''}]};
   _prod=p;_abaProd='dados';
@@ -19335,19 +19354,80 @@ function lerFormProduto(){
   var pa=document.querySelectorAll('.prAte');
   for(var n=0;n<pa.length;n++)p.promocoes[pa[n].getAttribute('data-i')].ate=pa[n].value;
 }
-function salvarProduto(depois){
+/* ==========================================================
+   A PROVA DE QUE SUBIU
+
+   Serve para qualquer cadastro. Espera a sincronizacao, olha o mapa de
+   identificadores e diz a verdade: ou confirma, ou explica por que nao
+   confirmou e o que fica acontecendo.
+
+   Nunca desfaz o que a pessoa fez — o registro continua no aparelho e
+   sobe sozinho quando der. O que muda e ela SABER.
+   ========================================================== */
+async function confirmarNaNuvem(col,id,rotulo){
+  var subiu=function(){
+    try{ return !!(DB._uuid&&DB._uuid[col]&&DB._uuid[col][id]); }catch(e){ return false; }
+  };
+  if(!NUVEM.ligada){
+    toast(rotulo+' salvo neste aparelho. Sobe assim que a internet voltar.');
+    return false;
+  }
+  if(subiu()){ toast(rotulo+' salvo.'); return true; }
+  toast(rotulo+' salvo — enviando…');
+  try{ await sincronizar(); }catch(e){ _quieto(e,'confirmarNaNuvem'); }
+  if(subiu()){ toast(rotulo+' salvo e enviado.'); return true; }
+  /* nao subiu: diz por que, com o que o motor souber */
+  var motivo='';
+  try{
+    var f=auditarFila();
+    if(f.PERMISSAO.some(function(x){return x.id===id}))motivo='o banco recusou por permissão';
+    else if(f.TENANT_DESCONHECIDO.some(function(x){return x.id===id}))motivo='o registro ficou sem empresa';
+    else if((NUVEM.erros||[]).length)motivo=NUVEM.erros[0].motivo||'a nuvem recusou';
+    else if((FALHAS||[]).length)motivo=String(FALHAS[0].msg||'').slice(0,80);
+  }catch(e){}
+  await confirmar({titulo:rotulo+' ainda não chegou à nuvem',
+    texto:'Está guardado neste aparelho e vai continuar tentando sozinho. '+
+      'Mas ainda não está no banco — se você fechar em outro computador, não vai ver.',
+    aviso:(motivo?'Motivo: '+E(motivo)+'<br>':'')+
+      'Veja em Sistema › Diagnóstico › Fila de envio e mande para o suporte.',
+    ok:'Entendi',cancelar:null});
+  return false;
+}
+/* ==========================================================
+   "SALVO" PASSA A SIGNIFICAR "ESTA NA NUVEM" (V200)
+
+   Ate aqui o botao dizia "Produto salvo." assim que gravava no
+   aparelho, e o envio ficava agendado para depois. Quando o envio
+   falhava — por qualquer motivo — ninguem ficava sabendo. O produto
+   sumia na proxima sincronizacao e a pessoa jurava que tinha salvado.
+
+   Foi exatamente isso que aconteceu: NENHUM produto chegou ao banco
+   desde 20/08, e a tela dizia "salvo" toda vez.
+
+   Agora o sistema espera a nuvem confirmar e olha o mapa de
+   identificadores: se o produto recebeu um id de la, esta salvo de
+   verdade. Se nao recebeu, a pessoa e avisada na hora, com o motivo, e
+   o produto continua no aparelho aguardando — nada se perde.
+
+   `DB._uuid.produtos[id]` so e preenchido quando a nuvem devolve o
+   registro. E a unica prova que vale.
+   ========================================================== */
+async function salvarProduto(depois){
   lerFormProduto();
   var p=_prod;
   if(!p.nome.trim()){toast('Informe o nome do produto.');abaProd('dados');return;}
   if(!p.categoriaId){toast('Selecione uma categoria. Cadastre uma se ainda não houver.');abaProd('dados');return;}
   if(p.id){
     var i=DB.produtos.findIndex(function(x){return x.id===p.id});
-    DB.produtos[i]=p;
+    /* findIndex devolve -1 quando o produto sumiu da lista entre abrir o
+       formulario e salvar. `DB.produtos[-1]=p` nao insere nada: cria uma
+       propriedade solta e o produto evapora. Agora ele volta para a lista. */
+    if(i>=0)DB.produtos[i]=p; else DB.produtos.push(p);
   }else{
     p.id=uid('prod');p.ordem=DB.produtos.length;DB.produtos.push(p);
   }
   salvar();
-  toast('Produto salvo.');
+  await confirmarNaNuvem('produtos',p.id,'Produto');
   if(depois==='sair')return telaCardapio();
   if(depois==='copia'){
     var c=JSON.parse(JSON.stringify(p));c.id=null;c.nome=p.nome+' (cópia)';
