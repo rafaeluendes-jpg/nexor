@@ -340,6 +340,54 @@ async function carregarSistema() {
   }
 
   /* ==========================================================
+     O CADASTRO NAO SOBE E O FILTRO APAGA (V192)
+
+     A sequencia real que a loja viveu, e que os testes anteriores nao
+     reproduziam: criar -> fechar a tela -> abrir de novo SEM ter
+     sincronizado. O filtro rodava no boot e apagava o que ainda nao
+     tinha subido. O produto nunca chegou ao banco.
+     ========================================================== */
+  grupo('Regressão real · o que ainda não subiu nunca é apagado');
+
+  {
+    const r = win.eval(`(function(){
+      try{
+        DB.sucursais=[{id:'suc_matriz',nome:'Matriz',matriz:true,ativa:true},
+                      {id:'suc_sf',nome:'Santa Fé',matriz:false,ativa:true}];
+        DB.lojaAtual='suc_sf'; S.loja='suc_sf';
+        DB._uuid=DB._uuid||{};
+        DB._uuid.categorias={'cat_velha':'uuid-conhecido'};
+        DB.categorias=[
+          /* a nuvem conhece, e NAO esta liberada: pode sumir */
+          {id:'cat_velha',nome:'ANTIGA',ativo:true,sucursais:[]},
+          /* recem-criada, a nuvem nunca viu: NAO pode sumir */
+          {id:'cat_nova',nome:'RECEM CRIADA',ativo:true,sucursais:[]}
+        ];
+        filtrarCadastroDaUnidade();
+        return JSON.stringify({
+          nova: DB.categorias.some(function(c){return c.id==='cat_nova'}),
+          velha: DB.categorias.some(function(c){return c.id==='cat_velha'})
+        });
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    let rj=null; try{ rj=JSON.parse(r); }catch(e){}
+    t('o cenário foi montado', !!rj, String(r));
+    if (rj) {
+      t('o cadastro que a nuvem NÃO conhece sobrevive ao filtro', rj.nova === true);
+      t('o que a nuvem conhece e não está liberado é filtrado', rj.velha === false);
+    }
+
+    t('a verificação pergunta ao mapa de identificadores',
+      /function aNuvemNaoConhece/.test(fonteBruta));
+    t('e o filtro recebe a coluna para conseguir perguntar',
+      /soLiberados\(DB\[c\.col\],suc,c\.col\)/.test(fonteBruta));
+    t('o filtro NÃO roda mais no boot, antes de falar com a nuvem',
+      !/try\{filtrarCadastroDaUnidade\(\)\}catch\(e\)\{_quieto\(e,'boot'\)\}/.test(fonteBruta));
+    t('e o motivo está escrito no lugar onde ele rodava',
+      /NAO SE FILTRA ANTES DE FALAR COM A NUVEM/.test(fonteBruta));
+  }
+
+  /* ==========================================================
      A TELA NAO PODE VOLTAR AO TOPO AO CLICAR
      ========================================================== */
   grupo('Rolagem · clicar na lista não joga a tela para o topo');

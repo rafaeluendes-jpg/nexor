@@ -5958,3 +5958,56 @@ Reintroduzi o defeito e rodei tudo:
 - `test:e2e` → **reprova em 4 pontos**, com "a categoria sobrevive ao filtro: 0 de 1"
 
 Mais uma vez: teste que não executa o fluxo não prova que o fluxo funciona.
+
+## V192 — o cadastro morria antes de subir. E a correção da V191 era código morto.
+
+A V191 foi publicada, o Rafael atualizou, e o defeito continuou. **A conclusão
+anterior estava errada e não deve ser reaproveitada.**
+
+### O que o banco mostrou desta vez
+
+| Registro | No banco? |
+|---|---|
+| Categoria "Taxa de Entrega" (17:05) | SIM — 0 produtos vinculados |
+| Categoria "Taxa de Entrega" (17:15) | SIM — 0 produtos vinculados |
+| **O produto criado dentro dela** | **NÃO EXISTE** |
+
+O único "Taxa de Entrega" produto é de 20/08, inativo, na categoria Sobremesas.
+**O produto que ele criou nunca chegou ao Postgres.**
+
+### Causa raiz — duas, somadas
+
+**1. `filtrarCadastroDaUnidade()` rodava no BOOT**, antes de qualquer download e
+antes de qualquer envio. E ela **apaga da memória do aparelho**.
+
+Sequência real: a unidade cadastra → fecha a tela → no próximo carregamento o filtro
+apaga os dois **antes de subirem**. A categoria sobreviveu porque uma sincronização
+aconteceu no meio; o produto não teve essa sorte.
+
+**Apagar dado que ainda não subiu é perda definitiva.** E o filtro não tem pressa:
+ele já roda logo depois do download, que é quando se sabe o que a nuvem tem. O boot
+não precisa dele.
+
+**2. A proteção da V191 nunca existiu.** Escrevi `if(x._novoAqui===true)return true`
+em `soLiberados` e registrei como feito. Mas `marcarNovoAqui()` — a função que põe
+essa marca — **está escrita no arquivo e não é chamada de lugar nenhum**. Código
+morto. A proteção que eu documentei nunca rodou.
+
+Agora a pergunta é feita direto ao `DB._uuid[col][ref]`, o mapa de identificadores
+que a nuvem devolve a cada envio confirmado — e que é preenchido de verdade.
+
+### A prova
+
+Reverti só os dois pontos para o estado da V191 e rodei a E2E: **reprova**, com
+"o cadastro que a nuvem NÃO conhece sobrevive ao filtro". Com a V192: passa.
+
+### O que fica
+
+**Filtrar é operação destrutiva. Nunca antes de falar com a nuvem, e nunca sobre o
+que a nuvem ainda não conhece.** É a terceira vez que este arquivo registra uma
+variação disso — V130 (lista vazia), V181 (unidade não resolvida), agora V192
+(registro não enviado).
+
+E uma lição sobre mim: **escrever a proteção não é o mesmo que ligá-la.** Passei a
+V191 inteira confiando numa marca que nunca era aplicada, e o teste que escrevi
+passava porque eu mesmo punha a marca no cenário de teste.

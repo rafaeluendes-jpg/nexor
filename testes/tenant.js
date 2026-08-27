@@ -374,18 +374,23 @@ grupo('Liberação por unidade · todo cadastro liberável tem o bloco');
 grupo('Regressão da V181 · sem unidade não se apaga cadastro');
 
 {
-  const cod = corpoDaFuncao('soLiberados', fonte);
-  const sl = new Function('lista', 'suc', 'lojaAtualId', 'liberadoNa',
-    cod + '\nreturn soLiberados(lista,suc);');
+  /* `soLiberados` passou a consultar `aNuvemNaoConhece` (V192). O arnês
+     fornece as duas funções reais, extraídas do arquivo. */
+  const cod = corpoDaFuncao('soLiberados', fonte) + '\n' +
+              corpoDaFuncao('aNuvemNaoConhece', fonte);
+  const sl = new Function('lista', 'suc', 'col', 'lojaAtualId', 'liberadoNa', 'DB',
+    cod + '\nreturn soLiberados(lista,suc,col);');
   const libFake = (x, s2) => (x.sucursais || []).indexOf(s2) >= 0;
-  const cadastro = [{ sucursais: ['suc_a'] }, { sucursais: ['suc_b'] }, { sucursais: [] }];
+  const dbFake = { _uuid: {} };
+  const cadastro = [{ id:'a', sucursais: ['suc_a'] }, { id:'b', sucursais: ['suc_b'] },
+                    { id:'c', sucursais: [] }];
 
   t('com unidade conhecida, filtra normalmente',
-    sl(cadastro, 'suc_a', () => 'suc_a', libFake).length === 1);
+    sl(cadastro, 'suc_a', null, () => 'suc_a', libFake, dbFake).length === 1);
   t('SEM unidade, devolve a lista inteira — não apaga',
-    sl(cadastro, '', () => '', libFake).length === 3);
+    sl(cadastro, '', null, () => '', libFake, dbFake).length === 3);
   t('e não é a mesma referência (não devolve o array original por engano)',
-    sl(cadastro, '', () => '', libFake) !== cadastro);
+    sl(cadastro, '', null, () => '', libFake, dbFake) !== cadastro);
 
   t('filtrarCadastroDaUnidade desiste quando não há unidade',
     /if\(!suc\)\{\s*\/\* contexto ainda nao resolvido \*\/[\s\S]{0,160}return 0;/.test(fonte));

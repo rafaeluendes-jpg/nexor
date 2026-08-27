@@ -17737,7 +17737,28 @@ function boot(){
   DB.estoqueUn=DB.estoqueUn||[];
   lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
   migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
-  try{filtrarCadastroDaUnidade()}catch(e){_quieto(e,'boot')}
+  /* ==========================================================
+     NAO SE FILTRA ANTES DE FALAR COM A NUVEM (V192)
+
+     Aqui rodava `filtrarCadastroDaUnidade()` — que APAGA da memoria do
+     aparelho o cadastro nao liberado. No boot, antes de qualquer
+     download e antes de qualquer envio.
+
+     Efeito reproduzido em 27/08: a unidade cadastrou categoria e
+     produto, fechou a tela, e no proximo carregamento o filtro apagou
+     os dois ANTES de eles subirem. A categoria sobreviveu porque uma
+     sincronizacao aconteceu no meio; o produto nao teve essa sorte e
+     **nunca chegou ao banco**. Conferido: nao existe la.
+
+     Apagar dado que ainda nao subiu e perda definitiva. E o filtro nao
+     tem pressa nenhuma: ele roda logo depois do download, que e quando
+     se sabe de verdade o que a nuvem tem.
+
+     A tela pode mostrar por um instante um item a mais do que deveria.
+     Isso e infinitamente melhor do que apagar o que a pessoa acabou de
+     cadastrar.
+     ========================================================== */
+  /* filtro removido do boot de proposito — roda apos o download */
   espelharEstoque();            /* a tela mostra o saldo DESTA unidade */
   /* retrato do que JA existia no aparelho antes de qualquer conversa com a
      nuvem — e o numero que diz se o problema e o aparelho comecar vazio */
@@ -18035,7 +18056,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V191.0.0';
+var VERSAO='V192.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20711,7 +20732,29 @@ function liberadoNa(item,suc){
   return l.indexOf(suc)>=0;              /* regra 2 — so quem foi liberado */
 }
 /* usada pelas telas: so o que esta liberado nesta unidade */
-function soLiberados(lista,suc){
+/* ==========================================================
+   A NUVEM JA CONHECE ESTE REGISTRO? (V192)
+
+   `DB._uuid[col][ref]` guarda o identificador que a nuvem devolveu
+   quando o registro subiu. Enquanto ele nao existe, o registro so mora
+   neste aparelho.
+
+   A V191 tentou proteger isso com a marca `_novoAqui`. A marca nao
+   funcionava: `marcarNovoAqui()` esta escrita no arquivo e NUNCA E
+   CHAMADA de lugar nenhum. Era codigo morto, e a protecao que eu
+   registrei como feita nunca existiu de fato.
+
+   Agora a pergunta e feita direto ao mapa de identificadores, que e
+   preenchido de verdade a cada envio confirmado.
+   ========================================================== */
+function aNuvemNaoConhece(x,col){
+  if(!x||!x.id)return false;
+  if(x._novoAqui===true)return true;          /* marca, quando houver */
+  if(!col)return false;
+  try{ return !(DB._uuid&&DB._uuid[col]&&DB._uuid[col][x.id]); }
+  catch(e){ return false; }
+}
+function soLiberados(lista,suc,col){
   var s=suc||lojaAtualId();
   /* sem unidade nao se decide nada: devolve a lista inteira em vez de
      esvaziar. Filtro que nao sabe o alvo nao filtra — apaga. */
@@ -20733,7 +20776,7 @@ function soLiberados(lista,suc){
        duplicata. Foi exatamente o que aconteceu com "Taxa de Entrega",
        que virou duas categorias no banco.
        ========================================================== */
-    if(x&&x._novoAqui===true)return true;
+    if(aNuvemNaoConhece(x,col))return true;
     return liberadoNa(x,s);
   });
 }
@@ -20850,7 +20893,8 @@ function filtrarCadastroDaUnidade(){
     if(!antes)return;
     /* cano quebrado: mostra tudo em vez de esconder tudo */
     if(cano[c.col]&&!cano[c.col].ok){ pulados.push(c.n); return; }
-    DB[c.col]=soLiberados(DB[c.col],suc);
+    /* passa a coluna: e por ela que se sabe o que a nuvem ja conhece */
+    DB[c.col]=soLiberados(DB[c.col],suc,c.col);
     n+=antes-DB[c.col].length;
   });
   if(pulados.length)
