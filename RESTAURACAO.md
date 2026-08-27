@@ -95,5 +95,26 @@ Corrigido: `tg_auditar()` agora ignora `UPDATE` que não mudou nada. Nenhuma
 informação se perde — uma entrada que registra "nada mudou" não responde
 a pergunta nenhuma.
 
-**Falta apagar as 285 mil linhas antigas.** São ~380 MB de nada. É
-exclusão de dado, então espera ordem explícita.
+**As antigas foram apagadas (27/08).** 291.063 linhas removidas, 6.187
+mantidas: todo INSERT (2.632), todo DELETE (1.451) e todo UPDATE que
+mudou alguma coisa (2.082). Nenhuma linha vazia sobrou.
+
+A trilha tem uma trava de imutabilidade (`tg_audit_imutavel`, que bloqueia
+UPDATE e DELETE na tabela). Ela foi levantada e devolvida **na mesma
+transação** — se o apagamento falhasse, a trava voltaria junto. Conferida
+depois: ligada.
+
+Em seguida, `VACUUM FULL` devolveu o espaço ao disco:
+
+| | antes | depois |
+|---|---|---|
+| Banco inteiro | 539 MB | **152 MB** |
+| `audit_log` | 395 MB | **8,2 MB** |
+
+Rodou em segundos, com loja vendendo (última venda 12 min antes), e zero
+conexões ficaram esperando trava. O sistema é offline-first: a venda é
+gravada no aparelho e sobe depois, então o que pausa é a sincronização,
+não a frente de caixa.
+
+A maior tabela agora é `backups` (89 MB) — as 30 cópias diárias do
+sistema. Essa é dado de verdade, e é para ficar.
