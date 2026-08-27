@@ -6227,3 +6227,40 @@ o produto nunca. As duas últimas categorias já subiram com a liberação corre
 
 O que falta descobrir é por que o **produto** não sobe — e é para isso que o
 registrador existe.
+
+## V197.1 — o 400 do PostgREST: coluna nova que ele não conhecia
+
+O Console mostrou `400 Bad Request` em `caixa_movimentos`. Erro meu, e de um tipo que
+eu não conhecia neste sistema.
+
+### A causa
+
+O **PostgREST** — a camada REST do Supabase — guarda o schema em **cache**. Quando uma
+migration acrescenta coluna, ele continua com a lista antiga até alguém mandar
+recarregar. Enquanto isso, **todo envio que inclua a coluna nova volta 400**.
+
+A V176 acrescentou seis colunas em `caixa_movimentos` (`destino_conta_id`,
+`destino_nome`, `responsavel_id`, `lanc_ref`, `hora`, `data_hora`). O sync passou a
+mandar esses campos e o PostgREST recusou o lote inteiro. **Sangria e suprimento
+pararam de subir, em silêncio.**
+
+O SQL direto passava — testei e passou. Por isso demorei a achar: o defeito não está
+no banco, está na camada entre o navegador e o banco.
+
+Esqueci o `NOTIFY` nas migrations da V176, V187 e V188 — e a V187/V188 acrescentaram
+`sucursais` em **onze** tabelas.
+
+### Correção
+
+`NOTIFY pgrst, 'reload schema'` executado, e a regra registrada como comentário do
+schema `public`, onde quem mexer no banco vai ler:
+
+> Toda migration que acrescenta ou remove coluna deve terminar com
+> `NOTIFY pgrst, 'reload schema';`
+
+### As quatro "Taxa de Entrega"
+
+Todas com zero produtos e zero itens vendidos — eram recadastros do mesmo item, um a
+cada sumiço. Removidas as três primeiras, **guardadas antes** em
+`categorias_removidas_duplicadas`. Ficou a de 18:26, que já nasceu com a liberação
+correta para Santa Fé.
