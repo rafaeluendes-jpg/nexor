@@ -54,37 +54,98 @@ divergirem, porque não existem duas versões.**
 
 | Fase | O que | Estado |
 |---|---|---|
-| 0 | `CLAUDE.md`, `MAPA.md`, `dividir.js`, `montar.js`, teste de diff-zero | **feita** |
-| 1 | Conferir o recorte parte por parte; CSS e JS abrindo em editor de verdade | a fazer |
-| 2 | Quebrar `js/03-armazenamento.js` (3.776 linhas) por responsabilidade | a fazer |
-| 3 | Quebrar `js/07-roteador.js` (33.313 linhas) por módulo de negócio: PDV, Estoque, Financeiro, Cardápio, Delivery, Clientes, Relatórios, Configuração | a fazer |
-| 4 | **A virada** — `src/` passa a ser a fonte, `index.html` passa a ser gerado | a fazer |
-| 5 | Limpeza: as ~2.210 linhas de CSS duplicado e as 42 funções órfãs | a fazer |
+| 0 | Ferramentas de recorte e a prova de diff-zero | **feita** |
+| 1 | Fechar o furo crítico de acesso (senha de operador) | **feita (1A)** |
+| 2 | O recorte por módulo de negócio | **feita** |
+| 3 | A virada — `src/` passa a ser a fonte, `index.html` gerado | a fazer |
+| 4 | Segurança completa — os 103 alertas e a escrita robusta | a fazer |
+| 5 | Backup e recuperação | a fazer |
+| 6 | Limpeza + auditoria dos botões e permissões que não funcionam | a fazer |
 
-A virada (Fase 4) é o único momento delicado, e é um commit só, em hora
+A virada (Fase 3) é o único momento delicado, e é um commit só, em hora
 escolhida — de preferência com a loja fechada. Mesmo nela o risco é baixo:
 o diff-zero garante que o arquivo publicado é idêntico ao que já estava lá.
 
-## Estado do recorte hoje (V200.0.0)
+### Fase 1 — o que foi corrigido
 
-| Parte | Linhas |
-|---|---|
-| `01-cabeca.html` | 94 |
-| `css/01-principal.css` | 12.697 |
-| `css/02-complemento.css` | 106 |
-| `02-corpo.html` | 38 |
-| `js/00-abertura.js` | 12 |
-| `js/01-icones.js` | 107 |
-| `js/02-modulos.js` | 200 |
-| `js/03-armazenamento.js` | 3.776 |
-| `js/04-utilitarios.js` | 361 |
-| `js/05-login.js` | 418 |
-| `js/06-interface.js` | 467 |
-| `js/07-roteador.js` | **33.313** |
-| `03-rodape.html` | 3 |
+`senha_operador_definir/conferir/quem_tem` são `SECURITY DEFINER`, ou seja
+ignoram a RLS, e aceitavam `p_loja` de quem chama quando `minha_loja()`
+devolvia null — que é o que ela devolve, sem erro, para quem não fez login.
+As três tinham `EXECUTE` concedido ao papel `anon`.
 
-Seis dos oito arquivos de JS já cabem inteiros num contexto. O `07-roteador`
-é a Fase 3 — é onde moram PDV, Estoque, Financeiro e os relatórios.
+A 1A criou `loja_permitida(uuid)` — a sessão manda, `p_loja` é só desempate —
+e tirou `anon` e `PUBLIC` das cinco funções. Conferido depois de aplicar:
+`anon` não executa nenhuma; quem está logado executa todas.
+
+Fica para a Fase 4: apertar `conferir`/`quem_tem` do mesmo jeito, depois de
+apagar as 7 contas de teste que ainda vivem no Supabase Auth de produção
+(`admin@teste.local`, `gestor.a@teste.local`, `p20a@teste.com`…).
+
+### Fase 2 — como o recorte foi feito
+
+Nada de divisão inventada: o arquivo já trazia dentro dele os **BLOCO 8 a
+28** — Cardápio, PDV, Entregadores, Financeiro, Estoque, Ficha Técnica,
+Produção, Relatórios. O recortador passou a usar essa marcação, e só o que
+continuou grande demais foi quebrado por tamanho, nas tarjas de seção.
+
+Duas travas, porque um corte no lugar errado partiria uma função ao meio:
+
+1. **JS** — o pedaço só é aceito se compilar sozinho (`new Function`).
+   Corte que parte uma função é recusado, e o próximo marco é tentado.
+2. **CSS** — o equivalente: tirar os comentários e conferir se as chaves
+   fecham. Pedaço terminando com chave aberta é corte recusado.
+
+Isso virou teste permanente: `testes/montagem.js` reprova se qualquer
+arquivo de JS não compilar sozinho. Emendar idêntico prova que nada se
+perdeu; compilar sozinho prova que o corte caiu num lugar útil.
+
+## Estado do recorte hoje (V201.0.0) — 48 partes
+
+**Nenhum arquivo passa de 2.500 linhas.** O `07-roteador`, que tinha 33.312,
+virou 27 arquivos por módulo de negócio:
+
+```
+src/
+  01-cabeca.html                          94
+  css/01-principal/                    12.697 em 6 partes
+  css/02-complemento.css                  106
+  02-corpo.html                            38
+  js/00-abertura.js                        12
+  js/01-icones.js                         107
+  js/02-modulos.js                        200
+  js/03-armazenamento/                  3.824 em 2 partes
+  js/04-utilitarios.js                    361
+  js/05-login.js                          418
+  js/06-interface.js                      467
+  js/07-roteador/
+    00-navegacao.js                       407
+    08-modulo-cardapio.js               1.579
+    09-modulo-pdv/                      6.714 em 3 partes
+    10-acerto-com-entregadores.js         817
+    11-categorias-financeiras...js        308
+    12-formas-de-pagamento.js             141
+    13-lancamentos-financeiros/         3.747 em 2 partes
+    14-fluxo-de-caixa.js                  155
+    15-conciliacao-bancaria.js            252
+    16-fornecedores.js                    113
+    17-frente-de-caixa-financeiro.js      684
+    18-gestao-de-clientes-crm.js          360
+    19-cupons-de-desconto.js              215
+    20-base-do-estoque...js               716
+    21-ficha-tecnica.js                 1.143
+    22-movimentacao-de-estoque/         3.006 em 2 partes
+    23-estoque-total-e-contagem.js        716
+    24-historico-de-posicao...js          612
+    25-notas-de-entrada.js                594
+    26-producao...js                      613
+    27-comparativo-anual.js               325
+    28-relatorios/                     10.094 em 5 partes
+  03-rodape.html                            3
+```
+
+Três arquivos de CSS se chamam `usuarios-e-permissoes`: é o bloco colado
+oito vezes que a Fase 6 vai apagar. O recorte não escondeu a duplicação —
+deu nome a ela.
 
 ## Comandos
 

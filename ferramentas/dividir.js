@@ -49,6 +49,219 @@ function todasAsLinhas(linhas, alvo) {
   return achados;
 }
 
+
+
+/* ==========================================================
+   CSS TAMBEM SE CORTA — e a mesma prova, por outro caminho
+
+   Em CSS nao ha `new Function` para conferir. O equivalente e: tirar os
+   comentarios e ver se as chaves fecham. Se o pedaco termina com uma
+   chave aberta, o corte caiu dentro de uma regra e e recusado.
+   ========================================================== */
+function fechaCssSozinho(linhas, a, b) {
+  const txt = linhas.slice(a, b).join('\n');
+  if ((txt.split('/*').length - 1) !== (txt.split('*/').length - 1)) return false;
+  const semComentario = txt.replace(/\/\*[\s\S]*?\*\//g, '');
+  return (semComentario.split('{').length === semComentario.split('}').length);
+}
+
+function porTamanhoCss(linhas, de, ate, prefixo) {
+  if (ate - de <= ALVO_LINHAS) return [{ nome: prefixo + '.css', de, ate }];
+  const validas = tarjas(linhas, de, ate).filter(m => fechaCssSozinho(linhas, de, m));
+  const partes = [];
+  const MINIMO = Math.round(ALVO_LINHAS * 0.4);
+  let ini = de;
+  for (let k = 0; k < validas.length; k++) {
+    const aqui = validas[k], proxima = validas[k + 1] || ate;
+    if (aqui - ini >= MINIMO && proxima - ini > ALVO_LINHAS) { partes.push({ de: ini, ate: aqui }); ini = aqui; }
+  }
+  partes.push({ de: ini, ate });
+  if (partes.length === 1) return [{ nome: prefixo + '.css', de, ate }];
+  return partes.map((p, n) => ({
+    nome: prefixo + '/' + String(n + 1).padStart(2, '0') + '-' +
+          apelido(n === 0 ? 'inicio' : tituloDaTarja(linhas, p.de)).slice(0, 44) + '.css',
+    de: p.de, ate: p.ate
+  }));
+}
+
+/* ==========================================================
+   SUBDIVIDIR — quebra um bloco grande nos marcos que ele ja tem
+
+   O BLOCO 7 (roteador) tem 33.312 linhas: nao cabe em contexto nenhum,
+   e era esse justamente o problema que a modularizacao existe para
+   resolver. Mas ele nao e uma massa amorfa — o arquivo ja carrega
+   dentro dele os BLOCO 8 a 28 (Cardapio, PDV, Estoque, Financeiro,
+   Relatorios...) e dezenas de tarjas de secao.
+
+   Entao aqui nao se inventa divisao nenhuma: usa-se a que ja existe.
+
+   Duas travas, porque um corte no lugar errado partiria uma funcao ao
+   meio e o arquivo viraria um fragmento que nao roda sozinho:
+
+     1. so se corta numa tarja que comeca na coluna 0 e vem depois de
+        uma linha em branco — e onde as tarjas deste arquivo moram,
+        entre uma funcao e outra;
+     2. o pedaco so e aceito se ele for JavaScript COMPLETO por si so.
+        Isso e conferido de verdade, com `new Function(codigo)`. Se o
+        corte partiu alguma coisa, o pedaco nao compila e o corte e
+        recusado — segue para o proximo marco.
+
+   A prova final continua sendo a mesma: emendar tudo de volta tem de
+   devolver o arquivo original byte a byte.
+   ========================================================== */
+const ALVO_LINHAS = 2500;
+
+/* titulo de uma tarja.
+   Duas formas convivem no arquivo:
+     /* ========= PDV ========= *\/            titulo na propria linha
+     /* =========                               titulo na linha seguinte
+        MODULO CARDAPIO
+        ========= *\/
+   O CSS usa quase so a primeira; o JS quase so a segunda. */
+function tituloDaTarja(linhas, i) {
+  const numa = (linhas[i] || '').match(/^\/\*\s*=+\s*(.+?)\s*=+\s*\*\/\s*$/);
+  if (numa && numa[1] && !/^=+$/.test(numa[1])) return numa[1];
+  for (let j = i + 1; j < Math.min(i + 6, linhas.length); j++) {
+    const s = linhas[j].replace(/^\s*/, '').replace(/\s*=*\s*\*\/\s*$/, '').trim();
+    if (s && !/^=+$/.test(s)) return s.replace(/^BLOCO\s+\d+\s*[—-]\s*/i, '');
+  }
+  return 'parte';
+}
+
+/* compila de mentira: so para saber se o pedaco fecha sozinho */
+function fechaSozinho(linhas, a, b) {
+  try { new Function(linhas.slice(a, b).join('\n')); return true; } catch (e) { return false; }
+}
+
+/* toda tarja que comeca na coluna 0.
+
+   Nao se exige linha em branco antes: 21 tarjas do bloco de
+   armazenamento nao tem, e exigi-la deixava aquele bloco inteiro num
+   arquivo de 3.824 linhas. Quem decide se o corte serve e a compilacao,
+   que e prova e nao palpite — uma tarja no meio de uma funcao faz o
+   texto anterior nao compilar, e o corte e recusado ali mesmo. */
+function tarjas(linhas, de, ate) {
+  const out = [];
+  for (let i = de + 1; i < ate; i++) {
+    if (/^\/\* ={10,}/.test(linhas[i])) out.push(i);
+  }
+  return out;
+}
+
+/* as tarjas que anunciam um BLOCO: sao a divisao por modulo de negocio
+   que o proprio autor ja marcou — Cardapio, PDV, Estoque, Financeiro... */
+function tarjasDeBloco(linhas, de, ate) {
+  return tarjas(linhas, de, ate).map(i => {
+    const m = (linhas[i + 1] || '').match(/^\s*BLOCO\s+(\d+)\s*[—-]\s*(.+?)\s*$/);
+    return m ? { linha: i, numero: m[1], titulo: m[2] } : null;
+  }).filter(Boolean);
+}
+
+/* quebra [de,ate) em pedacos de ate ALVO_LINHAS, cortando so em tarja
+   que deixe o pedaco compilando sozinho */
+function porTamanho(linhas, de, ate, prefixo) {
+  if (ate - de <= ALVO_LINHAS) return [{ nome: prefixo + '.js', de, ate }];
+  /* Uma tarja e ponto de corte valido quando o texto do inicio da regiao
+     ate ela compila: isso so acontece se ela estiver entre funcoes.
+     Depois, corta olhando a PROXIMA tarja: se ir ate ela estouraria o
+     alvo, corta agora. Sem essa espiada, um trecho sem tarja no fim
+     ficava inteiro num arquivo so — foi o que deixou o modo offline do
+     PDV com 4.117 linhas. */
+  const validas = tarjas(linhas, de, ate).filter(m => fechaSozinho(linhas, de, m));
+  const partes = [];
+  const MINIMO = Math.round(ALVO_LINHAS * 0.4);
+  let ini = de;
+  for (let k = 0; k < validas.length; k++) {
+    const aqui = validas[k], proxima = validas[k + 1] || ate;
+    if (aqui - ini >= MINIMO && proxima - ini > ALVO_LINHAS) {
+      partes.push({ de: ini, ate: aqui });
+      ini = aqui;
+    }
+  }
+  partes.push({ de: ini, ate });
+  if (partes.length === 1) return [{ nome: prefixo + '.js', de, ate }];
+  return partes.map((p, n) => ({
+    nome: prefixo + '/' + String(n + 1).padStart(2, '0') + '-' +
+          apelido(n === 0 ? 'inicio' : tituloDaTarja(linhas, p.de)).slice(0, 44) + '.js',
+    de: p.de, ate: p.ate
+  }));
+}
+
+
+/* ==========================================================
+   CSS TAMBEM SE CORTA — e a mesma prova, por outro caminho
+
+   Em CSS nao ha `new Function` para conferir. O equivalente e: tirar os
+   comentarios e ver se as chaves fecham. Se o pedaco termina com uma
+   chave aberta, o corte caiu dentro de uma regra e e recusado.
+   ========================================================== */
+function fechaCssSozinho(linhas, a, b) {
+  const txt = linhas.slice(a, b).join('\n');
+  if ((txt.split('/*').length - 1) !== (txt.split('*/').length - 1)) return false;
+  const semComentario = txt.replace(/\/\*[\s\S]*?\*\//g, '');
+  return (semComentario.split('{').length === semComentario.split('}').length);
+}
+
+function porTamanhoCss(linhas, de, ate, prefixo) {
+  if (ate - de <= ALVO_LINHAS) return [{ nome: prefixo + '.css', de, ate }];
+  const validas = tarjas(linhas, de, ate).filter(m => fechaCssSozinho(linhas, de, m));
+  const partes = [];
+  const MINIMO = Math.round(ALVO_LINHAS * 0.4);
+  let ini = de;
+  for (let k = 0; k < validas.length; k++) {
+    const aqui = validas[k], proxima = validas[k + 1] || ate;
+    if (aqui - ini >= MINIMO && proxima - ini > ALVO_LINHAS) { partes.push({ de: ini, ate: aqui }); ini = aqui; }
+  }
+  partes.push({ de: ini, ate });
+  if (partes.length === 1) return [{ nome: prefixo + '.css', de, ate }];
+  return partes.map((p, n) => ({
+    nome: prefixo + '/' + String(n + 1).padStart(2, '0') + '-' +
+          apelido(n === 0 ? 'inicio' : tituloDaTarja(linhas, p.de)).slice(0, 44) + '.css',
+    de: p.de, ate: p.ate
+  }));
+}
+
+/* ==========================================================
+   SUBDIVIDIR — usa a divisao que o arquivo ja tem
+
+   O BLOCO 7 (roteador) tem 33.312 linhas. Mas ele nao e massa amorfa:
+   carrega dentro dele os BLOCO 8 a 28 — Cardapio, PDV, Entregadores,
+   Financeiro, Estoque, Ficha Tecnica, Producao, Relatorios. Entao aqui
+   nao se inventa divisao: usa-se a que ja existe, e so o que continuar
+   grande demais depois disso e quebrado por tamanho.
+
+   A trava vale para os dois cortes: o pedaco so e aceito se compilar
+   sozinho (`new Function`). Corte que parte uma funcao ao meio e
+   recusado, e o proximo marco e tentado.
+   ========================================================== */
+function subdividir(linhas, de, ate, base) {
+  const raiz = 'js/' + base;
+  const blocos = tarjasDeBloco(linhas, de, ate);
+  if (!blocos.length) return porTamanho(linhas, de, ate, raiz);
+
+  /* uma regiao por BLOCO, mais o que vem antes do primeiro */
+  const regioes = [];
+  if (blocos[0].linha > de) regioes.push({ de, ate: blocos[0].linha, nome: '00-navegacao' });
+  blocos.forEach((b, n) => {
+    regioes.push({
+      de: b.linha,
+      ate: n + 1 < blocos.length ? blocos[n + 1].linha : ate,
+      nome: String(b.numero).padStart(2, '0') + '-' + apelido(b.titulo).slice(0, 44)
+    });
+  });
+
+  /* uma regiao que nao compila sozinha volta a se juntar com a seguinte */
+  const firmes = [];
+  for (const r of regioes) {
+    const anterior = firmes[firmes.length - 1];
+    if (anterior && !fechaSozinho(linhas, anterior.de, anterior.ate)) {
+      anterior.ate = r.ate;
+    } else firmes.push(Object.assign({}, r));
+  }
+
+  return firmes.flatMap(r => porTamanho(linhas, r.de, r.ate, raiz + '/' + r.nome));
+}
+
 /* ==========================================================
    O CORTE
 
@@ -90,11 +303,13 @@ function dividir(texto) {
   ordem.push({ tipo: 'bruto', arquivo: '01-cabeca.html' });
 
   /* --- as folhas de estilo, uma por arquivo --- */
-  const nomesCss = ['css/01-principal.css', 'css/02-complemento.css'];
+  const nomesCss = ['css/01-principal', 'css/02-complemento'];
   abreEstilo.forEach((ini, n) => {
-    const nome = nomesCss[n] || ('css/' + String(n + 1).padStart(2, '0') + '-extra.css');
-    guardar(nome, ini + 1, fechaEstilo[n]);
-    ordem.push({ tipo: 'envolto', abre: '<style>', fecha: '</style>', arquivos: [nome] });
+    const raiz = nomesCss[n] || ('css/' + String(n + 1).padStart(2, '0') + '-extra');
+    const pedacos = porTamanhoCss(linhas, ini + 1, fechaEstilo[n], raiz);
+    for (const p of pedacos) guardar(p.nome, p.de, p.ate);
+    ordem.push({ tipo: 'envolto', abre: '<style>', fecha: '</style>',
+                 arquivos: pedacos.map(p => p.nome) });
   });
 
   /* --- o corpo: </head>, <body> e a marcacao ate o <script> --- */
@@ -118,7 +333,10 @@ function dividir(texto) {
 
   cortes.forEach((c, n) => {
     const fim = n + 1 < cortes.length ? cortes[n + 1].linha : fimJS;
-    empurrar('js/' + String(c.numero).padStart(2, '0') + '-' + apelido(c.titulo) + '.js', c.linha, fim);
+    const base = String(c.numero).padStart(2, '0') + '-' + apelido(c.titulo);
+    for (const parte of subdividir(linhas, c.linha, fim, base)) {
+      empurrar(parte.nome, parte.de, parte.ate);
+    }
   });
 
   ordem.push({ tipo: 'envolto', abre: '<script>', fecha: '</script>', arquivos: arquivosJS });

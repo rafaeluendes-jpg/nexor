@@ -14,26 +14,32 @@ const { dividir, ARQ } = require('./dividir.js');
 
 const texto = fs.readFileSync(ARQ, 'utf8');
 const linhas = texto.split('\n');
-const { conteudo } = dividir(texto);
+const { ordem, conteudo } = dividir(texto);
 
 const versao = (texto.match(/var VERSAO='(V[0-9.]+)'/) || [])[1] || '(desconhecida)';
 
-/* onde cada parte comeca no index.html: as partes sao contiguas e na
-   ordem em que foram cortadas, entao basta somar as linhas */
-const inicio = {};
-let cursor = 1;
-for (const caminho of Object.keys(conteudo)) {
-  inicio[caminho] = cursor;
-  cursor += conteudo[caminho].split('\n').length;
-  /* as tags <style>/<script> ficaram fora dos arquivos: contam uma linha */
-  if (/\.css$|\.js$/.test(caminho)) cursor += 0;
-}
+/* ==========================================================
+   ONDE CADA PARTE MORA NO index.html
 
-/* recalcula direto pelo texto, que e mais confiavel do que somar */
-function localizar(trecho) {
-  const i = texto.indexOf(trecho);
-  return i < 0 ? null : texto.slice(0, i).split('\n').length;
-}
+   Nao se procura o texto: `indexOf` acharia a PRIMEIRA ocorrencia, e
+   ha blocos de CSS repetidos identicos no arquivo — tres partes
+   apontariam para a mesma linha. Aqui se caminha pela `ordem`, que e a
+   receita da remontagem, somando as linhas de cada pedaco e as duas
+   linhas das tags <style>/<script> que ficam fora dos arquivos.
+   ========================================================== */
+const faixas = {};
+(function medir() {
+  let linha = 1;
+  const anda = (caminho) => {
+    const n = conteudo[caminho].split('\n').length;
+    faixas[caminho] = [linha, linha + n - 1];
+    linha += n;
+  };
+  for (const item of ordem) {
+    if (item.tipo === 'bruto') anda(item.arquivo);
+    else { linha++; item.arquivos.forEach(anda); linha++; }
+  }
+})();
 
 const funcoes = [];
 linhas.forEach((l, i) => {
@@ -70,13 +76,9 @@ linha('');
 linha('| Parte | Linhas no index.html | Tamanho | Funções |');
 linha('|---|---|---|---|');
 
-const faixas = {};
 for (const caminho of Object.keys(conteudo)) {
-  const corpo = conteudo[caminho];
-  const primeira = localizar(corpo.split('\n').slice(0, 3).join('\n'));
-  const qtd = corpo.split('\n').length;
-  const de = primeira, ate = primeira + qtd - 1;
-  faixas[caminho] = [de, ate];
+  const qtd = conteudo[caminho].split('\n').length;
+  const [de, ate] = faixas[caminho];
   const dentro = funcoes.filter(f => f.linha >= de && f.linha <= ate).length;
   linha('| `src/' + caminho + '` | ' + de.toLocaleString('pt-BR') + '–' + ate.toLocaleString('pt-BR') +
         ' | ' + qtd.toLocaleString('pt-BR') + ' linhas | ' + (dentro || '—') + ' |');

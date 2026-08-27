@@ -32,6 +32,31 @@ const partes = Object.keys(conteudo).length;
 if (hOriginal === hRefeito) {
   console.log('montagem: ' + partes + ' partes, ' + original.length.toLocaleString('pt-BR') + ' bytes');
   console.log('montagem: identico byte a byte  sha256 ' + hOriginal.slice(0, 16));
+
+  /* ==========================================================
+     E CADA PEDACO FECHA SOZINHO?
+
+     Emendar de volta identico prova que nada se perdeu. Nao prova que o
+     corte caiu num lugar util: um corte no meio de uma funcao daria o
+     mesmo hash e deixaria dois fragmentos que ninguem consegue ler.
+
+     Entao aqui cada arquivo de JS e compilado sozinho. Se algum for
+     fragmento, este teste reprova — e a divisao volta para a prancheta.
+     ========================================================== */
+  const quebrados = [];
+  let conferidos = 0;
+  for (const caminho of Object.keys(conteudo)) {
+    if (!/\.js$/.test(caminho)) continue;
+    conferidos++;
+    try { new Function(conteudo[caminho]); }
+    catch (e) { quebrados.push(caminho + ' — ' + String(e.message).slice(0, 70)); }
+  }
+  if (quebrados.length) {
+    console.error('montagem: REPROVADO — ' + quebrados.length + ' pedaco(s) nao fecham sozinhos:');
+    quebrados.forEach(q => console.error('  ' + q));
+    process.exit(1);
+  }
+  console.log('montagem: os ' + conferidos + ' arquivos de JS compilam sozinhos');
   process.exit(0);
 }
 
