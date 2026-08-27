@@ -6011,3 +6011,59 @@ variação disso — V130 (lista vazia), V181 (unidade não resolvida), agora V1
 E uma lição sobre mim: **escrever a proteção não é o mesmo que ligá-la.** Passei a
 V191 inteira confiando numa marca que nunca era aplicada, e o teste que escrevi
 passava porque eu mesmo punha a marca no cenário de teste.
+
+## V193 — o registro criado sem sessão ficava preso para sempre
+
+Terceira tentativa neste defeito. As duas anteriores trataram sintomas; esta achou a
+causa medindo, sem hipótese.
+
+### O que os dados mostraram, antes de qualquer alteração
+
+Três categorias "Taxa de Entrega": 17:05, 17:15 e 17:43. Intervalos de 10 e 28
+minutos. **Não há duplicação automática** — foram três criações manuais, uma a cada
+vez que o item sumia. `replicado_de` nulo em todas; nenhuma rotina de replicação
+envolvida.
+
+E as três com **zero produtos**. O produto nunca chegou ao banco, nas três vezes.
+
+### Causa raiz
+
+`carimbarOrigem()` — chamada por `salvar()` — desiste quando `NUVEM.loja` ainda não
+está resolvida. Isso acontece nos primeiros segundos após abrir o sistema, e sempre
+que a sessão demora.
+
+O registro nasce sem `_loja`. No envio, o motor faz o certo: marca
+`_tenantDesconhecido` e o retira da lista, para não adotar dado órfão dando a ele a
+empresa de quem está logado agora.
+
+**Mas essa marca nunca era limpa.** Não havia caminho de volta. O registro ficava
+retido em silêncio, para sempre, e a única pista era um contador numa tela de
+diagnóstico que ninguém abre.
+
+A categoria subia porque era criada com a sessão já pronta; o produto, criado na
+sequência dentro da mesma tela, pegava a janela ruim. Ou o contrário. **Loteria** —
+o que explica por que o comportamento parecia aleatório e por que as correções
+anteriores "funcionavam" em teste e falhavam na loja.
+
+### Correção
+
+Quando a sessão aparece, o registro órfão **é adotado** pela empresa da sessão — com
+a condição de que tenha nascido neste aparelho e ainda não conheça a nuvem. Dado de
+outra empresa tem `_loja` preenchido e **continua retido**, exatamente como antes: a
+regra de isolamento não foi afrouxada.
+
+E o motor **avisa** quando retém, em vez de calar. O silêncio foi o que fez o produto
+sumir sem deixar rastro.
+
+### Correção a um registro meu
+
+A V192 afirmou que `marcarNovoAqui()` era código morto. **Estava errado** — ela é
+chamada por `carimbarOrigem()`, que é chamada por `salvar()`. Eu procurei pelo nome
+da função em vez de seguir a cadeia de chamadas. A troca por `aNuvemNaoConhece` que
+fiz na V192 continua correta e mais direta, mas o diagnóstico que a justificou estava
+errado, e fica registrado assim.
+
+### Contraprova
+
+Reintroduzi o defeito (removi a limpeza da marca) e a suíte **reprovou** em
+"E A MARCA DE RETIDO É LIMPA". Com a correção: 52/52.

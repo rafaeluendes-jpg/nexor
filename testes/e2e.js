@@ -388,6 +388,53 @@ async function carregarSistema() {
   }
 
   /* ==========================================================
+     O REGISTRO CRIADO SEM SESSAO NAO PODE FICAR PRESO (V193)
+     ========================================================== */
+  grupo('Regressão · registro órfão volta para a fila quando a sessão chega');
+
+  {
+    const r = win.eval(`(function(){
+      try{
+        var reg={};
+        /* ETAPA 1: sessao ainda nao chegou */
+        NUVEM.loja=null;
+        DB.produtos=[{id:'pd_orfao',nome:'PRODUTO ORFAO',categoriaId:'cat_x',ativo:true}];
+        carimbarOrigem();
+        reg.semSessao_temLoja = !!DB.produtos[0]._loja;
+
+        /* ETAPA 2: o motor retem e marca */
+        DB.produtos[0]._tenantDesconhecido=true;
+        reg.retido = DB.produtos[0]._tenantDesconhecido===true;
+
+        /* ETAPA 3: a sessao chega */
+        NUVEM.loja='loja-uuid-teste';
+        carimbarOrigem();
+        reg.comSessao_temLoja = DB.produtos[0]._loja==='loja-uuid-teste';
+        reg.marcaLimpa = DB.produtos[0]._tenantDesconhecido===undefined;
+
+        /* ETAPA 4: registro de OUTRA empresa continua retido */
+        DB.produtos.push({id:'pd_outra',nome:'DE OUTRA',_loja:'outra-empresa',
+                          _tenantDesconhecido:true});
+        carimbarOrigem();
+        var o=DB.produtos.find(function(x){return x.id==='pd_outra'});
+        reg.outraEmpresaIntacta = o._loja==='outra-empresa';
+        return JSON.stringify(reg);
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    let rj=null; try{ rj=JSON.parse(r); }catch(e){}
+    t('o cenário foi montado', !!rj, String(r));
+    if (rj) {
+      t('sem sessão, o registro nasce sem dono', rj.semSessao_temLoja === false);
+      t('o motor o retém (comportamento correto)', rj.retido === true);
+      t('quando a sessão chega, ele ganha dono', rj.comSessao_temLoja === true);
+      t('E A MARCA DE RETIDO É LIMPA — volta para a fila', rj.marcaLimpa === true);
+      t('registro de OUTRA empresa NÃO é adotado', rj.outraEmpresaIntacta === true);
+    }
+    t('o motor avisa quando retém, em vez de calar',
+      /registro\(s\) de '\+E2\.tab\+' não subiram/.test(fonteBruta));
+  }
+
+  /* ==========================================================
      A TELA NAO PODE VOLTAR AO TOPO AO CLICAR
      ========================================================== */
   grupo('Rolagem · clicar na lista não joga a tela para o topo');

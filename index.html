@@ -13613,6 +13613,32 @@ function marcarNovoAqui(x,col){
     x._novoAqui=true;
   }catch(e){ _quieto(e,'marcarNovoAqui'); }
 }
+/* ==========================================================
+   O REGISTRO CRIADO SEM SESSAO FICAVA PRESO PARA SEMPRE (V193)
+
+   `carimbarOrigem` desistia quando `NUVEM.loja` ainda nao estava
+   resolvida — o que acontece nos primeiros segundos apos abrir o
+   sistema, e sempre que a sessao demora a responder.
+
+   O registro nascia sem `_loja`. No envio seguinte o motor o marcava
+   `_tenantDesconhecido` e o retirava da lista, para nao adotar dado
+   orfao dando a ele a empresa de quem esta logado agora — regra certa.
+
+   O problema e que essa marca NUNCA ERA LIMPA. Nao havia caminho de
+   volta: o registro ficava retido em silencio, para sempre, e a unica
+   pista era um contador numa tela de diagnostico que ninguem abre.
+
+   Foi assim que o produto "Taxa de Entrega" desapareceu tres vezes. A
+   categoria subia porque era criada alguns segundos depois, com a
+   sessao ja pronta; o produto, criado na sequencia dentro da mesma
+   tela, pegava a janela ruim — ou o contrario. Loteria.
+
+   Agora: quando a sessao aparece, o registro orfao E ADOTADO pela
+   empresa da sessao, com uma condicao — que ele tenha nascido NESTE
+   aparelho e ainda nao conheca a nuvem. Nao ha risco de mudar dado de
+   dono: dado de outra empresa tem `_loja` preenchido e continua
+   retido, exatamente como antes.
+   ========================================================== */
 function carimbarOrigem(){
   if(!NUVEM.loja)return 0;                 /* sem sessao nao ha o que carimbar */
   var suc=null; try{suc=lojaAtualId()}catch(e){_quieto(e,'carimbarOrigem')}
@@ -13625,7 +13651,10 @@ function carimbarOrigem(){
       var r=lista[i];
       if(!r||typeof r!=='object')continue;
       if(!r._loja){ r._loja=NUVEM.loja; r._suc=r._suc||suc;
-                    r._criadoEm=r._criadoEm||new Date().toISOString(); n++; }
+                    r._criadoEm=r._criadoEm||new Date().toISOString(); n++;
+                    /* nasceu aqui antes de a sessao existir: agora tem dono e
+                       volta para a fila em vez de ficar retido para sempre */
+                    if(r._tenantDesconhecido){ delete r._tenantDesconhecido; } }
       /* enquanto a nuvem nao devolveu um identificador para este registro,
          ele so existe aqui — e o download nao pode apaga-lo */
       marcarNovoAqui(r,col);
@@ -15132,7 +15161,13 @@ async function sincronizar(){
           return true;
         });
         if(_retidos)RETIDOS[E2.col]=_retidos;
-        if(_orfaos)ORFAOS[E2.col]=_orfaos;
+        if(_orfaos){
+          ORFAOS[E2.col]=_orfaos;
+          /* silencio aqui foi o que fez o produto sumir sem deixar rastro */
+          logNuvem(_orfaos+' registro(s) de '+E2.tab+' não subiram: foram criados '+
+            'antes de a sessão da empresa estar pronta. Serão enviados assim que '+
+            'o sistema recarregar com a sessão ativa.',true);
+        }
         if(!lista.length){DB._hash[E2.col]=hAnt;continue;}
         var linhas=lista.map(function(x,i){
           var o=E2.campos(x,i);
@@ -18056,7 +18091,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V192.0.0';
+var VERSAO='V193.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
