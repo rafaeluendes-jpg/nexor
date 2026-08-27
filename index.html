@@ -18035,7 +18035,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V190.0.0';
+var VERSAO='V191.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20660,12 +20660,45 @@ function togTodasUn(pref){
   if(g)g.style.opacity=t.checked?'.45':'1';
 }
 /* le o bloco de volta na hora de salvar */
+/* ==========================================================
+   QUEM CRIA O CADASTRO TEM DE ENXERGAR O QUE CRIOU (V191)
+
+   O bloco "Quem enxerga este item" so aparece para a MATRIZ — e esta
+   certo, e ela quem decide o alcance. Mas `lerUnidades` desistia sem
+   fazer nada quando o bloco nao estava na tela, e o item recem-criado
+   ficava com `sucursais` vazio.
+
+   Para a matriz isso e inofensivo: ela ve tudo. Para a UNIDADE e
+   absurdo — ela cria a categoria, a categoria aparece na hora (esta na
+   memoria), e some na primeira sincronizacao, porque
+   `filtrarCadastroDaUnidade` pergunta se esta liberada para ela e a
+   resposta e "nao".
+
+   Reproduzido em 27/08/2026: Santa Fe criou "Taxa de Entrega", viu no
+   cadastro e no PDV, e o item sumiu dos dois. No banco ele estava la o
+   tempo todo, com `sucursais: []`.
+
+   A regra que faltava: cadastro nasce enxergando quem o criou. A matriz
+   pode ampliar ou restringir depois — mas ninguem cria uma coisa para
+   ela desaparecer sozinha.
+   ========================================================== */
 function lerUnidades(pref,item){
   var t=document.getElementById(pref+'Todas');
-  if(!t)return;                            /* bloco nao esta na tela */
+  if(!t){
+    /* bloco nao esta na tela: ou e loja unica, ou quem edita nao e a
+       matriz. Em qualquer dos casos, o item tem de continuar visivel
+       para a unidade que esta mexendo nele. */
+    if(item&&(!item.sucursais||!item.sucursais.length)){
+      var eu=lojaAtualId();
+      item.sucursais = (!eu||ehSucMatriz(eu)) ? [TODAS_UN] : [eu];
+    }
+    return;
+  }
   if(t.checked){item.sucursais=[TODAS_UN];return;}
   var l=[];
   document.querySelectorAll('.'+pref+'Suc').forEach(function(c){if(c.checked)l.push(c.value)});
+  /* a matriz desmarcou tudo: e escolha dela, e ela continua vendo.
+     Mas nao se apaga em silencio o vinculo de quem criou. */
   item.sucursais=l;
 }
 function liberadoNa(item,suc){
@@ -20683,7 +20716,26 @@ function soLiberados(lista,suc){
   /* sem unidade nao se decide nada: devolve a lista inteira em vez de
      esvaziar. Filtro que nao sabe o alvo nao filtra — apaga. */
   if(!s)return (lista||[]).slice();
-  return (lista||[]).filter(function(x){return liberadoNa(x,s)});
+  return (lista||[]).filter(function(x){
+    /* ==========================================================
+       O QUE ACABOU DE SER CRIADO AQUI NAO SOME (V191)
+
+       Segunda camada da mesma protecao. Se por qualquer motivo um item
+       criado neste aparelho ainda nao tiver liberacao — bloco ausente,
+       falha ao ler, versao antiga que gravou vazio — ele NAO pode ser
+       apagado da tela de quem o criou.
+
+       `_novoAqui` marca o registro que a nuvem ainda nao conhece. Some
+       assim que ele sobe. Ate la, ele fica visivel.
+
+       Esconder o que a pessoa acabou de cadastrar e o pior tipo de
+       falha: ela nao sabe se salvou, cadastra de novo, e a rede ganha
+       duplicata. Foi exatamente o que aconteceu com "Taxa de Entrega",
+       que virou duas categorias no banco.
+       ========================================================== */
+    if(x&&x._novoAqui===true)return true;
+    return liberadoNa(x,s);
+  });
 }
 /* Tira da memoria desta unidade o cadastro que nao foi liberado para ela.
    Nada e apagado da nuvem — a matriz continua com tudo. */

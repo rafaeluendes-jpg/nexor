@@ -5900,3 +5900,61 @@ E2E, que agora está no `npm test`.
 
 jsdom entrou como `devDependency`. O sistema publicado continua sem dependência
 nenhuma.
+
+## V191 — o cadastro sumia de quem o criou
+
+Santa Fé criou a categoria "Taxa de Entrega", viu no cadastro e no PDV, e o item
+sumiu dos dois. **No banco esteve sempre lá**, com `sucursais: []`.
+
+### Causa raiz
+
+O bloco "Quem enxerga este item" **só aparece para a matriz** — e isso está certo, é
+ela quem decide o alcance. Mas `lerUnidades` fazia `if(!t)return;`: quando o bloco
+não estava na tela, desistia sem gravar nada, e o item nascia com liberação vazia.
+
+Para a matriz é inofensivo — ela vê tudo. **Para a unidade é absurdo:** ela cadastra,
+o item aparece na hora (está na memória), e some na primeira sincronização, porque
+`filtrarCadastroDaUnidade` pergunta se está liberado para ela e a resposta é "não".
+
+Pior efeito: a pessoa não sabe se salvou, cadastra de novo, e a rede ganha duplicata.
+Foi exatamente o que aconteceu — "Taxa de Entrega" virou **duas** categorias, e
+"COBERTURA CHOCOLATE" virou **duas** fichas.
+
+### Duas camadas de correção
+
+**1. Cadastro nasce enxergando quem o criou.** Sem o bloco na tela, `lerUnidades`
+grava a unidade atual (ou `["*"]` se for matriz). A matriz pode ampliar ou restringir
+depois — mas ninguém cria uma coisa para ela desaparecer sozinha.
+
+**2. `soLiberados` nunca apaga o que ainda não subiu.** Se por qualquer motivo um
+item criado neste aparelho estiver sem liberação — versão antiga, falha ao ler — o
+`_novoAqui` o mantém visível até a nuvem conhecê-lo.
+
+### Dados corrigidos
+
+7 registros com `sucursais` vazio, liberados para todas as unidades: as 2 categorias
+"Taxa de Entrega", o grupo "Calda_Coberturas" e 4 fichas de calda e cobertura — que
+são exatamente os itens reclamados nos dias anteriores.
+
+**As duplicatas não foram apagadas.** Qual cópia fica é decisão de quem opera: uma
+delas pode já ter vínculo de produto ou de estoque.
+
+### O scroll
+
+Investigado: **zero** `href="#"`, **zero** `<form>`, **zero** `scrollTo(0,0)` no
+código. O `_rolChave` guarda e devolve a posição. Teste E2E confirma que redesenhar
+a lista de categorias e produtos **não** zera a rolagem.
+
+O relato provavelmente vinha do próprio sumiço: a lista encolhia ao perder os itens,
+e a página subia por falta de conteúdo. Corrigida a causa, o sintoma some — mas o
+teste fica, para o caso de ser outra coisa.
+
+### A prova de que a E2E resolve o mecanismo
+
+Reintroduzi o defeito e rodei tudo:
+
+- `test:caixa` → **67/67 verde**
+- `test:tenant` → **130/130 verde**
+- `test:e2e` → **reprova em 4 pontos**, com "a categoria sobrevive ao filtro: 0 de 1"
+
+Mais uma vez: teste que não executa o fluxo não prova que o fluxo funciona.

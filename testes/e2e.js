@@ -255,6 +255,139 @@ async function carregarSistema() {
   t('as de atribuição tardia estão declaradas no arquivo',
     tardias.every(declaradaNoArquivo), tardias.join(', '));
 
+  /* ==========================================================
+     PERSISTENCIA: O CADASTRO NAO PODE SUMIR DE QUEM O CRIOU
+
+     Em 27/08/2026 Santa Fe criou a categoria "Taxa de Entrega", viu no
+     cadastro e no PDV, e o item sumiu dos dois. No banco esteve sempre
+     la, com `sucursais` vazio: o bloco "Quem enxerga este item" so
+     aparece para a matriz, e `lerUnidades` desistia sem gravar nada.
+     Na sincronizacao seguinte o filtro apagava da tela de quem acabara
+     de cadastrar.
+     ========================================================== */
+  grupo('Persistência · cadastro criado por unidade não some dela');
+
+  {
+    /* muda o contexto para uma UNIDADE, nao a matriz */
+    const cenario = win.eval(`(function(){
+      try{
+        DB.sucursais=[{id:'suc_matriz',nome:'Matriz',matriz:true,ativa:true},
+                      {id:'suc_sf',nome:'Santa Fé',matriz:false,ativa:true}];
+        DB.lojaAtual='suc_sf'; S.loja='suc_sf';
+        DB.categorias=[]; DB.produtos=[];
+        return ehSucMatriz(lojaAtualId()) ? 'ERRO: virou matriz' : 'ok';
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    t('o contexto é de uma unidade, não da matriz', cenario === 'ok', String(cenario));
+
+    /* cria a categoria como a tela cria, e le o bloco (que nao existe) */
+    const criado = win.eval(`(function(){
+      try{
+        var alvo={id:uid('cat'),nome:'TESTE PERSISTENCIA',ativo:true,ordem:0,sucursais:[]};
+        DB.categorias.push(alvo);
+        lerUnidades('catUn',alvo);          /* bloco ausente: unidade */
+        return JSON.stringify(alvo.sucursais);
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    t('a categoria nasce liberada para a própria unidade',
+      criado === '["suc_sf"]', criado);
+
+    /* o produto dentro dela */
+    const prod = win.eval(`(function(){
+      try{
+        var cat=DB.categorias[0];
+        var p={id:uid('pd'),nome:'PRODUTO TESTE',categoriaId:cat.id,preco:10,
+               ativo:true,ordem:0,sucursais:[]};
+        DB.produtos.push(p);
+        lerUnidades('pdUn',p);
+        return JSON.stringify({cat:cat.id===p.categoriaId, suc:p.sucursais});
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    const pj = JSON.parse(prod);
+    t('o produto aponta para a categoria certa', pj.cat === true);
+    t('o produto também nasce liberado para a unidade',
+      JSON.stringify(pj.suc) === '["suc_sf"]', JSON.stringify(pj.suc));
+
+    /* AGORA O TESTE QUE IMPORTA: a sincronizacao filtra e nao pode apagar */
+    const sobreviveu = win.eval(`(function(){
+      try{
+        var antesC=DB.categorias.length, antesP=DB.produtos.length;
+        filtrarCadastroDaUnidade();
+        return JSON.stringify({cat:DB.categorias.length,prod:DB.produtos.length,
+                               antesC:antesC,antesP:antesP});
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    const sv2 = JSON.parse(sobreviveu);
+    t('a categoria sobrevive ao filtro da sincronização', sv2.cat === sv2.antesC,
+      sv2.cat + ' de ' + sv2.antesC);
+    t('o produto sobrevive ao filtro', sv2.prod === sv2.antesP,
+      sv2.prod + ' de ' + sv2.antesP);
+
+    /* e o caso extremo: item que ficou sem liberação nenhuma */
+    const orfao = win.eval(`(function(){
+      try{
+        DB.categorias.push({id:'cat_orfa',nome:'SEM LIBERACAO',ativo:true,
+                            sucursais:[],_novoAqui:true});
+        var antes=DB.categorias.length;
+        filtrarCadastroDaUnidade();
+        var achou=DB.categorias.some(function(c){return c.id==='cat_orfa'});
+        return JSON.stringify({achou:achou,antes:antes,depois:DB.categorias.length});
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    const oj = JSON.parse(orfao);
+    t('item recém-criado sem liberação também não é apagado', oj.achou === true,
+      JSON.stringify(oj));
+  }
+
+  /* ==========================================================
+     A TELA NAO PODE VOLTAR AO TOPO AO CLICAR
+     ========================================================== */
+  grupo('Rolagem · clicar na lista não joga a tela para o topo');
+
+  {
+    const r = win.eval(`(function(){
+      try{
+        /* as funcoes escrevem dentro destes containers; sem eles nao ha o que
+           medir. Criamos para exercitar o redesenho de verdade. */
+        ['colCat','colProd','bCat','bProd'].forEach(function(id){
+          if(!document.getElementById(id)){
+            var d=document.createElement('div'); d.id=id; document.body.appendChild(d);
+          }
+        });
+        /* uma pagina alta o bastante para poder rolar */
+        document.body.style.height='4000px';
+        window.scrollTo(0,1200);
+        var antes=window.scrollY||window.pageYOffset||0;
+        /* redesenha a lista, que e o que o clique faz */
+        if(typeof renderCategorias==='function')renderCategorias();
+        if(typeof renderProdutos==='function')renderProdutos();
+        var depois=window.scrollY||window.pageYOffset||0;
+        return JSON.stringify({antes:antes,depois:depois});
+      }catch(e){ return 'ERRO: '+e.message; }
+    })()`);
+    let rj = null;
+    try { rj = JSON.parse(r); } catch (e) {}
+    t('o cenário de rolagem foi montado', !!rj, String(r));
+    if (rj) {
+      t('redesenhar a lista NÃO volta para o topo', rj.depois !== 0 || rj.antes === 0,
+        'antes ' + rj.antes + ' → depois ' + rj.depois);
+    }
+
+    /* as causas classicas nao podem existir */
+    t('nenhum href="#" no sistema', (fonteBruta.match(/href="#"/g) || []).length === 0);
+    t('nenhum <form> que possa dar submit', (fonteBruta.match(/<form[\s>]/g) || []).length === 0);
+    /* procura no CODIGO, sem os comentarios — senao o proprio comentario que
+       documenta a remocao seria lido como violacao dela */
+    const semComent = fonteBruta
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+    const scrollZero = (semComent.match(/scrollTo\(0,\s*0\)/g) || []).length;
+    t('nenhum scrollTo(0,0) explícito no código', scrollZero === 0,
+      scrollZero + ' ocorrência(s)');
+    t('a rolagem é guardada e devolvida por chave de tela',
+      /_rolChave/.test(fonteBruta));
+  }
+
   /* ---------------------------------------------------------- */
   grupo('Balanço final de erros de runtime');
 
