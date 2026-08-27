@@ -463,6 +463,24 @@ async function carregarSistema() {
     t('2ª checagem com etiqueta nova: compara', sim(true, false) === true);
   }
 
+  grupo('403 na sincronização · o motor não bate em porta fechada');
+
+  {
+    t('usuarios_sistema é marcada como só-gestor',
+      /\{col:'usuarios', espelha:false, soGestor:true,/.test(fonteBruta));
+    t('o motor pula a tabela quando não é matriz',
+      /if\(E2\.soGestor&&!ehMatriz\(\)\)continue;/.test(fonteBruta));
+    t('e o motivo está escrito no código',
+      /A UNIDADE NAO ADMINISTRA USUARIOS — E NAO DEVE TENTAR/.test(fonteBruta));
+
+    /* toda tabela que o sync faz upsert precisa poder ser reenviada.
+       Se o MAPA marcar espelha/upsert, o banco precisa aceitar UPDATE —
+       senão o 1º envio passa e todos os seguintes dão 403. */
+    t('o padrão de upsert está documentado como exigindo UPDATE',
+      /O UPSERT DO SYNC PRECISA DE POLITICA DE UPDATE/.test(
+        require('fs').readFileSync(require('path').join(__dirname,'..','DECISOES.md'),'utf8')));
+  }
+
   /* ==========================================================
      A TELA NAO PODE VOLTAR AO TOPO AO CLICAR
      ========================================================== */

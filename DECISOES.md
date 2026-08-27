@@ -6136,3 +6136,41 @@ criado: responde à mensagem `'limpar-cache'`, e ninguém nunca mandava.
 reprovou com a mensagem exata do problema real.
 
 **Regra:** publicar sem subir a versão do `sw.js` é publicar para ninguém.
+
+## V196 — os dois 403 da sincronização
+
+O Console mostrou dois `403 (Forbidden)` a cada ciclo de sincronização.
+
+### O UPSERT DO SYNC PRECISA DE POLITICA DE UPDATE
+
+`cancelamentos` tinha política de INSERT e de SELECT. **Faltava UPDATE.**
+
+A sincronização usa `on conflict (loja_id,ref_local) do update` — o padrão de todas
+as tabelas. Na **primeira** vez a linha não existe, é INSERT puro e passa. Da
+**segunda** em diante ela existe, o comando vira UPDATE, e o Postgres recusa.
+
+Provado na mesma sessão, mesmo comando, duas vezes seguidas:
+
+- 1ª vez → passou
+- 2ª vez → `new row violates row-level security policy`
+
+Efeito: todo cancelamento ficava só no aparelho e nunca se consolidava na nuvem. Em
+silêncio, porque 403 no sync não chega ao operador.
+
+Política de UPDATE criada, repetindo a de INSERT — não afrouxa nada, apenas deixa a
+pessoa reenviar o dado que ela mesma pode criar.
+
+Varri as demais tabelas: nenhuma outra com INSERT sem UPDATE.
+
+### `usuarios_sistema`: a recusa estava certa, a tentativa é que não
+
+Só gestor grava — e isso é correto, usuário é administrado pela matriz. Mas o motor
+enviava a tabela de todo aparelho, a cada ciclo. O gerente de unidade tomava 403
+sempre.
+
+`soGestor:true` faz o motor **pular** a tabela quando quem está logado não é matriz.
+A política no banco continua idêntica: só se parou de bater numa porta que a própria
+regra manda manter fechada. Mesmo padrão que já existia para `clientes_nexor`.
+
+**Regra:** 403 repetido no Console não é ruído — ou a regra está errada, ou o
+sistema está tentando o que não devia. Aqui era um de cada.

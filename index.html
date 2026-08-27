@@ -14036,7 +14036,23 @@ var MAPA=[
   filhos:[{lista:'itens',tab:'subcategorias_financeiras',pai:'categoria_id',
     campos:function(o,k){return {nome:o.nome,ordem:k}}}]},
 
- {col:'usuarios', espelha:false,    tab:'usuarios_sistema',
+/* ==========================================================
+   A UNIDADE NAO ADMINISTRA USUARIOS — E NAO DEVE TENTAR (V196)
+
+   `usuarios_sistema` so aceita gravacao de gestor (admin ou
+   plataforma). Isso esta certo: quem cria e altera usuario e a matriz.
+
+   Mas o motor de sincronizacao enviava a tabela de qualquer jeito, a
+   cada ciclo, de todo aparelho. O gerente de unidade tomava 403 a cada
+   sincronizacao — ruido no Console, banda gasta, e a impressao de que
+   o sistema estava quebrado quando na verdade a recusa estava certa.
+
+   `soGestor:true` faz o motor pular a tabela quando quem esta logado
+   nao e gestor. Nao afrouxa nada no banco: a politica continua
+   identica. Apenas para de bater numa porta que a propria regra manda
+   manter fechada.
+   ========================================================== */
+ {col:'usuarios', espelha:false, soGestor:true,   tab:'usuarios_sistema',
   /* `senha` sobe SEMPRE nulo: a senha nao mora mais na nuvem. Quem manda
      e o Supabase Auth; o aparelho guarda so o hash local, que nunca sobe. */
   campos:function(x){return {nome:x.nome||null,login:x.login||null,senha:null,
@@ -15157,6 +15173,9 @@ async function sincronizar(){
          a cada vez. O erro era do sistema tentando, nao da regra.
          ------------------------------------------------------------------ */
       if(E2.tab==='clientes_nexor'&&!ehPlataforma())continue;
+      /* mesma razão, outra tabela: usuário é administrado pela matriz.
+         A unidade tomava 403 a cada ciclo por tentar o que a regra proíbe. */
+      if(E2.soGestor&&!ehMatriz())continue;
       /* Cada tabela é enviada por conta própria. Antes, um único registro
          recusado pelo banco parava a fila inteira e as 40 tabelas seguintes
          nunca subiam — o aparelho ficava "travado" sem dizer onde. */
@@ -18120,7 +18139,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V195.0.0';
+var VERSAO='V196.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
