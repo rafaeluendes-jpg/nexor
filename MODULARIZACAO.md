@@ -71,7 +71,7 @@ uma coisa diferente do que a fonte diz.
 | 1 | Fechar o furo crítico de acesso (senha de operador) | **feita (1A)** |
 | 2 | O recorte por módulo de negócio | **feita** |
 | 3 | A virada — `src/` passa a ser a fonte, `index.html` gerado | **feita** |
-| 4 | Segurança completa — os 103 alertas e a escrita robusta | a fazer |
+| 4 | Segurança completa — os 103 alertas e a escrita robusta | **feita** |
 | 5 | Backup e recuperação | a fazer |
 | 6 | Limpeza + auditoria dos botões e permissões que não funcionam | a fazer |
 
@@ -108,6 +108,17 @@ e tirou `anon` e `PUBLIC` das cinco funções. Conferido depois de aplicar:
 Fica para a Fase 4: apertar `conferir`/`quem_tem` do mesmo jeito, depois de
 apagar as 7 contas de teste que ainda vivem no Supabase Auth de produção
 (`admin@teste.local`, `gestor.a@teste.local`, `p20a@teste.com`…).
+
+### Fase 4 — a auditoria de segurança
+
+103 alertas → **71**, zero ERRO, funções abertas ao anônimo 34 → 8. O
+modelo de acesso, as regras para escrever função nova e o que ficou em
+aberto estão em **`SEGURANCA.md`**.
+
+Verificado depois de aplicar, rodando como `anon`: o cardápio público
+continua lendo as sete tabelas dele, e `clientes`, `pedidos_online`,
+`pedidos`, `lojas`, `operador_senhas`, `lancamentos_financeiros` e
+`whatsapp_config` devolvem **zero**.
 
 ### Fase 2 — como o recorte foi feito
 
