@@ -121,5 +121,37 @@ for (const a of alvos) {
   }
 }
 
-if (falhas) { console.log('\n  REPROVADO — erro de sintaxe, funcao duplicada ou funcao ausente.\n'); process.exit(1); }
+
+/* ==========================================================
+   O SERVICE WORKER TEM DE MUDAR A CADA PUBLICACAO
+
+   O navegador so instala um service worker novo se o ARQUIVO mudar.
+   Enquanto `sw.js` ficou identico entre versoes, o service worker
+   antigo continuou servindo o sistema antigo do cache — e a loja
+   ficou presa na V192 com a V194 publicada.
+
+   Esta verificacao exige que a versao dentro do sw.js seja a mesma do
+   index.html. Se alguem publicar sem subir as duas, a suite quebra
+   antes de a loja ficar travada.
+   ========================================================== */
+{
+  const idx = path.join(__dirname, '..', 'index.html');
+  const sw  = path.join(__dirname, '..', 'sw.js');
+  if (fs.existsSync(idx) && fs.existsSync(sw)) {
+    const vIdx = (fs.readFileSync(idx, 'utf8').match(/var VERSAO='(V[0-9.]+)'/) || [])[1];
+    const vSw  = (fs.readFileSync(sw, 'utf8').match(/VERSAO_SW\s*=\s*'(V[0-9.]+)'/) || [])[1];
+    if (!vSw) {
+      console.log('   FALHA sw.js nao declara VERSAO_SW — o navegador nao vai trocar o cache');
+      falhas++;
+    } else if (vIdx !== vSw) {
+      console.log('   FALHA versao do sw.js (' + vSw + ') diferente do index.html (' + vIdx +
+        ') — o aparelho ficaria preso na versao antiga');
+      falhas++;
+    } else {
+      console.log('   ok    sw.js e index.html na mesma versao (' + vIdx + ')');
+    }
+  }
+}
+
+if (falhas) { console.log('\n  REPROVADO — erro de sintaxe, funcao duplicada, funcao ausente ou versao do sw.js.\n'); process.exit(1); }
 console.log('\n  Sintaxe OK.\n');

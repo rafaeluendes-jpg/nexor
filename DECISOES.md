@@ -6094,3 +6094,45 @@ primeira vez baixa e compara de verdade.
 
 **Regra:** otimização não pode custar a correção. Quando as duas brigam, a correção
 ganha — e aqui nem era preciso escolher: bastava a primeira checagem ser honesta.
+
+## V195 — a atualização não chegava, e a culpa era do mecanismo
+
+O Rafael atualizou, e o rodapé continuou mostrando **V192** com a V194 publicada. A
+resposta que eu dei — abrir com `?v=194` — estava errada como solução: link
+diferente por pessoa não funciona para quatro lojas, muito menos para sessenta. Ele
+apontou isso, e tinha razão.
+
+### Três defeitos somados
+
+**1. O `sw.js` nunca mudava.** O navegador só instala um service worker novo se o
+**arquivo** mudar — ele compara byte a byte. Como o `sw.js` era idêntico entre
+versões, o service worker antigo continuava servindo o sistema antigo do cache,
+indefinidamente. Esta era a causa principal.
+
+**2. Ninguém pedia atualização ao service worker.** Ele era registrado e esquecido.
+`registration.update()` nunca era chamado; o navegador faz isso por conta própria
+raramente e sem garantia.
+
+**3. `aplicarAtualizacao()` trocava de endereço em vez de limpar o cache.**
+`location.replace(pathname+'?v='+Date.now())` ia buscar num endereço diferente em vez
+de jogar fora o arquivo guardado. A pessoa ficava com `?v=1787…` na barra para
+sempre, e o service worker passava a guardar esse endereço também — **duplicando o
+problema em vez de resolver**. E o `sw.js` já sabia limpar o cache desde que foi
+criado: responde à mensagem `'limpar-cache'`, e ninguém nunca mandava.
+
+### Correção
+
+- `VERSAO_SW` dentro do `sw.js`, subindo a cada publicação, e o nome do cache
+  carrega a versão — o `activate` apaga o antigo automaticamente
+- `reg.update()` na carga e a cada 5 minutos
+- `controllerchange` recarrega a página uma vez quando o service worker novo assume
+- `aplicarAtualizacao()` manda limpar o cache de verdade e recarrega no **mesmo**
+  endereço, com prazo de 1,2 s para não travar se o service worker não responder
+
+### A verificação que impede a repetição
+
+`test:sintaxe` agora exige que a versão do `sw.js` seja **idêntica** à do
+`index.html`. Contraprova: coloquei `V192` no `sw.js` com `V195` no index e a suíte
+reprovou com a mensagem exata do problema real.
+
+**Regra:** publicar sem subir a versão do `sw.js` é publicar para ninguém.

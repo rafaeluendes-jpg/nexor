@@ -42,9 +42,38 @@
 /* Guarda o sistema no aparelho. Sem isso, recarregar a pagina com a
    internet fora deixava a loja sem sistema — que era o unico momento
    em que o Nexor realmente parava. */
+/* ==========================================================
+   O APARELHO TEM DE SE ATUALIZAR SOZINHO (V195)
+
+   Ate aqui o service worker era registrado e esquecido. Ele guarda o
+   sistema para a loja nao parar sem internet — mas ninguem nunca lhe
+   pedia para conferir se havia versao nova. O navegador so faz isso
+   por conta propria de vez em quando, e sem garantia.
+
+   Resultado: aparelho preso numa versao antiga, sem erro, sem aviso.
+   Aconteceu com a V193 e a V194 — publicadas, e a loja continuou na
+   V192. A unica saida virava mandar um link diferente para cada
+   pessoa, o que nao e solucao: nao funciona para quatro lojas e muito
+   menos para sessenta.
+
+   Agora o registro pede `update()` na carga e a cada 5 minutos, e
+   quando o service worker novo assume o controle a pagina recarrega
+   uma vez. A atualizacao deixa de depender de alguem lembrar.
+   ========================================================== */
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){});
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      if(!reg)return;
+      try{ reg.update(); }catch(e){}
+      setInterval(function(){ try{ reg.update(); }catch(e){} },300000);
+    }).catch(function(){});
+    /* service worker novo assumiu: recarrega UMA vez para a pagina
+       passar a rodar o codigo novo */
+    var _jaTrocou=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(_jaTrocou)return; _jaTrocou=true;
+      location.reload();
+    });
   });
 }
 </script>
@@ -18091,14 +18120,44 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V194.0.0';
+var VERSAO='V195.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
    novo é o que realmente traz a versão publicada. */
+/* ==========================================================
+   ATUALIZAR ERA TROCAR DE ENDERECO, NAO LIMPAR O CACHE (V195)
+
+   `location.replace(pathname+'?v='+Date.now())` resolvia pelo caminho
+   errado: em vez de jogar fora o arquivo guardado, ia buscar num
+   endereco diferente. A pessoa ficava com `?v=1787…` na barra para
+   sempre, e o service worker passava a guardar ESSE endereco tambem —
+   duplicando o problema em vez de resolver.
+
+   Agora o cache do service worker e apagado de verdade (ele ja sabia
+   fazer isso: responde a mensagem 'limpar-cache' desde que foi criado,
+   e ninguem nunca mandava). So depois a pagina recarrega, no MESMO
+   endereco.
+
+   O `setTimeout` existe porque a limpeza e assincrona: se o service
+   worker nao responder em 1,2 s, recarrega assim mesmo — melhor
+   recarregar com cache do que nao recarregar.
+   ========================================================== */
 function aplicarAtualizacao(){
   try{ gravarLocal(); }catch(e){_quieto(e,'aplicarAtualizacao')}
-  location.replace(location.pathname+'?v='+Date.now());
+  var recarregou=false;
+  var vai=function(){ if(recarregou)return; recarregou=true; location.reload(); };
+  try{
+    if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+      navigator.serviceWorker.addEventListener('message',function(e){
+        if(e.data==='cache-limpo')vai();
+      });
+      navigator.serviceWorker.controller.postMessage('limpar-cache');
+      setTimeout(vai,1200);          /* nao esperar para sempre */
+      return;
+    }
+  }catch(e){_quieto(e,'aplicarAtualizacao')}
+  vai();
 }
 var _checando=false;
 /* ==========================================================
