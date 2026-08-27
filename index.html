@@ -18035,7 +18035,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V188.0.0';
+var VERSAO='V189.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -26222,7 +26222,22 @@ function fecharCaixa(){
   });
 
   var NOME_EQ={balcao:'balcão',totem:'totem',mesa:'mesa',entrega:'entrega'};
-  var linhas=FORMAS.map(function(f){
+  /* ==========================================================
+     `ci` NAO EXISTIA — E O FECHAMENTO NAO ABRIA (V189)
+
+     Na V179, ao migrar este campo para o componente monetario, escrevi
+     `data-i="'+ci+'"` copiando o padrao de outro `map` que tinha o
+     indice. Este aqui e `function(f)`: nao ha segundo parametro.
+
+     `ci` nunca foi declarado em lugar nenhum. Toda montagem desta tela
+     estourava `ReferenceError: ci is not defined`, e o modal de
+     fechamento simplesmente nao abria. A loja ficou sem conseguir
+     fechar o caixa.
+
+     O indice existe de verdade agora, e serve: e por ele que o ENTER
+     encontra o proximo campo.
+     ========================================================== */
+  var linhas=FORMAS.map(function(f,ci){
     /* quebra por aparelho: e o que permite bater com o extrato de cada
        maquininha na hora de fechar */
     var eqs=(mov.porEquip&&mov.porEquip[f.id])||{};
