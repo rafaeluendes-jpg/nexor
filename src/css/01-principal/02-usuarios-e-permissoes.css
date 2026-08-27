@@ -1,5 +1,491 @@
 /* ================= USUÁRIOS E PERMISSÕES ================= */
 
+.mdSep{height:1px;background:var(--line-2);margin:16px 0 12px}
+/* link discreto para trazer de volta quem foi desligado */
+.usrLnk{display:block;width:100%;text-align:left;background:none;border:none;
+  padding:7px 13px 9px;font-size:11.5px;color:var(--ink-3);cursor:pointer;
+  border-bottom:1px solid var(--line-2)}
+.usrLnk:hover{color:var(--acc);text-decoration:underline}
+
+/* ---- arvore por empresa em Usuarios e Permissoes ---- */
+/* barra de unidades na tela de permissoes */
+.permBarra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:900px;margin-bottom:10px}
+/* ---------- Liberação por Unidade ---------- */
+/* ---------- Controle Diário: baixa manual ---------- */
+/* ---------- Relatório de Baixas ---------- */
+/* ---------- Central de Bases e Valores ---------- */
+/* ---------- Pedido de Base ---------- */
+/* ---------- abas internas (hub) — pílulas, como nos modelos ----------
+   Estava tudo alto e espaçado demais: cada aba com 9px de altura interna,
+   cartões de 13px, títulos grandes. Numa tela de trabalho isso vira rolagem.
+   Aqui o padrão é o dos prints: pílula arredondada, altura menor, e o
+   selecionado em marrom sólido. */
+.hubAbas{display:flex;gap:6px;margin-bottom:11px;flex-wrap:wrap}
+.hubAba{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;
+  border:1px solid var(--line);background:var(--panel);cursor:pointer;
+  font-family:inherit;font-size:12.5px;color:var(--ink-2);transition:.15s}
+.hubAba:hover{background:var(--alt);color:var(--ink)}
+.hubAba.on{background:var(--acc-d);border-color:var(--acc-d);color:#fff;font-weight:600}
+.hubAba.on svg{opacity:1}
+.hubAba svg{opacity:.55;width:13px;height:13px}
+.hubB{font-style:normal;font-size:10px;font-weight:700;background:var(--amber);
+  color:#fff;border-radius:20px;padding:0 6px;margin-left:2px}
+.hubAba.on .hubB{background:#fff;color:var(--acc-d)}
+/* ---------- pedidos recebidos ---------- */
+.prCard{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  margin-bottom:7px;overflow:hidden}
+.prCard.on{border-color:var(--acc);box-shadow:var(--sh)}
+.prH{display:flex;align-items:center;gap:11px;padding:9px 14px;cursor:pointer}
+.prH:hover{background:var(--alt)}
+.prNum{color:var(--acc-d);font-size:13px;font-variant-numeric:tabular-nums}
+.prLoja b{display:block;font-size:13px}
+.prLoja span{display:block;font-size:11px;color:var(--ink-3)}
+.prTot{font-size:13.5px;font-variant-numeric:tabular-nums}
+.prSeta{color:var(--ink-3);display:flex}
+.prCorpo{padding:0 16px 14px;border-top:1px solid var(--line-2)}
+.prPassos{display:flex;gap:5px;padding:11px 0;flex-wrap:wrap}
+.prPasso{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;
+  background:var(--alt);font-size:11.5px;color:var(--ink-3)}
+.prPasso i{width:16px;height:16px;border-radius:50%;background:var(--line);
+  display:flex;align-items:center;justify-content:center;font-style:normal;
+  font-size:9.5px;font-weight:700;color:var(--ink-2)}
+.prPasso.ok{background:var(--ok-soft);color:var(--ok)}
+.prPasso.ok i{background:var(--ok);color:#fff}
+.prPasso.atual{background:var(--acc-soft);color:var(--acc-d);font-weight:600}
+.prPasso.atual i{background:var(--acc);color:#fff}
+.prObs{margin-top:10px;background:var(--alt);border-radius:var(--r-s);
+  padding:9px 13px;font-size:12.5px;color:var(--ink-2)}
+.prAcoes{display:flex;align-items:center;gap:9px;margin-top:13px}
+.prFeito{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
+  color:var(--ok);background:var(--ok-soft);padding:5px 10px;border-radius:20px;
+  font-weight:600;white-space:nowrap}
+/* o que ja foi feito no pedido: producao, cobranca, entrada, conta a pagar */
+.prFeitos{display:flex;gap:5px;flex-wrap:wrap}
+.prFeitos span{display:flex;align-items:center;gap:4px;font-size:11px;
+  background:var(--ok-soft);color:var(--ok);padding:4px 10px;border-radius:20px;
+  font-weight:600;white-space:nowrap}
+/* botao de acao automatica: dourado, para nao competir com o verde de avancar */
+.acB{border-color:var(--acc-l);color:var(--acc-d)}
+.acB:hover{background:var(--acc-soft)}
+.prAcoes{flex-wrap:wrap}
+.lbSegm button{border-radius:20px}
+.prCorpo .pTable td{padding:6px 12px;font-size:12px}
+.prCorpo .pTable th{padding:6px 12px;font-size:9.5px}
+.zonaPerigo{display:flex;align-items:center;gap:14px;justify-content:space-between;
+  margin-top:14px;padding:13px 15px;border:1px solid #E7C3C3;background:#FDF6F6;
+  border-radius:10px;flex-wrap:wrap}
+.zonaPerigo b{display:block;font-size:13px;color:#8A2B2B}
+.zonaPerigo span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px;max-width:520px}
+.permTotal{display:flex;align-items:center;gap:13px;padding:13px 15px;margin-bottom:11px;
+  background:#FFF8E6;border:1px solid #E8D9A8;border-radius:10px;flex-wrap:wrap}
+.permTotal svg{color:#9A7B25;flex:none}
+.permTotal b{display:block;font-size:13px;color:#7A5F12}
+.permTotal span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.permTotal button{margin-left:auto;white-space:nowrap}
+.permFraca{opacity:.5}
+.rdB{border-color:var(--red);color:var(--red)}
+.rdB:hover{background:var(--red-soft)}
+.pbPrazo{display:flex;gap:10px;align-items:center;background:var(--acc-soft);
+  border:1px solid #E8DCC2;border-radius:10px;padding:9px 14px;margin-bottom:10px}
+.pbPrazo svg{flex:none;color:var(--acc-d)}
+.pbPrazo b{display:block;font-size:13px;color:#6B5320}
+.pbPrazo span{display:block;font-size:12px;color:#8A6A32;margin-top:1px}
+.pbCab{display:grid;grid-template-columns:1.3fr .8fr 1fr 1.6fr;gap:9px;margin-bottom:10px}
+.pbFixo{height:34px;display:flex;align-items:center;gap:7px;background:var(--alt);
+  border:1px solid var(--line);border-radius:var(--r-s);padding:0 11px;
+  font-size:13px;font-weight:600;color:var(--ink)}
+.pbRod{display:flex;align-items:center;gap:10px;padding:12px 15px;
+  border-top:1px solid var(--line)}
+.pbTot{text-align:right}
+.pbTot span{display:block;font-size:11.5px;color:var(--ink-3)}
+.pbTot b{display:block;font-size:18px;color:var(--acc-d);font-variant-numeric:tabular-nums}
+.pbAcoes{display:flex;gap:9px;justify-content:flex-end;margin-top:12px}
+tr.pbSel td{background:var(--acc-soft)}
+.pill.az{background:var(--blue-soft);color:var(--blue)}
+.pill.vd{background:var(--ok-soft);color:var(--ok)}
+.pill.am{background:var(--amber-soft);color:var(--amber)}
+.pill.vr{background:var(--red-soft);color:var(--red)}
+@media(max-width:1000px){ .pbCab{grid-template-columns:1fr} }
+.bsIn{width:100%;height:30px;border:1px solid var(--line);border-radius:6px;
+  padding:0 9px;font-size:12.5px;font-family:inherit;background:var(--panel);color:var(--ink)}
+.bsIn:focus{outline:none;border-color:var(--acc)}
+.bsIn.nu{text-align:right;font-variant-numeric:tabular-nums}
+.bsVlr{color:var(--acc-d);font-variant-numeric:tabular-nums}
+.bsOk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ok);
+  background:var(--ok-soft);padding:7px 13px;border-radius:8px;font-weight:600}
+.bsAviso{display:flex;gap:10px;background:var(--acc-soft);border:1px solid #E8DCC2;
+  border-radius:var(--r);padding:11px 15px;font-size:12.5px;color:#6B5320;
+  margin-bottom:12px;line-height:1.55}
+.bsAviso svg{flex:none;margin-top:2px}
+.bxTopo{display:grid;grid-template-columns:1.4fr 2fr;gap:12px;margin-bottom:12px}
+.bxTotal{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 20px;box-shadow:var(--sh)}
+.bxTotal span{display:block;font-size:10.5px;letter-spacing:.07em;font-weight:700;
+  color:var(--ink-3)}
+.bxTotal b{display:block;font-size:34px;line-height:1.15;margin-top:4px;
+  color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.bxTotal i{display:block;font-style:normal;font-size:12px;color:var(--ink-2);margin-top:5px}
+.bxMini{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.bxM{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;box-shadow:var(--sh);display:flex;flex-direction:column;
+  justify-content:center}
+.bxM span{font-size:10.5px;letter-spacing:.06em;font-weight:700;color:var(--ink-3)}
+.bxM b{font-size:26px;margin-top:3px;font-variant-numeric:tabular-nums}
+.bxM b.am{color:var(--amber)}
+.bxDestaques{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.bxD{background:var(--acc-soft);border:1px solid #E8DCC2;border-radius:var(--r);
+  padding:13px 17px}
+.bxD span{display:block;font-size:10.5px;letter-spacing:.06em;font-weight:700;
+  color:#8A6A32}
+.bxD b{display:block;font-size:17px;margin-top:3px;color:var(--ink)}
+.bxD i{display:block;font-style:normal;font-size:12px;color:#6B5320;margin-top:2px}
+.bxGrade{display:grid;grid-template-columns:1fr;gap:12px}
+.bxCard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;box-shadow:var(--sh)}
+.bxCardH{padding:13px 17px;border-bottom:1px solid var(--line-2);display:flex;
+  align-items:baseline;gap:9px}
+.bxCardH b{font-size:13.5px}
+.bxCardH span{font-size:11.5px;color:var(--ink-3)}
+.bxLista{padding:6px 0}
+.bxItem{display:grid;grid-template-columns:minmax(150px,1.3fr) 2fr 110px;
+  gap:14px;align-items:center;padding:8px 17px}
+.bxItem:hover{background:var(--alt)}
+.bxItem.top .bxItemN b{font-weight:700}
+.bxItemN b{display:block;font-size:13px}
+.bxItemN span{display:block;font-size:11px;color:var(--ink-3);margin-top:1px}
+.bxBarraW{height:9px;background:var(--line-2);border-radius:5px;overflow:hidden}
+.bxBarra{height:100%;border-radius:5px;transition:width .35s ease;min-width:3px}
+.bxItemV{text-align:right}
+.bxItemV b{display:block;font-size:13.5px;font-variant-numeric:tabular-nums}
+.bxItemV span{display:block;font-size:11px;color:var(--ink-3)}
+.bxMais{padding:8px 17px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line-2)}
+@media(max-width:1000px){
+  .bxTopo,.bxDestaques{grid-template-columns:1fr}
+  .bxItem{grid-template-columns:1fr 90px;gap:8px}
+  .bxBarraW{grid-column:1/-1}
+}
+.bxLin4{display:grid;grid-template-columns:2.2fr 1fr 1fr 1.6fr;gap:10px;
+  padding:12px 14px 0}
+.bxLin3{display:grid;grid-template-columns:1fr 1.3fr 2fr;gap:10px;padding:10px 14px 0}
+.bxAcoes{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px 14px}
+.bxSug{position:absolute;left:0;right:0;top:100%;z-index:40;background:var(--panel);
+  border:1px solid var(--acc);border-radius:var(--r-s);box-shadow:var(--sh2);
+  overflow:hidden;margin-top:2px;max-height:230px;overflow-y:auto}
+.bxSug div{padding:7px 11px;font-size:13px;cursor:pointer;
+  border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:7px}
+.bxSug div:last-child{border-bottom:0}
+.bxSug div:hover{background:var(--acc-soft)}
+.bxTg{font-size:10px;background:var(--ok-soft);color:var(--ok);padding:1px 7px;
+  border-radius:20px;font-weight:700;margin-left:6px;white-space:nowrap}
+.bxTg.f{background:var(--blue-soft);color:var(--blue)}
+.bxRod{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  border-top:1px solid var(--line)}
+.avisoIn{margin:10px 14px 0;background:var(--red-soft);color:var(--red);
+  border-radius:var(--r-s);padding:8px 12px;font-size:12.5px;font-weight:600}
+@media(max-width:900px){
+  .bxLin4,.bxLin3{grid-template-columns:1fr}
+}
+.lbGrade2{display:grid;grid-template-columns:238px 1fr;gap:14px;align-items:start}
+.lbLado{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  position:sticky;top:0}
+.lbLadoT{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--ink-3);
+  padding:11px 15px 8px;text-transform:uppercase;border-bottom:1px solid var(--line-2)}
+.lbLadoR{max-height:calc(100vh - 300px);overflow-y:auto;padding:5px 0}
+.lbCad{display:flex;align-items:center;gap:9px;padding:8px 15px;cursor:pointer;border:0;
+  background:none;width:100%;text-align:left;font-family:inherit;font-size:13px;
+  color:var(--ink);border-left:3px solid transparent}
+.lbCad:hover{background:var(--alt)}
+.lbCad.on{background:var(--acc-soft);border-left-color:var(--acc);font-weight:600}
+.lbCad svg{flex:none;opacity:.55}
+.lbCadN{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbCadQ{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;flex:none}
+.lbCadR{font-size:10px;background:var(--blue-soft);color:var(--blue);padding:1px 6px;
+  border-radius:20px;font-weight:700;flex:none}
+.lbCorpo{min-width:0}
+.lbBarra{display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap}
+.lbBusca{flex:1;min-width:210px;position:relative}
+.lbBusca input{width:100%;height:34px;border:1px solid var(--line);border-radius:var(--r-s);
+  padding:0 12px 0 32px;font-size:13.5px;font-family:inherit;background:#fff;color:var(--ink)}
+.lbBusca input:focus{outline:none;border-color:var(--acc)}
+.lbBusca svg{position:absolute;left:10px;top:10px;opacity:.4;pointer-events:none}
+.lbSegm{display:flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;
+  background:#fff;flex:none}
+.lbSegm button{border:0;background:none;padding:7px 12px;font-size:12.5px;cursor:pointer;
+  font-family:inherit;color:var(--ink-2);border-right:1px solid var(--line)}
+.lbSegm button:last-child{border-right:0}
+.lbSegm button:hover{background:var(--alt)}
+.lbSegm button.on{background:var(--deep);color:#fff;font-weight:600}
+.lbSegm button b{font-variant-numeric:tabular-nums;opacity:.75;font-weight:600}
+.lbTabW{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lbLote{position:sticky;bottom:0;background:var(--deep);color:#fff;padding:11px 16px;
+  display:flex;align-items:center;gap:10px;border-radius:var(--r);margin-top:12px;
+  box-shadow:0 -4px 14px rgba(31,42,36,.13);z-index:3}
+.lbLote b{font-size:13.5px}
+.lbLote .btnP2{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.32);color:#fff}
+.lbLote .btnP2:hover{background:rgba(255,255,255,.24)}
+.lbLote .btnP2.ok{background:#fff;color:var(--deep);border-color:#fff}
+@media(max-width:900px){
+  .lbGrade2{grid-template-columns:1fr}
+  .lbLado{position:static}
+  .lbLadoR{max-height:190px}
+}
+.linhaPerm{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 10px;border-bottom:1px solid var(--line-2);font-size:12.5px}
+.linhaPerm:last-child{border-bottom:0}
+.linhaPerm i{font-style:normal;font-size:11px;color:var(--ink-3)}
+.linhaPerm.bloq{opacity:.5}
+.swPerm{width:36px;height:20px;border-radius:20px;background:#DCD6CA;position:relative;
+  flex:none;border:none;cursor:pointer;padding:0}
+.swPerm.on{background:var(--deep)}
+.swPerm:disabled{cursor:not-allowed}
+.swPerm::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;
+  border-radius:50%;background:#fff;transition:left .16s}
+.swPerm.on::after{left:18px}
+/* unidade que ainda nao tem acesso: mesma forma das outras linhas,
+   so que apagada — fica visivel sem parecer um usuario */
+.usrIt.semAcesso{cursor:default;opacity:.7}
+.usrIt.semAcesso:hover{background:none}
+.usrIt.semAcesso .usrN b{font-weight:600;color:var(--ink-2)}
+.usrSec{display:flex;align-items:center;gap:7px;padding:12px 10px 5px;font-size:10px;
+  font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.usrLn{flex:1;height:1px;background:var(--line-2)}
+.usrSolto{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;
+  border:none;background:none;border-radius:8px;cursor:pointer;font:inherit;color:inherit}
+.usrSolto:hover{background:var(--alt)}
+.usrSolto.on{background:var(--acc-soft)}
+.usrSolto.on .usrAv{background:var(--acc);color:#fff}
+.usrSolto.off{opacity:.55}
+.usrRec{width:14px;flex:none}
+.usrPasta{border-radius:8px;margin-bottom:2px}
+.usrPastaH{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 8px;
+  border:none;background:none;border-radius:8px;cursor:pointer;font:inherit;color:inherit}
+.usrPastaH:hover{background:var(--alt)}
+.usrSeta{width:14px;flex:none;color:var(--ink-3);display:flex;align-items:center;
+  justify-content:center;transition:transform .16s ease}
+.usrPasta.ab>.usrPastaH .usrSeta{transform:rotate(90deg)}
+.usrFilhos{display:none;padding:2px 0 6px;margin-left:20px;border-left:1px solid var(--line-2)}
+.usrPasta.ab>.usrFilhos{display:block}
+.usrFilhos .usrIt{border-radius:0 8px 8px 0;padding-left:10px}
+.usrFilhos .usrIt.on{box-shadow:inset 2px 0 0 var(--acc)}
+.usrFilhos .usrAv{width:28px;height:28px;font-size:12px}
+.usrVaz{padding:8px 12px 8px 14px;font-size:11.5px;color:var(--ink-3);font-style:italic}
+
+@media(max-width:1000px){}
+
+@media(max-width:1000px){}
+
+/* ---------- caixa de confirmação ---------- */
+
+/* ---------- gráfico ---------- */
+
+/* ---------- indicadores com dica ---------- */
+
+/* ---------- caixa de cupom ---------- */
+
+/* tabelas dos relatórios: linha mais baixa, cara de sistema */
+
+/* ---------- painel de indicadores compacto ---------- */
+
+/* ---------- DRE ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do DRE em duas colunas ---------- */
+
+@media(max-width:900px){}
+
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+
+/* prévia */
+
+@media(max-width:1100px){}
+
+/* ---------- canais de venda ---------- */
+
+@media(max-width:1200px){
+ }
+
+/* ---------- faturamento ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do PDV ---------- */
+
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+
+/* prévia do PDV */
+
+@media(max-width:1100px){}
+
+/* ---------- áreas de entrega ---------- */
+
+/* ---------- motivos ---------- */
+
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+
+/* ---------- layouts do PDV ---------- */
+
+/* ---------- canais e integração ---------- */
+
+/* ---------- config do cardápio ---------- */
+
+/* a logo e quadrada: moldura pequena, do tamanho que ela aparece mesmo */
+
+@media(max-width:700px){}
+
+/* prévia do cardápio */
+
+/* ---------- pedidos do cardápio ---------- */
+
+/* ---------- robô do whatsapp ---------- */
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+/* ==========================================================
+   FOTO DE FORA A FORA
+
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
+
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
+   ========================================================== */
+
+/* 1) LISTA — sem foto, denso */
+
+/* 2) QUADRO — foto inteira num quadrado */
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+
+/* botões grandes */
+
+/* prévia da configuração */
+
+/* ---------- barra de filtro do kanban ---------- */
+
+@media(max-width:900px){}
+
+/* ================= USUÁRIOS E PERMISSÕES ================= */
+
+@media(max-width:1000px){}
+
+@media(max-width:1000px){}
+
+/* ---------- barra de filtros dos relatórios ---------- */
+
+/* ---------- barra única de filtros ---------- */
+
+/* ---------- caixa de confirmação ---------- */
+
+/* ---------- gráfico ---------- */
+
+/* ---------- indicadores com dica ---------- */
+
+/* ---------- caixa de cupom ---------- */
+
+/* tabelas dos relatórios: linha mais baixa, cara de sistema */
+
+/* ---------- painel de indicadores compacto ---------- */
+
+/* ---------- DRE ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do DRE em duas colunas ---------- */
+
+@media(max-width:900px){}
+
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+
+/* prévia */
+
+@media(max-width:1100px){}
+
+/* ---------- canais de venda ---------- */
+
+@media(max-width:1200px){
+ }
+
+/* ---------- faturamento ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do PDV ---------- */
+
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+
+/* prévia do PDV */
+
+@media(max-width:1100px){}
+
+/* ---------- áreas de entrega ---------- */
+
+/* ---------- motivos ---------- */
+
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+
+/* ---------- layouts do PDV ---------- */
+
+/* ---------- canais e integração ---------- */
+
+/* ---------- config do cardápio ---------- */
+
+/* a logo e quadrada: moldura pequena, do tamanho que ela aparece mesmo */
+
+@media(max-width:700px){}
+
+/* prévia do cardápio */
+
+/* ---------- pedidos do cardápio ---------- */
+
+/* ---------- robô do whatsapp ---------- */
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+/* ==========================================================
+   FOTO DE FORA A FORA
+
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
+
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
+   ========================================================== */
+
+/* 1) LISTA — sem foto, denso */
+
+/* 2) QUADRO — foto inteira num quadrado */
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+
+/* botões grandes */
+
+/* prévia da configuração */
+
+/* ---------- barra de filtro do kanban ---------- */
+
+@media(max-width:900px){}
+
+/* ================= USUÁRIOS E PERMISSÕES ================= */
+
 @media(max-width:1000px){}
 
 @media(max-width:1000px){}
@@ -1545,3 +2031,436 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .selInfo .selAcoes button:hover{background:rgba(255,255,255,.20)}
 .selInfo .selAcoes button.ok{background:#0E8A46;border-color:#0E8A46}
 .selInfo .selAcoes button.ok:hover{background:#12A455}
+
+/* ================= RELATÓRIOS ================= */
+.relFiltros{display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--alt);
+  border-bottom:1px solid var(--line)}
+.rfBloco{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.rfTit{font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.05em;width:100%;margin-bottom:-4px}
+.rfChips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--line);
+  border-radius:20px;background:#fff;cursor:pointer;font-size:11.5px;color:var(--ink-2);user-select:none}
+.chip:hover{border-color:var(--acc)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.chip input{width:12px;height:12px;margin:0}
+.rfAcoes{display:flex;gap:8px}
+.relKpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:1px;
+  margin:12px 16px;background:var(--line-2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.rk{background:#fff;padding:8px 12px 9px}
+.rk span{display:block;font-size:10px;font-weight:600;color:var(--ink-3);line-height:1.3}
+.rk b{display:block;font-size:16px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.rk.dest{background:var(--acc-soft)}
+.rk.dest b{color:var(--acc-d);font-size:18px}
+.ivGrade{display:flex;gap:12px;padding:0 16px 16px;align-items:flex-start}
+.ivGrade .etTabW{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px}
+.ivAdic{width:290px;flex:none;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ivAdicH{display:flex;align-items:center;gap:7px;padding:10px 13px;background:var(--alt);
+  border-bottom:1px solid var(--line-2);font-size:11.5px;font-weight:700;color:var(--ink-2)}
+.ivAdicH svg{color:var(--acc-d)}
+.ivAdicH .cnt2{margin-left:auto}
+.ivAdicT{width:100%;border-collapse:collapse;font-size:11.5px}
+.ivAdicT td{padding:6px 12px;border-bottom:1px solid var(--line-2)}
+.ivAdicT tr:last-child td{border-bottom:none}
+.ivTab tbody tr.ivCat{cursor:pointer;background:var(--alt)}
+.ivTab tbody tr.ivCat:hover td{background:#EEF3F7}
+.ivTab tbody tr.ivCat td{border-top:1px solid var(--line)}
+.ivTab tbody tr.ivProd td:first-child{padding-left:34px;color:var(--ink-2)}
+
+/* ---------- barra de filtros dos relatórios ---------- */
+
+/* ---------- barra única de filtros ---------- */
+
+/* ---------- caixa de confirmação ---------- */
+
+/* ---------- gráfico ---------- */
+
+/* ---------- indicadores com dica ---------- */
+
+/* ---------- caixa de cupom ---------- */
+
+/* tabelas dos relatórios: linha mais baixa, cara de sistema */
+
+/* ---------- painel de indicadores compacto ---------- */
+
+/* ---------- DRE ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do DRE em duas colunas ---------- */
+
+@media(max-width:900px){}
+
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+
+/* prévia */
+
+@media(max-width:1100px){}
+
+/* ---------- canais de venda ---------- */
+
+@media(max-width:1200px){
+ }
+
+/* ---------- faturamento ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do PDV ---------- */
+
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+
+/* prévia do PDV */
+
+@media(max-width:1100px){}
+
+/* ---------- áreas de entrega ---------- */
+
+/* ---------- motivos ---------- */
+
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+
+/* ---------- layouts do PDV ---------- */
+
+/* ---------- canais e integração ---------- */
+
+/* ---------- config do cardápio ---------- */
+
+/* a logo e quadrada: moldura pequena, do tamanho que ela aparece mesmo */
+
+@media(max-width:700px){}
+
+/* prévia do cardápio */
+
+/* ---------- pedidos do cardápio ---------- */
+
+/* ---------- robô do whatsapp ---------- */
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+/* ==========================================================
+   FOTO DE FORA A FORA
+
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
+
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
+   ========================================================== */
+
+/* 1) LISTA — sem foto, denso */
+
+/* 2) QUADRO — foto inteira num quadrado */
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+
+/* botões grandes */
+
+/* prévia da configuração */
+
+/* ---------- barra de filtro do kanban ---------- */
+
+@media(max-width:900px){}
+
+/* ================= USUÁRIOS E PERMISSÕES ================= */
+
+@media(max-width:1000px){}
+
+@media(max-width:1000px){}
+
+/* ---------- caixa de confirmação ---------- */
+
+/* ---------- gráfico ---------- */
+
+/* ---------- indicadores com dica ---------- */
+
+/* ---------- caixa de cupom ---------- */
+
+/* tabelas dos relatórios: linha mais baixa, cara de sistema */
+
+/* ---------- painel de indicadores compacto ---------- */
+
+/* ---------- DRE ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do DRE em duas colunas ---------- */
+
+@media(max-width:900px){}
+
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+
+/* prévia */
+
+@media(max-width:1100px){}
+
+/* ---------- canais de venda ---------- */
+
+@media(max-width:1200px){
+ }
+
+/* ---------- faturamento ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do PDV ---------- */
+
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+
+/* prévia do PDV */
+
+@media(max-width:1100px){}
+
+/* ---------- áreas de entrega ---------- */
+
+/* ---------- motivos ---------- */
+
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+
+/* ---------- layouts do PDV ---------- */
+
+/* ---------- canais e integração ---------- */
+
+/* ---------- config do cardápio ---------- */
+
+/* a logo e quadrada: moldura pequena, do tamanho que ela aparece mesmo */
+
+@media(max-width:700px){}
+
+/* prévia do cardápio */
+
+/* ---------- pedidos do cardápio ---------- */
+
+/* ---------- robô do whatsapp ---------- */
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+/* ==========================================================
+   FOTO DE FORA A FORA
+
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
+
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
+   ========================================================== */
+
+/* 1) LISTA — sem foto, denso */
+
+/* 2) QUADRO — foto inteira num quadrado */
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+
+/* botões grandes */
+
+/* prévia da configuração */
+
+/* ---------- barra de filtro do kanban ---------- */
+
+@media(max-width:900px){}
+
+/* ================= USUÁRIOS E PERMISSÕES ================= */
+
+@media(max-width:1000px){}
+
+@media(max-width:1000px){.ivGrade{flex-direction:column}.ivAdic{width:100%}}
+
+.chip.vazio{opacity:.55}
+.chipN{margin-left:4px;font-size:9.5px;font-weight:800;background:rgba(0,0,0,.08);
+  border-radius:10px;padding:0 5px}
+.chip.on .chipN{background:rgba(255,255,255,.25)}
+
+/* ---------- barra de filtros dos relatórios ---------- */
+.fBar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap}
+.fBarT{display:flex;align-items:center;gap:7px;height:30px;padding:0 12px;border:1px solid var(--line);
+  border-radius:6px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-2)}
+.fBarT:hover{border-color:var(--acc);color:var(--acc-d)}
+.fBarT svg{color:var(--ink-3)}
+.fAtivos{font-size:10px;font-weight:800;background:var(--acc);color:#fff;border-radius:10px;padding:1px 7px}
+.fTags{display:flex;gap:5px;flex-wrap:wrap}
+.fTag{font-size:10.5px;background:var(--acc-soft);color:var(--acc-d);border-radius:4px;padding:3px 8px;font-weight:600}
+.fCorpo{padding:14px 16px;background:var(--alt);border-bottom:1px solid var(--line)}
+.fLinha{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.fAtalhos{display:flex;gap:5px;padding-bottom:2px}
+.fAtalhos button{height:30px;padding:0 11px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;cursor:pointer;font-size:11.5px;color:var(--ink-2)}
+.fAtalhos button:hover{border-color:var(--acc);color:var(--acc-d)}
+.fCols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.fGrupo{background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px}
+.fGrupoT{display:flex;align-items:center;font-size:9.5px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+.fTodos{margin-left:auto;border:none;background:none;cursor:pointer;font-size:10.5px;
+  font-weight:600;color:var(--acc-d);text-transform:none;letter-spacing:0}
+.fTodos:hover{text-decoration:underline}
+
+/* ---------- barra única de filtros ---------- */
+.barraF{display:flex;align-items:flex-end;gap:9px;padding:11px 16px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap}
+.bfCampo{display:flex;flex-direction:column;gap:3px}
+.bfCampo.cresce{flex:1;min-width:150px}
+.bfCampo label{font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.bfCampo input,.bfCampo select{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 9px;
+  outline:none;font-size:12.5px;background:#fff;min-width:120px}
+.bfCampo input:focus,.bfCampo select:focus{border-color:var(--acc)}
+.bfAtalhos{display:flex;gap:4px;padding-bottom:1px}
+.bfAtalhos button{height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;cursor:pointer;font-size:11.5px;color:var(--ink-2)}
+.bfAtalhos button:hover{border-color:var(--acc);color:var(--acc-d)}
+.bfAtalhos button.lim{color:var(--red);border-color:#F0C4C4}
+.smWrap{position:relative;display:flex;flex-direction:column;gap:3px}
+.smWrap label{font-size:9.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.smBt{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border:1px solid var(--line);
+  border-radius:6px;background:#fff;cursor:pointer;font-size:12.5px;color:var(--ink-2);min-width:140px}
+.smBt span{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.smBt:hover{border-color:var(--acc)}
+.smBt.on{border-color:var(--acc);background:var(--acc-soft);color:var(--acc-d);font-weight:600}
+.smPop{position:absolute;top:calc(100% + 5px);left:0;z-index:60;background:#fff;
+  border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh2);min-width:230px;overflow:hidden}
+.smPopH{display:flex;align-items:center;padding:8px 11px;background:var(--alt);
+  border-bottom:1px solid var(--line-2);font-size:10px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.05em}
+.smPopH button{margin-left:auto;border:none;background:none;cursor:pointer;font-size:10.5px;
+  font-weight:600;color:var(--acc-d);text-transform:none;letter-spacing:0}
+.smPopL{max-height:280px;overflow-y:auto;padding:4px}
+.smIt{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:5px;cursor:pointer;font-size:12.5px}
+.smIt:hover{background:var(--alt)}
+.smIt.on{background:var(--acc-soft);color:var(--acc-d);font-weight:600}
+.smIt span{flex:1}
+.smIt i{font-style:normal;font-size:10px;color:var(--ink-3);background:var(--alt);border-radius:9px;padding:0 6px}
+
+.bfRapido{display:flex;gap:5px;padding-bottom:1px;align-self:flex-end}
+.bfRapido button{display:flex;align-items:center;gap:5px;height:32px;padding:0 11px;
+  border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;
+  font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.bfRapido button:hover{border-color:var(--acc);color:var(--acc-d)}
+.bfRapido button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.bfRapido button svg{opacity:.8}
+
+.vpGrade{display:flex;gap:12px;padding:0 16px 16px;align-items:flex-start}
+.vpGrade .etTabW{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px}
+.vpPizza{width:260px;flex:none;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.vpBarras{padding:12px 13px;display:flex;flex-direction:column;gap:12px}
+.vpB small{font-size:10.5px;color:var(--ink-3)}
+.vpBt{display:flex;align-items:baseline;gap:8px;font-size:11.5px;margin-bottom:4px}
+.vpBt span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+.vpBt b{font-size:12.5px}
+.vpBar{height:7px;border-radius:4px;background:var(--line-2);overflow:hidden}
+.vpBar i{display:block;height:100%;border-radius:4px}
+/* ---------- caixa de confirmação ---------- */
+
+/* ---------- gráfico ---------- */
+
+/* ---------- indicadores com dica ---------- */
+
+/* ---------- caixa de cupom ---------- */
+
+/* tabelas dos relatórios: linha mais baixa, cara de sistema */
+
+/* ---------- painel de indicadores compacto ---------- */
+
+/* ---------- DRE ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do DRE em duas colunas ---------- */
+
+@media(max-width:900px){}
+
+/* a coluna das respostas cresce com o conteudo, em vez de espremer o
+   texto numa janelinha de duas linhas */
+
+/* prévia */
+
+@media(max-width:1100px){}
+
+/* ---------- canais de venda ---------- */
+
+@media(max-width:1200px){
+ }
+
+/* ---------- faturamento ---------- */
+
+@media(max-width:800px){}
+
+/* ---------- configuração do PDV ---------- */
+
+/* auto-fit fazia um item sozinho ocupar a coluna inteira e esticar a miniatura.
+   auto-fill mantém a célula no tamanho previsto e a proporção do desenho. */
+
+/* prévia do PDV */
+
+@media(max-width:1100px){}
+
+/* ---------- áreas de entrega ---------- */
+
+/* ---------- motivos ---------- */
+
+/* label e inline: largura e altura nao valem. Dentro de um flex virava
+   item flexivel e funcionava; solto numa celula de tabela ficava com
+   tamanho zero e so aparecia a bolinha branca do :before. */
+
+/* ---------- layouts do PDV ---------- */
+
+/* ---------- canais e integração ---------- */
+
+/* ---------- config do cardápio ---------- */
+
+/* a logo e quadrada: moldura pequena, do tamanho que ela aparece mesmo */
+
+@media(max-width:700px){}
+
+/* prévia do cardápio */
+
+/* ---------- pedidos do cardápio ---------- */
+
+/* ---------- robô do whatsapp ---------- */
+
+/* ================= LAYOUTS DO PDV — foto sempre inteira ================= */
+/* ==========================================================
+   FOTO DE FORA A FORA
+
+   Ja passamos por tres tentativas aqui:
+   1) cover numa faixa de 76px — preenchia, mas era tao baixa que
+      cortava o produto no meio;
+   2) contain — mostrava a foto inteira e deixava duas barras cinza;
+   3) contain com uma copia desfocada no fundo — sem cinza, mas as
+      laterais foscas nao agradaram.
+
+   O que resolve e a altura, nao o encaixe: com a faixa em 4:3 o corte
+   do cover e minimo, porque quase toda foto de celular ja e 4:3 ou 3:2.
+   Entao volta o cover puro: a foto ocupa a faixa de ponta a ponta,
+   sem esticar (a proporcao e mantida) e sem tarja nenhuma.
+   ========================================================== */
+
+/* 1) LISTA — sem foto, denso */
+
+/* 2) QUADRO — foto inteira num quadrado */
+
+/* 3) LINHA — miniatura ao lado, sem corte */
+
+/* botões grandes */
+
+/* prévia da configuração */
+
+/* ---------- barra de filtro do kanban ---------- */
+
+@media(max-width:900px){}

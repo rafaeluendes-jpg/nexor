@@ -84,6 +84,33 @@ function porTamanhoCss(linhas, de, ate, prefixo) {
   }));
 }
 
+
+/* ==========================================================
+   O NOME DO ARQUIVO TEM DE DIZER O QUE TEM DENTRO
+
+   Antes o nome saia da tarja que por acaso estava no ponto do corte, e
+   isso mentia: o pedaco que guarda o WhatsApp e os operadores se
+   chamava "pedidos-do-cardapio-chegando-no-pdv", porque era esse o
+   texto da tarja ali. Nome que engana e pior do que nome generico —
+   manda quem procura para o arquivo errado.
+
+   Agora o nome vem das TELAS que o pedaco contem (`telaXxx`), que e o
+   que a pessoa esta procurando. Sem tela dentro, cai na tarja.
+   ========================================================== */
+function nomeDoPedaco(linhas, de, ate, n) {
+  const telas = [];
+  for (let i = de; i < ate; i++) {
+    const m = linhas[i].match(/^function tela([A-Za-z0-9_]+)/);
+    if (m) telas.push(m[1]);
+  }
+  if (!telas.length) return n === 0 ? 'inicio' : tituloDaTarja(linhas, de);
+
+  /* separa as palavras do CamelCase: telaFichaTecnica -> ficha tecnica */
+  const legivel = t => t.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  if (telas.length <= 2) return telas.map(legivel).join(' e ');
+  return legivel(telas[0]) + ' e mais ' + (telas.length - 1);
+}
+
 /* ==========================================================
    SUBDIVIDIR — quebra um bloco grande nos marcos que ele ja tem
 
@@ -182,7 +209,7 @@ function porTamanho(linhas, de, ate, prefixo) {
   if (partes.length === 1) return [{ nome: prefixo + '.js', de, ate }];
   return partes.map((p, n) => ({
     nome: prefixo + '/' + String(n + 1).padStart(2, '0') + '-' +
-          apelido(n === 0 ? 'inicio' : tituloDaTarja(linhas, p.de)).slice(0, 44) + '.js',
+          apelido(nomeDoPedaco(linhas, p.de, p.ate, n)).slice(0, 44) + '.js',
     de: p.de, ate: p.ate
   }));
 }
@@ -219,6 +246,33 @@ function porTamanhoCss(linhas, de, ate, prefixo) {
           apelido(n === 0 ? 'inicio' : tituloDaTarja(linhas, p.de)).slice(0, 44) + '.css',
     de: p.de, ate: p.ate
   }));
+}
+
+
+/* ==========================================================
+   O NOME DO ARQUIVO TEM DE DIZER O QUE TEM DENTRO
+
+   Antes o nome saia da tarja que por acaso estava no ponto do corte, e
+   isso mentia: o pedaco que guarda o WhatsApp e os operadores se
+   chamava "pedidos-do-cardapio-chegando-no-pdv", porque era esse o
+   texto da tarja ali. Nome que engana e pior do que nome generico —
+   manda quem procura para o arquivo errado.
+
+   Agora o nome vem das TELAS que o pedaco contem (`telaXxx`), que e o
+   que a pessoa esta procurando. Sem tela dentro, cai na tarja.
+   ========================================================== */
+function nomeDoPedaco(linhas, de, ate, n) {
+  const telas = [];
+  for (let i = de; i < ate; i++) {
+    const m = linhas[i].match(/^function tela([A-Za-z0-9_]+)/);
+    if (m) telas.push(m[1]);
+  }
+  if (!telas.length) return n === 0 ? 'inicio' : tituloDaTarja(linhas, de);
+
+  /* separa as palavras do CamelCase: telaFichaTecnica -> ficha tecnica */
+  const legivel = t => t.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  if (telas.length <= 2) return telas.map(legivel).join(' e ');
+  return legivel(telas[0]) + ' e mais ' + (telas.length - 1);
 }
 
 /* ==========================================================
