@@ -434,6 +434,35 @@ async function carregarSistema() {
       /registro\(s\) de '\+E2\.tab\+' não subiram/.test(fonteBruta));
   }
 
+  grupo('Aviso de versão nova · a primeira checagem tem de comparar');
+
+  {
+    t('a primeira checagem NÃO desiste guardando só a etiqueta',
+      !/if\(_etiquetaArquivo===null\)\{ _etiquetaArquivo=et; mudou=false; \}/.test(fonteBruta));
+    t('ela guarda a etiqueta e segue comparando',
+      /if\(_etiquetaArquivo===null\)\{ _etiquetaArquivo=et; \}/.test(fonteBruta));
+    t('etiqueta igual continua economizando banda',
+      /else if\(et===_etiquetaArquivo\) mudou=false;/.test(fonteBruta));
+    t('e o motivo está escrito no código',
+      /A PRIMEIRA CHECAGEM NAO PODE SO GUARDAR A ETIQUETA/.test(fonteBruta));
+
+    /* simula o ciclo: 1ª checagem com versão diferente TEM de avisar */
+    const sim = (etiquetaMuda, primeira) => {
+      let _et = primeira ? null : 'aaa';
+      let mudou = true;
+      const et = etiquetaMuda ? 'bbb' : 'aaa';
+      if (et) {
+        if (_et === null) { _et = et; }
+        else if (et === _et) mudou = false;
+        else _et = et;
+      }
+      return mudou;
+    };
+    t('1ª checagem: baixa e compara', sim(false, true) === true);
+    t('2ª checagem com etiqueta igual: economiza', sim(false, false) === false);
+    t('2ª checagem com etiqueta nova: compara', sim(true, false) === true);
+  }
+
   /* ==========================================================
      A TELA NAO PODE VOLTAR AO TOPO AO CLICAR
      ========================================================== */

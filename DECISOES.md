@@ -6067,3 +6067,30 @@ errado, e fica registrado assim.
 
 Reintroduzi o defeito (removi a limpeza da marca) e a suíte **reprovou** em
 "E A MARCA DE RETIDO É LIMPA". Com a correção: 52/52.
+
+## V194 — o aviso de versão nova podia nunca aparecer
+
+O Rafael atualizou e o aviso de versão nova não apareceu.
+
+`checarVersao()` usa a etiqueta do arquivo (etag) para economizar banda: se a
+etiqueta não mudou, não vale baixar o arquivo inteiro. Correto — foi o que derrubou
+o consumo de 201 MB/hora para menos de 1 MB/hora.
+
+Mas a **primeira** checagem fazia:
+
+```js
+if(_etiquetaArquivo===null){ _etiquetaArquivo=et; mudou=false; }
+```
+
+Guardava a etiqueta e voltava **sem comparar a versão**. Só comparava da segunda vez
+em diante, e só se a etiqueta mudasse.
+
+**Efeito:** se a página foi aberta logo depois de uma publicação, a primeira checagem
+guarda a etiqueta já nova, nunca vê mudança, e o aviso **nunca aparece**. A loja fica
+numa versão velha sem saber — e sem pista nenhuma, porque não há erro.
+
+A economia de banda continua: etiqueta igual segue sem baixar. O que mudou é que a
+primeira vez baixa e compara de verdade.
+
+**Regra:** otimização não pode custar a correção. Quando as duas brigam, a correção
+ganha — e aqui nem era preciso escolher: bastava a primeira checagem ser honesta.

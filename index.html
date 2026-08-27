@@ -18091,7 +18091,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V193.0.0';
+var VERSAO='V194.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18132,7 +18132,24 @@ async function checarVersao(){
         {method:'HEAD',cache:'no-store'});
       var et=h.headers.get('etag')||h.headers.get('last-modified')||'';
       if(et){
-        if(_etiquetaArquivo===null){ _etiquetaArquivo=et; mudou=false; }
+        /* ==========================================================
+           A PRIMEIRA CHECAGEM NAO PODE SO GUARDAR A ETIQUETA (V194)
+
+           Aqui, na primeira vez, o sistema guardava a etiqueta do
+           arquivo e voltava SEM comparar a versao. So comparava da
+           segunda vez em diante, e so se a etiqueta mudasse.
+
+           Efeito: se a pagina foi aberta logo depois de uma publicacao,
+           a primeira checagem guarda a etiqueta JA NOVA, nunca ve
+           mudanca, e o aviso de versao nova NUNCA aparece. A loja fica
+           numa versao velha sem saber — foi o que aconteceu com a V193.
+
+           A etiqueta serve para economizar banda: com ela igual, nao
+           vale a pena baixar o arquivo inteiro. Mas a PRIMEIRA vez tem
+           de baixar e comparar de verdade, senao a economia custa a
+           atualizacao.
+           ========================================================== */
+        if(_etiquetaArquivo===null){ _etiquetaArquivo=et; }   /* compara mesmo assim */
         else if(et===_etiquetaArquivo) mudou=false;
         else _etiquetaArquivo=et;
       }
