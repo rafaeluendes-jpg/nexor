@@ -10465,28 +10465,79 @@ function dev(){toast('Este módulo será construído na próxima etapa.');}
 var _rolTela={}, _rolChave=null, _rolTrava=false;
 function chaveTela(){return (S.mod||'')+'/'+(S.it||'')}
 function areaRolagem(){return document.querySelector('.etScroll')||document.querySelector('.finWrap');}
+/* ==========================================================
+   QUALQUER CAIXA QUE ROLA, NAO SO DUAS
+
+   A guarda so olhava `.etScroll` e `.finWrap`. Medido tela a tela: VINTE
+   E OITO telas rolam em outra caixa — o cardapio em `.cardB`, a ficha
+   tecnica em `.ftWrap`, a movimentacao e os insumos em `.mvWrap`, os
+   lancamentos em `.lfScroll`, a conciliacao em `.cbWrap`, as notas em
+   `.ntWrap`, o fluxo em `.fxWrap`, e mais onze em `.ctWrap`. Em todas
+   elas o defeito continuava inteiro: quem estava no fim da lista e
+   clicava em qualquer coisa voltava para o topo.
+
+   Crescer a lista de classes seria garantir esquecer a proxima — foi o
+   que o comentario acima ja dizia sobre tapar buraco um a um. Entao a
+   posicao passa a ser guardada para TODA caixa que role dentro do
+   #content, identificada por uma marca estavel, e devolvida junto.
+
+   A marca e o identificador do elemento quando ele tem um; senao, a
+   etiqueta com as duas primeiras classes mais a posicao entre os iguais.
+   Sobrevive ao redesenho, que reconstroi a mesma estrutura.
+   ========================================================== */
+function marcaDeRolagem(el){
+  if(el.id)return '#'+el.id;
+  var cls=String(el.className||'').trim().split(/\s+/).filter(Boolean).slice(0,2).join('.');
+  var sel=el.tagName.toLowerCase()+(cls?'.'+cls:'');
+  try{
+    var iguais=document.querySelectorAll('#content '+sel);
+    for(var i=0;i<iguais.length;i++)if(iguais[i]===el)return sel+'|'+i;
+  }catch(e){ /* classe com caractere que nao vale em seletor */ }
+  return sel+'|0';
+}
+function elementoDaMarca(marca){
+  try{
+    if(marca.charAt(0)==='#')return document.getElementById(marca.slice(1));
+    var p=marca.split('|');
+    return document.querySelectorAll('#content '+p[0])[Number(p[1])||0]||null;
+  }catch(e){ return null; }
+}
 (function guardarRolagem(){
-  /* captura na fase de captura porque a barra e de um elemento interno */
+  /* na fase de captura porque a barra e de um elemento interno, e o evento
+     de rolagem nao sobe pela arvore */
   document.addEventListener('scroll',function(e){
     if(_rolTrava)return;
     var el=e.target;
-    if(el&&el.classList&&(el.classList.contains('etScroll')||el.classList.contains('finWrap')))
-      _rolTela[chaveTela()]=el.scrollTop;
+    if(!el||el.nodeType!==1)return;
+    var area=document.getElementById('content');
+    if(!area||!(el===area||area.contains(el)))return;
+    var k=chaveTela();
+    _rolTela[k]=_rolTela[k]||{};
+    _rolTela[k][marcaDeRolagem(el)]=el.scrollTop;
   },true);
   window.addEventListener('scroll',function(){
-    if(_rolTrava||areaRolagem())return;
-    _rolTela[chaveTela()]=window.scrollY||0;
+    if(_rolTrava)return;
+    var k=chaveTela();
+    _rolTela[k]=_rolTela[k]||{};
+    _rolTela[k]['@janela']=window.scrollY||0;
   });
 })();
 function devolverRolagem(){
   var k=chaveTela();
   if(k!==_rolChave){_rolChave=k;return;}    /* tela nova: comeca no topo */
-  var y=_rolTela[k]||0;
-  if(!y)return;
+  var m=_rolTela[k];
+  if(!m)return;
   _rolTrava=true;
-  var el=areaRolagem();
-  if(el){ if(Math.abs(el.scrollTop-y)>2)el.scrollTop=y; }
-  else if(Math.abs((window.scrollY||0)-y)>2)window.scrollTo(0,y);
+  Object.keys(m).forEach(function(marca){
+    var y=Number(m[marca])||0;
+    if(!y)return;
+    if(marca==='@janela'){
+      if(Math.abs((window.scrollY||0)-y)>2)window.scrollTo(0,y);
+      return;
+    }
+    var el=elementoDaMarca(marca);
+    if(el&&Math.abs(el.scrollTop-y)>2)el.scrollTop=y;
+  });
   setTimeout(function(){_rolTrava=false},60);
 }
 /* ligado no arranque: aqui em cima o #content ainda nao existe */
@@ -11326,7 +11377,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V210.0.0';
+var VERSAO='V211.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

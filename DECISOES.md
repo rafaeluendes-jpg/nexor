@@ -6769,3 +6769,80 @@ envio, o cálculo de "aberto agora" (inclusive quem fecha depois da
 meia-noite) e a porta de entrada das duas telas.
 `testes/vinculo-opcao.js`, 19 verificações, prende o vínculo da opção.
 Total: 17 suítes, 902 asserções, zero falhas.
+
+---
+
+## V211 — a varredura de todas as telas
+
+O Rafael pediu a auditoria dos módulos restantes: *"entra em cada módulo,
+testa tudo, vê onde está interligado, se tiver alguma coisa quebrada,
+algum botão, e principalmente bug de tela — tem muita tela que você está
+lá no final, clica pra mexer alguma coisa, ela sobe automático pra cima."*
+
+### A ferramenta
+
+`ferramentas/varrer.js` monta as **94 telas** num DOM de verdade, lê os
+`onclick` que cada uma gerou, confere se a função existe e **clica** em
+cada um, anotando qualquer erro de runtime. Confirmações respondem NÃO e
+`prompt` responde nulo: o caminho do botão é exercitado até a pergunta e
+para ali, sem apagar nada.
+
+Resultado: nenhuma tela deixa de montar, nenhum handler aponta para função
+inexistente. Três defeitos reais apareceram.
+
+### 1. Uma tela congelava o navegador
+
+`telaFinanceiroNexor` — Mensalidades das Unidades. A guarda era
+`!INS.nuvem && !INS.carregando`. O `catch` devolvia `carregando` para
+falso, gravava o erro e chamava a tela de novo; como `INS.nuvem` seguia
+vazio, a guarda voltava a ser verdadeira. Nova chamada, nova falha, nova
+chamada: **laço infinito, navegador travado, em qualquer falha de rede.**
+
+O `INS.erro` era gravado e nunca lido. A tela gêmea, `telaInstalacao`, já
+fazia certo desde sempre: põe o erro na guarda **e** o mostra na tela com
+um botão de tentar de novo. A terceira condição tinha ficado para trás na
+cópia.
+
+### 2. Quatro botões de exportar, quebrados
+
+`baixarCSV(nome, linhas)` — nesta ordem. Quatro chamadas passavam ao
+contrário: **Vendas por Mesa, Cancelamentos, Cupons Gerados** e o **Baixar
+modelo** da importação. Dentro da função, `linhas` recebia o texto do nome
+do arquivo, `linhas.map` não existia, e o clique estourava sem aviso na
+tela — só um erro no console, que ninguém abre no balcão. Os outros oito
+exportadores sempre chamaram na ordem certa.
+
+### 3. O pulo de rolagem: eram 28 telas, não algumas
+
+A guarda existia desde antes e resolvia o problema por inteiro — mas
+olhava **duas** caixas: `.etScroll` e `.finWrap`. Medindo tela a tela,
+**28 rolam em outra**:
+
+| Caixa | Telas |
+|---|---|
+| `.ctWrap` | backup, CMV, central técnica, clientes, diagnóstico, mensalidades, empresas, permissões, rede, reinício, restrita |
+| `.mvWrap` | movimentação de estoque, insumos, mercadoria |
+| `.cardB` | gestão de cardápio |
+| `.ftWrap` | ficha técnica |
+| `.lfScroll` | lançamentos financeiros |
+| `.cbWrap` | conciliação bancária |
+| `.ntWrap` | notas de entrada |
+| `.fxWrap` | fluxo de caixa |
+
+Nessas o defeito estava inteiro: quem estava no fim da lista e clicava em
+qualquer coisa voltava para o topo. É exatamente o que o Rafael descreveu.
+
+Crescer a lista de classes seria repetir o erro que o próprio comentário
+da guarda já alertava — *"tapar um a um seria garantir esquecer algum"*.
+Então a posição passou a ser guardada para **toda caixa que role dentro do
+`#content`**, identificada por uma marca estável (o identificador do
+elemento, ou a etiqueta com as duas primeiras classes mais a posição entre
+os iguais) e devolvida junto. Duas caixas na mesma tela guardam posições
+separadas. Trocar de tela continua começando do topo.
+
+### Contraprova
+
+`testes/rolagem.js`, 21 verificações: as oito caixas que ficavam de fora,
+as duas que já funcionavam, a troca de tela, duas caixas na mesma tela, e
+a marca sobrevivendo ao redesenho. Total: 18 suítes, 927 asserções, zero
+falhas.
