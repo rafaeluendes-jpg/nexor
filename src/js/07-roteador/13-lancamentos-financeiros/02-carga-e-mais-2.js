@@ -391,7 +391,7 @@ function baixarModeloImp(){
   var l=[a.campos.map(function(c){return c.n}), a.campos.map(function(c){return c.ex})];
   if(a.id==='fichas')
     l.push(['Gelato de creme','5','kg','Açúcar refinado','1,2','kg','']);
-  baixarCSV(l,'modelo-'+a.id);
+  baixarCSV('modelo-'+a.id+'.csv',l);
 }
 function explicaImport(){
   confirmar({titulo:'Como importar sem errar',texto:'Importação por área',

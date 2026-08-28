@@ -1087,7 +1087,7 @@ function exportarCupons(){
       String(c.entrega||0).replace('.',','),String(c.desconto||0).replace('.',','),
       String(c.total||0).replace('.',',')]);
   });
-  baixarCSV(l,'cupons-fiscais');
+  baixarCSV('nexor-cupons-fiscais.csv',l);
 }
 /* toda venda vira um registro aqui, mesmo com a emissao desligada */
 function registrarCupom(ped){

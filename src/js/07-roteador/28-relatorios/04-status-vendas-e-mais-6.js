@@ -581,7 +581,7 @@ function exportarMesas(){
       String(p.taxaServico||0).replace('.',','),
       String(p.total||0).replace('.',',')]);
   });
-  baixarCSV(l,'vendas-por-mesa');
+  baixarCSV('nexor-vendas-por-mesa.csv',l);
 }
 
 /* ==========================================================
@@ -1819,7 +1819,7 @@ function exportarCancel(){
     l.push([c.numero,dataBR(c.data),c.hora||'',c.turno||'',c.motivo||'',c.obs||'',
       c.operador||'',String(c.valor||0).replace('.',',')]);
   });
-  baixarCSV(l,'cancelamentos');
+  baixarCSV('nexor-cancelamentos.csv',l);
 }
 
 /* ==========================================================

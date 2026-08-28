@@ -33,6 +33,18 @@ function explicaRel(titulo,linhas,fontes,fora){
   document.body.appendChild(o);
   fecharSoForaDeVerdade(o);
 }
+/* ==========================================================
+   baixarCSV(NOME, LINHAS) — nesta ordem
+
+   Quatro botoes de exportar chamavam com os argumentos trocados. Dentro
+   da funcao, `linhas` recebia o texto do nome do arquivo e `linhas.map`
+   nao existe: o clique estourava e nada era baixado. Nao dava aviso
+   nenhum na tela — so um erro no console, que ninguem abre no balcao.
+
+   Eram: Vendas por Mesa, Cancelamentos, Cupons Gerados e o "Baixar
+   modelo" da tela de importacao. Os outros oito exportadores do sistema
+   sempre chamaram na ordem certa; estes quatro nasceram trocados.
+   ========================================================== */
 function baixarCSV(nome,linhas){
   var csv=linhas.map(function(r){return r.map(function(c){
     return '"'+String(c).replace(/"/g,'""')+'"'}).join(';')}).join('\n');

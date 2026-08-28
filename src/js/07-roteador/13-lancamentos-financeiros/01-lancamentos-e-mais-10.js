@@ -2214,11 +2214,37 @@ function fnLinhas(){
 }
 function telaFinanceiroNexor(){
   if(!ehPlataforma()&&!ehFranqueadora())return telaRestrita('Mensalidades das Unidades');
-  if(!INS.nuvem&&!INS.carregando){
+  /* ==========================================================
+     ESTA TELA CONGELAVA O NAVEGADOR QUANDO A NUVEM FALHAVA
+
+     A guarda era `!INS.nuvem && !INS.carregando`. O `catch` devolvia
+     `carregando` para falso, gravava o erro e chamava a tela de novo —
+     e a guarda voltava a ser verdadeira, porque `INS.nuvem` continuava
+     vazio. Nova chamada, nova falha, nova chamada: laco infinito, com o
+     navegador travado, em qualquer falha de rede.
+
+     O `INS.erro` era gravado e nunca lido. A tela gemea, telaInstalacao,
+     ja fazia certo desde sempre: poe o erro na guarda E o mostra na tela,
+     com um botao de tentar de novo. Aqui a terceira condicao tinha
+     ficado para tras na copia.
+     ========================================================== */
+  if(!INS.nuvem&&!INS.carregando&&!INS.erro){
     INS.carregando=true;
     carregarEmpresas().then(function(){INS.carregando=false;telaFinanceiroNexor();})
-      .catch(function(e){INS.carregando=false;INS.erro=(e&&e.message)||'';telaFinanceiroNexor();});
+      .catch(function(e){INS.carregando=false;INS.erro=(e&&e.message)||'falha ao ler';
+        telaFinanceiroNexor();});
     $('content').innerHTML='<div class="ctWrap"><div class="usrVazio"><b>Carregando…</b></div></div>';
+    return;
+  }
+  if(INS.erro&&!INS.nuvem){
+    $('content').innerHTML='<div class="ctWrap"><div class="ctTopo">'+
+     '<h1>Mensalidades das Unidades</h1></div>'+
+     '<div class="usrVazio" style="background:#fff;border:1px solid var(--line);border-radius:10px">'+
+      '<b>Não consegui ler as mensalidades</b><span>'+E(INS.erro)+'</span>'+
+      '<div style="margin-top:12px"><button class="btnP2" '+
+      'onclick="INS.erro=\'\';INS.nuvem=null;telaFinanceiroNexor()">'+
+      'Tentar de novo</button></div></div></div>';
+    rodape('não foi possível carregar');
     return;
   }
   var mes=fnMesAtual();
