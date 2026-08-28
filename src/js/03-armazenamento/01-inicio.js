@@ -44,7 +44,9 @@ var DB={categorias:[],produtos:[],grupos:[],fichas:[]};
 var NUVEM={
   url:'https://cevghkndzpzvnzwifhnm.supabase.co',
   chave:'sb_publishable_tH04wQWnUjOUQWePZ0Bshw_RirDPUDY',
-  cli:null, token:null, ligada:false, baixou:false, sujo:false, log:[], loja:null, perfil:null, sincronizando:false, pendente:false, ultima:null
+  cli:null, token:null, ligada:false, baixou:false, sujo:false, log:[], loja:null, perfil:null, sincronizando:false, pendente:false, ultima:null,
+  /* a sessao acabou (e so entrando de novo resolve) — diferente de rede caida */
+  sessaoCaiu:false
 };
 /* ==========================================================
    CLIENTE UNICO DA NUVEM
@@ -218,6 +220,18 @@ function conferirNuvem(){
        uma sessao valida e internet, e porque a internet caiu — e isso o
        sistema resolve sozinho. O aviso agora informa, nao cobra acao.
        ------------------------------------------------------------------ */
+    /* ==========================================================
+       SESSAO CAIDA NAO E SERVIDOR FORA DO AR
+
+       O aviso desta funcao promete que "sobe sozinho assim que a conexao
+       voltar". Quando o que caiu foi a SESSAO, isso e mentira: nao volta
+       sozinho nunca, so entrando de novo. Foi o que a loja de Santa Fe do
+       Sul viu a tarde inteira em 28/08/2026.
+
+       Quem tem o texto certo para esse caso — com o botao de entrar de
+       novo — e `avisoSessaoCaiu()`. Aqui a gente sai da frente.
+       ========================================================== */
+    if(NUVEM.sessaoCaiu){ try{avisoSessaoCaiu();}catch(e){_quieto(e,'conferirNuvem')} return; }
     el=document.createElement('div');
     el.id='avisoNuvem';el.className='avisoGrav';
     /* "sem internet" mandava procurar problema no lugar errado: quase sempre
@@ -655,7 +669,7 @@ async function conectarNuvem(email,senha){
   if(r.error)throw r.error;
   var rp=await NUVEM.cli.from('perfis').select('id,nome,cargo,loja_id,empresa_id').eq('id',r.data.user.id).maybeSingle();
   if(rp.error||!rp.data)throw new Error('Usuário sem perfil vinculado a uma loja.');
-  NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
+  NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;NUVEM.sessaoCaiu=false;
   NUVEM.token=r.data.session?r.data.session.access_token:null;
   setTimeout(ligarTempoReal,600);
   setModo('nuvem');
@@ -717,7 +731,7 @@ async function religarNuvem(){
       }
     }
     if(!rp||rp.error||!rp.data){ estadoNuvem('offline'); return false; }
-    NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;
+    NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;NUVEM.sessaoCaiu=false;
     NUVEM.token=ses.access_token;
     NUVEM.plataforma=(!rp.data.loja_id&&rp.data.cargo==='plataforma');
     setModo('nuvem');
@@ -1433,6 +1447,58 @@ async function tokenAtual(forcar){
    Agora a sessão é renovada ANTES de vencer, e a recusa por sessão é tratada
    como o que é: falta de credencial, não erro de dado. */
 var _tokenAte=0;
+/* ==========================================================
+   UMA RENOVACAO DE CADA VEZ — E QUEM PERDE A CORRIDA NAO PERDE A SESSAO
+
+   28/08/2026, 16h. A loja de Santa Fe do Sul parou de sincronizar no meio
+   do expediente. No servidor ficaram cinco recusas seguidas em
+   `POST /auth/v1/token?grant_type=refresh_token` com 400 — e dali em
+   diante nada mais subiu.
+
+   O motivo: o refresh token do Supabase e de USO UNICO. Quem o usa
+   recebe um novo e o velho morre na hora. E havia dois relogios
+   renovando o mesmo token: a propria biblioteca (`autoRefreshToken:true`)
+   e esta funcao, que chamava `refreshSession()` por conta propria sempre
+   que faltavam menos de cinco minutos para vencer. Os dois caiam na mesma
+   janela. O primeiro renovava; o segundo apresentava um token que ja
+   tinha sido usado, levava 400 — e a biblioteca, diante disso, descarta a
+   sessao inteira. A loja seguiu vendendo com o aviso "servidor nao
+   respondeu", sem servidor nenhum estar fora do ar.
+
+   E o mesmo defeito que a nota la em cima descreve para os tres
+   `createClient`, um andar acima: la eram tres relogios, aqui sao dois.
+
+   Duas travas agora:
+
+   1. UMA renovacao por vez. Quem chegar durante uma renovacao em
+      andamento espera aquela e usa o resultado dela.
+   2. Renovacao recusada NAO e sessao perdida. Se a biblioteca renovou
+      primeiro, a sessao boa esta guardada — entao, ao levar recusa, se
+      pergunta a ela antes de declarar qualquer coisa.
+
+   E a janela propria caiu de 5 minutos para 60 segundos: a biblioteca
+   renova bem antes disso, entao aqui so age quando ela nao deu conta.
+   ========================================================== */
+var _renovando=null;
+async function renovarSessao(){
+  if(_renovando)return _renovando;
+  _renovando=(async function(){
+    try{
+      var rr=await NUVEM.cli.auth.refreshSession();
+      if(rr&&rr.error)throw rr.error;
+      return (rr&&rr.data&&rr.data.session)||null;
+    }catch(e){
+      /* recusa aqui quase sempre significa "esse token ja foi usado" —
+         isto e, alguem renovou primeiro. A sessao valida esta guardada. */
+      logNuvem('renovação recusada ('+((e&&e.message)||e)+') — conferindo a sessão guardada',true);
+      try{
+        var g=await NUVEM.cli.auth.getSession();
+        return (g&&g.data&&g.data.session)||null;
+      }catch(e2){ _quieto(e2,'renovarSessao'); return null; }
+    }finally{ _renovando=null; }
+  })();
+  return _renovando;
+}
 async function tokenValido(forcar){
   if(!NUVEM.cli)return NUVEM.token;
   var agora=Date.now();
@@ -1440,21 +1506,30 @@ async function tokenValido(forcar){
   try{
     var r=await NUVEM.cli.auth.getSession();
     var ses=r&&r.data?r.data.session:null;
-    /* renova quando falta menos de 5 minutos, em vez de esperar quebrar */
     var venceEm=ses&&ses.expires_at?ses.expires_at*1000:0;
-    if(!ses||forcar||(venceEm&&venceEm-agora<300000)){
-      var rr=await NUVEM.cli.auth.refreshSession();
-      ses=rr&&rr.data?rr.data.session:null;
+    /* so entra quando a biblioteca nao deu conta: sem sessao, ja vencida,
+       ou vencendo em menos de 60 s */
+    if(!ses||forcar||(venceEm&&venceEm-agora<60000)){
+      ses=(await renovarSessao())||ses;
       venceEm=ses&&ses.expires_at?ses.expires_at*1000:0;
     }
-    if(ses){
+    if(ses&&ses.access_token){
       NUVEM.token=ses.access_token;
-      _tokenAte=venceEm?venceEm-300000:agora+600000;
+      NUVEM.sessaoCaiu=false;
+      _tokenAte=venceEm?venceEm-60000:agora+600000;
       if(NUVEM.cli.realtime&&NUVEM.cli.realtime.setAuth)
         NUVEM.cli.realtime.setAuth(NUVEM.token);
     }else{
-      /* a sessão acabou de verdade: parar de fingir que está ligado */
-      NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;
+      /* ==========================================================
+         AQUI A LOJA PRECISA OUVIR A VERDADE
+
+         Antes isto so apagava o token e deixava o aviso generico de
+         "servidor nao respondeu — reconectando sozinho" aparecer.
+         Sessao caida nao volta sozinha: o caixa seguia vendendo a tarde
+         inteira esperando uma reconexao que nunca ia acontecer.
+         ========================================================== */
+      NUVEM.token=null;_tokenAte=0;NUVEM.ligada=false;NUVEM.sessaoCaiu=true;
+      try{avisoSessaoCaiu();}catch(e){_quieto(e,'tokenValido')}
       try{conferirNuvem();rodape();}catch(e){_quieto(e,'tokenValido')}
     }
   }catch(e){_quieto(e,'tokenValido')}
