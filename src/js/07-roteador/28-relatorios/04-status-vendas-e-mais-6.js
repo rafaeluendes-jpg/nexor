@@ -1948,8 +1948,7 @@ function usuarioLogado(){
   if(!SESSAO.usuarioId)return null;
   return DB.usuarios.find(function(u){return u.id===SESSAO.usuarioId})||null;
 }
-/* SESSAO nasce no bloco 1 — aqui ela ja existe e nao pode ser zerada:
-   este trecho roda DEPOIS do "manter conectado" do bloco 5. */
+var SESSAO={usuarioId:null,login:null};
 /* pode ver este item do menu? */
 function podeVer(mid,iid){
   var u=usuarioLogado();

@@ -409,31 +409,8 @@ function marcarNovoAqui(x,col){
    dono: dado de outra empresa tem `_loja` preenchido e continua
    retido, exatamente como antes.
    ========================================================== */
-/* ==========================================================
-   A PROTECAO NAO PODE DEPENDER DA SESSAO
-
-   Esta funcao fazia DUAS coisas, e uma delas nao tem nada a ver com a
-   outra:
-
-     1. carimbar o dono do registro (`_loja`) — isso PRECISA da sessao;
-     2. marcar `_novoAqui` — a marca que diz "a nuvem ainda nao conhece
-        este registro, o download nao pode apaga-lo". Essa so depende de
-        DB._uuid, e nunca precisou de sessao nenhuma.
-
-   O `return 0` da primeira linha pulava as DUAS. Resultado: o cadastro
-   criado antes de a sessao resolver a loja — o que acontece nos
-   primeiros segundos, e sempre que a sessao falha — ficava sem dono E
-   SEM PROTECAO. Nao subia, e o download seguinte o apagava.
-
-   Era o relato do Rafael: cria a categoria, cria o produto dentro dela,
-   aparece o aviso de "ainda nao chegou a nuvem", e minutos depois o
-   produto sumiu da categoria e do cardapio.
-
-   Agora a marca e posta SEMPRE. O carimbo do dono continua esperando a
-   sessao — dado de outra empresa nao pode mudar de dono por descuido.
-   ========================================================== */
 function carimbarOrigem(){
-  var temSessao=!!NUVEM.loja;
+  if(!NUVEM.loja)return 0;                 /* sem sessao nao ha o que carimbar */
   var suc=null; try{suc=lojaAtualId()}catch(e){_quieto(e,'carimbarOrigem')}
   var n=0;
   for(var col in DB){
@@ -443,16 +420,14 @@ function carimbarOrigem(){
     for(var i=0;i<lista.length;i++){
       var r=lista[i];
       if(!r||typeof r!=='object')continue;
-      /* enquanto a nuvem nao devolveu um identificador para este registro,
-         ele so existe aqui — e o download nao pode apaga-lo. Vem ANTES da
-         conferencia de sessao de proposito. */
-      marcarNovoAqui(r,col);
-      if(!temSessao)continue;              /* sem sessao nao da para dizer de quem e */
       if(!r._loja){ r._loja=NUVEM.loja; r._suc=r._suc||suc;
                     r._criadoEm=r._criadoEm||new Date().toISOString(); n++;
                     /* nasceu aqui antes de a sessao existir: agora tem dono e
                        volta para a fila em vez de ficar retido para sempre */
                     if(r._tenantDesconhecido){ delete r._tenantDesconhecido; } }
+      /* enquanto a nuvem nao devolveu um identificador para este registro,
+         ele so existe aqui — e o download nao pode apaga-lo */
+      marcarNovoAqui(r,col);
     }
   }
   return n;
@@ -1875,47 +1850,6 @@ async function sincronizar(){
       o._suc=DB.cardapio[k]._suc||k;
       return o;
     });
-    /* ==========================================================
-       QUEM APONTAVA PARA A LINHA DESCARTADA FICAVA APONTANDO PARA O VAZIO
-
-       A limpeza abaixo junta duas linhas do mesmo cadastro que tenham o
-       MESMO NOME — sao a mesma coisa cadastrada duas vezes — e apaga uma
-       delas do aparelho. Ate aqui, tudo certo.
-
-       O que faltava: o que apontava para a linha apagada continuava
-       apontando para um identificador que nao existe mais. Duas
-       categorias "Taxa de entrega", o produto pendurado na segunda: a
-       segunda saia, e o produto passava a apontar para o nada. Ele
-       continuava gravado, mas nao aparecia em categoria nenhuma — nem no
-       PDV, nem na gestao de cardapio. Sumia sem ter sido apagado.
-
-       Agora a referencia e mudada para a linha que ficou.
-       ========================================================== */
-    function remapearReferencias(de,para){
-      if(!de||!para||de===para)return 0;
-      var n=0;
-      function anda(o,prof){
-        if(!o||typeof o!=='object'||prof>6)return;
-        for(var k in o){
-          var v=o[k];
-          if(v===de){ o[k]=para; n++; }
-          else if(Array.isArray(v)){
-            for(var i=0;i<v.length;i++){
-              if(v[i]===de){ v[i]=para; n++; }
-              else if(v[i]&&typeof v[i]==='object')anda(v[i],prof+1);
-            }
-          }
-          else if(v&&typeof v==='object')anda(v,prof+1);
-        }
-      }
-      for(var col in DB){
-        if(_COLS_SEM_CARIMBO[col])continue;
-        var l=DB[col];
-        if(Array.isArray(l))for(var i=0;i<l.length;i++)anda(l[i],0);
-        else if(l&&typeof l==='object')anda(l,0);
-      }
-      return n;
-    }
     MAPA.forEach(function(E3){
       var lst=DB[E3.col]||[];
       var vistosId={},vistosNome={},limpa=[];
@@ -1937,15 +1871,7 @@ async function sincronizar(){
               (E3.filhos||[]).forEach(function(F3){n+=(o[F3.lista]||[]).length});
               return n;
             };
-            var fica,sai;
-            if(peso(x)>peso(limpa[ant])){ sai=limpa[ant]; fica=x;
-                                          limpa[ant]=x; vistosId[x.id]=true; }
-            else { fica=limpa[ant]; sai=x; }
-            /* o que apontava para a que saiu passa a apontar para a que ficou */
-            var mudou=remapearReferencias(sai.id,fica.id);
-            logNuvem(E3.col+': "'+(fica.nome||fica.id)+'" estava cadastrada duas vezes — '+
-              'ficou uma'+(mudou?', e '+mudou+' vínculo(s) foram apontados para ela':''),
-              mudou>0);
+            if(peso(x)>peso(limpa[ant])){limpa[ant]=x;vistosId[x.id]=true;}
             return;
           }
           vistosNome[chave]=limpa.length;
