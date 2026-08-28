@@ -2035,8 +2035,15 @@ function pedeSenhaCaixa(pref){
     if(i){i.value='';i.focus();}
   }
 }
-function fecharCaixa(){
-  var cx=caixaAberto();if(!cx){toast('Nenhum caixa aberto.');return;}
+/* `id` fecha um caixa especifico — o que ficou esquecido aberto de outro
+   dia, pela tela de Frente de Caixa. Sem `id`, fecha o caixa em operacao,
+   que e como o PDV sempre chamou. A conferencia, a fotografia e o
+   lancamento no financeiro sao os mesmos nos dois caminhos. */
+function fecharCaixa(id){
+  var cx=id?(DB.caixas||[]).find(function(c){return c.id===id&&!c.fechadoEm})
+           :caixaAberto();
+  if(!cx){toast('Nenhum caixa aberto.');return;}
+  var _eraOAtual=(caixaAberto()||{}).id===cx.id;
   var mov=movimentoCaixa(cx.id);
   var cego=cfg().caixaCego;
   var esperadoGaveta=esperadoCaixa(cx);
@@ -2239,12 +2246,42 @@ function fecharCaixa(){
     cx.snapshot=montarSnapshot(cx,mov,esp,conf);
     cx.diferencaTotal=cx.snapshot.diferencaTotal;
     cx.conciliado=cx.snapshot.conciliado;
-    (DB.caixas||[]).forEach(function(c){ if(!c.fechadoEm&&c.id!==cx.id)c.fechadoEm=cx.fechadoEm; });
+    /* ==========================================================
+       FECHAR O MEU CAIXA NAO FECHA O CAIXA DOS OUTROS
+
+       Esta linha fechava TODO caixa sem data de fechamento que
+       estivesse neste aparelho — inclusive o de outra unidade. Quem
+       entra pela matriz tem os caixas da rede inteira aqui dentro.
+
+       Aconteceu de verdade: em 27/08/2026, as 13:39, o fechamento de
+       Santa Fe do Sul fechou junto o caixa do Alphaville, aberto no dia
+       26. Ficou gravado com o mesmo minuto, sem operador que fechou,
+       sem conferencia, sem fotografia, R$ 0,00 contados. O relatorio do
+       franqueado passou a mostrar um turno que ninguem fechou.
+
+       O caixa e da unidade. Se sobrou outro aberto NA MESMA unidade
+       — duplicata antiga, aparelho que abriu duas vezes — ele continua
+       sendo encerrado junto, que era o motivo desta linha existir, e
+       agora fica registrado no diagnostico.
+       ========================================================== */
+    var _minhaUn=lojaAtualId();
+    (DB.caixas||[]).forEach(function(c){
+      if(!c||c.fechadoEm||c.id===cx.id)return;
+      if(c.sucursalId&&_minhaUn&&c.sucursalId!==_minhaUn)return;
+      /* caixa aberto DEPOIS deste e o que esta em operacao agora: fechar
+         o esquecido de ontem nao pode levar o de hoje junto */
+      if(isoHoraDoCaixa(c.aberto)>isoHoraDoCaixa(cx.aberto))return;
+      c.fechadoEm=cx.fechadoEm;
+      try{logNuvem('caixa '+c.id+' estava aberto na mesma unidade e foi encerrado junto '+
+        'com o fechamento de '+cx.id,true)}catch(e){}
+    });
     var nLanc=lancarFechamento(cx,mov);
     salvar();
-    /* o turno acabou: nada do que estava na tela pode sobreviver a ele */
-    encerrarSessaoPDV();
-    telaPDV();
+    /* o turno acabou: nada do que estava na tela pode sobreviver a ele.
+       Fechando um caixa esquecido de outro dia, a venda em andamento no
+       caixa de hoje nao tem nada com isso e continua onde estava. */
+    if(_eraOAtual){encerrarSessaoPDV();telaPDV();}
+    else if(typeof telaFrenteCaixa==='function')telaFrenteCaixa();
     if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));
     /* ==========================================================

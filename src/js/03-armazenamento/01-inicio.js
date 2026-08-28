@@ -1537,6 +1537,75 @@ function hashTexto(t){
   for(var i=0;i<t.length;i++){h^=t.charCodeAt(i);h=(h*16777619)>>>0;}
   return h.toString(36);
 }
+/* ==========================================================
+   A IMPRESSAO DIGITAL DE UMA LINHA — UMA CONTA SO
+
+   O envio compara a impressao de agora com a do ultimo envio confirmado
+   para saber o que mudou. A volta da nuvem precisa anotar exatamente a
+   MESMA impressao, senao o aparelho acha que tudo mudou e reenvia a
+   copia dele por cima do que ja esta la.
+
+   Duas contas separadas divergem no primeiro campo que alguem mexer.
+   Por isso e uma funcao so, usada pelos dois lados.
+   ========================================================== */
+function impressaoDaLinha(E,x,i){
+  var o=E.campos(x,i);
+  o.loja_id=x._loja;
+  o.ref_local=x.id;
+  var extra='';
+  (E.filhos||[]).forEach(function(F9){extra+=JSON.stringify(x[F9.lista]||[])});
+  if(E.vinculo)extra+=JSON.stringify(x[E.vinculo.lista]||[]);
+  return hashTexto(JSON.stringify(o)+extra);
+}
+/* ==========================================================
+   O QUE ACABOU DE DESCER NAO PRECISA SUBIR DE VOLTA
+
+   AQUI ESTAVA O CAIXA DO DIA 27 REABRINDO SOZINHO.
+
+   No fim do download estava escrito:
+
+     "o que veio da nuvem ja esta na nuvem: registra a impressao"
+     DB._hash={};
+
+   O comentario diz REGISTRA. A linha APAGA. Sem impressao nenhuma, o
+   envio seguinte considera que todas as linhas mudaram e sobe a copia
+   local inteira por cima da nuvem — inclusive linhas que outro aparelho
+   alterou no meio do caminho.
+
+   Foi o que aconteceu em 28/08/2026 em Santa Fe do Sul: a loja fechou o
+   caixa aberto em 27/08 e abriu o de hoje. Um segundo aparelho, que
+   tinha baixado o caixa no dia 27 quando ele ainda estava aberto,
+   sincronizou depois e regravou a versao velha: `fechado_em` voltou a
+   ser nulo, sem venda, sem conferencia, sem fotografia. O caixa
+   desapareceu do relatorio de Frente de Caixa, porque la so entra caixa
+   com data de fechamento.
+
+   Agora a impressao e anotada de verdade. Nao ganha impressao:
+   - o registro criado aqui que a nuvem ainda nao confirmou (`_novoAqui`
+     ou sem uuid): esse PRECISA subir;
+   - o registro de outra empresa, que nunca sobe por este aparelho.
+   ========================================================== */
+function anotarImpressoes(){
+  DB._hash=DB._hash||{};
+  DB._uuid=DB._uuid||{};
+  var l=NUVEM.loja,n=0;
+  for(var m=0;m<(MAPA||[]).length;m++){
+    var E=MAPA[m],h={};
+    var lista=(DB[E.col]||[]).filter(function(x){
+      return x&&typeof x==='object'&&x._loja===l;});
+    var uu=DB._uuid[E.col]||{};
+    for(var i=0;i<lista.length;i++){
+      var x=lista[i];
+      if(x._novoAqui===true)continue;    /* nunca confirmado: tem de subir */
+      if(x._filhoPendente===true)continue;/* tem filho que a nuvem nao tem */
+      if(!uu[x.id])continue;             /* a nuvem nao conhece: tem de subir */
+      try{ h[x.id]=impressaoDaLinha(E,x,i); n++; }
+      catch(e){ _quieto(e,'anotarImpressoes'); }
+    }
+    DB._hash[E.col]=h;
+  }
+  return n;
+}
 /* grava (insere ou atualiza) pelo ref_local e devolve os ids */
 /* O banco exige que TODOS os registros de um envio tenham exatamente as mesmas
    chaves. Um campo que às vezes vale `undefined` (um vínculo que não existe)
@@ -2107,11 +2176,8 @@ async function sincronizar(){
           var o=E2.campos(x,i);
           o.loja_id=x._loja;          /* a empresa de ORIGEM, nunca a da sessao */
           o.ref_local=x.id;
-          /* a impressao inclui os filhos: mexer num item da ficha tambem conta */
-          var extra='';
-          (E2.filhos||[]).forEach(function(F9){extra+=JSON.stringify(x[F9.lista]||[])});
-          if(E2.vinculo)extra+=JSON.stringify(x[E2.vinculo.lista]||[]);
-          hNovo[x.id]=hashTexto(JSON.stringify(o)+extra);
+          /* a mesma conta que a volta da nuvem usa — impressaoDaLinha */
+          hNovo[x.id]=impressaoDaLinha(E2,x,i);
           if(hAnt[x.id]!==hNovo[x.id]||!DB._uuid[E2.col][x.id])mudou[x.id]=true;
           return o;
         });
@@ -2136,7 +2202,7 @@ async function sincronizar(){
           _ids[r.ref_local]=r.id;DB._uuid[E2.col][r.ref_local]=r.id;
           /* confirmado pela nuvem: deixa de ser "so daqui" */
           var _o=lista.find(function(x){return x.id===r.ref_local});
-          if(_o)delete _o._novoAqui;
+          if(_o){delete _o._novoAqui;delete _o._filhoPendente;}
         });
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};

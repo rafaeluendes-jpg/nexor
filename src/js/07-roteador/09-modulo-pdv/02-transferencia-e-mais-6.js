@@ -2087,11 +2087,45 @@ function caixaAberto(){
      valia como caixa aberto em Santa Fe. Caixa antigo, gravado antes de
      existir a coluna, nao tem unidade: vale para quem estiver olhando,
      senao a loja fica sem caixa do nada. */
-  return DB.caixas.find(function(c){
-    if(c.fechadoEm)return false;
+  /* ==========================================================
+     SOBRANDO DOIS, O CAIXA EM OPERACAO E O MAIS NOVO
+
+     `find` devolvia o PRIMEIRO da lista. Quando um caixa antigo ficou
+     aberto por engano — como o de 27/08 em Santa Fe, que perdeu o
+     fechamento na sincronizacao — o PDV passava a considerar o caixa
+     velho como o caixa do dia, e as vendas de hoje iam parar no turno
+     de ontem.
+
+     O caixa em operacao e sempre o ultimo aberto. O antigo continua
+     aparecendo como pendencia na Frente de Caixa, para ser fechado.
+     ========================================================== */
+  var abertos=DB.caixas.filter(function(c){
+    if(!c||c.fechadoEm)return false;
     if(!c.sucursalId)return true;
     return c.sucursalId===minha;
-  })||null;
+  });
+  if(!abertos.length)return null;
+  return abertos.slice().sort(function(a,b){
+    return isoHoraDoCaixa(a.aberto).localeCompare(isoHoraDoCaixa(b.aberto));
+  })[abertos.length-1];
+}
+/* "27/08/2026 13:40" -> "2026-08-27 13:40", que ordena como texto */
+function isoHoraDoCaixa(txt){
+  var t=String(txt||'');
+  var p=t.split(' ')[0].split('/');
+  if(p.length!==3)return t;
+  return p[2]+'-'+p[1]+'-'+p[0]+' '+(t.split(' ')[1]||'00:00');
+}
+/* Caixas que ficaram abertos de dias anteriores nesta unidade. */
+function caixasEsquecidos(){
+  var minha=lojaAtualId();
+  return (DB.caixas||[]).filter(function(c){
+    if(!c||c.fechadoEm)return false;
+    if(c.sucursalId&&minha&&c.sucursalId!==minha)return false;
+    return caixaDeOutroDia(c);
+  }).sort(function(a,b){
+    return isoHoraDoCaixa(a.aberto).localeCompare(isoHoraDoCaixa(b.aberto));
+  });
 }
 /* o caixa aberto e de hoje? gelato fecha as 22:30 — caixa de outro dia e
    esquecimento, nao turno que atravessa a noite */

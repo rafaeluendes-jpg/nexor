@@ -281,6 +281,17 @@ function volta(linhas,fn,atual,col){
           if(faltando.length){
             novo[campoF]=listaNova.concat(faltando);
             devolvidos+=faltando.length;
+            /* ==========================================================
+               O PAI VOLTOU DA NUVEM, MAS ESTE FILHO AINDA NAO SUBIU
+
+               A anotacao de impressao (anotarImpressoes) diz "esta linha
+               ja esta na nuvem, nao precisa subir". Para um pai que
+               acabou de receber de volta um filho que a nuvem NAO tem,
+               isso seria uma mentira — e o ingrediente ficaria preso
+               aqui para sempre. Marcado assim, o pai nao ganha impressao
+               e sobe no envio seguinte, levando o filho junto.
+               ========================================================== */
+            novo._filhoPendente=true;
           }
         });
         if(devolvidos)
@@ -1265,8 +1276,26 @@ function volta(linhas,fn,atual,col){
       ') — mantidos na tela, sem reenvio automático');
   }
 
-  /* o que veio da nuvem ja esta na nuvem: registra a impressao para nao reenviar tudo */
-  DB._hash={};
+  /* ==========================================================
+     O QUE VEIO DA NUVEM JA ESTA NA NUVEM
+
+     Aqui estava `DB._hash={}`. O comentario dizia "registra a impressao
+     para nao reenviar tudo" e a linha fazia o contrario: apagava todas.
+     Sem impressao, o envio seguinte trata TODA linha como alterada e
+     regrava a copia deste aparelho por cima da nuvem — desfazendo, em
+     silencio, o que outro aparelho mudou nesse meio tempo.
+
+     Foi assim que o caixa de 27/08 voltou a ficar aberto depois de
+     fechado, e sumiu do relatorio de Frente de Caixa.
+
+     `anotarImpressoes()` (bloco 3) anota o que desceu e deixa sem
+     impressao apenas o que ainda precisa subir.
+
+     A anotacao em si roda mais abaixo, depois do carimbo da empresa:
+     linha sem `_loja` nao e reconhecida como desta loja, e ficaria de
+     fora da anotacao.
+     ========================================================== */
+
   NUVEM.baixou=true;   /* daqui em diante este aparelho pode espelhar exclusões */
   NUVEM.zerado=false;  /* ja tem os dados do dono: pode enviar */
   /* ==========================================================
@@ -1304,6 +1333,16 @@ function volta(linhas,fn,atual,col){
   /* marca que o download ja chegou uma vez neste aparelho. As funcoes que
      semeiam cadastro padrao (motivos, turnos, status, impressao) esperam por
      ela: semear antes do download e o que criava duplicata a cada entrada. */
+  /* agora sim: com a empresa carimbada, anota a impressao do que desceu */
+  try{
+    var _imp=anotarImpressoes();
+    logNuvem('impressão registrada em '+_imp+' registro(s) que vieram da nuvem');
+  }catch(e){
+    /* falhou a anotacao: deixa as impressoes como estao. Apagar aqui seria
+       voltar ao defeito — o aparelho reenviaria tudo por cima da nuvem. */
+    _quieto(e,'anotarImpressoes');
+    logNuvem('não consegui registrar a impressão do download: '+(e&&e.message||e),true);
+  }
   DB._baixouUmaVez=true;
   if(_FALHOU_BAIXA.length){
     logNuvem('leitura parcial: '+_FALHOU_BAIXA.length+' tabela(s) não vieram ('+

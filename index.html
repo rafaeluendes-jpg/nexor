@@ -7911,6 +7911,75 @@ function hashTexto(t){
   for(var i=0;i<t.length;i++){h^=t.charCodeAt(i);h=(h*16777619)>>>0;}
   return h.toString(36);
 }
+/* ==========================================================
+   A IMPRESSAO DIGITAL DE UMA LINHA — UMA CONTA SO
+
+   O envio compara a impressao de agora com a do ultimo envio confirmado
+   para saber o que mudou. A volta da nuvem precisa anotar exatamente a
+   MESMA impressao, senao o aparelho acha que tudo mudou e reenvia a
+   copia dele por cima do que ja esta la.
+
+   Duas contas separadas divergem no primeiro campo que alguem mexer.
+   Por isso e uma funcao so, usada pelos dois lados.
+   ========================================================== */
+function impressaoDaLinha(E,x,i){
+  var o=E.campos(x,i);
+  o.loja_id=x._loja;
+  o.ref_local=x.id;
+  var extra='';
+  (E.filhos||[]).forEach(function(F9){extra+=JSON.stringify(x[F9.lista]||[])});
+  if(E.vinculo)extra+=JSON.stringify(x[E.vinculo.lista]||[]);
+  return hashTexto(JSON.stringify(o)+extra);
+}
+/* ==========================================================
+   O QUE ACABOU DE DESCER NAO PRECISA SUBIR DE VOLTA
+
+   AQUI ESTAVA O CAIXA DO DIA 27 REABRINDO SOZINHO.
+
+   No fim do download estava escrito:
+
+     "o que veio da nuvem ja esta na nuvem: registra a impressao"
+     DB._hash={};
+
+   O comentario diz REGISTRA. A linha APAGA. Sem impressao nenhuma, o
+   envio seguinte considera que todas as linhas mudaram e sobe a copia
+   local inteira por cima da nuvem — inclusive linhas que outro aparelho
+   alterou no meio do caminho.
+
+   Foi o que aconteceu em 28/08/2026 em Santa Fe do Sul: a loja fechou o
+   caixa aberto em 27/08 e abriu o de hoje. Um segundo aparelho, que
+   tinha baixado o caixa no dia 27 quando ele ainda estava aberto,
+   sincronizou depois e regravou a versao velha: `fechado_em` voltou a
+   ser nulo, sem venda, sem conferencia, sem fotografia. O caixa
+   desapareceu do relatorio de Frente de Caixa, porque la so entra caixa
+   com data de fechamento.
+
+   Agora a impressao e anotada de verdade. Nao ganha impressao:
+   - o registro criado aqui que a nuvem ainda nao confirmou (`_novoAqui`
+     ou sem uuid): esse PRECISA subir;
+   - o registro de outra empresa, que nunca sobe por este aparelho.
+   ========================================================== */
+function anotarImpressoes(){
+  DB._hash=DB._hash||{};
+  DB._uuid=DB._uuid||{};
+  var l=NUVEM.loja,n=0;
+  for(var m=0;m<(MAPA||[]).length;m++){
+    var E=MAPA[m],h={};
+    var lista=(DB[E.col]||[]).filter(function(x){
+      return x&&typeof x==='object'&&x._loja===l;});
+    var uu=DB._uuid[E.col]||{};
+    for(var i=0;i<lista.length;i++){
+      var x=lista[i];
+      if(x._novoAqui===true)continue;    /* nunca confirmado: tem de subir */
+      if(x._filhoPendente===true)continue;/* tem filho que a nuvem nao tem */
+      if(!uu[x.id])continue;             /* a nuvem nao conhece: tem de subir */
+      try{ h[x.id]=impressaoDaLinha(E,x,i); n++; }
+      catch(e){ _quieto(e,'anotarImpressoes'); }
+    }
+    DB._hash[E.col]=h;
+  }
+  return n;
+}
 /* grava (insere ou atualiza) pelo ref_local e devolve os ids */
 /* O banco exige que TODOS os registros de um envio tenham exatamente as mesmas
    chaves. Um campo que às vezes vale `undefined` (um vínculo que não existe)
@@ -8481,11 +8550,8 @@ async function sincronizar(){
           var o=E2.campos(x,i);
           o.loja_id=x._loja;          /* a empresa de ORIGEM, nunca a da sessao */
           o.ref_local=x.id;
-          /* a impressao inclui os filhos: mexer num item da ficha tambem conta */
-          var extra='';
-          (E2.filhos||[]).forEach(function(F9){extra+=JSON.stringify(x[F9.lista]||[])});
-          if(E2.vinculo)extra+=JSON.stringify(x[E2.vinculo.lista]||[]);
-          hNovo[x.id]=hashTexto(JSON.stringify(o)+extra);
+          /* a mesma conta que a volta da nuvem usa — impressaoDaLinha */
+          hNovo[x.id]=impressaoDaLinha(E2,x,i);
           if(hAnt[x.id]!==hNovo[x.id]||!DB._uuid[E2.col][x.id])mudou[x.id]=true;
           return o;
         });
@@ -8510,7 +8576,7 @@ async function sincronizar(){
           _ids[r.ref_local]=r.id;DB._uuid[E2.col][r.ref_local]=r.id;
           /* confirmado pela nuvem: deixa de ser "so daqui" */
           var _o=lista.find(function(x){return x.id===r.ref_local});
-          if(_o)delete _o._novoAqui;
+          if(_o){delete _o._novoAqui;delete _o._filhoPendente;}
         });
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};
@@ -9231,6 +9297,17 @@ function volta(linhas,fn,atual,col){
           if(faltando.length){
             novo[campoF]=listaNova.concat(faltando);
             devolvidos+=faltando.length;
+            /* ==========================================================
+               O PAI VOLTOU DA NUVEM, MAS ESTE FILHO AINDA NAO SUBIU
+
+               A anotacao de impressao (anotarImpressoes) diz "esta linha
+               ja esta na nuvem, nao precisa subir". Para um pai que
+               acabou de receber de volta um filho que a nuvem NAO tem,
+               isso seria uma mentira — e o ingrediente ficaria preso
+               aqui para sempre. Marcado assim, o pai nao ganha impressao
+               e sobe no envio seguinte, levando o filho junto.
+               ========================================================== */
+            novo._filhoPendente=true;
           }
         });
         if(devolvidos)
@@ -10215,8 +10292,26 @@ function volta(linhas,fn,atual,col){
       ') — mantidos na tela, sem reenvio automático');
   }
 
-  /* o que veio da nuvem ja esta na nuvem: registra a impressao para nao reenviar tudo */
-  DB._hash={};
+  /* ==========================================================
+     O QUE VEIO DA NUVEM JA ESTA NA NUVEM
+
+     Aqui estava `DB._hash={}`. O comentario dizia "registra a impressao
+     para nao reenviar tudo" e a linha fazia o contrario: apagava todas.
+     Sem impressao, o envio seguinte trata TODA linha como alterada e
+     regrava a copia deste aparelho por cima da nuvem — desfazendo, em
+     silencio, o que outro aparelho mudou nesse meio tempo.
+
+     Foi assim que o caixa de 27/08 voltou a ficar aberto depois de
+     fechado, e sumiu do relatorio de Frente de Caixa.
+
+     `anotarImpressoes()` (bloco 3) anota o que desceu e deixa sem
+     impressao apenas o que ainda precisa subir.
+
+     A anotacao em si roda mais abaixo, depois do carimbo da empresa:
+     linha sem `_loja` nao e reconhecida como desta loja, e ficaria de
+     fora da anotacao.
+     ========================================================== */
+
   NUVEM.baixou=true;   /* daqui em diante este aparelho pode espelhar exclusões */
   NUVEM.zerado=false;  /* ja tem os dados do dono: pode enviar */
   /* ==========================================================
@@ -10254,6 +10349,16 @@ function volta(linhas,fn,atual,col){
   /* marca que o download ja chegou uma vez neste aparelho. As funcoes que
      semeiam cadastro padrao (motivos, turnos, status, impressao) esperam por
      ela: semear antes do download e o que criava duplicata a cada entrada. */
+  /* agora sim: com a empresa carimbada, anota a impressao do que desceu */
+  try{
+    var _imp=anotarImpressoes();
+    logNuvem('impressão registrada em '+_imp+' registro(s) que vieram da nuvem');
+  }catch(e){
+    /* falhou a anotacao: deixa as impressoes como estao. Apagar aqui seria
+       voltar ao defeito — o aparelho reenviaria tudo por cima da nuvem. */
+    _quieto(e,'anotarImpressoes');
+    logNuvem('não consegui registrar a impressão do download: '+(e&&e.message||e),true);
+  }
   DB._baixouUmaVez=true;
   if(_FALHOU_BAIXA.length){
     logNuvem('leitura parcial: '+_FALHOU_BAIXA.length+' tabela(s) não vieram ('+
@@ -11570,7 +11675,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V218.0.0';
+var VERSAO='V219.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18046,11 +18151,45 @@ function caixaAberto(){
      valia como caixa aberto em Santa Fe. Caixa antigo, gravado antes de
      existir a coluna, nao tem unidade: vale para quem estiver olhando,
      senao a loja fica sem caixa do nada. */
-  return DB.caixas.find(function(c){
-    if(c.fechadoEm)return false;
+  /* ==========================================================
+     SOBRANDO DOIS, O CAIXA EM OPERACAO E O MAIS NOVO
+
+     `find` devolvia o PRIMEIRO da lista. Quando um caixa antigo ficou
+     aberto por engano — como o de 27/08 em Santa Fe, que perdeu o
+     fechamento na sincronizacao — o PDV passava a considerar o caixa
+     velho como o caixa do dia, e as vendas de hoje iam parar no turno
+     de ontem.
+
+     O caixa em operacao e sempre o ultimo aberto. O antigo continua
+     aparecendo como pendencia na Frente de Caixa, para ser fechado.
+     ========================================================== */
+  var abertos=DB.caixas.filter(function(c){
+    if(!c||c.fechadoEm)return false;
     if(!c.sucursalId)return true;
     return c.sucursalId===minha;
-  })||null;
+  });
+  if(!abertos.length)return null;
+  return abertos.slice().sort(function(a,b){
+    return isoHoraDoCaixa(a.aberto).localeCompare(isoHoraDoCaixa(b.aberto));
+  })[abertos.length-1];
+}
+/* "27/08/2026 13:40" -> "2026-08-27 13:40", que ordena como texto */
+function isoHoraDoCaixa(txt){
+  var t=String(txt||'');
+  var p=t.split(' ')[0].split('/');
+  if(p.length!==3)return t;
+  return p[2]+'-'+p[1]+'-'+p[0]+' '+(t.split(' ')[1]||'00:00');
+}
+/* Caixas que ficaram abertos de dias anteriores nesta unidade. */
+function caixasEsquecidos(){
+  var minha=lojaAtualId();
+  return (DB.caixas||[]).filter(function(c){
+    if(!c||c.fechadoEm)return false;
+    if(c.sucursalId&&minha&&c.sucursalId!==minha)return false;
+    return caixaDeOutroDia(c);
+  }).sort(function(a,b){
+    return isoHoraDoCaixa(a.aberto).localeCompare(isoHoraDoCaixa(b.aberto));
+  });
 }
 /* o caixa aberto e de hoje? gelato fecha as 22:30 — caixa de outro dia e
    esquecimento, nao turno que atravessa a noite */
@@ -20099,8 +20238,15 @@ function pedeSenhaCaixa(pref){
     if(i){i.value='';i.focus();}
   }
 }
-function fecharCaixa(){
-  var cx=caixaAberto();if(!cx){toast('Nenhum caixa aberto.');return;}
+/* `id` fecha um caixa especifico — o que ficou esquecido aberto de outro
+   dia, pela tela de Frente de Caixa. Sem `id`, fecha o caixa em operacao,
+   que e como o PDV sempre chamou. A conferencia, a fotografia e o
+   lancamento no financeiro sao os mesmos nos dois caminhos. */
+function fecharCaixa(id){
+  var cx=id?(DB.caixas||[]).find(function(c){return c.id===id&&!c.fechadoEm})
+           :caixaAberto();
+  if(!cx){toast('Nenhum caixa aberto.');return;}
+  var _eraOAtual=(caixaAberto()||{}).id===cx.id;
   var mov=movimentoCaixa(cx.id);
   var cego=cfg().caixaCego;
   var esperadoGaveta=esperadoCaixa(cx);
@@ -20303,12 +20449,42 @@ function fecharCaixa(){
     cx.snapshot=montarSnapshot(cx,mov,esp,conf);
     cx.diferencaTotal=cx.snapshot.diferencaTotal;
     cx.conciliado=cx.snapshot.conciliado;
-    (DB.caixas||[]).forEach(function(c){ if(!c.fechadoEm&&c.id!==cx.id)c.fechadoEm=cx.fechadoEm; });
+    /* ==========================================================
+       FECHAR O MEU CAIXA NAO FECHA O CAIXA DOS OUTROS
+
+       Esta linha fechava TODO caixa sem data de fechamento que
+       estivesse neste aparelho — inclusive o de outra unidade. Quem
+       entra pela matriz tem os caixas da rede inteira aqui dentro.
+
+       Aconteceu de verdade: em 27/08/2026, as 13:39, o fechamento de
+       Santa Fe do Sul fechou junto o caixa do Alphaville, aberto no dia
+       26. Ficou gravado com o mesmo minuto, sem operador que fechou,
+       sem conferencia, sem fotografia, R$ 0,00 contados. O relatorio do
+       franqueado passou a mostrar um turno que ninguem fechou.
+
+       O caixa e da unidade. Se sobrou outro aberto NA MESMA unidade
+       — duplicata antiga, aparelho que abriu duas vezes — ele continua
+       sendo encerrado junto, que era o motivo desta linha existir, e
+       agora fica registrado no diagnostico.
+       ========================================================== */
+    var _minhaUn=lojaAtualId();
+    (DB.caixas||[]).forEach(function(c){
+      if(!c||c.fechadoEm||c.id===cx.id)return;
+      if(c.sucursalId&&_minhaUn&&c.sucursalId!==_minhaUn)return;
+      /* caixa aberto DEPOIS deste e o que esta em operacao agora: fechar
+         o esquecido de ontem nao pode levar o de hoje junto */
+      if(isoHoraDoCaixa(c.aberto)>isoHoraDoCaixa(cx.aberto))return;
+      c.fechadoEm=cx.fechadoEm;
+      try{logNuvem('caixa '+c.id+' estava aberto na mesma unidade e foi encerrado junto '+
+        'com o fechamento de '+cx.id,true)}catch(e){}
+    });
     var nLanc=lancarFechamento(cx,mov);
     salvar();
-    /* o turno acabou: nada do que estava na tela pode sobreviver a ele */
-    encerrarSessaoPDV();
-    telaPDV();
+    /* o turno acabou: nada do que estava na tela pode sobreviver a ele.
+       Fechando um caixa esquecido de outro dia, a venda em andamento no
+       caixa de hoje nao tem nada com isso e continua onde estava. */
+    if(_eraOAtual){encerrarSessaoPDV();telaPDV();}
+    else if(typeof telaFrenteCaixa==='function')telaFrenteCaixa();
     if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));
     /* ==========================================================
@@ -26057,6 +26233,20 @@ function telaFrenteCaixa(){
     FC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     FC.ate=hojeISO();}
   var aberto=caixaAberto();
+  /* ==========================================================
+     CAIXA QUE FICOU ABERTO DE OUTRO DIA PRECISA APARECER
+
+     A lista abaixo so mostra caixa COM data de fechamento. Um caixa que
+     perdeu o fechamento simplesmente sumia da tela: nem entre os
+     fechados, nem como pendencia. Foi o que aconteceu com o dia 27/08
+     em Santa Fe do Sul — o Rafael procurou o relatorio do dia e nao
+     havia nada, embora as vendas estivessem todas gravadas.
+
+     Agora ele aparece em cima, em vermelho, com o botao que fecha
+     aquele caixa especificamente, pela mesma tela de conferencia.
+     ========================================================== */
+  var esquecidos=(typeof caixasEsquecidos==='function'?caixasEsquecidos():[])
+    .filter(function(c){return !aberto||c.id!==aberto.id});
   var fechados=(DB.caixas||[]).filter(function(c){
     if(!c.fechadoEm)return false;
     if(FC.turno&&c.turnoId!==FC.turno)return false;
@@ -26089,6 +26279,22 @@ function telaFrenteCaixa(){
      '<span>Abra a frente de caixa no PDV para começar a operação.</span></div>'+
      '<button class="btnP2 ok" onclick="abrir(\'pdv\',\'pdv\')">Abrir no PDV</button></div>')+
 
+  (esquecidos.length
+   ?'<div class="fcAberto" style="border-color:var(--red);background:rgba(201,65,65,.06)">'+
+     '<div class="fcIco">'+sv('help',26)+'</div>'+
+     '<div class="fcInfo">'+
+      '<span class="fcTag" style="color:var(--red)">'+
+       (esquecidos.length>1?esquecidos.length+' CAIXAS ABERTOS DE OUTROS DIAS':'CAIXA ABERTO DE OUTRO DIA')+'</span>'+
+      '<b>'+esquecidos.map(function(c){return E(c.aberto)}).join(' · ')+'</b>'+
+      '<span>Ficou sem fechamento e por isso não entra no relatório abaixo. '+
+      'Feche com a conferência para o turno voltar a aparecer.</span>'+
+     '</div>'+
+     esquecidos.map(function(c){
+       return '<button class="btnP2 ok" onclick="fecharCaixa(\''+c.id+'\')">'+
+        'Fechar '+E(String(c.aberto).slice(0,10))+'</button>';
+     }).join('')+
+    '</div>'
+   :'')+
   '<div class="filtroCard" style="margin-top:4px">'+
    '<div class="fl"><label>De</label><input type="date" id="fcDe" value="'+FC.de+'"></div>'+
    '<div class="fl"><label>Até</label><input type="date" id="fcAte" value="'+FC.ate+'"></div>'+

@@ -9,6 +9,20 @@ function telaFrenteCaixa(){
     FC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     FC.ate=hojeISO();}
   var aberto=caixaAberto();
+  /* ==========================================================
+     CAIXA QUE FICOU ABERTO DE OUTRO DIA PRECISA APARECER
+
+     A lista abaixo so mostra caixa COM data de fechamento. Um caixa que
+     perdeu o fechamento simplesmente sumia da tela: nem entre os
+     fechados, nem como pendencia. Foi o que aconteceu com o dia 27/08
+     em Santa Fe do Sul — o Rafael procurou o relatorio do dia e nao
+     havia nada, embora as vendas estivessem todas gravadas.
+
+     Agora ele aparece em cima, em vermelho, com o botao que fecha
+     aquele caixa especificamente, pela mesma tela de conferencia.
+     ========================================================== */
+  var esquecidos=(typeof caixasEsquecidos==='function'?caixasEsquecidos():[])
+    .filter(function(c){return !aberto||c.id!==aberto.id});
   var fechados=(DB.caixas||[]).filter(function(c){
     if(!c.fechadoEm)return false;
     if(FC.turno&&c.turnoId!==FC.turno)return false;
@@ -41,6 +55,22 @@ function telaFrenteCaixa(){
      '<span>Abra a frente de caixa no PDV para começar a operação.</span></div>'+
      '<button class="btnP2 ok" onclick="abrir(\'pdv\',\'pdv\')">Abrir no PDV</button></div>')+
 
+  (esquecidos.length
+   ?'<div class="fcAberto" style="border-color:var(--red);background:rgba(201,65,65,.06)">'+
+     '<div class="fcIco">'+sv('help',26)+'</div>'+
+     '<div class="fcInfo">'+
+      '<span class="fcTag" style="color:var(--red)">'+
+       (esquecidos.length>1?esquecidos.length+' CAIXAS ABERTOS DE OUTROS DIAS':'CAIXA ABERTO DE OUTRO DIA')+'</span>'+
+      '<b>'+esquecidos.map(function(c){return E(c.aberto)}).join(' · ')+'</b>'+
+      '<span>Ficou sem fechamento e por isso não entra no relatório abaixo. '+
+      'Feche com a conferência para o turno voltar a aparecer.</span>'+
+     '</div>'+
+     esquecidos.map(function(c){
+       return '<button class="btnP2 ok" onclick="fecharCaixa(\''+c.id+'\')">'+
+        'Fechar '+E(String(c.aberto).slice(0,10))+'</button>';
+     }).join('')+
+    '</div>'
+   :'')+
   '<div class="filtroCard" style="margin-top:4px">'+
    '<div class="fl"><label>De</label><input type="date" id="fcDe" value="'+FC.de+'"></div>'+
    '<div class="fl"><label>Até</label><input type="date" id="fcAte" value="'+FC.ate+'"></div>'+
