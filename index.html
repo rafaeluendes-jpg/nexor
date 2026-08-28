@@ -11292,7 +11292,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V207.0.0';
+var VERSAO='V208.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -35642,7 +35642,22 @@ function telaVendasFormaPag(){
     var pgs=p.pagamentos||[];
     if(!pgs.length){semForma+=Number(p.total)||0;return;}
     pgs.forEach(function(pg){
-      var f=(DB.formasPag||[]).find(function(x){return x.id===pg.formaId});
+      /* ==========================================================
+         A VENDA DO DIA APARECIA COMO "NAO INFORMADO"
+
+         O PDV grava a forma em `pagamento.forma` — e sempre gravou:
+         addPag() faz `_pagos.push({forma:f,valor:...})`. Quem so le
+         `formaId` nao acha nada, e a venda cai na linha "Nao informado".
+
+         Nao aparecia sempre: a DESCIDA da nuvem devolve o pagamento com
+         os dois campos preenchidos (`forma` e `formaId`, desde a V136).
+         Entao a venda de ontem, que ja foi e voltou, aparecia certa — e
+         a de hoje, que ainda nao voltou, aparecia sem forma. O relatorio
+         se consertava sozinho de um dia para o outro, e por isso passou.
+
+         Le-se os dois, como o fechamento e o detalhe do pedido ja fazem.
+         ========================================================== */
+      var f=(DB.formasPag||[]).find(function(x){return x.id===(pg.formaId||pg.forma)});
       var k=f?f.id:'_sem';
       if(VP.formas.length&&VP.formas.indexOf(k)<0)return;
       porForma[k]=porForma[k]||{nome:f?f.nome:'Não informado',tipo:f?f.tipo:'',
@@ -36096,7 +36111,8 @@ function telaVendasPeriodo(){
     todos=todos.filter(function(p){return p.cupomCodigo&&VPE.cupons.indexOf(p.cupomCodigo)>=0});
   if(VPE.formas.length)
     todos=todos.filter(function(p){
-      return (p.pagamentos||[]).some(function(g){return VPE.formas.indexOf(g.formaId)>=0})});
+      return (p.pagamentos||[]).some(function(g){
+        return VPE.formas.indexOf(g.formaId||g.forma)>=0})});
   var peds=todos.filter(function(p){return !ehCancelado(p)});
   var canc=todos.filter(function(p){return ehCancelado(p)});
 
@@ -36213,7 +36229,7 @@ function telaVendasPeriodo(){
     '<th style="width:50px"></th></tr></thead><tbody>'+
     lista.slice(0,500).map(function(p){
       var pg=(p.pagamentos||[]).map(function(g){
-        var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId});
+        var f=(DB.formasPag||[]).find(function(x){return x.id===(g.formaId||g.forma)});
         return f?f.nome:'—';}).join(', ');
       var vi=(p.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
       var canc2=(ehCancelado(p));
@@ -36279,7 +36295,7 @@ function verPedidoRel(id){
   if(!p)return;
   var vi=(p.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
   var pg=(p.pagamentos||[]).map(function(g){
-    var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId});
+    var f=(DB.formasPag||[]).find(function(x){return x.id===(g.formaId||g.forma)});
     return {nome:f?f.nome:'—',valor:Number(g.valor)||0};});
   var h='<div class="mdB">'+
   '<div class="acHead"><div class="av3" style="width:42px;height:42px">'+sv('cart',18)+'</div>'+
@@ -36427,7 +36443,7 @@ function calcularDRE(ano){
     var k=mesDe(p.data);
     if(k<0)return;
     (p.pagamentos||[]).forEach(function(g){
-      var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId});
+      var f=(DB.formasPag||[]).find(function(x){return x.id===(g.formaId||g.forma)});
       if(!f)return;
       m[k]['05']+=((Number(g.valor)||0)*(Number(f.taxaPct)||0)/100)+(Number(f.taxaFixa)||0);
     });

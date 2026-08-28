@@ -6549,3 +6549,74 @@ E no Chromium: matriz com zero na estreia, `1` ao chegar pedido novo, painel
 abre com os dois, número volta a zero ao ler; franqueado vê `1` ao confirmar e
 `2` ao ficar pronto, e nenhum aviso da outra unidade. Total: 14 suítes, 757
 asserções, zero falhas.
+
+---
+
+## V208 — auditoria do trilho quente, e um defeito no relatório de formas
+
+O Rafael pediu, antes de publicar: auditar o caminho que as seis lojas
+percorrem todo dia — cardápio → PDV → pagamento → venda → estoque →
+fechamento → relatórios — e só subir se estivesse inteiro.
+
+### O que a auditoria mediu
+
+**As 60 funções do trilho quente são texto IDÊNTICO à V201**, a versão que
+está na loja hoje. `finalizarVenda`, `baixarEstoqueVenda`, `fecharCaixa`,
+`movimentoCaixa`, `esperadoCaixa`, `renderVenda`, `irPagamento`, `addPag`,
+`montarSnapshot`, `telaPDV`, `telaCardapio` — nenhuma foi tocada em
+nenhuma das versões desde então. Função cujo texto não mudou não pode ter
+mudado de comportamento.
+
+Depois disso, o trilho foi **percorrido de verdade**, clicando: abrir
+caixa com operador e turno, achar o produto na grade pelo nome, abrir a
+pergunta de opções, marcar a borda, digitar quantidade 2, aplicar desconto,
+dividir o pagamento entre dinheiro e pix editando o valor, finalizar,
+conferir o estoque item a item, fazer uma entrega com taxa de zona e
+entregador, assinar uma sangria, fechar o caixa cego contando a gaveta, e
+abrir os relatórios. Em jsdom (suíte permanente) e em Chromium de verdade.
+
+Os números batem exatamente: comanda R$ 50 → desconto R$ 5 → R$ 45 pagos
+em 25 + 20; casquinha 200 → 198; Gelato Venda 50 → 49,9 (pote de 100 g de
+uma ficha que rende 10 kg em 100 unidades); Nutella 5 → 4,96 (borda de
+1 kg para 50 unidades, duas vezes). Gaveta = fundo + dinheiro − sangria.
+
+### O defeito encontrado
+
+**"Vendas por Forma de Pagamento" mostrava a venda do dia como "Não
+informado".** O PDV grava a forma em `pagamento.forma` — e sempre gravou,
+`addPag()` faz `_pagos.push({forma:f,valor:...})`. O relatório lia só
+`formaId`.
+
+Por que ninguém achou: a **descida** da nuvem devolve o pagamento com os
+dois campos preenchidos (`forma` e `formaId`, arrumado na V136). Então a
+venda de ontem, que já foi e voltou, aparecia certa; a de hoje, que ainda
+não voltou, aparecia sem forma. **O relatório se consertava sozinho de um
+dia para o outro** — e por isso o defeito atravessou tudo.
+
+Cinco lugares liam só `formaId`: Vendas por Forma de Pagamento, Vendas por
+Período (o filtro e a exibição), o detalhe do pedido no relatório e o DRE.
+Passaram a ler os dois, como o fechamento de caixa e o detalhe do pedido já
+faziam. É pré-existente: está na loja hoje, na V201.
+
+### O que a auditoria confirmou que É assim mesmo
+
+**A opção do produto acha a ficha técnica PELO NOME.** Quando a opção vai
+para a comanda ela leva só nome e preço — `modalOpcoes` monta
+`{grupo,nome,preco}`, sem o vínculo. A baixa então procura uma ficha com
+aquele nome exato. Se a matriz renomear a ficha e não a opção, o insumo da
+borda para de sair do estoque, em silêncio. Está testado nos dois sentidos.
+
+**Sangria, suprimento, cancelamento e fechamento exigem senha, e a senha
+só é conferida na nuvem.** Sem internet, o caixa vende normalmente, mas não
+fecha. Vem da V201 — não é regressão.
+
+### Contraprova
+
+`testes/frente-de-caixa.js`, 98 verificações, o trilho inteiro num DOM
+real. Ela fixa o fuso em `America/Sao_Paulo`: `hojeISO()` força o horário
+de Brasília e `caixa.aberto` usa o relógio do aparelho, então num servidor
+em UTC, entre 21h e meia-noite, o caixa fechado não aparecia no próprio
+relatório. Na loja isso não acontece — mas o teste tem de medir o sistema,
+não a máquina.
+
+Total: 15 suítes, 851 asserções, zero falhas.
