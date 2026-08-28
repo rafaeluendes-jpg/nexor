@@ -279,7 +279,6 @@ function dev(){toast('Este módulo será construído na próxima etapa.');}
    ========================================================== */
 var _rolTela={}, _rolChave=null, _rolTrava=false;
 function chaveTela(){return (S.mod||'')+'/'+(S.it||'')}
-function areaRolagem(){return document.querySelector('.etScroll')||document.querySelector('.finWrap');}
 /* ==========================================================
    QUALQUER CAIXA QUE ROLA, NAO SO DUAS
 

@@ -437,12 +437,6 @@ var ZAP_URL='https://nexor-whatsapp.onrender.com';
    por aparelho e guardada só aqui. Assim ela não viaja junto com o sistema
    e não aparece para quem lê o repositório. */
 function zapChave(){ try{ return localStorage.getItem('nexor_zap_chave')||''; }catch(e){ return ''; } }
-function gravarZapChave(v){
-  try{
-    if(v)localStorage.setItem('nexor_zap_chave',String(v).trim());
-    else localStorage.removeItem('nexor_zap_chave');
-  }catch(e){_quieto(e,'gravarZapChave')}
-}
 var ZP={suc:'',aba:'conexao',estado:{},buscando:false};
 
 function baseZap(){
@@ -612,18 +606,6 @@ function blocoChaveZap(){
      'A chave também era <b>a mesma para todo mundo</b>: quem a tivesse comandava '+
      'qualquer loja. Agora o comando fica preso a quem mandou.</div>'+
     '</div></div></div>';
-}
-async function limparChaveZap(){
-  var ok=await confirmar({titulo:'Apagar a chave deste aparelho',
-    texto:'Este computador deixa de conseguir comandar o robô.',
-    aviso:'O robô continua atendendo os clientes normalmente — só este aparelho '+
-      'perde o controle dele.',
-    ok:'Apagar',cancelar:'Não fazer nada',tipo:'perigo'});
-  if(!ok)return;
-  gravarZapChave('');
-  ZP.estado={};
-  toast('Chave apagada deste aparelho.');
-  telaZap(true);
 }
 async function verEstadoZap(){
   var box=$('zapEstado');

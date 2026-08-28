@@ -6846,3 +6846,55 @@ separadas. Trocar de tela continua começando do topo.
 as duas que já funcionavam, a troca de tela, duas caixas na mesma tela, e
 a marca sobrevivendo ao redesenho. Total: 18 suítes, 927 asserções, zero
 falhas.
+
+---
+
+## V212 — o resto do sistema, módulo por módulo
+
+Continuação da varredura da V211, agora nas duas camadas que a primeira
+não alcança: os formulários que moram dentro de janela, e as ligações
+entre um módulo e outro.
+
+### Os formulários
+
+`ferramentas/varrer-modais.js` abre cada janela que uma tela oferece e
+aperta o confirmar **de campos vazios**. O certo é recusar com um aviso; o
+que não pode é estourar — formulário que quebra com campo vazio quebra
+igual com campo preenchido errado, e é assim que a pessoa no balcão
+descobre.
+
+**54 janelas abertas e confirmadas. Nenhuma quebra.**
+
+### As ligações
+
+Isto a máquina não descobre sozinha: que um módulo mexe no outro do jeito
+certo. `testes/ligacoes.js` chama as funções de verdade contra um banco
+semeado e confere o saldo antes e depois, item a item.
+
+| Cadeia | O que foi conferido |
+|---|---|
+| Nota de entrada | entra no estoque, atualiza o custo da última compra, grava a compra no histórico do ingrediente, amarra o movimento à NF — e nota marcada como *não recebida* não encosta no estoque |
+| Transferência | sai da origem no envio, **não** entra no destino ainda, abre a conferência do que chegou, e só então entra — e não volta a mexer na origem |
+| Cancelamento | respondendo **não produzido**, o insumo volta; respondendo **já produzido**, não volta; nos dois casos a venda sai do faturamento |
+| Contagem | ajusta o saldo para o que foi contado, gera movimento com motivo próprio, registra a diferença apurada e carimba a unidade |
+
+32 verificações, todas passando.
+
+### Zero funções mortas
+
+Três funções ficaram sem chamador e saíram: `areaRolagem`, que a
+generalização da rolagem aposentou; e `limparChaveZap` com
+`gravarZapChave`, restos do tempo em que era preciso colar uma chave em
+cada aparelho para comandar o robô — a própria tela explica que aquilo
+foi um remendo de antes do login de verdade. A leitura da chave antiga
+(`zapChave`) fica, como reserva para aparelho fora da nuvem.
+
+**Pela primeira vez o MAPA.md acusa zero funções nunca chamadas.** Eram 45
+quando esta modularização começou.
+
+### Estado
+
+94 telas varridas, todas montam, nenhum botão aponta para função que não
+existe, nenhum clique estoura. 19 suítes, 959 asserções, zero falhas. O
+trilho da frente de caixa reconferido em Chromium de verdade: gaveta,
+caixa cego, fechamento e relatórios com os mesmos números de antes.
