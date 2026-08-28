@@ -1284,7 +1284,18 @@ var MAPA=[
     campos:function(o,k){return {nome:o.nome,tipo:o.tipo||'bairro',taxa:n(o.taxa),
       km:n(o.km),tempo:n(o.tempo),observacao:o.obs||null,ativa:o.ativa!==false,ordem:k}}}]},
 
- {col:'sucursais', espelha:false, tab:'sucursais',
+ /* ==========================================================
+    A UNIDADE NAO CRIA NEM ALTERA UNIDADE
+
+    A regra do banco e clara: "unidades: so a matriz altera". Mesmo
+    assim toda unidade tentava subir esta tabela a cada sincronizacao e
+    levava 403, corretamente. No log de Santa Fe do Sul de 28/08/2026
+    estao as recusas, uma por ciclo, misturadas com o resto e marcando a
+    sincronizacao como falhada sem nada de errado ter acontecido.
+
+    Mesmo caso de `usuarios`, logo acima: quem manda nisso e a matriz.
+    ========================================================== */
+ {col:'sucursais', espelha:false, soGestor:true, tab:'sucursais',
   campos:function(x){return {nome:x.nome,apelido:x.apelido||null,cnpj:x.cnpj||null,
     telefone:x.telefone||null,cidade:x.cidade||null,uf:x.uf||null,
     matriz:!!x.matriz,ativa:x.ativa!==false,

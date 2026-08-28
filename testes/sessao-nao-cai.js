@@ -137,6 +137,14 @@ console.log('\n── Sistema ' + versaoDoSistema() + ' — uma renovação de c
   t('a biblioteca continua renovando sozinha (não desligamos ela)',
     /autoRefreshToken:true/.test(codigoNu));
 
+  console.log('\n── A unidade não insiste no que a regra do banco proíbe\n');
+
+  t('a tabela de unidades só sobe pela matriz',
+    /\{col:'sucursais', espelha:false, soGestor:true/.test(codigoNu));
+  t('a de usuários também', /\{col:'usuarios', espelha:false, soGestor:true/.test(codigoNu));
+  t('e o motor respeita essa marca',
+    /if\(E2\.soGestor&&!ehMatriz\(\)\)continue;/.test(codigoNu));
+
   console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                              : '✓ ' + testes + ' testes passaram') + '\n');
   process.exit(falhas ? 1 : 0);
