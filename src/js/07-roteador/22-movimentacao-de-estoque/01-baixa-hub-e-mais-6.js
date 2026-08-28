@@ -35,6 +35,10 @@ function baseMov(){
   /* motivos que o sistema usa sozinho — precisam existir sempre,
      mesmo quando a loja já tem motivos próprios cadastrados */
   [['mv_venda','Venda PDV','saida'],
+   /* a base sai do estoque da matriz quando o pedido e entregue a unidade.
+      Motivo proprio para o relatorio conseguir separar isso de uma baixa
+      manual qualquer. */
+   ['mv_pedbase','Venda de base para unidade','saida'],
    ['mv_nota','Entrada por nota fiscal','entrada'],
    ['mv_cont','Contagem de estoque','entrada'],
    ['mv_perdaprod','Perda de produção','saida'],
@@ -484,95 +488,34 @@ function telaBasesHub(){
    ========================================================== */
 
 /* ---------- 1. MATRIZ: produzir as bases ---------- */
-async function produzirPedidoBase(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.produzido) { toast('Este pedido já foi produzido.'); return; }
-  baseMov(); baseFicha();
-
-  var comFicha = [], semFicha = [];
-  (p.itens || []).forEach(function (it) {
-    var f = (DB.fichas || []).find(function (x) { return x.id === it.fichaRef; });
-    if (f) comFicha.push({ tipo: 'ficha', refId: f.id, unidade: f.unidade || 'un',
-                           qtd: Number(it.qtd) || 0, custo: 0, obs: it.baseNome });
-    else semFicha.push(it);
-  });
-
-  if (!comFicha.length) {
-    await confirmar({
-      titulo: 'Nenhum item tem ficha técnica',
-      texto: 'Sem ficha, o sistema não sabe o que consumir para produzir.',
-      linhas: (p.itens || []).slice(0, 6).map(function (i) {
-        return [i.baseNome, fmtQt(i.qtd) + ' cx', 'sem ficha'];
-      }),
-      aviso: 'Ligue cada base à sua ficha em <b>Bases e valores</b>. ' +
-             'O pedido segue normalmente — só a baixa de estoque fica esperando.',
-      ok: 'Entendi', cancelar: null
-    });
-    return;
-  }
-
-  var linhas = montarLinhas(comFicha, 'producao');
-  if (!linhas.length) { toast('As fichas não têm ingredientes cadastrados.'); return; }
-  var falta = faltaEstoque(linhas);
-  if (falta.length) { alert(avisoFalta(falta, 'esta produção')); return; }
-
-  var ok = await confirmar({
-    titulo: 'Produzir o pedido #' + String(p.numero || 0).padStart(4, '0') + '?',
-    texto: comFicha.length + ' base(s) — os ingredientes saem do estoque da matriz.',
-    linhas: (semFicha.length
-      ? [['⚠ ' + semFicha.length + ' item(ns) sem ficha', 'não entram na produção', '']]
-      : []).concat(comFicha.slice(0, 6).map(function (i) {
-        var f = (DB.fichas || []).find(function (x) { return x.id === i.refId; });
-        return [(f || {}).nome || i.obs, fmtQt(i.qtd), ''];
-      })),
-    aviso: linhas.length + ' ingrediente(s) serão baixados.',
-    ok: 'Produzir', tipo: 'perigo'
-  });
-  if (!ok) return;
-
-  var mov = {
-    id: uid('mv'), data: hojeISO(), hora: agoraHM(),
-    motivoId: 'mv_prod',
-    identificacao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-                   ' — ' + (p.sucursalNome || ''),
-    obs: 'gerado pelo pedido de base',
-    itens: JSON.parse(JSON.stringify(comFicha)),
-    linhas: linhas, origem: 'producao'
-  };
-  DB.movEst.push(mov);
-  aplicarMovimento(mov);
-  p.produzido = true;
-  p.movProducaoRef = mov.id;
-  salvar();
-  toast('Produção lançada — ' + linhas.length + ' ingrediente(s) baixados.');
-  telaBasesHub();
-}
 
 /* ---------- 2. MATRIZ: gerar a conta a receber ---------- */
-async function faturarPedidoBase(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
-  var venc = prompt('Vencimento da cobrança para ' + (p.sucursalNome || 'a unidade') +
-    '\n\nData no formato dd/mm/aaaa:', dataBR(hojeISO()));
-  if (venc === null) return;
-  var iso = venc.split('/').reverse().join('-');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) { toast('Data inválida.'); return; }
+/* ==========================================================
+   O VENCIMENTO NAO SE PERGUNTA MAIS
 
-  var ok = await confirmar({
-    titulo: 'Gerar conta a receber?',
-    texto: 'R$ ' + money(p.total) + ' de ' + (p.sucursalNome || '—'),
-    linhas: [['Pedido', '#' + String(p.numero || 0).padStart(4, '0'), ''],
-             ['Vencimento', dataBR(iso), '']],
-    ok: 'Gerar cobrança'
-  });
-  if (!ok) return;
+   Era um prompt a cada pedido, e a resposta era sempre a mesma conta: o
+   pedido entra ate segunda ao meio-dia e a retirada e na quinta. Tres dias
+   depois da data do pedido e o dia em que a unidade busca a mercadoria — e
+   e quando ela paga. Entao o sistema faz a conta.
+   ========================================================== */
+function vencimentoPedidoBase(p){
+  var d = new Date(String((p && p.data) || hojeISO()) + 'T12:00:00');
+  if (isNaN(d.getTime())) d = new Date();
+  d.setDate(d.getDate() + 3);
+  return d.toISOString().slice(0, 10);
+}
 
+/* ---------- 2. MATRIZ: a conta a receber da unidade ----------
+   Sem tela: quem chama e o mesmo clique que marca o pedido como entregue.
+   Devolve o lancamento criado, ou null se ja existia — a referencia gravada
+   no pedido (finReceberRef) e o que impede a segunda via. */
+function gerarReceberPedido(p){
+  if (!p || p.finReceberRef) return null;
   /* ATENCAO: DB.lancamentos e a colecao LEGADA — ela nao sobe para a nuvem e
-     ainda e migrada para DB.lancFin marcada como PAGA. Escrever ali fazia a
-     cobranca nascer quitada e presa no aparelho. O financeiro de verdade e
-     DB.lancFin / lancamentos_financeiros. */
+     ainda e migrada para DB.lancFin marcada como PAGA, e com o tipo virado
+     para despesa. Escrever ali fazia a cobranca da matriz nascer como
+     despesa quitada, presa no aparelho de quem clicou. O financeiro de
+     verdade e DB.lancFin / lancamentos_financeiros. */
   baseFin();
   DB.lancFin = DB.lancFin || [];
   var l = {
@@ -580,17 +523,91 @@ async function faturarPedidoBase(id){
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — ' + (p.sucursalNome || ''),
     contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
-    fornecedor: '', documento: '',
+    fornecedor: '', documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
     valor: Number(p.total) || 0,
-    emissao: hojeISO(), vencimento: iso, pagamento: '',
+    emissao: hojeISO(), vencimento: vencimentoPedidoBase(p), pagamento: '',
     pago: false, conciliado: false,
     origem: 'pedido_base', origemRef: p.id
   };
   DB.lancFin.push(l);
   p.finReceberRef = l.id;
+  return l;
+}
+
+/* rede de seguranca: o botao so aparece se, por algum motivo, a cobranca nao
+   nasceu junto com a entrega */
+async function faturarPedidoBase(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
+  var ok = await confirmar({
+    titulo: 'Gerar conta a receber?',
+    texto: 'R$ ' + money(p.total) + ' de ' + (p.sucursalNome || '—'),
+    linhas: [['Pedido', '#' + String(p.numero || 0).padStart(4, '0'), ''],
+             ['Vencimento', dataBR(vencimentoPedidoBase(p)) +
+              ' — 3 dias após o pedido', '']],
+    ok: 'Gerar cobrança'
+  });
+  if (!ok) return;
+  gerarReceberPedido(p);
   salvar();
-  toast('Conta a receber gerada.');
+  toast('Conta a receber gerada — vence ' + dataBR(vencimentoPedidoBase(p)) + '.');
   telaBasesHub();
+}
+
+/* ==========================================================
+   MATRIZ: A BASE SAI DO ESTOQUE QUANDO O PEDIDO E ENTREGUE
+
+   Sao dois fatos distintos e por isso dois registros: um dia a fabrica
+   produziu e a base entrou no estoque da matriz; outro dia a unidade veio
+   buscar e ela saiu. Um lancamento so nao saberia responder quanto cada
+   unidade levou, nem em que dia.
+
+   As linhas saem de montarLinhas(...,'producao') e fica so a ENTRADA do
+   produto acabado, com a direcao virada. Assim a quantidade que sai e, por
+   construcao, exatamente a que entrou — inclusive quando a ficha tem fator
+   de rendimento e o destino esta em outra unidade de medida. Recalcular por
+   fora daria diferenca no dia em que alguem mexesse no fator.
+   ========================================================== */
+function itensSaidaBases(p){
+  return itensComFicha(p).map(function (i) {
+    return { tipo: 'ficha', refId: i.fichaRef, unidade: '',
+             qtd: Number(i.qtd) || 0, custo: 0, obs: i.baseNome };
+  });
+}
+function linhasSaidaBases(p){
+  return montarLinhas(itensSaidaBases(p), 'producao')
+    .filter(function (l) { return l.direcao === 'entrada'; })
+    .map(function (l) { l.direcao = 'saida'; return l; });
+}
+function marcaSaidaBase(p){
+  return 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
+         ' — entregue a ' + (p.sucursalNome || '');
+}
+/* "ja saiu?" nao pode ser respondido por um campo solto no aparelho: o
+   pedido volta da nuvem sem os campos que nao existem na tabela, e a marca
+   se perderia. A marca fica no proprio movimento, que sobe e desce inteiro —
+   e o mesmo caminho que a ordem de producao usa para se reconhecer. */
+function saidaBaseJaFeita(p){
+  var marca = marcaSaidaBase(p);
+  return (DB.movEst || []).some(function (m) {
+    return m.origem === 'pedbase_saida' && String(m.identificacao || '') === marca;
+  });
+}
+function saidaBasesMatriz(p){
+  if (!p || saidaBaseJaFeita(p)) return null;
+  baseMov();
+  var itens = itensSaidaBases(p);
+  var linhas = linhasSaidaBases(p);
+  if (!linhas.length) return null;
+  var mov = {
+    id: uid('mv'), data: hojeISO(), hora: agoraHM(),
+    motivoId: 'mv_pedbase', identificacao: marcaSaidaBase(p),
+    obs: '', itens: itens, linhas: linhas, origem: 'pedbase_saida'
+  };
+  DB.movEst.push(mov);
+  aplicarMovimento(mov);
+  return mov;
 }
 
 /* ---------- 3. FILIAL: dar entrada no estoque ---------- */
@@ -708,18 +725,6 @@ function itensSemFicha(p){
   return (p.itens || []).filter(function (i) { return !i.fichaRef; });
 }
 /* o sistema tem hojeISO e dataBR; estas duas faltavam */
-function diasFrenteISO(n){
-  var d = new Date();
-  d.setDate(d.getDate() + (Number(n) || 0));
-  return d.toISOString().slice(0, 10);
-}
-function brParaISO(v){
-  var m = String(v || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return '';
-  var iso = m[3] + '-' + m[2] + '-' + m[1];
-  var d = new Date(iso + 'T12:00:00');
-  return isNaN(d.getTime()) ? '' : iso;
-}
 
 /* ---------- MATRIZ: produzir ---------- */
 async function produzirPedido(id){
@@ -780,122 +785,10 @@ async function produzirPedido(id){
 }
 
 /* ---------- MATRIZ: conta a receber ---------- */
-async function faturarPedido(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
-  baseFin();
-  var venc = prompt('Vencimento da conta a receber (dd/mm/aaaa):',
-                    dataBR(diasFrenteISO(7)));
-  if (venc === null) return;
-  var vISO = brParaISO(venc);
-  if (!vISO) { toast('Data inválida — use dd/mm/aaaa.'); return; }
-  var ok = await confirmar({
-    titulo: 'Gerar conta a receber?',
-    texto: E(p.sucursalNome) + ' — R$ ' + money(p.total),
-    linhas: [['Vencimento', dataBR(vISO), ''],
-             ['Documento', 'PB' + String(p.numero || 0).padStart(4, '0'), '']],
-    ok: 'Gerar'
-  });
-  if (!ok) return;
-  var l = { id: uid('lf'), tipo: 'receita',
-    descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-               ' — ' + (p.sucursalNome || ''),
-    valor: Number(p.total) || 0, emissao: hojeISO(), vencimento: vISO,
-    pago: false, documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
-    origemTipo: 'pedido_base', origemId: p.id };
-  DB.lancamentos.push(l);
-  p.finReceberRef = l.id;
-  salvar();
-  toast('Conta a receber gerada — R$ ' + money(p.total) + '.');
-  telaBasesHub();
-}
 
 /* ---------- UNIDADE: entrada no estoque ---------- */
-async function darEntradaPedido(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.entradaEstoque) { toast('Este pedido já deu entrada.'); return; }
-  if (p.sucursalRef !== lojaAtualId() && !ehPlataforma()) {
-    toast('Este pedido é de outra unidade.'); return;
-  }
-  baseMov();
-  var comFicha = itensComFicha(p);
-  if (!comFicha.length) {
-    await confirmar({ titulo: 'Bases sem ficha técnica',
-      texto: 'Sem ficha, não há item de estoque para dar entrada.',
-      aviso: 'A conta a pagar funciona mesmo assim.',
-      ok: 'Entendi', cancelar: null });
-    return;
-  }
-  var motivoEnt = (DB.motivosMov || []).find(function (m) {
-    return tipoMotivo(m.id) === 'entrada' && m.ativo !== false && !m.sistema;
-  });
-  if (!motivoEnt) { toast('Nenhum motivo de entrada cadastrado.'); return; }
-
-  /* o custo entra pelo valor do pedido: é o que a unidade realmente pagou */
-  var itensEnt = comFicha.map(function (i) {
-    var q = Number(i.qtd) || 0;
-    return { tipo: 'ficha', refId: i.fichaRef, unidade: '', qtd: q,
-             custo: q ? ((Number(i.total) || 0) / q) : 0, obs: i.baseNome };
-  });
-  var linhas = montarLinhas(itensEnt, 'entrada');
-  if (!linhas.length) { toast('Nada a dar entrada.'); return; }
-
-  var ok = await confirmar({
-    titulo: 'Dar entrada no estoque?',
-    texto: comFicha.length + ' base(s) entram em ' + E(sucNome(lojaAtualId())) + '.',
-    linhas: comFicha.slice(0, 8).map(function (i) {
-      return [i.baseNome, fmtQt(i.qtd) + ' cx', 'R$ ' + money(i.total)];
-    }),
-    aviso: 'O custo de cada base entra pelo valor do pedido.',
-    ok: 'Dar entrada'
-  });
-  if (!ok) return;
-  var mov = { id: uid('mv'), data: hojeISO(), hora: agoraHM(),
-    motivoId: motivoEnt.id,
-    identificacao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-                   ' — recebido da matriz',
-    obs: '', itens: itensEnt, linhas: linhas, origem: 'manual' };
-  DB.movEst.push(mov);
-  aplicarMovimento(mov);
-  p.entradaEstoque = true; p.movEntradaRef = mov.id;
-  salvar();
-  toast('Entrada lançada — ' + linhas.length + ' item(ns) no estoque.');
-  telaBasesHub();
-}
 
 /* ---------- UNIDADE: conta a pagar ---------- */
-async function pagarPedido(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.finPagarRef) { toast('A conta a pagar já foi gerada.'); return; }
-  baseFin();
-  var venc = prompt('Vencimento da conta a pagar (dd/mm/aaaa):',
-                    dataBR(diasFrenteISO(7)));
-  if (venc === null) return;
-  var vISO = brParaISO(venc);
-  if (!vISO) { toast('Data inválida — use dd/mm/aaaa.'); return; }
-  var ok = await confirmar({
-    titulo: 'Gerar conta a pagar à matriz?',
-    texto: 'R$ ' + money(p.total) + ' — pedido #' +
-           String(p.numero || 0).padStart(4, '0'),
-    linhas: [['Vencimento', dataBR(vISO), '']],
-    ok: 'Gerar'
-  });
-  if (!ok) return;
-  var l = { id: uid('lf'), tipo: 'despesa',
-    descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-               ' — matriz',
-    valor: Number(p.total) || 0, emissao: hojeISO(), vencimento: vISO,
-    pago: false, documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
-    origemTipo: 'pedido_base', origemId: p.id };
-  DB.lancamentos.push(l);
-  p.finPagarRef = l.id;
-  salvar();
-  toast('Conta a pagar gerada — R$ ' + money(p.total) + '.');
-  telaBasesHub();
-}
 
 var PR = { filtro: 'todos', busca: '', de: '', ate: '', aberto: null };
 
@@ -1023,7 +916,6 @@ function cartaoPedido(p){
 function acoesPedido(p){
   if (p.situacao === 'rejeitado') return '';
   var matriz = (ehMatriz() || ehPlataforma());
-  var minha  = (p.sucursalRef === lojaAtualId());
   var h = '';
   /* As automacoes aparecem conforme a fase e somem depois de feitas — o
      estado GRAVADO no pedido e que decide, nao o clique. Assim recarregar a
@@ -1031,7 +923,8 @@ function acoesPedido(p){
   var feitos = [];
   if (p.produzido)      feitos.push('produzido');
   if (p.finReceberRef)  feitos.push('faturado');
-  if (p.entradaEstoque) feitos.push('em estoque');
+  if (saidaBaseJaFeita(p)) feitos.push('saiu do estoque da matriz');
+  if (p.entradaEstoque) feitos.push('em estoque na unidade');
   if (p.finPagarRef)    feitos.push('a pagar gerado');
   if (feitos.length)
     h += '<div class="prFeitos">' + feitos.map(function(f){
@@ -1042,15 +935,16 @@ function acoesPedido(p){
   if (matriz && confirmado && !p.produzido)
     h += '<button class="btnP2 acB" onclick="produzirPedido(\'' + p.id + '\')">' +
          sv('box',12) + ' Lançar produção</button>';
-  if (matriz && confirmado && !p.finReceberRef)
-    h += '<button class="btnP2 acB" onclick="faturarPedido(\'' + p.id + '\')">' +
+  /* A cobranca nasce sozinha no clique de "Entregue". Este botao e so a rede
+     de seguranca para o pedido que passou por ali sem gerar — pedido antigo,
+     ou entrega marcada antes desta versao. */
+  if (matriz && entregue && !p.finReceberRef)
+    h += '<button class="btnP2 acB" onclick="faturarPedidoBase(\'' + p.id + '\')">' +
          sv('money',12) + ' Gerar cobrança</button>';
-  if (minha && entregue && !p.entradaEstoque)
-    h += '<button class="btnP2 acB" onclick="darEntradaPedido(\'' + p.id + '\')">' +
-         sv('dn4',12) + ' Dar entrada</button>';
-  if (minha && entregue && !p.finPagarRef)
-    h += '<button class="btnP2 acB" onclick="pagarPedido(\'' + p.id + '\')">' +
-         sv('money',12) + ' Conta a pagar</button>';
+  /* Dar entrada e gerar a conta a pagar sao da UNIDADE, e ficam na tela dela,
+     no botao "Recebi as bases". Tinha botao para isso aqui tambem: quem
+     abrisse por engano poria a mercadoria no estoque de quem nao a recebeu, e
+     o pedido apareceria conferido sem ninguem ter conferido nada. */
 
   h += '<div style="flex:1"></div>';
   var prox = {
@@ -1071,13 +965,45 @@ function acoesPedido(p){
   return h;
 }
 
+/* ==========================================================
+   "ENTREGUE" E O PASSO QUE MEXE NO ESTOQUE E NO DINHEIRO
+
+   Ate aqui o pedido e papel: pedido, confirmado, produzido. A base
+   produzida esta guardada no estoque da matriz. No momento em que a unidade
+   vem buscar, duas coisas acontecem juntas e nao podem se separar — a base
+   sai do estoque da matriz e a cobranca daquela unidade nasce. Se so uma das
+   duas acontecesse, o estoque ou o financeiro ficaria mentindo, e ninguem
+   descobriria isso olhando a tela do pedido.
+
+   Por isso e um clique so, e a caixa de confirmacao diz exatamente o que vai
+   acontecer antes de acontecer.
+   ========================================================== */
 async function avancarPedido(id, para){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) return;
+  var entrega = (para === 'entregue');
+  var jaSaiu  = entrega && saidaBaseJaFeita(p);
+  var linhasSai = (entrega && !jaSaiu) ? linhasSaidaBases(p) : [];
+  var falta = linhasSai.length ? faltaEstoque(linhasSai) : [];
+  var extras = [];
+  if (linhasSai.length)
+    extras.push(['Estoque da matriz', linhasSai.length + ' item(ns) saem', '']);
+  if (entrega && !p.finReceberRef)
+    extras.push(['Conta a receber', 'R$ ' + money(p.total) +
+                 ' · vence ' + dataBR(vencimentoPedidoBase(p)), '']);
   var ok = await confirmar({
     titulo: ROTULO_FASE[para] + '?',
     texto: 'Pedido #' + String(p.numero || 0).padStart(4, '0') + ' — ' +
            E(p.sucursalNome) + ' — R$ ' + money(p.total),
+    linhas: extras,
+    aviso: (falta.length
+      ? '<b>' + falta.length + ' item(ns) ficam com saldo negativo</b> — a ' +
+        'produção deste pedido não foi lançada. Dá para seguir, mas o estoque ' +
+        'da matriz vai ficar devendo.'
+      : (entrega && !linhasSai.length && !jaSaiu
+          ? 'Nenhuma base deste pedido tem ficha ligada, então <b>nada sai do ' +
+            'estoque</b>. A cobrança é gerada do mesmo jeito.'
+          : '')),
     ok: ROTULO_FASE[para]
   });
   if (!ok) return;
@@ -1086,8 +1012,15 @@ async function avancarPedido(id, para){
   if (para === 'confirmado') p.confirmadoEm = agora;
   if (para === 'entregue') p.entregueEm = agora;
   if (para === 'pago') p.pagoEm = agora;
+  var msg = ROTULO_FASE[para].toLowerCase();
+  if (entrega) {
+    var mv = saidaBasesMatriz(p);
+    var lr = gerarReceberPedido(p);
+    if (mv) msg += ' · ' + mv.linhas.length + ' item(ns) baixados do estoque';
+    if (lr) msg += ' · cobrança de R$ ' + money(lr.valor);
+  }
   salvar();
-  toast('Pedido ' + ROTULO_FASE[para].toLowerCase() + '.');
+  toast('Pedido ' + msg + '.');
   telaBasesHub();
 }
 
@@ -1234,7 +1167,7 @@ function telaPedidoBase(){
           '<td>' + seloPedBase(p.situacao) +
            (['entregue','pago'].indexOf(p.situacao) >= 0 && !p.entradaEstoque
              ? ' <button class="btnMini" onclick="receberPedidoBase(\'' + p.id +
-               '\')">Dar entrada no estoque</button>'
+               '\')">Recebi as bases</button>'
              : (p.entradaEstoque
                 ? ' <span class="prFeito">' + sv('check', 11) + ' no estoque</span>'
                 : '')) + '</td></tr>';
@@ -1339,6 +1272,49 @@ var BS = { busca: '', sohAtivos: false, sujo: false };
 
 function baseCatalogo(){ DB.basesCat = DB.basesCat || []; return DB.basesCat; }
 
+/* ==========================================================
+   FICHA NOVA CHAMADA "BASE <SABOR>" JA NASCE NO CATALOGO DE PEDIDO
+
+   O combinado da casa e esse: a ficha de uma base se chama BASE e o sabor,
+   tudo em maiuscula. Entao o proprio nome serve de gatilho — nao precisa de
+   campo novo na tela nem de a pessoa lembrar de cadastrar a mesma coisa duas
+   vezes, em duas telas diferentes. Cadastrar duas vezes e como o vinculo
+   entre a base e a ficha deixava de existir, e sem vinculo nao ha baixa de
+   estoque nenhuma.
+
+   Nasce INATIVA de proposito. Sem preco, a unidade pediria a R$ 0,00 e a
+   cobranca nasceria zerada — erro silencioso, do tipo que so aparece no
+   fechamento do mes. A matriz poe o valor e muda para Ativa; a tela de Bases
+   e Valores avisa em cima quantas estao esperando isso.
+   ========================================================== */
+function ehNomeDeBase(nome){
+  var n = String(nome || '').trim();
+  return /^BASE\s+\S/.test(n) && n === n.toUpperCase();
+}
+function baseDeFichaNova(f){
+  if (!f || !ehNomeDeBase(f.nome)) return null;
+  baseCatalogo();
+  var nome = String(f.nome).trim();
+  var ja = DB.basesCat.find(function (b) {
+    return b.fichaRef === f.id ||
+           String(b.nome || '').trim().toUpperCase() === nome.toUpperCase();
+  });
+  /* ja existia pelo nome mas solta: aproveita e amarra na ficha */
+  if (ja) { if (!ja.fichaRef) ja.fichaRef = f.id; return null; }
+  var b = { id: uid('bc'), nome: nome, qtdCaixa: 1, valorUnit: 0,
+            fichaRef: f.id, ativo: false, ordem: 0 };
+  DB.basesCat.push(b);
+  return b;
+}
+/* "esperando preco" nao e um campo: e o estado de quem nasceu assim. Campo
+   novo nao sobreviveria a sincronizacao — a tabela da nuvem nao tem coluna
+   para ele, e a base voltaria de la sem a marca. */
+function basesEsperandoPreco(){
+  return baseCatalogo().filter(function (b) {
+    return b.ativo === false && b.fichaRef && !(Number(b.valorUnit) > 0);
+  });
+}
+
 function telaBasesValores(){
   if (!ehMatriz() && !ehPlataforma()) return telaRestrita('Central de Bases e Valores');
   baseFicha(); baseCatalogo();
@@ -1377,6 +1353,17 @@ function telaBasesValores(){
     '<div class="hpN"><span>Sem ficha técnica</span><b class="' +
       (semFicha ? 'am' : '') + '">' + semFicha + '</b></div>' +
    '</div>' +
+
+   (function(){
+     var esp = basesEsperandoPreco();
+     if (!esp.length) return '';
+     return '<div class="bsAviso">' + sv('help', 14) +
+      '<div><b>' + esp.length + ' base(s) vieram de fichas técnicas novas e ' +
+      'estão esperando o preço.</b> Enquanto o valor for zero elas ficam ' +
+      'inativas e as unidades não as veem: ' +
+      esp.slice(0, 8).map(function (b) { return E(b.nome); }).join(' · ') +
+      (esp.length > 8 ? ' …' : '') + '</div></div>';
+   })() +
 
    (semFicha
      ? '<div class="bsAviso">' + sv('help', 14) +

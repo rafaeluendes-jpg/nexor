@@ -6157,6 +6157,7 @@ var MOD=[
  {id:'cancelamentos',n:'Cancelamentos'},
  {id:'vendas-mesa',n:'Vendas por Mesa'},
  {id:'cupons-fiscais',n:'Cupons Gerados'},
+ {id:'pedidos-base',n:'Pedidos de Base'},
  {id:'cupons',n:'Cupons de Desconto'}]},
 {id:'dashboard',n:'Gestão e Dashboard',ic:'chart',it:[
  {id:'canais-venda',n:'Canais de Venda'},
@@ -11262,7 +11263,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V206.0.0';
+var VERSAO='V207.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -11712,6 +11713,7 @@ if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
 if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
+if(mid==='relatorios'&&iid==='pedidos-base')return telaRelPedidosBase();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='controle'&&iid==='baixa-manual')return telaBaixaHub();
 if(mid==='controle'&&iid==='pedido-base')return telaPedidoBase();
@@ -28223,12 +28225,19 @@ function modalFicha(id){
       destinoNome:(function(){var d=$('ftDest');if(!d)return '';
         var o=d.options[d.selectedIndex];return o?o.text:'';})(),
       destinoFator:parseFloat(($('ftFat')||{}).value)||1};
+    var _novaBase=null;
     if(f)Object.assign(f,o);
-    else{o.id=uid('fi');o.itens=[];o.rendimento=1;o.rendUnidade=o.unidade;DB.fichas.push(o);FT.sel=o.id;}
+    else{o.id=uid('fi');o.itens=[];o.rendimento=1;o.rendUnidade=o.unidade;DB.fichas.push(o);FT.sel=o.id;
+      /* ficha chamada BASE <SABOR> ja entra no catalogo de pedido, vinculada.
+         Mora no bloco 22 porque o catalogo e de la; aqui so se avisa que
+         nasceu uma ficha. */
+      if(typeof baseDeFichaNova==='function')_novaBase=baseDeFichaNova(o);}
     lerUnidades('ftUn',f||o);        /* quem enxerga esta ficha */
     FT.mostrar=true;FT.cat=o.categoriaId;FT.sub=o.subgrupoId||'';
     if(FT.cat)FT.abertas[FT.cat]=true;
-    salvar();telaFichaTecnica();toast('Produto salvo em "'+E((catFicha(o.categoriaId)||{}).nome||'')+'".');
+    salvar();telaFichaTecnica();
+    toast('Produto salvo em "'+E((catFicha(o.categoriaId)||{}).nome||'')+'".'+
+      (_novaBase?' Base criada no pedido — falta pôr o preço.':''));
     return true;
   },'lg');
 }
@@ -28772,6 +28781,10 @@ function baseMov(){
   /* motivos que o sistema usa sozinho — precisam existir sempre,
      mesmo quando a loja já tem motivos próprios cadastrados */
   [['mv_venda','Venda PDV','saida'],
+   /* a base sai do estoque da matriz quando o pedido e entregue a unidade.
+      Motivo proprio para o relatorio conseguir separar isso de uma baixa
+      manual qualquer. */
+   ['mv_pedbase','Venda de base para unidade','saida'],
    ['mv_nota','Entrada por nota fiscal','entrada'],
    ['mv_cont','Contagem de estoque','entrada'],
    ['mv_perdaprod','Perda de produção','saida'],
@@ -29221,95 +29234,34 @@ function telaBasesHub(){
    ========================================================== */
 
 /* ---------- 1. MATRIZ: produzir as bases ---------- */
-async function produzirPedidoBase(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.produzido) { toast('Este pedido já foi produzido.'); return; }
-  baseMov(); baseFicha();
-
-  var comFicha = [], semFicha = [];
-  (p.itens || []).forEach(function (it) {
-    var f = (DB.fichas || []).find(function (x) { return x.id === it.fichaRef; });
-    if (f) comFicha.push({ tipo: 'ficha', refId: f.id, unidade: f.unidade || 'un',
-                           qtd: Number(it.qtd) || 0, custo: 0, obs: it.baseNome });
-    else semFicha.push(it);
-  });
-
-  if (!comFicha.length) {
-    await confirmar({
-      titulo: 'Nenhum item tem ficha técnica',
-      texto: 'Sem ficha, o sistema não sabe o que consumir para produzir.',
-      linhas: (p.itens || []).slice(0, 6).map(function (i) {
-        return [i.baseNome, fmtQt(i.qtd) + ' cx', 'sem ficha'];
-      }),
-      aviso: 'Ligue cada base à sua ficha em <b>Bases e valores</b>. ' +
-             'O pedido segue normalmente — só a baixa de estoque fica esperando.',
-      ok: 'Entendi', cancelar: null
-    });
-    return;
-  }
-
-  var linhas = montarLinhas(comFicha, 'producao');
-  if (!linhas.length) { toast('As fichas não têm ingredientes cadastrados.'); return; }
-  var falta = faltaEstoque(linhas);
-  if (falta.length) { alert(avisoFalta(falta, 'esta produção')); return; }
-
-  var ok = await confirmar({
-    titulo: 'Produzir o pedido #' + String(p.numero || 0).padStart(4, '0') + '?',
-    texto: comFicha.length + ' base(s) — os ingredientes saem do estoque da matriz.',
-    linhas: (semFicha.length
-      ? [['⚠ ' + semFicha.length + ' item(ns) sem ficha', 'não entram na produção', '']]
-      : []).concat(comFicha.slice(0, 6).map(function (i) {
-        var f = (DB.fichas || []).find(function (x) { return x.id === i.refId; });
-        return [(f || {}).nome || i.obs, fmtQt(i.qtd), ''];
-      })),
-    aviso: linhas.length + ' ingrediente(s) serão baixados.',
-    ok: 'Produzir', tipo: 'perigo'
-  });
-  if (!ok) return;
-
-  var mov = {
-    id: uid('mv'), data: hojeISO(), hora: agoraHM(),
-    motivoId: 'mv_prod',
-    identificacao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-                   ' — ' + (p.sucursalNome || ''),
-    obs: 'gerado pelo pedido de base',
-    itens: JSON.parse(JSON.stringify(comFicha)),
-    linhas: linhas, origem: 'producao'
-  };
-  DB.movEst.push(mov);
-  aplicarMovimento(mov);
-  p.produzido = true;
-  p.movProducaoRef = mov.id;
-  salvar();
-  toast('Produção lançada — ' + linhas.length + ' ingrediente(s) baixados.');
-  telaBasesHub();
-}
 
 /* ---------- 2. MATRIZ: gerar a conta a receber ---------- */
-async function faturarPedidoBase(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
-  var venc = prompt('Vencimento da cobrança para ' + (p.sucursalNome || 'a unidade') +
-    '\n\nData no formato dd/mm/aaaa:', dataBR(hojeISO()));
-  if (venc === null) return;
-  var iso = venc.split('/').reverse().join('-');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) { toast('Data inválida.'); return; }
+/* ==========================================================
+   O VENCIMENTO NAO SE PERGUNTA MAIS
 
-  var ok = await confirmar({
-    titulo: 'Gerar conta a receber?',
-    texto: 'R$ ' + money(p.total) + ' de ' + (p.sucursalNome || '—'),
-    linhas: [['Pedido', '#' + String(p.numero || 0).padStart(4, '0'), ''],
-             ['Vencimento', dataBR(iso), '']],
-    ok: 'Gerar cobrança'
-  });
-  if (!ok) return;
+   Era um prompt a cada pedido, e a resposta era sempre a mesma conta: o
+   pedido entra ate segunda ao meio-dia e a retirada e na quinta. Tres dias
+   depois da data do pedido e o dia em que a unidade busca a mercadoria — e
+   e quando ela paga. Entao o sistema faz a conta.
+   ========================================================== */
+function vencimentoPedidoBase(p){
+  var d = new Date(String((p && p.data) || hojeISO()) + 'T12:00:00');
+  if (isNaN(d.getTime())) d = new Date();
+  d.setDate(d.getDate() + 3);
+  return d.toISOString().slice(0, 10);
+}
 
+/* ---------- 2. MATRIZ: a conta a receber da unidade ----------
+   Sem tela: quem chama e o mesmo clique que marca o pedido como entregue.
+   Devolve o lancamento criado, ou null se ja existia — a referencia gravada
+   no pedido (finReceberRef) e o que impede a segunda via. */
+function gerarReceberPedido(p){
+  if (!p || p.finReceberRef) return null;
   /* ATENCAO: DB.lancamentos e a colecao LEGADA — ela nao sobe para a nuvem e
-     ainda e migrada para DB.lancFin marcada como PAGA. Escrever ali fazia a
-     cobranca nascer quitada e presa no aparelho. O financeiro de verdade e
-     DB.lancFin / lancamentos_financeiros. */
+     ainda e migrada para DB.lancFin marcada como PAGA, e com o tipo virado
+     para despesa. Escrever ali fazia a cobranca da matriz nascer como
+     despesa quitada, presa no aparelho de quem clicou. O financeiro de
+     verdade e DB.lancFin / lancamentos_financeiros. */
   baseFin();
   DB.lancFin = DB.lancFin || [];
   var l = {
@@ -29317,17 +29269,91 @@ async function faturarPedidoBase(id){
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — ' + (p.sucursalNome || ''),
     contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
-    fornecedor: '', documento: '',
+    fornecedor: '', documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
     valor: Number(p.total) || 0,
-    emissao: hojeISO(), vencimento: iso, pagamento: '',
+    emissao: hojeISO(), vencimento: vencimentoPedidoBase(p), pagamento: '',
     pago: false, conciliado: false,
     origem: 'pedido_base', origemRef: p.id
   };
   DB.lancFin.push(l);
   p.finReceberRef = l.id;
+  return l;
+}
+
+/* rede de seguranca: o botao so aparece se, por algum motivo, a cobranca nao
+   nasceu junto com a entrega */
+async function faturarPedidoBase(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
+  var ok = await confirmar({
+    titulo: 'Gerar conta a receber?',
+    texto: 'R$ ' + money(p.total) + ' de ' + (p.sucursalNome || '—'),
+    linhas: [['Pedido', '#' + String(p.numero || 0).padStart(4, '0'), ''],
+             ['Vencimento', dataBR(vencimentoPedidoBase(p)) +
+              ' — 3 dias após o pedido', '']],
+    ok: 'Gerar cobrança'
+  });
+  if (!ok) return;
+  gerarReceberPedido(p);
   salvar();
-  toast('Conta a receber gerada.');
+  toast('Conta a receber gerada — vence ' + dataBR(vencimentoPedidoBase(p)) + '.');
   telaBasesHub();
+}
+
+/* ==========================================================
+   MATRIZ: A BASE SAI DO ESTOQUE QUANDO O PEDIDO E ENTREGUE
+
+   Sao dois fatos distintos e por isso dois registros: um dia a fabrica
+   produziu e a base entrou no estoque da matriz; outro dia a unidade veio
+   buscar e ela saiu. Um lancamento so nao saberia responder quanto cada
+   unidade levou, nem em que dia.
+
+   As linhas saem de montarLinhas(...,'producao') e fica so a ENTRADA do
+   produto acabado, com a direcao virada. Assim a quantidade que sai e, por
+   construcao, exatamente a que entrou — inclusive quando a ficha tem fator
+   de rendimento e o destino esta em outra unidade de medida. Recalcular por
+   fora daria diferenca no dia em que alguem mexesse no fator.
+   ========================================================== */
+function itensSaidaBases(p){
+  return itensComFicha(p).map(function (i) {
+    return { tipo: 'ficha', refId: i.fichaRef, unidade: '',
+             qtd: Number(i.qtd) || 0, custo: 0, obs: i.baseNome };
+  });
+}
+function linhasSaidaBases(p){
+  return montarLinhas(itensSaidaBases(p), 'producao')
+    .filter(function (l) { return l.direcao === 'entrada'; })
+    .map(function (l) { l.direcao = 'saida'; return l; });
+}
+function marcaSaidaBase(p){
+  return 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
+         ' — entregue a ' + (p.sucursalNome || '');
+}
+/* "ja saiu?" nao pode ser respondido por um campo solto no aparelho: o
+   pedido volta da nuvem sem os campos que nao existem na tabela, e a marca
+   se perderia. A marca fica no proprio movimento, que sobe e desce inteiro —
+   e o mesmo caminho que a ordem de producao usa para se reconhecer. */
+function saidaBaseJaFeita(p){
+  var marca = marcaSaidaBase(p);
+  return (DB.movEst || []).some(function (m) {
+    return m.origem === 'pedbase_saida' && String(m.identificacao || '') === marca;
+  });
+}
+function saidaBasesMatriz(p){
+  if (!p || saidaBaseJaFeita(p)) return null;
+  baseMov();
+  var itens = itensSaidaBases(p);
+  var linhas = linhasSaidaBases(p);
+  if (!linhas.length) return null;
+  var mov = {
+    id: uid('mv'), data: hojeISO(), hora: agoraHM(),
+    motivoId: 'mv_pedbase', identificacao: marcaSaidaBase(p),
+    obs: '', itens: itens, linhas: linhas, origem: 'pedbase_saida'
+  };
+  DB.movEst.push(mov);
+  aplicarMovimento(mov);
+  return mov;
 }
 
 /* ---------- 3. FILIAL: dar entrada no estoque ---------- */
@@ -29445,18 +29471,6 @@ function itensSemFicha(p){
   return (p.itens || []).filter(function (i) { return !i.fichaRef; });
 }
 /* o sistema tem hojeISO e dataBR; estas duas faltavam */
-function diasFrenteISO(n){
-  var d = new Date();
-  d.setDate(d.getDate() + (Number(n) || 0));
-  return d.toISOString().slice(0, 10);
-}
-function brParaISO(v){
-  var m = String(v || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return '';
-  var iso = m[3] + '-' + m[2] + '-' + m[1];
-  var d = new Date(iso + 'T12:00:00');
-  return isNaN(d.getTime()) ? '' : iso;
-}
 
 /* ---------- MATRIZ: produzir ---------- */
 async function produzirPedido(id){
@@ -29517,122 +29531,10 @@ async function produzirPedido(id){
 }
 
 /* ---------- MATRIZ: conta a receber ---------- */
-async function faturarPedido(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
-  baseFin();
-  var venc = prompt('Vencimento da conta a receber (dd/mm/aaaa):',
-                    dataBR(diasFrenteISO(7)));
-  if (venc === null) return;
-  var vISO = brParaISO(venc);
-  if (!vISO) { toast('Data inválida — use dd/mm/aaaa.'); return; }
-  var ok = await confirmar({
-    titulo: 'Gerar conta a receber?',
-    texto: E(p.sucursalNome) + ' — R$ ' + money(p.total),
-    linhas: [['Vencimento', dataBR(vISO), ''],
-             ['Documento', 'PB' + String(p.numero || 0).padStart(4, '0'), '']],
-    ok: 'Gerar'
-  });
-  if (!ok) return;
-  var l = { id: uid('lf'), tipo: 'receita',
-    descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-               ' — ' + (p.sucursalNome || ''),
-    valor: Number(p.total) || 0, emissao: hojeISO(), vencimento: vISO,
-    pago: false, documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
-    origemTipo: 'pedido_base', origemId: p.id };
-  DB.lancamentos.push(l);
-  p.finReceberRef = l.id;
-  salvar();
-  toast('Conta a receber gerada — R$ ' + money(p.total) + '.');
-  telaBasesHub();
-}
 
 /* ---------- UNIDADE: entrada no estoque ---------- */
-async function darEntradaPedido(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.entradaEstoque) { toast('Este pedido já deu entrada.'); return; }
-  if (p.sucursalRef !== lojaAtualId() && !ehPlataforma()) {
-    toast('Este pedido é de outra unidade.'); return;
-  }
-  baseMov();
-  var comFicha = itensComFicha(p);
-  if (!comFicha.length) {
-    await confirmar({ titulo: 'Bases sem ficha técnica',
-      texto: 'Sem ficha, não há item de estoque para dar entrada.',
-      aviso: 'A conta a pagar funciona mesmo assim.',
-      ok: 'Entendi', cancelar: null });
-    return;
-  }
-  var motivoEnt = (DB.motivosMov || []).find(function (m) {
-    return tipoMotivo(m.id) === 'entrada' && m.ativo !== false && !m.sistema;
-  });
-  if (!motivoEnt) { toast('Nenhum motivo de entrada cadastrado.'); return; }
-
-  /* o custo entra pelo valor do pedido: é o que a unidade realmente pagou */
-  var itensEnt = comFicha.map(function (i) {
-    var q = Number(i.qtd) || 0;
-    return { tipo: 'ficha', refId: i.fichaRef, unidade: '', qtd: q,
-             custo: q ? ((Number(i.total) || 0) / q) : 0, obs: i.baseNome };
-  });
-  var linhas = montarLinhas(itensEnt, 'entrada');
-  if (!linhas.length) { toast('Nada a dar entrada.'); return; }
-
-  var ok = await confirmar({
-    titulo: 'Dar entrada no estoque?',
-    texto: comFicha.length + ' base(s) entram em ' + E(sucNome(lojaAtualId())) + '.',
-    linhas: comFicha.slice(0, 8).map(function (i) {
-      return [i.baseNome, fmtQt(i.qtd) + ' cx', 'R$ ' + money(i.total)];
-    }),
-    aviso: 'O custo de cada base entra pelo valor do pedido.',
-    ok: 'Dar entrada'
-  });
-  if (!ok) return;
-  var mov = { id: uid('mv'), data: hojeISO(), hora: agoraHM(),
-    motivoId: motivoEnt.id,
-    identificacao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-                   ' — recebido da matriz',
-    obs: '', itens: itensEnt, linhas: linhas, origem: 'manual' };
-  DB.movEst.push(mov);
-  aplicarMovimento(mov);
-  p.entradaEstoque = true; p.movEntradaRef = mov.id;
-  salvar();
-  toast('Entrada lançada — ' + linhas.length + ' item(ns) no estoque.');
-  telaBasesHub();
-}
 
 /* ---------- UNIDADE: conta a pagar ---------- */
-async function pagarPedido(id){
-  var p = basePedidos().find(function (x) { return x.id === id; });
-  if (!p) return;
-  if (p.finPagarRef) { toast('A conta a pagar já foi gerada.'); return; }
-  baseFin();
-  var venc = prompt('Vencimento da conta a pagar (dd/mm/aaaa):',
-                    dataBR(diasFrenteISO(7)));
-  if (venc === null) return;
-  var vISO = brParaISO(venc);
-  if (!vISO) { toast('Data inválida — use dd/mm/aaaa.'); return; }
-  var ok = await confirmar({
-    titulo: 'Gerar conta a pagar à matriz?',
-    texto: 'R$ ' + money(p.total) + ' — pedido #' +
-           String(p.numero || 0).padStart(4, '0'),
-    linhas: [['Vencimento', dataBR(vISO), '']],
-    ok: 'Gerar'
-  });
-  if (!ok) return;
-  var l = { id: uid('lf'), tipo: 'despesa',
-    descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
-               ' — matriz',
-    valor: Number(p.total) || 0, emissao: hojeISO(), vencimento: vISO,
-    pago: false, documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
-    origemTipo: 'pedido_base', origemId: p.id };
-  DB.lancamentos.push(l);
-  p.finPagarRef = l.id;
-  salvar();
-  toast('Conta a pagar gerada — R$ ' + money(p.total) + '.');
-  telaBasesHub();
-}
 
 var PR = { filtro: 'todos', busca: '', de: '', ate: '', aberto: null };
 
@@ -29760,7 +29662,6 @@ function cartaoPedido(p){
 function acoesPedido(p){
   if (p.situacao === 'rejeitado') return '';
   var matriz = (ehMatriz() || ehPlataforma());
-  var minha  = (p.sucursalRef === lojaAtualId());
   var h = '';
   /* As automacoes aparecem conforme a fase e somem depois de feitas — o
      estado GRAVADO no pedido e que decide, nao o clique. Assim recarregar a
@@ -29768,7 +29669,8 @@ function acoesPedido(p){
   var feitos = [];
   if (p.produzido)      feitos.push('produzido');
   if (p.finReceberRef)  feitos.push('faturado');
-  if (p.entradaEstoque) feitos.push('em estoque');
+  if (saidaBaseJaFeita(p)) feitos.push('saiu do estoque da matriz');
+  if (p.entradaEstoque) feitos.push('em estoque na unidade');
   if (p.finPagarRef)    feitos.push('a pagar gerado');
   if (feitos.length)
     h += '<div class="prFeitos">' + feitos.map(function(f){
@@ -29779,15 +29681,16 @@ function acoesPedido(p){
   if (matriz && confirmado && !p.produzido)
     h += '<button class="btnP2 acB" onclick="produzirPedido(\'' + p.id + '\')">' +
          sv('box',12) + ' Lançar produção</button>';
-  if (matriz && confirmado && !p.finReceberRef)
-    h += '<button class="btnP2 acB" onclick="faturarPedido(\'' + p.id + '\')">' +
+  /* A cobranca nasce sozinha no clique de "Entregue". Este botao e so a rede
+     de seguranca para o pedido que passou por ali sem gerar — pedido antigo,
+     ou entrega marcada antes desta versao. */
+  if (matriz && entregue && !p.finReceberRef)
+    h += '<button class="btnP2 acB" onclick="faturarPedidoBase(\'' + p.id + '\')">' +
          sv('money',12) + ' Gerar cobrança</button>';
-  if (minha && entregue && !p.entradaEstoque)
-    h += '<button class="btnP2 acB" onclick="darEntradaPedido(\'' + p.id + '\')">' +
-         sv('dn4',12) + ' Dar entrada</button>';
-  if (minha && entregue && !p.finPagarRef)
-    h += '<button class="btnP2 acB" onclick="pagarPedido(\'' + p.id + '\')">' +
-         sv('money',12) + ' Conta a pagar</button>';
+  /* Dar entrada e gerar a conta a pagar sao da UNIDADE, e ficam na tela dela,
+     no botao "Recebi as bases". Tinha botao para isso aqui tambem: quem
+     abrisse por engano poria a mercadoria no estoque de quem nao a recebeu, e
+     o pedido apareceria conferido sem ninguem ter conferido nada. */
 
   h += '<div style="flex:1"></div>';
   var prox = {
@@ -29808,13 +29711,45 @@ function acoesPedido(p){
   return h;
 }
 
+/* ==========================================================
+   "ENTREGUE" E O PASSO QUE MEXE NO ESTOQUE E NO DINHEIRO
+
+   Ate aqui o pedido e papel: pedido, confirmado, produzido. A base
+   produzida esta guardada no estoque da matriz. No momento em que a unidade
+   vem buscar, duas coisas acontecem juntas e nao podem se separar — a base
+   sai do estoque da matriz e a cobranca daquela unidade nasce. Se so uma das
+   duas acontecesse, o estoque ou o financeiro ficaria mentindo, e ninguem
+   descobriria isso olhando a tela do pedido.
+
+   Por isso e um clique so, e a caixa de confirmacao diz exatamente o que vai
+   acontecer antes de acontecer.
+   ========================================================== */
 async function avancarPedido(id, para){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) return;
+  var entrega = (para === 'entregue');
+  var jaSaiu  = entrega && saidaBaseJaFeita(p);
+  var linhasSai = (entrega && !jaSaiu) ? linhasSaidaBases(p) : [];
+  var falta = linhasSai.length ? faltaEstoque(linhasSai) : [];
+  var extras = [];
+  if (linhasSai.length)
+    extras.push(['Estoque da matriz', linhasSai.length + ' item(ns) saem', '']);
+  if (entrega && !p.finReceberRef)
+    extras.push(['Conta a receber', 'R$ ' + money(p.total) +
+                 ' · vence ' + dataBR(vencimentoPedidoBase(p)), '']);
   var ok = await confirmar({
     titulo: ROTULO_FASE[para] + '?',
     texto: 'Pedido #' + String(p.numero || 0).padStart(4, '0') + ' — ' +
            E(p.sucursalNome) + ' — R$ ' + money(p.total),
+    linhas: extras,
+    aviso: (falta.length
+      ? '<b>' + falta.length + ' item(ns) ficam com saldo negativo</b> — a ' +
+        'produção deste pedido não foi lançada. Dá para seguir, mas o estoque ' +
+        'da matriz vai ficar devendo.'
+      : (entrega && !linhasSai.length && !jaSaiu
+          ? 'Nenhuma base deste pedido tem ficha ligada, então <b>nada sai do ' +
+            'estoque</b>. A cobrança é gerada do mesmo jeito.'
+          : '')),
     ok: ROTULO_FASE[para]
   });
   if (!ok) return;
@@ -29823,8 +29758,15 @@ async function avancarPedido(id, para){
   if (para === 'confirmado') p.confirmadoEm = agora;
   if (para === 'entregue') p.entregueEm = agora;
   if (para === 'pago') p.pagoEm = agora;
+  var msg = ROTULO_FASE[para].toLowerCase();
+  if (entrega) {
+    var mv = saidaBasesMatriz(p);
+    var lr = gerarReceberPedido(p);
+    if (mv) msg += ' · ' + mv.linhas.length + ' item(ns) baixados do estoque';
+    if (lr) msg += ' · cobrança de R$ ' + money(lr.valor);
+  }
   salvar();
-  toast('Pedido ' + ROTULO_FASE[para].toLowerCase() + '.');
+  toast('Pedido ' + msg + '.');
   telaBasesHub();
 }
 
@@ -29971,7 +29913,7 @@ function telaPedidoBase(){
           '<td>' + seloPedBase(p.situacao) +
            (['entregue','pago'].indexOf(p.situacao) >= 0 && !p.entradaEstoque
              ? ' <button class="btnMini" onclick="receberPedidoBase(\'' + p.id +
-               '\')">Dar entrada no estoque</button>'
+               '\')">Recebi as bases</button>'
              : (p.entradaEstoque
                 ? ' <span class="prFeito">' + sv('check', 11) + ' no estoque</span>'
                 : '')) + '</td></tr>';
@@ -30076,6 +30018,49 @@ var BS = { busca: '', sohAtivos: false, sujo: false };
 
 function baseCatalogo(){ DB.basesCat = DB.basesCat || []; return DB.basesCat; }
 
+/* ==========================================================
+   FICHA NOVA CHAMADA "BASE <SABOR>" JA NASCE NO CATALOGO DE PEDIDO
+
+   O combinado da casa e esse: a ficha de uma base se chama BASE e o sabor,
+   tudo em maiuscula. Entao o proprio nome serve de gatilho — nao precisa de
+   campo novo na tela nem de a pessoa lembrar de cadastrar a mesma coisa duas
+   vezes, em duas telas diferentes. Cadastrar duas vezes e como o vinculo
+   entre a base e a ficha deixava de existir, e sem vinculo nao ha baixa de
+   estoque nenhuma.
+
+   Nasce INATIVA de proposito. Sem preco, a unidade pediria a R$ 0,00 e a
+   cobranca nasceria zerada — erro silencioso, do tipo que so aparece no
+   fechamento do mes. A matriz poe o valor e muda para Ativa; a tela de Bases
+   e Valores avisa em cima quantas estao esperando isso.
+   ========================================================== */
+function ehNomeDeBase(nome){
+  var n = String(nome || '').trim();
+  return /^BASE\s+\S/.test(n) && n === n.toUpperCase();
+}
+function baseDeFichaNova(f){
+  if (!f || !ehNomeDeBase(f.nome)) return null;
+  baseCatalogo();
+  var nome = String(f.nome).trim();
+  var ja = DB.basesCat.find(function (b) {
+    return b.fichaRef === f.id ||
+           String(b.nome || '').trim().toUpperCase() === nome.toUpperCase();
+  });
+  /* ja existia pelo nome mas solta: aproveita e amarra na ficha */
+  if (ja) { if (!ja.fichaRef) ja.fichaRef = f.id; return null; }
+  var b = { id: uid('bc'), nome: nome, qtdCaixa: 1, valorUnit: 0,
+            fichaRef: f.id, ativo: false, ordem: 0 };
+  DB.basesCat.push(b);
+  return b;
+}
+/* "esperando preco" nao e um campo: e o estado de quem nasceu assim. Campo
+   novo nao sobreviveria a sincronizacao — a tabela da nuvem nao tem coluna
+   para ele, e a base voltaria de la sem a marca. */
+function basesEsperandoPreco(){
+  return baseCatalogo().filter(function (b) {
+    return b.ativo === false && b.fichaRef && !(Number(b.valorUnit) > 0);
+  });
+}
+
 function telaBasesValores(){
   if (!ehMatriz() && !ehPlataforma()) return telaRestrita('Central de Bases e Valores');
   baseFicha(); baseCatalogo();
@@ -30114,6 +30099,17 @@ function telaBasesValores(){
     '<div class="hpN"><span>Sem ficha técnica</span><b class="' +
       (semFicha ? 'am' : '') + '">' + semFicha + '</b></div>' +
    '</div>' +
+
+   (function(){
+     var esp = basesEsperandoPreco();
+     if (!esp.length) return '';
+     return '<div class="bsAviso">' + sv('help', 14) +
+      '<div><b>' + esp.length + ' base(s) vieram de fichas técnicas novas e ' +
+      'estão esperando o preço.</b> Enquanto o valor for zero elas ficam ' +
+      'inativas e as unidades não as veem: ' +
+      esp.slice(0, 8).map(function (b) { return E(b.nome); }).join(' · ') +
+      (esp.length > 8 ? ' …' : '') + '</div></div>';
+   })() +
 
    (semFicha
      ? '<div class="bsAviso">' + sv('help', 14) +
@@ -44623,6 +44619,243 @@ function fecharSoForaDeVerdade(o){
   });
 }
 function fecharModal(){var o=$('mdOv');if(o)o.remove();}
+/* ==========================================================
+   BLOCO 28.6 — RELATORIO DE PEDIDOS DE BASE
+
+   De onde vem: DB.pedidosBase, a mesma tabela que a unidade preenche e a
+   matriz confirma. Nao ha calculo paralelo aqui — o que a tela mostra e a
+   soma do que foi pedido, com os precos que valiam no dia do pedido, que e o
+   que ficou gravado em cada item. Refazer a conta pelo preco de hoje daria
+   um numero diferente do que foi cobrado.
+
+   Tres cortes do mesmo periodo, porque sao tres perguntas diferentes:
+     por sabor   -> quanto de cada base a rede inteira consome
+     por unidade -> quanto cada franqueado comprou
+     por mes     -> como isso cresce ou cai ao longo do ano
+
+   Rejeitado fica de fora por padrao: pedido recusado nao virou mercadoria
+   nem dinheiro, e somado ali dentro inflaria o total sem nada por tras.
+   ========================================================== */
+var RPB = { de: '', ate: '', suc: '', base: '', sit: 'validos',
+            visao: 'sabor', busca: '' };
+
+function pedBaseNoFiltro(){
+  var l = (DB.pedidosBase || []).slice();
+  if (RPB.de)  l = l.filter(function (p) { return String(p.data || '') >= RPB.de; });
+  if (RPB.ate) l = l.filter(function (p) { return String(p.data || '') <= RPB.ate; });
+  if (RPB.suc) l = l.filter(function (p) { return p.sucursalRef === RPB.suc; });
+  if (RPB.sit === 'validos') l = l.filter(function (p) { return p.situacao !== 'rejeitado'; });
+  else if (RPB.sit) l = l.filter(function (p) { return p.situacao === RPB.sit; });
+  return l;
+}
+
+/* percorre pedido a pedido e item a item, chamando de volta para cada linha.
+   As tres visoes usam esta mesma varredura: se o filtro mudar, muda para as
+   tres juntas, e nao ha como uma discordar da outra. */
+function varrerPedBase(fn){
+  pedBaseNoFiltro().forEach(function (p) {
+    (p.itens || []).forEach(function (it) {
+      if (RPB.base && it.baseRef !== RPB.base) return;
+      if (RPB.busca && String(it.baseNome || '').toLowerCase()
+            .indexOf(RPB.busca.toLowerCase()) < 0) return;
+      fn(p, it);
+    });
+  });
+}
+
+function agruparPedBase(chave, rotulo){
+  var por = {};
+  varrerPedBase(function (p, it) {
+    var k = chave(p, it);
+    por[k] = por[k] || { k: k, nome: rotulo(p, it), cx: 0, valor: 0,
+                         pedidos: {}, unidades: {} };
+    por[k].cx += Number(it.qtd) || 0;
+    por[k].valor += Number(it.total) || 0;
+    por[k].pedidos[p.id] = 1;
+    por[k].unidades[p.sucursalRef || '—'] = 1;
+  });
+  return Object.keys(por).map(function (k) {
+    var x = por[k];
+    x.nPedidos = Object.keys(x.pedidos).length;
+    x.nUnidades = Object.keys(x.unidades).length;
+    return x;
+  }).sort(function (a, b) { return b.valor - a.valor; });
+}
+
+function mesDoPedido(p){ return String(p.data || '').slice(0, 7); }
+function nomeDoMes(aaaamm){
+  var m = ['janeiro','fevereiro','março','abril','maio','junho','julho',
+           'agosto','setembro','outubro','novembro','dezembro'];
+  var pt = String(aaaamm || '').split('-');
+  if (pt.length < 2) return aaaamm || '—';
+  return (m[(Number(pt[1]) || 1) - 1] || '?') + ' de ' + pt[0];
+}
+
+function telaRelPedidosBase(){
+  if (!ehMatriz() && !ehPlataforma()) return telaRestrita('Pedidos de Base');
+  basePedidos(); baseCatalogo();
+  if (!RPB.de) {
+    var d = new Date();
+    RPB.de = new Date(d.getFullYear(), d.getMonth() - 5, 1).toISOString().slice(0, 10);
+    RPB.ate = hojeISO();
+  }
+
+  var lista;
+  if (RPB.visao === 'unidade')
+    lista = agruparPedBase(function (p) { return p.sucursalRef || '—'; },
+                           function (p) { return p.sucursalNome || '—'; });
+  else if (RPB.visao === 'mes')
+    lista = agruparPedBase(function (p) { return mesDoPedido(p); },
+                           function (p) { return nomeDoMes(mesDoPedido(p)); })
+             .sort(function (a, b) { return String(b.k).localeCompare(String(a.k)); });
+  else
+    lista = agruparPedBase(function (p, it) { return it.baseRef || it.baseNome; },
+                           function (p, it) { return it.baseNome || '—'; });
+
+  var totalV = lista.reduce(function (a, x) { return a + x.valor; }, 0);
+  var totalC = lista.reduce(function (a, x) { return a + x.cx; }, 0);
+  var pedidos = pedBaseNoFiltro().length;
+  var sucs = (typeof lojasCad === 'function' ? lojasCad() : []) || [];
+  var bases = baseCatalogo().slice().sort(function (a, b) {
+    return String(a.nome || '').localeCompare(String(b.nome || ''));
+  });
+  var primeira = (RPB.visao === 'unidade' ? 'Unidade'
+                : RPB.visao === 'mes' ? 'Mês' : 'Base');
+
+  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+   '<div class="etTopo">' +
+    '<div><h1>Pedidos de Base</h1><p>Quanto cada unidade pediu, de cada base, ' +
+     'em cada mês.</p></div>' +
+    '<button class="infoBt" onclick="explicaRelPedBase()">' + sv('help', 15) + '</button>' +
+    '<div style="flex:1"></div>' +
+    '<button class="btnP2" onclick="imprimirRel(\'Pedidos de Base\')">' +
+     sv('print2', 13) + ' PDF</button>' +
+    '<button class="btnP2" onclick="exportarRelPedBase()">' +
+     sv('down2', 13) + ' Exportar</button>' +
+   '</div>' +
+
+   '<div class="barraF">' +
+    '<div class="bfCampo"><label>De</label>' +
+     '<input type="date" id="rpbDe" value="' + E(RPB.de) + '"></div>' +
+    '<div class="bfCampo"><label>Até</label>' +
+     '<input type="date" id="rpbAte" value="' + E(RPB.ate) + '"></div>' +
+    '<div class="bfCampo"><label>Unidade</label>' +
+     '<select onchange="RPB.suc=this.value;telaRelPedidosBase()">' +
+      '<option value="">Todas</option>' +
+      sucs.map(function (s) {
+        return '<option value="' + s.id + '"' + (RPB.suc === s.id ? ' selected' : '') +
+               '>' + E(s.nome) + '</option>';
+      }).join('') + '</select></div>' +
+    '<div class="bfCampo"><label>Base</label>' +
+     '<select onchange="RPB.base=this.value;telaRelPedidosBase()">' +
+      '<option value="">Todas</option>' +
+      bases.map(function (b) {
+        return '<option value="' + b.id + '"' + (RPB.base === b.id ? ' selected' : '') +
+               '>' + E(b.nome) + '</option>';
+      }).join('') + '</select></div>' +
+    '<div class="bfCampo"><label>Situação</label>' +
+     '<select onchange="RPB.sit=this.value;telaRelPedidosBase()">' +
+      [['validos', 'Todos menos rejeitados'], ['', 'Todos, inclusive rejeitados'],
+       ['enviado', 'Aguardando'], ['confirmado', 'Confirmados'],
+       ['enviado_matriz', 'Enviados'], ['entregue', 'Entregues'],
+       ['pago', 'Pagos'], ['rejeitado', 'Rejeitados']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (RPB.sit === o[0] ? ' selected' : '') +
+               '>' + o[1] + '</option>';
+      }).join('') + '</select></div>' +
+    '<div class="bfCampo cresce"><label>Buscar base</label>' +
+     '<input id="rpbBusca" value="' + E(RPB.busca) + '" placeholder="nome do sabor"></div>' +
+    '<button class="btnP2 ok" onclick="RPB.de=$(\'rpbDe\').value;' +
+     'RPB.ate=$(\'rpbAte\').value;telaRelPedidosBase()">' + sv('search', 13) +
+     ' Buscar</button>' +
+    (RPB.suc || RPB.base || RPB.busca || RPB.sit !== 'validos'
+      ? '<button class="btnP2" onclick="limparRPB()">Limpar</button>' : '') +
+   '</div>' +
+
+   '<div class="lbSegm" style="margin-bottom:12px">' +
+    [['sabor', 'Por sabor'], ['unidade', 'Por unidade'], ['mes', 'Por mês']]
+      .map(function (v) {
+        return '<button class="' + (RPB.visao === v[0] ? 'on' : '') + '" ' +
+          'onclick="RPB.visao=\'' + v[0] + '\';telaRelPedidosBase()">' + v[1] +
+          '</button>';
+      }).join('') + '</div>' +
+
+   '<div class="relKpis">' +
+    '<div class="rk"><span>Pedidos no período</span><b>' + pedidos + '</b></div>' +
+    '<div class="rk"><span>Caixas pedidas</span><b>' + fmtQt(totalC) + '</b></div>' +
+    '<div class="rk dest"><span>Valor total</span><b>R$ ' + money(totalV) + '</b></div>' +
+   '</div>' +
+
+   '<div class="etTabW plano2" id="relArea">' +
+   (lista.length
+    ? '<table class="etTab semBusca"><thead><tr>' +
+      '<th>' + primeira + '</th>' +
+      '<th style="width:110px;text-align:right">Pedidos</th>' +
+      '<th style="width:110px;text-align:right">Caixas</th>' +
+      '<th style="width:130px;text-align:right">Valor médio/cx</th>' +
+      '<th style="width:140px;text-align:right">Total</th>' +
+      '<th style="width:110px;text-align:right">% do total</th></tr></thead><tbody>' +
+      lista.map(function (x) {
+        var pc = totalV ? (x.valor / totalV * 100) : 0;
+        return '<tr><td><b>' + E(x.nome) + '</b>' +
+         (RPB.visao === 'sabor' && x.nUnidades > 1
+           ? '<small style="display:block;color:var(--ink-3)">' + x.nUnidades +
+             ' unidade(s)</small>' : '') + '</td>' +
+         '<td style="text-align:right">' + x.nPedidos + '</td>' +
+         '<td style="text-align:right"><b>' + fmtQt(x.cx) + '</b></td>' +
+         '<td style="text-align:right">R$ ' + money(x.cx ? x.valor / x.cx : 0) + '</td>' +
+         '<td style="text-align:right"><b>R$ ' + money(x.valor) + '</b></td>' +
+         '<td style="text-align:right"><span class="hpBar"><i style="width:' +
+          Math.min(100, pc) + '%"></i></span><small>' + pc.toFixed(1) +
+          '%</small></td></tr>';
+      }).join('') + '</tbody>' +
+      '<tfoot><tr><td><b>Total</b></td><td style="text-align:right">' + pedidos +
+      '</td><td style="text-align:right"><b>' + fmtQt(totalC) + '</b></td><td></td>' +
+      '<td style="text-align:right"><b>R$ ' + money(totalV) + '</b></td>' +
+      '<td></td></tr></tfoot></table>'
+    : '<div class="mvVazio">' + sv('box', 26) +
+      '<b>Nenhum pedido no período</b></div>') +
+   '</div></div></div>';
+
+  var b = $('rpbBusca');
+  if (b) b.oninput = function () {
+    RPB.busca = this.value; var pos = this.selectionStart;
+    telaRelPedidosBase();
+    var n = $('rpbBusca'); if (n) { n.focus(); n.setSelectionRange(pos, pos); }
+  };
+  rodape(lista.length + ' linha(s) · ' + fmtQt(totalC) + ' cx · R$ ' + money(totalV));
+}
+
+function limparRPB(){
+  RPB.suc = ''; RPB.base = ''; RPB.busca = ''; RPB.sit = 'validos';
+  telaRelPedidosBase();
+}
+function explicaRelPedBase(){
+  explicaRel('Pedidos de Base — como é feito', [
+   ['Caixas', 'soma da quantidade pedida de cada base, como foi enviada pela unidade'],
+   ['Total', 'soma do valor de cada item do pedido, com o preço que valia no dia — ' +
+    'não é recalculado pelo preço de hoje'],
+   ['Valor médio por caixa', 'total dividido pelas caixas; muda quando a matriz ' +
+    'reajusta a tabela no meio do período'],
+   ['Por sabor', 'junta a rede inteira: quanto de cada base sai por período'],
+   ['Por unidade', 'quanto cada franqueado comprou'],
+   ['Por mês', 'a mesma soma quebrada pelo mês da data do pedido'],
+   ['Situação', 'por padrão rejeitados ficam de fora — pedido recusado não virou ' +
+    'mercadoria nem cobrança']
+  ], 'os pedidos de base das unidades, pela data do pedido.',
+   'pedidos rejeitados (salvo se você escolher vê-los) e qualquer baixa de estoque ' +
+   'que não tenha vindo de um pedido de base.');
+}
+function exportarRelPedBase(){
+  var area = [['Item', 'Pedidos', 'Caixas', 'Valor medio por caixa', 'Total']];
+  var tr = document.querySelectorAll('#relArea tbody tr');
+  for (var i = 0; i < tr.length; i++) {
+    var td = tr[i].querySelectorAll('td');
+    area.push([td[0].innerText.split('\n')[0], td[1].innerText, td[2].innerText,
+               td[3].innerText, td[4].innerText]);
+  }
+  baixarCSV('nexor-pedidos-de-base.csv', area);
+}
+
 </script>
 </body>
 </html>

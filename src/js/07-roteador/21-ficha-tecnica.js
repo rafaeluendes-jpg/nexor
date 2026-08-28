@@ -628,12 +628,19 @@ function modalFicha(id){
       destinoNome:(function(){var d=$('ftDest');if(!d)return '';
         var o=d.options[d.selectedIndex];return o?o.text:'';})(),
       destinoFator:parseFloat(($('ftFat')||{}).value)||1};
+    var _novaBase=null;
     if(f)Object.assign(f,o);
-    else{o.id=uid('fi');o.itens=[];o.rendimento=1;o.rendUnidade=o.unidade;DB.fichas.push(o);FT.sel=o.id;}
+    else{o.id=uid('fi');o.itens=[];o.rendimento=1;o.rendUnidade=o.unidade;DB.fichas.push(o);FT.sel=o.id;
+      /* ficha chamada BASE <SABOR> ja entra no catalogo de pedido, vinculada.
+         Mora no bloco 22 porque o catalogo e de la; aqui so se avisa que
+         nasceu uma ficha. */
+      if(typeof baseDeFichaNova==='function')_novaBase=baseDeFichaNova(o);}
     lerUnidades('ftUn',f||o);        /* quem enxerga esta ficha */
     FT.mostrar=true;FT.cat=o.categoriaId;FT.sub=o.subgrupoId||'';
     if(FT.cat)FT.abertas[FT.cat]=true;
-    salvar();telaFichaTecnica();toast('Produto salvo em "'+E((catFicha(o.categoriaId)||{}).nome||'')+'".');
+    salvar();telaFichaTecnica();
+    toast('Produto salvo em "'+E((catFicha(o.categoriaId)||{}).nome||'')+'".'+
+      (_novaBase?' Base criada no pedido — falta pôr o preço.':''));
     return true;
   },'lg');
 }

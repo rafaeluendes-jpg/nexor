@@ -6405,3 +6405,94 @@ sido excluído.**
 
 Eu deveria ter procurado aqui na segunda versão, não na sétima. O sinal estava no
 próprio log — "excluído por você" aparecendo sem ninguém ter excluído nada.
+
+---
+
+## V207 — o pedido de base passa a fechar dos dois lados
+
+O fluxo combinado, descrito pelo Rafael, é este:
+
+| Quem | Ação | O que o sistema faz |
+|---|---|---|
+| unidade | faz e envia o pedido | sobe para a matriz |
+| matriz | confirma | só muda de fase |
+| matriz | lança produção | baixa os insumos da ficha, põe a base no estoque da matriz |
+| matriz | **marca entregue** | a base **sai** do estoque da matriz **e** nasce a conta a **receber** |
+| unidade | **"Recebi as bases"** | entra no estoque dela **e** nasce a conta a **pagar** |
+
+Estava implementado pela metade, e a metade que faltava não era a que eu tinha
+relatado. Os botões da matriz existiam e funcionavam. Os defeitos eram outros dois.
+
+### 1. A cobrança nascia como despesa quitada
+
+`faturarPedido` gravava em `DB.lancamentos` — a coleção **legada**. Ela não sobe
+para a nuvem, e a migração do bloco 13 a converte para `DB.lancFin` com
+`pago:true` e com o tipo virado, porque só trata `'entrada'` como receita. O
+lançamento era criado com `tipo:'receita'`, que não é `'entrada'`. Resultado: a
+conta a **receber** da matriz virava uma **despesa já paga**, com a data de hoje
+no lugar do vencimento digitado, presa no aparelho de quem clicou.
+
+E existia, no mesmo arquivo, uma segunda versão da função — `faturarPedidoBase` —
+que gravava certo em `DB.lancFin`. Nenhum botão a chamava. **A versão certa estava
+desligada e a errada estava no botão.**
+
+### 2. A base entrava no estoque da matriz e nunca saía
+
+A produção põe a base no estoque; nada a tirava de lá. O estoque da matriz só
+crescia, e não havia como responder quanto cada unidade tinha levado — a saída
+que responderia isso nunca foi escrita.
+
+### O que passou a valer
+
+**O vencimento não se pergunta mais.** Era um `prompt` a cada pedido e a resposta
+era sempre a mesma conta: pedido até segunda ao meio-dia, retirada na quinta.
+Três dias depois da data do pedido é o dia da retirada, e é quando a unidade
+paga. O sistema faz a conta.
+
+**"Entregue" é um clique só, e mexe nas duas pontas.** A saída do estoque e a
+cobrança nascem juntas porque são o mesmo fato. Se só uma acontecesse, o estoque
+ou o financeiro ficaria mentindo, e ninguém descobriria isso olhando a tela do
+pedido.
+
+**A saída espelha a entrada.** As linhas saem de `montarLinhas(...,'producao')` e
+fica só a entrada do produto acabado, com a direção virada. Assim a quantidade
+que sai é, por construção, exatamente a que entrou — inclusive quando a ficha tem
+fator de rendimento e o destino está em outra unidade de medida. Recalcular por
+fora daria diferença no dia em que alguém mexesse no fator.
+
+**A trava contra repetir mora no movimento, não no pedido.** Um campo novo em
+`DB.pedidosBase` não sobreviveria à sincronização: a tabela da nuvem não tem
+coluna para ele e o pedido voltaria de lá sem a marca. A marca fica na
+`identificacao` do próprio movimento, que sobe e desce inteiro — mesmo caminho
+que a ordem de produção já usava para se reconhecer. **Nenhuma migration foi
+necessária.**
+
+**Dar entrada é da unidade, e só dela.** Tinha botão para isso na tela da matriz
+também. Quem abrisse por engano poria a mercadoria no estoque de quem não a
+recebeu, e o pedido apareceria conferido sem ninguém ter conferido nada.
+
+**Ficha chamada `BASE <SABOR>` já nasce no catálogo de pedido, vinculada.** O
+nome basta como gatilho — não precisa de campo novo nem de cadastrar a mesma
+coisa duas vezes em duas telas. Cadastrar duas vezes era como o vínculo entre a
+base e a ficha deixava de existir, e sem vínculo não há baixa de estoque nenhuma.
+Nasce **inativa**: sem preço, a unidade pediria a R$ 0,00 e a cobrança nasceria
+zerada — erro silencioso, do tipo que só aparece no fechamento do mês.
+
+**Relatório de Pedidos de Base**, por sabor, por unidade e por mês, com os preços
+que valiam no dia de cada pedido. Recalcular pelo preço de hoje daria um número
+diferente do que foi cobrado.
+
+### Removidas
+
+`faturarPedido` (coleção legada), `produzirPedidoBase`, `darEntradaPedido` e
+`pagarPedido` — as três últimas eram gêmeas das que ficaram. Com elas saíram
+`diasFrenteISO` e `brParaISO`, que só existiam para servi-las.
+
+### Contraprova
+
+72 testes novos em `testes/pedido-base.js`, e o fluxo inteiro rodado em Chromium
+real: leite 500 → 492 na produção (20 caixas ÷ rendimento 10 × 4 l = 8 l), base
+0 → 20; na entrega base 20 → 0, conta a receber de R$ 500 **em aberto** vencendo
+três dias depois do pedido, e **zero** linhas na coleção legada. Clicar em
+"Entregue" duas vezes não dobra nada. Total: 13 suítes, 612 asserções, zero
+falhas.

@@ -39,6 +39,7 @@ var MOD=[
  {id:'cancelamentos',n:'Cancelamentos'},
  {id:'vendas-mesa',n:'Vendas por Mesa'},
  {id:'cupons-fiscais',n:'Cupons Gerados'},
+ {id:'pedidos-base',n:'Pedidos de Base'},
  {id:'cupons',n:'Cupons de Desconto'}]},
 {id:'dashboard',n:'Gestão e Dashboard',ic:'chart',it:[
  {id:'canais-venda',n:'Canais de Venda'},

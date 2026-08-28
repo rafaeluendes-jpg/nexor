@@ -312,6 +312,7 @@ if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
 if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
+if(mid==='relatorios'&&iid==='pedidos-base')return telaRelPedidosBase();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='controle'&&iid==='baixa-manual')return telaBaixaHub();
 if(mid==='controle'&&iid==='pedido-base')return telaPedidoBase();
