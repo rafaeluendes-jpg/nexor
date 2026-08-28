@@ -395,7 +395,36 @@ async function sair(){
   }catch(e){_quieto(e,'sair')}
   lgAviso('');
 }
-/* se ja tinha entrado antes, volta direto para o sistema */
+/* ==========================================================
+   O "MANTER CONECTADO" TEM DE ESPERAR O ARQUIVO TERMINAR
+
+   Este trecho e CODIGO DE TOPO: roda enquanto o navegador ainda esta
+   lendo o arquivo, na altura do bloco 5. Ele chama `abrirSessao()`, que
+   chama `boot()`, que chama funcao de bloco la na frente — `baseCanc()`,
+   por exemplo, no bloco 28.
+
+   Funcao e icada pelo navegador e pode ser chamada antes; VARIAVEL de
+   topo, nao. `var MOTIVOS_CANC=[...]` mora no bloco 28 e so recebe valor
+   quando aquela linha roda. Chamado daqui, `baseCanc()` encontrava
+   `undefined` e estourava:
+
+       Cannot read properties of undefined (reading 'forEach')
+
+   O erro caia no catch abaixo, que so anota. A tela ficava com o login
+   escondido, o app visivel e TUDO VAZIO — sem cabecalho, sem menu, sem
+   conteudo. Foi a tela branca da V213, na loja, com a versao ja no ar.
+
+   Antes da V213 isso nunca acontecia por acidente: `SESSAO` tambem
+   morava no bloco 28, entao a PRIMEIRA linha ja estourava e o resto nem
+   chegava a rodar. Consertar `SESSAO` sem consertar isto destravou um
+   caminho que nunca tinha rodado inteiro.
+
+   A correcao nao e declarar variavel mais cedo — sao dezenas, e amanha
+   aparece a proxima. E rodar o restauro DEPOIS do arquivo inteiro, com
+   `setTimeout(...,0)`: ele espera o script terminar, e ai todo `var` de
+   todo bloco ja tem valor.
+   ========================================================== */
+function restaurarSessaoGuardada(){
 try{
   var _ses=localStorage.getItem('nexor_sessao');
   try{ if(!_ses)_ses=sessionStorage.getItem('nexor_sessao'); }catch(e){_quieto(e,'sair')}
@@ -414,4 +443,22 @@ try{
       if(_u&&_u.ativo!==false){SESSAO.usuarioId=_u.id;SESSAO.login=String(_u.login||'').toLowerCase();abrirSessao();}
     }
   }
-}catch(e){_quieto(e,'sair')}
+}catch(e){
+  /* nao pode mais ficar so anotado: se o restauro falha, a pessoa fica
+     olhando uma tela vazia sem nenhuma explicacao. Volta para o login,
+     que ao menos e uma tela em que da para trabalhar, e o motivo fica
+     escrito no Diagnostico. */
+  _quieto(e,'restaurarSessaoGuardada');
+  try{
+    logNuvem('a sessão guardada não pôde ser restaurada: '+
+      String((e&&e.message)||e).slice(0,100)+' — entre novamente',true);
+  }catch(e2){}
+  try{
+    SESSAO.usuarioId=null;SESSAO.login=null;
+    var _l=document.getElementById('login'); if(_l)_l.classList.remove('hide');
+    var _a=document.getElementById('app');   if(_a)_a.classList.add('hide');
+  }catch(e3){}
+}
+}
+/* roda DEPOIS de o arquivo inteiro carregar — ver o bloco acima */
+setTimeout(restaurarSessaoGuardada,0);

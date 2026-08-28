@@ -6898,3 +6898,72 @@ quando esta modularização começou.
 existe, nenhum clique estoura. 19 suítes, 959 asserções, zero falhas. O
 trilho da frente de caixa reconferido em Chromium de verdade: gaveta,
 caixa cego, fechamento e relatórios com os mesmos números de antes.
+
+---
+
+## V215 — a V213 derrubou a loja, e o motivo é uma lição
+
+A V213 subiu com três correções e **deixou a loja na tela branca**: não
+chegava nem no login, com "Sincronizando 1510 alterações…" parado no
+rodapé. Voltei ao conteúdo da V212 (publicado como V214) em poucos
+minutos, e só então fui entender.
+
+### O que aconteceu
+
+O "manter conectado" é **código de topo**: roda enquanto o navegador
+ainda está lendo o arquivo, na altura do bloco 5. Ele chama
+`abrirSessao()` → `boot()` → `baseCanc()`, que é do **bloco 28**. E
+`baseCanc` usa `var MOTIVOS_CANC`, declarada também no bloco 28.
+
+Função o navegador iça: pode ser chamada antes de aparecer no arquivo.
+**Variável de topo, não.** `var` reserva o nome; o valor só chega quando a
+linha roda. Então `MOTIVOS_CANC` valia `undefined` e `.forEach` estourava:
+
+```
+sair: Cannot read properties of undefined (reading 'forEach')
+```
+
+O `catch` engolia. A tela ficava com o login escondido, o app visível e
+**tudo vazio** — sem cabeçalho, sem menu, sem conteúdo.
+
+### Por que a V213 acordou isso
+
+Antes dela, `SESSAO` também morava no bloco 28. A **primeira linha** do
+restauro já estourava, e o resto nem chegava a rodar. Consertar `SESSAO`
+destravou um caminho que **nunca havia rodado inteiro** — e ele estava
+quebrado desde sempre, esperando.
+
+É a lição: corrigir a primeira pedra de um caminho que ninguém percorria
+faz o resto do caminho ser percorrido pela primeira vez. Uma correção
+certa pode expor três defeitos que estavam dormindo atrás dela.
+
+### A correção
+
+Não é declarar variável mais cedo — são dezenas, e amanhã aparece a
+próxima. É **rodar o restauro depois do arquivo inteiro**, com
+`setTimeout(…,0)`: ele espera o script terminar, e aí todo `var` de todo
+bloco já tem valor.
+
+E o `catch` deixou de ser mudo: se o restauro falhar, o sistema **volta
+para o login** — uma tela em que dá para trabalhar — e escreve o motivo no
+Diagnóstico. Tela vazia sem explicação não pode ser um estado possível.
+
+### Por que nenhuma das 20 suítes pegou
+
+Todas escondiam o login na mão e chamavam as telas direto. **Nenhuma
+abria o sistema como a loja abre**: com uma sessão guardada no aparelho,
+deixando o arranque acontecer sozinho. O caminho que quebrou nunca era
+percorrido — nem pelos testes, nem, até a V213, pelo próprio sistema.
+
+`testes/arranque.js` passou a ser a **primeira** suíte a rodar. Ela abre o
+sistema dos dois jeitos — sem sessão e com sessão guardada — e exige que
+cabeçalho, menu e conteúdo apareçam. Rodada contra a V213, ela reprova
+com as palavras exatas: *"ficou vazio — é a tela branca"* e *"sair: Cannot
+read properties of undefined (reading 'forEach')"*.
+
+### As três correções da V213, agora de pé
+
+Voltaram inteiras: `SESSAO` declarada no primeiro bloco, a marca
+`_novoAqui` posta sem depender de sessão, e o remapeamento de vínculo
+quando um cadastro repetido é descartado. Total: 21 suítes, 1.003
+asserções, zero falhas.
