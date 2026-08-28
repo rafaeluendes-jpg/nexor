@@ -6898,3 +6898,81 @@ quando esta modularização começou.
 existe, nenhum clique estoura. 19 suítes, 959 asserções, zero falhas. O
 trilho da frente de caixa reconferido em Chromium de verdade: gaveta,
 caixa cego, fechamento e relatórios com os mesmos números de antes.
+
+---
+
+## V213 — o cadastro novo sumia, e eram três defeitos amarrados
+
+Relato do Rafael, com a foto da tela, poucas horas depois de a V212
+subir:
+
+> *Criei a categoria "Taxa de entrega". Quando eu tinha duas e cliquei
+> numa, uma sumiu sozinha. Criei o produto dentro dela e apareceu
+> "Produto ainda não chegou à nuvem — Motivo: Cannot set properties of
+> undefined (setting 'usuarioId')". Deixa criar. Depois o produto some de
+> dentro da categoria no PDV e some da gestão de cardápio.*
+
+Ele estava certo: a auditoria não pegou isso. Ela varreu telas, botões e
+formulários — e este defeito mora no motor de sincronização, num caminho
+que só acontece com nuvem de verdade.
+
+### 1. A sessão era usada antes de existir
+
+`var SESSAO={usuarioId:null,login:null}` morava no **bloco 28**, 33 mil
+linhas depois do **bloco 5**, que a usa em código de topo, no
+carregamento — o "manter conectado", que devolve a pessoa ao sistema sem
+digitar de novo.
+
+`var` sobe a **declaração**, não a atribuição. Então, na hora em que o
+bloco 5 rodava, `SESSAO` valia `undefined` e a linha estourava — a
+mensagem exata da foto. O erro caía num `catch` que só anota, e ninguém
+via nada.
+
+E, mesmo que não estourasse, a atribuição lá do bloco 28 rodava **depois**
+e zerava a sessão que o bloco 5 tinha acabado de restaurar. O "manter
+conectado" nunca funcionou.
+
+Agora `SESSAO` nasce no primeiro bloco de JavaScript do arquivo, antes de
+qualquer código.
+
+### 2. Sem sessão, o cadastro novo ficava sem proteção
+
+`carimbarOrigem()` faz duas coisas, e só uma delas precisa de sessão:
+
+| | precisa de sessão? |
+|---|---|
+| carimbar o dono (`_loja`) | **sim** — dado de outra empresa não pode mudar de dono |
+| marcar `_novoAqui` | **não** — só depende de a nuvem já conhecer o registro |
+
+A primeira linha era `if(!NUVEM.loja)return 0;` — e pulava **as duas**. Com
+a sessão quebrada pelo defeito 1, o cadastro novo nascia sem dono **e sem
+a marca que impede o download de apagá-lo**. Não subia, e o download
+seguinte o apagava.
+
+Agora a marca é posta sempre; o carimbo do dono continua esperando a
+sessão.
+
+### 3. Cadastro repetido levava os vínculos junto
+
+A limpeza de repetidos do envio junta duas linhas do mesmo cadastro com o
+mesmo nome e apaga uma do aparelho — é o "eu tinha duas e uma sumiu
+sozinha". Até aí, é o que ela foi feita para fazer.
+
+O que faltava: **quem apontava para a linha apagada continuava apontando
+para um identificador que não existe mais**. Duas categorias "Taxa de
+entrega", o produto pendurado na segunda: a segunda saía e o produto
+passava a apontar para o nada. Ele continuava gravado, mas não aparecia
+em categoria nenhuma — nem no PDV, nem na gestão de cardápio. **Sumia sem
+ter sido apagado.**
+
+Agora a referência é movida para a linha que ficou, e o que aconteceu é
+registrado no diagnóstico em vez de ficar em silêncio.
+
+### Contraprova
+
+`testes/cadastro-nao-some.js`, 24 verificações: a ordem da declaração de
+`SESSAO` no arquivo publicado (é a ordem que causava o defeito, então é
+ela que o teste mede), a proteção sendo posta sem sessão e o dono não
+sendo, o registro que já subiu perdendo a marca, e o remapeamento movendo
+os vínculos — inclusive dentro de lista de filhos. Total: 20 suítes, 983
+asserções, zero falhas.
