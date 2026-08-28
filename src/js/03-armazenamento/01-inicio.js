@@ -1597,6 +1597,10 @@ function tirarRepetidos(tab,linhas){
       'mantida a última versão de cada ('+repetidos.slice(0,3).join(', ')+')',true);
   return saida;
 }
+/* quanto tempo sem NENHUM lote subir para o envio ser considerado preso.
+   Nao e o tempo total do envio: envio grande demora minutos e esta certo.
+   E o tempo em SILENCIO — sem nada chegar na nuvem. */
+var PARADO_DEMAIS=45000;
 async function enviar(tab,linhas){
   if(!linhas.length)return [];
   linhas=tirarRepetidos(tab,linhas);
@@ -1606,6 +1610,14 @@ async function enviar(tab,linhas){
     var r=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',lote,
       {'Prefer':'resolution=merge-duplicates,return=representation'});
     out=out.concat(r||[]);
+    /* ==========================================================
+       SINAL DE VIDA DO ENVIO
+
+       A trava de seguranca que libera um envio "preso" precisa saber a
+       diferenca entre PRESO e DEMORADO. Esta e a unica porta por onde
+       tudo sobe: cada lote que a nuvem responde carimba a hora aqui.
+       ========================================================== */
+    NUVEM._batimento=Date.now();
   }
   return out;
 }
@@ -1798,15 +1810,41 @@ async function sincronizar(){
   if(NUVEM.sincronizando){
     NUVEM.pendente=true;
     logNuvem('envio adiado: já havia um em andamento');
-    /* trava de segurança: se ficar preso, libera e tenta de novo */
+    /* ==========================================================
+       PRESO E DIFERENTE DE DEMORADO
+
+       Esta trava soltava o envio depois de 15 segundos, sem perguntar
+       nada. Envio de aparelho com fila grande passa disso com folga — o
+       Rafael tinha 1.510 alteracoes esperando. Resultado: a trava
+       soltava um envio que estava SUBINDO BEM, um segundo envio comecava
+       por cima, e os dois passavam a rodar juntos.
+
+       Dois envios ao mesmo tempo se atrapalham de verdade: `_ids`, o
+       mapa que traduz o identificador local para o da nuvem, e zerado no
+       comeco de cada envio. O segundo zerava o mapa que o primeiro
+       estava usando no meio do caminho — e dali para a frente todo
+       vinculo saia vazio. Era por isso que o produto novo nao chegava:
+       nao era recusa do banco, era o proprio aparelho enviando duas
+       vezes ao mesmo tempo.
+
+       Agora a trava olha o sinal de vida. Se um lote subiu ha pouco, o
+       envio esta trabalhando: ela espera mais um pouco em vez de soltar.
+       So solta quando nao ha progresso nenhum.
+       ========================================================== */
     clearTimeout(NUVEM._destrava);
-    NUVEM._destrava=setTimeout(function(){
-      if(NUVEM.sincronizando){
-        NUVEM.sincronizando=false;
-        logNuvem('envio anterior travou — liberando e tentando de novo',true);
-        agendarSync();
+    NUVEM._destrava=setTimeout(function esperaOuSolta(){
+      if(!NUVEM.sincronizando)return;
+      var parado=Date.now()-(NUVEM._batimento||0);
+      if(parado<PARADO_DEMAIS){
+        /* ainda esta subindo: volta a olhar mais tarde */
+        NUVEM._destrava=setTimeout(esperaOuSolta,PARADO_DEMAIS);
+        return;
       }
-    },15000);
+      NUVEM.sincronizando=false;
+      logNuvem('o envio parou de responder há '+Math.round(parado/1000)+
+        's — liberando e tentando de novo',true);
+      agendarSync();
+    },PARADO_DEMAIS);
     return;
   }
   /* 6 segundos era um chute: enviar 45 tabelas passa disso, e os avisos das
@@ -1814,6 +1852,7 @@ async function sincronizar(){
      reagia ao proprio barulho e redesenhava a tela. Agora a pausa dura o
      envio inteiro e so e solta no fim. */
   NUVEM.sincronizando=true;statusNuvem('enviando');
+  NUVEM._batimento=Date.now();          /* comecou agora: esta vivo */
   var _tEnvio=Date.now();
   RT.pausa=true;clearTimeout(RT._t);
   await tokenAtual();

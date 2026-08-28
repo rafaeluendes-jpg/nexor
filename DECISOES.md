@@ -6967,3 +6967,70 @@ Voltaram inteiras: `SESSAO` declarada no primeiro bloco, a marca
 `_novoAqui` posta sem depender de sessão, e o remapeamento de vínculo
 quando um cadastro repetido é descartado. Total: 21 suítes, 1.003
 asserções, zero falhas.
+
+---
+
+## V216 — dois envios ao mesmo tempo, e o produto que nunca chegava
+
+O Rafael não conseguia cadastrar um produto: "ainda não chegou à nuvem",
+toda vez. O Diagnóstico da loja mostrou o que era, com hora:
+
+```
+06:35:18  ficha_itens: 3 item(ns), 3 confirmado(s)
+06:35:19  envio anterior travou — liberando e tentando de novo
+06:35:19  ficha_itens: 4 item(ns), 4 confirmado(s)
+06:35:20  ficha_itens: 5 item(ns), 5 confirmado(s)
+06:35:22  enviando...
+06:35:22  ficha_itens: 5 item(ns), 5 confirmado(s)
+```
+
+**O envio estava subindo bem.** As fichas passavam uma atrás da outra. O
+que apareceu no meio foi a trava de segurança soltando um envio saudável.
+
+### A trava confundia preso com demorado
+
+Ela liberava depois de **15 segundos**, sem perguntar nada. O aparelho
+tinha **1.510 alterações** na fila — passar de 15 segundos era o normal,
+não a exceção. Então ela soltava o envio que estava trabalhando, um
+segundo envio começava por cima, e os dois passavam a rodar juntos.
+
+### Por que dois envios juntos quebram o cadastro
+
+`_ids` é o mapa que traduz o identificador local para o da nuvem — é ele
+que transforma "categoria cat_xyz" no identificador que o banco entende.
+E ele é **zerado no começo de cada envio**.
+
+O segundo envio zerava o mapa que o primeiro estava usando no meio do
+caminho. Dali para a frente, `fk()` não achava nada e devolvia `null`:
+todo vínculo subia vazio. O produto ia para a nuvem sem categoria, ou não
+ia.
+
+Não era recusa do banco. **Era o próprio aparelho enviando duas vezes ao
+mesmo tempo.**
+
+### A correção
+
+A trava passou a olhar o **sinal de vida**: cada lote que a nuvem
+confirma carimba a hora em `NUVEM._batimento`. Enquanto houver lote
+subindo, o envio está trabalhando e não é solto — a trava só volta a
+olhar mais tarde. Ela solta apenas no silêncio de verdade: 45 segundos
+**sem nada chegar na nuvem**, que é coisa diferente de um envio grande
+demorar minutos.
+
+O carimbo mora dentro de `enviar()`, que é a porta única por onde tudo
+sobe — não há como um caminho novo esquecer de dar sinal de vida.
+
+### Também nesta versão
+
+A "Taxa de Entrega" foi apagada do banco a pedido do Rafael: **três**
+categorias com esse nome e um produto. O produto estava na nuvem o tempo
+todo — mas pendurado na categoria **Sobremesas**, não em nenhuma das
+três. Por isso ele nunca aparecia onde deveria.
+
+### Contraprova
+
+`testes/envio-concorrente.js`, 14 verificações: o carimbo dentro do laço
+dos lotes, a trava medindo silêncio e não tempo total, e a decisão rodada
+de verdade nos três casos — lote de 3 segundos atrás (não solta), 44
+segundos (ainda espera), um minuto (solta). Total: 22 suítes, 1.017
+asserções, zero falhas.
