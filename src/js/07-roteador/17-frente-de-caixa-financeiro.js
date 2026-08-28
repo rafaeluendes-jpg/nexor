@@ -60,14 +60,16 @@ function telaFrenteCaixa(){
      '<div class="fcIco">'+sv('help',26)+'</div>'+
      '<div class="fcInfo">'+
       '<span class="fcTag" style="color:var(--red)">'+
-       (esquecidos.length>1?esquecidos.length+' CAIXAS ABERTOS DE OUTROS DIAS':'CAIXA ABERTO DE OUTRO DIA')+'</span>'+
+       (esquecidos.length>1?esquecidos.length+' CAIXAS ABERTOS SEM FECHAMENTO'
+                           :'CAIXA ABERTO SEM FECHAMENTO')+'</span>'+
       '<b>'+esquecidos.map(function(c){return E(c.aberto)}).join(' · ')+'</b>'+
-      '<span>Ficou sem fechamento e por isso não entra no relatório abaixo. '+
-      'Feche com a conferência para o turno voltar a aparecer.</span>'+
+      '<span>Só pode haver um caixa aberto por unidade. Este ficou para trás, '+
+      'não entra no relatório abaixo e precisa ser fechado com a conferência. '+
+      'O caixa em operação continua sendo o último aberto.</span>'+
      '</div>'+
      esquecidos.map(function(c){
        return '<button class="btnP2 ok" onclick="fecharCaixa(\''+c.id+'\')">'+
-        'Fechar '+E(String(c.aberto).slice(0,10))+'</button>';
+        'Fechar '+E(c.aberto)+'</button>';
      }).join('')+
     '</div>'
    :'')+

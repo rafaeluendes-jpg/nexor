@@ -185,7 +185,78 @@ t('nenhum caixa aberto devolve nulo',
                          sucursalId: 'suc_sf' }] },
         lojaAtualId: () => 'suc_sf' }).caixaAberto() === null);
 
-console.log('\n── O caixa esquecido aparece na Frente de Caixa\n');
+console.log('\n── Um caixa aberto por unidade, e só um\n');
+
+/* dois abertos no MESMO dia, dois aparelhos diferentes: o segundo não
+   pode ficar invisível só porque a data é a de hoje */
+const doisHoje = fCx({ DB: { caixas: [
+  { id: 'cx_tablet',  aberto: hoje + ' 09:00', sucursalId: 'suc_sf' },
+  { id: 'cx_celular', aberto: hoje + ' 13:22', sucursalId: 'suc_sf' }
+] }, lojaAtualId: () => 'suc_sf' });
+t('com dois abertos hoje, o em operação é o mais novo',
+  (doisHoje.caixaAberto() || {}).id === 'cx_celular');
+t('e o outro é cobrado, mesmo sendo do mesmo dia',
+  doisHoje.caixasEsquecidos().map(c => c.id).join(',') === 'cx_tablet',
+  doisHoje.caixasEsquecidos().map(c => c.id).join(','));
+t('com um só aberto, não sobra nada para cobrar',
+  fCx({ DB: { caixas: [{ id: 'so', aberto: hoje + ' 09:00', sucursalId: 'suc_sf' }] },
+        lojaAtualId: () => 'suc_sf' }).caixasEsquecidos().length === 0);
+t('o caixa aberto de outra loja nunca é cobrado desta',
+  fCx({ DB: { caixas: [
+      { id: 'meu',  aberto: hoje + ' 09:00', sucursalId: 'suc_sf' },
+      { id: 'dele', aberto: hoje + ' 09:00', sucursalId: 'suc_alpha' }
+    ] }, lojaAtualId: () => 'suc_sf' }).caixasEsquecidos().length === 0);
+
+console.log('\n── Abrir um caixa: a pergunta vai à nuvem também\n');
+
+const fNuvem = new Function('ctx', `
+  var DB=ctx.DB, NUVEM=ctx.NUVEM, api=ctx.api, lojaAtualId=ctx.lojaAtualId;
+  ${corpoDaFuncao('caixaAbertoNaNuvem', fonte)}
+  ${corpoDaFuncao('faltaAquiAlgumCaixa', fonte)}
+  return {caixaAbertoNaNuvem:caixaAbertoNaNuvem,faltaAquiAlgumCaixa:faltaAquiAlgumCaixa};
+`);
+
+let urlPedida = '';
+const N = fNuvem({
+  DB: { caixas: [] }, NUVEM: { ligada: true, loja: 'emp1' },
+  lojaAtualId: () => 'suc_sf',
+  api: async u => { urlPedida = u; return [{ ref_local: 'cx_outro', aberto_txt: hoje + ' 09:00' }]; }
+});
+
+(async function () {
+  const achou = await N.caixaAbertoNaNuvem();
+  t('pergunta pela unidade de quem está abrindo', /sucursal_id=eq\.suc_sf/.test(urlPedida), urlPedida);
+  t('e só por caixa sem fechamento nenhum dos dois campos',
+    /fechado_em=is\.null/.test(urlPedida) && /fechado_txt=is\.null/.test(urlPedida), urlPedida);
+  t('a nuvem devolvendo um caixa que não está aqui, o aparelho traz em vez de criar outro',
+    N.faltaAquiAlgumCaixa(achou) === true);
+
+  const N2 = fNuvem({
+    DB: { caixas: [{ id: 'cx_outro', aberto: hoje + ' 09:00' }] },
+    NUVEM: { ligada: true, loja: 'emp1' }, lojaAtualId: () => 'suc_sf',
+    api: async () => [{ ref_local: 'cx_outro' }]
+  });
+  t('se o caixa da nuvem já está aqui, não há nada a trazer',
+    N2.faltaAquiAlgumCaixa([{ ref_local: 'cx_outro' }]) === false);
+  t('nuvem sem caixa aberto não segura a abertura',
+    N2.faltaAquiAlgumCaixa(null) === false);
+
+  const off = fNuvem({ DB: { caixas: [] }, NUVEM: { ligada: false }, lojaAtualId: () => 'suc_sf',
+    api: async () => { throw new Error('sem rede'); } });
+  t('sem nuvem ligada, a loja abre o caixa do mesmo jeito',
+    (await off.caixaAbertoNaNuvem()) === null);
+
+  const ruim = fNuvem({ DB: { caixas: [] }, NUVEM: { ligada: true, loja: 'emp1' },
+    lojaAtualId: () => 'suc_sf', api: async () => { throw new Error('sem conexão'); } });
+  t('rede ruim não impede a loja de começar a vender',
+    (await ruim.caixaAbertoNaNuvem()) === null);
+
+  t('a abertura consulta a nuvem antes de criar',
+    /var _naNuvem=await caixaAbertoNaNuvem\(\)/.test(codigoNu));
+  t('e o PDV avisa quando sobrou caixa aberto',
+    /sobra=\(typeof caixasEsquecidos==='function'\?caixasEsquecidos\(\):\[\]\)/.test(codigoNu));
+
+  console.log('\n── O caixa esquecido aparece na Frente de Caixa\n');
 
 t('a tela calcula os esquecidos', /var esquecidos=/.test(codigoNu));
 t('e mostra um botão que fecha aquele caixa',
@@ -197,6 +268,7 @@ t('sem id, continua fechando o caixa em operação',
 t('fechar o esquecido não encerra a venda em andamento de hoje',
   /if\(_eraOAtual\)\{encerrarSessaoPDV\(\);telaPDV\(\);\}/.test(codigoNu));
 
-console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
-                           : '✓ ' + testes + ' testes passaram') + '\n');
-process.exit(falhas ? 1 : 0);
+  console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
+                             : '✓ ' + testes + ' testes passaram') + '\n');
+  process.exit(falhas ? 1 : 0);
+})();

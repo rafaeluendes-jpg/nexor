@@ -58,6 +58,22 @@ function telaPDV(){
           :(cfg().caixaCego?'valores ocultos':'R$ '+money(esperadoCaixa(cx))+' em gaveta'))+'</span></div>'+sv('dn',13)+'</button>'
       :'<button class="btnP2 ok" onclick="abrirCaixa()">'+sv('cash',14)+' Abrir frente de caixa</button>')+
   '</div>'+
+  /* ==========================================================
+     DOIS CAIXAS ABERTOS NA MESMA UNIDADE E AVISO NA CARA
+
+     O operador precisa saber disso onde ele esta — no PDV —, nao so no
+     relatorio. A venda continua indo para o caixa em operacao (o ultimo
+     aberto); o que a faixa cobra e o fechamento do que sobrou.
+     ========================================================== */
+  (function(){
+    var sobra=(typeof caixasEsquecidos==='function'?caixasEsquecidos():[]);
+    if(!sobra.length)return '';
+    return '<div class="cmdFaixa" style="background:rgba(201,65,65,.10)">'+sv('help',14)+
+     '<div>'+(sobra.length>1?sobra.length+' caixas ficaram abertos':'Um caixa ficou aberto')+
+     ' sem fechamento (<b>'+sobra.map(function(c){return E(c.aberto)}).join(' · ')+'</b>). '+
+     'A venda de agora está indo para o caixa aberto em '+E(cx?cx.aberto:'—')+'.</div>'+
+     '<button class="btnP2" onclick="abrir(\'financeira\',\'frente-caixa\')">Resolver</button></div>';
+  })()+
   (PDV.comandaId?(function(){var c=comandaPorId(PDV.comandaId);
     return c?'<div class="cmdFaixa">'+sv('store',14)+
      '<div>Lançando para <b>'+E(c.nome)+'</b> — mesa '+E(c.mesaNumero)+'</div>'+
@@ -2006,6 +2022,20 @@ async function _abrirCaixa(){
        caixas na mesma unidade */
     if(caixaAberto()){
       toast('Já existe um caixa aberto nesta unidade.');
+      telaPDV(); return true;
+    }
+    /* ==========================================================
+       A MESMA PERGUNTA, AGORA PARA A NUVEM
+
+       A trava acima olha so este aparelho. Se outro ja abriu o caixa
+       desta unidade, o certo e trazer aquele — nao criar um segundo nem
+       impedir a loja de vender. Sem rede, `caixaAbertoNaNuvem` devolve
+       null e nada disto acontece.
+       ========================================================== */
+    var _naNuvem=await caixaAbertoNaNuvem();
+    if(faltaAquiAlgumCaixa(_naNuvem)){
+      toast('Já existe um caixa aberto nesta unidade em outro aparelho — trazendo.');
+      try{ await baixarDaNuvem(true); }catch(e){ _quieto(e,'abrirCaixa'); }
       telaPDV(); return true;
     }
     var novoCx={id:uid('cx'),inicial:moedaValor('cxIni'),

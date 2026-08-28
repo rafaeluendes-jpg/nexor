@@ -2116,13 +2116,66 @@ function isoHoraDoCaixa(txt){
   if(p.length!==3)return t;
   return p[2]+'-'+p[1]+'-'+p[0]+' '+(t.split(' ')[1]||'00:00');
 }
-/* Caixas que ficaram abertos de dias anteriores nesta unidade. */
+/* ==========================================================
+   ANTES DE ABRIR, PERGUNTA A NUVEM
+
+   A trava que impede dois caixas abertos le a copia DESTE aparelho. Ela
+   resolve os dois cliques e as duas abas, que era o que ela nasceu para
+   resolver. Nao resolve dois APARELHOS: o tablet do balcao nao enxerga o
+   caixa que o celular acabou de abrir, e a unidade termina com dois.
+
+   Aqui a pergunta vai a nuvem no instante da abertura. Se ja existe
+   caixa aberto la que este aparelho nao tem, o certo NAO e criar outro
+   nem barrar a loja: e trazer o que existe. O download faz isso pelo
+   caminho ja testado, e a abertura vira continuacao do caixa que ja
+   estava aberto.
+
+   Sem rede, devolve null e a abertura segue como sempre — a loja nao
+   pode ficar refem da internet para comecar a vender.
+
+   `fechado_txt` entra na consulta por causa dos caixas antigos, gravados
+   quando so o texto do fechamento subia: para eles `fechado_em` e nulo
+   mesmo estando fechados, e sem isso a loja seria barrada por um caixa
+   do ano passado.
+   ========================================================== */
+async function caixaAbertoNaNuvem(){
+  if(typeof NUVEM==='undefined'||!NUVEM.ligada||!NUVEM.loja)return null;
+  var suc=null; try{suc=lojaAtualId()}catch(e){return null}
+  try{
+    var r=await api('caixas?select=ref_local,aberto_txt&loja_id=eq.'+
+      encodeURIComponent(NUVEM.loja)+'&fechado_em=is.null&fechado_txt=is.null'+
+      (suc?'&sucursal_id=eq.'+encodeURIComponent(suc):''),'GET');
+    return (r&&r.length)?r:null;
+  }catch(e){ return null; }
+}
+/* Existe na nuvem um caixa aberto desta unidade que este aparelho nao tem? */
+function faltaAquiAlgumCaixa(daNuvem){
+  if(!daNuvem||!daNuvem.length)return false;
+  return daNuvem.some(function(r){
+    if(!r||!r.ref_local)return false;
+    return !(DB.caixas||[]).some(function(c){
+      return c&&c.id===r.ref_local&&!c.fechadoEm;});
+  });
+}
+/* ==========================================================
+   SO PODE HAVER UM CAIXA ABERTO POR UNIDADE
+
+   Esta lista e tudo o que sobra: todo caixa aberto DESTA unidade que
+   nao e o caixa em operacao. Nao basta olhar "de outro dia" — dois
+   aparelhos que abrem no mesmo dia, cada um sem enxergar o outro,
+   produzem dois caixas abertos com a mesma data, e o segundo ficaria
+   invisivel de novo.
+
+   Enquanto esta lista nao estiver vazia, a unidade tem mais de um caixa
+   aberto, e a tela de Frente de Caixa cobra o fechamento.
+   ========================================================== */
 function caixasEsquecidos(){
   var minha=lojaAtualId();
+  var atual=(caixaAberto()||{}).id;
   return (DB.caixas||[]).filter(function(c){
     if(!c||c.fechadoEm)return false;
     if(c.sucursalId&&minha&&c.sucursalId!==minha)return false;
-    return caixaDeOutroDia(c);
+    return c.id!==atual;
   }).sort(function(a,b){
     return isoHoraDoCaixa(a.aberto).localeCompare(isoHoraDoCaixa(b.aberto));
   });
