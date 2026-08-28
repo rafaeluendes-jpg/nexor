@@ -6620,3 +6620,70 @@ relatório. Na loja isso não acontece — mas o teste tem de medir o sistema,
 não a máquina.
 
 Total: 15 suítes, 851 asserções, zero falhas.
+
+---
+
+## V209 — a opção levava o nome, não o vínculo
+
+Pergunta do Rafael, ao ler a auditoria da V208: *"toda opção de grupo,
+exceto sabores — bordas, coberturas, caldas, cascões, creme de avelã —
+tem ficha técnica vinculada. Ela está sem a vinculação?"*
+
+**Não estava.** O vínculo está cadastrado, sobe e desce da nuvem em
+`ficha_id`, e a tela de Gestão de Cardápio mostra o nome da ficha ao lado
+de cada opção. Nada se corrompeu.
+
+O que acontecia é que **a venda jogava o vínculo fora**. `modalOpcoes`
+montava a opção da comanda com `{grupo, nome, preco}` — sem `fichaId`. A
+baixa de estoque lê `o.fichaId` e, quando não acha, cai num plano B:
+procurar a ficha **pelo nome da opção**. Como o nome nunca vinha, o plano B
+virou o único caminho — e ele só acerta quando o nome da opção é igual ao
+nome da ficha.
+
+### Medido no banco da Jolô, 28/08/2026
+
+Das 12 opções fora de sabores:
+
+| Situação | Quantas | Baixava estoque? |
+|---|---|---|
+| nome da opção igual ao da ficha | 3 | sim |
+| **vinculada, nome diferente** | **7** | **não** |
+| sem ficha cadastrada | 2 | não |
+
+As sete que não baixavam: Borda Creme de Pistache (`BORDA CREME
+PISTACHE`), Borda de Creme de Ninho (`BORDA CREME NINHO`), Borda de Doce
+de Leite (`BORDA DOCE LEITE`), Creme de Avelã (`CALDA CREME DE AVELÃ`),
+Creme de Ninho (`CALDA CREME DE NINHO`), Cascão Chocolate (`CASCAO
+CHOCOLATE`) e Cascão Tradicional (`CASCAO TRADICIONAL`). A diferença é
+sempre a mesma coisa: um "de", um acento, a caixa das letras.
+
+Era a perda invisível que o próprio comentário do código dizia estar
+resolvida: *"Borda de Nutella, cobertura, Ovomaltine: o cliente escolhe e
+o insumo some do pote, mas não saía do sistema"*. Saía para a Borda
+Nutella, cujo nome por acaso batia. Para as outras sete, não.
+
+### A correção
+
+A opção passa a levar `fichaId` para a comanda. O identificador não depende
+de como cada nome foi escrito. O plano B por nome fica de pé, só para as
+comandas gravadas antes desta versão.
+
+### O que muda na loja
+
+Depois de publicar, esses sete insumos **passam a sair do estoque a cada
+venda**. O saldo atual deles está inflado — nunca baixou. Uma contagem
+desses itens logo depois de publicar põe o estoque no lugar; sem ela, o
+sistema vai continuar partindo de um número que nunca foi verdade.
+
+E ficam duas opções para o Rafael decidir: **Cobertura de Chocolate** e
+**Cobertura de Morango** não têm ficha nenhuma. Repare que existe também
+uma **Cobertura Morango** (sem o "de"), essa com ficha — provavelmente a
+mesma coisa cadastrada duas vezes.
+
+### Contraprova
+
+`testes/frente-de-caixa.js` passou a 101 verificações. Três novas fecham
+exatamente este caso: a opção leva a ficha para a comanda; baixa pelo
+identificador mesmo com o nome sem nenhuma parecença; e a comanda antiga,
+sem vínculo, continua sendo resolvida pelo nome exato. Total: 15 suítes,
+854 asserções, zero falhas.

@@ -348,7 +348,30 @@ function modalOpcoes(p,grupos){
       var gid=cks[i].getAttribute('data-g');
       var g=grupos.find(function(x){return x.id===gid});
       var o=g.opcoes[cks[i].getAttribute('data-i')];
-      esc.push({grupo:g.id,nome:o.nome,preco:o.preco});
+      /* ==========================================================
+         A OPCAO PRECISA LEVAR A FICHA JUNTO
+
+         Aqui iam so grupo, nome e preco. O vinculo com a ficha tecnica,
+         que a matriz cadastra em Gestao de Cardapio e que sobe e desce da
+         nuvem em `ficha_id`, ficava para tras na hora de entrar na
+         comanda.
+
+         `baixarOpcoes` le `o.fichaId` e, quando nao acha, tenta descobrir
+         a ficha PELO NOME da opcao. Como o nome nunca vinha, esse "plano
+         B" virou o unico caminho — e ele so acerta quando o nome da opcao
+         e o nome da ficha sao iguais.
+
+         Medido no banco da Jolo em 28/08/2026: das 10 opcoes vinculadas
+         fora de sabores, 7 tinham nome diferente do da ficha — "Borda de
+         Doce de Leite" para a ficha "BORDA DOCE LEITE", "Creme de Avela"
+         para "CALDA CREME DE AVELA", "Cascao Tradicional" para "CASCAO
+         TRADICIONAL". Nenhuma delas baixava estoque. A tela mostrava o
+         vinculo, a venda ignorava.
+
+         Agora vai o identificador, que nao depende de como cada uma foi
+         escrita. O plano B fica para as comandas antigas.
+         ========================================================== */
+      esc.push({grupo:g.id,nome:o.nome,preco:o.preco,fichaId:o.fichaId||''});
     }
     for(var k=0;k<grupos.length;k++){
       var G=grupos[k];

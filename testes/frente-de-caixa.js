@@ -104,7 +104,7 @@ function semear(w) {
       {id:'fi_base',nome:'BASE CHOCOLATE',unidade:'kg',rendimento:10,rendUnidade:'kg',
        unidadesVenda:100,destinoId:'in_gv',destinoModo:'igual',destinoFator:1,
        itens:[{insumoId:'in_leite',qtd:4,unidade:'l'}]},
-      {id:'fi_nut',nome:'Borda Nutella',unidade:'kg',rendimento:1,unidadesVenda:50,
+      {id:'fi_nut',nome:'BORDA NUTELLA',unidade:'kg',rendimento:1,unidadesVenda:50,
        itens:[{insumoId:'in_nut',qtd:1,unidade:'kg'}]}];
     DB.categorias=[{id:'ct1',nome:'Gelatos',ordem:1,ativo:true}];
     var disp={pdv:true,delivery:true,cardapio:true};
@@ -119,7 +119,10 @@ function semear(w) {
     /* a opção guarda só nome e preço quando vai para a comanda: a baixa de
        estoque acha a ficha PELO NOME. Por isso os dois têm de bater. */
     DB.grupos=[{id:'go1',nome:'Bordas',min:0,max:1,forcado:false,canais:[],sucursais:[],
-      opcoes:[{nome:'Borda Nutella',preco:3}]}];
+      /* nome da opcao DIFERENTE do nome da ficha, como e na loja de verdade:
+         "Borda de Doce de Leite" para a ficha "BORDA DOCE LEITE". O vinculo
+         que vale e o fichaId. */
+      opcoes:[{nome:'Borda de Nutella',preco:3,fichaId:'fi_nut'}]}];
     DB.formasPag=[{id:'fp_din',nome:'Dinheiro',tipo:'dinheiro',ativo:true,ordem:1},
       {id:'fp_deb',nome:'Débito',tipo:'cartao',ativo:true,ordem:2},
       {id:'fp_pix',nome:'Pix',tipo:'pix',ativo:true,ordem:3}];
@@ -233,6 +236,17 @@ function semear(w) {
   await esp(80);
   t('a comanda tem os dois itens', w.PDV.comanda.length === 2);
   t('a opção soma no preço unitário', w.PDV.comanda[0].unit === 15, w.PDV.comanda[0].unit);
+  /* ==========================================================
+     O VINCULO DA FICHA VIAJA COM A OPCAO
+
+     Ele ficava para tras: a comanda recebia so grupo, nome e preco, e a
+     baixa de estoque tinha de adivinhar a ficha pelo NOME da opcao. Na
+     Jolo, 7 das 10 opcoes vinculadas tinham nome diferente do da ficha —
+     nenhuma baixava estoque, e a tela mostrava o vinculo do mesmo jeito.
+     ========================================================== */
+  t('a opção leva a ficha técnica junto para a comanda',
+    (w.PDV.comanda[0].opcoes[0] || {}).fichaId === 'fi_nut',
+    JSON.stringify(w.PDV.comanda[0].opcoes[0]));
   t('a quantidade multiplica', w.PDV.comanda[0].total === 30, w.PDV.comanda[0].total);
   t('o segundo item entra pelo preço dele', w.PDV.comanda[1].total === 20);
 
@@ -291,15 +305,24 @@ function semear(w) {
   t('apontando para o pedido', mv[0] && mv[0].pedidoId === ped.id);
   t('e identificado pelo número', mv[0] && /#1/.test(mv[0].identificacao));
 
-  /* a opção acha a ficha PELO NOME: se o nome não bater, não baixa nada */
-  const guardado = w.DB.fichas[1].nome;
-  w.DB.fichas[1].nome = 'Borda de Nutella';
+  /* o vínculo por identificador não depende de como o nome foi escrito */
   const nutAntes = saldo('in_nut');
-  w.baixarEstoqueVenda({ id: 'x', numero: 99, itens: [
+  w.baixarEstoqueVenda({ id: 'x', numero: 98, itens: [
+    { produtoId: 'pr_casq', qtd: 1,
+      opcoes: [{ nome: 'qualquer nome', preco: 3, fichaId: 'fi_nut' }] }] });
+  t('a opção baixa pelo identificador, mesmo com o nome sem parecença',
+    +(nutAntes - saldo('in_nut')).toFixed(4) === 0.02, nutAntes + ' → ' + saldo('in_nut'));
+  /* comanda antiga, gravada antes desta versão: ainda tenta pelo nome */
+  const nut2 = saldo('in_nut');
+  w.baixarEstoqueVenda({ id: 'y', numero: 97, itens: [
     { produtoId: 'pr_casq', qtd: 1, opcoes: [{ nome: 'Borda Nutella', preco: 3 }] }] });
-  t('opção cujo nome não bate com a ficha NÃO baixa (é assim que funciona)',
-    saldo('in_nut') === nutAntes, nutAntes + ' → ' + saldo('in_nut'));
-  w.DB.fichas[1].nome = guardado;
+  t('comanda antiga, sem vínculo, ainda é resolvida pelo nome exato',
+    +(nut2 - saldo('in_nut')).toFixed(4) === 0.02, nut2 + ' → ' + saldo('in_nut'));
+  const nut3 = saldo('in_nut');
+  w.baixarEstoqueVenda({ id: 'z', numero: 96, itens: [
+    { produtoId: 'pr_casq', qtd: 1, opcoes: [{ nome: 'Borda de Nutella', preco: 3 }] }] });
+  t('e sem vínculo nem nome exato ela não baixa — era o defeito',
+    saldo('in_nut') === nut3, nut3 + ' → ' + saldo('in_nut'));
 
   /* ---------------------------------------------------------- */
   grupo('A entrega');
