@@ -1379,14 +1379,37 @@ function volta(linhas,fn,atual,col){
    resolve, entrando de novo. Sem isso ele lanca a tarde inteira sem nada
    subir — ou fica com a tela travada sem entender por que. */
 var _avisouSessao=false;
+/* ==========================================================
+   O AVISO DE SESSAO TINHA DE SAIR QUANDO A SESSAO VOLTASSE
+
+   Ele nascia com o id `avisoTab`, o mesmo que a lista de tabelas
+   recusadas usa. Duas coisas diferentes disputando um id so: quem
+   limpava uma limpava a outra, e — pior — quem NAO limpava deixava a
+   faixa vermelha na tela depois de tudo ja ter voltado ao normal.
+   `conferirNuvem()` so tirava o `avisoNuvem`; este ficava para sempre.
+
+   Em Santa Fe do Sul, em 28/08/2026, a loja reconectou as 17h35 (o
+   download inteiro esta no log do servidor, todo 200) e a faixa
+   vermelha continuou na tela — em cima do botao de pagamento.
+
+   Agora o aviso de sessao tem id proprio e uma funcao unica que o
+   remove, chamada de todo lugar onde a sessao volta.
+   ========================================================== */
+function limparAvisoSessao(){
+  try{
+    _avisouSessao=false;
+    var el=document.getElementById('avisoSessao');
+    if(el)el.remove();
+  }catch(e){ _quieto(e,'limparAvisoSessao'); }
+}
 function avisoSessaoCaiu(){
   if(_avisouSessao)return;
   _avisouSessao=true;
   try{
-    var el=document.getElementById('avisoTab');
+    var el=document.getElementById('avisoSessao');
     if(el)el.remove();
     el=document.createElement('div');
-    el.id='avisoTab'; el.className='avisoGrav sinc';
+    el.id='avisoSessao'; el.className='avisoGrav sinc';
     el.innerHTML='<div><b>Sua sessão expirou</b>'+
       '<span>Nada foi perdido — o que você lançou está guardado neste aparelho '+
       'e sobe assim que você entrar de novo.</span></div>'+

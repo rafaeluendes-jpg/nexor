@@ -71,11 +71,7 @@ function cliente(){
     _cli.auth.onAuthStateChange(function(ev,ses){
       if(ses&&ses.access_token){
         NUVEM.token=ses.access_token;
-      if(_avisouSessao){
-        _avisouSessao=false;
-        try{var _a=document.getElementById('avisoTab'); if(_a)_a.remove();}
-        catch(e2){ _quieto(e2,'tokenValido'); }
-      }
+        try{ limparAvisoSessao(); }catch(e2){ _quieto(e2,'cliente'); }
         try{ if(_cli.realtime&&_cli.realtime.setAuth)_cli.realtime.setAuth(NUVEM.token); }catch(e){_quieto(e,'cliente')}
         if(ev==='TOKEN_REFRESHED')logNuvem('sessão renovada automaticamente');
       }
@@ -190,11 +186,36 @@ function gravarLocal(){
   }
 }
 /* uma barra so, no rodape, com todos os avisos empilhados */
+/* ==========================================================
+   O AVISO NAO PODE FICAR POR CIMA DO BOTAO
+
+   A barra vivia colada no rodape da janela, flutuando por cima de tudo
+   (`position:fixed`). No PDV, o rodape e exatamente onde ficam LIMPAR e
+   PAGAMENTO. Medido no Chromium, 1024x723 e 1440x900: com um aviso na
+   tela, `elementFromPoint` no meio do botao PAGAMENTO devolvia a barra,
+   nao o botao. Ou seja: com o aviso na tela, a loja nao conseguia fechar
+   a venda. Foi o que travou Santa Fe do Sul em 28/08/2026.
+
+   Agora a barra entra DENTRO da tela do sistema, logo acima do rodape.
+   Ela passa a ocupar espaco de verdade: a area de trabalho encolhe o
+   tanto que ela mede e nada mais fica escondido embaixo dela. Na tela de
+   login, onde nao ha esse esqueleto, ela continua como era.
+   ========================================================== */
 function barraAvisos(){
   var b=document.getElementById('barraAvisos');
-  if(!b){
-    b=document.createElement('div');b.id='barraAvisos';
-    document.body.appendChild(b);
+  if(!b){ b=document.createElement('div');b.id='barraAvisos'; }
+  try{
+    var app=document.getElementById('app');
+    var stat=document.getElementById('stat');
+    var noApp=app&&stat&&!app.classList.contains('hide');
+    if(noApp){
+      if(b.parentNode!==app)app.insertBefore(b,stat);
+      b.classList.add('noFluxo');
+    }else if(!b.parentNode){
+      document.body.appendChild(b);
+    }
+  }catch(e){
+    if(!b.parentNode)document.body.appendChild(b);
   }
   return b;
 }
@@ -209,11 +230,31 @@ function conferirNuvem(){
     var el=document.getElementById('avisoNuvem');
     /* Conectado, conectando ou o dono da plataforma (que nao tem loja para
        sincronizar): nada a avisar. */
-    if(NUVEM.ligada||CONEXAO==='conectando'||NUVEM.plataforma){ if(el)el.remove(); return; }
+    /* conectado de novo: TODO aviso de conexao sai da tela, inclusive o
+       de sessao — era ele que ficava vermelho por cima do PDV depois de
+       a loja ja ter voltado ao normal */
+    if(NUVEM.ligada||CONEXAO==='conectando'||NUVEM.plataforma){
+      if(el)el.remove();
+      if(NUVEM.ligada){ NUVEM.sessaoCaiu=false; try{limparAvisoSessao();}catch(e){_quieto(e,'conferirNuvem')} }
+      return;
+    }
     var ap=document.getElementById('app');
     if(!ap||ap.classList.contains('hide')){ if(el)el.remove(); return; }
     var lg=document.getElementById('login');
     if(lg&&!lg.classList.contains('hide')){ if(el)el.remove(); return; }
+    /* ==========================================================
+       A MENSAGEM CERTA TEM DE TOMAR O LUGAR DA GENERICA
+
+       Esta conferencia vinha DEPOIS de "ja tem aviso na tela". Quando a
+       rede caia primeiro e a sessao morria em seguida — que e a ordem
+       do que aconteceu em Santa Fe do Sul —, o aviso generico ja estava
+       la e barrava o unico que resolve: o que diz para entrar de novo.
+       ========================================================== */
+    if(NUVEM.sessaoCaiu){
+      if(el)el.remove();
+      try{avisoSessaoCaiu();}catch(e){_quieto(e,'conferirNuvem')}
+      return;
+    }
     if(el)return;
     /* ------------------------------------------------------------------
        Nao existe mais "ligar a nuvem". Se o sistema nao esta conectado com
@@ -231,7 +272,6 @@ function conferirNuvem(){
        Quem tem o texto certo para esse caso — com o botao de entrar de
        novo — e `avisoSessaoCaiu()`. Aqui a gente sai da frente.
        ========================================================== */
-    if(NUVEM.sessaoCaiu){ try{avisoSessaoCaiu();}catch(e){_quieto(e,'conferirNuvem')} return; }
     el=document.createElement('div');
     el.id='avisoNuvem';el.className='avisoGrav';
     /* "sem internet" mandava procurar problema no lugar errado: quase sempre
@@ -670,6 +710,7 @@ async function conectarNuvem(email,senha){
   var rp=await NUVEM.cli.from('perfis').select('id,nome,cargo,loja_id,empresa_id').eq('id',r.data.user.id).maybeSingle();
   if(rp.error||!rp.data)throw new Error('Usuário sem perfil vinculado a uma loja.');
   NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;NUVEM.sessaoCaiu=false;
+    try{limparAvisoSessao();}catch(e){_quieto(e,'religarNuvem')}
   NUVEM.token=r.data.session?r.data.session.access_token:null;
   setTimeout(ligarTempoReal,600);
   setModo('nuvem');
@@ -732,6 +773,7 @@ async function religarNuvem(){
     }
     if(!rp||rp.error||!rp.data){ estadoNuvem('offline'); return false; }
     NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;NUVEM.sessaoCaiu=false;
+    try{limparAvisoSessao();}catch(e){_quieto(e,'religarNuvem')}
     NUVEM.token=ses.access_token;
     NUVEM.plataforma=(!rp.data.loja_id&&rp.data.cargo==='plataforma');
     setModo('nuvem');

@@ -243,3 +243,15 @@
   .pdvTabs::-webkit-scrollbar{display:none}
   .pdvTab{flex:0 0 auto;white-space:nowrap}
 }
+
+/* ==========================================================
+   A BARRA DE AVISOS DENTRO DA TELA, NAO POR CIMA DELA
+
+   Ver a nota em `barraAvisos()`: flutuando no rodape ela cobria LIMPAR e
+   PAGAMENTO no PDV, e a loja nao conseguia fechar a venda. Dentro do
+   esqueleto do sistema ela ocupa espaco proprio e a area de trabalho
+   encolhe o tanto que ela mede.
+   ========================================================== */
+#barraAvisos.noFluxo{position:static;left:auto;right:auto;bottom:auto;
+  margin:0 12px 10px;flex:none;z-index:auto}
+#barraAvisos.noFluxo .avisoGrav{box-shadow:0 2px 10px rgba(0,0,0,.14)}

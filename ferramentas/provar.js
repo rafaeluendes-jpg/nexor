@@ -256,7 +256,61 @@ function servir() {
   await pg.screenshot({ path: FOTOS + '/pdv-celular-comanda.png' });
   await pg.setViewportSize({ width: 1440, height: 900 });
 
-  console.log('\n── 7. Nenhum erro de runtime na sessão inteira\n');
+  console.log('\n── 7. O aviso vermelho não pode cobrir a operação\n');
+  await pg.evaluate(() => {
+    NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();
+    /* item direto na comanda: o modal de opções tamparia a medição */
+    try { PDV.itens = [{ produtoId: 'pr_casq', nome: 'Casquinha', qtd: 1, preco: 12 }];
+          renderVenda(); } catch (e) {}
+    try { fecharModal(); } catch (e) {}
+    conferirNuvem();
+  });
+  await pg.waitForTimeout(200);
+  let av = await pg.evaluate(() => {
+    var barra = document.getElementById('barraAvisos');
+    if (!barra) return { semBarra: true };
+    var bb = barra.getBoundingClientRect(), cobertos = [];
+    var alvos = document.querySelectorAll('#content button');
+    for (var i = 0; i < alvos.length; i++) {
+      var e = alvos[i], r = e.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      var meio = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (meio && meio !== e && !e.contains(meio) && barra.contains(meio))
+        cobertos.push((e.textContent || '').trim().slice(0, 24));
+    }
+    var st = getComputedStyle(barra);
+    return { apareceu: !!document.getElementById('avisoNuvem'), cobertos: cobertos,
+             dentroDoApp: barra.parentElement && barra.parentElement.id === 'app',
+             pos: st.position, marg: st.marginLeft + '/' + st.marginBottom,
+             classe: barra.className, larg: Math.round(bb.width),
+             tela: document.documentElement.clientWidth };
+  });
+  t('o aviso aparece quando a nuvem cai', av.apareceu === true);
+  t('a barra fica DENTRO da tela do sistema, não flutuando por cima',
+    av.dentroDoApp === true);
+  t('nenhum botão do PDV fica coberto pelo aviso',
+    (av.cobertos || []).length === 0, (av.cobertos || []).join(' | '));
+  t('a barra deixou de flutuar', av.pos === 'static', av.pos + ' · ' + av.marg + ' · ' + av.classe);
+  await pg.screenshot({ path: FOTOS + '/aviso-nao-cobre.png' });
+
+  av = await pg.evaluate(() => {
+    /* a sessão cai de verdade: a mensagem tem de ser a que fala a verdade */
+    NUVEM.sessaoCaiu = true; conferirNuvem();
+    var s1 = !!document.getElementById('avisoSessao');
+    var texto = (document.getElementById('avisoSessao') || {}).innerText || '';
+    /* e agora a loja reconecta */
+    NUVEM.ligada = true; conferirNuvem();
+    return { mostrou: s1, texto: texto.slice(0, 60),
+             sumiu: !document.getElementById('avisoSessao') &&
+                    !document.getElementById('avisoNuvem'),
+             marca: NUVEM.sessaoCaiu };
+  });
+  t('sessão caída mostra "Sua sessão expirou", não "servidor não respondeu"',
+    av.mostrou && /sess/i.test(av.texto), av.texto);
+  t('e ao reconectar o aviso some da tela', av.sumiu === true);
+  t('a marca de sessão caída é apagada', av.marca === false);
+
+  console.log('\n── 8. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 
   await nav.close(); s.close();
