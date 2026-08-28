@@ -19,8 +19,11 @@ function disponivelNo(p,canal){
   var d=(p&&p.disponivel)||{};
   var algum=d.pdv||d.delivery||d.online||d.cardapio||d.mesa||d.totem;
   if(!algum)return true;
-  /* "online" some da tela mas continua valendo para quem ja marcou antes */
-  if(canal==='cardapio')return !!(d.cardapio||d.online||d.delivery);
+  /* Cada chave vale por si: marcou so Delivery, aparece so no delivery.
+     Antes o cardapio digital tambem aceitava quem estava marcado em
+     Delivery — era assim que a Taxa de Entrega aparecia no cardapio.
+     `online` fica: e o nome velho do proprio campo "cardapio". */
+  if(canal==='cardapio')return !!(d.cardapio||d.online);
   /* mesa e totem vendem o que se vende no balcao, nao o que sai para entrega */
   if(canal==='mesa') return !!(d.mesa||d.pdv);
   if(canal==='totem')return !!(d.totem||d.pdv);
