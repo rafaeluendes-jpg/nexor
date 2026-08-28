@@ -687,7 +687,44 @@ async function confirmarNaNuvem(col,id,rotulo){
   if(subiu()){ toast(rotulo+' salvo.'); return true; }
   toast(rotulo+' salvo — enviando…');
   try{ await sincronizar(); }catch(e){ _quieto(e,'confirmarNaNuvem'); }
+  /* ==========================================================
+     ESPERAR DE VERDADE, E NAO SO PEDIR
+
+     AQUI ESTAVA O ALARME FALSO.
+
+     `sincronizar()` comeca com uma guarda: se ja existe um envio em
+     andamento, ela marca `pendente`, escreve "envio adiado" e RETORNA NA
+     HORA — sem enviar nada. Entao este `await` acima voltava em 1
+     milissegundo, o mapa de identificadores ainda nao tinha o registro, e
+     a tela abria "ainda nao chegou a nuvem".
+
+     Medido: o aviso aparecia com 1 ms de espera, e o produto chegava na
+     nuvem no envio seguinte, poucos segundos depois. Estava certo o
+     tempo todo — quem desistia era a tela.
+
+     E, com fila grande, essa era a situacao NORMAL: o aparelho do Rafael
+     tinha 1.510 alteracoes esperando, entao sempre havia um envio em
+     andamento e o aviso aparecia em toda gravacao.
+
+     Agora, se ha envio em andamento ou pendente, espera-se ele terminar,
+     olhando o mapa de tempos em tempos. So se passar do teto e que se
+     avisa — e ai com o texto certo.
+     ========================================================== */
+  var _ate=Date.now()+30000;
+  while(!subiu()&&Date.now()<_ate&&(NUVEM.sincronizando||NUVEM.pendente)){
+    await new Promise(function(r){setTimeout(r,400)});
+  }
   if(subiu()){ toast(rotulo+' salvo e enviado.'); return true; }
+  /* ainda na fila, mas o envio esta trabalhando: isso nao e falha */
+  if(NUVEM.sincronizando||NUVEM.pendente){
+    await confirmar({titulo:rotulo+' salvo — ainda subindo',
+      texto:'Está guardado neste aparelho e a fila de envio está grande. '+
+        'Ele sobe sozinho em alguns minutos, sem você precisar fazer nada.',
+      aviso:'Não feche o sistema até o rodapé parar de dizer "Sincronizando". '+
+        'Se quiser acompanhar: Sistema › Diagnóstico › Fila de envio.',
+      ok:'Entendi',cancelar:null});
+    return false;
+  }
   /* nao subiu: diz por que, com o que o motor souber */
   var motivo='';
   try{

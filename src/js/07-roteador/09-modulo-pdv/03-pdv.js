@@ -158,11 +158,39 @@ function renderVenda(){
   }
   var C=cfgPDV();
   var gr=' lay-'+(C.layout||'foto')+(C.botaoGrande?' gr':'');
-  var cats=DB.categorias.filter(function(c){return c.ativo!==false}).sort(function(a,b){return a.ordem-b.ordem});
   var q=(PDV.busca||'').toLowerCase();
   /* "Disponível em" passa a valer de verdade: produto marcado só para
      cardápio digital não polui a tela de quem está no balcão. */
   var canalPDV=(PDV.tipo==='entrega')?'delivery':'pdv';
+  /* ==========================================================
+     A CATEGORIA SEGUE O CANAL DOS PRODUTOS DELA
+
+     O "Disponível em" ja valia para o PRODUTO: marcado so para delivery,
+     ele nao aparecia na grade do balcao. Mas a faixa de CATEGORIAS nao
+     olhava canal nenhum — filtrava so por `ativo`. Resultado: "Taxa de
+     Entrega", com um unico produto marcado so para Delivery, aparecia em
+     "Pedido na loja" com a pastilha dizendo "1". Quem clicava achava a
+     categoria vazia e nao entendia por que.
+
+     Agora: categoria que TEM produto, mas nenhum disponivel neste canal,
+     nao aparece neste canal. Categoria ainda sem produto nenhum continua
+     aparecendo — quem acabou de cria-la precisa ve-la para pendurar o
+     primeiro produto nela.
+
+     A pastilha conta pelo mesmo criterio: o numero e o que a pessoa vai
+     encontrar ao clicar.
+     ========================================================== */
+  function prodsDaCategoria(cid,canal){
+    return DB.produtos.filter(function(p){
+      return p.categoriaId===cid&&p.ativo!==false&&
+             (!canal||disponivelNo(p,canal));
+    });
+  }
+  var cats=DB.categorias.filter(function(c){
+    if(c.ativo===false)return false;
+    if(!prodsDaCategoria(c.id,'').length)return true;   /* vazia: continua a vista */
+    return prodsDaCategoria(c.id,canalPDV).length>0;
+  }).sort(function(a,b){return a.ordem-b.ordem});
   /* sem "Todos", a tela precisa abrir em alguma categoria */
   if(!PDV.cat&&!q&&cats.length)PDV.cat=cats[0].id;
   var prods=DB.produtos.filter(function(p){return p.ativo!==false})
@@ -193,7 +221,7 @@ function renderVenda(){
         especifico sem saber a categoria.
         ========================================================== */
      cats.map(function(c){
-       var qt=DB.produtos.filter(function(p){return p.categoriaId===c.id&&p.ativo!==false}).length;
+       var qt=prodsDaCategoria(c.id,canalPDV).length;
        return '<div class="catBox'+(PDV.cat===c.id?' on':'')+'" onclick="setCatPdv(\''+c.id+'\')">'+
        '<div class="ci2"'+(c.cor?' style="background:'+c.cor+';color:#fff"':'')+'>'+
        (c.imagem?'<img src="'+c.imagem+'">':E(c.nome.charAt(0).toUpperCase()))+'</div>'+

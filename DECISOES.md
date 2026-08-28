@@ -7034,3 +7034,71 @@ dos lotes, a trava medindo silêncio e não tempo total, e a decisão rodada
 de verdade nos três casos — lote de 3 segundos atrás (não solta), 44
 segundos (ainda espera), um minuto (solta). Total: 22 suítes, 1.017
 asserções, zero falhas.
+
+---
+
+## V217 — o alarme era falso, e a categoria não respeitava o canal
+
+### 1. "Produto ainda não chegou à nuvem" — sem motivo nenhum
+
+O Rafael mandou a foto: a janela aparecia **sem a linha "Motivo:"**. Sem
+motivo quer dizer nenhum erro, nenhuma recusa do banco, nenhum registro
+retido. Nada tinha dado errado.
+
+E não tinha mesmo. **O produto chegava na nuvem, poucos segundos depois.
+Quem desistia era a tela.**
+
+`confirmarNaNuvem()` pedia a sincronização e olhava o mapa de
+identificadores. Só que `sincronizar()` começa com uma guarda: se já
+existe um envio em andamento, ela marca `pendente`, escreve "envio
+adiado" e **retorna na hora** — sem enviar nada. Então o `await` voltava
+imediatamente, o mapa ainda não tinha o registro, e a janela abria.
+
+Medido no navegador, antes da correção:
+
+```
+confirmarNaNuvem devolveu false em 1 ms
+janela: "Produto ainda não chegou à nuvem"
+…e o produto chegou na nuvem no envio seguinte
+```
+
+Com fila grande isso era o estado **normal**: o aparelho dele tinha 1.510
+alterações esperando, então sempre havia envio em andamento — e a janela
+aparecia em toda gravação.
+
+Agora a tela **espera** o envio em andamento terminar antes de julgar,
+com teto de 30 segundos. Se passar do teto e o envio ainda estiver
+trabalhando, o aviso diz a verdade — *"salvo — ainda subindo, a fila está
+grande"* — em vez de *"não chegou à nuvem"*.
+
+### 2. A categoria aparecia num canal onde não tem nada para vender
+
+O "Disponível em" já valia para o **produto**: marcado só para delivery,
+ele não aparecia na grade do balcão. Mas a faixa de **categorias** não
+olhava canal nenhum — filtrava só por `ativo`.
+
+Resultado: "Taxa de Entrega", com um único produto marcado só para
+Delivery, aparecia em "Pedido na loja" com a pastilha dizendo **1**. Quem
+clicava achava a categoria vazia.
+
+Agora: categoria que **tem** produto, mas nenhum disponível naquele
+canal, não aparece naquele canal. Categoria ainda **sem produto nenhum**
+continua aparecendo — quem acabou de criá-la precisa vê-la para pendurar
+o primeiro produto. E a pastilha conta pelo mesmo critério: o número é o
+que a pessoa vai encontrar ao clicar.
+
+### E um defeito na própria ferramenta de teste
+
+`corpoDaFuncao()` procurava `"function nome("`, que casa **dentro** de
+`"async function nome("` — e o corte começava depois do `async`. Quem
+extraísse uma função assíncrona recebia o corpo com `await` dentro e sem
+o `async` na frente. Mesma família do defeito que o `mapear.js` teve:
+regra escrita sem contar com o `async`. Corrigido.
+
+### Contraprova
+
+`testes/salvar-confirma.js`, 13 verificações, com a decisão rodada nos
+três estados: nuvem livre (confirma, sem janela), fila que termina
+enquanto espera (confirma, sem janela) e fila que passa do tempo (avisa
+que está subindo, e **não** que não chegou). Mais 6 na suíte do trilho
+para a regra do canal. Total: 23 suítes, 1.049 asserções, zero falhas.

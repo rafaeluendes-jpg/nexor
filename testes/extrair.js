@@ -17,8 +17,21 @@ const ARQ = path.join(__dirname, '..', 'index.html');
 
 function corpoDaFuncao(nome, fonte) {
   const marca = 'function ' + nome + '(';
-  const i = fonte.indexOf(marca);
+  let i = fonte.indexOf(marca);
   if (i < 0) throw new Error('função não encontrada no index.html: ' + nome);
+  /* ==========================================================
+     O `async` FAZ PARTE DA FUNCAO
+
+     A marca procurada e "function nome(", que casa DENTRO de
+     "async function nome(" — e o corte comecava depois do `async`. Quem
+     extraia uma funcao assincrona recebia o corpo com `await` dentro e
+     sem o `async` na frente: colocar isso num `new Function` estoura com
+     "await is only valid in async functions".
+
+     Mesma familia do defeito que o mapear.js tinha: regra escrita sem
+     contar com o `async`.
+     ========================================================== */
+  if (fonte.slice(Math.max(0, i - 6), i) === 'async ') i -= 6;
   let j = fonte.indexOf('{', i), nivel = 0, fim = j;
   while (fim < fonte.length) {
     const c = fonte[fim];

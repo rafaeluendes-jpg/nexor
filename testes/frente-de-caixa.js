@@ -220,6 +220,48 @@ function semear(w) {
   w.DB.produtos[2].ativo = true; w.renderVenda();
   t('e volta quando é religado', nomes().indexOf('Água') >= 0);
 
+  /* ==========================================================
+     A CATEGORIA SEGUE O CANAL DOS PRODUTOS DELA
+
+     Queixa do Rafael, com a foto: ele marcou "Taxa de Entrega" como
+     disponível só no Delivery, e a categoria aparecia em "Pedido na
+     loja" mesmo assim, com a pastilha dizendo "1". Quem clicava achava
+     a categoria vazia.
+
+     O "Disponível em" já valia para o produto; a faixa de CATEGORIAS não
+     olhava canal nenhum.
+     ========================================================== */
+  w.DB.categorias.push({ id: 'ct_tx', nome: 'Taxa de Entrega', ordem: 99, ativo: true });
+  w.DB.produtos.push({ id: 'pr_tx', nome: 'Taxa de Entrega', categoriaId: 'ct_tx',
+    preco: 7, ativo: true, ordem: 1, vinculaEstoque: false,
+    disponivel: { pdv: false, delivery: true, cardapio: true } });
+  w.DB.categorias.push({ id: 'ct_vazia', nome: 'Categoria nova', ordem: 98, ativo: true });
+  const cats = () => [...doc.querySelectorAll('.catBox span')].map(e => e.textContent.trim());
+  const pastilha = n => {
+    const c = [...doc.querySelectorAll('.catBox')]
+      .find(e => e.querySelector('span').textContent.trim() === n);
+    return c ? c.querySelector('em').textContent : '(ausente)';
+  };
+  w.PDV.tipo = 'loja'; w.PDV.cat = null; w.renderVenda(); await esp(60);
+  t('categoria só de delivery NÃO aparece no pedido na loja',
+    cats().indexOf('Taxa de Entrega') < 0, cats().join(', '));
+  t('e a categoria ainda sem produto continua à vista',
+    cats().indexOf('Categoria nova') >= 0, cats().join(', '));
+
+  w.PDV.tipo = 'entrega'; w.PDV.cat = null; w.renderVenda(); await esp(60);
+  t('na entrega ela aparece', cats().indexOf('Taxa de Entrega') >= 0, cats().join(', '));
+  t('com a contagem do canal, não a geral', pastilha('Taxa de Entrega') === '1',
+    pastilha('Taxa de Entrega'));
+  t('e o produto está lá dentro',
+    (w.PDV.cat = 'ct_tx', w.renderVenda(),
+     [...doc.querySelectorAll('.prodBox b')].map(e => e.textContent.trim()))
+      .indexOf('Taxa de Entrega') >= 0);
+
+  /* limpa para não atrapalhar o resto da suíte */
+  w.DB.categorias = w.DB.categorias.filter(c => c.id !== 'ct_tx' && c.id !== 'ct_vazia');
+  w.DB.produtos = w.DB.produtos.filter(p => p.id !== 'pr_tx');
+  w.PDV.tipo = 'loja'; w.PDV.cat = null; w.renderVenda(); await esp(60);
+
   /* ---------------------------------------------------------- */
   grupo('A comanda: produto, opção e quantidade');
   const antes = foto();
