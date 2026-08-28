@@ -33,6 +33,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: O index.html e mesmo o que o src/ produz?
+        run: node testes/montagem.js
+
+      - name: index.html e sw.js na mesma versao?
+        run: node testes/versao.js
+
       - name: Conferir a sintaxe do sistema
         run: node testes/sintaxe.js
 

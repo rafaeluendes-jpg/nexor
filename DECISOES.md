@@ -6405,3 +6405,496 @@ sido excluído.**
 
 Eu deveria ter procurado aqui na segunda versão, não na sétima. O sinal estava no
 próprio log — "excluído por você" aparecendo sem ninguém ter excluído nada.
+
+---
+
+## V207 — o pedido de base passa a fechar dos dois lados
+
+O fluxo combinado, descrito pelo Rafael, é este:
+
+| Quem | Ação | O que o sistema faz |
+|---|---|---|
+| unidade | faz e envia o pedido | sobe para a matriz |
+| matriz | confirma | só muda de fase |
+| matriz | lança produção | baixa os insumos da ficha, põe a base no estoque da matriz |
+| matriz | **marca entregue** | a base **sai** do estoque da matriz **e** nasce a conta a **receber** |
+| unidade | **"Recebi as bases"** | entra no estoque dela **e** nasce a conta a **pagar** |
+
+Estava implementado pela metade, e a metade que faltava não era a que eu tinha
+relatado. Os botões da matriz existiam e funcionavam. Os defeitos eram outros dois.
+
+### 1. A cobrança nascia como despesa quitada
+
+`faturarPedido` gravava em `DB.lancamentos` — a coleção **legada**. Ela não sobe
+para a nuvem, e a migração do bloco 13 a converte para `DB.lancFin` com
+`pago:true` e com o tipo virado, porque só trata `'entrada'` como receita. O
+lançamento era criado com `tipo:'receita'`, que não é `'entrada'`. Resultado: a
+conta a **receber** da matriz virava uma **despesa já paga**, com a data de hoje
+no lugar do vencimento digitado, presa no aparelho de quem clicou.
+
+E existia, no mesmo arquivo, uma segunda versão da função — `faturarPedidoBase` —
+que gravava certo em `DB.lancFin`. Nenhum botão a chamava. **A versão certa estava
+desligada e a errada estava no botão.**
+
+### 2. A base entrava no estoque da matriz e nunca saía
+
+A produção põe a base no estoque; nada a tirava de lá. O estoque da matriz só
+crescia, e não havia como responder quanto cada unidade tinha levado — a saída
+que responderia isso nunca foi escrita.
+
+### O que passou a valer
+
+**O vencimento não se pergunta mais.** Era um `prompt` a cada pedido e a resposta
+era sempre a mesma conta: pedido até segunda ao meio-dia, retirada na quinta.
+Três dias depois da data do pedido é o dia da retirada, e é quando a unidade
+paga. O sistema faz a conta.
+
+**"Entregue" é um clique só, e mexe nas duas pontas.** A saída do estoque e a
+cobrança nascem juntas porque são o mesmo fato. Se só uma acontecesse, o estoque
+ou o financeiro ficaria mentindo, e ninguém descobriria isso olhando a tela do
+pedido.
+
+**A saída espelha a entrada.** As linhas saem de `montarLinhas(...,'producao')` e
+fica só a entrada do produto acabado, com a direção virada. Assim a quantidade
+que sai é, por construção, exatamente a que entrou — inclusive quando a ficha tem
+fator de rendimento e o destino está em outra unidade de medida. Recalcular por
+fora daria diferença no dia em que alguém mexesse no fator.
+
+**A trava contra repetir mora no movimento, não no pedido.** Um campo novo em
+`DB.pedidosBase` não sobreviveria à sincronização: a tabela da nuvem não tem
+coluna para ele e o pedido voltaria de lá sem a marca. A marca fica na
+`identificacao` do próprio movimento, que sobe e desce inteiro — mesmo caminho
+que a ordem de produção já usava para se reconhecer. **Nenhuma migration foi
+necessária.**
+
+**Dar entrada é da unidade, e só dela.** Tinha botão para isso na tela da matriz
+também. Quem abrisse por engano poria a mercadoria no estoque de quem não a
+recebeu, e o pedido apareceria conferido sem ninguém ter conferido nada.
+
+**Ficha chamada `BASE <SABOR>` já nasce no catálogo de pedido, vinculada.** O
+nome basta como gatilho — não precisa de campo novo nem de cadastrar a mesma
+coisa duas vezes em duas telas. Cadastrar duas vezes era como o vínculo entre a
+base e a ficha deixava de existir, e sem vínculo não há baixa de estoque nenhuma.
+Nasce **inativa**: sem preço, a unidade pediria a R$ 0,00 e a cobrança nasceria
+zerada — erro silencioso, do tipo que só aparece no fechamento do mês.
+
+**Relatório de Pedidos de Base**, por sabor, por unidade e por mês, com os preços
+que valiam no dia de cada pedido. Recalcular pelo preço de hoje daria um número
+diferente do que foi cobrado.
+
+### Removidas
+
+`faturarPedido` (coleção legada), `produzirPedidoBase`, `darEntradaPedido` e
+`pagarPedido` — as três últimas eram gêmeas das que ficaram. Com elas saíram
+`diasFrenteISO` e `brParaISO`, que só existiam para servi-las.
+
+### Contraprova
+
+72 testes novos em `testes/pedido-base.js`, e o fluxo inteiro rodado em Chromium
+real: leite 500 → 492 na produção (20 caixas ÷ rendimento 10 × 4 l = 8 l), base
+0 → 20; na entrega base 20 → 0, conta a receber de R$ 500 **em aberto** vencendo
+três dias depois do pedido, e **zero** linhas na coleção legada. Clicar em
+"Entregue" duas vezes não dobra nada. Total: 13 suítes, 612 asserções, zero
+falhas.
+
+---
+
+## V207.1 — o sino passou a avisar
+
+Ele respondia sempre a mesma frase, dizendo que não havia aviso nenhum, com
+um zero fixo escrito no HTML ao lado. Não havia nada por trás dele. O
+franqueado só descobria que o pedido tinha ficado pronto se abrisse a tela e
+olhasse o selo.
+
+### Não existe tabela de notificações, e isso é a decisão
+
+O aviso é **derivado do próprio pedido**. Cada mudança de fase já grava a hora
+— `enviadoEm`, `confirmadoEm`, `entregueEm`, `pagoEm` — e essa hora é o aviso.
+Uma tabela de notificações seria um segundo lugar onde a verdade mora, e no
+dia em que os dois discordassem ninguém saberia qual acreditar. Também
+dispensa migration: os campos já sobem e descem.
+
+| Quem | É avisado de |
+|---|---|
+| matriz | chegou pedido novo · a unidade conferiu o recebimento |
+| unidade | confirmado · pronto para retirar · pago · recusado |
+
+O franqueado só vê pedido da **unidade dele** — a mesma regra da V202, agora
+também no sino.
+
+### O "já li" é do aparelho, não da nuvem
+
+É a lista de avisos que **esta pessoa** já viu **nesta máquina**, em
+`localStorage`, por usuário. Guardar isso no banco faria abrir o sino no
+caixa apagar o aviso do celular do dono. A lista guarda os 300 mais recentes
+e para de crescer.
+
+### A estreia é quieta
+
+Na primeira vez num aparelho, o histórico inteiro é marcado como visto. Sem
+isso, quem abrisse hoje veria quarenta avisos de pedidos de meses atrás e
+aprenderia, no primeiro dia, a ignorar o sino — que é a única maneira de um
+alerta deixar de funcionar de vez.
+
+Marca de identificação: o aviso é identificado por `pedido:tipo`, não por
+horário. Um aviso que nasce com data antiga (a conferência da unidade, que
+não tem hora própria e toma emprestada a da entrega) apareceria como já lido
+se a comparação fosse por tempo.
+
+### Contraprova
+
+43 testes em `testes/sino.js`, incluindo `localStorage` que lança exceção — em
+navegador com dados de site bloqueados a tela não pode cair por causa do sino.
+E no Chromium: matriz com zero na estreia, `1` ao chegar pedido novo, painel
+abre com os dois, número volta a zero ao ler; franqueado vê `1` ao confirmar e
+`2` ao ficar pronto, e nenhum aviso da outra unidade. Total: 14 suítes, 757
+asserções, zero falhas.
+
+---
+
+## V208 — auditoria do trilho quente, e um defeito no relatório de formas
+
+O Rafael pediu, antes de publicar: auditar o caminho que as seis lojas
+percorrem todo dia — cardápio → PDV → pagamento → venda → estoque →
+fechamento → relatórios — e só subir se estivesse inteiro.
+
+### O que a auditoria mediu
+
+**As 60 funções do trilho quente são texto IDÊNTICO à V201**, a versão que
+está na loja hoje. `finalizarVenda`, `baixarEstoqueVenda`, `fecharCaixa`,
+`movimentoCaixa`, `esperadoCaixa`, `renderVenda`, `irPagamento`, `addPag`,
+`montarSnapshot`, `telaPDV`, `telaCardapio` — nenhuma foi tocada em
+nenhuma das versões desde então. Função cujo texto não mudou não pode ter
+mudado de comportamento.
+
+Depois disso, o trilho foi **percorrido de verdade**, clicando: abrir
+caixa com operador e turno, achar o produto na grade pelo nome, abrir a
+pergunta de opções, marcar a borda, digitar quantidade 2, aplicar desconto,
+dividir o pagamento entre dinheiro e pix editando o valor, finalizar,
+conferir o estoque item a item, fazer uma entrega com taxa de zona e
+entregador, assinar uma sangria, fechar o caixa cego contando a gaveta, e
+abrir os relatórios. Em jsdom (suíte permanente) e em Chromium de verdade.
+
+Os números batem exatamente: comanda R$ 50 → desconto R$ 5 → R$ 45 pagos
+em 25 + 20; casquinha 200 → 198; Gelato Venda 50 → 49,9 (pote de 100 g de
+uma ficha que rende 10 kg em 100 unidades); Nutella 5 → 4,96 (borda de
+1 kg para 50 unidades, duas vezes). Gaveta = fundo + dinheiro − sangria.
+
+### O defeito encontrado
+
+**"Vendas por Forma de Pagamento" mostrava a venda do dia como "Não
+informado".** O PDV grava a forma em `pagamento.forma` — e sempre gravou,
+`addPag()` faz `_pagos.push({forma:f,valor:...})`. O relatório lia só
+`formaId`.
+
+Por que ninguém achou: a **descida** da nuvem devolve o pagamento com os
+dois campos preenchidos (`forma` e `formaId`, arrumado na V136). Então a
+venda de ontem, que já foi e voltou, aparecia certa; a de hoje, que ainda
+não voltou, aparecia sem forma. **O relatório se consertava sozinho de um
+dia para o outro** — e por isso o defeito atravessou tudo.
+
+Cinco lugares liam só `formaId`: Vendas por Forma de Pagamento, Vendas por
+Período (o filtro e a exibição), o detalhe do pedido no relatório e o DRE.
+Passaram a ler os dois, como o fechamento de caixa e o detalhe do pedido já
+faziam. É pré-existente: está na loja hoje, na V201.
+
+### O que a auditoria confirmou que É assim mesmo
+
+**A opção do produto acha a ficha técnica PELO NOME.** Quando a opção vai
+para a comanda ela leva só nome e preço — `modalOpcoes` monta
+`{grupo,nome,preco}`, sem o vínculo. A baixa então procura uma ficha com
+aquele nome exato. Se a matriz renomear a ficha e não a opção, o insumo da
+borda para de sair do estoque, em silêncio. Está testado nos dois sentidos.
+
+**Sangria, suprimento, cancelamento e fechamento exigem senha, e a senha
+só é conferida na nuvem.** Sem internet, o caixa vende normalmente, mas não
+fecha. Vem da V201 — não é regressão.
+
+### Contraprova
+
+`testes/frente-de-caixa.js`, 98 verificações, o trilho inteiro num DOM
+real. Ela fixa o fuso em `America/Sao_Paulo`: `hojeISO()` força o horário
+de Brasília e `caixa.aberto` usa o relógio do aparelho, então num servidor
+em UTC, entre 21h e meia-noite, o caixa fechado não aparecia no próprio
+relatório. Na loja isso não acontece — mas o teste tem de medir o sistema,
+não a máquina.
+
+Total: 15 suítes, 851 asserções, zero falhas.
+
+---
+
+## V209 — a opção levava o nome, não o vínculo
+
+Pergunta do Rafael, ao ler a auditoria da V208: *"toda opção de grupo,
+exceto sabores — bordas, coberturas, caldas, cascões, creme de avelã —
+tem ficha técnica vinculada. Ela está sem a vinculação?"*
+
+**Não estava.** O vínculo está cadastrado, sobe e desce da nuvem em
+`ficha_id`, e a tela de Gestão de Cardápio mostra o nome da ficha ao lado
+de cada opção. Nada se corrompeu.
+
+O que acontecia é que **a venda jogava o vínculo fora**. `modalOpcoes`
+montava a opção da comanda com `{grupo, nome, preco}` — sem `fichaId`. A
+baixa de estoque lê `o.fichaId` e, quando não acha, cai num plano B:
+procurar a ficha **pelo nome da opção**. Como o nome nunca vinha, o plano B
+virou o único caminho — e ele só acerta quando o nome da opção é igual ao
+nome da ficha.
+
+### Medido no banco da Jolô, 28/08/2026
+
+Das 12 opções fora de sabores:
+
+| Situação | Quantas | Baixava estoque? |
+|---|---|---|
+| nome da opção igual ao da ficha | 3 | sim |
+| **vinculada, nome diferente** | **7** | **não** |
+| sem ficha cadastrada | 2 | não |
+
+As sete que não baixavam: Borda Creme de Pistache (`BORDA CREME
+PISTACHE`), Borda de Creme de Ninho (`BORDA CREME NINHO`), Borda de Doce
+de Leite (`BORDA DOCE LEITE`), Creme de Avelã (`CALDA CREME DE AVELÃ`),
+Creme de Ninho (`CALDA CREME DE NINHO`), Cascão Chocolate (`CASCAO
+CHOCOLATE`) e Cascão Tradicional (`CASCAO TRADICIONAL`). A diferença é
+sempre a mesma coisa: um "de", um acento, a caixa das letras.
+
+Era a perda invisível que o próprio comentário do código dizia estar
+resolvida: *"Borda de Nutella, cobertura, Ovomaltine: o cliente escolhe e
+o insumo some do pote, mas não saía do sistema"*. Saía para a Borda
+Nutella, cujo nome por acaso batia. Para as outras sete, não.
+
+### A correção
+
+A opção passa a levar `fichaId` para a comanda. O identificador não depende
+de como cada nome foi escrito. O plano B por nome fica de pé, só para as
+comandas gravadas antes desta versão.
+
+### O que muda na loja
+
+Depois de publicar, esses sete insumos **passam a sair do estoque a cada
+venda**. O saldo atual deles está inflado — nunca baixou. Uma contagem
+desses itens logo depois de publicar põe o estoque no lugar; sem ela, o
+sistema vai continuar partindo de um número que nunca foi verdade.
+
+E ficam duas opções para o Rafael decidir: **Cobertura de Chocolate** e
+**Cobertura de Morango** não têm ficha nenhuma. Repare que existe também
+uma **Cobertura Morango** (sem o "de"), essa com ficha — provavelmente a
+mesma coisa cadastrada duas vezes.
+
+### Contraprova
+
+`testes/frente-de-caixa.js` passou a 101 verificações. Três novas fecham
+exatamente este caso: a opção leva a ficha para a comanda; baixa pelo
+identificador mesmo com o nome sem nenhuma parecença; e a comanda antiga,
+sem vínculo, continua sendo resolvida pelo nome exato. Total: 15 suítes,
+854 asserções, zero falhas.
+
+---
+
+## V210 — o horário abria a loja só na tela
+
+Pedido do Rafael: *"o robô do WhatsApp está vinculado, quando coloca o
+horário está funcionando, publicar o cardápio, o cardápio digital
+respeita o horário — dê uma vasculhada nisso também."*
+
+### Onde essas telas moram
+
+`telaCfgCardapio` e `telaZap` não são itens de menu: são **abas de
+Configuração da Loja › Canais de Venda e Integração**, ao lado de Canais
+de venda, Aplicativo Joia, API de dados e Integração TEF. Foi neste mesmo
+caminho que a V204 corrigiu o botão que gravava `CN.aba` em vez de
+`CN2.aba` e abria na aba errada.
+
+As seis abas abrem, as cinco do cardápio montam, as quatro do robô
+montam. Zero erro de runtime.
+
+### Quem consome o horário não está neste repositório
+
+O horário mora em `DB.cardapio[sucursal].horarios` e sobe para
+`cardapio_config.horarios`. Quem lê são o cardápio digital e o robô do
+WhatsApp (`nexor-whatsapp`), de fora. Então "funcionar", aqui, significa
+uma coisa só: **o que a pessoa marca na tela tem de subir e sobreviver ao
+próximo download.**
+
+Duas marcas decidem isso:
+
+| | |
+|---|---|
+| `_padrao` | configuração que o lojista nunca salvou nasce com ela, e o envio **filtra essas fora de propósito** — config padrão subindo apagaria o horário de verdade |
+| `_salvoEm` | é o que a trava da V119 compara com `atualizado_em` da nuvem para decidir quem é mais novo |
+
+### O defeito
+
+Cinco caminhos mexem no horário. `setHora`, `aplicarHorario` e
+`fecharDias` sempre gravaram as duas marcas. **`abrirHojeAgora` e `togDia`
+não gravavam nenhuma.**
+
+Cada uma sozinha já bastava para o botão não valer:
+
+- sem apagar `_padrao`, o `sincronizar()` que o próprio `abrirHojeAgora`
+  chama na linha seguinte **saía sem levar nada** — a loja abria na tela e
+  continuava fechada para o robô e para o cardápio;
+- sem `_salvoEm`, o download seguinte escrevia por cima e **desfazia** a
+  abertura.
+
+`abrirHojeAgora` é o atalho do balcão — "Abrir hoje até 23:59" — e `togDia`
+é o interruptor de cada dia. São justamente os dois botões de quem precisa
+resolver na hora. O código já contava essa história em `cardAtual()`: *"o
+fechamento de segunda foi parar no Alphaville enquanto Santa Fe seguia com
+o horário antigo e o robô respondia fechada"*.
+
+### O estado real, medido na nuvem
+
+Quatro unidades ativas, todas com cardápio configurado e sete dias de
+horário salvos. Nenhuma está com a configuração padrão. Alphaville está
+com `22:38` de segunda a sábado — parece digitação de teste, mas é
+cadastro, não defeito.
+
+### E as opções que faltavam
+
+`Cobertura de Chocolate` e `Cobertura de Morango` foram vinculadas às
+fichas, com autorização do Rafael. Existiam **duas fichas chamadas
+`COBERTURA CHOCOLATE`** — uma sem nenhum ingrediente e sem uso, outra com
+ingrediente; foi usada a que tem. As doze opções fora de sabores estão
+vinculadas; nenhuma sem ficha.
+
+Fica registrado que `Cobertura de Morango` e `Cobertura Morango` apontam
+para a mesma ficha — é a mesma coisa cadastrada duas vezes, e apagar uma é
+decisão de cadastro do Rafael.
+
+### Contraprova
+
+`testes/cardapio-horario.js`, 29 verificações: os cinco caminhos do
+horário, as duas marcas em cada um, a regra que filtra a config padrão do
+envio, o cálculo de "aberto agora" (inclusive quem fecha depois da
+meia-noite) e a porta de entrada das duas telas.
+`testes/vinculo-opcao.js`, 19 verificações, prende o vínculo da opção.
+Total: 17 suítes, 902 asserções, zero falhas.
+
+---
+
+## V211 — a varredura de todas as telas
+
+O Rafael pediu a auditoria dos módulos restantes: *"entra em cada módulo,
+testa tudo, vê onde está interligado, se tiver alguma coisa quebrada,
+algum botão, e principalmente bug de tela — tem muita tela que você está
+lá no final, clica pra mexer alguma coisa, ela sobe automático pra cima."*
+
+### A ferramenta
+
+`ferramentas/varrer.js` monta as **94 telas** num DOM de verdade, lê os
+`onclick` que cada uma gerou, confere se a função existe e **clica** em
+cada um, anotando qualquer erro de runtime. Confirmações respondem NÃO e
+`prompt` responde nulo: o caminho do botão é exercitado até a pergunta e
+para ali, sem apagar nada.
+
+Resultado: nenhuma tela deixa de montar, nenhum handler aponta para função
+inexistente. Três defeitos reais apareceram.
+
+### 1. Uma tela congelava o navegador
+
+`telaFinanceiroNexor` — Mensalidades das Unidades. A guarda era
+`!INS.nuvem && !INS.carregando`. O `catch` devolvia `carregando` para
+falso, gravava o erro e chamava a tela de novo; como `INS.nuvem` seguia
+vazio, a guarda voltava a ser verdadeira. Nova chamada, nova falha, nova
+chamada: **laço infinito, navegador travado, em qualquer falha de rede.**
+
+O `INS.erro` era gravado e nunca lido. A tela gêmea, `telaInstalacao`, já
+fazia certo desde sempre: põe o erro na guarda **e** o mostra na tela com
+um botão de tentar de novo. A terceira condição tinha ficado para trás na
+cópia.
+
+### 2. Quatro botões de exportar, quebrados
+
+`baixarCSV(nome, linhas)` — nesta ordem. Quatro chamadas passavam ao
+contrário: **Vendas por Mesa, Cancelamentos, Cupons Gerados** e o **Baixar
+modelo** da importação. Dentro da função, `linhas` recebia o texto do nome
+do arquivo, `linhas.map` não existia, e o clique estourava sem aviso na
+tela — só um erro no console, que ninguém abre no balcão. Os outros oito
+exportadores sempre chamaram na ordem certa.
+
+### 3. O pulo de rolagem: eram 28 telas, não algumas
+
+A guarda existia desde antes e resolvia o problema por inteiro — mas
+olhava **duas** caixas: `.etScroll` e `.finWrap`. Medindo tela a tela,
+**28 rolam em outra**:
+
+| Caixa | Telas |
+|---|---|
+| `.ctWrap` | backup, CMV, central técnica, clientes, diagnóstico, mensalidades, empresas, permissões, rede, reinício, restrita |
+| `.mvWrap` | movimentação de estoque, insumos, mercadoria |
+| `.cardB` | gestão de cardápio |
+| `.ftWrap` | ficha técnica |
+| `.lfScroll` | lançamentos financeiros |
+| `.cbWrap` | conciliação bancária |
+| `.ntWrap` | notas de entrada |
+| `.fxWrap` | fluxo de caixa |
+
+Nessas o defeito estava inteiro: quem estava no fim da lista e clicava em
+qualquer coisa voltava para o topo. É exatamente o que o Rafael descreveu.
+
+Crescer a lista de classes seria repetir o erro que o próprio comentário
+da guarda já alertava — *"tapar um a um seria garantir esquecer algum"*.
+Então a posição passou a ser guardada para **toda caixa que role dentro do
+`#content`**, identificada por uma marca estável (o identificador do
+elemento, ou a etiqueta com as duas primeiras classes mais a posição entre
+os iguais) e devolvida junto. Duas caixas na mesma tela guardam posições
+separadas. Trocar de tela continua começando do topo.
+
+### Contraprova
+
+`testes/rolagem.js`, 21 verificações: as oito caixas que ficavam de fora,
+as duas que já funcionavam, a troca de tela, duas caixas na mesma tela, e
+a marca sobrevivendo ao redesenho. Total: 18 suítes, 927 asserções, zero
+falhas.
+
+---
+
+## V212 — o resto do sistema, módulo por módulo
+
+Continuação da varredura da V211, agora nas duas camadas que a primeira
+não alcança: os formulários que moram dentro de janela, e as ligações
+entre um módulo e outro.
+
+### Os formulários
+
+`ferramentas/varrer-modais.js` abre cada janela que uma tela oferece e
+aperta o confirmar **de campos vazios**. O certo é recusar com um aviso; o
+que não pode é estourar — formulário que quebra com campo vazio quebra
+igual com campo preenchido errado, e é assim que a pessoa no balcão
+descobre.
+
+**54 janelas abertas e confirmadas. Nenhuma quebra.**
+
+### As ligações
+
+Isto a máquina não descobre sozinha: que um módulo mexe no outro do jeito
+certo. `testes/ligacoes.js` chama as funções de verdade contra um banco
+semeado e confere o saldo antes e depois, item a item.
+
+| Cadeia | O que foi conferido |
+|---|---|
+| Nota de entrada | entra no estoque, atualiza o custo da última compra, grava a compra no histórico do ingrediente, amarra o movimento à NF — e nota marcada como *não recebida* não encosta no estoque |
+| Transferência | sai da origem no envio, **não** entra no destino ainda, abre a conferência do que chegou, e só então entra — e não volta a mexer na origem |
+| Cancelamento | respondendo **não produzido**, o insumo volta; respondendo **já produzido**, não volta; nos dois casos a venda sai do faturamento |
+| Contagem | ajusta o saldo para o que foi contado, gera movimento com motivo próprio, registra a diferença apurada e carimba a unidade |
+
+32 verificações, todas passando.
+
+### Zero funções mortas
+
+Três funções ficaram sem chamador e saíram: `areaRolagem`, que a
+generalização da rolagem aposentou; e `limparChaveZap` com
+`gravarZapChave`, restos do tempo em que era preciso colar uma chave em
+cada aparelho para comandar o robô — a própria tela explica que aquilo
+foi um remendo de antes do login de verdade. A leitura da chave antiga
+(`zapChave`) fica, como reserva para aparelho fora da nuvem.
+
+**Pela primeira vez o MAPA.md acusa zero funções nunca chamadas.** Eram 45
+quando esta modularização começou.
+
+### Estado
+
+94 telas varridas, todas montam, nenhum botão aponta para função que não
+existe, nenhum clique estoura. 19 suítes, 959 asserções, zero falhas. O
+trilho da frente de caixa reconferido em Chromium de verdade: gaveta,
+caixa cego, fechamento e relatórios com os mesmos números de antes.

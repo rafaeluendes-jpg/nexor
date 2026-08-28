@@ -1,0 +1,78 @@
+[
+  {
+    "tipo": "bruto",
+    "arquivo": "01-cabeca.html"
+  },
+  {
+    "tipo": "envolto",
+    "abre": "<style>",
+    "fecha": "</style>",
+    "arquivos": [
+      "css/01-principal/01-inicio.css",
+      "css/01-principal/02-usuarios-e-permissoes.css",
+      "css/01-principal/03-usuarios-e-permissoes.css"
+    ]
+  },
+  {
+    "tipo": "envolto",
+    "abre": "<style>",
+    "fecha": "</style>",
+    "arquivos": [
+      "css/02-complemento.css"
+    ]
+  },
+  {
+    "tipo": "bruto",
+    "arquivo": "02-corpo.html"
+  },
+  {
+    "tipo": "envolto",
+    "abre": "<script>",
+    "fecha": "</script>",
+    "arquivos": [
+      "js/00-abertura.js",
+      "js/01-icones.js",
+      "js/02-modulos.js",
+      "js/03-armazenamento/01-inicio.js",
+      "js/03-armazenamento/02-medir-nunca-pode-quebrar-o-que-esta-sendo-me.js",
+      "js/04-utilitarios.js",
+      "js/05-login.js",
+      "js/06-interface.js",
+      "js/07-roteador/00-navegacao.js",
+      "js/07-roteador/08-modulo-cardapio.js",
+      "js/07-roteador/09-modulo-pdv/01-liberacao-e-mais-3.js",
+      "js/07-roteador/09-modulo-pdv/02-transferencia-e-mais-6.js",
+      "js/07-roteador/09-modulo-pdv/03-pdv.js",
+      "js/07-roteador/10-acerto-com-entregadores.js",
+      "js/07-roteador/11-categorias-financeiras-e-contas-bancarias.js",
+      "js/07-roteador/12-formas-de-pagamento.js",
+      "js/07-roteador/13-lancamentos-financeiros/01-lancamentos-e-mais-10.js",
+      "js/07-roteador/13-lancamentos-financeiros/02-carga-e-mais-2.js",
+      "js/07-roteador/14-fluxo-de-caixa.js",
+      "js/07-roteador/15-conciliacao-bancaria.js",
+      "js/07-roteador/16-fornecedores.js",
+      "js/07-roteador/17-frente-de-caixa-financeiro.js",
+      "js/07-roteador/18-gestao-de-clientes-crm.js",
+      "js/07-roteador/19-cupons-de-desconto.js",
+      "js/07-roteador/20-base-do-estoque-unidades-grupos-insumos.js",
+      "js/07-roteador/21-ficha-tecnica.js",
+      "js/07-roteador/22-movimentacao-de-estoque/01-baixa-hub-e-mais-6.js",
+      "js/07-roteador/22-movimentacao-de-estoque/02-mov-mercadoria-e-movimentacao.js",
+      "js/07-roteador/23-estoque-total-e-contagem.js",
+      "js/07-roteador/24-historico-de-posicao-de-estoque.js",
+      "js/07-roteador/25-notas-de-entrada.js",
+      "js/07-roteador/26-producao-ordem-de-producao-com-conferencia-d.js",
+      "js/07-roteador/27-comparativo-anual.js",
+      "js/07-roteador/28-relatorios/01-faturamento-dia-e-mais-10.js",
+      "js/07-roteador/28-relatorios/02-faturamento-e-mais-9.js",
+      "js/07-roteador/28-relatorios/03-zap-e-mais-3.js",
+      "js/07-roteador/28-relatorios/04-status-vendas-e-mais-6.js",
+      "js/07-roteador/28-relatorios/05-tirar-o-acesso-total-sem-derrubar-ninguem.js",
+      "js/07-roteador/28-relatorios/06-pedidos-de-base.js"
+    ]
+  },
+  {
+    "tipo": "bruto",
+    "arquivo": "03-rodape.html"
+  }
+]
