@@ -217,6 +217,30 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .sucMenu button:hover{background:var(--alt)}
 .sucMenu button.on{background:var(--acc-soft);color:var(--acc-d);font-weight:600}
 
+/* ---- o painel do sino ----
+   Mesmo desenho do menu de trocar loja, e mora na mesma caixa (#sucBox):
+   assim o clique fora ja o fecha pelo ouvinte que existe, sem ouvinte novo.
+   A posicao horizontal vem do botao, medida na hora — a barra do topo muda
+   de largura conforme o nome do usuario. */
+.sinoMenu{position:absolute;top:52px;width:330px;max-height:70vh;overflow:auto;background:#fff;
+  border:1px solid var(--line);border-radius:10px;box-shadow:var(--sh2);z-index:60;padding:5px}
+.sinoMenu .h{font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.07em;padding:8px 9px 5px}
+.sinoMenu button{display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;border:none;
+  background:none;padding:8px 9px;border-radius:6px;cursor:pointer}
+.sinoMenu button:hover{background:var(--alt)}
+.sinoMenu button.novo{background:var(--acc-soft)}
+.sinoMenu button.novo:hover{background:var(--acc-soft);filter:brightness(.97)}
+.sinoMenu b{display:block;font-size:12.5px;font-weight:600;color:var(--ink)}
+.sinoMenu em{display:block;font-style:normal;font-size:11.5px;color:var(--ink-2);line-height:1.35;margin-top:1px}
+.sinoMenu small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.sinoPt{width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none;margin-top:6px}
+.sinoPt.vd{background:var(--ok)}
+.sinoPt.am{background:var(--amber)}
+.sinoPt.az{background:var(--blue)}
+.sinoPt.rd{background:var(--red)}
+.sinoVazio{padding:14px 10px 16px;font-size:11.5px;color:var(--ink-3);line-height:1.5}
+
 .work{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .wTitle{height:32px;background:linear-gradient(180deg,#FDFEFF,#EFF4F9);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:9px;padding:0 14px;flex:none}

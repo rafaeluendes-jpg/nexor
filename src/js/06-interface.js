@@ -54,7 +54,11 @@ function topo(){
 $('hdr').innerHTML='<img class="hMk" src="joia-icone.png" alt="Joia">'+
   '<div class="hNm">JOIA</div><div class="hGrow"></div>'+
 '<button class="hSearch" onclick="paleta()">'+sv('search',15)+'<span>Buscar no sistema</span><kbd>Ctrl K</kbd></button>'+
-'<button class="hIc" onclick="toast(\'Nenhuma notificação no momento.\')">'+sv('bell',18)+'<span class="hBadge">0</span></button>'+
+/* o sino avisa de verdade desde a V207 — abrirSino() monta a lista a partir
+   dos proprios pedidos. Antes daqui saia um toast dizendo que nao havia
+   nada, com um zero fixo ao lado: o franqueado so sabia que o pedido dele
+   ficou pronto se abrisse a tela e olhasse o selo. */
+'<button class="hIc" id="btnSino" onclick="abrirSino(event)" title="Avisos">'+sv('bell',18)+'<span class="hBadge" id="sinoBadge" style="display:none">0</span></button>'+
 '<span class="rtTag" id="rtTag"><i></i>tempo real</span>'+
 '<button class="hIc" id="btnNuvem" onclick="painelNuvem()" title="Banco de dados">'+sv('cloud',18)+'</button>'+'<button class="hIc" onclick="dev()">'+sv('help',18)+'</button>'+
 (function(){var u=usuarioLogado()||{};
@@ -73,6 +77,7 @@ $('hdr').innerHTML='<img class="hMk" src="joia-icone.png" alt="Joia">'+
   return '<div class="hUsr"><div class="hAv">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
    '<div><b>'+E(nm)+'</b><span>'+pp+'</span></div>';})()+
 '<button class="hPwr" onclick="sair()" title="Sair">'+sv('out',14)+'</button></div>';
+try{pintarSino()}catch(e){_quieto(e,'topo')}
 }
 function faixa(){
 var h='';

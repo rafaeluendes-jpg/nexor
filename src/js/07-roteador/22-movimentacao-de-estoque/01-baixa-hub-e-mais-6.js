@@ -693,6 +693,7 @@ async function receberPedidoBase(id){
   p.finPagarRef = l.id;
   salvar();
   toast('Entrada registrada e conta a pagar gerada.');
+  try { pintarSino(); } catch (e) { _quieto(e, 'receberPedidoBase'); }
   /* esta acao roda na tela do FRANQUEADO. Mandar para telaBasesHub jogaria
      ele numa tela a que nao tem acesso — a troca em massa de nome pegou
      tambem esta chamada, que nao devia. */
@@ -1021,6 +1022,7 @@ async function avancarPedido(id, para){
   }
   salvar();
   toast('Pedido ' + msg + '.');
+  try { pintarSino(); } catch (e) { _quieto(e, 'avancarPedido'); }
   telaBasesHub();
 }
 
@@ -1035,12 +1037,179 @@ async function rejeitarPedido(id){
   p.motivoRejeicao = String(motivo).trim();
   salvar();
   toast('Pedido rejeitado.');
+  try { pintarSino(); } catch (e) { _quieto(e, 'rejeitarPedido'); }
   telaBasesHub();
 }
 
 var PB = { itens: {}, obs: '', responsavel: '', data: '', busca: '', erro: '' };
 
 function basePedidos(){ DB.pedidosBase = DB.pedidosBase || []; return DB.pedidosBase; }
+
+/* ==========================================================
+   O SINO — o que aconteceu com os pedidos, para quem interessa
+
+   Ate a V207 o sino era enfeite: respondia sempre a mesma frase, dizendo
+   que nao havia aviso nenhum, com um zero fixo escrito no HTML ao lado. O
+   franqueado so descobria que o pedido dele tinha ficado pronto se abrisse
+   a tela e olhasse o selo.
+
+   (A frase antiga nao aparece escrita aqui de proposito: o teste procura o
+   texto dela no arquivo inteiro para garantir que ela sumiu, e um comentario
+   citando-a reprovaria a suite — ja aconteceu uma vez, com href.)
+
+   NAO existe tabela de notificacoes, e isso e proposital. O aviso e
+   DERIVADO do proprio pedido, que ja sobe e desce inteiro: cada mudanca de
+   fase ja grava a hora (enviadoEm, confirmadoEm, entregueEm, pagoEm), e
+   essa hora e o aviso. Uma tabela a parte seria um segundo lugar onde a
+   verdade mora — e no dia em que os dois discordassem, ninguem saberia qual
+   acreditar. Tambem nao precisa de migration nenhuma.
+
+   Quem ve o que:
+     matriz  -> chegou pedido novo · a unidade conferiu o recebimento
+     unidade -> confirmado · pronto para retirar · pago · recusado
+
+   O "ja li" fica no APARELHO, nao na nuvem: e a lista de avisos que ESTA
+   pessoa ja viu nesta maquina. Guardar isso no banco faria abrir o sino no
+   caixa apagar o aviso do celular do dono.
+   ========================================================== */
+function ehDaMatriz(){
+  return (typeof ehMatriz === 'function' && ehMatriz()) ||
+         (typeof ehPlataforma === 'function' && ehPlataforma());
+}
+function avisosPedidoBase(){
+  var matriz = ehDaMatriz();
+  var minha = (typeof lojaAtualId === 'function') ? lojaAtualId() : '';
+  var out = [];
+  (DB.pedidosBase || []).forEach(function (p) {
+    var num = '#' + String(p.numero || 0).padStart(4, '0');
+    function por(tipo, quando, titulo, texto, cor) {
+      if (!quando) return;
+      out.push({ id: p.id + ':' + tipo, pedido: p.id, tipo: tipo, quando: quando,
+                 titulo: titulo, texto: texto, cor: cor || '' });
+    }
+    if (matriz) {
+      por('novo', p.enviadoEm, 'Pedido ' + num + ' recebido',
+          (p.sucursalNome || 'uma unidade') + ' — R$ ' + money(p.total), 'am');
+      if (p.entradaEstoque)
+        por('conferido', p.entregueEm || p.enviadoEm, 'Pedido ' + num + ' conferido',
+            (p.sucursalNome || 'a unidade') + ' confirmou o recebimento', 'vd');
+    } else if (p.sucursalRef === minha) {
+      por('confirmado', p.confirmadoEm, 'Pedido ' + num + ' confirmado',
+          'A matriz aceitou — R$ ' + money(p.total), 'az');
+      por('pronto', (['entregue', 'pago'].indexOf(p.situacao) >= 0) ? p.entregueEm : '',
+          'Pedido ' + num + ' pronto',
+          'Pode retirar na matriz. Ao conferir, toque em "Recebi as bases".', 'vd');
+      por('pago', p.pagoEm, 'Pedido ' + num + ' quitado',
+          'A matriz marcou este pedido como pago.', 'vd');
+      /* recusa nao tem hora propria gravada: usa a do envio, que e a unica
+         que existe. Ordena um pouco atras, mas aparece — e aparecer e o que
+         importa em pedido recusado. */
+      if (p.situacao === 'rejeitado')
+        por('rejeitado', p.enviadoEm || p.data, 'Pedido ' + num + ' recusado',
+            p.motivoRejeicao || 'sem motivo informado', 'rd');
+    }
+  });
+  out.sort(function (a, b) { return String(b.quando).localeCompare(String(a.quando)); });
+  return out.slice(0, 40);
+}
+
+function chaveSino(){
+  var u = (typeof usuarioLogado === 'function' && usuarioLogado()) || {};
+  return 'nexor_sino_' + (u.id || u.login || 'anon');
+}
+function sinoVistos(){
+  try {
+    var v = JSON.parse(localStorage.getItem(chaveSino()) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+function marcarSinoVisto(lista){
+  try {
+    var v = sinoVistos();
+    (lista || []).forEach(function (a) { if (v.indexOf(a.id) < 0) v.push(a.id); });
+    /* a lista nao cresce para sempre: guarda os 300 avisos mais recentes */
+    localStorage.setItem(chaveSino(), JSON.stringify(v.slice(-300)));
+  } catch (e) { _quieto(e, 'marcarSinoVisto'); }
+}
+/* primeira vez neste aparelho: o historico inteiro nao e novidade. O sino
+   comeca quieto e passa a avisar do que acontecer daqui para frente — senao
+   quem abrisse hoje veria quarenta avisos de pedidos de meses atras. */
+function sinoEstreia(){
+  try {
+    if (localStorage.getItem(chaveSino()) !== null) return;
+    marcarSinoVisto(avisosPedidoBase());
+  } catch (e) { _quieto(e, 'sinoEstreia'); }
+}
+function avisosNovos(){
+  var v = sinoVistos();
+  return avisosPedidoBase().filter(function (a) { return v.indexOf(a.id) < 0; });
+}
+function quandoSino(q){
+  var d = new Date(q);
+  if (isNaN(d.getTime())) return '';
+  var min = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return 'há ' + min + ' min';
+  if (min < 1440) return 'há ' + Math.floor(min / 60) + ' h';
+  var dias = Math.floor(min / 1440);
+  if (dias === 1) return 'ontem';
+  if (dias < 30) return 'há ' + dias + ' dias';
+  return dataBR(String(q).slice(0, 10));
+}
+function pintarSino(){
+  var el = document.getElementById('sinoBadge');
+  if (!el) return;
+  sinoEstreia();
+  var n = avisosNovos().length;
+  el.textContent = n > 99 ? '99+' : String(n);
+  el.style.display = n ? '' : 'none';
+}
+function abrirSino(ev){
+  /* o sino mora no cabecalho, fora da faixa — sem isto o clique sobe para o
+     ouvinte do documento, que fecha os menus, e o painel abriria e fecharia
+     no mesmo clique */
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  var cx = document.getElementById('sucBox');
+  if (!cx) return;
+  if (document.getElementById('sinoMenu')) { fecharSuc(); return; }
+  fecharDrop();
+  var lista = avisosPedidoBase();
+  var novos = {};
+  avisosNovos().forEach(function (a) { novos[a.id] = 1; });
+  var bt = document.getElementById('btnSino');
+  var dir = 150;
+  try {
+    if (bt) dir = Math.max(8, window.innerWidth - bt.getBoundingClientRect().right - 4);
+  } catch (e) { _quieto(e, 'abrirSino'); }
+  cx.innerHTML = '<div class="sinoMenu" id="sinoMenu" style="right:' + dir + 'px">' +
+   '<div class="h">Avisos</div>' +
+   (lista.length
+    ? lista.map(function (a) {
+        return '<button class="' + (novos[a.id] ? 'novo' : '') + '" ' +
+          'onclick="irDoSino(\'' + a.pedido + '\')">' +
+          '<i class="sinoPt ' + E(a.cor) + '"></i>' +
+          '<span><b>' + E(a.titulo) + '</b><em>' + E(a.texto) + '</em>' +
+          '<small>' + E(quandoSino(a.quando)) + '</small></span></button>';
+      }).join('')
+    : '<div class="sinoVazio">Nada por aqui.<br>Os pedidos de base avisam ' +
+      'quando mudam de fase.</div>') +
+  '</div>';
+  /* abriu, leu: o que esta na lista deixa de ser novidade */
+  marcarSinoVisto(lista);
+  pintarSino();
+}
+function irDoSino(id){
+  fecharSuc();
+  var p = (DB.pedidosBase || []).find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (ehDaMatriz()) {
+    PR.aberto = p.id; PR.filtro = 'todos'; HUB.pedido = 'recebidos';
+    abrir('controle', 'bases-valores');
+  } else {
+    abrir('controle', 'pedido-base');
+  }
+}
+
 function basesAtivas(){
   return baseCatalogo().filter(function (b) { return b.ativo !== false; })
     .sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); });
@@ -1248,6 +1417,7 @@ async function enviarPedidoBase(){
   PB.itens = {}; PB.obs = ''; PB.busca = '';
   salvar();
   toast('Pedido enviado à matriz.');
+  try { pintarSino(); } catch (e) { _quieto(e, 'enviarPedidoBase'); }
   telaPedidoBase();
 }
 

@@ -497,6 +497,9 @@ function avisoRede(txt,tipo,segurar){
     window.addEventListener('online',voltouARede);
     /* navigator.onLine mente em algumas redes de loja: confere de verdade */
     setInterval(async function(){
+      /* o sino tambem se atualiza aqui, e ANTES da guarda da nuvem: pedido
+         mudado neste aparelho avisa mesmo com a nuvem desligada */
+      try{pintarSino()}catch(e){_quieto(e,'vigiarRede')}
       if(!NUVEM.ligada)return;
       var vivo=estaOnline();
       if(vivo&&!NET.online)voltouARede();

@@ -6496,3 +6496,56 @@ real: leite 500 → 492 na produção (20 caixas ÷ rendimento 10 × 4 l = 8 l),
 três dias depois do pedido, e **zero** linhas na coleção legada. Clicar em
 "Entregue" duas vezes não dobra nada. Total: 13 suítes, 612 asserções, zero
 falhas.
+
+---
+
+## V207.1 — o sino passou a avisar
+
+Ele respondia sempre a mesma frase, dizendo que não havia aviso nenhum, com
+um zero fixo escrito no HTML ao lado. Não havia nada por trás dele. O
+franqueado só descobria que o pedido tinha ficado pronto se abrisse a tela e
+olhasse o selo.
+
+### Não existe tabela de notificações, e isso é a decisão
+
+O aviso é **derivado do próprio pedido**. Cada mudança de fase já grava a hora
+— `enviadoEm`, `confirmadoEm`, `entregueEm`, `pagoEm` — e essa hora é o aviso.
+Uma tabela de notificações seria um segundo lugar onde a verdade mora, e no
+dia em que os dois discordassem ninguém saberia qual acreditar. Também
+dispensa migration: os campos já sobem e descem.
+
+| Quem | É avisado de |
+|---|---|
+| matriz | chegou pedido novo · a unidade conferiu o recebimento |
+| unidade | confirmado · pronto para retirar · pago · recusado |
+
+O franqueado só vê pedido da **unidade dele** — a mesma regra da V202, agora
+também no sino.
+
+### O "já li" é do aparelho, não da nuvem
+
+É a lista de avisos que **esta pessoa** já viu **nesta máquina**, em
+`localStorage`, por usuário. Guardar isso no banco faria abrir o sino no
+caixa apagar o aviso do celular do dono. A lista guarda os 300 mais recentes
+e para de crescer.
+
+### A estreia é quieta
+
+Na primeira vez num aparelho, o histórico inteiro é marcado como visto. Sem
+isso, quem abrisse hoje veria quarenta avisos de pedidos de meses atrás e
+aprenderia, no primeiro dia, a ignorar o sino — que é a única maneira de um
+alerta deixar de funcionar de vez.
+
+Marca de identificação: o aviso é identificado por `pedido:tipo`, não por
+horário. Um aviso que nasce com data antiga (a conferência da unidade, que
+não tem hora própria e toma emprestada a da entrega) apareceria como já lido
+se a comparação fosse por tempo.
+
+### Contraprova
+
+43 testes em `testes/sino.js`, incluindo `localStorage` que lança exceção — em
+navegador com dados de site bloqueados a tela não pode cair por causa do sino.
+E no Chromium: matriz com zero na estreia, `1` ao chegar pedido novo, painel
+abre com os dois, número volta a zero ao ler; franqueado vê `1` ao confirmar e
+`2` ao ficar pronto, e nenhum aviso da outra unidade. Total: 14 suítes, 757
+asserções, zero falhas.
