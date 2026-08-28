@@ -6687,3 +6687,85 @@ exatamente este caso: a opção leva a ficha para a comanda; baixa pelo
 identificador mesmo com o nome sem nenhuma parecença; e a comanda antiga,
 sem vínculo, continua sendo resolvida pelo nome exato. Total: 15 suítes,
 854 asserções, zero falhas.
+
+---
+
+## V210 — o horário abria a loja só na tela
+
+Pedido do Rafael: *"o robô do WhatsApp está vinculado, quando coloca o
+horário está funcionando, publicar o cardápio, o cardápio digital
+respeita o horário — dê uma vasculhada nisso também."*
+
+### Onde essas telas moram
+
+`telaCfgCardapio` e `telaZap` não são itens de menu: são **abas de
+Configuração da Loja › Canais de Venda e Integração**, ao lado de Canais
+de venda, Aplicativo Joia, API de dados e Integração TEF. Foi neste mesmo
+caminho que a V204 corrigiu o botão que gravava `CN.aba` em vez de
+`CN2.aba` e abria na aba errada.
+
+As seis abas abrem, as cinco do cardápio montam, as quatro do robô
+montam. Zero erro de runtime.
+
+### Quem consome o horário não está neste repositório
+
+O horário mora em `DB.cardapio[sucursal].horarios` e sobe para
+`cardapio_config.horarios`. Quem lê são o cardápio digital e o robô do
+WhatsApp (`nexor-whatsapp`), de fora. Então "funcionar", aqui, significa
+uma coisa só: **o que a pessoa marca na tela tem de subir e sobreviver ao
+próximo download.**
+
+Duas marcas decidem isso:
+
+| | |
+|---|---|
+| `_padrao` | configuração que o lojista nunca salvou nasce com ela, e o envio **filtra essas fora de propósito** — config padrão subindo apagaria o horário de verdade |
+| `_salvoEm` | é o que a trava da V119 compara com `atualizado_em` da nuvem para decidir quem é mais novo |
+
+### O defeito
+
+Cinco caminhos mexem no horário. `setHora`, `aplicarHorario` e
+`fecharDias` sempre gravaram as duas marcas. **`abrirHojeAgora` e `togDia`
+não gravavam nenhuma.**
+
+Cada uma sozinha já bastava para o botão não valer:
+
+- sem apagar `_padrao`, o `sincronizar()` que o próprio `abrirHojeAgora`
+  chama na linha seguinte **saía sem levar nada** — a loja abria na tela e
+  continuava fechada para o robô e para o cardápio;
+- sem `_salvoEm`, o download seguinte escrevia por cima e **desfazia** a
+  abertura.
+
+`abrirHojeAgora` é o atalho do balcão — "Abrir hoje até 23:59" — e `togDia`
+é o interruptor de cada dia. São justamente os dois botões de quem precisa
+resolver na hora. O código já contava essa história em `cardAtual()`: *"o
+fechamento de segunda foi parar no Alphaville enquanto Santa Fe seguia com
+o horário antigo e o robô respondia fechada"*.
+
+### O estado real, medido na nuvem
+
+Quatro unidades ativas, todas com cardápio configurado e sete dias de
+horário salvos. Nenhuma está com a configuração padrão. Alphaville está
+com `22:38` de segunda a sábado — parece digitação de teste, mas é
+cadastro, não defeito.
+
+### E as opções que faltavam
+
+`Cobertura de Chocolate` e `Cobertura de Morango` foram vinculadas às
+fichas, com autorização do Rafael. Existiam **duas fichas chamadas
+`COBERTURA CHOCOLATE`** — uma sem nenhum ingrediente e sem uso, outra com
+ingrediente; foi usada a que tem. As doze opções fora de sabores estão
+vinculadas; nenhuma sem ficha.
+
+Fica registrado que `Cobertura de Morango` e `Cobertura Morango` apontam
+para a mesma ficha — é a mesma coisa cadastrada duas vezes, e apagar uma é
+decisão de cadastro do Rafael.
+
+### Contraprova
+
+`testes/cardapio-horario.js`, 29 verificações: os cinco caminhos do
+horário, as duas marcas em cada um, a regra que filtra a config padrão do
+envio, o cálculo de "aberto agora" (inclusive quem fecha depois da
+meia-noite) e a porta de entrada das duas telas.
+`testes/vinculo-opcao.js`, 19 verificações, prende o vínculo da opção.
+Total: 17 suítes, 902 asserções, zero falhas.

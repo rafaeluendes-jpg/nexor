@@ -9238,11 +9238,42 @@ function volta(linhas,fn,atual,col){
   var rp=await _p08;
   /* o vinculo da opcao com a ficha precisa deste mapa, e as fichas descem
      depois — entao ele e montado aqui, com uma consulta enxuta. */
-  var _mapaFichaId={};
+  var _mapaFichaId={},_mapaFichaOk=false;
   try{
     var _fl=await api('fichas_tecnicas?select=id,ref_local'+qs.replace('?','&'));
     (_fl||[]).forEach(function(f){_mapaFichaId[f.id]=f.ref_local||f.id});
+    _mapaFichaOk=true;
   }catch(e){_quieto(e,'mapaFicha');}
+  /* ==========================================================
+     O VINCULO DA OPCAO NAO PODE SUMIR NUM DOWNLOAD RUIM
+
+     Este mapa vem de uma consulta a parte, e o try/catch acima engole a
+     falha dela. Sem o mapa, TODA opcao voltava com `fichaId:''` — mesmo
+     tendo `ficha_id` gravado na nuvem. O envio seguinte mandava `null` e
+     apagava o vinculo la tambem. Uma consulta que falhou uma vez, num
+     aparelho so, apagava o cadastro da rede inteira, sem erro na tela.
+
+     Foi o que o Rafael descreveu: "eu tinha vinculado, o sistema tirou".
+
+     Regra da casa, pela quinta vez: AUSENCIA DE DADO NAO E RESPOSTA.
+     Sem conseguir traduzir, mantem-se o que o aparelho ja sabia. Opcao
+     que vem da nuvem SEM ficha continua sem ficha — desvincular tem de
+     continuar funcionando.
+     ========================================================== */
+  var _fichaAntes={},_fichaSalvas=0;
+  (_ANT('grupos')||[]).forEach(function(g){
+    (g&&g.opcoes||[]).forEach(function(op){
+      if(op&&op.id&&op.fichaId)_fichaAntes[op.id]=op.fichaId;
+    });
+  });
+  function _fichaDaOpcao(op){
+    if(!op.ficha_id)return '';                     /* sem ficha na nuvem: sem ficha */
+    var achou=_mapaFichaId[op.ficha_id];
+    if(achou)return achou;
+    var guardado=_fichaAntes[op.ref_local];
+    if(guardado){_fichaSalvas++;return guardado;}
+    return '';
+  }
   var rg=await _p09;
   var rv=await api('produto_grupos?select=produto_id,grupo_id');
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
@@ -9262,7 +9293,10 @@ function volta(linhas,fn,atual,col){
     opcoes:(x.opcoes||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
       .map(function(o){return {id:o.ref_local||null,nome:o.nome,
         preco:Number(o.preco_adicional)||0,
-        fichaId:_mapaFichaId[o.ficha_id]||''}})}},_ANT('grupos'),'grupos');
+        fichaId:_fichaDaOpcao(o)}})}},_ANT('grupos'),'grupos');
+  if(_fichaSalvas)
+    logNuvem('vínculo com ficha técnica preservado do aparelho em '+_fichaSalvas+
+      ' opção(ões) — a nuvem não soube traduzir'+(_mapaFichaOk?'':' (a consulta de fichas falhou)'),true);
   DB.produtos=volta(rp,function(x){
     var g=(rv||[]).filter(function(v){return v.produto_id===x.id}).map(function(v){return mapaGr[v.grupo_id]}).filter(Boolean);
     return {id:x.ref_local||x.id,nome:x.nome,preco:Number(x.preco)||0,codigo:x.codigo,
@@ -11292,7 +11326,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V209.0.0';
+var VERSAO='V210.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -39122,6 +39156,27 @@ function abrirHojeAgora(){
   h.fechado=false;
   h.abre='00:00';h.fecha='23:59';
   c.ativo=true;
+  /* ==========================================================
+     O ATALHO ABRIA A LOJA SO NESTE APARELHO
+
+     Faltavam as duas marcas que todo o resto do horario grava, e cada
+     uma sozinha ja bastava para o atalho nao valer:
+
+     `_padrao` — a configuracao que o lojista nunca salvou nasce marcada
+     assim, e o envio filtra essas fora de proposito (config padrao nao
+     pode subir e apagar o horario de verdade). Sem apagar a marca aqui,
+     o `sincronizar()` da linha abaixo saia sem levar nada: a loja
+     abria na tela e continuava fechada para o robo e para o cardapio.
+
+     `_salvoEm` — e o que a trava da V119 compara com `atualizado_em` da
+     nuvem para decidir quem e mais novo. Sem ela, o proximo download
+     escrevia por cima e DESFAZIA a abertura.
+
+     Mexer no horario e escolha do lojista: sobe, e vale mais do que o
+     que estava na nuvem. `setHora`, `aplicarHorario` e `fecharDias` ja
+     faziam isso; estes dois botoes tinham ficado para tras.
+     ========================================================== */
+  delete c._padrao; c._salvoEm=Date.now();
   salvar();
   if(NUVEM.ligada)sincronizar();
   telaCfgCardapio();
@@ -39130,6 +39185,9 @@ function abrirHojeAgora(){
 function togDia(k){
   var c=cardAtual();
   c.horarios[k].fechado=!c.horarios[k].fechado;
+  /* mesma historia do abrirHojeAgora: fechar a segunda pelo interruptor
+     valia so na tela deste aparelho, e voltava no download seguinte */
+  delete c._padrao; c._salvoEm=Date.now();
   salvar();telaCfgCardapio();
 }
 function setHora(k,campo,v){

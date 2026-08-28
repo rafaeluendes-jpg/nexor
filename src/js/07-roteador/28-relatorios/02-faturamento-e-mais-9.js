@@ -1818,6 +1818,27 @@ function abrirHojeAgora(){
   h.fechado=false;
   h.abre='00:00';h.fecha='23:59';
   c.ativo=true;
+  /* ==========================================================
+     O ATALHO ABRIA A LOJA SO NESTE APARELHO
+
+     Faltavam as duas marcas que todo o resto do horario grava, e cada
+     uma sozinha ja bastava para o atalho nao valer:
+
+     `_padrao` — a configuracao que o lojista nunca salvou nasce marcada
+     assim, e o envio filtra essas fora de proposito (config padrao nao
+     pode subir e apagar o horario de verdade). Sem apagar a marca aqui,
+     o `sincronizar()` da linha abaixo saia sem levar nada: a loja
+     abria na tela e continuava fechada para o robo e para o cardapio.
+
+     `_salvoEm` — e o que a trava da V119 compara com `atualizado_em` da
+     nuvem para decidir quem e mais novo. Sem ela, o proximo download
+     escrevia por cima e DESFAZIA a abertura.
+
+     Mexer no horario e escolha do lojista: sobe, e vale mais do que o
+     que estava na nuvem. `setHora`, `aplicarHorario` e `fecharDias` ja
+     faziam isso; estes dois botoes tinham ficado para tras.
+     ========================================================== */
+  delete c._padrao; c._salvoEm=Date.now();
   salvar();
   if(NUVEM.ligada)sincronizar();
   telaCfgCardapio();
@@ -1826,6 +1847,9 @@ function abrirHojeAgora(){
 function togDia(k){
   var c=cardAtual();
   c.horarios[k].fechado=!c.horarios[k].fechado;
+  /* mesma historia do abrirHojeAgora: fechar a segunda pelo interruptor
+     valia so na tela deste aparelho, e voltava no download seguinte */
+  delete c._padrao; c._salvoEm=Date.now();
   salvar();telaCfgCardapio();
 }
 function setHora(k,campo,v){

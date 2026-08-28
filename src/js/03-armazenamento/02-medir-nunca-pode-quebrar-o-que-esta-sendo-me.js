@@ -435,11 +435,42 @@ function volta(linhas,fn,atual,col){
   var rp=await _p08;
   /* o vinculo da opcao com a ficha precisa deste mapa, e as fichas descem
      depois — entao ele e montado aqui, com uma consulta enxuta. */
-  var _mapaFichaId={};
+  var _mapaFichaId={},_mapaFichaOk=false;
   try{
     var _fl=await api('fichas_tecnicas?select=id,ref_local'+qs.replace('?','&'));
     (_fl||[]).forEach(function(f){_mapaFichaId[f.id]=f.ref_local||f.id});
+    _mapaFichaOk=true;
   }catch(e){_quieto(e,'mapaFicha');}
+  /* ==========================================================
+     O VINCULO DA OPCAO NAO PODE SUMIR NUM DOWNLOAD RUIM
+
+     Este mapa vem de uma consulta a parte, e o try/catch acima engole a
+     falha dela. Sem o mapa, TODA opcao voltava com `fichaId:''` — mesmo
+     tendo `ficha_id` gravado na nuvem. O envio seguinte mandava `null` e
+     apagava o vinculo la tambem. Uma consulta que falhou uma vez, num
+     aparelho so, apagava o cadastro da rede inteira, sem erro na tela.
+
+     Foi o que o Rafael descreveu: "eu tinha vinculado, o sistema tirou".
+
+     Regra da casa, pela quinta vez: AUSENCIA DE DADO NAO E RESPOSTA.
+     Sem conseguir traduzir, mantem-se o que o aparelho ja sabia. Opcao
+     que vem da nuvem SEM ficha continua sem ficha — desvincular tem de
+     continuar funcionando.
+     ========================================================== */
+  var _fichaAntes={},_fichaSalvas=0;
+  (_ANT('grupos')||[]).forEach(function(g){
+    (g&&g.opcoes||[]).forEach(function(op){
+      if(op&&op.id&&op.fichaId)_fichaAntes[op.id]=op.fichaId;
+    });
+  });
+  function _fichaDaOpcao(op){
+    if(!op.ficha_id)return '';                     /* sem ficha na nuvem: sem ficha */
+    var achou=_mapaFichaId[op.ficha_id];
+    if(achou)return achou;
+    var guardado=_fichaAntes[op.ref_local];
+    if(guardado){_fichaSalvas++;return guardado;}
+    return '';
+  }
   var rg=await _p09;
   var rv=await api('produto_grupos?select=produto_id,grupo_id');
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
@@ -459,7 +490,10 @@ function volta(linhas,fn,atual,col){
     opcoes:(x.opcoes||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
       .map(function(o){return {id:o.ref_local||null,nome:o.nome,
         preco:Number(o.preco_adicional)||0,
-        fichaId:_mapaFichaId[o.ficha_id]||''}})}},_ANT('grupos'),'grupos');
+        fichaId:_fichaDaOpcao(o)}})}},_ANT('grupos'),'grupos');
+  if(_fichaSalvas)
+    logNuvem('vínculo com ficha técnica preservado do aparelho em '+_fichaSalvas+
+      ' opção(ões) — a nuvem não soube traduzir'+(_mapaFichaOk?'':' (a consulta de fichas falhou)'),true);
   DB.produtos=volta(rp,function(x){
     var g=(rv||[]).filter(function(v){return v.produto_id===x.id}).map(function(v){return mapaGr[v.grupo_id]}).filter(Boolean);
     return {id:x.ref_local||x.id,nome:x.nome,preco:Number(x.preco)||0,codigo:x.codigo,
