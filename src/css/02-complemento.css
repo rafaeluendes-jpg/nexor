@@ -104,3 +104,142 @@
 /* o detalhe embaixo do texto principal precisa de linha propria */
 .fmTab td small{display:block;font-size:10.5px;color:var(--ink-3,#7a7a86);line-height:1.35;margin-top:1px}
 @media(max-width:760px){.hp2Seta{display:none}.hp2K{min-width:46%}}
+/* ==========================================================
+   CELULAR — o que estava saindo da tela
+
+   Medido no Chromium, tela de 390 px, nas 94 telas do sistema
+   (ferramentas/auditar.js). Nenhuma tela dava rolagem horizontal na
+   PAGINA — o corte era por dentro: elemento mais largo que a tela,
+   dentro de uma caixa com overflow escondido. O que passa da borda
+   simplesmente nao existe para quem esta no celular.
+
+   Cada bloco abaixo conserta um caso medido, sem mexer no computador
+   nem no tablet.
+   ========================================================== */
+
+/* 1. ABAS QUE NAO CABEM (Canais e integração, Cardápio, WhatsApp)
+      Quatro a seis abas numa fila de 390 px: a partir da terceira,
+      ficavam fora da tela e sem como chegar nelas. Agora a fila
+      desliza com o dedo, como toda barra de abas de aplicativo. */
+.abasCN{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none}
+.abasCN::-webkit-scrollbar{display:none}
+.abaCN{flex:0 0 auto;white-space:nowrap}
+
+/* 2. EDITOR DE MODELO DE IMPRESSAO (Modelo de impressão, Montagem)
+      A grade ja virava uma coluna no celular, mas a coluna herdava a
+      largura do conteudo (449 px) em vez da largura da tela: item de
+      grade nasce com `min-width:auto`. */
+.impGrade>*{min-width:0}
+.impEdit{max-width:100%}
+.impTxt{max-width:100%;box-sizing:border-box}
+
+/* 3. CONCILIACAO BANCARIA
+      O filtro lateral e o extrato ficavam lado a lado no celular. Com
+      a lateral fixa, sobravam 140 px para o extrato, e os cinco cards
+      de saldo (158 px cada) saiam pela direita. No celular os dois
+      passam a ser um embaixo do outro. */
+@media(max-width:820px){
+  .cbBody{flex-direction:column}
+  .cbBody>aside,.cbMain{width:100%;min-width:0;max-width:100%}
+  .cbResumo{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));padding:12px}
+}
+
+/* 3b. A LINHA "adicionar bloco" DO MESMO EDITOR
+      Um seletor largo mais o botao lado a lado, sem quebrar: o botao
+      terminava fora da tela. No celular a linha quebra e o botao vai
+      para baixo, inteiro. */
+@media(max-width:560px){
+  .blkAdd{flex-wrap:wrap}
+  .blkAdd select{flex:1 1 100%}
+  .blkAdd button{flex:1 1 auto}
+}
+
+/* 4. AREAS DE ENTREGA
+      A tabela de zonas (463 px) e mais larga que o cartao da cidade
+      (356 px) e ficava cortada. Passa a rolar dentro do proprio
+      cartao — a tabela inteira continua alcancavel. */
+.areaB{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.areaB>table{min-width:420px}
+
+/* ==========================================================
+   ALVO DE TOQUE NO CELULAR
+
+   O bloco de 1000 px encolhe os botoes de propósito, para o sistema
+   caber no tablet do balcao. No telefone o mesmo encolhimento deixa
+   os botoes de acao da linha com 24 px — menor que a ponta do dedo,
+   e do lado um do outro.
+
+   Aqui eles voltam a 34 px, que e o tamanho que o proprio sistema ja
+   usa no botao de adicionar. So no telefone: tablet e computador
+   continuam exatamente como estao.
+   ========================================================== */
+@media(max-width:560px){
+  /* uma regra so, para nao virar uma lista de excecoes que envelhece:
+     no telefone, todo botao do conteudo tem no minimo 34 px de altura */
+  #content button{min-height:34px}
+  .rBtn{width:34px;height:34px;border-radius:6px}
+  .rowAct{gap:6px}
+}
+
+/* ==========================================================
+   FRENTE DE CAIXA — A ETIQUETA VIRAVA UMA BARRA VAZIA
+
+   `.fcTag` e um <span> dentro de `.fcInfo`, e a regra `.fcInfo span`
+   — feita para a linha de descricao — tem mais peso que `.fcTag`.
+   O `display:inline-block` da etiqueta perdia para o `display:block`
+   da descricao, e a etiqueta esticava pela largura inteira do cartao:
+   um retangulo colorido vazio ao lado do texto, em todo caixa aberto.
+   Visto na fotografia da tela, nao no codigo.
+   ========================================================== */
+.fcInfo .fcTag{display:inline-block;width:auto}
+
+/* ==========================================================
+   O CARTAO DE PENDENCIA USA A PALETA DO SISTEMA
+
+   A primeira versao trazia um vermelho escrito na mao
+   (rgba(201,65,65,.06)) que nao existe em lugar nenhum do sistema —
+   ao lado dos outros cartoes, parecia de outro programa. Aqui ele usa
+   os mesmos tokens de alerta que o resto ja usa, e a barra lateral
+   vermelha o diferencia do cartao do caixa em operacao, que tem a
+   barra na cor de destaque.
+   ========================================================== */
+.fcAberto.fcPend{background:var(--red-soft);border-color:var(--red);
+  box-shadow:inset 3px 0 0 var(--red)}
+.fcAberto.fcPend .fcIco{background:#fff;color:var(--red)}
+.fcAberto.fcPend .fcTag{background:#fff;color:var(--red)}
+.fcAberto.fcPend .fcInfo span{color:var(--ink-2)}
+
+/* a mesma faixa, no PDV, onde o operador esta */
+.cmdFaixa.cmdAlerta{background:var(--red-soft);border-color:var(--red);color:var(--ink)}
+.cmdFaixa.cmdAlerta b{color:var(--red)}
+
+/* ==========================================================
+   PDV NO TELEFONE — CATALOGO EM CIMA, COMANDA EMBAIXO
+
+   A frente de caixa e desenhada para o balcao: catalogo a esquerda e
+   comanda a direita, numa coluna fixa de 308 px. Num telefone de
+   390 px isso deixa 82 px para o catalogo — os produtos ficam numa
+   tira ilegivel e a comanda parece estar por cima da tela.
+
+   O balcao usa tablet e nao muda em nada. Abaixo de 560 px, que e
+   telefone, os dois viram um embaixo do outro: escolhe-se o produto
+   em cima e confere-se a comanda embaixo, rolando a pagina.
+   ========================================================== */
+@media(max-width:560px){
+  .pdvBody{flex-direction:column;overflow:auto;-webkit-overflow-scrolling:touch}
+  /* as duas colunas viram blocos de altura propria: com `flex:1` numa
+     coluna elas dividiriam a altura da tela e o conteudo transbordaria
+     um por cima do outro */
+  .pdvLeft{flex:0 0 auto;height:auto;overflow:visible;min-height:0;padding:10px 10px 0}
+  .pdvRight{flex:0 0 auto;width:100%;height:auto;border-left:none;
+    border-top:1px solid var(--line)}
+  .pdvLeft .pnl2.flex1,.pdvRight .pnl2.flex1{flex:0 0 auto;min-height:220px}
+  .pdvLeft .pnl2B.scroll1{flex:0 0 auto;max-height:none;overflow:visible}
+  .catGrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  /* a fila de abas quebrava em duas linhas e a marca da aba ativa
+     sobrava como um risco solto embaixo; agora ela desliza com o dedo */
+  .pdvTabs{overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:none}
+  .pdvTabs::-webkit-scrollbar{display:none}
+  .pdvTab{flex:0 0 auto;white-space:nowrap}
+}

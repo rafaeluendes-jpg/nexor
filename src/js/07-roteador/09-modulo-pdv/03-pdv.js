@@ -68,7 +68,7 @@ function telaPDV(){
   (function(){
     var sobra=(typeof caixasEsquecidos==='function'?caixasEsquecidos():[]);
     if(!sobra.length)return '';
-    return '<div class="cmdFaixa" style="background:rgba(201,65,65,.10)">'+sv('help',14)+
+    return '<div class="cmdFaixa cmdAlerta">'+sv('help',14)+
      '<div>'+(sobra.length>1?sobra.length+' caixas ficaram abertos':'Um caixa ficou aberto')+
      ' sem fechamento (<b>'+sobra.map(function(c){return E(c.aberto)}).join(' · ')+'</b>). '+
      'A venda de agora está indo para o caixa aberto em '+E(cx?cx.aberto:'—')+'.</div>'+

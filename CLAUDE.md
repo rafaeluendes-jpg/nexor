@@ -73,6 +73,60 @@ Commit de correção mexe em `src/` (e no `index.html` gerado, que vai junto
 porque é ele que o Pages publica). O `index.html` no `git diff` deve ser
 sempre consequência do `src/`, nunca causa — `npm test` garante isso.
 
+## O padrão de entrega (ordem do Rafael, 28/08/2026)
+
+Este é um sistema profissional, em produção, em várias unidades. Nada de
+tela improvisada, botão que só parece funcionar, dado de mentira
+apresentado como real ou recurso pela metade.
+
+**Antes de dizer que algo está pronto, obrigatoriamente:**
+
+1. `npm test` — a bateria inteira, verde.
+2. `node ferramentas/varrer.js` — abre as 94 telas e aperta todos os
+   botões, num DOM. Zero tela que não monta, zero botão sem função,
+   zero erro no clique.
+3. `node ferramentas/auditar.js` — abre o sistema no **Chromium de
+   verdade**, computador (1440) e celular (390). Zero erro de console,
+   zero rolagem horizontal, zero elemento cortado, zero alvo de toque
+   menor que o dedo, zero texto técnico na tela.
+4. `node ferramentas/provar.js` — os fluxos: abre caixa, vende,
+   **recarrega a página e confere que nada sumiu**, fecha, exporta,
+   e testa permissão por perfil. Ele também salva fotos das telas em
+   `/tmp/provas` — **olhe as fotos**. Defeito visual não aparece em
+   teste que passa: a etiqueta virando barra vazia e a comanda do PDV
+   espremida em 82 px no celular só apareceram na fotografia.
+5. Corrigir tudo o que apareceu e **rodar os quatro de novo**.
+
+Quando houver mais de um caminho, escolher o mais seguro, mais estável,
+mais fácil de manter e compatível com o que já existe. Não inventar
+aparência nova por módulo: a identidade visual e os componentes são os
+que já estão no sistema, e cor se escreve com os tokens (`--acc`,
+`--red`, `--red-soft`...), nunca com um valor solto no meio do código.
+
+**Não devolver ao Rafael tarefa técnica que dá para fazer aqui.** Ele não
+é programador: não se pergunta a ele nome de tabela, biblioteca ou forma
+de implementar. Só depende dele o que só ele pode fazer — autorização,
+pagamento, credencial, decisão comercial, ou configuração numa conta que
+o assistente não alcança.
+
+**Publicar continua sendo decisão dele** (regra 1). Com uma diferença que
+ele autorizou: corrigir defeito do que já está publicado, com a bateria
+completa verde, sobe direto; regra de negócio nova ou recurso novo espera
+ordem.
+
+**A resposta no chat tem no máximo três linhas**, neste formato:
+
+```
+Pronto: [o que ficou concluído].
+Testei: [o que foi verificado].
+Acesse aqui: [link].
+```
+
+Se não estiver pronto: `Ainda não está pronto. / Problema encontrado: … /
+Próxima ação: …`. Se depender dele: `Isso depende de você: … / Acesse: … /
+Passo a passo: 1. … 2. … 3. …`. Relatório técnico, quando precisar, é
+arquivo separado — no chat vai só o resumo e o link.
+
 ## Como falar com o Rafael
 
 Português. Ele não é programador de formação, mas conhece o sistema dele a

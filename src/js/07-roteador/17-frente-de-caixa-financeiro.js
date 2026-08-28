@@ -56,10 +56,10 @@ function telaFrenteCaixa(){
      '<button class="btnP2 ok" onclick="abrir(\'pdv\',\'pdv\')">Abrir no PDV</button></div>')+
 
   (esquecidos.length
-   ?'<div class="fcAberto" style="border-color:var(--red);background:rgba(201,65,65,.06)">'+
+   ?'<div class="fcAberto fcPend">'+
      '<div class="fcIco">'+sv('help',26)+'</div>'+
      '<div class="fcInfo">'+
-      '<span class="fcTag" style="color:var(--red)">'+
+      '<span class="fcTag">'+
        (esquecidos.length>1?esquecidos.length+' CAIXAS ABERTOS SEM FECHAMENTO'
                            :'CAIXA ABERTO SEM FECHAMENTO')+'</span>'+
       '<b>'+esquecidos.map(function(c){return E(c.aberto)}).join(' · ')+'</b>'+

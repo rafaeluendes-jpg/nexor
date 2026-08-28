@@ -48,6 +48,29 @@ function carregar() {
       /* jsdom nao implementa: sem isto todo botao de exportar/baixar acusa
          erro que e do ambiente de teste, nao do sistema */
       try { w.URL.createObjectURL = () => 'blob:teste'; w.URL.revokeObjectURL = () => {}; } catch (e) {}
+      /* ==========================================================
+         `innerText` TAMBEM NAO EXISTE NO jsdom
+
+         Os cinco botoes de exportar relatorio liam `td.innerText` e a
+         varredura acusava "Cannot read properties of undefined". Aberto
+         no Chromium (ferramentas/auditar.js e provar.js), os cinco
+         exportam certo, com arquivo e conteudo. Era defeito do ambiente
+         de teste, nao do sistema — e um alarme falso que volta toda vez
+         que alguem roda isto, entao fica resolvido aqui.
+
+         O texto sai de `textContent`; o suficiente para o caminho do
+         botao ser exercitado de verdade.
+         ========================================================== */
+      try {
+        var proto = w.HTMLElement.prototype;
+        if (!Object.getOwnPropertyDescriptor(proto, 'innerText')) {
+          Object.defineProperty(proto, 'innerText', {
+            get() { return this.textContent; },
+            set(v) { this.textContent = v; },
+            configurable: true
+          });
+        }
+      } catch (e) {}
       w.crypto = w.crypto || {};
       if (!w.crypto.subtle) w.crypto.subtle = { digest: async () => new ArrayBuffer(32) };
       w.addEventListener('error', e => {
