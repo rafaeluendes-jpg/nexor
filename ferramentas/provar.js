@@ -539,7 +539,57 @@ function servir() {
   if (papelTxt) fs.writeFileSync(FOTOS + '/comprovante-fechamento.txt', papelTxt);
   t('o comprovante inteiro foi gravado para conferência',
     (papelTxt || '').length > 200, (papelTxt || '').length + ' caracteres');
+
+  /* ==========================================================
+     O TAMANHO DA FOLHA, MEDIDO NO PDF QUE VAI PARA A IMPRESSORA
+
+     `@page{size:80mm auto}` parece certo e NÃO EXISTE em CSS: misturar
+     medida com `auto` é regra inválida, o navegador descarta e imprime
+     no papel padrão dele — A4. Era a "folha gigante". Aqui a folha é
+     medida de verdade, no PDF gerado pelo próprio Chromium.
+     ========================================================== */
+  const regra = await pg.evaluate(() => {
+    var st = document.getElementById('impCSS');
+    return (st ? st.textContent : '').match(/@page\{[^}]*\}/)[0];
+  });
+  t('a folha é declarada com DUAS medidas, nunca "auto"',
+    /size:\s*\d+mm\s+\d+mm/.test(regra) && !/size:[^;}]*auto/.test(regra), regra);
+  t('e a largura declarada é a da bobina de 80 mm',
+    /size:\s*80mm/.test(regra), regra);
+  const medir = async () => {
+    const buf = await pg.pdf({ preferCSSPageSize: true, printBackground: true });
+    const cx = [...buf.toString('latin1').matchAll(/MediaBox *\[([^\]]*)\]/g)]
+      .map(m => m[1].trim().split(/\s+/).map(Number));
+    return cx.map(v => ({ l: +((v[2] - v[0]) * 25.4 / 72).toFixed(1),
+                          a: +((v[3] - v[1]) * 25.4 / 72).toFixed(1) }));
+  };
+  let folhas = await medir();
+  t('o navegador imprime UMA folha só, não uma pilha',
+    folhas.length === 1, folhas.length + ' folha(s)');
+  t('a folha mede 80 mm de largura — a bobina da loja, não A4',
+    Math.abs(folhas[0].l - 80) <= 1, folhas[0].l + ' mm');
+  t('e a altura é só o tamanho do comprovante, não uma folha inteira',
+    folhas[0].a > 60 && folhas[0].a < 200, folhas[0].a + ' mm');
+  console.log('   →  a folha impressa mede ' + folhas[0].l + ' x ' + folhas[0].a + ' mm');
   await pg.evaluate(() => { var e = document.getElementById('viaImp'); if (e) e.remove(); });
+
+  /* a bobina estreita tem de sair em 58 mm, não na mesma folha da larga */
+  await pg.evaluate(() => {
+    DB.modelosImp = [{ tipo: 'ficha', colunas: 32 }];
+    var cx = DB.caixas[0], r = linhasFechamento(cx);
+    imprimirPapel(r.linhas, r.cols, 1);
+  });
+  await pg.waitForTimeout(300);
+  folhas = await medir();
+  t('na bobina estreita a folha mede 58 mm, e não 80',
+    Math.abs(folhas[0].l - 58) <= 1, folhas[0].l + ' mm');
+  console.log('   →  na bobina de 58 mm a folha mede ' +
+    folhas[0].l + ' x ' + folhas[0].a + ' mm');
+  await pg.evaluate(() => {
+    DB.modelosImp = [];
+    var e = document.getElementById('viaImp'); if (e) e.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+  });
 
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {

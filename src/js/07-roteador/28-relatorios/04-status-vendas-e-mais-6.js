@@ -1374,6 +1374,37 @@ function testarImp(){
    qual for a bobina e qualquer que seja o modelo configurado. Em
    monoespacada, cada caractere mede 0,6 do tamanho da fonte.
    ========================================================== */
+/* ==========================================================
+   A ALTURA DO PAPEL TEM DE SER DECLARADA EM NUMERO
+
+   Aqui estava escrito `@page{size:80mm auto}`. Parece certo — bobina
+   continua, altura livre — mas NAO EXISTE em CSS: `size` aceita
+   `auto`, ou uma medida, ou duas medidas; misturar medida com `auto`
+   e regra invalida. O navegador descarta a declaracao inteira e cai
+   no papel padrao dele, A4. Era isso que fazia o comprovante sair
+   "numa folha gigante": a bobina nunca chegou a ser pedida.
+
+   Entao a altura e medida antes de imprimir, no proprio comprovante
+   ja montado, e vai declarada em milimetros. Sobram 4 mm no pe para
+   o corte.
+   ========================================================== */
+function alturaDoPapel(el,margem){
+  try{
+    var alvo=el.querySelector('.papel');
+    if(!alvo)return 200;
+    var antesEl=el.getAttribute('style')||'';
+    var antesPad=alvo.style.padding;
+    el.setAttribute('style','display:block;position:fixed;left:-10000px;top:0;'+
+      'visibility:hidden;width:auto;padding:0;margin:0');
+    alvo.style.padding='0';
+    var h=alvo.getBoundingClientRect().height;
+    alvo.style.padding=antesPad;
+    el.setAttribute('style',antesEl);
+    if(!(h>0))return 200;
+    /* px do navegador (96 dpi) para mm, mais as margens e o corte */
+    return Math.max(30,Math.ceil(h*25.4/96)+(margem*2)+4);
+  }catch(e){ return 200; }
+}
 function imprimirPapel(linhas,cols,vias){
   cols=Number(cols)||48;
   var mm=(cols<=32?58:80);
@@ -1389,14 +1420,23 @@ function imprimirPapel(linhas,cols,vias){
     todas+='<div class="papelPg">'+uma+'</div>';
   el.innerHTML=todas;
   document.body.appendChild(el);
+  var alturaMM=alturaDoPapel(el,margem);
   var st=document.getElementById('impCSS')||document.createElement('style');
   st.id='impCSS';
-  st.textContent='@media print{@page{size:'+mm+'mm auto;margin:'+margem+'mm}'+
-   'body>*{display:none!important}#viaImp{display:block!important}'+
+  /* o `padding:10px` do #viaImp somava 2,6 mm de cada lado por cima da
+     margem da pagina: o comprovante de 76 mm passava dos 80 mm da
+     bobina e o ultimo digito ia embora de novo. Aqui ele e zerado. */
+  st.textContent='@media print{@page{size:'+mm+'mm '+alturaMM+'mm;margin:'+margem+'mm}'+
+   'html,body{margin:0;padding:0;background:#fff}'+
+   'body>*{display:none!important}'+
+   '#viaImp{display:block!important;position:static;padding:0!important;'+
+     'margin:0;width:auto;font-size:inherit}'+
    '#viaImp .papel{width:'+cols+'ch;font-size:'+fonteMM+'mm;box-shadow:none;'+
-     'padding:0;border-radius:0;max-width:none}'+
-   '#viaImp .papelPg{padding:0;display:block}'+
-   '.papelPg{page-break-after:always}}';
+     'padding:0;margin:0;border-radius:0;max-width:none}'+
+   '#viaImp .papelPg{padding:0;margin:0;display:block}'+
+   /* quebra ENTRE as vias; `page-break-after` na ultima gerava uma
+      pagina em branco no fim de toda impressao */
+   '#viaImp .papelPg+.papelPg{page-break-before:always}}';
   document.head.appendChild(st);
   setTimeout(function(){window.print()},200);
 }
