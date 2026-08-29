@@ -953,7 +953,22 @@ async function salvarZap(silencioso){
         msg_saiu:(c.avisosAtivos!==false?(c.msgSaiu||null):null),
         msg_entregue:(c.avisosAtivos!==false?(c.msgEntregue||null):null),
         pede_avaliacao:(c.avisosAtivos!==false&&c.pedeAvaliacao!==false),
-        avisos_ativos:c.avisosAtivos!==false,
+        /* ==========================================================
+           CAMPO QUE NAO EXISTE NO BANCO DERRUBA O SALVAMENTO INTEIRO
+
+           `avisos_ativos` nunca foi criado na tabela `whatsapp_config`.
+           O banco recusa a gravacao inteira quando chega coluna
+           desconhecida — "Could not find the 'avisos_ativos' column" —
+           entao NADA da configuracao do robo subia: nem resposta pronta,
+           nem regra, nem saudacao. O aviso na tela dizia "salvo aqui,
+           mas nao subiu para o robo", e o lojista mexia na tela o dia
+           inteiro sem que o robo mudasse uma virgula.
+
+           O campo tambem nao fazia falta: o robo nunca o leu. "Avisos
+           desligados" ja viaja nas quatro mensagens indo nulas e no
+           `pede_avaliacao` falso, logo acima — que e como o robo
+           realmente decide.
+           ========================================================== */
         ia_ativa:c.iaAtiva!==false,ia_nome:c.iaNome||'Nina',
         ia_tom:c.iaTom||'acolhedor',ia_regras:c.iaRegras||null,
         ia_apresenta:c.iaApresenta!==false
