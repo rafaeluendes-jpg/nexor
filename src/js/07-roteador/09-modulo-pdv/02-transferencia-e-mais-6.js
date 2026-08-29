@@ -1926,8 +1926,9 @@ function nomePapel(id){var p=PAPEIS.find(function(x){return x.id===id});return p
 
 function baseStatus(){
   DB.statusVenda=DB.statusVenda||[];
-  if(DB.statusVenda.length)return DB.statusVenda;
-  if(DB._semeado&&DB._semeado.statusVenda)return DB.statusVenda;
+  /* jaExistiu() vem ANTES da checagem de tamanho: e ela que grava a
+     marca enquanto a lista ainda esta cheia */
+  if(jaExistiu('statusVenda')||DB.statusVenda.length)return DB.statusVenda;
   if(NUVEM.ligada&&!DB._baixouUmaVez)return DB.statusVenda;
   DB._semeado=DB._semeado||{}; DB._semeado.statusVenda=true;
   if(!DB.statusVenda.length){

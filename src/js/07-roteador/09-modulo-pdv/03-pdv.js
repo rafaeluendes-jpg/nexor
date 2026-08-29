@@ -2011,8 +2011,22 @@ async function _abrirCaixa(){
       '<b>'+E(t.nome)+'</b><span>'+(t.ini&&t.fim?E(t.ini)+' as '+E(t.fim):'sem horario')+'</span></label>';
    }).join('')+'</div>'+
    '<div class="hint">Sugerido pelo horario. Se estiver assumindo outro turno, troque aqui.</div></div>'
-  :'<div class="hint" style="margin-bottom:10px">Nenhum turno cadastrado. '+
-   'Cadastre em Configuracao da Loja &rsaquo; Turnos para separar os caixas por periodo.</div>')+
+  /* ==========================================================
+     TURNO DESLIGADO E DECISAO, NAO FALTA DE CADASTRO
+
+     Aqui so existia um caminho quando nao havia turno para escolher, e
+     ele dizia "Nenhum turno cadastrado — cadastre em Configuracao da
+     Loja". Para quem DESATIVOU os dois turnos de proposito, isso e
+     mentira na frente do balcao, e ainda convida o operador a refazer
+     o que o dono acabou de desfazer.
+
+     Sao duas situacoes diferentes: nunca houve turno (a dica ajuda) e
+     havia e foram desligados (a loja roda direto, sem falar nisso).
+     ========================================================== */
+  :((DB.turnos||[]).length
+    ?''
+    :'<div class="hint" style="margin-bottom:10px">Nenhum turno cadastrado. '+
+     'Cadastre em Configuracao da Loja &rsaquo; Turnos para separar os caixas por periodo.</div>'))+
   '<div class="fld2"><label>Quem está abrindo o caixa *</label>'+
    (ops.length>1
     ?'<select id="cxOp" onchange="pedeSenhaCaixa(\'cx\')">'+

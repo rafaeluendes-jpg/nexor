@@ -680,6 +680,100 @@ function servir() {
     var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
   });
 
+  console.log('\n── 10c. O PDV obedece a tela de Turnos\n');
+  /* o caso exato de 29/08/2026: o dono desativa os dois turnos e a
+     abertura de caixa continua exigindo escolher um */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    DB.caixas = []; DB.turnos = [];
+    DB._semeado = {};
+    baseTurnos();
+    if (DB.turnos.length < 2)
+      DB.turnos.push({ id: uid('tn'), nome: 'Turno 2', ini: '15:00', fim: '23:00',
+        ativo: true, ordem: 1 });
+    salvar();
+    return { cadastrados: DB.turnos.length, ativos: turnosAtivos().length };
+  });
+  t('a loja tem dois turnos cadastrados e ativos', r.ativos === 2, r.ativos);
+
+  /* desativa pela TELA, clicando no mesmo interruptor que o Rafael usa */
+  r = await pg.evaluate(() => {
+    telaTurnos();
+    var cx = [...document.querySelectorAll('#content input[type=checkbox]')];
+    cx.forEach(function (c) { if (c.checked) c.onchange({ target: c }); });
+    return { ativos: turnosAtivos().length,
+             gravado: (DB.turnos || []).filter(x => x.ativo === false).length };
+  });
+  t('desmarcar os dois na tela de Turnos desativa os dois', r.ativos === 0, r.ativos);
+  t('e isso fica gravado, não só na tela', r.gravado === 2, r.gravado);
+
+  await pg.evaluate(() => { telaPDV(); });
+  await pg.waitForTimeout(200);
+  await pg.evaluate(() => abrirCaixa());
+  await pg.waitForTimeout(400);
+  r = await pg.evaluate(() => {
+    var ov = document.getElementById('mdOv');
+    return { radios: document.querySelectorAll('input[name=cxTurno]').length,
+             texto: ov ? ov.innerText : '' };
+  });
+  t('A ABERTURA DE CAIXA NÃO PEDE MAIS TURNO NENHUM', r.radios === 0, r.radios + ' opção(ões)');
+  t('e não manda cadastrar turno — quem desligou foi o dono',
+    !/Nenhum turno cadastrado/i.test(r.texto), r.texto.slice(0, 80));
+  t('a janela continua pedindo o que importa: operador e valor',
+    /Quem está abrindo o caixa/.test(r.texto) && /Valor inicial/.test(r.texto));
+  await pg.screenshot({ path: FOTOS + '/abrir-sem-turno.png' });
+
+  /* e o caixa abre, sem turno, sem travar */
+  r = await pg.evaluate(() => {
+    moedaSet('cxIni', 100);
+    document.getElementById('mdOk').click();
+    return true;
+  });
+  await pg.waitForTimeout(600);
+  r = await pg.evaluate(() => {
+    var cx = caixaAberto();
+    return { abriu: !!cx, turno: cx ? (cx.turno || '') : 'x', turnoId: cx ? (cx.turnoId || '') : 'x' };
+  });
+  t('O CAIXA ABRE DIRETO, sem turno', r.abriu === true);
+  t('e fica gravado sem turno nenhum — não inventa "Turno 1"',
+    r.turno === '' && r.turnoId === '', r.turno + '/' + r.turnoId);
+
+  /* ==========================================================
+     A RAIZ: DOWNLOAD QUE FALHA NÃO PODE ZERAR O CADASTRO
+
+     `baixarTab()` devolve [] quando a consulta falha. Antes isso zerava
+     DB.turnos, e `baseTurnos()` semeava os dois turnos de fábrica,
+     ATIVOS — desfazendo a decisão do dono e subindo isso para a nuvem.
+     ========================================================== */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    /* a lista some — é o que a falha de leitura provocava. A semente
+       NÃO pode ressuscitar os turnos de fábrica por cima da decisão
+       do dono. (Que o download vazio não zere a lista é provado em
+       testes/turno-obedece.js, onde `volta` roda isolada.) */
+    DB.turnos = [];
+    baseTurnos();
+    return { qt: (DB.turnos || []).length, ativos: turnosAtivos().length,
+             nomes: (DB.turnos || []).map(x => x.nome).join(' ') };
+  });
+  t('a semente NÃO ressuscita os turnos de fábrica', r.qt === 0,
+    r.qt + ' turno(s): ' + r.nomes);
+  t('e a abertura continua sem turno nenhum para pedir', r.ativos === 0, r.ativos);
+
+  /* a mesma trava para os outros cadastros com semente */
+  r = await pg.evaluate(() => {
+    baseCanc(); baseStatus();
+    DB.motivosCanc = []; DB.statusVenda = [];
+    baseCanc(); baseStatus();
+    return { canc: (DB.motivosCanc || []).length, stat: (DB.statusVenda || []).length };
+  });
+  t('motivos de cancelamento também não voltam sozinhos', r.canc === 0, r.canc);
+  t('status de venda também não', r.stat === 0, r.stat);
+  await pg.evaluate(() => {
+    DB.caixas = []; DB.turnos = []; DB._semeado = {}; baseTurnos(); salvar();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+  });
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

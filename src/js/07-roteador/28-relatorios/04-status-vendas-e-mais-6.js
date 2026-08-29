@@ -1461,8 +1461,9 @@ function baseCanc(){
      depois disso significa "a loja apagou todos", e apagado tem de continuar
      apagado — nao se ressuscita cadastro que alguem removeu de proposito.
      ========================================================== */
-  if(DB.motivosCanc.length)return DB.motivosCanc;
-  if(DB._semeado&&DB._semeado.motivosCanc)return DB.motivosCanc;
+  /* jaExistiu() vem ANTES da checagem de tamanho: e ela que grava a
+     marca enquanto a lista ainda esta cheia */
+  if(jaExistiu('motivosCanc')||DB.motivosCanc.length)return DB.motivosCanc;
   /* se a nuvem esta ligada mas o download ainda nao chegou, ESPERA:
      semear agora e o que criava a duplicata */
   if(NUVEM.ligada&&!DB._baixouUmaVez)return DB.motivosCanc;
@@ -1586,8 +1587,9 @@ function baseTurnos(){
   DB.turnos=DB.turnos||[];
   /* mesma correcao de baseCanc: so semeia uma vez, e nunca antes do
      download chegar. Ver o comentario la para o porque. */
-  if(DB.turnos.length)return DB.turnos;
-  if(DB._semeado&&DB._semeado.turnos)return DB.turnos;
+  /* jaExistiu() vem ANTES da checagem de tamanho: e ela que grava a
+     marca enquanto a lista ainda esta cheia */
+  if(jaExistiu('turnos')||DB.turnos.length)return DB.turnos;
   if(NUVEM.ligada&&!DB._baixouUmaVez)return DB.turnos;
   DB.turnos.push({id:uid('tn'),nome:'Turno 1',ini:'08:00',fim:'15:00',ativo:true,ordem:0});
   DB.turnos.push({id:uid('tn'),nome:'Turno 2',ini:'15:00',fim:'23:00',ativo:true,ordem:1});

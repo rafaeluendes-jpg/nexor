@@ -111,6 +111,29 @@ async function baixarDaNuvem(forcar){
   })();
   return _baixando;
 }
+/* ==========================================================
+   SEMENTE SO NASCE UMA VEZ NA VIDA DA EMPRESA
+
+   Os cadastros com semente (turnos, motivos de cancelamento, status de
+   venda) so podiam ser semeados de novo porque a marca `_semeado` era
+   posta por QUEM SEMEOU. Uma loja que recebeu a lista pronta da nuvem
+   nunca ganhava a marca — entao, se a lista esvaziasse por qualquer
+   motivo, a semente voltava, com os valores de fabrica, por cima da
+   decisao do dono.
+
+   Agora a marca e posta tambem por quem apenas VE a lista cheia: se
+   ela existiu uma vez, existiu, e vazia passa a significar "a loja
+   apagou todos" — que e para continuar apagado.
+   ========================================================== */
+function jaExistiu(col){
+  try{
+    DB._semeado=DB._semeado||{};
+    if(Array.isArray(DB[col])&&DB[col].length&&!DB._semeado[col]){
+      DB._semeado[col]=true;
+    }
+    return !!DB._semeado[col];
+  }catch(e){ return false; }
+}
 async function _baixarDaNuvem(forcar){
   _FALHOU_BAIXA=[];
   if(NUVEM.plataforma){
@@ -226,6 +249,26 @@ function volta(linhas,fn,atual,col){
     var _antesVolta=Array.isArray(atual)?atual.slice():null;
     if(col)guardarIds(col,linhas);
     var r=(linhas||[]).map(fn);
+    /* ==========================================================
+       DOWNLOAD VAZIO NAO E "A NUVEM ESTA VAZIA"
+
+       `baixarTab()` devolve `[]` quando a consulta FALHA — e escreve no
+       diagnostico "tabela pulada; dados locais mantidos". Os dados locais
+       NAO eram mantidos: das 45 colecoes, 40 chamavam esta funcao sem
+       passar a lista atual, e sem ela esta guarda logo abaixo nao tinha o
+       que comparar. Um 500 na leitura de `turnos` zerava `DB.turnos`.
+
+       E zerar nao para ai: `baseTurnos()` ve a lista vazia e SEMEIA de
+       novo "Turno 1" e "Turno 2", ativos. Foi o que a loja de Santa Fe do
+       Sul viu em 29/08/2026 — os dois turnos desativados pelo dono
+       reaparecendo na abertura de caixa, com o horario de fabrica. O
+       mesmo vale para motivos de cancelamento e para toda colecao com
+       semente.
+
+       A lista atual e descoberta pelo nome da colecao quando quem chamou
+       nao a passou. Onde ela ja era passada, nada muda.
+       ========================================================== */
+    if(!Array.isArray(atual)&&col)atual=_ANT(col);
     if(!r.length&&atual&&atual.length)return atual;
     /* ==========================================================
        O QUE AINDA NAO SUBIU NAO PODE SER APAGADO PELO DOWNLOAD
