@@ -255,3 +255,8 @@
 #barraAvisos.noFluxo{position:static;left:auto;right:auto;bottom:auto;
   margin:0 12px 10px;flex:none;z-index:auto}
 #barraAvisos.noFluxo .avisoGrav{box-shadow:0 2px 10px rgba(0,0,0,.14)}
+
+/* de quem e a categoria, quando a matriz olha a rede inteira */
+.catRow .nm{display:flex;flex-direction:column;gap:1px;min-width:0}
+.catRow .catUnid{font-size:10px;color:var(--ink-3);font-weight:500;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

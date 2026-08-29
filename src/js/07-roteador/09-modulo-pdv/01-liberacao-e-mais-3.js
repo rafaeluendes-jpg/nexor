@@ -631,6 +631,25 @@ function ehSucMatriz(id){
       Para dizer "todas, inclusive as futuras" existe a marca '*' na
       lista. Lista vazia significa ninguem — nao significa todos. */
 var TODAS_UN='*';
+/* ==========================================================
+   PARA QUEM ESTE CADASTRO ESTA LIBERADO, EM UMA LINHA
+
+   Serve a quem enxerga a rede inteira — a matriz. Item liberado para
+   todo mundo nao ganha etiqueta: seria ruido em cima de 43 produtos.
+   Item de uma unidade so ganha o nome dela, que e o que distingue duas
+   linhas parecidas na lista.
+   ========================================================== */
+function rotuloUnidades(item){
+  try{
+    var l=item&&item.sucursais;
+    if(!l||!l.length)return '';
+    if(l.indexOf(TODAS_UN)>=0)return '';
+    var eu=lojaAtualId();
+    if(!eu||!ehSucMatriz(eu))return '';   /* na unidade, tudo o que ela ve e dela */
+    if(l.length===1)return sucNome(l[0]);
+    return l.length+' unidades';
+  }catch(e){ return ''; }
+}
 function marcadoTodas(item){
   var l=(item&&item.sucursais)||[];
   return l.indexOf(TODAS_UN)>=0;

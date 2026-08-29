@@ -6133,6 +6133,11 @@ body.semRolagem{overflow:hidden}
   margin:0 12px 10px;flex:none;z-index:auto}
 #barraAvisos.noFluxo .avisoGrav{box-shadow:0 2px 10px rgba(0,0,0,.14)}
 
+/* de quem e a categoria, quando a matriz olha a rede inteira */
+.catRow .nm{display:flex;flex-direction:column;gap:1px;min-width:0}
+.catRow .catUnid{font-size:10px;color:var(--ink-3);font-weight:500;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 </style>
 </head>
 <body>
@@ -12106,7 +12111,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V225.0.0';
+var VERSAO='V226.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -12690,7 +12695,18 @@ function renderCategorias(){
        ' onclick="event.stopPropagation();moverCat(\''+c.id+'\',1)">▼</button>'+
     '</span>'+
     (c.cor?'<span style="width:9px;height:9px;border-radius:50%;background:'+c.cor+';flex:none"></span>':'')+
-    '<span class="nm">'+E(c.nome)+'</span>'+
+    '<span class="nm">'+E(c.nome)+
+      /* ==========================================================
+         DE QUEM E ESTA CATEGORIA
+
+         A matriz enxerga o cadastro da rede inteira. Duas categorias
+         parecidas, uma de cada unidade, viravam duas linhas iguais na
+         tela — e a diferenca entre elas so aparecia depois de clicar.
+         Agora a propria linha diz de quem ela e.
+         ========================================================== */
+      (typeof rotuloUnidades==='function'&&rotuloUnidades(c)
+        ?'<small class="catUnid">'+E(rotuloUnidades(c))+'</small>':'')+
+    '</span>'+
     '<button class="sw'+(c.ativo!==false?' on':'')+'" onclick="event.stopPropagation();toggleCat(\''+c.id+'\')"></button>'+
     '<span class="swLb'+(c.ativo!==false?' on':'')+'">'+(c.ativo!==false?'Ativo':'Inativo')+'</span>'+
     '<button class="dots" data-pop="1" onclick="event.stopPropagation();menuCat(event,\''+c.id+'\')">'+sv('dots',16)+'</button>'+
@@ -12813,6 +12829,27 @@ function formCategoria(id){
   modal((c?'Editar categoria':'Cadastrar categoria'),corpo,'Salvar',function(){
     var nome=$('cNome').value.trim();
     if(!nome){toast('Informe o nome da categoria.');return false;}
+    /* ==========================================================
+       DUAS CATEGORIAS COM O MESMO NOME — A RAIZ DO "O PRODUTO SUMIU"
+
+       Em 28/08/2026 existiam duas categorias chamadas "Taxa de Entrega":
+       uma com o produto dentro, liberada so para Santa Fe do Sul, e uma
+       vazia, liberada para todas as unidades. Na tela elas sao duas
+       linhas identicas. O Rafael clicava na vazia, nao encontrava o
+       produto, e a conclusao possivel era uma so: "o sistema apagou meu
+       produto". O produto estava inteiro na nuvem, na outra.
+
+       Nao ha o que ganhar em ter duas categorias com o mesmo nome, e ha
+       muito a perder. Agora o sistema simplesmente nao deixa criar.
+       ========================================================== */
+    var _cmp=function(x){return String(x||'').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')};
+    var _igual=(DB.categorias||[]).find(function(x){
+      return x&&(!c||x.id!==c.id)&&_cmp(x.nome)===_cmp(nome);});
+    if(_igual){
+      toast('Já existe a categoria "'+_igual.nome+'". Use outro nome ou edite a que existe.');
+      return false;
+    }
     var alvo;
     if(c){c.nome=nome;c.impressao=$('cImp').value;c.imposto=$('cImp2').value;
       c.cor=tmp.cor;c.imagem=tmp.imagem;alvo=c;}
@@ -14899,6 +14936,25 @@ function ehSucMatriz(id){
       Para dizer "todas, inclusive as futuras" existe a marca '*' na
       lista. Lista vazia significa ninguem — nao significa todos. */
 var TODAS_UN='*';
+/* ==========================================================
+   PARA QUEM ESTE CADASTRO ESTA LIBERADO, EM UMA LINHA
+
+   Serve a quem enxerga a rede inteira — a matriz. Item liberado para
+   todo mundo nao ganha etiqueta: seria ruido em cima de 43 produtos.
+   Item de uma unidade so ganha o nome dela, que e o que distingue duas
+   linhas parecidas na lista.
+   ========================================================== */
+function rotuloUnidades(item){
+  try{
+    var l=item&&item.sucursais;
+    if(!l||!l.length)return '';
+    if(l.indexOf(TODAS_UN)>=0)return '';
+    var eu=lojaAtualId();
+    if(!eu||!ehSucMatriz(eu))return '';   /* na unidade, tudo o que ela ve e dela */
+    if(l.length===1)return sucNome(l[0]);
+    return l.length+' unidades';
+  }catch(e){ return ''; }
+}
 function marcadoTodas(item){
   var l=(item&&item.sucursais)||[];
   return l.indexOf(TODAS_UN)>=0;
@@ -18889,9 +18945,18 @@ function renderVenda(){
              (!canal||disponivelNo(p,canal));
     });
   }
+  /* ==========================================================
+     CATEGORIA SEM NADA PARA VENDER NAO ENTRA NA VENDA
+
+     A regra anterior deixava a categoria VAZIA a vista, pensando em
+     quem esta montando o cardapio. Na loja isso vira armadilha: em
+     28/08/2026 uma categoria duplicada, sem produto nenhum, aparecia na
+     frente de caixa; o operador clicava e nao havia nada. Categoria
+     vazia nao tem o que fazer numa tela de venda — ela continua
+     inteira na Gestao de Cardapio, que e onde se monta o cardapio.
+     ========================================================== */
   var cats=DB.categorias.filter(function(c){
     if(c.ativo===false)return false;
-    if(!prodsDaCategoria(c.id,'').length)return true;   /* vazia: continua a vista */
     return prodsDaCategoria(c.id,canalPDV).length>0;
   }).sort(function(a,b){return a.ordem-b.ordem});
   /* sem "Todos", a tela precisa abrir em alguma categoria */
@@ -24176,6 +24241,94 @@ function copiarFila(){
    Uma tabela do que sumiu, com botao de copiar. E o que a loja manda
    quando o cadastro desaparece — em vez de eu adivinhar de longe.
    ========================================================== */
+/* ==========================================================
+   CONFERENCIA DO CADASTRO — O QUE VIRA RELATO DE "SUMIU"
+
+   Em 28 e 29/08/2026 o mesmo relato chegou duas vezes: "o produto
+   sumiu". Nas duas, nada tinha sumido — havia DUAS categorias com o
+   mesmo nome, uma com o produto e outra vazia, e a vazia era a que
+   estava sendo aberta.
+
+   Esse tipo de coisa nao aparece em teste nenhum: o codigo esta certo,
+   o dado e que esta ambiguo. E so aparece quando ja virou problema na
+   loja. Aqui o sistema passa a olhar o proprio cadastro e dizer o que
+   esta ambiguo ANTES de alguem tropecar:
+
+   - nome repetido (categoria, produto, insumo, ficha);
+   - categoria sem produto nenhum;
+   - produto apontando para uma categoria que nao existe;
+   - produto que nao esta liberado para unidade nenhuma — ninguem ve.
+
+   Nao conserta nada sozinho, de proposito: dado de cadastro e decisao
+   do dono. Ele mostra, com nome e numero, e diz o que fazer.
+   ========================================================== */
+function conferirCadastro(){
+  var achados=[];
+  function cmp(x){ return String(x||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+  function repetidos(col,rotulo){
+    var por={},lista=(DB[col]||[]);
+    lista.forEach(function(x){
+      if(!x||x.ativo===false)return;
+      var k=cmp(x.nome); if(!k)return;
+      (por[k]=por[k]||[]).push(x);
+    });
+    Object.keys(por).forEach(function(k){
+      if(por[k].length<2)return;
+      achados.push({tipo:'nome repetido',grave:true,
+        o:rotulo+': '+por[k].length+'x "'+por[k][0].nome+'"',
+        faca:'São '+por[k].length+' com o mesmo nome. Abra a Gestão de Cardápio, '+
+             'veja qual tem o conteúdo certo e apague ou renomeie as outras.'});
+    });
+  }
+  try{
+    repetidos('categorias','Categoria');
+    repetidos('produtos','Produto');
+    repetidos('insumos','Ingrediente');
+    repetidos('fichas','Ficha técnica');
+
+    var prods=(DB.produtos||[]).filter(function(p){return p&&p.ativo!==false});
+    (DB.categorias||[]).forEach(function(c){
+      if(!c||c.ativo===false)return;
+      var n=prods.filter(function(p){return p.categoriaId===c.id}).length;
+      if(!n)achados.push({tipo:'categoria vazia',grave:false,
+        o:'Categoria "'+c.nome+'" está sem nenhum produto',
+        faca:'Ela não aparece na frente de caixa enquanto estiver vazia. '+
+             'Cadastre um produto nela ou apague a categoria.'});
+    });
+    prods.forEach(function(p){
+      var c=(DB.categorias||[]).find(function(x){return x.id===p.categoriaId});
+      if(!c)achados.push({tipo:'sem categoria',grave:true,
+        o:'Produto "'+p.nome+'" aponta para uma categoria que não existe',
+        faca:'Abra o produto e escolha a categoria dele — assim ele volta a aparecer.'});
+      if(p.sucursais&&p.sucursais.length===0)
+        achados.push({tipo:'sem unidade',grave:true,
+          o:'Produto "'+p.nome+'" não está liberado para nenhuma unidade',
+          faca:'Abra o produto e marque as unidades que podem vendê-lo.'});
+    });
+  }catch(e){ _quieto(e,'conferirCadastro'); }
+  return achados;
+}
+function pintaCadastro(){
+  var l=[];
+  try{ l=conferirCadastro(); }catch(e){ _quieto(e,'pintaCadastro'); }
+  if(!l.length)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
+    '<h3>Conferência do cadastro</h3><div class="hint">Nenhum nome repetido, '+
+    'nenhuma categoria vazia, nenhum produto solto. É daqui que costuma sair '+
+    'o relato de "o produto sumiu".</div></div>';
+  var graves=l.filter(function(x){return x.grave}).length;
+  return '<div class="blk" style="max-width:none;padding:0;margin-bottom:12px">'+
+   '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
+    '<b>Conferência do cadastro</b> '+
+    '<small style="color:var(--ink-3)">'+l.length+' ponto(s) para olhar'+
+    (graves?' · '+graves+' que confundem quem usa':'')+'</small></div>'+
+   '<table class="fmTab"><thead><tr><th style="width:130px">O quê</th>'+
+   '<th>Onde</th><th style="width:38%">O que fazer</th></tr></thead><tbody>'+
+   l.slice(0,40).map(function(x){
+     return '<tr><td><b class="'+(x.grave?'vr':'')+'">'+E(x.tipo)+'</b></td>'+
+      '<td>'+E(x.o)+'</td><td><small>'+E(x.faca)+'</small></td></tr>';
+   }).join('')+'</tbody></table></div>';
+}
 function pintaSumicos(){
   var l=(DB._sumicos||[]);
   if(!l.length)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
@@ -24292,6 +24445,7 @@ function telaDiagnosticoSistema(){
    pintaLiberacoes()+
    pintaFilaPendente()+
    pintaSumicos()+
+   pintaCadastro()+
    (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
      '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
       '<b>O que segurou a tela</b> '+

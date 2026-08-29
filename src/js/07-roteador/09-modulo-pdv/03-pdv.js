@@ -202,9 +202,18 @@ function renderVenda(){
              (!canal||disponivelNo(p,canal));
     });
   }
+  /* ==========================================================
+     CATEGORIA SEM NADA PARA VENDER NAO ENTRA NA VENDA
+
+     A regra anterior deixava a categoria VAZIA a vista, pensando em
+     quem esta montando o cardapio. Na loja isso vira armadilha: em
+     28/08/2026 uma categoria duplicada, sem produto nenhum, aparecia na
+     frente de caixa; o operador clicava e nao havia nada. Categoria
+     vazia nao tem o que fazer numa tela de venda — ela continua
+     inteira na Gestao de Cardapio, que e onde se monta o cardapio.
+     ========================================================== */
   var cats=DB.categorias.filter(function(c){
     if(c.ativo===false)return false;
-    if(!prodsDaCategoria(c.id,'').length)return true;   /* vazia: continua a vista */
     return prodsDaCategoria(c.id,canalPDV).length>0;
   }).sort(function(a,b){return a.ordem-b.ordem});
   /* sem "Todos", a tela precisa abrir em alguma categoria */

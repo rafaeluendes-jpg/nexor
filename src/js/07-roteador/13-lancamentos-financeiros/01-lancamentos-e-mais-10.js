@@ -1700,6 +1700,94 @@ function copiarFila(){
    Uma tabela do que sumiu, com botao de copiar. E o que a loja manda
    quando o cadastro desaparece — em vez de eu adivinhar de longe.
    ========================================================== */
+/* ==========================================================
+   CONFERENCIA DO CADASTRO — O QUE VIRA RELATO DE "SUMIU"
+
+   Em 28 e 29/08/2026 o mesmo relato chegou duas vezes: "o produto
+   sumiu". Nas duas, nada tinha sumido — havia DUAS categorias com o
+   mesmo nome, uma com o produto e outra vazia, e a vazia era a que
+   estava sendo aberta.
+
+   Esse tipo de coisa nao aparece em teste nenhum: o codigo esta certo,
+   o dado e que esta ambiguo. E so aparece quando ja virou problema na
+   loja. Aqui o sistema passa a olhar o proprio cadastro e dizer o que
+   esta ambiguo ANTES de alguem tropecar:
+
+   - nome repetido (categoria, produto, insumo, ficha);
+   - categoria sem produto nenhum;
+   - produto apontando para uma categoria que nao existe;
+   - produto que nao esta liberado para unidade nenhuma — ninguem ve.
+
+   Nao conserta nada sozinho, de proposito: dado de cadastro e decisao
+   do dono. Ele mostra, com nome e numero, e diz o que fazer.
+   ========================================================== */
+function conferirCadastro(){
+  var achados=[];
+  function cmp(x){ return String(x||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+  function repetidos(col,rotulo){
+    var por={},lista=(DB[col]||[]);
+    lista.forEach(function(x){
+      if(!x||x.ativo===false)return;
+      var k=cmp(x.nome); if(!k)return;
+      (por[k]=por[k]||[]).push(x);
+    });
+    Object.keys(por).forEach(function(k){
+      if(por[k].length<2)return;
+      achados.push({tipo:'nome repetido',grave:true,
+        o:rotulo+': '+por[k].length+'x "'+por[k][0].nome+'"',
+        faca:'São '+por[k].length+' com o mesmo nome. Abra a Gestão de Cardápio, '+
+             'veja qual tem o conteúdo certo e apague ou renomeie as outras.'});
+    });
+  }
+  try{
+    repetidos('categorias','Categoria');
+    repetidos('produtos','Produto');
+    repetidos('insumos','Ingrediente');
+    repetidos('fichas','Ficha técnica');
+
+    var prods=(DB.produtos||[]).filter(function(p){return p&&p.ativo!==false});
+    (DB.categorias||[]).forEach(function(c){
+      if(!c||c.ativo===false)return;
+      var n=prods.filter(function(p){return p.categoriaId===c.id}).length;
+      if(!n)achados.push({tipo:'categoria vazia',grave:false,
+        o:'Categoria "'+c.nome+'" está sem nenhum produto',
+        faca:'Ela não aparece na frente de caixa enquanto estiver vazia. '+
+             'Cadastre um produto nela ou apague a categoria.'});
+    });
+    prods.forEach(function(p){
+      var c=(DB.categorias||[]).find(function(x){return x.id===p.categoriaId});
+      if(!c)achados.push({tipo:'sem categoria',grave:true,
+        o:'Produto "'+p.nome+'" aponta para uma categoria que não existe',
+        faca:'Abra o produto e escolha a categoria dele — assim ele volta a aparecer.'});
+      if(p.sucursais&&p.sucursais.length===0)
+        achados.push({tipo:'sem unidade',grave:true,
+          o:'Produto "'+p.nome+'" não está liberado para nenhuma unidade',
+          faca:'Abra o produto e marque as unidades que podem vendê-lo.'});
+    });
+  }catch(e){ _quieto(e,'conferirCadastro'); }
+  return achados;
+}
+function pintaCadastro(){
+  var l=[];
+  try{ l=conferirCadastro(); }catch(e){ _quieto(e,'pintaCadastro'); }
+  if(!l.length)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
+    '<h3>Conferência do cadastro</h3><div class="hint">Nenhum nome repetido, '+
+    'nenhuma categoria vazia, nenhum produto solto. É daqui que costuma sair '+
+    'o relato de "o produto sumiu".</div></div>';
+  var graves=l.filter(function(x){return x.grave}).length;
+  return '<div class="blk" style="max-width:none;padding:0;margin-bottom:12px">'+
+   '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
+    '<b>Conferência do cadastro</b> '+
+    '<small style="color:var(--ink-3)">'+l.length+' ponto(s) para olhar'+
+    (graves?' · '+graves+' que confundem quem usa':'')+'</small></div>'+
+   '<table class="fmTab"><thead><tr><th style="width:130px">O quê</th>'+
+   '<th>Onde</th><th style="width:38%">O que fazer</th></tr></thead><tbody>'+
+   l.slice(0,40).map(function(x){
+     return '<tr><td><b class="'+(x.grave?'vr':'')+'">'+E(x.tipo)+'</b></td>'+
+      '<td>'+E(x.o)+'</td><td><small>'+E(x.faca)+'</small></td></tr>';
+   }).join('')+'</tbody></table></div>';
+}
 function pintaSumicos(){
   var l=(DB._sumicos||[]);
   if(!l.length)return '<div class="blk" style="max-width:none;margin-bottom:12px">'+
@@ -1816,6 +1904,7 @@ function telaDiagnosticoSistema(){
    pintaLiberacoes()+
    pintaFilaPendente()+
    pintaSumicos()+
+   pintaCadastro()+
    (TRAVAS.length?'<div class="blk" style="max-width:none;padding:0;margin-bottom:12px;overflow:auto">'+
      '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">'+
       '<b>O que segurou a tela</b> '+

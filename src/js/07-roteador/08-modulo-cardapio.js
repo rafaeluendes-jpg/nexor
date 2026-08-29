@@ -38,7 +38,18 @@ function renderCategorias(){
        ' onclick="event.stopPropagation();moverCat(\''+c.id+'\',1)">▼</button>'+
     '</span>'+
     (c.cor?'<span style="width:9px;height:9px;border-radius:50%;background:'+c.cor+';flex:none"></span>':'')+
-    '<span class="nm">'+E(c.nome)+'</span>'+
+    '<span class="nm">'+E(c.nome)+
+      /* ==========================================================
+         DE QUEM E ESTA CATEGORIA
+
+         A matriz enxerga o cadastro da rede inteira. Duas categorias
+         parecidas, uma de cada unidade, viravam duas linhas iguais na
+         tela — e a diferenca entre elas so aparecia depois de clicar.
+         Agora a propria linha diz de quem ela e.
+         ========================================================== */
+      (typeof rotuloUnidades==='function'&&rotuloUnidades(c)
+        ?'<small class="catUnid">'+E(rotuloUnidades(c))+'</small>':'')+
+    '</span>'+
     '<button class="sw'+(c.ativo!==false?' on':'')+'" onclick="event.stopPropagation();toggleCat(\''+c.id+'\')"></button>'+
     '<span class="swLb'+(c.ativo!==false?' on':'')+'">'+(c.ativo!==false?'Ativo':'Inativo')+'</span>'+
     '<button class="dots" data-pop="1" onclick="event.stopPropagation();menuCat(event,\''+c.id+'\')">'+sv('dots',16)+'</button>'+
@@ -161,6 +172,27 @@ function formCategoria(id){
   modal((c?'Editar categoria':'Cadastrar categoria'),corpo,'Salvar',function(){
     var nome=$('cNome').value.trim();
     if(!nome){toast('Informe o nome da categoria.');return false;}
+    /* ==========================================================
+       DUAS CATEGORIAS COM O MESMO NOME — A RAIZ DO "O PRODUTO SUMIU"
+
+       Em 28/08/2026 existiam duas categorias chamadas "Taxa de Entrega":
+       uma com o produto dentro, liberada so para Santa Fe do Sul, e uma
+       vazia, liberada para todas as unidades. Na tela elas sao duas
+       linhas identicas. O Rafael clicava na vazia, nao encontrava o
+       produto, e a conclusao possivel era uma so: "o sistema apagou meu
+       produto". O produto estava inteiro na nuvem, na outra.
+
+       Nao ha o que ganhar em ter duas categorias com o mesmo nome, e ha
+       muito a perder. Agora o sistema simplesmente nao deixa criar.
+       ========================================================== */
+    var _cmp=function(x){return String(x||'').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')};
+    var _igual=(DB.categorias||[]).find(function(x){
+      return x&&(!c||x.id!==c.id)&&_cmp(x.nome)===_cmp(nome);});
+    if(_igual){
+      toast('Já existe a categoria "'+_igual.nome+'". Use outro nome ou edite a que existe.');
+      return false;
+    }
     var alvo;
     if(c){c.nome=nome;c.impressao=$('cImp').value;c.imposto=$('cImp2').value;
       c.cor=tmp.cor;c.imagem=tmp.imagem;alvo=c;}

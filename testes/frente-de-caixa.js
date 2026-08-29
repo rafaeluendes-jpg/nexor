@@ -245,8 +245,15 @@ function semear(w) {
   w.PDV.tipo = 'loja'; w.PDV.cat = null; w.renderVenda(); await esp(60);
   t('categoria só de delivery NÃO aparece no pedido na loja',
     cats().indexOf('Taxa de Entrega') < 0, cats().join(', '));
-  t('e a categoria ainda sem produto continua à vista',
-    cats().indexOf('Categoria nova') >= 0, cats().join(', '));
+  /* REGRA MUDADA EM 29/08/2026, DE PROPOSITO.
+     Antes: categoria vazia continuava a vista, pensando em quem esta
+     montando o cardapio. Na loja isso virou armadilha — uma categoria
+     duplicada, sem produto nenhum, aparecia na frente de caixa e o
+     operador clicava nela para encontrar o vazio. Categoria vazia nao
+     tem o que fazer numa tela de venda; ela continua inteira na Gestao
+     de Cardapio, que e onde se monta o cardapio. */
+  t('categoria sem produto nenhum NÃO aparece na tela de venda',
+    cats().indexOf('Categoria nova') < 0, cats().join(', '));
 
   w.PDV.tipo = 'entrega'; w.PDV.cat = null; w.renderVenda(); await esp(60);
   t('na entrega ela aparece', cats().indexOf('Taxa de Entrega') >= 0, cats().join(', '));
