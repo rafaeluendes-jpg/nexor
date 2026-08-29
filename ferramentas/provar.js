@@ -941,6 +941,128 @@ function servir() {
     var e = document.getElementById('mdOv'); if (e) e.remove();
   });
 
+  console.log('\n── 10e. A matriz tem mais de um dono\n');
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    /* a nuvem está desligada nas provas: o que se mede aqui é a TELA —
+       as linhas dos sócios, os campos e os botões que ela monta */
+    _appPublicados = [
+      { ref: (DB.usuarios || [{}])[0].id, login: 'rafael', tem_senha: true, ativo: true },
+      { ref: 'soc_a1', login: 'carlos', tem_senha: true, ativo: true },
+      { ref: 'soc_b2', login: 'marcia', tem_senha: false, ativo: true }
+    ];
+    abrir('loja', 'canais');
+    try { CN2.aba = 'app'; telaCanaisIntegracao(); } catch (er) { return { erro: String(er) }; }
+    var linhas = [...document.querySelectorAll('#content table.etTab tbody tr')];
+    return {
+      linhas: linhas.length,
+      socios: linhas.filter(l => /sócio — só o aplicativo/.test(l.textContent)).length,
+      temLoginCarlos: !!document.getElementById('lo_soc_a1'),
+      temSenhaCarlos: !!document.getElementById('sa_soc_a1'),
+      botaoAdicionar: [...document.querySelectorAll('#content button')]
+        .some(b => /Adicionar sócio/.test(b.textContent)),
+      publicarMarcia: [...document.querySelectorAll('#content button')]
+        .some(b => /Publicar/.test(b.textContent) && /soc_b2/.test(b.getAttribute('onclick') || '')),
+      republicarCarlos: [...document.querySelectorAll('#content button')]
+        .some(b => /Republicar/.test(b.textContent) && /soc_a1/.test(b.getAttribute('onclick') || '')),
+      enviarCarlos: [...document.querySelectorAll('#content button')]
+        .some(b => /Enviar/.test(b.textContent) && /soc_a1/.test(b.getAttribute('onclick') || '')),
+      enviarMarcia: [...document.querySelectorAll('#content button')]
+        .some(b => /Enviar/.test(b.textContent) && /soc_b2/.test(b.getAttribute('onclick') || '')),
+      removerVermelho: [...document.querySelectorAll('#content button.rdB')]
+        .some(b => /removerSocioApp/.test(b.getAttribute('onclick') || '')),
+      lojasDoSocio: (linhas.find(l => /carlos/.test(l.textContent)) || {}).textContent || ''
+    };
+  });
+  t('a aba Aplicativo Joia monta com os sócios', !r.erro, r.erro);
+  t('os dois sócios aparecem na mesma tabela', r.socios === 2, r.socios);
+  t('cada sócio tem campo de login', r.temLoginCarlos === true);
+  t('e campo de senha na própria linha', r.temSenhaCarlos === true);
+  t('existe o botão "Adicionar sócio"', r.botaoAdicionar === true);
+  t('sócio sem senha aparece como Publicar', r.publicarMarcia === true);
+  t('sócio já liberado aparece como Republicar', r.republicarCarlos === true);
+  t('e só o liberado tem o botão Enviar',
+    r.enviarCarlos === true && r.enviarMarcia === false,
+    'carlos=' + r.enviarCarlos + ' marcia=' + r.enviarMarcia);
+  t('o botão de tirar acesso usa a cor de perigo do sistema (rdB)',
+    r.removerVermelho === true);
+  t('o sócio vê todas as lojas', /todas/.test(r.lojasDoSocio));
+  await pg.screenshot({ path: FOTOS + '/app-socios.png' });
+
+  /* o cadastro do sócio: a janela e as recusas */
+  r = await pg.evaluate(() => {
+    /* a janela só abre com a nuvem ligada — sem ela não há onde publicar.
+       Nas provas a nuvem está desligada de propósito, então liga só aqui. */
+    var _lig = NUVEM.ligada; NUVEM.ligada = true;
+    novoSocioApp();
+    NUVEM.ligada = _lig;
+    var ov = document.getElementById('mdOv');
+    if (!ov) return { semJanela: true };
+    var res = {};
+    var tenta = function (lg, sn) {
+      document.getElementById('soLogin').value = lg;
+      document.getElementById('soSenha').value = sn;
+      document.getElementById('mdOk').click();
+      return !!document.getElementById('mdOv');   /* janela aberta = recusou */
+    };
+    res.loginCurto = tenta('ab', '1234');
+    res.loginComEspaco = tenta('ana maria', '1234');
+    res.senhaCurta = tenta('ana', '123');
+    res.loginRepetidoDeSocio = tenta('carlos', '1234');
+    /* o login de um usuário do sistema DE VERDADE, tirado do cadastro */
+    var u0 = (DB.usuarios || [])[0] || {};
+    res.usado = String(u0.loginApp || u0.login || '').toLowerCase();
+    res.loginRepetidoDeUsuario = res.usado ? tenta(res.usado, '1234') : true;
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    return res;
+  });
+  t('a janela de novo sócio abre', !r.semJanela);
+  t('login com menos de 3 letras é recusado', r.loginCurto === true);
+  t('login com espaço é recusado', r.loginComEspaco === true);
+  t('senha com menos de 4 é recusada', r.senhaCurta === true);
+  t('login repetido de outro sócio é recusado', r.loginRepetidoDeSocio === true);
+  t('login repetido de um usuário do sistema também',
+    r.loginRepetidoDeUsuario === true, 'testado com "' + r.usado + '"');
+
+  /* publicar direto na linha: as mesmas recusas, sem tocar na nuvem */
+  r = await pg.evaluate(() => {
+    var res = {}, avisos = [];
+    var _t = window.toast; window.toast = function (m) { avisos.push(String(m)); };
+    var _g = window.gravarSocioApp, gravou = null;
+    window.gravarSocioApp = function (ref, lg, sn) { gravou = { ref: ref, lg: lg, sn: sn }; };
+    document.getElementById('lo_soc_a1').value = 'ab';
+    publicarSocioApp('soc_a1'); res.curto = !gravou;
+    var u0 = (DB.usuarios || [])[0] || {};
+    document.getElementById('lo_soc_a1').value =
+      String(u0.loginApp || u0.login || 'carlos').toLowerCase();
+    publicarSocioApp('soc_a1'); res.repetido = !gravou;
+    document.getElementById('lo_soc_a1').value = 'carlos2';
+    document.getElementById('sa_soc_a1').value = '';
+    publicarSocioApp('soc_a1'); res.semSenhaMantem = !!gravou;   /* já tem senha: pode */
+    gravou = null;
+    document.getElementById('lo_soc_b2').value = 'marcia';
+    document.getElementById('sa_soc_b2').value = '';
+    publicarSocioApp('soc_b2'); res.novoExigeSenha = !gravou;    /* não tem: exige */
+    gravou = null;
+    document.getElementById('sa_soc_b2').value = 'abcd';
+    publicarSocioApp('soc_b2'); res.comSenhaPassa = !!gravou && gravou.sn === 'abcd';
+    res.limpouCampo = document.getElementById('sa_soc_b2').value === '';
+    window.toast = _t; window.gravarSocioApp = _g;
+    res.avisos = avisos.slice(0, 3);
+    return res;
+  });
+  t('publicar com login curto não sobe nada', r.curto === true);
+  t('publicar com login de outra pessoa não sobe nada', r.repetido === true);
+  t('sócio que já tem senha pode republicar sem digitar de novo',
+    r.semSenhaMantem === true);
+  t('sócio novo sem senha é barrado', r.novoExigeSenha === true);
+  t('com senha válida, sobe', r.comSenhaPassa === true);
+  t('e a senha some da tela depois de enviada', r.limpouCampo === true);
+  await pg.evaluate(() => {
+    _appPublicados = null;
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+  });
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

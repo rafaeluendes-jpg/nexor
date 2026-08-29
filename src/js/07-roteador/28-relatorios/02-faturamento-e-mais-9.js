@@ -1267,7 +1267,46 @@ function blocoApp(){
          ?' <button class="btnP2" title="Enviar o acesso pelo WhatsApp" '+
           'onclick="enviarLinkAppDe(\''+u.id+'\')">'+sv('link',12)+' Enviar</button>':'')+
       '</td></tr>';
+    }).join('')+
+    /* os sócios entram na mesma tabela, logo abaixo */
+    sociosApp().map(function(x){
+      var ref=String(x.ref||'');
+      return '<tr>'+
+      '<td><b>'+E(x.login||'sócio')+'</b>'+
+       '<div class="hint" style="margin:0">sócio — só o aplicativo</div></td>'+
+      '<td><input class="senhaApp" id="lo_'+E(ref)+'" type="text" '+
+       'value="'+E(x.login||'')+'" autocomplete="off" placeholder="ex: carlos"></td>'+
+      '<td>todas</td>'+
+      '<td style="text-align:center">'+((x.tem_senha&&x.ativo!==false)
+        ?'<span class="badge2">'+sv('check',10)+' liberado</span>'
+        :'<span class="badge2 am">não publicado</span>')+'</td>'+
+      '<td><input class="senhaApp" id="sa_'+E(ref)+'" type="text" '+
+       'placeholder="'+(x.tem_senha?'trocar senha':'senha do app')+'" '+
+       'autocomplete="off"></td>'+
+      '<td><button class="btnP2" onclick="publicarSocioApp(\''+E(ref)+'\')">'+
+       sv('cloud',12)+' '+(x.tem_senha?'Republicar':'Publicar')+'</button>'+
+       (x.tem_senha?' <button class="btnP2" title="Enviar o acesso pelo WhatsApp" '+
+         'onclick="enviarLinkSocioApp(\''+E(ref)+'\')">'+sv('link',12)+' Enviar</button>':'')+
+       /* a classe de perigo do btnP2 e `rdB`; `rd` existe para outros
+          elementos e aqui sairia um botao sem cor nenhuma */
+       ' <button class="btnP2 rdB" title="Tirar o acesso deste sócio" '+
+        'onclick="removerSocioApp(\''+E(ref)+'\')">'+sv('trash',12)+'</button>'+
+      '</td></tr>';
     }).join('')+'</tbody></table>'+
+    /* ==========================================================
+       A JOIA TEM MAIS DE UM DONO
+
+       A lista acima sai de `DB.usuarios`: um acesso de aplicativo por
+       usuario do sistema. Para a loja isso basta — cada unidade tem um
+       dono. Para a matriz nao: sao socios, varias pessoas, e nenhuma
+       delas precisa de usuario do SISTEMA so para ver o faturamento no
+       celular. Criar um usuario para cada socio seria dar PDV, estoque
+       e financeiro a quem so quer olhar numero.
+       ========================================================== */
+    '<div style="padding:12px 14px 0">'+
+     '<button class="btnP2 ok" onclick="novoSocioApp()">'+sv('plus',13)+
+     ' Adicionar sócio</button>'+
+    '</div>'+
     '<div class="hint" style="padding:14px">'+
     '<b>O login e a senha aqui são só do aplicativo</b> — não são os de entrar no sistema. '+
     'Como serve apenas para ver os números no celular, pode ser simples: '+
@@ -1276,7 +1315,9 @@ function blocoApp(){
     'espaço e com no mínimo 3 letras.<br>'+
     'Preencha login e senha na linha e clique em Publicar. Republique sempre que '+
     'trocar a senha, o login ou as lojas.<br>'+
-    'Para escolher o que cada um vê, use <b>Usuários e Permissões</b>, aba <b>Aplicativo</b>.</div>'+
+    'Para escolher o que cada um vê, use <b>Usuários e Permissões</b>, aba <b>Aplicativo</b>.<br>'+
+    '<b>Sócio</b> é acesso só do aplicativo: vê todas as lojas no celular e '+
+    'não entra no sistema. Use para os outros donos da Joia.</div>'+
     '</div></div>'+
    '<div class="cfgCol estreita"><div class="colH">Link para enviar</div>'+
     '<div class="colB" style="padding:16px">'+
@@ -1347,6 +1388,140 @@ function estaPublicadoNoApp(u){
     return !!(e&&e.tem_senha&&e.ativo!==false);
   }
   return !!u.publicadoEm;
+}
+/* ==========================================================
+   O SOCIO E UM ACESSO QUE SO EXISTE NO APLICATIVO
+
+   Mora na tabela `app_usuarios` do banco, com a referencia comecando
+   por `soc_`, e enxerga todas as lojas — como a matriz. Nao tem
+   usuario do sistema: nao entra no Joia, nao aparece em Usuarios e
+   Permissoes, nao lanca nada.
+
+   A lista deles vem do PROPRIO BANCO (`app_publicados`), nao de uma
+   copia no aparelho. Assim o socio cadastrado no computador da matriz
+   aparece tambem no computador da loja, sem depender de sincronizacao
+   nova e sem coluna nova em tabela nenhuma.
+   ========================================================== */
+function sociosApp(){
+  return (_appPublicados||[]).filter(function(x){
+    return x&&String(x.ref||'').indexOf('soc_')===0;
+  });
+}
+function novoSocioApp(){
+  if(!NUVEM.ligada){toast('Ligue a nuvem para cadastrar um sócio.');return;}
+  modal('Novo sócio no aplicativo',
+   '<div class="mdB">'+
+    '<div class="hint" style="margin-bottom:12px">Acesso só do aplicativo: a pessoa vê '+
+    'o faturamento de todas as lojas no celular e <b>não entra no sistema</b>.</div>'+
+    '<div class="fld2"><label>Login do aplicativo *</label>'+
+     '<input id="soLogin" placeholder="ex: carlos" autocomplete="off">'+
+     '<div class="hint">Sem espaço, no mínimo 3 letras. É o que a pessoa digita no celular.</div></div>'+
+    '<div class="fld2" style="margin:0"><label>Senha do aplicativo *</label>'+
+     '<input id="soSenha" placeholder="mínimo 4 caracteres" autocomplete="off"></div>'+
+   '</div>','Cadastrar',function(){
+    var lg=String(($('soLogin')||{}).value||'').trim().toLowerCase();
+    var sn=String(($('soSenha')||{}).value||'').trim();
+    if(lg.length<3){toast('O login precisa ter ao menos 3 caracteres.');return false;}
+    if(/\s/.test(lg)){toast('O login não pode ter espaço.');return false;}
+    if(sn.length<4){toast('A senha precisa ter ao menos 4 caracteres.');return false;}
+    /* dois logins iguais no aplicativo se atropelam: um entraria na conta
+       do outro sem erro nenhum */
+    var repetidoUsr=(DB.usuarios||[]).some(function(u){
+      return String(u.loginApp||u.login||'').toLowerCase()===lg; });
+    var repetidoSoc=sociosApp().some(function(x){
+      return String(x.login||'').toLowerCase()===lg; });
+    if(repetidoUsr||repetidoSoc){toast('Já existe outro acesso com esse login.');return false;}
+    gravarSocioApp('soc_'+uid('s'),lg,sn);
+    return true;
+  });
+}
+/* grava (ou regrava) o socio no banco e recarrega a lista */
+async function gravarSocioApp(ref,login,senha){
+  if(!NUVEM.ligada){toast('Ligue a nuvem para publicar o acesso.');return;}
+  try{
+    var campos={loja_id:NUVEM.loja,nome:login,login:login,
+      ativo:true,mestre:false,
+      /* `tudo` deixa explicito que ve a rede inteira. Confiar em
+         "sucursais vazio = ve tudo" amarraria o socio a uma regra que
+         um dia pode — e deve — ser apertada. */
+      tudo:true,sucursais:[],permissoes:{},cartoes:[],ref_local:ref};
+    /* PATCH primeiro, pela referencia: POST com merge substituiria a linha
+       inteira e apagaria a SENHA_HASH de quem ja existia */
+    var ja=await api('app_usuarios?ref_local=eq.'+encodeURIComponent(ref),
+                     'PATCH',campos,{'Prefer':'return=representation'});
+    if(!(Array.isArray(ja)&&ja.length))
+      await api('app_usuarios?on_conflict=login','POST',[campos],
+                {'Prefer':'resolution=merge-duplicates'});
+    if(senha){
+      var rs=await api('rpc/app_definir_senha','POST',{p_login:login,p_senha:senha});
+      var dd=Array.isArray(rs)?rs[0]:rs;
+      if(dd&&dd.erro)throw new Error(dd.erro);
+    }
+    _appPublicados=null;
+    await carregarPublicadosApp();
+    telaCanaisIntegracao();
+    toast('Sócio liberado — entra com o login "'+login+'".');
+  }catch(e){
+    var det=String((e&&(e.message||e.hint||e.details))||e||'').slice(0,140);
+    await confirmar({titulo:'Não consegui liberar o sócio',
+      texto:'O acesso não foi publicado no aplicativo.',
+      aviso:det?'Detalhe: '+E(det):'Verifique se a nuvem está ligada.',
+      ok:'Entendi',cancelar:null,tipo:'perigo'});
+  }
+}
+function publicarSocioApp(ref){
+  var x=sociosApp().find(function(y){return y.ref===ref});
+  if(!x)return;
+  var cl=$('lo_'+ref), cs=$('sa_'+ref);
+  var lg=String((cl&&cl.value)||x.login||'').trim().toLowerCase();
+  var sn=String((cs&&cs.value)||'').trim();
+  if(lg.length<3){toast('O login precisa ter ao menos 3 caracteres.');return;}
+  if(/\s/.test(lg)){toast('O login não pode ter espaço.');return;}
+  var repetido=(DB.usuarios||[]).some(function(u){
+      return String(u.loginApp||u.login||'').toLowerCase()===lg; })
+    ||sociosApp().some(function(y){
+      return y.ref!==ref&&String(y.login||'').toLowerCase()===lg; });
+  if(repetido){toast('Já existe outro acesso com esse login.');return;}
+  /* senha em branco significa "mantem a que tem" — so e obrigatoria
+     quando o acesso ainda nao tem nenhuma */
+  if(!sn&&!x.tem_senha){
+    toast('Digite a senha do aplicativo nesta linha e clique em Publicar.');return;
+  }
+  if(sn&&sn.length<4){toast('A senha precisa ter ao menos 4 caracteres.');return;}
+  if(cs)cs.value='';
+  gravarSocioApp(ref,lg,sn);
+}
+async function removerSocioApp(ref){
+  var x=sociosApp().find(function(y){return y.ref===ref});
+  if(!x)return;
+  var ok=await confirmar({titulo:'Tirar o acesso do sócio',
+    texto:E(x.login||''),
+    aviso:'Ele deixa de entrar no aplicativo. Nada do sistema muda, e o '+
+      'acesso pode ser liberado de novo depois.',
+    ok:'Tirar acesso',tipo:'perigo'});
+  if(!ok)return;
+  try{
+    /* desativa, nao apaga: assim o historico da linha continua no banco e
+       liberar de novo e so republicar */
+    await api('app_usuarios?ref_local=eq.'+encodeURIComponent(ref),
+              'PATCH',{ativo:false});
+    _appPublicados=null;
+    await carregarPublicadosApp();
+    telaCanaisIntegracao();
+    toast('Acesso do sócio retirado.');
+  }catch(e){
+    toast('Não consegui tirar o acesso: '+String((e&&e.message)||'').slice(0,60));
+  }
+}
+function enviarLinkSocioApp(ref){
+  var x=sociosApp().find(function(y){return y.ref===ref});
+  if(!x)return;
+  var msg=encodeURIComponent(
+    'Acompanhe o faturamento da Joia pelo celular 📊\n\n'+
+    'https://app.joiagest.com.br/\n\n'+
+    'Seu login: '+String(x.login||'')+'\nA senha foi combinada com você.\n\n'+
+    'Abra o link e toque em instalar para ficar como aplicativo no celular.');
+  window.open('https://wa.me/?text='+msg,'_blank');
 }
 function publicarUsuarioApp(id){
   US.sel=id;

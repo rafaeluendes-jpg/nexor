@@ -88,6 +88,8 @@ const CRITICAS = [
   'perguntaImprimirFechamento','imprimirFechamento','linhasFechamento',
   'perguntaImprimirAbertura','imprimirAbertura','linhasAbertura',
   'linhasPag','trocoDoPedido','dadosImp','montarImp',
+  'sociosApp','novoSocioApp','gravarSocioApp','publicarSocioApp',
+  'removerSocioApp','enviarLinkSocioApp','blocoApp','carregarPublicadosApp',
   'lancarFechamento','lancarTransferenciaCaixa','definirSenhaOperador',
   'moedaHTML','moedaValor','moedaSet','moedaLer','moedaFmt','arred',
   'addPag','recalcPag','finalizarVenda','travarFecharVenda','liberarFecharVenda',
