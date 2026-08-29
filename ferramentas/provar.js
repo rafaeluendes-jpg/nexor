@@ -470,15 +470,43 @@ function servir() {
         return Math.max(a, (l.txt || '').length); }, 0); };
     return { linhas48: r48.linhas.length, larg48: maior(r48), cols48: r48.cols,
              linhas32: r32.linhas.length, larg32: maior(r32), cols32: r32.cols,
-             amostra: r48.linhas.slice(0, 16).map(function (l) {
-               return l.tipo === 'linha' ? '-'.repeat(r48.cols) : (l.txt || ''); }).join('\n') };
+             corpo: r48.linhas.map(function (l) {
+               return l.tipo === 'linha' ? '-'.repeat(r48.cols) : (l.txt || ''); }).join('\n'),
+             corpo32: r32.linhas.map(function (l) {
+               return l.tipo === 'linha' ? '-'.repeat(r32.cols) : (l.txt || ''); }).join('\n') };
   });
   t('nenhuma linha passa da largura do papel de 80 mm',
     r.larg48 <= r.cols48, r.larg48 + ' > ' + r.cols48);
   t('nem na bobina estreita de 58 mm', r.larg32 <= r.cols32, r.larg32 + ' > ' + r.cols32);
   t('e o comprovante encolheu — antes eram mais de 60 linhas',
     r.linhas48 < 45, r.linhas48 + ' linhas');
-  console.log('\n' + r.amostra + '\n');
+  console.log('\n' + r.corpo + '\n');
+
+  /* o modelo é o comprovante que a rede já usa: só o que foi contado */
+  t('o título é o do comprovante da loja: REL. VALORES FISICOS',
+    /REL\. VALORES FISICOS/.test(r.corpo));
+  t('NÃO sai a coluna do sistema — o papel registra a contagem',
+    !/SISTEMA/i.test(r.corpo));
+  t('NÃO sai a coluna de diferença', !/\bDIF\b/i.test(r.corpo));
+  t('nem valor do sistema nenhum escondido em outro bloco',
+    r.corpo.indexOf('1.918,05') < 0 && r.corpo.indexOf('133,05') < 0);
+  t('tem o bloco Dinheiro, com Quant e Valor Total',
+    /\nDinheiro\n/.test(r.corpo) && /Quant\s+Valor Total/.test(r.corpo));
+  t('e o bloco Cartao', /\nCartao\n/.test(r.corpo));
+  t('cada bloco fecha com Subtotal...',
+    (r.corpo.match(/Subtotal\.\.\./g) || []).length === 2);
+  t('o dinheiro sai pelo valor CONTADO, não pelo esperado',
+    /Dinheiro\s+1\s+438,05/.test(r.corpo));
+  t('as formas de cartão saem uma por linha, pelo contado',
+    /681,00/.test(r.corpo) && /547,00/.test(r.corpo) && /466,00/.test(r.corpo));
+  t('a forma que ninguém usou não ocupa papel',
+    r.corpo.indexOf('Vale / Voucher') < 0);
+  t('o subtotal do cartão é a soma das três: 1.694,00',
+    /Subtotal\.\.\.\s+3\s+1\.694,00/.test(r.corpo));
+  t('e o Total é o total contado: 2.132,05',
+    /Total\.\.\.\.:\s+2\.132,05/.test(r.corpo));
+  t('o mesmo modelo cabe inteiro na bobina de 58 mm',
+    /REL\. VALORES FISICOS/.test(r.corpo32) && /Subtotal\.\.\./.test(r.corpo32));
 
   r = await pg.evaluate(() => {
     var cx = DB.caixas[0];
