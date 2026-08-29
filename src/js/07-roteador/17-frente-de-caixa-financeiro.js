@@ -517,6 +517,8 @@ function desenharVerCaixa(){
     '<button onclick="fecharModal()">&times;</button></div>'+
     '<div class="mdB vcWrap">'+cab+nav+'<div class="vcCorpo">'+corpo+'</div></div>'+
     '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
+    '<button class="btnP2" onclick="imprimirAbertura(\''+c.id+'\')">'+
+      sv('print2',13)+' Abertura</button>'+
     (d.fechado?'<button class="btnP2" onclick="imprimirFechamento(\''+c.id+'\')">'+
       sv('print2',13)+' Cupom</button>'+
       '<button class="btnP2" onclick="imprimirRelatorioCaixa(\''+c.id+'\')">'+

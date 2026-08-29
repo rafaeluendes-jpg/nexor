@@ -1893,6 +1893,33 @@ function perguntaImprimirFechamento(cx){
   document.body.appendChild(o);
 }
 /* ==========================================================
+   A ABERTURA TAMBEM IMPRIME
+
+   Mesma pergunta do fechamento, no outro extremo do turno. O caixa ja
+   esta aberto e gravado quando isto aparece — imprimir ou nao imprimir
+   nao muda valor nenhum. O papel serve para o operador declarar, com
+   assinatura, quanto havia na gaveta antes da primeira venda.
+   ========================================================== */
+function perguntaImprimirAbertura(cx){
+  if(!cx||!cx.id)return;
+  var h='<div class="mdB"><div class="fcRes ok" style="margin:0">'+
+    '<span>Caixa aberto com sucesso</span>'+
+    '<b>'+E(cx.aberto||'')+'</b>'+
+    '<small>aberto por '+E(cx.operador||'')+
+      (cx.turno?' — '+E(cx.turno):'')+'</small></div>'+
+    '<div class="fcRes" style="margin:10px 0 0">'+
+    '<span>Fundo de troco declarado</span>'+
+    '<b>R$ '+money(Number(cx.inicial)||0)+'</b></div>'+
+   '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox"><div class="mdH"><b>Abertura realizada</b>'+
+    '<button onclick="fecharModal()">&times;</button></div>'+h+
+    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não imprimir</button>'+
+    '<button class="btnP2 ok" onclick="fecharModal();imprimirAbertura(\''+cx.id+'\')">'+
+    sv('print2',13)+' Imprimir abertura</button></div></div>';
+  document.body.appendChild(o);
+}
+/* ==========================================================
    ESTA FUNCAO FOI APAGADA POR ENGANO NA V179 — E DERRUBOU O CAIXA
 
    `fundoSugerido()` nasceu na V176 para a abertura sugerir o valor que
@@ -2058,6 +2085,9 @@ async function _abrirCaixa(){
     toast('Caixa aberto por '+op.nome+(novoCx.turno?' — '+novoCx.turno:'')+'.');
     if(NUVEM.ligada)sincronizar();
     avisarGerente(lojaAtualId(),'abertura',msgAbertura(novoCx));
+    /* o modal do "Abrir caixa" ainda esta fechando; 120 ms e o mesmo
+       intervalo que o fechamento usa para nao empilhar dois overlays */
+    setTimeout(function(){ perguntaImprimirAbertura(novoCx); },120);
     return true;
   });
   setTimeout(function(){pedeSenhaCaixa('cx')},80);

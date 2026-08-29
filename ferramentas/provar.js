@@ -591,6 +591,95 @@ function servir() {
     var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
   });
 
+  console.log('\n── 10b. A abertura do caixa também imprime\n');
+  /* clicado de verdade: botão do PDV → modal → confirmar → oferta de imprimir */
+  await pg.evaluate(() => {
+    DB.caixas = []; DB.pedidos = []; DB.modelosImp = []; salvar();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    telaPDV();
+  });
+  await pg.waitForTimeout(300);
+  await pg.click('#content button:has-text("Abrir frente de caixa")');
+  await pg.waitForTimeout(400);
+  t('a janela de abrir caixa abriu pelo botão do PDV',
+    await pg.isVisible('#cxIni'));
+  await pg.evaluate(() => { moedaSet('cxIni', 250.5); });
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(500);
+  r = await pg.evaluate(() => {
+    var ov = document.getElementById('mdOv');
+    var cx = caixaAberto();
+    var bt = ov ? [...ov.querySelectorAll('button')]
+      .find(b => /imprimir abertura/i.test(b.textContent)) : null;
+    return { abriu: !!cx, valor: cx ? cx.inicial : null, quem: cx ? cx.operador : '',
+             temModal: !!ov, titulo: ov ? (ov.querySelector('.mdH b') || {}).textContent : '',
+             temBotao: !!bt, texto: ov ? ov.textContent : '' };
+  });
+  t('O CAIXA ABRE', r.abriu === true);
+  t('com o valor que foi digitado', r.valor === 250.5, r.valor);
+  t('a tela oferece imprimir a abertura, sem obrigar',
+    r.temModal && r.temBotao && /não imprimir/i.test(r.texto), r.titulo);
+  t('e já mostra na tela quem abriu, quando e com quanto',
+    r.texto.indexOf(r.quem) >= 0 && /250,50/.test(r.texto), r.texto.slice(0, 90));
+
+  const quemAbriu = r.quem;
+  await pg.screenshot({ path: FOTOS + '/abertura-imprimir.png' });
+  /* clicar no botão e medir o papel que sai */
+  await pg.evaluate(() => {
+    var ov = document.getElementById('mdOv');
+    [...ov.querySelectorAll('button')]
+      .find(b => /imprimir abertura/i.test(b.textContent)).click();
+  });
+  await pg.waitForTimeout(400);
+  r = await pg.evaluate(() => {
+    var pap = document.querySelector('#viaImp .papel');
+    if (!pap) return { erro: 'não montou o papel' };
+    var linhas = [...pap.querySelectorAll('.ppL')];
+    var cortadas = linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length;
+    var st = document.getElementById('impCSS');
+    return { corpo: [...pap.children].map(l => l.textContent).join('\n'),
+             cortadas: cortadas, qt: linhas.length,
+             regra: (st ? st.textContent : '').match(/@page\{[^}]*\}/)[0] };
+  });
+  t('o comprovante da abertura é montado ao clicar', !r.erro, r.erro);
+  t('tem o título ABERTURA DE CAIXA', /ABERTURA DE CAIXA/.test(r.corpo || ''));
+  t('diz QUEM abriu', r.corpo.indexOf('Operador: ' + quemAbriu) >= 0,
+    'esperava ' + quemAbriu);
+  t('diz a DATA', /Data: \d\d\/\d\d\/\d{4}/.test(r.corpo || ''));
+  t('diz a HORA', /Hora: \d\d:\d\d/.test(r.corpo || ''));
+  t('e traz o VALOR do fundo de troco', /VALOR: 250,50/.test(r.corpo || ''));
+  t('tem a linha da assinatura de quem recebeu a gaveta',
+    /Assinatura: _/.test(r.corpo || ''));
+  t('nenhuma linha da abertura fica cortada na largura',
+    r.cortadas === 0, r.cortadas + ' linha(s)');
+  t('e sai na bobina, não em A4',
+    /size:\s*80mm\s+\d+mm/.test(r.regra || ''), r.regra);
+  console.log('\n' + (r.corpo || '') + '\n');
+  fs.writeFileSync(FOTOS + '/comprovante-abertura.txt', r.corpo || '');
+
+  /* e dá para reimprimir depois, pelo relatório da frente de caixa */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('viaImp'); if (e) e.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    fecharModal();
+    var cx = caixaAberto();
+    verCaixa(cx.id);
+    var ov = document.getElementById('mdOv');
+    var bt = ov ? [...ov.querySelectorAll('.mdF button')]
+      .find(b => /abertura/i.test(b.textContent)) : null;
+    if (bt) bt.click();
+    var pap = document.querySelector('#viaImp .papel');
+    return { tinhaBotao: !!bt,
+             imprimiu: !!pap && /ABERTURA DE CAIXA/.test(pap.textContent) };
+  });
+  t('o relatório de frente de caixa tem o botão Abertura', r.tinhaBotao === true);
+  t('e ele reimprime o comprovante da abertura', r.imprimiu === true);
+  await pg.evaluate(() => {
+    fecharModal();
+    var e = document.getElementById('viaImp'); if (e) e.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+  });
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();
@@ -602,6 +691,12 @@ function servir() {
   });
   await pg.waitForTimeout(200);
   let av = await pg.evaluate(() => {
+    /* o relógio de religar roda em segundo plano e, sem rede, torna a
+       marcar a sessão como caída. Por isso o estado é montado e medido
+       no MESMO passo — senão a medição pega o aviso do vizinho. */
+    NUVEM.ligada = false; NUVEM.sessaoCaiu = false;
+    limparAvisoSessao();
+    conferirNuvem();
     var barra = document.getElementById('barraAvisos');
     if (!barra) return { semBarra: true };
     var bb = barra.getBoundingClientRect(), cobertos = [];
@@ -643,6 +738,23 @@ function servir() {
   t('sessão caída mostra "Sua sessão expirou", não "servidor não respondeu"',
     av.mostrou && /sess/i.test(av.texto), av.texto);
   t('e ao reconectar o aviso some da tela', av.sumiu === true);
+  av = await pg.evaluate(() => {
+    /* a sessão cai uma SEGUNDA vez: o aviso tem de voltar */
+    NUVEM.ligada = false; NUVEM.sessaoCaiu = true;
+    var el = document.getElementById('avisoSessao'); if (el) el.remove();
+    avisoSessaoCaiu();
+    return { voltou: !!document.getElementById('avisoSessao'),
+             quantos: document.querySelectorAll('#avisoSessao').length };
+  });
+  t('se a sessão cair OUTRA vez, o aviso volta — não avisa só na primeira',
+    av.voltou === true);
+  t('e nunca aparece duas faixas iguais empilhadas', av.quantos === 1, av.quantos);
+  av = await pg.evaluate(() => {
+    limparAvisoSessao(); NUVEM.ligada = true; conferirNuvem();
+    return { marca: NUVEM.sessaoCaiu,
+             limpou: !document.getElementById('avisoSessao') };
+  });
+  t('e ao reconectar de novo a tela volta a ficar limpa', av.limpou === true);
   t('a marca de sessão caída é apagada', av.marca === false);
 
   console.log('\n── 12. Nenhum erro de runtime na sessão inteira\n');

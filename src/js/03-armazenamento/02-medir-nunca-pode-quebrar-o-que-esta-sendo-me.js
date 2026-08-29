@@ -1437,13 +1437,26 @@ function limparAvisoSessao(){
     if(el)el.remove();
   }catch(e){ _quieto(e,'limparAvisoSessao'); }
 }
+/* ==========================================================
+   A TRAVA NAO PODE VIVER LONGE DO QUE ELA GUARDA
+
+   `_avisouSessao` era uma variavel: uma vez ligada, esta funcao voltava
+   sem fazer nada. So `limparAvisoSessao()` a desligava. Enquanto os dois
+   andarem juntos, funciona — mas basta a faixa sair da tela por outro
+   caminho (uma remontagem do `#app`, um `remove()` de outro lugar) e o
+   sistema fica com a trava ligada e sem faixa nenhuma: a sessao cai de
+   novo e a loja NAO e avisada. Aviso que so aparece na primeira vez nao
+   e aviso.
+
+   A pergunta agora e feita a tela, que e a unica que sabe a verdade: se
+   a faixa esta la, nao ha o que fazer; se nao esta, ela e montada. Isso
+   nao tem como dessincronizar.
+   ========================================================== */
 function avisoSessaoCaiu(){
-  if(_avisouSessao)return;
-  _avisouSessao=true;
   try{
-    var el=document.getElementById('avisoSessao');
-    if(el)el.remove();
-    el=document.createElement('div');
+    if(document.getElementById('avisoSessao'))return;
+    _avisouSessao=true;
+    var el=document.createElement('div');
     el.id='avisoSessao'; el.className='avisoGrav sinc';
     el.innerHTML='<div><b>Sua sessão expirou</b>'+
       '<span>Nada foi perdido — o que você lançou está guardado neste aparelho '+

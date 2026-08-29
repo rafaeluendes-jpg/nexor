@@ -1568,6 +1568,72 @@ function imprimirFechamento(id){
   var r=linhasFechamento(cx);
   imprimirPapel(r.linhas,r.cols,1);
 }
+/* ==========================================================
+   O COMPROVANTE DA ABERTURA
+
+   O fechamento imprimia; a abertura, nao. E a abertura e justamente o
+   momento em que alguem declara quanto dinheiro havia na gaveta antes
+   de a loja vender qualquer coisa. Sem papel, o fundo de troco vira
+   palavra: quem abriu, com quanto, a que horas.
+
+   Segue o desenho do comprovante de retirada que a rede ja usa — o
+   cabecalho, o titulo, o bloco com caixa/periodo/operador, o VALOR em
+   destaque e a linha da assinatura. Mesma bobina, mesma conta de
+   largura do fechamento.
+   ========================================================== */
+function linhasAbertura(cx){
+  var cols=48;
+  try{ var m=modeloImp('ficha'); if(m&&m.colunas)cols=m.colunas; }catch(e){}
+  var L=[];
+  var esq=function(t,n){ t=String(t==null?'':t);
+    return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };
+  var dir=function(t,n){ t=String(t==null?'':t);
+    return t.length>n?t.slice(t.length-n):new Array(n-t.length+1).join(' ')+t; };
+  var regra=function(c){ L.push({txt:new Array(cols+1).join(c)}); };
+  /* nenhuma linha solta pode passar da largura da bobina */
+  var cab=function(a,b){
+    var t=b?a+'  '+b:a;
+    if(t.length<=cols){ L.push({txt:t}); return; }
+    L.push({txt:String(a).slice(0,cols)});
+    if(b)L.push({txt:String(b).slice(0,cols)});
+  };
+
+  var quando=String(cx.aberto||'').split(' ');
+  var periodo=String(cx.turno||'1').replace(/^\s*turno\s*/i,'')||'1';
+  var loja=''; try{ loja=sucNome(cx.sucursalId||lojaAtualId())||''; }catch(e){}
+  var empresa=''; try{ empresa=cfg().nomePublico||nomeLojaAtual()||''; }catch(e){}
+
+  L.push({txt:String(empresa||loja).slice(0,cols),n:true});
+  L.push({txt:''});
+  cab('Data: '+(quando[0]||'-'),'Periodo: '+periodo);
+  cab('Hora: '+(quando[1]||'-'));
+  L.push({txt:''});
+  L.push({txt:'ABERTURA DE CAIXA',n:true});
+  L.push({txt:''});
+  regra('-');
+  cab('Caixa: '+String(cx.id||'').slice(-6));
+  cab('Periodo: '+periodo);
+  cab('Operador: '+(cx.operador||'-'));
+  if(loja&&loja!==empresa)cab('Unidade: '+loja);
+  L.push({txt:''});
+  var v='VALOR: '+money(Number(cx.inicial)||0);
+  L.push({txt:v.slice(0,cols),n:true});
+  L.push({txt:''});
+  L.push({txt:'FUNDO DE TROCO'});
+  regra('-');
+  L.push({txt:''});
+  /* a linha da assinatura ocupa o que sobra da largura, sem estourar */
+  var rot='Assinatura: ';
+  L.push({txt:esq(rot,Math.min(rot.length,cols))+
+    new Array(Math.max(2,cols-rot.length+1)).join('_')});
+  return {linhas:L,cols:cols};
+}
+function imprimirAbertura(id){
+  var cx=(DB.caixas||[]).find(function(c){return c.id===id});
+  if(!cx){toast('Caixa não encontrado.');return;}
+  var r=linhasAbertura(cx);
+  imprimirPapel(r.linhas,r.cols,1);
+}
 function resumoDoCaixa(cx){
   baseFormas();
   var peds=(DB.pedidos||[]).filter(function(p){return p.caixaId===cx.id});
