@@ -1751,10 +1751,40 @@ function linhasMovimento(cx,mv){
     new Array(Math.max(2,cols-rot.length+1)).join('_')});
   return {linhas:L,cols:cols,mm:papel};
 }
+/* ==========================================================
+   IMPRIMIR O QUE ESTA NA MAO, NAO O QUE A LISTA AINDA TEM
+
+   O botao "Imprimir comprovante" procurava a sangria OUTRA VEZ dentro
+   de `DB.caixas`, pelo identificador. Parece inofensivo e nao e: na
+   loja a nuvem esta ligada, e entre fazer a sangria e clicar em
+   imprimir o download chega. Ele substitui `DB.caixas` pela versao da
+   nuvem — que ainda NAO tem aquele movimento, porque ele acabou de
+   nascer e nao subiu. A busca falhava, saia "Movimentação não
+   encontrada" e nada era impresso.
+
+   Aqui nao havia nada a procurar: quem abriu a janela ja tinha o caixa
+   e o movimento na mao. Agora imprime a partir deles.
+
+   A busca continua existindo para a SEGUNDA VIA, na lista de
+   movimentacoes do turno — la a lista na tela e a fonte, e procurar
+   por identificador e o certo.
+   ========================================================== */
+var _MOV_IMP=null;
+function guardarMovParaImprimir(cx,mv){ _MOV_IMP={cx:cx,mv:mv}; }
+function imprimirMovimentoGuardado(){
+  if(!_MOV_IMP||!_MOV_IMP.mv){toast('Nada para imprimir.');return;}
+  var r=linhasMovimento(_MOV_IMP.cx,_MOV_IMP.mv);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
+}
 function imprimirMovimento(cxId,mvId){
   var cx=(DB.caixas||[]).find(function(c){return c.id===cxId});
+  var mv=cx?(cx.movimentos||[]).find(function(m){return m.id===mvId}):null;
+  /* a lista pode ter sido trocada pelo download no meio do caminho: se o
+     movimento e o que acabou de ser feito, ele esta guardado aqui */
+  if(!mv&&_MOV_IMP&&_MOV_IMP.mv&&_MOV_IMP.mv.id===mvId){
+    imprimirMovimentoGuardado();return;
+  }
   if(!cx){toast('Caixa não encontrado.');return;}
-  var mv=(cx.movimentos||[]).find(function(m){return m.id===mvId});
   if(!mv){toast('Movimentação não encontrada.');return;}
   var r=linhasMovimento(cx,mv);
   imprimirPapel(r.linhas,r.cols,1,r.mm);

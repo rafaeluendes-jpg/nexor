@@ -944,6 +944,46 @@ function servir() {
   t('a lista de movimentações do turno tem botão de segunda via',
     r.botoes === 2, r.botoes + ' botão(ões)');
   t('e ele imprime', r.saiu === true);
+
+  /* O DEFEITO DE 29/08/2026, o que o Rafael viu na loja e aqui não
+     aparecia: o botão existe, ele clica, sai "Movimentação não
+     encontrada" e nada imprime.
+
+     Só acontece com a nuvem ligada. Entre fazer a sangria e clicar em
+     imprimir, o download chega e troca `DB.caixas` inteiro pela versão
+     da nuvem — que ainda NÃO tem esse movimento, porque ele nasceu há
+     três segundos e não subiu. O botão procurava o movimento pelo
+     identificador dentro de `DB.caixas`; não achava mais nada.
+
+     Aqui a troca é feita de propósito, no meio do caminho. */
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    window.__av = [];
+    var _to = window.toast;
+    window.toast = function (m) { window.__av.push(String(m)); try { _to(m) } catch (x) {} };
+    var cx = DB.caixas[0];
+    perguntaImprimirMovimento(cx, cx.movimentos[0]);
+    /* o download da nuvem chegando: o mesmo caixa, sem o movimento novo */
+    DB.caixas = [{ id: 'cx_mv', turno: 'Turno 1', sucursalId: cx.sucursalId,
+      aberto: '28/08/2026 13:22', inicial: 500, movimentos: [] }];
+    salvar();
+    var ov = document.getElementById('mdOv');
+    var bt = ov ? [...ov.querySelectorAll('button')]
+      .find(b => /imprimir comprovante/i.test(b.textContent)) : null;
+    if (bt) bt.click();
+    var pap = document.querySelector('#viaImp .papel');
+    window.toast = _to;
+    return { temBotao: !!bt, saiu: !!pap,
+      corpo: pap ? [...pap.children].map(l => l.textContent).join('\n') : '',
+      avisos: (window.__av || []).join(' | ') };
+  });
+  t('IMPRIME MESMO SE O DOWNLOAD DA NUVEM CHEGAR NO MEIO',
+    r.temBotao && r.saiu === true, r.avisos || 'não imprimiu');
+  t('e o papel sai completo, com o valor e quem fez',
+    /VALOR: 300,00/.test(r.corpo) && /Responsavel: Priscila/.test(r.corpo),
+    r.corpo.slice(0, 60));
+  t('sem nenhum aviso de erro na tela', r.avisos === '', r.avisos);
   await pg.evaluate(() => {
     fecharModal();
     var v = document.getElementById('viaImp'); if (v) v.remove();

@@ -1919,12 +1919,16 @@ function perguntaImprimirMovimento(cx,mv){
     '<span>'+(sangria?'Destino':'Origem')+'</span>'+
     '<b>'+E(mv.destinoNome||'—')+'</b></div>'+
    '</div>';
+  /* o comprovante sai DESTES objetos, sem procurar de novo na lista: o
+     download da nuvem chega no meio e devolve o caixa sem o movimento
+     que acabou de nascer */
+  guardarMovParaImprimir(cx,mv);
   var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
   o.innerHTML='<div class="mdBox"><div class="mdH"><b>'+
     (sangria?'Retirada de caixa':'Reforço de caixa')+'</b>'+
     '<button onclick="fecharModal()">&times;</button></div>'+h+
     '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não imprimir</button>'+
-    '<button class="btnP2 ok" onclick="fecharModal();imprimirMovimento(\''+cx.id+'\',\''+mv.id+'\')">'+
+    '<button class="btnP2 ok" onclick="fecharModal();imprimirMovimentoGuardado()">'+
     sv('print2',13)+' Imprimir comprovante</button></div></div>';
   document.body.appendChild(o);
 }
