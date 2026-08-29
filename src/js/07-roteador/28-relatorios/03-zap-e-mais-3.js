@@ -2247,13 +2247,43 @@ async function conferirSenhaNoBanco(opId,senha){
     return {erro:m||'não consegui conferir a senha'};
   }
 }
+/* ==========================================================
+   A EXIGENCIA DE SENHA NAO PODE VIRAR PORTA TRANCADA
+
+   29/08/2026: a loja de Santa Fe do Sul nao conseguia fechar o caixa.
+   Nao era nuvem, nao era sessao. Fechar caixa exige senha de operador
+   cadastrada — e no banco da Jolo NENHUM operador tem senha. Resultado:
+   `operadoresPara('fechar')` devolvia lista VAZIA, o campo "Operador que
+   fecha" so tinha "Selecione", e o clique em Confirmar morria com
+   "Selecione quem esta autorizando". Sem saida, e sem dizer o porque.
+
+   No log do servidor da para ver o tamanho do beco: 15 aberturas do
+   modal de fechamento numa hora e ZERO conferencias de senha.
+
+   A exigencia existe por um bom motivo — retirada de dinheiro sem
+   assinatura foi um buraco real. Mas quando NINGUEM na loja tem senha,
+   exigir assinatura nao protege nada: so impede a loja de fechar o
+   caixa, com o dinheiro na gaveta.
+
+   Entao: se ALGUEM ja tem senha, a regra continua inteira — quem nao
+   tem, nao assina. Se NINGUEM tem, a operacao passa, identificada por
+   quem a fez (fica gravada em `fechadoPor`), e o sistema cobra o
+   cadastro das senhas na propria tela.
+   ========================================================== */
+function alguemTemSenha(){
+  try{
+    if(Array.isArray(_quemTemSenha))return _quemTemSenha.length>0;
+    return (operAtivos()||[]).some(function(o){return !!o.senha});
+  }catch(e){ return false; }
+}
 function podeFazer(op,acao){
   if(!op)return false;
   var lista=PERM_CAIXA[acao];
   if(lista&&lista.length&&lista.indexOf(op.funcao||'atendente')<0)return false;
   /* mexer em dinheiro e cancelar exigem senha cadastrada: sem senha nao ha
      como assinar a operacao, e retirada sem assinatura foi o buraco do item 10 */
-  if(EXIGE_SENHA.indexOf(acao)>=0 && !temSenhaCadastrada(op))return false;
+  if(EXIGE_SENHA.indexOf(acao)>=0 && !temSenhaCadastrada(op) && alguemTemSenha())
+    return false;
   return true;
 }
 /* quem pode aparecer na lista daquela acao */

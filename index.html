@@ -12173,7 +12173,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V228.0.0';
+var VERSAO='V229.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21017,6 +21017,19 @@ function fecharCaixa(id){
   '<h3>Quem está fechando</h3>'+
   '<div class="hint" style="margin-bottom:10px">O caixa foi aberto por <b>'+E(cx.operador||'')+
    '</b>. Se quem fecha é outra pessoa, selecione abaixo.</div>'+
+  /* ==========================================================
+     SE NINGUEM TEM SENHA, A LOJA PRECISA SABER — E FECHAR ASSIM MESMO
+
+     Sem este aviso, o operador via um campo "Senha *" obrigatorio, sem
+     senha nenhuma para digitar, e nao tinha como adivinhar o que fazer.
+     ========================================================== */
+  (typeof alguemTemSenha==='function'&&!alguemTemSenha()
+    ? '<div class="cfAlerta">'+sv('help',15)+
+      '<div><b>Nenhum operador tem senha de autorização cadastrada</b>'+
+      '<small>O fechamento vai ser gravado com o nome de quem confirmar, sem '+
+      'assinatura por senha. Para exigir assinatura, cadastre as senhas em '+
+      'Configuração da Loja → Operadores do Caixa.</small></div></div>'
+    : '')+
   '<div class="row2">'+
    '<div class="fld2" style="margin:0"><label>Operador que fecha *</label>'+
     '<select id="fcOp" onchange="pedeSenhaCaixa(\'fc\')">'+
@@ -43041,13 +43054,43 @@ async function conferirSenhaNoBanco(opId,senha){
     return {erro:m||'não consegui conferir a senha'};
   }
 }
+/* ==========================================================
+   A EXIGENCIA DE SENHA NAO PODE VIRAR PORTA TRANCADA
+
+   29/08/2026: a loja de Santa Fe do Sul nao conseguia fechar o caixa.
+   Nao era nuvem, nao era sessao. Fechar caixa exige senha de operador
+   cadastrada — e no banco da Jolo NENHUM operador tem senha. Resultado:
+   `operadoresPara('fechar')` devolvia lista VAZIA, o campo "Operador que
+   fecha" so tinha "Selecione", e o clique em Confirmar morria com
+   "Selecione quem esta autorizando". Sem saida, e sem dizer o porque.
+
+   No log do servidor da para ver o tamanho do beco: 15 aberturas do
+   modal de fechamento numa hora e ZERO conferencias de senha.
+
+   A exigencia existe por um bom motivo — retirada de dinheiro sem
+   assinatura foi um buraco real. Mas quando NINGUEM na loja tem senha,
+   exigir assinatura nao protege nada: so impede a loja de fechar o
+   caixa, com o dinheiro na gaveta.
+
+   Entao: se ALGUEM ja tem senha, a regra continua inteira — quem nao
+   tem, nao assina. Se NINGUEM tem, a operacao passa, identificada por
+   quem a fez (fica gravada em `fechadoPor`), e o sistema cobra o
+   cadastro das senhas na propria tela.
+   ========================================================== */
+function alguemTemSenha(){
+  try{
+    if(Array.isArray(_quemTemSenha))return _quemTemSenha.length>0;
+    return (operAtivos()||[]).some(function(o){return !!o.senha});
+  }catch(e){ return false; }
+}
 function podeFazer(op,acao){
   if(!op)return false;
   var lista=PERM_CAIXA[acao];
   if(lista&&lista.length&&lista.indexOf(op.funcao||'atendente')<0)return false;
   /* mexer em dinheiro e cancelar exigem senha cadastrada: sem senha nao ha
      como assinar a operacao, e retirada sem assinatura foi o buraco do item 10 */
-  if(EXIGE_SENHA.indexOf(acao)>=0 && !temSenhaCadastrada(op))return false;
+  if(EXIGE_SENHA.indexOf(acao)>=0 && !temSenhaCadastrada(op) && alguemTemSenha())
+    return false;
   return true;
 }
 /* quem pode aparecer na lista daquela acao */

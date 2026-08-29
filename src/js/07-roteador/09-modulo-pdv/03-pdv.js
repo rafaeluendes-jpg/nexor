@@ -2212,6 +2212,19 @@ function fecharCaixa(id){
   '<h3>Quem está fechando</h3>'+
   '<div class="hint" style="margin-bottom:10px">O caixa foi aberto por <b>'+E(cx.operador||'')+
    '</b>. Se quem fecha é outra pessoa, selecione abaixo.</div>'+
+  /* ==========================================================
+     SE NINGUEM TEM SENHA, A LOJA PRECISA SABER — E FECHAR ASSIM MESMO
+
+     Sem este aviso, o operador via um campo "Senha *" obrigatorio, sem
+     senha nenhuma para digitar, e nao tinha como adivinhar o que fazer.
+     ========================================================== */
+  (typeof alguemTemSenha==='function'&&!alguemTemSenha()
+    ? '<div class="cfAlerta">'+sv('help',15)+
+      '<div><b>Nenhum operador tem senha de autorização cadastrada</b>'+
+      '<small>O fechamento vai ser gravado com o nome de quem confirmar, sem '+
+      'assinatura por senha. Para exigir assinatura, cadastre as senhas em '+
+      'Configuração da Loja → Operadores do Caixa.</small></div></div>'
+    : '')+
   '<div class="row2">'+
    '<div class="fld2" style="margin:0"><label>Operador que fecha *</label>'+
     '<select id="fcOp" onchange="pedeSenhaCaixa(\'fc\')">'+

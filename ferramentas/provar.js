@@ -374,7 +374,64 @@ function servir() {
   t('e a fotografia da conferência', r.foto === true);
   t('depois disso não sobra caixa aberto', r.aindaAberto === false);
 
-  console.log('\n── 9. O aviso vermelho não pode cobrir a operação\n');
+  console.log('\n── 9. Ninguém tem senha cadastrada: dá para fechar mesmo assim?\n');
+  /* o beco EXATO de 29/08/2026: no banco da Jolô, nenhum operador tem senha */
+  r = await pg.evaluate(async () => {
+    try { fecharModal(); } catch (e) {}
+    try { liberarOperacao('fechar-caixa'); } catch (e) {}
+    /* é o que a nuvem responde hoje: a lista de quem tem senha é vazia */
+    _quemTemSenha = [];
+    DB.operadores = [];
+    DB.usuarios = [{ id: 'u_sf', nome: 'Jolo Santa Fe do Sul', login: 'santafe@jologelato.com.br',
+                     funcao: 'administrador', ativo: true, permissoes: { 'pdv/pdv': true } }];
+    var ontem = new Date(Date.now() - 86400000).toLocaleDateString('pt-BR');
+    DB.caixas = [{ id: 'cx_ontem2', inicial: 100, operador: 'Jolo Santa Fe do Sul',
+      operadorId: 'u_sf', sucursalId: lojaAtualId(), movimentos: [], aberto: ontem + ' 13:22' }];
+    salvar();
+    return { alguem: alguemTemSenha(),
+             podem: operadoresPara('fechar').map(function (o) { return o.nome; }) };
+  });
+  t('o sistema reconhece que ninguém tem senha', r.alguem === false);
+  t('e MESMO ASSIM alguém pode fechar o caixa — a lista não fica vazia',
+    (r.podem || []).length > 0, JSON.stringify(r.podem));
+
+  r = await pg.evaluate(async () => {
+    telaFrenteCaixa();
+    var c = document.getElementById('content');
+    var bt = [...c.querySelectorAll('button')]
+      .find(function (b) { return /Fechar caixa/i.test(b.textContent); });
+    bt.click();
+    await new Promise(function (r2) { setTimeout(r2, 200); });
+    var md = document.getElementById('mdOv');
+    if (!md) return { erro: 'o modal não abriu' };
+    var sel = md.querySelector('#fcOp');
+    var aviso = /Nenhum operador tem senha/.test(md.innerText || '');
+    /* escolhe o operador, como a loja faria */
+    if (sel && sel.options.length > 1) sel.selectedIndex = 1;
+    if (sel) sel.dispatchEvent(new Event('change', { bubbles: true }));
+    var campos = md.querySelectorAll('.cfV');
+    if (campos.length) { campos[0].value = '433,05';
+      campos[0].dispatchEvent(new Event('input', { bubbles: true })); }
+    var ok = [...md.querySelectorAll('button')]
+      .find(function (b) { return /Confirmar fechamento/i.test(b.textContent); });
+    ok.click();
+    await new Promise(function (r2) { setTimeout(r2, 500); });
+    var cx = DB.caixas.find(function (x) { return x.id === 'cx_ontem2'; });
+    return { opcoes: sel ? sel.options.length - 1 : 0, aviso: aviso,
+             fechou: !!cx.fechadoEm, quem: cx.fechadoPor, contado: cx.contado,
+             foto: !!cx.snapshot };
+  });
+  t('o modal abriu', !r.erro, r.erro);
+  t('o campo "Operador que fecha" TEM gente para escolher',
+    r.opcoes > 0, r.opcoes + ' opção(ões)');
+  t('e a tela avisa que ninguém tem senha, dizendo onde cadastrar', r.aviso === true);
+  t('O CAIXA FECHA', r.fechou === true);
+  t('gravando quem fechou', !!r.quem, r.quem);
+  t('com o valor contado', r.contado === 433.05, r.contado);
+  t('e a fotografia da conferência', r.foto === true);
+  await pg.screenshot({ path: FOTOS + '/fechar-sem-senha.png' });
+
+  console.log('\n── 10. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();
     /* item direto na comanda: o modal de opções tamparia a medição */
@@ -428,7 +485,7 @@ function servir() {
   t('e ao reconectar o aviso some da tela', av.sumiu === true);
   t('a marca de sessão caída é apagada', av.marca === false);
 
-  console.log('\n── 10. Nenhum erro de runtime na sessão inteira\n');
+  console.log('\n── 11. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 
   await nav.close(); s.close();
