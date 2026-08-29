@@ -1447,8 +1447,10 @@ function blocoRotinas() {
    ========================================================== */
 function linhasFechamento(cx){
   baseFormas();
-  var cols=48;
-  try{ var m=modeloImp('ficha'); if(m&&m.colunas)cols=m.colunas; }catch(e){}
+  var cols=48, papel=80;
+  try{ var m=modeloImp('ficha');
+    if(m){ papel=papelDoModelo(m); cols=(papel===58?32:48); }
+  }catch(e){}
   var s=cx.snapshot;
   var reconstruido=false;
   if(!s||!s.formas){
@@ -1568,14 +1570,14 @@ function linhasFechamento(cx){
     L.push({txt:''});
     texto('* caixa anterior a V175: valores recalculados',true);
   }
-  return {linhas:L,cols:cols};
+  return {linhas:L,cols:cols,mm:papel};
 }
 function imprimirFechamento(id){
   var cx=(DB.caixas||[]).find(function(c){return c.id===id});
   if(!cx){toast('Caixa não encontrado.');return;}
   if(!cx.fechadoEm){toast('Este caixa ainda está aberto.');return;}
   var r=linhasFechamento(cx);
-  imprimirPapel(r.linhas,r.cols,1);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
 }
 /* ==========================================================
    O COMPROVANTE DA ABERTURA
@@ -1604,8 +1606,8 @@ function linhasAbertura(cx){
      ja usava 32 colunas e nao muda nada.
      ========================================================== */
   var papel=80;
-  try{ var m=modeloImp('ficha'); if(m&&m.colunas&&m.colunas<=32)papel=58; }catch(e){}
-  var cols=32;
+  try{ var m=modeloImp('ficha'); if(m)papel=papelDoModelo(m); }catch(e){}
+  var cols=(papel===58?24:32);
   var L=[];
   var esq=function(t,n){ t=String(t==null?'':t);
     return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };

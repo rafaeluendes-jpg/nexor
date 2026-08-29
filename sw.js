@@ -20,7 +20,7 @@
    sistema novo. O nome do cache carrega a versao, entao o antigo e
    apagado no `activate`, que ja limpa tudo o que nao for o atual.
    ========================================================== */
-var VERSAO_SW = 'V236.0.0';
+var VERSAO_SW = 'V237.0.0';
 var CACHE = 'joia-' + VERSAO_SW;
 var ESSENCIAIS = [
   './',

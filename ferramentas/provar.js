@@ -735,6 +735,118 @@ function servir() {
     var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
   });
 
+  console.log('\n── 10d. A comanda mostra o troco, e com letra legível\n');
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('viaImp'); if (e) e.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    baseImp();
+    var m = modeloImp('ficha');
+    /* venda de R$ 29 paga com R$ 40 — o caso do cupom que o Rafael mandou */
+    var ped = { numero: 504, senha: 504, data: hojeISO(), hora: '13:14',
+      clienteNome: 'Consumidor', sucursalId: lojaAtualId(),
+      itens: [{ qtd: 1, nome: 'Cascao 2 Bolas', total: 24 },
+              { qtd: 1, nome: 'Borda de creme', total: 5 }],
+      taxa: 0, acrescimo: 0, desconto: 0, total: 29,
+      pagamentos: [{ forma: ((DB.formasPag || [])
+        .find(f => /dinheiro/i.test(f.nome)) || (DB.formasPag || [])[0] || {}).id,
+        valor: 29, recebido: 40 }] };
+    imprimirPapel(montarImp(textoDoModelo(m), ped, m.colunas), m.colunas,
+      m.vias || 1, papelDoModelo(m));
+    var pap = document.querySelector('#viaImp .papel');
+    var st = document.getElementById('impCSS');
+    var linhas = [...pap.querySelectorAll('.ppL, .ppCorte')];
+    return { corpo: [...pap.children].map(l => l.textContent).join('\n'),
+      estilo: pap.getAttribute('style') || '',
+      regra: (st ? st.textContent : '').match(/@page\{[^}]*\}/)[0],
+      cols: m.colunas, papel: papelDoModelo(m), letra: letraDoModelo(m),
+      maiorLinha: linhas.reduce((a, l) => Math.max(a, (l.textContent || '').length), 0),
+      cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length };
+  });
+  t('a comanda mostra QUANTO O CLIENTE ENTREGOU, não o valor da venda',
+    /Dinheiro\s+40,00/.test(r.corpo), r.corpo);
+  t('e o TROCO logo embaixo, como na nota fiscal da rede',
+    /Troco R\$\s+11,00/.test(r.corpo), r.corpo);
+  t('o total da venda continua correto', /TOTAL\(=\)\s+29,00/.test(r.corpo));
+  t('sem troco, nada de linha de troco sobrando', await pg.evaluate(() => {
+    var ped = { numero: 1, total: 29, itens: [{ qtd: 1, nome: 'X', total: 29 }],
+      pagamentos: [{ forma: (DB.formasPag[0] || {}).id, valor: 29, recebido: 29 }] };
+    return !/Troco/.test(linhasPag(ped, 34).map(x => x.txt).join('\n'));
+  }));
+  t('pedido antigo, sem "recebido" gravado, continua imprimindo certo',
+    await pg.evaluate(() => {
+      var ped = { pagamentos: [{ forma: (DB.formasPag[0] || {}).id, valor: 29 }] };
+      var txt = linhasPag(ped, 34).map(x => x.txt).join('\n');
+      return /29,00/.test(txt) && !/Troco/.test(txt);
+    }));
+
+  /* a letra: menos colunas na mesma bobina = letra maior */
+  t('a comanda vem de fábrica na letra Maior, não na miúda de 48 colunas',
+    r.cols === 34 && r.letra === 'maior', r.cols + ' colunas · ' + r.letra);
+  t('e continua na bobina de 80 mm', r.papel === 80 && /size:\s*80mm/.test(r.regra),
+    r.papel + ' · ' + r.regra);
+  const mmLetra = Number((r.estilo.match(/font-size:\s*([\d.]+)mm/) || [])[1]);
+  t('a letra passou de 2,6 mm para mais de 3,5 mm', mmLetra > 3.5, mmLetra + ' mm');
+  t('e o tamanho é MEDIDO, não chutado pelo fator 0,6',
+    Math.abs(mmLetra - 76 / (34 * 0.6)) > 0.001, mmLetra + ' mm');
+  t('nenhuma linha da comanda passa da largura do papel',
+    r.maiorLinha <= r.cols, r.maiorLinha + ' > ' + r.cols);
+  t('e nenhuma fica cortada', r.cortadas === 0, r.cortadas + ' linha(s)');
+
+  /* o controle da tela: Largura do papel e Tamanho da letra */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('viaImp'); if (e) e.remove();
+    abrir('loja', 'modelo-impressao');
+    var pp = document.getElementById('impPapelMM'), lt = document.getElementById('impLetra');
+    if (!pp || !lt) return { faltou: true, r58: {} };
+    var antes = modeloImp('ficha').colunas;
+    /* a tela e refeita a cada mudanca: pega o campo de novo sempre */
+    var põe = function (id, v) {
+      var el = document.getElementById(id); el.value = v; el.onchange();
+    };
+    põe('impLetra', 'normal');
+    var normal = modeloImp('ficha').colunas;
+    põe('impLetra', 'maior');
+    var maior = modeloImp('ficha').colunas;
+    põe('impPapelMM', '58');
+    var estreita = modeloImp('ficha');
+    var r58 = { cols: estreita.colunas, papel: papelDoModelo(estreita),
+                letra: letraDoModelo(estreita) };
+    põe('impPapelMM', '80');
+    põe('impLetra', 'maior');
+    return { antes: antes, normal: normal, maior: maior, r58: r58,
+             fim: modeloImp('ficha').colunas };
+  });
+  t('a tela de impressão tem o controle "Tamanho da letra"', !r.faltou);
+  await pg.evaluate(() => abrir('loja', 'modelo-impressao'));
+  await pg.waitForTimeout(500);
+  await pg.screenshot({ path: FOTOS + '/config-impressao.png' });
+  const prev = await pg.evaluate(() => {
+    var el = document.getElementById('impPapel');
+    var linhas = [...el.querySelectorAll('.ppL')];
+    return { cabe: el.getBoundingClientRect().width <= el.parentElement.clientWidth + 1,
+      cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length,
+      quais: linhas.filter(l => l.scrollWidth > l.clientWidth + 1)
+        .slice(0, 4).map(l => l.className + ':' + l.scrollWidth + '/' + l.clientWidth +
+          ' [' + (l.textContent || '').slice(0, 20) + ']'),
+      larg: Math.round(el.getBoundingClientRect().width),
+      painel: el.parentElement.clientWidth };
+  });
+  t('a prévia cabe inteira na coluna da prévia', prev.cabe === true,
+    prev.larg + ' > ' + prev.painel);
+  t('e nenhuma linha da prévia sai cortada na direita',
+    prev.cortadas === 0, prev.cortadas + ' linha(s): ' + (prev.quais || []).join(' | '));
+  t('escolher Normal volta para 48 colunas', r.normal === 48, r.normal);
+  t('escolher Maior vai para 34 — letra grande na bobina de 80 mm',
+    r.maior === 34, r.maior);
+  t('trocar para a bobina de 58 mm não confunde com tamanho de letra',
+    r.r58.papel === 58, JSON.stringify(r.r58));
+  t('e a escolha fica gravada no modelo, que é o que o PDV lê',
+    r.fim === 34, r.fim);
+  await pg.evaluate(() => {
+    var e = document.getElementById('viaImp'); if (e) e.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+  });
+
   console.log('\n── 10c. O PDV obedece a tela de Turnos\n');
   /* o caso exato de 29/08/2026: o dono desativa os dois turnos e a
      abertura de caixa continua exigindo escolher um */

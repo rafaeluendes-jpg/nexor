@@ -12241,7 +12241,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V236.0.0';
+var VERSAO='V237.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20182,7 +20182,8 @@ function imprimirVia(ped){
   var m=modeloImp(tipo)||modeloImp('ficha');
   if(!m){toast('Nenhum modelo de impressao cadastrado.');return;}
   var cols=m.colunas||48;
-  imprimirPapel(montarImp(textoDoModelo(m),ped,cols),cols,m.vias||1);
+  /* a bobina e do modelo; as colunas so dizem o tamanho da letra */
+  imprimirPapel(montarImp(textoDoModelo(m),ped,cols),cols,m.vias||1,papelDoModelo(m));
 }
 
 /* ---------- ABA: PEDIDOS (kanban) ---------- */
@@ -42393,8 +42394,10 @@ function blocoRotinas() {
    ========================================================== */
 function linhasFechamento(cx){
   baseFormas();
-  var cols=48;
-  try{ var m=modeloImp('ficha'); if(m&&m.colunas)cols=m.colunas; }catch(e){}
+  var cols=48, papel=80;
+  try{ var m=modeloImp('ficha');
+    if(m){ papel=papelDoModelo(m); cols=(papel===58?32:48); }
+  }catch(e){}
   var s=cx.snapshot;
   var reconstruido=false;
   if(!s||!s.formas){
@@ -42514,14 +42517,14 @@ function linhasFechamento(cx){
     L.push({txt:''});
     texto('* caixa anterior a V175: valores recalculados',true);
   }
-  return {linhas:L,cols:cols};
+  return {linhas:L,cols:cols,mm:papel};
 }
 function imprimirFechamento(id){
   var cx=(DB.caixas||[]).find(function(c){return c.id===id});
   if(!cx){toast('Caixa não encontrado.');return;}
   if(!cx.fechadoEm){toast('Este caixa ainda está aberto.');return;}
   var r=linhasFechamento(cx);
-  imprimirPapel(r.linhas,r.cols,1);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
 }
 /* ==========================================================
    O COMPROVANTE DA ABERTURA
@@ -42550,8 +42553,8 @@ function linhasAbertura(cx){
      ja usava 32 colunas e nao muda nada.
      ========================================================== */
   var papel=80;
-  try{ var m=modeloImp('ficha'); if(m&&m.colunas&&m.colunas<=32)papel=58; }catch(e){}
-  var cols=32;
+  try{ var m=modeloImp('ficha'); if(m)papel=papelDoModelo(m); }catch(e){}
+  var cols=(papel===58?24:32);
   var L=[];
   var esq=function(t,n){ t=String(t==null?'':t);
     return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };
@@ -44363,7 +44366,7 @@ function baseImp(){
   if(NUVEM.ligada&&!DB._baixouUmaVez&&!DB.modelosImp.length)return DB.modelosImp;
   IMP_TIPOS.forEach(function(t,i){
     if(!DB.modelosImp.some(function(m){return m.tipo===t.id}))
-      DB.modelosImp.push({id:uid('mi'),tipo:t.id,nome:t.n,colunas:48,vias:t.id==='ficha'?2:1,
+      DB.modelosImp.push({id:uid('mi'),tipo:t.id,nome:t.n,colunas:34,vias:1,
         corte:true,gaveta:false,modelo:IMP_PADRAO[t.id],blocos:blocosPadrao(t.id),
         manual:false,ativo:true});
   });
@@ -44371,6 +44374,25 @@ function baseImp(){
   DB.modelosImp.forEach(function(m){
     if(!m.blocos||!m.blocos.length){m.blocos=blocosPadrao(m.tipo);m.manual=!!m.manual;}
   });
+  /* ==========================================================
+     A LETRA DE FABRICA ERA PEQUENA DEMAIS NO PAPEL
+
+     48 colunas na bobina de 80 mm da 2,6 mm de letra. Na tela parece
+     bom; impresso, no balcao, o operador nao le. A loja de Santa Fe do
+     Sul testou e devolveu: "nao da pra ver".
+
+     Quem nunca escolheu o tamanho — modelo ainda com as 48 colunas de
+     fabrica — passa para 32 colunas, que e letra 50% maior. Uma vez
+     so: a partir daqui quem manda e o controle "Tamanho da letra" da
+     tela, inclusive para voltar a 48 se a loja preferir.
+     ========================================================== */
+  if(!(DB._semeado&&DB._semeado.letraImp)){
+    DB.modelosImp.forEach(function(m){
+      if(Number(m.colunas)===48)m.colunas=34;   /* 80 mm, letra maior */
+    });
+    DB._semeado=DB._semeado||{}; DB._semeado.letraImp=true;
+  }
+
   return DB.modelosImp;
 }
 function modeloImp(tipo){
@@ -44434,6 +44456,13 @@ function dadosImp(ped){
     acrescimo:Number(ped.acrescimo)?money(ped.acrescimo):'',
     desconto:Number(ped.desconto)?money(ped.desconto):'',
     total:money(ped.total),
+    recebido:money((ped.pagamentos||[]).reduce(function(a,g){
+      var val=Number(g.valor)||0;
+      var rec=(g.recebido===undefined||g.recebido===null)?val:(Number(g.recebido)||0);
+      return a+rec;
+    },0)),
+    /* vazio quando nao ha troco: com `{?troco}` a linha some sozinha */
+    troco:trocoDoPedido(ped)>0.009?money(trocoDoPedido(ped)):'',
     operador:cx.operador||'—',
     turno:cx.turno||''
   };
@@ -44538,24 +44567,62 @@ function linhasItens(ped,cols,comPreco){
   if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
   return r;
 }
+/* ==========================================================
+   O CUPOM TEM DE MOSTRAR O QUE O CLIENTE ENTREGOU E O TROCO
+
+   Aqui saia so `valor` — quanto daquela quantia QUITA a venda. Numa
+   venda de R$ 29 paga com R$ 40, o cupom dizia "Dinheiro 29,00" e o
+   cliente nao tinha como conferir o troco no papel.
+
+   Os dois numeros ja existem gravados desde a V-do-troco: `valor` e o
+   que entra no caixa e `recebido` e o que veio na mao. Quem le o cupom
+   quer ver o segundo, e a diferenca embaixo — do jeito que a nota
+   fiscal da rede ja imprime:
+
+       Dinheiro                     40,00
+       Troco R$                     11,00
+
+   Pedido antigo, gravado antes de `recebido` existir, cai no `valor` —
+   e ai nao ha troco a mostrar, que e a verdade daquele pedido.
+   ========================================================== */
 function linhasPag(ped,cols){
   var r=[];
+  var par=function(nm,v){
+    nm=String(nm); v=String(v);
+    if(nm.length+v.length+1>cols)nm=nm.slice(0,Math.max(0,cols-v.length-1));
+    var esp=cols-nm.length-v.length;
+    r.push({tipo:'txt',txt:nm+(esp>0?new Array(esp+1).join(' '):' ')+v,al:'e'});
+  };
+  var troco=0;
   (ped.pagamentos||[]).forEach(function(g){
     var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId||x.id===g.forma});
     var nm=(f?f.nome:'Pagamento');
-    var v=money(g.valor);
-    var esp=cols-nm.length-v.length;
-    r.push({tipo:'txt',txt:nm+(esp>0?new Array(esp+1).join(' '):' ')+v,al:'e'});
+    var val=Number(g.valor)||0;
+    var rec=(g.recebido===undefined||g.recebido===null)?val:(Number(g.recebido)||0);
+    if(rec>val+0.009)troco+=(rec-val);
+    par(nm,money(rec));
   });
-  if(!r.length)r.push({tipo:'txt',txt:'(nao informado)',al:'e'});
+  if(!r.length){r.push({tipo:'txt',txt:'(nao informado)',al:'e'});return r;}
+  if(troco>0.009)par('Troco R$',money(troco));
   return r;
+}
+/* o troco do pedido, para quem quiser a linha solta no modelo */
+function trocoDoPedido(ped){
+  return +((ped&&ped.pagamentos||[]).reduce(function(a,g){
+    var val=Number(g.valor)||0;
+    var rec=(g.recebido===undefined||g.recebido===null)?val:(Number(g.recebido)||0);
+    return a+(rec>val?rec-val:0);
+  },0)).toFixed(2);
 }
 
 /* ---------- desenha o papel na tela ---------- */
 function papelHTML(linhas,cols){
   return linhas.map(function(l){
     if(l.tipo==='linha')return '<div class="ppL">'+new Array(cols+1).join('-')+'</div>';
-    if(l.tipo==='corte')return '<div class="ppCorte">'+new Array(cols+1).join('- ')+'</div>';
+    /* a linha de corte usa dois caracteres por repeticao: com `cols+1`
+       ela saia com o DOBRO da largura do papel e estourava a bobina */
+    if(l.tipo==='corte')
+      return '<div class="ppCorte">'+new Array(Math.floor(cols/2)+1).join('- ')+'</div>';
     if(l.tipo==='barras')
       return '<div class="ppBar"><div class="ppBarG"></div><span>'+E(l.txt)+'</span></div>';
     var cls='ppL';
@@ -44576,7 +44643,11 @@ function pedidoExemplo(tipo){
            {qtd:1,nome:'Pote M (1kg)',total:65,obs:'sem calda'}],
     taxa:tipo==='entrega'?3:0,acrescimo:0,desconto:0,
     total:tipo==='entrega'?94:91,
-    pagamentos:[{formaId:(DB.formasPag||[{}])[0].id,valor:tipo==='entrega'?94:91}]};
+    /* a previa paga em dinheiro com nota maior: e assim que o Rafael
+       ve, ao configurar, como o troco vai sair no papel */
+    pagamentos:[{formaId:(DB.formasPag||[{}])[0].id,
+      valor:tipo==='entrega'?94:91,
+      recebido:tipo==='entrega'?100:100}]};
 }
 
 /* ---------- a tela, agora em blocos ---------- */
@@ -44586,7 +44657,9 @@ function telaModeloImp(){
   var topo=rol?rol.scrollTop:0;
   var m=modeloImp(IMP.tipo);
   if(!m.blocos||!m.blocos.length){m.blocos=blocosPadrao(m.tipo);salvar();}
-  var cols=m.colunas||48;
+  var papelAtual=papelDoModelo(m);
+  var letraAtual=letraDoModelo(m);
+  var cols=colunasDaLetra(papelAtual,letraAtual);
   var texto=m.manual?(IMP.rascunho!==null?IMP.rascunho:m.modelo):blocosParaModelo(m.blocos);
   var linhas=montarImp(texto,pedidoExemplo(IMP.tipo),cols);
 
@@ -44606,9 +44679,15 @@ function telaModeloImp(){
    '<div class="impGrade">'+
     '<div class="impEdit">'+
      '<div class="impBarra">'+
-      '<div class="fl"><label>Largura do papel</label><select id="impCols" onchange="salvarImpCampo()">'+
-       '<option value="32"'+(cols===32?' selected':'')+'>58 mm (bobina estreita)</option>'+
-       '<option value="48"'+(cols===48?' selected':'')+'>80 mm (bobina larga)</option>'+
+      '<div class="fl"><label>Largura do papel</label><select id="impPapelMM" onchange="salvarImpCampo()">'+
+       '<option value="58"'+(papelAtual===58?' selected':'')+'>58 mm (bobina estreita)</option>'+
+       '<option value="80"'+(papelAtual===80?' selected':'')+'>80 mm (bobina larga)</option>'+
+      '</select></div>'+
+      '<div class="fl"><label>Tamanho da letra</label><select id="impLetra" onchange="salvarImpCampo()">'+
+       LETRAS.map(function(L){
+         return '<option value="'+L.id+'"'+(letraAtual===L.id?' selected':'')+'>'+
+           E(L.n)+' ('+L.cols[papelAtual===58?58:80]+' colunas)</option>';
+       }).join('')+
       '</select></div>'+
       '<div class="fl"><label>Quantas vias</label>'+
        '<input type="number" id="impVias" min="1" max="4" value="'+(m.vias||1)+'" onchange="salvarImpCampo()"></div>'+
@@ -44641,13 +44720,16 @@ function telaModeloImp(){
     '</div>'+
     '<div class="impPrev">'+
      '<div class="impPrevH">Previa'+(m.vias>1?' · '+m.vias+' vias':'')+'</div>'+
-     '<div class="papel'+(cols===32?' p58':'')+'" id="impPapel">'+papelHTML(linhas,cols)+'</div>'+
+     '<div class="papel'+(papelAtual===58?' p58':'')+'" id="impPapel" '+
+      'style="width:'+cols+'ch">'+papelHTML(linhas,cols)+'</div>'+
     '</div>'+
    '</div>'+
    '</div></div>';
   var novoRol=document.querySelector('.etScroll');
   if(novoRol&&topo)novoRol.scrollTop=topo;
   rodape('modelo de '+m.nome);
+  /* a folha so tem largura depois de estar na tela */
+  setTimeout(function(){ var el=$('impPapel'); if(el)ajustarPrevia(el,cols); },0);
 }
 
 function listaBlocosHTML(m){
@@ -44831,6 +44913,7 @@ var IMP_CAMPOS=[
  ['{qtd_itens}','quantidade de itens'],['{subtotal}','soma dos itens'],
  ['{taxa}','taxa de entrega'],['{acrescimo}','acrescimo'],['{desconto}','desconto'],
  ['{total}','total do pedido'],['{pagamentos}','formas de pagamento'],
+ ['{recebido}','quanto o cliente entregou'],['{troco}','troco (vazio quando nao ha)'],
  ['{operador}','quem esta no caixa'],['{turno}','turno do caixa'],
  ['{c}','centralizar a linha'],['{d}','alinhar a direita'],
  ['{n}texto{/n}','negrito'],['{g}texto{/g}','letra grande'],['{p}texto{/p}','letra pequena'],
@@ -44840,14 +44923,50 @@ var IMP_CAMPOS=[
  ['{?campo}','so imprime se o campo tiver conteudo']
 ];
 function trocarImp(t){IMP.tipo=t;IMP.rascunho=null;telaModeloImp();}
+/* ==========================================================
+   A PREVIA TEM DE CABER NA COLUNA DA PREVIA
+
+   Ela desenha `cols` caracteres de largura. Com a letra em milimetros
+   — como no papel de verdade — 34 colunas ficam mais largas do que o
+   painel, e a previa saia cortada na direita: "Valo", "26,0". Quem
+   configura precisa ver a linha inteira.
+
+   Entao a previa mantem as colunas e ajusta a letra ate a folha caber
+   no painel: e a mesma proporcao do papel, so que na escala da tela.
+   Menos colunas continuam aparecendo com letra maior, que e o que se
+   quer ver ao escolher o tamanho.
+   ========================================================== */
+function ajustarPrevia(el,cols){
+  try{
+    /* `width:<cols>ch` com `box-sizing:border-box` desconta o padding da
+       folha: sobrava largura para 33 caracteres num papel de 34, e toda
+       linha cheia saia cortada. Na impressao o padding e zero, por isso
+       so a previa sofria. */
+    el.style.boxSizing='content-box';
+    var pai=el.parentElement;
+    if(!pai)return;
+    var disp=pai.clientWidth-2;
+    if(!(disp>40))return;
+    var REF=14;
+    el.style.fontSize=REF+'px';
+    var larg=el.getBoundingClientRect().width;
+    if(!(larg>0))return;
+    var px=Math.max(7,Math.min(REF,+(REF*disp/larg).toFixed(2)));
+    el.style.fontSize=px+'px';
+  }catch(e){ _quieto(e,'ajustarPrevia'); }
+}
 function previaImp(){
   var m=modeloImp(IMP.tipo);
-  var cols=parseInt(($('impCols')||{}).value||m.colunas||48,10);
+  var papel=parseInt(($('impPapelMM')||{}).value||papelDoModelo(m),10);
+  var letra=($('impLetra')||{}).value||letraDoModelo(m);
+  var cols=colunasDaLetra(papel,letra);
   var el=$('impPapel');
   if(!el)return;
   var txt=m.manual?(IMP.rascunho!==null?IMP.rascunho:m.modelo):blocosParaModelo(m.blocos);
-  el.className='papel'+(cols===32?' p58':'');
+  el.className='papel'+(papel===58?' p58':'');
+  el.style.width=cols+'ch';
   el.innerHTML=papelHTML(montarImp(txt,pedidoExemplo(IMP.tipo),cols),cols);
+  ajustarPrevia(el,cols);
 }
 function inserirImp(txt){
   var ta=$('impTxt');if(!ta)return;
@@ -44858,18 +44977,23 @@ function inserirImp(txt){
 }
 function salvarImpCampo(){
   var m=modeloImp(IMP.tipo);
-  m.colunas=parseInt($('impCols').value,10)||48;
+  m.colunas=colunasDaLetra(parseInt(($('impPapelMM')||{}).value,10)||papelDoModelo(m),
+    ($('impLetra')||{}).value||letraDoModelo(m));
   m.vias=parseInt($('impVias').value,10)||1;
   m.corte=$('impCorte').checked;
   m.gaveta=$('impGaveta').checked;
-  salvar();previaImp();
+  /* a tela inteira e refeita: cada opcao de letra mostra quantas colunas
+     da NAQUELA bobina, entao trocar a bobina muda os rotulos. comRolagem
+     devolve a pagina ao ponto em que estava */
+  salvar();comRolagem(telaModeloImp);
   if(NUVEM.ligada)sincronizar();
 }
 function salvarImp(){
   var m=modeloImp(IMP.tipo);
   if(m.manual&&$('impTxt'))m.modelo=$('impTxt').value;
   else m.modelo=blocosParaModelo(m.blocos);
-  m.colunas=parseInt($('impCols').value,10)||48;
+  m.colunas=colunasDaLetra(parseInt(($('impPapelMM')||{}).value,10)||papelDoModelo(m),
+    ($('impLetra')||{}).value||letraDoModelo(m));
   m.vias=parseInt($('impVias').value,10)||1;
   m.corte=$('impCorte').checked;
   m.gaveta=$('impGaveta').checked;
@@ -44941,19 +45065,90 @@ function testarImp(){
    ja montado, e vai declarada em milimetros. Sobram 4 mm no pe para
    o corte.
    ========================================================== */
-function alturaDoPapel(el,margem,larguraMM){
+/* ==========================================================
+   LARGURA DO PAPEL E TAMANHO DA LETRA
+
+   O unico controle da tela era "Largura do papel", que gravava 32 ou
+   48 em `colunas` — e `colunas` era, ao mesmo tempo, quantos
+   caracteres cabem na linha E de que bobina se trata. Amarrados
+   assim, nao havia como pedir letra maior: a unica saida era dizer
+   que a bobina era estreita, o que fazia o papel sair errado.
+
+   Agora sao duas coisas. `papel` e a bobina em milimetros, e
+   `colunas` e quantos caracteres cabem na linha — que e exatamente o
+   que define o tamanho da letra: menos colunas na mesma bobina,
+   letra maior.
+   ========================================================== */
+/* ==========================================================
+   A BOBINA CONTINUA MORANDO DENTRO DE `colunas`
+
+   O certo seria um campo `papel` proprio. Ele nao existe na tabela do
+   banco de producao, e criar coluna em banco de loja aberta e decisao
+   do Rafael, nao minha. Entao os valores de coluna sao escolhidos de
+   modo que nao se confundam: de 34 para cima e bobina de 80 mm, de 32
+   para baixo e 58 mm. Nenhum numero serve as duas.
+
+   Quando a coluna `papel` existir, `papelDoModelo` passa a le-la e
+   nada mais muda.
+   ========================================================== */
+var LETRAS=[
+  {id:'normal', n:'Normal', cols:{80:48, 58:32}},
+  {id:'grande', n:'Grande', cols:{80:40, 58:28}},
+  {id:'maior',  n:'Maior',  cols:{80:34, 58:24}}
+];
+function papelDoModelo(m){
+  if(!m)return 80;
+  var p=Number(m.papel)||0;
+  if(p===58||p===80)return p;
+  return (Number(m.colunas)||48)>=34?80:58;
+}
+function letraDoModelo(m){
+  var p=papelDoModelo(m), c=Number(m&&m.colunas)||48;
+  var achou=LETRAS.find(function(L){return L.cols[p]===c});
+  return achou?achou.id:'normal';
+}
+function colunasDaLetra(papel,letra){
+  var L=LETRAS.find(function(x){return x.id===letra})||LETRAS[0];
+  return L.cols[papel===58?58:80];
+}
+/* ==========================================================
+   A LARGURA DA LETRA NAO SE ADIVINHA, SE MEDE
+
+   O tamanho da fonte era calculado com `cols * 0.6` — um chute do
+   quanto cada caractere ocupa numa fonte monoespacada. So que 0,6 nao
+   e verdade em fonte nenhuma em particular: no Consolas do Windows a
+   letra ocupa 0,55, no DejaVu do Linux 0,602. Errar para menos deixa
+   ate 8% da bobina em branco e a letra menor do que podia ser.
+
+   Agora o proprio navegador responde: `.papel` tem largura de `cols`
+   caracteres (`width:<cols>ch`), entao basta medir o elemento com uma
+   fonte de referencia e escalar. Da certo em qualquer fonte, em
+   qualquer maquina.
+   ========================================================== */
+function medirPapel(el,margem,larguraMM,cols){
+  var padrao={fonte:+((larguraMM-margem*2)/((cols||48)*0.6)).toFixed(3),altura:200};
   try{
     var alvo=el.querySelector('.papel');
-    if(!alvo)return 200;
+    if(!alvo)return padrao;
     var antesEl=el.getAttribute('style')||'';
     var antesPad=alvo.style.padding;
+    var antesFonte=alvo.style.fontSize;
     el.setAttribute('style','display:block;position:fixed;left:-10000px;top:0;'+
       'visibility:hidden;width:auto;padding:0;margin:0');
     alvo.style.padding='0';
+    /* mede com 4 mm e escala para a largura util da bobina */
+    var REF=4;
+    alvo.style.fontSize=REF+'mm';
+    var larg=alvo.getBoundingClientRect().width;
+    var utilPx=(larguraMM-margem*2)*96/25.4;
+    var fonte=(larg>0)?+(REF*utilPx/larg).toFixed(3):padrao.fonte;
+    if(!(fonte>0.5)||!(fonte<20))fonte=padrao.fonte;
+    alvo.style.fontSize=fonte+'mm';
     var h=alvo.getBoundingClientRect().height;
     alvo.style.padding=antesPad;
+    alvo.style.fontSize=antesFonte;
     el.setAttribute('style',antesEl);
-    if(!(h>0))return 200;
+    if(!(h>0))return {fonte:fonte,altura:padrao.altura};
     /* px do navegador (96 dpi) para mm, mais as margens e o corte */
     var mmAlt=Math.ceil(h*25.4/96)+(margem*2)+4;
     /* ==========================================================
@@ -44969,8 +45164,8 @@ function alturaDoPapel(el,margem,larguraMM){
        de papel em comprovante curto; sair deitado nao e opcao.
        ========================================================== */
     var minAlt=(Number(larguraMM)||80)+8;
-    return Math.max(30,minAlt,mmAlt);
-  }catch(e){ return 200; }
+    return {fonte:fonte,altura:Math.max(30,minAlt,mmAlt)};
+  }catch(e){ return padrao; }
 }
 /* ==========================================================
    COLUNAS E LARGURA DA BOBINA SAO COISAS SEPARADAS
@@ -44989,7 +45184,7 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
   var mm=Number(mmPapel)||(cols<=32?58:80);
   var margem=2;                             /* mm de cada lado */
   var util=mm-(margem*2);
-  var fonteMM=+(util/(cols*0.6)).toFixed(3);
+  var fonteMM=+(util/(cols*0.6)).toFixed(3);   /* ponto de partida; medido abaixo */
   var el=document.getElementById('viaImp')||document.createElement('div');
   el.id='viaImp';
   var uma='<div class="papel'+(mm<=58?' p58':'')+'" '+
@@ -44999,7 +45194,12 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
     todas+='<div class="papelPg">'+uma+'</div>';
   el.innerHTML=todas;
   document.body.appendChild(el);
-  var alturaMM=alturaDoPapel(el,margem,mm);
+  var med=medirPapel(el,margem,mm,cols);
+  fonteMM=med.fonte;
+  var alturaMM=med.altura;
+  /* o papel na tela usa a mesma fonte medida */
+  Array.prototype.forEach.call(el.querySelectorAll('.papel'),function(x){
+    x.style.fontSize=fonteMM+'mm'; });
   var st=document.getElementById('impCSS')||document.createElement('style');
   st.id='impCSS';
   /* o `padding:10px` do #viaImp somava 2,6 mm de cada lado por cima da

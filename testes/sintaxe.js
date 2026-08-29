@@ -87,6 +87,7 @@ const CRITICAS = [
   'fundoSugerido','montarSnapshot','esperadoCaixa','movimentoCaixa','totalMov',
   'perguntaImprimirFechamento','imprimirFechamento','linhasFechamento',
   'perguntaImprimirAbertura','imprimirAbertura','linhasAbertura',
+  'linhasPag','trocoDoPedido','dadosImp','montarImp',
   'lancarFechamento','lancarTransferenciaCaixa','definirSenhaOperador',
   'moedaHTML','moedaValor','moedaSet','moedaLer','moedaFmt','arred',
   'addPag','recalcPag','finalizarVenda','travarFecharVenda','liberarFecharVenda',

@@ -1308,7 +1308,8 @@ function imprimirVia(ped){
   var m=modeloImp(tipo)||modeloImp('ficha');
   if(!m){toast('Nenhum modelo de impressao cadastrado.');return;}
   var cols=m.colunas||48;
-  imprimirPapel(montarImp(textoDoModelo(m),ped,cols),cols,m.vias||1);
+  /* a bobina e do modelo; as colunas so dizem o tamanho da letra */
+  imprimirPapel(montarImp(textoDoModelo(m),ped,cols),cols,m.vias||1,papelDoModelo(m));
 }
 
 /* ---------- ABA: PEDIDOS (kanban) ---------- */
