@@ -99,6 +99,18 @@ t('e diz onde cadastrar, sem termo técnico',
 t('quem fechou continua sendo gravado no caixa',
   /cx\.fechadoPor=opF\.nome/.test(codigoNu));
 
+console.log('\n── O clique nunca morre calado\n');
+
+t('a trava de duplo toque avisa em vez de sumir',
+  /O fechamento já está sendo processado/.test(fonte));
+t('erro no meio do fechamento aparece na tela, em português',
+  /Não consegui concluir o fechamento: /.test(fonte));
+t('e diz que nada foi perdido', /Nada foi perdido — o caixa continua aberto/.test(fonte));
+t('e o motivo técnico fica no Diagnóstico',
+  /registrarFalha\('caixa','fecharCaixa'/.test(codigoNu));
+t('a trava é liberada quando dá erro, senão o próximo clique também morre',
+  /catch\(e\)\{\s*liberarOperacao\('fechar-caixa'\);/.test(codigoNu));
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' testes passaram') + '\n');
 process.exit(falhas ? 1 : 0);

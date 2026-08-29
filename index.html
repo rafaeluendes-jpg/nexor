@@ -12173,7 +12173,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V229.0.0';
+var VERSAO='V230.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21046,8 +21046,24 @@ function fecharCaixa(id){
   '<input id="cxObs" placeholder="ex: faltou R$ 2 de troco / maquininha ficou offline às 19h"></div></div></div>';
 
   modal('Fechamento de caixa',h,'Confirmar fechamento',async function(){
+   /* ==========================================================
+      O CLIQUE NUNCA PODE MORRER CALADO
+
+      29/08/2026: a loja clicava em Confirmar e nada acontecia. Cada
+      saida deste caminho que devolvia `false` sem dizer nada — a trava
+      de duplo toque, a autorizacao, um erro no meio — deixava a pessoa
+      olhando para a tela sem entender. Do lado de fora nao havia como
+      distinguir "o sistema recusou" de "o botao nao funciona".
+
+      Agora TODA saida fala, e qualquer erro no meio aparece na tela em
+      portugues e fica gravado no Diagnostico com o motivo tecnico.
+      ========================================================== */
+   try{
     /* item 30: duplo toque em FECHAR CAIXA nao gera dois fechamentos */
-    if(!travarOperacao('fechar-caixa'))return false;
+    if(!travarOperacao('fechar-caixa')){
+      toast('O fechamento já está sendo processado — aguarde um instante.');
+      return false;
+    }
     var opF=await autorizar('fechar',($('fcOp')||{}).value||'',($('fcSenha')||{}).value||'');
     if(!opF){liberarOperacao('fechar-caixa');return false;}
     if(cx.fechadoEm){liberarOperacao('fechar-caixa');toast('Este caixa já foi fechado.');return true;}
@@ -21159,6 +21175,14 @@ function fecharCaixa(id){
        ========================================================== */
     setTimeout(function(){ perguntaImprimirFechamento(cx); },120);
     return true;
+   }catch(e){
+     liberarOperacao('fechar-caixa');
+     try{registrarFalha('caixa','fecharCaixa',(e&&e.message)||String(e),
+       {situacao:'o fechamento não foi concluído'})}catch(e2){}
+     toast('Não consegui concluir o fechamento: '+((e&&e.message)||'erro inesperado')+
+       '. Nada foi perdido — o caixa continua aberto. O motivo ficou no Diagnóstico.');
+     return false;
+   }
   },'lg');
   setTimeout(function(){pedeSenhaCaixa('fc')},80);
 
