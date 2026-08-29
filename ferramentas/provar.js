@@ -256,7 +256,125 @@ function servir() {
   await pg.screenshot({ path: FOTOS + '/pdv-celular-comanda.png' });
   await pg.setViewportSize({ width: 1440, height: 900 });
 
-  console.log('\n── 7. O aviso vermelho não pode cobrir a operação\n');
+  console.log('\n── 7. Fechar o caixa de uma loja não toca no da outra\n');
+  /* a pergunta do Rafael, feita pela interface de verdade: duas unidades,
+     cada uma com o seu caixa aberto, e o fechamento de uma delas */
+  r = await pg.evaluate(async () => {
+    DB.sucursais = [{ id: 'suc_matriz', nome: 'Matriz', matriz: true, ativa: true },
+                    { id: 'suc_sf', nome: 'Jolô Santa Fé do Sul', ativa: true },
+                    { id: 'suc_alpha', nome: 'Jolô Alphaville', ativa: true }];
+    DB.lojaAtual = 'suc_sf'; S.loja = 'suc_sf';
+    var hoje = new Date().toLocaleDateString('pt-BR');
+    DB.caixas = [
+      { id: 'cx_sf',    inicial: 100, operador: 'Santa Fé',   operadorId: 'op1',
+        sucursalId: 'suc_sf',    movimentos: [], aberto: hoje + ' 09:00' },
+      { id: 'cx_alpha', inicial: 200, operador: 'Alphaville', operadorId: 'op2',
+        sucursalId: 'suc_alpha', movimentos: [], aberto: hoje + ' 08:00' }
+    ];
+    salvar();
+    return { meu: (caixaAberto() || {}).id,
+             sobra: caixasEsquecidos().map(function (c) { return c.id; }) };
+  });
+  t('estando em Santa Fé, o caixa em operação é o de Santa Fé', r.meu === 'cx_sf', r.meu);
+  t('o caixa do Alphaville não entra como pendência de Santa Fé',
+    r.sobra.length === 0, r.sobra.join(','));
+
+  r = await pg.evaluate(async () => {
+    /* a autorização por senha é a única coisa dublada: o resto é o caminho real */
+    window.autorizar = async () => ({ id: 'op1', nome: 'Operador Teste', funcao: 'gerente' });
+    fecharCaixa();
+    await new Promise(function (r2) { setTimeout(r2, 120); });
+    var md = document.getElementById('mdOv');
+    if (!md) return { erro: 'o modal de fechamento não abriu' };
+    var campos = md.querySelectorAll('.cfV');
+    if (campos.length) { campos[0].value = '100,00';
+      campos[0].dispatchEvent(new Event('input', { bubbles: true })); }
+    var bt = [...md.querySelectorAll('button')]
+      .find(function (b) { return /Confirmar fechamento/i.test(b.textContent); });
+    if (!bt) return { erro: 'não achei o botão de confirmar' };
+    bt.click();
+    await new Promise(function (r2) { setTimeout(r2, 400); });
+    var sf = DB.caixas.find(function (c) { return c.id === 'cx_sf'; });
+    var al = DB.caixas.find(function (c) { return c.id === 'cx_alpha'; });
+    return { sfFechado: !!sf.fechadoEm, sfFoto: !!sf.snapshot, sfContado: sf.contado,
+             alFechado: !!al.fechadoEm, alContado: al.contado,
+             alInicial: al.inicial, alOperador: al.operador };
+  });
+  t('o modal e o botão de fechamento responderam', !r.erro, r.erro);
+  t('o caixa de Santa Fé fechou', r.sfFechado === true);
+  t('com a fotografia da conferência', r.sfFoto === true);
+  t('e o valor contado gravado', r.sfContado === 100, r.sfContado);
+  t('O CAIXA DO ALPHAVILLE CONTINUA ABERTO', r.alFechado === false, r.alFechado);
+  t('e intocado — fundo, operador e conferência dele não mudaram',
+    r.alInicial === 200 && r.alOperador === 'Alphaville' && !r.alContado,
+    JSON.stringify({ i: r.alInicial, o: r.alOperador, c: r.alContado }));
+
+  console.log('\n── 8. O caixa que ficou aberto de ontem: dá para fechar?\n');
+  /* o estado EXATO da loja em 29/08/2026: um único caixa, aberto ontem */
+  r = await pg.evaluate(async () => {
+    /* o fechamento anterior deixa a pergunta "imprimir?" na tela; ela some
+       antes, senão é ela que recebe o clique seguinte */
+    try { fecharModal(); } catch (e) {}
+    try { liberarOperacao('fechar-caixa'); } catch (e) {}
+    DB.sucursais = [{ id: 'suc_sf', nome: 'Jolô Santa Fé do Sul', ativa: true }];
+    DB.lojaAtual = 'suc_sf'; S.loja = 'suc_sf';
+    var ontem = new Date(Date.now() - 86400000).toLocaleDateString('pt-BR');
+    DB.caixas = [{ id: 'cx_ontem', inicial: 100, operador: 'Jolo Santa Fe do Sul',
+      operadorId: 'op1', sucursalId: 'suc_sf', movimentos: [], aberto: ontem + ' 13:22' }];
+    salvar();
+    return { aberto: (caixaAberto() || {}).id,
+             pendencias: caixasEsquecidos().length,
+             deOutroDia: caixaDeOutroDia(DB.caixas[0]) };
+  });
+  t('o caixa de ontem é o caixa em operação', r.aberto === 'cx_ontem', r.aberto);
+  t('e o sistema sabe que ele é de outro dia', r.deOutroDia === true);
+  t('com um só aberto, não há "pendência" separada — era o meu engano',
+    r.pendencias === 0, r.pendencias);
+
+  r = await pg.evaluate(() => {
+    telaFrenteCaixa();
+    var c = document.getElementById('content');
+    var txt = (c.innerText || '');
+    var bt = [...c.querySelectorAll('button')]
+      .find(function (b) { return /Fechar caixa/i.test(b.textContent); });
+    return { avisa: /CAIXA ABERTO DESDE/.test(txt),
+             explica: /Ficou aberto de um dia para o outro/.test(txt),
+             temBotao: !!bt, chama: bt ? bt.getAttribute('onclick') : '' };
+  });
+  t('a Frente de Caixa avisa que ele é de ontem', r.avisa === true);
+  t('e explica o que fazer, sem termo técnico', r.explica === true);
+  t('E TEM O BOTÃO "Fechar caixa" — que era o que faltava', r.temBotao === true);
+  t('o botão fecha ESTE caixa, pelo identificador',
+    /fecharCaixa\('cx_ontem'\)/.test(r.chama || ''), r.chama);
+  await pg.screenshot({ path: FOTOS + '/caixa-de-ontem.png' });
+
+  r = await pg.evaluate(async () => {
+    window.autorizar = async () => ({ id: 'op1', nome: 'Operador', funcao: 'gerente' });
+    var c = document.getElementById('content');
+    var bt = [...c.querySelectorAll('button')]
+      .find(function (b) { return /Fechar caixa/i.test(b.textContent); });
+    bt.click();
+    await new Promise(function (r2) { setTimeout(r2, 150); });
+    var md = document.getElementById('mdOv');
+    if (!md) return { erro: 'o modal não abriu' };
+    var campos = md.querySelectorAll('.cfV');
+    if (campos.length) { campos[0].value = '433,05';
+      campos[0].dispatchEvent(new Event('input', { bubbles: true })); }
+    var ok = [...md.querySelectorAll('button')]
+      .find(function (b) { return /Confirmar fechamento/i.test(b.textContent); });
+    ok.click();
+    await new Promise(function (r2) { setTimeout(r2, 400); });
+    var cx = DB.caixas.find(function (x) { return x.id === 'cx_ontem'; });
+    return { fechou: !!cx.fechadoEm, contado: cx.contado, foto: !!cx.snapshot,
+             aindaAberto: !!caixaAberto() };
+  });
+  t('o caixa de ontem FECHA pela Frente de Caixa', !r.erro && r.fechou === true,
+    r.erro || String(r.fechou));
+  t('com o valor contado gravado', r.contado === 433.05, r.contado);
+  t('e a fotografia da conferência', r.foto === true);
+  t('depois disso não sobra caixa aberto', r.aindaAberto === false);
+
+  console.log('\n── 9. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();
     /* item direto na comanda: o modal de opções tamparia a medição */
@@ -310,7 +428,7 @@ function servir() {
   t('e ao reconectar o aviso some da tela', av.sumiu === true);
   t('a marca de sessão caída é apagada', av.marca === false);
 
-  console.log('\n── 8. Nenhum erro de runtime na sessão inteira\n');
+  console.log('\n── 10. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 
   await nav.close(); s.close();

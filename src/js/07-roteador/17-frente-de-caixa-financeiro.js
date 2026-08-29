@@ -39,16 +39,33 @@ function telaFrenteCaixa(){
   '<div class="finActs"><button class="btnP2" onclick="abrir(\'pdv\',\'pdv\')">'+sv('pos',14)+' Ir ao PDV</button></div></div>'+
 
   (aberto
-   ?'<div class="fcAberto">'+
+   ?'<div class="fcAberto'+(caixaDeOutroDia(aberto)?' fcPend':'')+'">'+
      '<div class="fcIco">'+sv('cash',26)+'</div>'+
      '<div class="fcInfo">'+
-      '<span class="fcTag">CAIXA ABERTO'+(aberto.turno?' · '+E(aberto.turno).toUpperCase():'')+'</span>'+
+      '<span class="fcTag">CAIXA ABERTO'+
+       (caixaDeOutroDia(aberto)?' DESDE '+E(String(aberto.aberto).slice(0,10)):'')+
+       (aberto.turno?' · '+E(aberto.turno).toUpperCase():'')+'</span>'+
       '<b>Aberto em '+E(aberto.aberto)+'</b>'+
-      '<span>Operador: '+E(aberto.operador||'—')+' · '+movimentoCaixa(aberto.id).qtd+' pedidos no turno</span>'+
+      '<span>'+(caixaDeOutroDia(aberto)
+        ?'Ficou aberto de um dia para o outro. Feche com a conferência para o '+
+         'turno entrar no relatório — as vendas dele já estão todas lançadas.'
+        :'Operador: '+E(aberto.operador||'—')+' · '+movimentoCaixa(aberto.id).qtd+
+         ' pedidos no turno')+'</span>'+
      '</div>'+
      '<div class="fcVal"><span>Dinheiro em gaveta</span><b>R$ '+money(esperadoCaixa(aberto))+'</b></div>'+
      '<div class="fcVal"><span>Vendas do turno</span><b>R$ '+money(movimentoCaixa(aberto.id).total)+'</b></div>'+
-     '<button class="btnP2 ok" onclick="verCaixa(\''+aberto.id+'\')">Ver detalhes</button>'+
+     /* ==========================================================
+        A TELA DO FECHAMENTO PRECISA FECHAR
+
+        Ela se chama Frente de Caixa, lista os fechamentos, e nao tinha
+        como fechar o caixa aberto — so "Ver detalhes". Quem precisava
+        fechar tinha de descobrir sozinho que o caminho era outro, pelo
+        PDV. Em 29/08/2026 eu mandei o Rafael clicar aqui num botao que
+        nao existia nesta situacao.
+        ========================================================== */
+     '<button class="btnP2" onclick="verCaixa(\''+aberto.id+'\')">Ver detalhes</button>'+
+     '<button class="btnP2 ok" onclick="fecharCaixa(\''+aberto.id+'\')">'+
+      sv('cash',14)+' Fechar caixa</button>'+
     '</div>'
    :'<div class="fcFechado">'+sv('cash',20)+
      '<div><b>Nenhum caixa aberto no momento</b>'+
