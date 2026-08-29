@@ -1823,6 +1823,33 @@ function impressaoDaLinha(E,x,i){
      ou sem uuid): esse PRECISA subir;
    - o registro de outra empresa, que nunca sobe por este aparelho.
    ========================================================== */
+/* ==========================================================
+   ESTA LINHA TEM ALTERACAO QUE AINDA NAO SUBIU?
+
+   A impressao guardada em `DB._hash` e a do ULTIMO ENVIO CONFIRMADO
+   pela nuvem. Se a impressao de agora for diferente, alguem mexeu na
+   linha aqui e isso ainda nao chegou la.
+
+   E a unica pergunta que o download precisa fazer antes de substituir
+   uma linha pela versao da nuvem. Sem ela, uma alteracao feita aqui e
+   ainda nao enviada e apagada pelo download seguinte, sem erro nenhum.
+
+   Na duvida responde SIM (preserva o que esta aqui): reenviar uma linha
+   igual nao custa nada; perder um fechamento de caixa custa o dia da
+   loja.
+   ========================================================== */
+function temMudancaNaoEnviada(col,x,i){
+  try{
+    if(!x||!x.id)return false;
+    if(x._novoAqui===true)return true;
+    var E=(MAPA||[]).find(function(e){return e.col===col});
+    if(!E)return false;
+    var h=(DB._hash&&DB._hash[col])||{};
+    var guardada=h[x.id];
+    if(!guardada)return true;              /* nunca teve envio confirmado */
+    return impressaoDaLinha(E,x,i||0)!==guardada;
+  }catch(e){ _quieto(e,'temMudancaNaoEnviada'); return true; }
+}
 function anotarImpressoes(){
   DB._hash=DB._hash||{};
   DB._uuid=DB._uuid||{};

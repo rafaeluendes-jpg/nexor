@@ -6,7 +6,7 @@
   "scripts": {
     "test:reconciliacao": "node testes/reconciliacao.js",
     "test:sintaxe": "node testes/sintaxe.js",
-    "test": "npm run test:arranque && npm run test:montagem && npm run test:versao && npm run test:backup && npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa && npm run test:formas && npm run test:ux && npm run test:tenant && npm run test:unidade && npm run test:cego && npm run test:pedbase && npm run test:sino && npm run test:trilho && npm run test:vinculo && npm run test:horario && npm run test:rolagem && npm run test:ligacoes && npm run test:cadastro && npm run test:envio && npm run test:salvar && npm run test:canais && npm run test:caixareabre && npm run test:sessao && npm run test:reconexao && npm run test:sosia && npm run test:e2e",
+    "test": "npm run test:arranque && npm run test:montagem && npm run test:versao && npm run test:backup && npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa && npm run test:formas && npm run test:ux && npm run test:tenant && npm run test:unidade && npm run test:cego && npm run test:pedbase && npm run test:sino && npm run test:trilho && npm run test:vinculo && npm run test:horario && npm run test:rolagem && npm run test:ligacoes && npm run test:cadastro && npm run test:envio && npm run test:salvar && npm run test:canais && npm run test:caixareabre && npm run test:sessao && npm run test:reconexao && npm run test:sosia && npm run test:fechamento && npm run test:e2e",
     "test:pedbase": "node testes/pedido-base.js",
     "test:sino": "node testes/sino.js",
     "test:trilho": "node testes/frente-de-caixa.js",
@@ -22,6 +22,7 @@
     "test:sessao": "node testes/sessao-nao-cai.js",
     "test:reconexao": "node testes/reconexao.js",
     "test:sosia": "node testes/cadastro-sem-sosia.js",
+    "test:fechamento": "node testes/fechamento-nao-some.js",
     "test:caixareabre": "node testes/caixa-nao-reabre.js",
     "test:caixa": "node testes/caixa.js",
     "test:formas": "node testes/formas-pagamento.js",

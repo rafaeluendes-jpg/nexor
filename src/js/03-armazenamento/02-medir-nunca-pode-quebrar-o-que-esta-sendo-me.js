@@ -238,6 +238,41 @@ function volta(linhas,fn,atual,col){
        que e a fonte da verdade. Preserva-se apenas o que a nuvem ainda nao
        conhece.
        ========================================================== */
+    /* ==========================================================
+       O FECHAMENTO DE CAIXA QUE O DOWNLOAD APAGAVA
+
+       28/08/2026, 23h. A loja de Santa Fe do Sul fechou o caixa do dia,
+       imprimiu o comprovante, e na manha seguinte o sistema mostrava
+       aquele mesmo caixa aberto desde o dia anterior. As 57 vendas da
+       noite estavam todas na nuvem; so o fechamento nao estava.
+
+       O motivo estava escrito no comentario logo abaixo, como se fosse
+       uma regra: "registro que existe nos dois lados continua vindo da
+       nuvem, que e a fonte da verdade". Para um registro ALTERADO AQUI e
+       ainda nao enviado, isso e falso — a verdade e a daqui, que a nuvem
+       ainda nao conhece. O download passava por cima do fechamento
+       segundos depois dele ser feito, e o envio seguinte ja nao tinha o
+       que enviar. Nenhum erro, nenhum aviso, nada na tela.
+
+       A pergunta certa e "esta linha ja foi confirmada pela nuvem?", e a
+       resposta esta na impressao digital do ultimo envio confirmado.
+       Se a linha daqui mudou desde entao, ela FICA — e sobe no envio
+       seguinte.
+
+       Nao e mesclagem de conteudo: quem nao tem alteracao pendente
+       continua vindo da nuvem, como sempre.
+       ========================================================== */
+    if(col&&Array.isArray(atual)&&atual.length&&typeof temMudancaNaoEnviada==='function'){
+      var meus={};
+      atual.forEach(function(x,i){ if(x&&x.id&&temMudancaNaoEnviada(col,x,i))meus[x.id]=x; });
+      var _fic=0;
+      r=r.map(function(x){
+        if(x&&x.id&&meus[x.id]){ _fic++; return meus[x.id]; }
+        return x;
+      });
+      if(_fic)logNuvem(col+': '+_fic+' registro(s) com alteração ainda não enviada '+
+        'foram mantidos como estão aqui — a nuvem recebe no próximo envio');
+    }
     if(col&&Array.isArray(atual)&&atual.length){
       var naNuvem={};
       r.forEach(function(x){ if(x&&x.id)naNuvem[x.id]=true; });
