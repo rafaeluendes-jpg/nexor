@@ -87,6 +87,7 @@ const CRITICAS = [
   'fundoSugerido','montarSnapshot','esperadoCaixa','movimentoCaixa','totalMov',
   'perguntaImprimirFechamento','imprimirFechamento','linhasFechamento',
   'perguntaImprimirAbertura','imprimirAbertura','linhasAbertura',
+  'perguntaImprimirMovimento','imprimirMovimento','linhasMovimento','diaLocal',
   'linhasPag','trocoDoPedido','dadosImp','montarImp',
   'sociosApp','novoSocioApp','gravarSocioApp','publicarSocioApp',
   'removerSocioApp','enviarLinkSocioApp','blocoApp','carregarPublicadosApp',

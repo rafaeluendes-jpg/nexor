@@ -1678,6 +1678,87 @@ function imprimirAbertura(id){
   /* uma via so: comprovante de abertura nao tem para quem dar a segunda */
   imprimirPapel(r.linhas,r.cols,1,r.mm);
 }
+/* ==========================================================
+   DINHEIRO QUE SAI DA GAVETA PRECISA DE PAPEL ASSINADO
+
+   A sangria ja era autorizada por senha desde a V-da-senha, e fica
+   registrada no fechamento. Mas nao saia papel nenhum. Quem leva
+   R$ 300 para o cofre nao tem o que assinar, e quem recebe nao tem o
+   que guardar — a conferencia de dias depois vira palavra contra
+   palavra, que e exatamente o que o comprovante de fechamento existe
+   para evitar.
+
+   Vale igual para o suprimento: dinheiro que ENTRA na gaveta tambem
+   saiu do bolso de alguem.
+
+   Mesmo desenho do comprovante de abertura, que por sua vez segue o
+   "RETIRO PARCIAL" que a rede ja usa: cabecalho, titulo, quem fez, o
+   motivo, para onde foi, o VALOR em destaque e a linha da assinatura.
+   ========================================================== */
+function linhasMovimento(cx,mv){
+  var papel=80;
+  try{ var m=modeloImp('ficha'); if(m)papel=papelDoModelo(m); }catch(e){}
+  var cols=(papel===58?24:32);
+  var L=[];
+  var esq=function(t,n){ t=String(t==null?'':t);
+    return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };
+  var regra=function(c){ L.push({txt:new Array(cols+1).join(c)}); };
+  var cab=function(a,b){
+    var t=b?a+'  '+b:a;
+    if(t.length<=cols){ L.push({txt:t}); return; }
+    L.push({txt:String(a).slice(0,cols)});
+    if(b)L.push({txt:String(b).slice(0,cols)});
+  };
+  var sangria=(mv.tipo==='sangria');
+  /* ==========================================================
+     O DIA DA SANGRIA E O DIA DA LOJA
+
+     `mv.data` e gravada com `toISOString()`, que e UTC. A sangria mais
+     comum da loja e a do fim da noite — a do comprovante que o Rafael
+     mandou saiu as 23:26. Em Sao Paulo isso ja e 02:26 do dia seguinte
+     em UTC: cortar a data crua imprimiria o papel com a data de
+     AMANHA, justamente na retirada que mais importa conferir.
+
+     `diaLocal()` converte para o dia da loja e aceita tanto a data com
+     fuso quanto a simples, que e como as duas convivem no banco.
+     ========================================================== */
+  var dia='';
+  try{ dia=dataBR(diaLocal(mv.data)); }catch(e){ dia=String(mv.data||'').slice(0,10); }
+  var periodo=String(cx.turno||'1').replace(/^\s*turno\s*/i,'')||'1';
+  var loja=''; try{ loja=sucNome(cx.sucursalId||lojaAtualId())||''; }catch(e){}
+  var empresa=''; try{ empresa=cfg().nomePublico||nomeLojaAtual()||''; }catch(e){}
+
+  /* a loja que imprimiu manda no cabecalho — nunca o nome da rede */
+  L.push({txt:String(loja||empresa).slice(0,cols),n:true});
+  L.push({txt:''});
+  cab('Data: '+(dia||'-'),'Periodo: '+periodo);
+  cab('Hora: '+(mv.hora||'-'));
+  L.push({txt:''});
+  L.push({txt:(sangria?'SANGRIA - RETIRADA':'SUPRIMENTO - REFORCO'),n:true});
+  L.push({txt:''});
+  regra('-');
+  cab('Responsavel: '+(mv.responsavel||'-'));
+  var motivo=[mv.motivoNome,mv.motivo].filter(Boolean).join(' - ');
+  if(motivo)cab('Motivo: '+motivo);
+  cab((sangria?'Destino: ':'Origem: ')+(mv.destinoNome||'-'));
+  L.push({txt:''});
+  L.push({txt:('VALOR: '+money(Number(mv.valor)||0)).slice(0,cols),n:true});
+  L.push({txt:''});
+  regra('-');
+  L.push({txt:''});
+  var rot='Assinatura: ';
+  L.push({txt:esq(rot,Math.min(rot.length,cols))+
+    new Array(Math.max(2,cols-rot.length+1)).join('_')});
+  return {linhas:L,cols:cols,mm:papel};
+}
+function imprimirMovimento(cxId,mvId){
+  var cx=(DB.caixas||[]).find(function(c){return c.id===cxId});
+  if(!cx){toast('Caixa não encontrado.');return;}
+  var mv=(cx.movimentos||[]).find(function(m){return m.id===mvId});
+  if(!mv){toast('Movimentação não encontrada.');return;}
+  var r=linhasMovimento(cx,mv);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
+}
 function resumoDoCaixa(cx){
   baseFormas();
   var peds=(DB.pedidos||[]).filter(function(p){return p.caixaId===cx.id});

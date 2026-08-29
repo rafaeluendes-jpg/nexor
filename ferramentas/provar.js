@@ -847,6 +847,110 @@ function servir() {
     var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
   });
 
+  console.log('\n── 10f. Sangria e suprimento saem no papel, para assinar\n');
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    DB.modelosImp = [];
+    /* a sangria do fim da noite: 23:26 na loja é 02:26 do dia seguinte em
+       UTC — é aqui que a data do papel costuma sair errada */
+    var cx = { id: 'cx_mv', turno: 'Turno 1', sucursalId: lojaAtualId(),
+      aberto: '28/08/2026 13:22', inicial: 500, movimentos: [
+        { id: 'mv_1', tipo: 'sangria', valor: 300, motivoNome: 'Depósito bancário',
+          motivo: '', destinoNome: 'Cofre', responsavel: 'Priscila',
+          hora: '23:26', data: '2026-08-29T02:26:00.000Z' },
+        { id: 'mv_2', tipo: 'suprimento', valor: 150, motivoNome: 'Troco',
+          motivo: 'trazido de casa', destinoNome: 'Conta corrente',
+          responsavel: 'Administrador', hora: '13:05',
+          data: '2026-08-29T16:05:00.000Z' }
+      ] };
+    DB.caixas = [cx]; salvar();
+    imprimirMovimento('cx_mv', 'mv_1');
+    var pap = document.querySelector('#viaImp .papel');
+    var st = document.getElementById('impCSS');
+    var linhas = [...pap.querySelectorAll('.ppL')];
+    return { corpo: [...pap.children].map(l => l.textContent).join('\n'),
+      estilo: pap.getAttribute('style') || '',
+      regra: (st ? st.textContent : '').match(/@page\{[^}]*\}/)[0],
+      vias: document.querySelectorAll('#viaImp .papelPg').length,
+      maior: linhas.reduce((a, l) => Math.max(a, (l.textContent || '').length), 0),
+      cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length };
+  });
+  t('a sangria imprime um comprovante', /SANGRIA - RETIRADA/.test(r.corpo), r.corpo);
+  t('diz QUEM fez', /Responsavel: Priscila/.test(r.corpo));
+  t('diz a HORA', /Hora: 23:26/.test(r.corpo));
+  t('diz o VALOR', /VALOR: 300,00/.test(r.corpo));
+  t('diz PARA ONDE foi', /Destino: Cofre/.test(r.corpo));
+  t('traz o motivo', /Motivo: Depósito bancário|Motivo: Dep/.test(r.corpo));
+  t('e tem o espaço para assinar', /Assinatura: _/.test(r.corpo));
+  t('A DATA É A DA LOJA, não a de Greenwich — 23:26 continua sendo dia 28',
+    /Data: 28\/08\/2026/.test(r.corpo), (r.corpo.match(/Data: .*/) || [])[0]);
+  t('sai uma via só', r.vias === 1, r.vias);
+  t('em pé, na bobina, nunca deitado',
+    /size:\s*80mm\s+\d+mm/.test(r.regra) &&
+    Number((r.regra.match(/size:\s*(\d+)mm\s+(\d+)mm/) || [])[2]) > 80, r.regra);
+  t('com a letra grande, como a abertura',
+    /font-size:\s*3\.\d+mm/.test(r.estilo), r.estilo);
+  t('nenhuma linha passa da largura do papel', r.maior <= 32, r.maior);
+  t('e nenhuma fica cortada', r.cortadas === 0, r.cortadas);
+  console.log('\n' + r.corpo + '\n');
+  fs.writeFileSync(FOTOS + '/comprovante-sangria.txt', r.corpo);
+
+  /* o suprimento é o irmão: muda o título e "Origem" no lugar de "Destino" */
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    imprimirMovimento('cx_mv', 'mv_2');
+    var pap = document.querySelector('#viaImp .papel');
+    return [...pap.children].map(l => l.textContent).join('\n');
+  });
+  t('o suprimento também imprime', /SUPRIMENTO - REFORCO/.test(r), r);
+  t('e diz de ONDE veio o dinheiro', /Origem: Conta corrente/.test(r));
+  t('com o valor certo', /VALOR: 150,00/.test(r));
+  t('e o motivo escrito à mão entra junto', /Troco - trazido de casa/.test(r));
+  fs.writeFileSync(FOTOS + '/comprovante-suprimento.txt', r);
+
+  /* a oferta de imprimir, e a segunda via pela lista do turno */
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var cx = DB.caixas[0];
+    perguntaImprimirMovimento(cx, cx.movimentos[0]);
+    var ov = document.getElementById('mdOv');
+    var bt = ov ? [...ov.querySelectorAll('button')]
+      .find(b => /imprimir comprovante/i.test(b.textContent)) : null;
+    var texto = ov ? ov.textContent : '';
+    if (bt) bt.click();
+    var saiu = !!document.querySelector('#viaImp .papel');
+    return { temModal: !!ov, temBotao: !!bt, saiu: saiu, texto: texto,
+      naoImprimir: /não imprimir/i.test(texto) };
+  });
+  t('depois da sangria a tela oferece imprimir, sem obrigar',
+    r.temModal && r.temBotao && r.naoImprimir, r.texto.slice(0, 80));
+  t('e já mostra o valor, a hora e quem fez',
+    /300,00/.test(r.texto) && /23:26/.test(r.texto) && /Priscila/.test(r.texto));
+  t('clicar no botão imprime', r.saiu === true);
+
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    telaPDV(); painelCaixa();
+    var bts = [...document.querySelectorAll('#mdOv button')]
+      .filter(b => /imprimirMovimento/.test(b.getAttribute('onclick') || ''));
+    if (bts.length) bts[0].click();
+    return { botoes: bts.length,
+             saiu: !!document.querySelector('#viaImp .papel') };
+  });
+  t('a lista de movimentações do turno tem botão de segunda via',
+    r.botoes === 2, r.botoes + ' botão(ões)');
+  t('e ele imprime', r.saiu === true);
+  await pg.evaluate(() => {
+    fecharModal();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    DB.caixas = []; salvar();
+  });
+
   console.log('\n── 10c. O PDV obedece a tela de Turnos\n');
   /* o caso exato de 29/08/2026: o dono desativa os dois turnos e a
      abertura de caixa continua exigindo escolher um */

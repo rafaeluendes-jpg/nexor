@@ -1739,6 +1739,10 @@ async function _movCaixa(tipo){
       (tipo==='sangria'?'→ ':'← ')+contaNome(destId));
     if(tipo==='sangria')
       avisarGerente(lojaAtualId(),'sangria',msgSangria(v,motNome+(desc?' — '+desc:'')));
+    /* o modal deste lançamento ainda está fechando; 120 ms é o mesmo
+       intervalo que a abertura e o fechamento usam para não empilhar
+       dois overlays */
+    setTimeout(function(){ perguntaImprimirMovimento(cx,mv); },120);
     return true;
   });
 }
@@ -1770,7 +1774,10 @@ function painelCaixa(){
   else h+='<table class="fpgTab">'+movs.map(function(m){
     return '<tr><td>'+m.hora+' · '+(m.tipo==='sangria'?'<span class="badge2 rd">Sangria</span>':'<span class="badge2 gr">Suprimento</span>')+
     (m.motivo?' <span style="color:var(--ink-3)">'+E(m.motivo)+'</span>':'')+'</td>'+
-    '<td style="color:'+(m.tipo==='sangria'?'var(--red)':'var(--acc-d)')+'">'+(m.tipo==='sangria'?'- ':'+ ')+'R$ '+money(m.valor)+'</td></tr>';
+    '<td style="color:'+(m.tipo==='sangria'?'var(--red)':'var(--acc-d)')+'">'+(m.tipo==='sangria'?'- ':'+ ')+'R$ '+money(m.valor)+'</td>'+
+    /* segunda via: o papel se perde, o lançamento não */
+    '<td style="width:34px;text-align:right"><button class="rBtn" title="Imprimir comprovante" '+
+     'onclick="imprimirMovimento(\''+cx.id+'\',\''+m.id+'\')">'+sv('print2',12)+'</button></td></tr>';
   }).join('')+'</table>';
   h+='</div></div>';
   h+='<div class="blk" style="margin:11px 0 0;max-width:none"><h3>Fechamentos anteriores</h3>';
@@ -1891,6 +1898,34 @@ function perguntaImprimirFechamento(cx){
     '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não imprimir</button>'+
     '<button class="btnP2 ok" onclick="fecharModal();imprimirFechamento(\''+cx.id+'\')">'+
     sv('print2',13)+' Imprimir fechamento</button></div></div>';
+  document.body.appendChild(o);
+}
+/* ==========================================================
+   A SANGRIA E O SUPRIMENTO TAMBEM IMPRIMEM
+
+   Mesma pergunta da abertura e do fechamento. O dinheiro ja saiu (ou
+   entrou) e o lancamento ja esta gravado quando isto aparece —
+   imprimir ou nao imprimir nao muda valor nenhum. O papel serve para
+   quem leva o dinheiro assinar, e para quem fica ter o que guardar.
+   ========================================================== */
+function perguntaImprimirMovimento(cx,mv){
+  if(!cx||!mv||!mv.id)return;
+  var sangria=(mv.tipo==='sangria');
+  var h='<div class="mdB"><div class="fcRes ok" style="margin:0">'+
+    '<span>'+(sangria?'Sangria registrada':'Suprimento registrado')+'</span>'+
+    '<b>R$ '+money(Number(mv.valor)||0)+'</b>'+
+    '<small>'+E(mv.hora||'')+' — por '+E(mv.responsavel||'')+'</small></div>'+
+    '<div class="fcRes" style="margin:10px 0 0">'+
+    '<span>'+(sangria?'Destino':'Origem')+'</span>'+
+    '<b>'+E(mv.destinoNome||'—')+'</b></div>'+
+   '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox"><div class="mdH"><b>'+
+    (sangria?'Retirada de caixa':'Reforço de caixa')+'</b>'+
+    '<button onclick="fecharModal()">&times;</button></div>'+h+
+    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não imprimir</button>'+
+    '<button class="btnP2 ok" onclick="fecharModal();imprimirMovimento(\''+cx.id+'\',\''+mv.id+'\')">'+
+    sv('print2',13)+' Imprimir comprovante</button></div></div>';
   document.body.appendChild(o);
 }
 /* ==========================================================
