@@ -7,3 +7,6 @@ MAPA.md
 
 # copias do banco: nunca no repositorio
 backup/
+
+# pasta do site publicado: gerada pelo enxugador na hora de publicar
+_site/

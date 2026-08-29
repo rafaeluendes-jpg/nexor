@@ -24,10 +24,34 @@ jobs:
       - name: Baixar o repositorio
         uses: actions/checkout@v4
 
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ferramenta do enxugador
+        # so o terser, nao a arvore inteira: o playwright das auditorias
+        # baixaria navegador aqui a toa e so atrasaria a publicacao
+        run: npm install --no-save --no-audit --no-fund terser@5
+
       - name: Montar a pasta do site
         run: |
           mkdir -p _site
-          cp index.html manifest.json supabase.js _site/
+          cp manifest.json supabase.js _site/
+          # ==========================================================
+          # O QUE VAI AO AR NAO LEVA O MANUAL JUNTO
+          #
+          # O index.html do repositorio e inteiro e comentado — e ele que
+          # o testes/montagem.js confere byte a byte contra o src/. O que
+          # a loja recebe passa pelo enxugador: sem os 2.373 blocos de
+          # comentario que explicam a regra de negocio, o nome das tabelas
+          # do banco e cada defeito ja corrigido. Roda identico, 28% menor.
+          #
+          # O enxugador PARA a publicacao se alguma funcao sumir ou se a
+          # VERSAO deixar de ser legivel — sem ela a loja nunca mais
+          # saberia que ha atualizacao (o defeito da V195).
+          # ==========================================================
+          node ferramentas/enxugar.js index.html _site/index.html
           cp *.png *.jpg _site/ 2>/dev/null || true
           # atalhos por loja: joiagest.com.br/santafe e afins. Sao pastas,
           # e o cp de arquivos soltos acima nao as levaria.

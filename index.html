@@ -12241,7 +12241,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V238.0.0';
+var VERSAO='V239.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -12338,7 +12338,18 @@ async function checarVersao(){
 
     var r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'});
     var t=await r.text();
-    var m=t.match(/var VERSAO='(V[0-9.]+)'/);
+    /* ==========================================================
+       A CHECAGEM TEM DE SOBREVIVER AO ARQUIVO ENXUTO
+
+       Este trecho le o proprio index.html publicado para saber se ha
+       versao nova. A partir da V239 o arquivo que vai ao ar passa pelo
+       enxugador, que pode trocar aspas simples por duplas e comer o
+       espaco depois do `var`. Com a expressao amarrada em aspas
+       simples, a busca falharia calada e a loja nunca mais saberia que
+       existe atualizacao — o defeito da V195 de novo, por outro
+       caminho. Agora aceita os dois formatos.
+       ========================================================== */
+    var m=t.match(/VERSAO\s*=\s*['"](V[0-9.]+)['"]/);
     if(!m)return;
     if(m[1]!==VERSAO){
       var el=document.getElementById('avisoVer');
