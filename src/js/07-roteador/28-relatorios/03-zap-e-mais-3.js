@@ -1515,7 +1515,16 @@ function linhasFechamento(cx){
   };
 
   /* --- cabecalho, no mesmo desenho do comprovante da loja --- */
-  L.push({txt:String(s.empresa||'').slice(0,cols),n:true});
+  /* ==========================================================
+     O CABECALHO E A LOJA QUE IMPRIMIU
+
+     `s.empresa` e `cfg().nomePublico` — um nome da REDE, igual nas
+     seis unidades. Quem le o comprovante precisa saber de qual loja
+     ele saiu; a unidade esta em `s.loja` desde sempre, inclusive nas
+     fotografias antigas. Mesma regra do cupom de venda, que imprimia
+     "Alphaville" em Santa Fe do Sul.
+     ========================================================== */
+  L.push({txt:String(s.loja||s.empresa||'').slice(0,cols),n:true});
   L.push({txt:''});
   L.push({txt:'REL. VALORES FISICOS',n:true});
   regra('=');
@@ -1582,8 +1591,21 @@ function imprimirFechamento(id){
    largura do fechamento.
    ========================================================== */
 function linhasAbertura(cx){
-  var cols=48;
-  try{ var m=modeloImp('ficha'); if(m&&m.colunas)cols=m.colunas; }catch(e){}
+  /* ==========================================================
+     COMPROVANTE CURTO PEDE LETRA GRANDE
+
+     Este comprovante tem oito informacoes. Montado em 48 colunas, como
+     o fechamento, a letra saia com 1,6 mm de largura na bobina de
+     80 mm — legivel na tela, pequena demais no papel termico, ainda
+     mais no balcao, com pouca luz.
+
+     Em 32 colunas o texto continua cabendo folgado e a letra cresce
+     50%: e a mesma bobina, so que com menos colunas. A bobina de 58 mm
+     ja usava 32 colunas e nao muda nada.
+     ========================================================== */
+  var papel=80;
+  try{ var m=modeloImp('ficha'); if(m&&m.colunas&&m.colunas<=32)papel=58; }catch(e){}
+  var cols=32;
   var L=[];
   var esq=function(t,n){ t=String(t==null?'':t);
     return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };
@@ -1600,10 +1622,12 @@ function linhasAbertura(cx){
 
   var quando=String(cx.aberto||'').split(' ');
   var periodo=String(cx.turno||'1').replace(/^\s*turno\s*/i,'')||'1';
+  /* a unidade que abriu o caixa manda no cabecalho — nunca o nome da
+     rede, que e igual nas seis lojas */
   var loja=''; try{ loja=sucNome(cx.sucursalId||lojaAtualId())||''; }catch(e){}
   var empresa=''; try{ empresa=cfg().nomePublico||nomeLojaAtual()||''; }catch(e){}
 
-  L.push({txt:String(empresa||loja).slice(0,cols),n:true});
+  L.push({txt:String(loja||empresa).slice(0,cols),n:true});
   L.push({txt:''});
   cab('Data: '+(quando[0]||'-'),'Periodo: '+periodo);
   cab('Hora: '+(quando[1]||'-'));
@@ -1611,10 +1635,12 @@ function linhasAbertura(cx){
   L.push({txt:'ABERTURA DE CAIXA',n:true});
   L.push({txt:''});
   regra('-');
-  cab('Caixa: '+String(cx.id||'').slice(-6));
+  /* o identificador interno do caixa saia aqui como "Caixa: thoatc" —
+     texto de maquina no papel que o operador assina. Loja, data, hora,
+     periodo e operador ja dizem de qual caixa se trata */
   cab('Periodo: '+periodo);
   cab('Operador: '+(cx.operador||'-'));
-  if(loja&&loja!==empresa)cab('Unidade: '+loja);
+  /* a unidade ja e o cabecalho: repeti-la aqui so gastaria papel */
   L.push({txt:''});
   var v='VALOR: '+money(Number(cx.inicial)||0);
   L.push({txt:v.slice(0,cols),n:true});
@@ -1626,13 +1652,14 @@ function linhasAbertura(cx){
   var rot='Assinatura: ';
   L.push({txt:esq(rot,Math.min(rot.length,cols))+
     new Array(Math.max(2,cols-rot.length+1)).join('_')});
-  return {linhas:L,cols:cols};
+  return {linhas:L,cols:cols,mm:papel};
 }
 function imprimirAbertura(id){
   var cx=(DB.caixas||[]).find(function(c){return c.id===id});
   if(!cx){toast('Caixa não encontrado.');return;}
   var r=linhasAbertura(cx);
-  imprimirPapel(r.linhas,r.cols,1);
+  /* uma via so: comprovante de abertura nao tem para quem dar a segunda */
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
 }
 function resumoDoCaixa(cx){
   baseFormas();

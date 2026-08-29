@@ -855,7 +855,29 @@ function textoDoModelo(m){
 /* ---------- os dados que entram no lugar das chaves ---------- */
 function dadosImp(ped){
   baseSuc();
-  var s=(DB.sucursais||[])[0]||{};
+  /* ==========================================================
+     O CUPOM SAIA COM O NOME DA LOJA ERRADA
+
+     Aqui estava `(DB.sucursais||[])[0]` — a PRIMEIRA unidade da lista,
+     que e a matriz. Numa rede de seis lojas isso significa que todo
+     cupom impresso em qualquer unidade saia com o nome da matriz no
+     cabecalho. Em 29/08/2026 a loja de Santa Fe do Sul imprimiu a
+     ficha do pedido 504 com "Alphaville" escrito em cima.
+
+     Nao e detalhe de aparencia: e o comprovante que o cliente leva, e
+     o endereco e o telefone impressos embaixo eram os de outra cidade.
+
+     Quem manda e a unidade em que a pessoa esta logada. Se por algum
+     motivo ela nao for encontrada, cai na primeira — como antes — em
+     vez de imprimir sem cabecalho nenhum.
+     ========================================================== */
+  var _suc=(DB.sucursais||[]);
+  /* o pedido sabe onde foi feito; so quando ele nao sabe e que vale a
+     unidade em que a pessoa esta agora. Assim uma segunda via tirada
+     em outra loja sai com o nome da loja que vendeu */
+  var _id=(ped&&ped.sucursalId)||'';
+  if(!_id){ try{ _id=lojaAtualId()||''; }catch(e){} }
+  var s=_suc.find(function(x){return x&&x.id===_id})||_suc[0]||{};
   var cx=caixaAberto()||{};
   var sub=(ped.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
   var end=[s.endereco,s.cidade,s.uf].filter(Boolean).join(', ');
@@ -1388,7 +1410,7 @@ function testarImp(){
    ja montado, e vai declarada em milimetros. Sobram 4 mm no pe para
    o corte.
    ========================================================== */
-function alturaDoPapel(el,margem){
+function alturaDoPapel(el,margem,larguraMM){
   try{
     var alvo=el.querySelector('.papel');
     if(!alvo)return 200;
@@ -1402,25 +1424,51 @@ function alturaDoPapel(el,margem){
     el.setAttribute('style',antesEl);
     if(!(h>0))return 200;
     /* px do navegador (96 dpi) para mm, mais as margens e o corte */
-    return Math.max(30,Math.ceil(h*25.4/96)+(margem*2)+4);
+    var mmAlt=Math.ceil(h*25.4/96)+(margem*2)+4;
+    /* ==========================================================
+       PAPEL MAIS BAIXO DO QUE LARGO SAI DEITADO
+
+       O comprovante da abertura tem 14 linhas: dava `size:80mm 60mm`.
+       Para o driver da impressora, altura menor que largura e uma
+       pagina em PAISAGEM — e ele girou o comprovante 90 graus. Foi o
+       que saiu na bobina de Santa Fe do Sul em 29/08/2026: o texto
+       correndo ao longo do papel, de lado.
+
+       A folha nunca pode ser mais baixa do que larga. Sobra um pedaco
+       de papel em comprovante curto; sair deitado nao e opcao.
+       ========================================================== */
+    var minAlt=(Number(larguraMM)||80)+8;
+    return Math.max(30,minAlt,mmAlt);
   }catch(e){ return 200; }
 }
-function imprimirPapel(linhas,cols,vias){
+/* ==========================================================
+   COLUNAS E LARGURA DA BOBINA SAO COISAS SEPARADAS
+
+   Ate aqui a largura do papel era deduzida do numero de colunas:
+   32 colunas queria dizer bobina de 58 mm. Isso amarra o tamanho da
+   letra ao tamanho do papel — e um comprovante curto, como o da
+   abertura, fica com letra de 48 colunas sem precisar.
+
+   Agora quem imprime pode dizer as duas coisas: quantas colunas o
+   texto tem e qual a bobina. Menos colunas na mesma bobina = letra
+   maior. Sem `mmPapel`, vale a regra de antes.
+   ========================================================== */
+function imprimirPapel(linhas,cols,vias,mmPapel){
   cols=Number(cols)||48;
-  var mm=(cols<=32?58:80);
+  var mm=Number(mmPapel)||(cols<=32?58:80);
   var margem=2;                             /* mm de cada lado */
   var util=mm-(margem*2);
   var fonteMM=+(util/(cols*0.6)).toFixed(3);
   var el=document.getElementById('viaImp')||document.createElement('div');
   el.id='viaImp';
-  var uma='<div class="papel'+(cols<=32?' p58':'')+'" '+
+  var uma='<div class="papel'+(mm<=58?' p58':'')+'" '+
     'style="width:'+cols+'ch;font-size:'+fonteMM+'mm">'+papelHTML(linhas,cols)+'</div>';
   var todas='';
   for(var v=0;v<(vias||1);v++)
     todas+='<div class="papelPg">'+uma+'</div>';
   el.innerHTML=todas;
   document.body.appendChild(el);
-  var alturaMM=alturaDoPapel(el,margem);
+  var alturaMM=alturaDoPapel(el,margem,mm);
   var st=document.getElementById('impCSS')||document.createElement('style');
   st.id='impCSS';
   /* o `padding:10px` do #viaImp somava 2,6 mm de cada lado por cima da

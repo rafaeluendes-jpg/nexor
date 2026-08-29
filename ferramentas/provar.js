@@ -639,6 +639,7 @@ function servir() {
     var st = document.getElementById('impCSS');
     return { corpo: [...pap.children].map(l => l.textContent).join('\n'),
              cortadas: cortadas, qt: linhas.length,
+             estiloAb: pap.getAttribute('style') || '',
              regra: (st ? st.textContent : '').match(/@page\{[^}]*\}/)[0] };
   });
   t('o comprovante da abertura é montado ao clicar', !r.erro, r.erro);
@@ -654,6 +655,60 @@ function servir() {
     r.cortadas === 0, r.cortadas + ' linha(s)');
   t('e sai na bobina, não em A4',
     /size:\s*80mm\s+\d+mm/.test(r.regra || ''), r.regra);
+  /* ==========================================================
+     COMPROVANTE CURTO SAÍA DEITADO E COM LETRA MIÚDA
+
+     A abertura tem 14 linhas: dava `size:80mm 60mm`. Para o driver da
+     impressora, altura menor que largura é PAISAGEM — e ele girou o
+     papel 90°. Foi o que saiu na bobina de Santa Fé do Sul.
+     ========================================================== */
+  const pgAb = (r.regra || '').match(/size:\s*(\d+)mm\s+(\d+)mm/) || [];
+  t('a folha NUNCA é mais baixa que larga — senão a impressora deita',
+    Number(pgAb[2]) > Number(pgAb[1]), pgAb[1] + ' x ' + pgAb[2]);
+  t('a letra da abertura é grande: 32 colunas na bobina de 80 mm',
+    /font-size:\s*3\.9\d*mm/.test(r.estiloAb || ''), r.estiloAb);
+  t('e não sobra identificador de máquina no papel',
+    !/Caixa: [a-z0-9]{5,}/.test(r.corpo || ''), r.corpo.slice(0, 60));
+
+  /* o nome impresso é o da LOJA em que a pessoa está, não o da rede */
+  const nomes = await pg.evaluate(() => {
+    baseSuc();
+    var atual = lojaAtualId();
+    var outra = (DB.sucursais || []).find(x => x.id !== atual);
+    return { tela: nomeLojaAtual(),
+             cupom: dadosImp({ sucursalId: atual }).loja,
+             cupomSemUnidade: dadosImp({}).loja,
+             daOutra: outra ? dadosImp({ sucursalId: outra.id }).loja : null,
+             primeira: ((DB.sucursais || [])[0] || {}).nome };
+  });
+  t('o cupom sai com o nome da loja logada, não com o da primeira da lista',
+    nomes.cupom === nomes.tela, nomes.cupom + ' ≠ ' + nomes.tela);
+  t('mesmo quando o pedido não guardou a unidade',
+    nomes.cupomSemUnidade === nomes.tela, nomes.cupomSemUnidade);
+  if (nomes.daOutra !== null)
+    t('e a segunda via de um pedido de outra loja sai com o nome DAQUELA loja',
+      nomes.daOutra !== nomes.tela, nomes.daOutra);
+  t('a abertura também traz a loja no cabeçalho',
+    (r.corpo || '').indexOf(nomes.tela) === 0, (r.corpo || '').split('\n')[0]);
+
+  /* "imprimir apenas uma via" tem de valer */
+  const vias = await pg.evaluate(() => {
+    var conta = function (n) {
+      var e = document.getElementById('viaImp'); if (e) e.remove();
+      var m = modeloImp('ficha'); m.vias = n; salvar();
+      var ped = pedidoExemplo('ficha'); ped.sucursalId = lojaAtualId();
+      imprimirPapel(montarImp(textoDoModelo(m), ped, m.colunas || 48),
+        m.colunas || 48, m.vias || 1);
+      return document.querySelectorAll('#viaImp .papelPg').length;
+    };
+    var um = conta(1), dois = conta(2);
+    var e = document.getElementById('viaImp'); if (e) e.remove();
+    var m = modeloImp('ficha'); m.vias = 1; salvar();
+    return { um: um, dois: dois };
+  });
+  t('modelo com UMA via imprime uma folha só', vias.um === 1, vias.um + ' via(s)');
+  t('e com duas vias imprime duas — a configuração manda',
+    vias.dois === 2, vias.dois + ' via(s)');
   console.log('\n' + (r.corpo || '') + '\n');
   fs.writeFileSync(FOTOS + '/comprovante-abertura.txt', r.corpo || '');
 
