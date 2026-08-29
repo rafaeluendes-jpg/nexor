@@ -96,6 +96,11 @@ apresentado como real ou recurso pela metade.
    teste que passa: a etiqueta virando barra vazia e a comanda do PDV
    espremida em 82 px no celular só apareceram na fotografia.
 5. Corrigir tudo o que apareceu e **rodar os quatro de novo**.
+6. **Todo passo a passo que for para o Rafael tem de ser executado antes**,
+   no navegador, no estado exato em que ele está. Em 29/08/2026 eu mandei
+   ele clicar num botão que não existia naquela situação — a faixa com o
+   botão só aparecia quando havia DOIS caixas abertos, e ele tinha um. Se
+   a instrução não foi clicada aqui, ela não é instrução: é palpite.
 
 Quando houver mais de um caminho, escolher o mais seguro, mais estável,
 mais fácil de manter e compatível com o que já existe. Não inventar
