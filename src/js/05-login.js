@@ -327,6 +327,8 @@ async function entrar(){
        Desligado: vale só enquanto a aba estiver aberta. */
     var manter=!$('lgK')||$('lgK').checked;
     try{
+      /* so o e-mail, para voltar preenchido numa proxima entrada */
+      localStorage.setItem('nexor_ultimo_email',SESSAO.login);
       localStorage.setItem('nexor_manter',manter?'1':'0');
       if(manter){
         localStorage.setItem('nexor_sessao',SESSAO.login);
@@ -378,16 +380,32 @@ document.addEventListener('keydown',function(e){
 async function sair(){
   if(!await pergunta('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
   try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){_quieto(e,'sair')}
+  /* a copia da sessao da nuvem sai junto: sair tem de ser sair */
+  try{ apagarSessaoGuardada(); }catch(e){_quieto(e,'sair')}
   /* a entrada e uma so, entao a saida tambem: deixar a sessao do Auth de pe
      manteria o token valido no aparelho depois de sair */
   try{ desconectarNuvem(); }catch(e){_quieto(e,'sair')}
   SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');travaRolagem();
+  /* ==========================================================
+     QUEM VOLTA NAO PRECISA LEMBRAR O E-MAIL
+
+     A loja entra sempre com o mesmo endereco. Sair e ter de digitar
+     `santafe@jologelato.com.br` no meio do expediente e atrito puro — e
+     e justamente o que o aviso de sessao expirada pede que se faca.
+     O e-mail volta preenchido e o cursor vai direto para a senha. Senha
+     nunca e guardada.
+     ========================================================== */
+  try{
+    var _u=$('lgU'), _p=$('lgP');
+    var _ult=localStorage.getItem('nexor_ultimo_email')||'';
+    if(_u&&_ult){ _u.value=_ult; if(_p)setTimeout(function(){_p.focus()},60); }
+  }catch(e){_quieto(e,'sair')}
   /* Os avisos são da operação, não da entrada. Deixá-los pendurados fazia a
      tela de login abrir com tarja vermelha dizendo que nada seria salvo —
      assustando quem ainda nem entrou. */
   try{
-    ['avisoNuvem','avisoTab','avisoVer','avisoGrav'].forEach(function(id){
+    ['avisoNuvem','avisoTab','avisoSessao','avisoVer','avisoGrav'].forEach(function(id){
       var e=document.getElementById(id); if(e)e.remove();
     });
     var b=document.getElementById('barraAvisos');

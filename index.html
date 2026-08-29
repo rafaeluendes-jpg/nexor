@@ -6583,6 +6583,80 @@ var NUVEM={
    era daqui que vinha "sua sessao expirou" durante o trabalho normal.
    Agora e um so, criado uma vez, com persistencia e renovacao explicitas.
    ========================================================== */
+/* ==========================================================
+   A COPIA DA SESSAO — A TRAVA QUE FALTAVA
+
+   29/08/2026, 9h. Santa Fe do Sul abriu o dia sem conseguir conectar. No
+   servidor, uma unica recusa em /auth/v1/token e mais nada: nenhum
+   pedido da loja a manha inteira. O sistema tentava religar a cada 8
+   segundos, `getSession()` devolvia vazio, e ele desistia calado —
+   mostrando "servidor nao respondeu", que nao era verdade.
+
+   POR QUE A SESSAO SOME. O refresh token do Supabase e de uso unico e
+   roda a cada renovacao: usa-se um, recebe-se outro. Se o aparelho for
+   fechado no meio de um rodizio, se a gravacao no navegador falhar, ou
+   se uma renovacao levar recusa, a biblioteca joga a sessao inteira
+   fora. Dali em diante nao ha o que "reconectar": nao existe mais
+   credencial nenhuma no aparelho, e nenhuma quantidade de tentativas
+   automaticas traz de volta.
+
+   A TRAVA. O sistema passa a guardar a PROPRIA copia da sessao e a
+   atualiza a cada rodizio — entao ela e sempre tao nova quanto a da
+   biblioteca. Quando a biblioteca vier vazia, o sistema devolve a copia
+   para ela (`setSession`) e a loja volta sozinha. So depois de essa
+   tentativa falhar e que a sessao acabou de verdade — e ai a loja ouve
+   isso com todas as letras, com o botao de entrar de novo, em vez de
+   esperar a manha inteira por uma reconexao impossivel.
+
+   Sobre guardar isso: o token ja mora no localStorage, gravado pela
+   propria biblioteca. A copia fica no mesmo lugar, com a mesma
+   exposicao — nao ha risco novo. E ela e APAGADA ao sair, senao sair
+   nao seria sair.
+
+   `nexor_sessao` JA EXISTE: e o "manter conectado" do login. Usar o
+   mesmo nome apagaria um com o outro. A copia tem chave propria.
+   ========================================================== */
+var _CHAVE_SESSAO='nexor_sessao_nuvem';
+function guardarSessao(ses){
+  try{
+    if(!ses||!ses.access_token||!ses.refresh_token)return;
+    localStorage.setItem(_CHAVE_SESSAO,JSON.stringify({
+      access_token:ses.access_token, refresh_token:ses.refresh_token,
+      expires_at:ses.expires_at||0, em:Date.now()
+    }));
+  }catch(e){ _quieto(e,'guardarSessao'); }
+}
+function sessaoGuardada(){
+  try{
+    var t=localStorage.getItem(_CHAVE_SESSAO);
+    if(!t)return null;
+    var o=JSON.parse(t);
+    return (o&&o.access_token&&o.refresh_token)?o:null;
+  }catch(e){ return null; }
+}
+function apagarSessaoGuardada(){
+  try{ localStorage.removeItem(_CHAVE_SESSAO); }
+  catch(e){ _quieto(e,'apagarSessaoGuardada'); }
+}
+/* Devolve a copia para a biblioteca. Usada quando ela vem vazia. */
+async function recuperarSessao(cli){
+  var c=sessaoGuardada();
+  if(!c||!cli||!cli.auth||!cli.auth.setSession)return null;
+  try{
+    var r=await cli.auth.setSession({access_token:c.access_token,
+                                     refresh_token:c.refresh_token});
+    var ses=(r&&r.data&&r.data.session)||null;
+    if(ses){
+      logNuvem('sessão recuperada da cópia guardada neste aparelho');
+      guardarSessao(ses);
+      return ses;
+    }
+    /* a copia tambem nao vale mais: insistir com ela so gasta tentativa */
+    apagarSessaoGuardada();
+    logNuvem('a cópia da sessão também não vale mais — é preciso entrar de novo',true);
+  }catch(e){ _quieto(e,'recuperarSessao'); }
+  return null;
+}
 var _cli=null;
 function cliente(){
   if(_cli)return _cli;
@@ -6597,11 +6671,13 @@ function cliente(){
     _cli.auth.onAuthStateChange(function(ev,ses){
       if(ses&&ses.access_token){
         NUVEM.token=ses.access_token;
+        guardarSessao(ses);          /* copia nossa, atualizada a cada rodizio */
         try{ limparAvisoSessao(); }catch(e2){ _quieto(e2,'cliente'); }
         try{ if(_cli.realtime&&_cli.realtime.setAuth)_cli.realtime.setAuth(NUVEM.token); }catch(e){_quieto(e,'cliente')}
         if(ev==='TOKEN_REFRESHED')logNuvem('sessão renovada automaticamente');
       }
-      if(ev==='SIGNED_OUT'){NUVEM.token=null;NUVEM.ligada=false;estadoNuvem('offline');}
+      if(ev==='SIGNED_OUT'){NUVEM.token=null;NUVEM.ligada=false;
+        apagarSessaoGuardada();estadoNuvem('offline');}
     });
   }catch(e){_quieto(e,'cliente')}
   return _cli;
@@ -7236,8 +7312,9 @@ async function conectarNuvem(email,senha){
   var rp=await NUVEM.cli.from('perfis').select('id,nome,cargo,loja_id,empresa_id').eq('id',r.data.user.id).maybeSingle();
   if(rp.error||!rp.data)throw new Error('Usuário sem perfil vinculado a uma loja.');
   NUVEM.perfil=rp.data;NUVEM.loja=rp.data.loja_id;NUVEM.ligada=true;NUVEM.sessaoCaiu=false;
-    try{limparAvisoSessao();}catch(e){_quieto(e,'religarNuvem')}
+  try{limparAvisoSessao();}catch(e){_quieto(e,'conectarNuvem')}
   NUVEM.token=r.data.session?r.data.session.access_token:null;
+  guardarSessao(r.data.session);   /* entrou: a copia nasce aqui */
   setTimeout(ligarTempoReal,600);
   setModo('nuvem');
   conferirNuvem();
@@ -7245,6 +7322,7 @@ async function conectarNuvem(email,senha){
 }
 function desconectarNuvem(){
   try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){_quieto(e,'desconectarNuvem')}
+  apagarSessaoGuardada();   /* sair tem de ser sair, inclusive da copia */
   desligarTempoReal();
   NUVEM.ligada=false;NUVEM.cli=null;NUVEM.token=null;NUVEM.perfil=null;NUVEM.loja=null;
   setModo('local');rodape();conferirNuvem();
@@ -7273,7 +7351,39 @@ async function religarNuvem(){
     NUVEM.cli=cli;
     var r=await cli.auth.getSession();
     var ses=r&&r.data?r.data.session:null;
-    if(!ses){ estadoNuvem('offline'); return false; }
+    /* ==========================================================
+       SEM SESSAO NAO E "SEM SERVIDOR"
+
+       Aqui estava so `if(!ses){ estadoNuvem('offline'); return false; }`.
+       Sem sessao, o sistema se declarava offline, o relogio de 8 segundos
+       chamava esta funcao de novo, e de novo, e de novo — sempre com o
+       mesmo vazio. A loja passou a manha de 29/08/2026 vendo "servidor
+       nao respondeu — reconectando sozinho" sem que houvesse servidor
+       nenhum fora do ar e sem que nenhuma reconexao fosse possivel.
+
+       Duas coisas mudam. Primeiro TENTA de verdade: devolve a copia da
+       sessao guardada neste aparelho, que e o caso comum (a biblioteca
+       perdeu a dela num rodizio de token). So se isso tambem falhar e
+       que a sessao acabou mesmo — e ai a loja ouve a verdade, com o
+       botao de entrar de novo, em vez de esperar por nada.
+       ========================================================== */
+    if(!ses){
+      ses=await recuperarSessao(cli);
+      if(ses)estadoNuvem('conectando');
+    }
+    if(!ses){
+      /* O aviso e para quem ESTA trabalhando. Na tela de login ele so
+         assustaria quem ainda nem entrou — e nao ha sessao para expirar
+         antes de existir uma. */
+      var _ap=document.getElementById('app');
+      var _dentro=_ap&&!_ap.classList.contains('hide');
+      if(navigator.onLine&&_dentro){
+        NUVEM.sessaoCaiu=true;
+        try{avisoSessaoCaiu();}catch(e){_quieto(e,'religarNuvem')}
+      }
+      estadoNuvem('offline'); return false;
+    }
+    guardarSessao(ses);
     /* ==========================================================
        UM ERRO NAO E MOTIVO PARA DESISTIR DA NUVEM
 
@@ -11478,6 +11588,8 @@ async function entrar(){
        Desligado: vale só enquanto a aba estiver aberta. */
     var manter=!$('lgK')||$('lgK').checked;
     try{
+      /* so o e-mail, para voltar preenchido numa proxima entrada */
+      localStorage.setItem('nexor_ultimo_email',SESSAO.login);
       localStorage.setItem('nexor_manter',manter?'1':'0');
       if(manter){
         localStorage.setItem('nexor_sessao',SESSAO.login);
@@ -11529,16 +11641,32 @@ document.addEventListener('keydown',function(e){
 async function sair(){
   if(!await pergunta('Sair de '+((usuarioLogado()||{}).login||'sua conta')+'?'))return;
   try{localStorage.removeItem('nexor_sessao');sessionStorage.removeItem('nexor_sessao');}catch(e){_quieto(e,'sair')}
+  /* a copia da sessao da nuvem sai junto: sair tem de ser sair */
+  try{ apagarSessaoGuardada(); }catch(e){_quieto(e,'sair')}
   /* a entrada e uma so, entao a saida tambem: deixar a sessao do Auth de pe
      manteria o token valido no aparelho depois de sair */
   try{ desconectarNuvem(); }catch(e){_quieto(e,'sair')}
   SESSAO.usuarioId=null;SESSAO.login=null;
   $('app').classList.add('hide');$('login').classList.remove('hide');travaRolagem();
+  /* ==========================================================
+     QUEM VOLTA NAO PRECISA LEMBRAR O E-MAIL
+
+     A loja entra sempre com o mesmo endereco. Sair e ter de digitar
+     `santafe@jologelato.com.br` no meio do expediente e atrito puro — e
+     e justamente o que o aviso de sessao expirada pede que se faca.
+     O e-mail volta preenchido e o cursor vai direto para a senha. Senha
+     nunca e guardada.
+     ========================================================== */
+  try{
+    var _u=$('lgU'), _p=$('lgP');
+    var _ult=localStorage.getItem('nexor_ultimo_email')||'';
+    if(_u&&_ult){ _u.value=_ult; if(_p)setTimeout(function(){_p.focus()},60); }
+  }catch(e){_quieto(e,'sair')}
   /* Os avisos são da operação, não da entrada. Deixá-los pendurados fazia a
      tela de login abrir com tarja vermelha dizendo que nada seria salvo —
      assustando quem ainda nem entrou. */
   try{
-    ['avisoNuvem','avisoTab','avisoVer','avisoGrav'].forEach(function(id){
+    ['avisoNuvem','avisoTab','avisoSessao','avisoVer','avisoGrav'].forEach(function(id){
       var e=document.getElementById(id); if(e)e.remove();
     });
     var b=document.getElementById('barraAvisos');
@@ -11978,7 +12106,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V224.0.0';
+var VERSAO='V225.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
