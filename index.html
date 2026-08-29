@@ -12325,7 +12325,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V243.0.0';
+var VERSAO='V244.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42357,6 +42357,52 @@ function gerenteDe(suc){
   var k=Object.keys(g);
   return k.length?g[k[0]]:null;
 }
+/* ==========================================================
+   O QUE DEU ERRADO, EM PORTUGUES
+
+   Em 29/08/2026 o teste da Assistente devolveu isto na tela da loja:
+
+     Não consegui avisar o gerente: Meta recusou (400):
+     {"error":{"message":"API access blocked.","code":200,
+      "type":"OAuthException","fbtrace_id":"A0W7Cmibut_Wfw8zYwbRW41"}}
+
+   Ninguem numa sorveteria sabe o que fazer com isso — e a tela do Joia
+   nao mostra texto tecnico. Pior: a frase nao diz o principal, que e
+   "isto nao e defeito do sistema, e a conta da Meta que esta barrada".
+
+   Esta funcao traduz as recusas conhecidas. O que ela nao conhecer sai
+   sem o JSON, so com a frase, para nunca despejar chave nem rastro da
+   Meta na frente do cliente.
+   ========================================================== */
+function motivoEnvioZap(bruto){
+  var t=String(bruto||'').trim();
+  if(!t)return 'o robô não respondeu.';
+  /* a Meta barrou o aplicativo inteiro — nada sai enquanto isso durar */
+  if(/API access blocked/i.test(t)||/"code"\s*:\s*200/.test(t))
+    return 'o WhatsApp oficial (Meta) bloqueou o acesso do aplicativo. '+
+      'Não é defeito do Joia: precisa ser liberado na conta da Meta.';
+  /* senha de acesso vencida ou trocada */
+  if(/"code"\s*:\s*190/.test(t)||/access token/i.test(t))
+    return 'a senha de acesso da Meta venceu. Precisa gerar outra e '+
+      'colocar no robô.';
+  /* número fora da lista de teste, enquanto o aplicativo é de testes */
+  if(/131030/.test(t)||/not in allowed list/i.test(t))
+    return 'esse número ainda não está liberado na Meta para receber.';
+  /* a janela de 24 horas */
+  if(/131047/.test(t)||/24 hours/i.test(t)||/re-engagement/i.test(t))
+    return 'a Meta só deixa escrever para quem falou com a Assistente nas '+
+      'últimas 24 horas. Peça para o gerente mandar um "oi" para ela.';
+  if(/não tem WhatsApp/i.test(t))return t;
+  if(/não está conectada/i.test(t))
+    return 'a loja não está conectada ao WhatsApp — leia o QR de novo.';
+  if(/nenhum canal/i.test(t))
+    return 'não há caminho de envio: nem a Meta nem o WhatsApp da loja '+
+      'estão prontos.';
+  if(/muitos envios/i.test(t))return t;
+  /* desconhecido: tira o JSON e devolve so a frase */
+  var limpo=t.replace(/\{[\s\S]*\}/,'').replace(/\(\d{3}\)\s*:?/,'').trim();
+  return limpo||'o robô recusou o envio.';
+}
 /* ---------- envio ---------- */
 async function avisarGerente(suc,tipo,texto){
   var g=gerenteDe(suc||lojaAtualId());
@@ -42372,10 +42418,10 @@ async function avisarGerente(suc,tipo,texto){
     var alvo=suc||lojaAtualId();
     var r=await zapApi('/enviar','POST',{loja:alvo,telefone:g.tel,texto:texto});
     if(r&&r.ok)toast('Gerente avisado no WhatsApp.');
-    else if(r&&r.erro)toast('Não consegui avisar o gerente: '+r.erro);
+    else if(r&&r.erro)toast('Não consegui avisar o gerente: '+motivoEnvioZap(r.erro));
   }catch(e){
     /* engolir o erro fazia parecer que tinha dado certo */
-    toast('Não consegui avisar o gerente: '+((e&&e.message)||'sem resposta'));
+    toast('Não consegui avisar o gerente: '+motivoEnvioZap((e&&e.message)||''));
   }
 }
 function agoraBR(){
