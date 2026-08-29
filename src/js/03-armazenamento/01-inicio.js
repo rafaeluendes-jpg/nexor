@@ -1986,25 +1986,93 @@ function declararExclusao(col,id){
 }
 async function apagarRemovidos(tab,chave,idsAgora){
   try{
-    /* veio cortada pelo limite: a ausencia nao significa exclusao */
-    if(_CORTADAS&&_CORTADAS[tab]){
-      logNuvem('exclusões de '+tab+' não espelhadas: o download veio cortado pelo limite');
-      return;
-    }
     /* A unidade so BAIXA o cadastro que foi liberado para ela — entao a lista
        dela e menor de proposito. Se ela pudesse espelhar exclusoes, apagaria
-       da nuvem tudo o que nao enxerga. Quem apaga cadastro e a matriz. */
+       da nuvem tudo o que nao enxerga. Quem apaga cadastro e a matriz.
+       Esta e a UNICA trava que barra tambem a exclusao declarada: e regra de
+       quem manda no cadastro, nao cuidado com dado incompleto. */
     if(TABS_CADASTRO_REDE.indexOf(tab)>=0&&!ehSucMatriz(lojaAtualId())){
       return;
     }
-    /* Um aparelho que ainda nao baixou nesta sessao tem uma copia possivelmente
-       velha. Deixar ele espelhar exclusoes e como deixar quem chegou atrasado
-       decidir o que os outros fizeram. A trava existia no codigo mas nunca era
-       conferida — agora e. */
-    if(!NUVEM.baixou){
-      logNuvem('exclusões de '+tab+' não espelhadas: este aparelho ainda não baixou da nuvem');
-      return;
+    /* ==========================================================
+       AS TRAVAS DE COPIA INCOMPLETA VALEM PARA A AUSENCIA, NAO PARA A ORDEM
+
+       Estas duas — download cortado pelo limite, e aparelho que ainda
+       nao baixou — existem porque "sumiu da lista" pode ser efeito de
+       uma copia incompleta, e nao de alguem ter apagado. Elas protegem
+       o caminho da AUSENCIA.
+
+       A exclusao DECLARADA nao vem de lista nenhuma: vem do clique da
+       pessoa, no item, naquela tela. Copia incompleta nao muda essa
+       ordem. Por isso elas passam a pular so a parte do `_snap`, e nao
+       a ordem — que era o que fazia o produto voltar do tumulo depois
+       de apagado duas vezes.
+       ========================================================== */
+    var _soOrdem=false;
+    if(_CORTADAS&&_CORTADAS[tab]){
+      logNuvem('ausências de '+tab+' não espelhadas: o download veio cortado pelo limite');
+      _soOrdem=true;
     }
+    if(!NUVEM.baixou){
+      logNuvem('ausências de '+tab+' não espelhadas: este aparelho ainda não baixou da nuvem');
+      _soOrdem=true;
+    }
+    DB._apagados=DB._apagados||{};
+    var declarados=DB._apagados[chave]||{};
+    /* ==========================================================
+       A ORDEM DE APAGAR E A DECLARACAO — NAO A LISTA DE ONTEM
+
+       Aqui o codigo cruzava DUAS memorias: `_snap`, a lista da ultima
+       vez, e `_apagados`, a declaracao da tela. So era apagado da nuvem
+       o que estivesse nas duas. Quando as duas discordavam, a exclusao
+       se perdia — e se perdia CALADA.
+
+       Foi o que a loja viu em 29/08/2026: o Rafael apagou duas
+       duplicatas, pela tela, duas vezes. Sumiam da lista. Ele saia,
+       voltava, e as duas estavam la de novo. O botao "funcionava".
+
+       Medido, um estado por vez: com o `_snap` sem aquele produto, ou
+       sem `_snap` nenhum, a exclusao nunca era mandada para a nuvem —
+       e pior, o `_snap` era adotado como esta, entao o produto nunca
+       mais aparecia como "sumiu" e a ordem morria ali, para sempre,
+       com a declaracao intacta e inutil em `_apagados`.
+
+       `_snap` e memoria de conveniencia, feita para responder "o que
+       sumiu da lista?". Desde a V201 essa pergunta nao apaga mais nada:
+       quem apaga e a DECLARACAO, item por item, feita pela tela. Entao
+       a declaracao passa a mandar sozinha — o que foi declarado e ja
+       nao esta na lista vai para a nuvem, tenha `_snap` ou nao.
+       ========================================================== */
+    var deVerdade=Object.keys(declarados).filter(function(r){
+      return declarados[r]===true && idsAgora.indexOf(r)<0;
+    });
+    DB._apagados=DB._apagados||{};
+    var declarados0=DB._apagados[chave]||{};
+    var deVerdade=Object.keys(declarados0).filter(function(r){
+      return declarados0[r]===true && idsAgora.indexOf(r)<0;
+    });
+    if(deVerdade.length){
+      /* ==========================================================
+         TRAVA DE VOLUME SOBRE O QUE VAI SER APAGADO
+
+         As travas do `_snap`, mais abaixo, olham tudo o que saiu da
+         lista — apagado ou nao. O que importa aqui e quantas exclusoes
+         DECLARADAS vao de uma vez. Exclusao declarada e clique a
+         clique, uma tela de cada vez: cem juntas nao e gente apagando,
+         e defeito. A declaracao NAO e consumida, entao nada se perde.
+         ========================================================== */
+      if(deVerdade.length>100&&!podeEsvaziarAgora()){
+        logNuvem('BLOQUEADO: '+tab+' — '+deVerdade.length+
+          ' exclusões declaradas de uma vez. Nada foi apagado.',true);
+      }else{
+        await api(tab+'?ref_local=in.('+deVerdade.map(function(r){
+          return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')','DELETE');
+        deVerdade.forEach(function(r){ delete declarados0[r]; });
+        DB._apagados[chave]=declarados0;
+        logNuvem(tab+': '+deVerdade.length+' exclusão(ões) enviada(s) para a nuvem');
+      }
+    }
+    if(_soOrdem)return;                 /* a ordem ja foi cumprida acima */
     DB._snap=DB._snap||{};
     var antes=DB._snap[chave]||null;
     if(!antes){DB._snap[chave]=idsAgora.slice();return;}   /* primeira vez: nada a comparar */
@@ -2067,12 +2135,28 @@ async function apagarRemovidos(tab,chave,idsAgora){
        ========================================================== */
     DB._apagados=DB._apagados||{};
     var declarados=DB._apagados[chave]||{};
-    var deVerdade=sumiram.filter(function(r){ return declarados[r]===true; });
-    var semDeclaracao=sumiram.length-deVerdade.length;
+    var semDeclaracao=sumiram.filter(function(r){ return declarados[r]!==true; }).length;
     if(semDeclaracao)
       logNuvem(tab+': '+semDeclaracao+' registro(s) sumiram da lista sem terem sido '+
         'excluídos — mantidos na nuvem',true);
     if(!deVerdade.length){ DB._snap[chave]=idsAgora.slice(); return; }
+    /* ==========================================================
+       TRAVA DE VOLUME SOBRE O QUE VAI SER APAGADO
+
+       As travas la de cima olham `sumiram` — tudo o que saiu da lista,
+       apagado ou nao. Agora que a declaracao manda sozinha, o que
+       importa e quantas exclusoes DECLARADAS vao de uma vez. Exclusao
+       declarada e clique a clique, uma tela de cada vez: cem juntas nao
+       e gente apagando, e defeito.
+
+       Nao consome a declaracao: assim, se for engano do sistema, nada
+       se perde; e se for de verdade, o dono libera pelo Diagnostico.
+       ========================================================== */
+    if(deVerdade.length>100&&!podeEsvaziarAgora()){
+      logNuvem('BLOQUEADO: '+tab+' — '+deVerdade.length+
+        ' exclusões declaradas de uma vez. Nada foi apagado.',true);
+      return;
+    }
     await api(tab+'?ref_local=in.('+deVerdade.map(function(r){
       return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')','DELETE');
     deVerdade.forEach(function(r){ delete declarados[r]; });

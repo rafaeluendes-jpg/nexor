@@ -501,8 +501,15 @@ grupo('V201 · sumir da lista NÃO é ser excluído');
     t('a declaração de exclusão funciona', !!rj && rj.declarado === true, String(r));
     t('quem sumiu por filtro NÃO fica declarado', !!rj && rj.naoDeclarado === true);
 
+    /* a regra é a mesma desde a V201 — só sai da nuvem o que a tela
+       declarou. O que mudou na V242 foi de onde vem a lista: antes era o
+       cruzamento com o `_snap`, que engolia a ordem quando os dois
+       discordavam; agora a própria declaração manda. */
     t('o espelhamento só apaga o que foi declarado',
-      /var deVerdade=sumiram\.filter\(function\(r\)\{ return declarados\[r\]===true; \}\)/.test(fonteBruta));
+      /var deVerdade=Object\.keys\(declarados0\)\.filter\(function\(r\)\{[\s\S]{0,120}declarados0\[r\]===true/
+        .test(fonteBruta));
+    t('e o que ainda está na lista nunca é apagado',
+      /idsAgora\.indexOf\(r\)<0/.test(fonteBruta));
     t('e avisa quando algo sumiu sem ter sido excluído',
       /sumiram da lista sem terem sido/.test(fonteBruta));
     t('não apaga nada quando nada foi declarado',
