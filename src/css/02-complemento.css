@@ -260,3 +260,15 @@
 .catRow .nm{display:flex;flex-direction:column;gap:1px;min-width:0}
 .catRow .catUnid{font-size:10px;color:var(--ink-3);font-weight:500;line-height:1.2;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ==========================================================
+   O PAPEL NA TELA TAMBEM PRECISA CABER
+
+   `.papel` tinha largura fixa de 320 px com fonte de 12 px. Quarenta e
+   oito caracteres de 12 px monoespacados ocupam ~346 px: o fim de cada
+   linha ficava escondido pelo `overflow:hidden`, e a previa mentia
+   sobre o que seria impresso. Agora quem manda e a largura em
+   caracteres (`ch`), que imprimirPapel calcula — o CSS so nao atrapalha.
+   ========================================================== */
+.papel{width:auto;max-width:100%;overflow-x:auto}
+.papel .ppL{overflow:visible}

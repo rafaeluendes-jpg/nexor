@@ -431,7 +431,89 @@ function servir() {
   t('e a fotografia da conferência', r.foto === true);
   await pg.screenshot({ path: FOTOS + '/fechar-sem-senha.png' });
 
-  console.log('\n── 10. O aviso vermelho não pode cobrir a operação\n');
+  console.log('\n── 10. O comprovante de fechamento cabe no papel\n');
+  /* os números REAIS do fechamento de 28/08 de Santa Fé do Sul */
+  r = await pg.evaluate(() => {
+    try { fecharModal(); } catch (e) {}
+    var cx = { id: 'cx_imp', aberto: '28/08/2026 13:22', fechadoEm: '29/08/2026 10:43',
+      operador: 'Jolo Santa Fe do Sul', inicial: 578.05, sucursalId: lojaAtualId(),
+      snapshot: {
+        empresa: 'Jolo Santa Fe do Sul', loja: 'Jolo Santa Fe do Sul',
+        caixaId: 'cx_mtd5t8vpc74f', turno: 'Turno 1',
+        aberto: '28/08/2026 13:22', fechado: '29/08/2026 10:43',
+        operadorAbriu: 'Jolo Santa Fe do Sul', operadorFechou: 'Administrador',
+        formas: [
+          { nome: 'Dinheiro', troco: true, sistema: 133.05, fisico: 438.05, diferenca: 305 },
+          { nome: 'Cartao debito', sistema: 645, fisico: 681, diferenca: 36 },
+          { nome: 'Cartao credito', sistema: 569, fisico: 547, diferenca: -22 },
+          { nome: 'Pix', sistema: 571, fisico: 466, diferenca: -105 },
+          { nome: 'Vale / Voucher', sistema: 0, fisico: 0, diferenca: 0 }
+        ],
+        fundoAbertura: 578.05, vendasDinheiro: 155, suprimentos: 0, sangrias: 600,
+        totalSistema: 1918.05, totalFisico: 2132.05, diferencaTotal: 214,
+        faturamento: 1940, qtdVendas: 56, canceladas: 1, vCanceladas: 24,
+        fundoProximo: 578.05,
+        movimentos: [
+          { hora: '23:45', tipo: 'sangria', valor: 300, destino: 'Cofre', responsavel: 'Administrador' },
+          { hora: '10:43', tipo: 'sangria', valor: 300, motivo: 'Deposito bancario',
+            destino: 'Cofre', responsavel: 'Administrador' }
+        ]
+      } };
+    DB.caixas = [cx];
+    var r48 = linhasFechamento(cx);
+    var r32 = (function () {
+      DB.modelosImp = [{ tipo: 'ficha', colunas: 32 }];
+      var x = linhasFechamento(cx); DB.modelosImp = []; return x;
+    })();
+    var maior = function (rr) {
+      return rr.linhas.reduce(function (a, l) {
+        return Math.max(a, (l.txt || '').length); }, 0); };
+    return { linhas48: r48.linhas.length, larg48: maior(r48), cols48: r48.cols,
+             linhas32: r32.linhas.length, larg32: maior(r32), cols32: r32.cols,
+             amostra: r48.linhas.slice(0, 16).map(function (l) {
+               return l.tipo === 'linha' ? '-'.repeat(r48.cols) : (l.txt || ''); }).join('\n') };
+  });
+  t('nenhuma linha passa da largura do papel de 80 mm',
+    r.larg48 <= r.cols48, r.larg48 + ' > ' + r.cols48);
+  t('nem na bobina estreita de 58 mm', r.larg32 <= r.cols32, r.larg32 + ' > ' + r.cols32);
+  t('e o comprovante encolheu — antes eram mais de 60 linhas',
+    r.linhas48 < 45, r.linhas48 + ' linhas');
+  console.log('\n' + r.amostra + '\n');
+
+  r = await pg.evaluate(() => {
+    var cx = DB.caixas[0];
+    imprimirFechamento(cx.id);
+    var pap = document.querySelector('#viaImp .papel');
+    if (!pap) return { erro: 'não montou o papel' };
+    var st = pap.getAttribute('style') || '';
+    var linhas = [...pap.querySelectorAll('.ppL')];
+    var maior = 0, estoura = 0;
+    var larguraPapel = pap.getBoundingClientRect().width;
+    linhas.forEach(function (l) {
+      maior = Math.max(maior, l.scrollWidth);
+      if (l.scrollWidth > l.clientWidth + 1) estoura++;
+    });
+    return { estilo: st, larguraPapel: Math.round(larguraPapel),
+             maiorLinha: Math.round(maior), cortadas: estoura, qtLinhas: linhas.length };
+  });
+  t('o papel tem largura em caracteres, calculada, não um número fixo',
+    /width:\s*48ch/.test(r.estilo || ''), r.estilo);
+  t('e a fonte é dimensionada em milímetros para a bobina',
+    /font-size:\s*[\d.]+mm/.test(r.estilo || ''), r.estilo);
+  t('NENHUMA linha fica cortada na largura — era isso que comia os centavos',
+    r.cortadas === 0, r.cortadas + ' linha(s) cortada(s)');
+  /* o comprovante inteiro, como vai sair na bobina, gravado para conferência */
+  const papelTxt = await pg.evaluate(() => {
+    var pap = document.querySelector('#viaImp .papel');
+    if (!pap) return '';
+    return [...pap.children].map(function (l) { return l.textContent; }).join('\n');
+  });
+  if (papelTxt) fs.writeFileSync(FOTOS + '/comprovante-fechamento.txt', papelTxt);
+  t('o comprovante inteiro foi gravado para conferência',
+    (papelTxt || '').length > 200, (papelTxt || '').length + ' caracteres');
+  await pg.evaluate(() => { var e = document.getElementById('viaImp'); if (e) e.remove(); });
+
+  console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();
     /* item direto na comanda: o modal de opções tamparia a medição */
@@ -485,7 +567,7 @@ function servir() {
   t('e ao reconectar o aviso some da tela', av.sumiu === true);
   t('a marca de sessão caída é apagada', av.marca === false);
 
-  console.log('\n── 11. Nenhum erro de runtime na sessão inteira\n');
+  console.log('\n── 12. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 
   await nav.close(); s.close();

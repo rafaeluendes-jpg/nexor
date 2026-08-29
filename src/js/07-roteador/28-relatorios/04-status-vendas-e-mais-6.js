@@ -1357,11 +1357,33 @@ function testarImp(){
    como impressora comum. Comando direto ESC/POS (corte e gaveta) exige
    um programa na maquina — ainda nao existe, e os dois campos ficam
    guardados esperando ele. */
+/* ==========================================================
+   O PAPEL TEM DE TER A LARGURA DAS COLUNAS
+
+   O comprovante e montado com `cols` caracteres por linha (48 na bobina
+   de 80 mm, 32 na de 58 mm). Mas a largura vinha de um numero fixo no
+   CSS — `width:320px`, fonte 12px — e 48 caracteres de 12px ocupam
+   ~346 px. Com `overflow:hidden` no meio, o fim de CADA linha era
+   cortado: na bobina da loja saia "R$ 133," em vez de "R$ 133,05".
+   Todo valor do fechamento perdia os centavos, e ninguem conseguia
+   conferir o caixa pelo papel.
+
+   Aqui a conta passa a ser feita de verdade. A largura util da bobina
+   (descontada a margem) dividida pelos caracteres da linha da o tamanho
+   da fonte em milimetros — entao `cols` caracteres cabem exatos, seja
+   qual for a bobina e qualquer que seja o modelo configurado. Em
+   monoespacada, cada caractere mede 0,6 do tamanho da fonte.
+   ========================================================== */
 function imprimirPapel(linhas,cols,vias){
-  var mm=(cols===32?58:80);
+  cols=Number(cols)||48;
+  var mm=(cols<=32?58:80);
+  var margem=2;                             /* mm de cada lado */
+  var util=mm-(margem*2);
+  var fonteMM=+(util/(cols*0.6)).toFixed(3);
   var el=document.getElementById('viaImp')||document.createElement('div');
   el.id='viaImp';
-  var uma='<div class="papel'+(cols===32?' p58':'')+'">'+papelHTML(linhas,cols)+'</div>';
+  var uma='<div class="papel'+(cols<=32?' p58':'')+'" '+
+    'style="width:'+cols+'ch;font-size:'+fonteMM+'mm">'+papelHTML(linhas,cols)+'</div>';
   var todas='';
   for(var v=0;v<(vias||1);v++)
     todas+='<div class="papelPg">'+uma+'</div>';
@@ -1369,8 +1391,11 @@ function imprimirPapel(linhas,cols,vias){
   document.body.appendChild(el);
   var st=document.getElementById('impCSS')||document.createElement('style');
   st.id='impCSS';
-  st.textContent='@media print{@page{size:'+mm+'mm auto;margin:2mm}'+
+  st.textContent='@media print{@page{size:'+mm+'mm auto;margin:'+margem+'mm}'+
    'body>*{display:none!important}#viaImp{display:block!important}'+
+   '#viaImp .papel{width:'+cols+'ch;font-size:'+fonteMM+'mm;box-shadow:none;'+
+     'padding:0;border-radius:0;max-width:none}'+
+   '#viaImp .papelPg{padding:0;display:block}'+
    '.papelPg{page-break-after:always}}';
   document.head.appendChild(st);
   setTimeout(function(){window.print()},200);

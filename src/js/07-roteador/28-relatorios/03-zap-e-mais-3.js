@@ -1452,112 +1452,152 @@ function linhasFechamento(cx){
     s=montarSnapshot(cx,mv,espOld,cx.conferencia||{});
   }
   var L=[];
+  /* ==========================================================
+     O COMPROVANTE TEM DE CABER NO PAPEL
+
+     Antes: uma linha por valor, tres linhas por forma de pagamento
+     (Sistema, Fisico, Diferenca), e a conta de largura feita com
+     `cols` que nao correspondia a largura real impressa. Resultado, na
+     bobina da loja: 60 e poucas linhas de papel e TODO valor cortado na
+     borda direita — "R$ 133," em vez de "R$ 133,05".
+
+     Agora o corpo da conferencia e uma TABELA de tres colunas, no
+     modelo do comprovante que a loja ja usava: cada forma numa linha
+     so. Sao 20 linhas a menos de papel, e a largura e calculada em
+     cima de `cols` de verdade, com os numeros alinhados a direita.
+     ========================================================== */
+  var esq=function(t,n){ t=String(t==null?'':t);
+    return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };
+  var dir=function(t,n){ t=String(t==null?'':t);
+    return t.length>n?t.slice(t.length-n):new Array(n-t.length+1).join(' ')+t; };
+  /* rotulo a esquerda, valor a direita, SEMPRE dentro da largura: o
+     valor e o que importa, entao quem encolhe e o rotulo */
   var par=function(a,b){
     a=String(a); b=String(b);
+    if(b.length>cols)b=b.slice(b.length-cols);
+    if(a.length+b.length+1>cols)a=a.slice(0,Math.max(0,cols-b.length-1));
     var e2=cols-a.length-b.length;
-    return {txt:a+(e2>0?new Array(e2+1).join(' '):' ')+b};
+    return {txt:a+(e2>0?new Array(e2+1).join(' '):'')+b};
   };
   var bloco=function(t){L.push({tipo:'linha'});L.push({txt:t,n:true});};
+  /* texto solto tambem obedece a largura: era daqui que saiam as linhas
+     de 45 e 46 caracteres numa bobina de 32 */
+  var texto=function(t,pq){
+    String(t||'').match(new RegExp('.{1,'+cols+'}(\\s|$)','g'))
+      .forEach(function(x){ L.push({txt:x.replace(/\s+$/,''),p:!!pq}); });
+  };
+  /* numero curto: 1.234,56 sem o "R$", que se repete em toda linha */
+  var num=function(v){ return money(Math.abs(Number(v)||0)); };
+  var dif=function(v){ v=Number(v)||0;
+    return (Math.abs(v)<0.01?'0,00':(v>0?'+':'-')+num(v)); };
 
-  /* --- cabecalho (item 15) --- */
+  /* ==========================================================
+     A CONTA DA LARGURA TEM DE FECHAR EXATA
+
+     rotulo + 3 numeros + 2 espacos = cols, nem um caractere a mais. Um
+     so ja estoura a bobina e corta o ultimo digito — que foi o defeito
+     que originou esta reescrita.
+
+     Na bobina estreita (58 mm, 32 colunas) tres numeros nao cabem ao
+     lado do nome: la o nome vai numa linha e os numeros na seguinte.
+     ========================================================== */
+  var largo=cols>=44;
+  /* a coluna de numero tem a largura do MAIOR numero que vai sair, e nao
+     um chute: assim sobra o maximo possivel para o nome da forma, que
+     era o que estava sendo cortado ("Cartao credit", "Vale / Vouche") */
+  var maiorNum=7;
+  (s.formas||[]).forEach(function(f){
+    [money(Math.abs(Number(f.sistema)||0)),
+     f.fisico===null?'--':money(Math.abs(Number(f.fisico)||0)),
+     f.diferenca===null?'--':((Number(f.diferenca)||0)>0?'+':'-')+
+       money(Math.abs(Number(f.diferenca)||0))].forEach(function(t){
+      if(t.length>maiorNum)maiorNum=t.length; });
+  });
+  [money(Math.abs(Number(s.totalSistema)||0)),
+   money(Math.abs(Number(s.totalFisico)||0))].forEach(function(t){
+    if(t.length>maiorNum)maiorNum=t.length; });
+  var cNum=Math.min(maiorNum,largo?Math.floor((cols-10-2)/3):Math.floor((cols-2)/3));
+  var cRot=cols-(cNum*3)-2;
+  var linha3=function(rot,a,b,c,neg){
+    if(largo)
+      return [{txt:esq(rot,cRot)+' '+dir(a,cNum)+' '+dir(b,cNum)+dir(c,cols-cRot-2-cNum-cNum),
+               n:!!neg}];
+    return [{txt:esq(String(rot).slice(0,cols),cols),n:!!neg},
+            {txt:dir(a,cNum)+' '+dir(b,cNum)+' '+dir(c,cols-cNum-cNum-2),n:!!neg}];
+  };
+  var põe3=function(rot,a,b,c,neg){
+    linha3(rot,a,b,c,neg).forEach(function(x){L.push(x)});
+  };
+
+  /* --- cabecalho enxuto --- */
   L.push({txt:String(s.empresa||'').slice(0,cols),al:'c',n:true});
-  L.push({txt:'RELATORIO DE FECHAMENTO DE CAIXA',al:'c',n:true});
+  L.push({txt:'FECHAMENTO DE CAIXA',al:'c',n:true});
   L.push({tipo:'linha'});
-  L.push(par('Unidade',String(s.loja||'').slice(0,cols-10)));
-  L.push(par('Caixa',String(s.caixaId||'').slice(-8)));
-  if(s.turno)L.push(par('Turno',s.turno));
+  L.push(par('Unidade',String(s.loja||'').slice(0,cols-9)));
+  L.push(par('Caixa '+String(s.caixaId||'').slice(-6),s.turno||''));
   L.push(par('Abertura',s.aberto||'-'));
   L.push(par('Fechamento',s.fechado||'-'));
-  L.push(par('Operador',String(s.operadorAbriu||'').slice(0,cols-12)));
+  L.push(par('Operador',String(s.operadorAbriu||'').slice(0,cols-10)));
   if(s.operadorFechou&&s.operadorFechou!==s.operadorAbriu)
-    L.push(par('Fechado por',String(s.operadorFechou).slice(0,cols-14)));
+    L.push(par('Fechou',String(s.operadorFechou).slice(0,cols-8)));
 
-  /* --- dinheiro, com a composicao (item 16) --- */
-  var din=s.formas.filter(function(f){return f.troco});
-  din.forEach(function(f){
-    bloco(String(f.nome).toUpperCase());
-    L.push(par('Sistema','R$ '+money(f.sistema)));
-    L.push(par('Fisico',f.fisico===null?'nao informado':'R$ '+money(f.fisico)));
-    L.push(par('Diferenca',f.diferenca===null?'-'
-      :(Math.abs(f.diferenca)<0.01?'R$ 0,00'
-        :(f.diferenca>0?'+ ':'- ')+'R$ '+money(Math.abs(f.diferenca)))));
-    L.push({txt:' '});
-    L.push(par('Fundo de caixa','R$ '+money(s.fundoAbertura)));
-    L.push(par('Vendas dinheiro','R$ '+money(s.vendasDinheiro)));
-    L.push(par('Suprimentos','R$ '+money(s.suprimentos)));
-    L.push(par('Sangrias','R$ '+money(s.sangrias)));
+  /* --- conferencia: uma linha por forma --- */
+  L.push({tipo:'linha'});
+  põe3('CONFERENCIA','SISTEMA','FISICO','DIF',true);
+  (s.formas||[]).forEach(function(f){
+    põe3(f.nome,num(f.sistema),
+      f.fisico===null?'--':num(f.fisico),
+      f.diferenca===null?'--':dif(f.diferenca));
   });
+  L.push({txt:new Array(cols+1).join('-')});
+  põe3('TOTAL',num(s.totalSistema),num(s.totalFisico),dif(s.diferencaTotal),true);
 
-  /* --- cartao e pix --- */
-  var outras=s.formas.filter(function(f){return !f.troco});
-  if(outras.length){
-    bloco('CARTAO / PIX');
-    outras.forEach(function(f){
-      L.push({txt:f.nome,n:true});
-      L.push(par('  Sistema','R$ '+money(f.sistema)));
-      L.push(par('  Fisico',f.fisico===null?'nao informado':'R$ '+money(f.fisico)));
-      L.push(par('  Diferenca',f.diferenca===null?'-'
-        :(Math.abs(f.diferenca)<0.01?'R$ 0,00'
-          :(f.diferenca>0?'+ ':'- ')+'R$ '+money(Math.abs(f.diferenca)))));
-    });
+  /* --- de onde saiu o dinheiro da gaveta --- */
+  var din=(s.formas||[]).filter(function(f){return f.troco})[0];
+  if(din){
+    bloco('GAVETA (dinheiro)');
+    L.push(par('Fundo de caixa',num(s.fundoAbertura)));
+    L.push(par('Vendas dinheiro','+ '+num(s.vendasDinheiro)));
+    if(Number(s.suprimentos)>0.001)L.push(par('Suprimentos','+ '+num(s.suprimentos)));
+    if(Number(s.sangrias)>0.001)   L.push(par('Sangrias','- '+num(s.sangrias)));
+    L.push(par('Esperado na gaveta',num(din.sistema)));
+    L.push(par('Contado',din.fisico===null?'nao informado':num(din.fisico)));
   }
 
-  /* --- totais e conciliacao (itens 16 e 5) --- */
-  bloco('TOTAIS');
-  L.push(par('TOTAL SISTEMA','R$ '+money(s.totalSistema)));
-  L.push(par('TOTAL INFORMADO','R$ '+money(s.totalFisico)));
-  var dg=Number(s.diferencaTotal)||0;
-  L.push(par('DIFERENCA GERAL',(Math.abs(dg)<0.01?'R$ 0,00'
-    :(dg>0?'+ ':'- ')+'R$ '+money(Math.abs(dg)))));
-  if(s.divergenciaEntreFormas){
-    L.push({txt:' '});
-    L.push({txt:'FECHAMENTO TOTAL CONCILIADO',al:'c',n:true});
-    L.push({txt:'DIVERGENCIA ENTRE FORMAS: SIM',al:'c',p:true});
-    L.push({txt:'nenhuma venda foi alterada',al:'c',p:true});
-  }
-
-  /* --- faturamento, que nao se confunde com gaveta (itens 1 a 3) --- */
+  /* --- faturamento, que nao se confunde com gaveta --- */
   bloco('FATURAMENTO');
-  L.push(par('Vendas do turno','R$ '+money(s.faturamento)));
+  L.push(par('Vendas do turno',num(s.faturamento)));
   L.push(par('Qtd. de vendas',String(s.qtdVendas||0)));
   if(s.canceladas)
-    L.push(par('Cancelamentos','('+s.canceladas+') R$ '+money(s.vCanceladas)));
-  if(s.semForma>0.01)
-    L.push(par('SEM FORMA','R$ '+money(s.semForma)));
-  L.push({txt:'abertura, sangria e suprimento nao entram',p:true});
-  L.push({txt:'no faturamento',p:true});
+    L.push(par('Cancelamentos','('+s.canceladas+') '+num(s.vCanceladas)));
+  if(s.semForma>0.01)L.push(par('SEM FORMA',num(s.semForma)));
+  texto('abertura, sangria e suprimento nao entram aqui',true);
+  if(s.divergenciaEntreFormas)
+    texto('total conciliado, com divergencia entre formas',true);
 
-  /* --- sangrias e suprimentos detalhados (item 17) --- */
+  /* --- sangrias e suprimentos: uma linha cada --- */
   if((s.movimentos||[]).length){
     bloco('SANGRIAS E SUPRIMENTOS');
     s.movimentos.forEach(function(m){
-      L.push(par(m.hora+' '+(m.tipo==='sangria'?'Sangria':'Suprimento'),
-        (m.tipo==='sangria'?'- ':'+ ')+'R$ '+money(m.valor)));
-      if(m.motivo)L.push({txt:'  '+String(m.motivo).slice(0,cols-2),p:true});
-      if(m.descricao&&m.descricao!==m.motivo)
-        L.push({txt:'  '+String(m.descricao).slice(0,cols-2),p:true});
-      if(m.destino)L.push({txt:'  Destino: '+String(m.destino).slice(0,cols-11),p:true});
-      if(m.responsavel)L.push({txt:'  Operador: '+String(m.responsavel).slice(0,cols-12),p:true});
+      var rot=m.hora+' '+(m.tipo==='sangria'?'Sangria':'Suprimento');
+      var det=[m.motivo,m.destino,m.responsavel].filter(Boolean).join(' · ');
+      L.push(par(rot,(m.tipo==='sangria'?'- ':'+ ')+num(m.valor)));
+      if(det)texto('  '+det,true);
     });
   }
 
-  if(s.fundoProximo>0.001){
-    bloco('FUNDO DO PROXIMO CAIXA');
-    L.push(par('Deixado na gaveta','R$ '+money(s.fundoProximo)));
-  }
+  if(s.fundoProximo>0.001)
+    L.push(par('Fundo do proximo caixa',num(s.fundoProximo)));
 
   if(s.observacao){
     bloco('OBSERVACAO');
-    String(s.observacao).match(new RegExp('.{1,'+cols+'}','g'))
-      .forEach(function(t){L.push({txt:t,p:true})});
+    texto(s.observacao,true);
   }
 
   L.push({tipo:'linha'});
-  if(reconstruido)
-    L.push({txt:'* fechamento anterior a V175: valores recalculados',p:true});
-  L.push({txt:'Conferido por: ______________________',p:true});
-  L.push({txt:' '});
-  L.push({txt:'Joia - emitido '+new Date().toLocaleString('pt-BR'),al:'c',p:true});
+  if(reconstruido)texto('* anterior a V175: valores recalculados',true);
+  L.push({txt:('Conferido por: '+new Array(Math.max(4,cols-14)).join('_')).slice(0,cols),p:true});
+  texto('Joia - emitido '+new Date().toLocaleString('pt-BR'),true);
   return {linhas:L,cols:cols};
 }
 function imprimirFechamento(id){
