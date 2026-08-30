@@ -1513,6 +1513,21 @@ body.comTeclado .mdBox{padding-bottom:290px}
 .impAcoes{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
 .impPrev{position:sticky;top:12px}
 .impPrevH{font-size:11px;color:var(--tx2,#7a7266);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+/* ==========================================================
+   O AVISO DA JANELA DE IMPRESSAO
+
+   Usa os tokens do sistema (--acc, --band-line): cor solta no meio do
+   codigo e o que faz cada tela ficar de um jeito.
+   ========================================================== */
+.impAjuda{background:var(--band);border:1px solid var(--band-line);border-radius:10px;
+ padding:13px 15px;margin:0 0 14px}
+.impAjudaH{display:flex;align-items:center;gap:8px;color:var(--acc-d);margin-bottom:6px}
+.impAjudaH b{font-size:14px}
+.impAjuda p{margin:0 0 9px;font-size:13px;line-height:1.5;color:var(--tx2,#7a7266)}
+.impPassos{margin:0;padding:0 0 0 20px;display:grid;gap:6px}
+.impPassos li{font-size:13px;line-height:1.45}
+.impPassos li b{display:inline-block}
+.impPassos li span{display:block;color:var(--tx2,#7a7266);font-size:12px}
 .papel{background:#fff;color:#111;padding:12px 10px;border-radius:4px;
  box-shadow:0 2px 14px rgba(0,0,0,.14);width:320px;max-width:100%;
  font:12px/1.42 ui-monospace,Menlo,Consolas,monospace;white-space:pre}

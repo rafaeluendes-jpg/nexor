@@ -1372,6 +1372,22 @@ function telaModeloImp(){
       '<b>'+E(t.n)+'</b><span>'+E(t.d)+'</span></button>';
    }).join('')+'</div>'+
 
+   /* ==========================================================
+      ONDE A PESSOA VAI PROCURAR QUANDO SOBRAR PAPEL
+
+      O aviso da primeira impressao pode ter sido dispensado, ou a loja
+      trocar de computador. Aqui fica de pe, na tela onde ela ja mexe em
+      impressao, dizendo o mesmo — texto vindo da MESMA lista, para os
+      dois nunca divergirem.
+      ========================================================== */
+   '<div class="impAjuda">'+
+    '<div class="impAjudaH">'+sv('print2',14)+
+     '<b>Está saindo papel branco sobrando, com data em cima e o endereço do site embaixo?</b></div>'+
+    '<p>Isso não é do Joia — o cupom dele acaba no "Sem valor fiscal". '+
+    'Essas duas linhas são do navegador, e a chave delas fica na janela de impressão. '+
+    'Ajuste uma vez, em <b>Mais definições</b>:</p>'+
+    htmlPassosImpressao()+
+   '</div>'+
    '<div class="impGrade">'+
     '<div class="impEdit">'+
      '<div class="impBarra">'+
@@ -1838,6 +1854,44 @@ function colunasDaLetra(papel,letra){
    cabecalho e rodape ligados.
    ========================================================== */
 var MARGEM_TOPO=1, MARGEM_PE=1, MARGEM_LADO=2;
+/* o texto e um so, para a tela de ajuste e o aviso da hora da impressao
+   nunca divergirem */
+var PASSOS_IMPRESSAO=[
+  ['Mais definições','abra essa parte da janela, no fim da lista'],
+  ['Margens: Nenhuma','é o que tira a faixa branca em volta'],
+  ['Cabeçalhos e rodapés: desmarcado',
+   'é o que apaga a data em cima e o endereço do site embaixo'],
+  ['Papel: o da sua bobina','80 mm, ou 58 mm na estreita']
+];
+function htmlPassosImpressao(){
+  return '<ol class="impPassos">'+PASSOS_IMPRESSAO.map(function(p){
+    return '<li><b>'+E(p[0])+'</b><span>'+E(p[1])+'</span></li>';
+  }).join('')+'</ol>';
+}
+/* mostrado uma vez por aparelho, na primeira impressao; o Chrome guarda
+   o ajuste, entao repetir so atrapalharia quem ja arrumou */
+function avisoJanelaImpressao(){
+  try{
+    if(localStorage.getItem('nexor_impressao_ok'))return;
+    var o=document.createElement('div');o.className='mdOv';o.id='mdImpAviso';
+    o.innerHTML='<div class="mdBox"><div class="mdH"><b>Ajuste a janela de impressão</b>'+
+      '<button onclick="fecharAvisoImpressao(false)">&times;</button></div>'+
+      '<div class="mdB"><div class="hint" style="margin-bottom:10px">'+
+      'A data em cima e o endereço do site embaixo <b>não são do Joia</b> — são do '+
+      'navegador. Na janela que vai abrir agora, ajuste uma vez:</div>'+
+      htmlPassosImpressao()+
+      '<div class="hint">O Chrome guarda essa escolha para as próximas impressões.</div>'+
+      '</div><div class="mdF">'+
+      '<button class="btnP2" onclick="fecharAvisoImpressao(false)">Mostrar de novo depois</button>'+
+      '<button class="btnP2 ok" onclick="fecharAvisoImpressao(true)">Já ajustei, não mostrar mais</button>'+
+      '</div></div>';
+    document.body.appendChild(o);
+  }catch(e){ _quieto(e,'avisoJanelaImpressao'); }
+}
+function fecharAvisoImpressao(guardar){
+  try{ if(guardar)localStorage.setItem('nexor_impressao_ok','1'); }catch(e){}
+  var o=document.getElementById('mdImpAviso'); if(o)o.remove();
+}
 /* ==========================================================
    A ALTURA DE EMERGENCIA ERA 200 mm FIXOS — E ESSE ERA O BRANCO
 
@@ -2039,6 +2093,26 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
       pagina em branco no fim de toda impressao */
    '#viaImp .papelPg+.papelPg{page-break-before:always}}';
   document.head.appendChild(st);
+  /* ==========================================================
+     AS DUAS LINHAS QUE NAO SAO DO JOIA
+
+     A loja recebe o papel com "30/08/2026, 13:06  Joia" em cima e
+     "https://joiagest.com.br/index.html  1/1" embaixo, com branco em
+     volta. O Joia NAO escreve isso: o papel dele sai de `papelHTML`,
+     que so desenha .ppL, .ppCorte e .ppBar — nao ha endereco de site
+     nem numero de pagina em lugar nenhum do codigo.
+
+     Sao o cabecalho e o rodape do proprio Chrome. Nenhuma linha de CSS
+     desliga essa caixinha — ela e da janela de impressao, e por
+     seguranca o navegador nao deixa a pagina mexer nela. Ja mandamos
+     `@page{margin:0}`, que tira o lugar onde elas seriam desenhadas;
+     quando a janela esta com margem propria, elas voltam.
+
+     O que da para fazer, e o que fazemos aqui: avisar a pessoa NA HORA,
+     com a janela abrindo na frente dela, o que desmarcar. Uma vez por
+     aparelho — o Chrome guarda a escolha para a proxima impressao.
+     ========================================================== */
+  avisoJanelaImpressao();
   setTimeout(function(){window.print()},200);
 }
 

@@ -93,6 +93,11 @@ function servir() {
   console.log('\n── 1. Abrir caixa, vender, e o caixa somar\n');
   await entrar();
   await pg.evaluate(SEMENTE);
+  /* o aviso de ajuste da janela de impressao aparece uma vez por
+     aparelho, na primeira impressao. Aqui ele fica marcado como ja
+     ajustado desde o inicio, senao cobre as telas das provas
+     seguintes — a prova 10l limpa a marca para testar o aviso. */
+  await pg.evaluate(() => { try { localStorage.setItem('nexor_impressao_ok', '1'); } catch (e) {} });
   let r = await pg.evaluate(() => {
     DB.caixas = [{ id: 'cx_hoje', inicial: 100, operador: 'Administrador', operadorId: 'op1',
       sucursalId: lojaAtualId(), movimentos: [],
@@ -1303,6 +1308,81 @@ function servir() {
     var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
     document.querySelectorAll('body>*').forEach(x => { x.style.display = '' });
     DB.pedidos = []; DB.clientes = []; salvar();
+  });
+
+  console.log('\n── 10l. As duas linhas do navegador: o Joia avisa como tirar\n');
+  /* "30/08/2026, 13:06 Joia" em cima e o endereco do site embaixo NAO
+     sao do Joia — sao o cabecalho e o rodape do Chrome, e a caixinha
+     deles e da janela de impressao, fora do alcance de qualquer CSS.
+     O que o sistema pode fazer e avisar na hora, e e isso que se prova
+     aqui. */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var a0 = document.getElementById('mdImpAviso'); if (a0) a0.remove();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    fecharModal();
+    try { localStorage.removeItem('nexor_impressao_ok'); } catch (x) {}
+    DB.modelosImp = []; baseImp();
+    DB.caixas = [{ id: 'cx_av', turno: 'Turno 1', sucursalId: lojaAtualId(),
+      inicial: 100, operador: 'Maria', aberto: '30/08/2026 09:00', movimentos: [] }];
+    var ped = { id: 'pd_av', numero: 800, senha: 800, tipo: 'loja',
+      clienteNome: 'Consumidor', sucursalId: lojaAtualId(), total: 18, taxa: 0,
+      desconto: 0, hora: '15:00', itens: [{ nome: 'Copo P', qtd: 1, unitario: 18,
+      total: 18, opcoes: [] }], pagamentos: [{ forma: 'Dinheiro', valor: 18 }],
+      data: new Date().toISOString() };
+    DB.pedidos = [ped]; salvar();
+    imprimirVia(ped);
+    var av = document.getElementById('mdImpAviso');
+    var texto = av ? av.textContent.replace(/\s+/g, ' ') : '';
+    /* o papel impresso NAO pode conter endereco de site nem paginacao */
+    var pap = document.querySelector('#viaImp .papel');
+    var corpo = pap ? pap.textContent : '';
+    /* clicando em "já ajustei", nunca mais aparece */
+    var bt = av ? [...av.querySelectorAll('button')]
+      .find(b => /já ajustei/i.test(b.textContent)) : null;
+    if (bt) bt.click();
+    var v2 = document.getElementById('viaImp'); if (v2) v2.remove();
+    document.getElementById('impCSS').remove();
+    imprimirVia(ped);
+    var voltou = !!document.getElementById('mdImpAviso');
+    return { apareceu: !!av, texto: texto, corpo: corpo, voltou: voltou };
+  });
+  t('na primeira impressão o sistema avisa como ajustar a janela',
+    r.apareceu === true);
+  t('e diz que as duas linhas NÃO são do Joia',
+    /não são do Joia/i.test(r.texto), r.texto.slice(0, 100));
+  t('manda desmarcar Cabeçalhos e rodapés',
+    /Cabeçalhos e rodapés: desmarcado/i.test(r.texto), r.texto.slice(0, 200));
+  t('e pôr as Margens em Nenhuma', /Margens: Nenhuma/i.test(r.texto));
+  t('diz onde fica: em Mais definições', /Mais definições/i.test(r.texto));
+  t('depois de "já ajustei" o aviso não volta a atrapalhar', r.voltou === false);
+  t('O PAPEL DO JOIA NÃO TEM ENDEREÇO DE SITE',
+    !/joiagest|http|index\.html/i.test(r.corpo), r.corpo.slice(0, 120));
+  /* a data do cupom e 30/08/2026: a busca tem de ser pela paginacao
+     sozinha numa linha ("1/1"), nao por qualquer barra */
+  t('nem numeração de página', !/(^|\n)\s*\d{1,2}\/\d{1,2}\s*($|\n)/.test(r.corpo),
+    r.corpo.slice(0, 120));
+
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    abrir('loja', 'modelo-impressao');
+    var box = document.querySelector('.impAjuda');
+    return { tem: !!box, texto: box ? box.textContent.replace(/\s+/g, ' ') : '' };
+  });
+  t('a tela de Modelo de Impressão também explica, para quem procurar depois',
+    r.tem === true);
+  t('com os mesmos passos, da mesma lista',
+    /Margens: Nenhuma/.test(r.texto) && /Cabeçalhos e rodapés/.test(r.texto),
+    r.texto.slice(0, 160));
+  await pg.evaluate(() => {
+    var av = document.getElementById('mdImpAviso'); if (av) av.remove();
+    try { localStorage.setItem('nexor_impressao_ok', '1'); } catch (e) {}
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    fecharModal();
+    DB.pedidos = []; DB.caixas = []; salvar();
   });
 
   console.log('\n── 10k. Se a medição falhar, a folha NÃO vira 200 mm\n');
