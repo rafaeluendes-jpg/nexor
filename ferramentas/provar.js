@@ -1126,7 +1126,8 @@ function servir() {
     var h = pap.getBoundingClientRect().height * 25.4 / 96;
     vi.setAttribute('style', antes);
     return { largura: +mm[1], pagina: +mm[2], conteudo: +h.toFixed(1),
-      regra: regra, branco: +(+mm[2] - 1 - h).toFixed(1) };
+      regra: regra, cssPapel: (st.textContent.match(/#viaImp \.papel\{[^}]*\}/)||[''])[0],
+      branco: +(+mm[2] - 1 - h).toFixed(1) };
   });
   t('a folha continua mais alta do que larga — nunca deitada',
     r.pagina > r.largura, r.largura + 'x' + r.pagina);
@@ -1134,12 +1135,16 @@ function servir() {
     r.conteudo <= r.pagina - 2, r.conteudo + ' de ' + (r.pagina - 2) + ' mm');
   /* a medida aprovada pelo Rafael em 30/08/2026: cortar rente, em cima
      no nome da loja e embaixo no "Sem valor fiscal" */
-  t('CORTA RENTE EM CIMA: 1 mm até a primeira escrita',
-    /margin:1mm/.test(r.regra), r.regra);
-  t('e rente embaixo: 1 mm depois da última',
-    /margin:1mm 2mm 1mm 2mm/.test(r.regra), r.regra);
-  t('os lados ficam em 2 mm, senão a bobina come o último caractere',
-    /margin:1mm 2mm/.test(r.regra), r.regra);
+  /* @page{margin:0} e o que apaga o cabecalho e o rodape do Chrome: ele
+     desenha essas faixas DENTRO da margem da pagina, e sem margem nao ha
+     onde. `testes/papel-sem-branco.js` trava isso no codigo; aqui e no
+     navegador de verdade. */
+  t('A PÁGINA NÃO TEM MARGEM — é isso que tira o cabeçalho do Chrome',
+    /margin:0\}/.test(r.regra), r.regra);
+  t('e nenhuma margem em milímetros voltou para a @page',
+    !/margin:[^}]*mm/.test(r.regra), r.regra);
+  t('o respiro de 1 mm em cima e embaixo está DENTRO do papel',
+    /padding:1mm 2mm 1mm 2mm/.test(r.cssPapel), r.cssPapel);
   t('MEDIDO NO PAPEL: o branco depois da última linha não passa de 2 mm',
     r.branco <= 2, r.branco + ' mm de branco');
   console.log('   folha ' + r.largura + 'x' + r.pagina + ' mm · texto ' +
@@ -1210,6 +1215,8 @@ function servir() {
       maior: linhas.reduce((a, l) => Math.max(a, (l.textContent || '').length), 0),
       cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length,
       doCadastro: dadosImp(velho).end_entrega,
+      negrito: [...pap.querySelectorAll('.ppL.bd')].map(x => x.textContent.trim()),
+      normais: [...pap.querySelectorAll('.ppL:not(.bd)')].map(x => x.textContent.trim()),
       blocos: gruposDasOpcoes(ped.itens[0]).map(g =>
         g.titulo + ' => ' + g.itens.map(o => o.nome).join(' / ')),
       regra: (document.getElementById('impCSS').textContent).match(/@page\{[^}]*\}/)[0],
@@ -1244,6 +1251,16 @@ function servir() {
     /1x Cascão Tradicional\s{2,}3,00$/m.test(r.corpo), r.corpo);
   t('sabor não leva preço — ele já está no produto',
     /1x Jolô Gelato$/m.test(r.corpo), r.corpo);
+  /* o desenho aprovado pelo Rafael pela foto, no pedido 609 */
+  t('O PRODUTO SAI EM NEGRITO — é por ele que o olho pula de item em item',
+    r.negrito.some(x => /Gelato 500 Gramas/.test(x)), r.negrito.join(' | '));
+  t('o título do bloco também', r.negrito.indexOf('Adicionais:') >= 0 &&
+    r.negrito.indexOf('Sabores:') >= 0, r.negrito.join(' | '));
+  t('e a opção sai em letra NORMAL, para separar detalhe de item',
+    r.normais.some(x => /1x Jolô Gelato/.test(x)) &&
+    !r.negrito.some(x => /1x Jolô Gelato/.test(x)), r.negrito.join(' | '));
+  t('nome comprido de produto não parte no meio da palavra',
+    !/Gram\nas/.test(r.corpo) && !/\w\n\s{3}\w{1,3}$/m.test(r.corpo), r.corpo);
   t('opção de nome comprido desce recuada em vez de estourar a bobina',
     /1x Cascão Trufado com\n\s{3}Castanha de Caju e\n\s{3}Chocolate Belga/.test(r.corpo),
     r.corpo);

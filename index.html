@@ -12326,7 +12326,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V248.0.0';
+var VERSAO='V249.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -46138,14 +46138,36 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
   /* o `padding:10px` do #viaImp somava 2,6 mm de cada lado por cima da
      margem da pagina: o comprovante de 76 mm passava dos 80 mm da
      bobina e o ultimo digito ia embora de novo. Aqui ele e zerado. */
-  st.textContent='@media print{@page{size:'+mm+'mm '+alturaMM+'mm;'+
-   'margin:'+MARGEM_TOPO+'mm '+margem+'mm '+MARGEM_PE+'mm '+margem+'mm}'+
+  /* ==========================================================
+     `@page{margin:0}` E O QUE APAGA O CABECALHO DO NAVEGADOR
+
+     A loja continuava recebendo o papel com duas faixas que nao sao
+     nossas: em cima "30/08/2026, 13:06  Joia", embaixo o endereco do
+     site e "1/1" — e um palmo de branco em volta delas.
+
+     Isso e o cabecalho e o rodape do Chrome. Nenhuma linha de CSS
+     desliga essa opcao: ela e da janela de impressao. MAS o Chrome
+     desenha essas faixas DENTRO DA MARGEM DA PAGINA. Com
+     `@page{margin:0}` nao existe margem, e nao ha onde desenha-las —
+     entao ele nao as imprime, mesmo com a caixinha marcada. Era por
+     isso que sobrava branco: `margin:1mm` ainda dava a ele um lugar.
+
+     A margem foi para DENTRO do papel, como padding: o texto continua
+     a 1 mm da borda de cima, 1 da de baixo e 2 dos lados. Muda quem
+     reserva o espaco — nos, e nao a pagina.
+
+     TRAVA: `testes/papel-sem-branco.js` reprova qualquer volta de
+     margem na `@page`. Isto ja voltou uma vez; nao pode voltar de novo
+     por causa de uma correcao em outro canto.
+     ========================================================== */
+  st.textContent='@media print{@page{size:'+mm+'mm '+alturaMM+'mm;margin:0}'+
    'html,body{margin:0;padding:0;background:#fff}'+
    'body>*{display:none!important}'+
    '#viaImp{display:block!important;position:static;padding:0!important;'+
      'margin:0;width:auto;font-size:inherit}'+
    '#viaImp .papel{width:'+cols+'ch;font-size:'+fonteMM+'mm;box-shadow:none;'+
-     'padding:0;margin:0;border-radius:0;max-width:none}'+
+     'padding:'+MARGEM_TOPO+'mm '+margem+'mm '+MARGEM_PE+'mm '+margem+'mm;'+
+     'margin:0;border-radius:0;max-width:none;box-sizing:content-box}'+
    '#viaImp .papelPg{padding:0;margin:0;display:block}'+
    /* quebra ENTRE as vias; `page-break-after` na ultima gerava uma
       pagina em branco no fim de toda impressao */
