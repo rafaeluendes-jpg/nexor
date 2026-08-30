@@ -1305,6 +1305,63 @@ function servir() {
     DB.pedidos = []; DB.clientes = []; salvar();
   });
 
+  console.log('\n── 10k. Se a medição falhar, a folha NÃO vira 200 mm\n');
+  /* O defeito que fez o cupom "ficar certo e voltar" tres vezes: quando
+     `medirPapel` nao conseguia medir, devolvia 200 mm fixos. Num cupom de
+     95 mm sao dez centimetros de papel branco — e nenhum erro na tela.
+     Aqui a medicao e QUEBRADA de proposito. */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    fecharModal();
+    DB.modelosImp = []; baseImp();
+    DB.caixas = [{ id: 'cx_md', turno: 'Turno 1', sucursalId: lojaAtualId(),
+      inicial: 100, operador: 'Maria', aberto: '30/08/2026 09:00', movimentos: [] }];
+    var ped = { id: 'pd_med', numero: 700, senha: 700, tipo: 'loja',
+      clienteNome: 'Consumidor', sucursalId: lojaAtualId(), total: 18, taxa: 0,
+      desconto: 0, hora: '15:00', itens: [{ nome: 'Copo P', qtd: 1, unitario: 18,
+      total: 18, opcoes: [] }], pagamentos: [{ forma: 'Dinheiro', valor: 18 }],
+      data: new Date().toISOString() };
+    DB.pedidos = [ped]; salvar();
+
+    /* 1) medindo normal, para ter a referência */
+    imprimirVia(ped);
+    var normal = +(document.getElementById('impCSS').textContent
+      .match(/size:\d+mm (\d+)mm/) || [0, 0])[1];
+
+    /* 2) agora a medição é quebrada: getBoundingClientRect devolve zero */
+    document.getElementById('viaImp').remove();
+    document.getElementById('impCSS').remove();
+    var orig = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      var r2 = orig.call(this);
+      return { width: r2.width, height: 0, top: 0, left: 0, right: 0, bottom: 0 };
+    };
+    var quebrada = 0, erro = '';
+    try {
+      imprimirVia(ped);
+      quebrada = +(document.getElementById('impCSS').textContent
+        .match(/size:\d+mm (\d+)mm/) || [0, 0])[1];
+    } catch (x) { erro = String(x && x.message || x); }
+    Element.prototype.getBoundingClientRect = orig;
+    return { normal: normal, quebrada: quebrada, erro: erro };
+  });
+  t('medindo normalmente a folha acompanha o texto', r.normal > 30 && r.normal < 160,
+    r.normal + ' mm');
+  t('COM A MEDIÇÃO QUEBRADA ela NÃO vira 200 mm', r.quebrada !== 200, r.quebrada + ' mm');
+  t('e continua no tamanho do cupom, não um palmo maior',
+    r.quebrada > 30 && r.quebrada <= r.normal + 25,
+    'quebrada ' + r.quebrada + ' mm · normal ' + r.normal + ' mm');
+  t('sem estourar erro nenhum', r.erro === '', r.erro);
+  console.log('   medida normal: ' + r.normal + ' mm · com a medição quebrada: ' +
+    r.quebrada + ' mm (antes: 200 mm fixos)\n');
+  await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    DB.pedidos = []; DB.caixas = []; salvar();
+  });
+
   console.log('\n── 10j. O nome na comanda — identificar, não cadastrar\n');
   /* Ordem da loja em 30/08/2026: com varios pedidos na bancada o
      atendente nao sabe de quem e cada um. Escrever o primeiro nome

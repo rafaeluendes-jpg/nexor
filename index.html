@@ -12326,7 +12326,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V250.0.0';
+var VERSAO='V251.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -46059,8 +46059,50 @@ function colunasDaLetra(papel,letra){
    cabecalho e rodape ligados.
    ========================================================== */
 var MARGEM_TOPO=1, MARGEM_PE=1, MARGEM_LADO=2;
+/* ==========================================================
+   A ALTURA DE EMERGENCIA ERA 200 mm FIXOS — E ESSE ERA O BRANCO
+
+   Este e o defeito que fazia o cupom "ficar certo e voltar". Tres
+   caminhos de `medirPapel` devolviam `altura:200`: quando nao achava o
+   papel, quando a medida vinha zero e quando a medicao estourava. Num
+   cupom de 95 mm isso e uma folha de 200 mm — DEZ CENTIMETROS de papel
+   branco, e nenhum erro na tela.
+
+   E intermitente por natureza: a medida so falha quando o navegador
+   ainda nao fez o layout ou a fonte monoespacada nao terminou de
+   carregar. Mesmo sistema, mesma loja, mesma impressora — as vezes sai
+   certo, as vezes sai com um palmo de branco. Foi exatamente o que a
+   loja relatou tres vezes.
+
+   Numero fixo nao tem como estar certo: ele nao sabe quantas linhas o
+   cupom tem. Agora a emergencia CONTA AS LINHAS que estao no papel —
+   que estao la, no DOM, mesmo quando a medida falha — e multiplica pela
+   entrelinha real do CSS (1,42; a linha grande e ~1,86 e o codigo de
+   barras vale por sete). Erra por pouco, e para mais ou para menos,
+   nunca por dez centimetros.
+   ========================================================== */
+function alturaPelasLinhas(el,fonteMM){
+  try{
+    if(!el||!fonteMM)return 0;
+    var alt=0;
+    Array.prototype.forEach.call(el.querySelectorAll('.ppL,.ppCorte,.ppBar'),
+      function(l){
+        if(l.classList.contains('ppBar')){ alt+=fonteMM*7; return; }
+        if(l.classList.contains('gr')){ alt+=fonteMM*1.86; return; }
+        alt+=fonteMM*1.42;
+      });
+    if(!(alt>0))return 0;
+    return Math.ceil(alt)+MARGEM_TOPO+MARGEM_PE;
+  }catch(e){ return 0; }
+}
 function medirPapel(el,margem,larguraMM,cols){
-  var padrao={fonte:+((larguraMM-margem*2)/((cols||48)*0.6)).toFixed(3),altura:200};
+  var fontePadrao=+((larguraMM-margem*2)/((cols||48)*0.6)).toFixed(3);
+  /* o piso nunca e um numero fixo: e o que as linhas pedem */
+  var socorro=function(f){
+    var porLinha=alturaPelasLinhas(el,f||fontePadrao);
+    return Math.max(30,(Number(larguraMM)||80)+2,porLinha||0);
+  };
+  var padrao={fonte:fontePadrao,altura:socorro(fontePadrao)};
   try{
     var alvo=el.querySelector('.papel');
     if(!alvo)return padrao;
@@ -46078,11 +46120,16 @@ function medirPapel(el,margem,larguraMM,cols){
     var fonte=(larg>0)?+(REF*utilPx/larg).toFixed(3):padrao.fonte;
     if(!(fonte>0.5)||!(fonte<20))fonte=padrao.fonte;
     alvo.style.fontSize=fonte+'mm';
+    /* forca o layout antes de ler: sem isto a primeira leitura depois de
+       trocar a fonte pode voltar zero, e era zero que caia nos 200 mm */
+    void alvo.offsetHeight;
     var h=alvo.getBoundingClientRect().height;
+    if(!(h>0)){ void el.offsetHeight; h=alvo.getBoundingClientRect().height; }
     alvo.style.padding=antesPad;
     alvo.style.fontSize=antesFonte;
     el.setAttribute('style',antesEl);
-    if(!(h>0))return {fonte:fonte,altura:padrao.altura};
+    /* medida falhou: cai na conta pelas linhas, com a fonte ja calculada */
+    if(!(h>0))return {fonte:fonte,altura:socorro(fonte)};
     /* px do navegador (96 dpi) para mm, mais as margens e o corte */
     /* ==========================================================
        O BRANCO DE CIMA E DE BAIXO, MEDIDO

@@ -83,7 +83,49 @@ const linhaAlt = (medir.match(/mmAlt=[^;]*/) || [''])[0];
 t('a conta soma SÓ esses dois termos, sem folga de corte por cima',
   (linhaAlt.match(/\+/g) || []).length === 2, linhaAlt);
 
-console.log('\n── 4. A folha nunca sai deitada\n');
+console.log('\n── 4. A EMERGENCIA NAO PODE SER UM NUMERO FIXO\n');
+
+/* Este foi o defeito que fez o cupom "ficar certo e voltar" tres vezes:
+   quando a medida falhava, `medirPapel` devolvia 200 mm fixos. Num cupom
+   de 95 mm sao DEZ CENTIMETROS de papel branco, sem erro na tela. */
+t('não existe mais altura fixa de 200 mm', !/altura:200/.test(medir), 'altura:200 voltou');
+t('nem qualquer altura fixa em milímetros na função',
+  !/altura:\s*\d{2,}(?![\d.])/.test(medir),
+  (medir.match(/altura:\s*\d+/g) || []).join(' | '));
+t('a emergência conta as linhas do papel',
+  /alturaPelasLinhas\(el,/.test(medir), 'socorro não conta linhas');
+t('e ela é usada nos DOIS caminhos de falha — o inicial e o da medida zero',
+  (medir.match(/socorro\(/g) || []).length >= 2,
+  (medir.match(/socorro\([^)]*\)/g) || []).join(' | '));
+t('a medida é relida uma vez antes de desistir',
+  /if\(!\(h>0\)\)\{ void el\.offsetHeight; h=/.test(medir), 'sem releitura');
+
+/* a conta de emergencia roda de verdade, sobre um papel de mentira */
+const alturaLinhas = corpoDaFuncao('alturaPelasLinhas', fonte);
+const F = new Function('MARGEM_TOPO', 'MARGEM_PE',
+  alturaLinhas + '\nreturn alturaPelasLinhas;')(1, 1);
+function papelFalso(n, grandes, barras) {
+  const filhos = [];
+  for (let i = 0; i < n; i++) filhos.push({ classList: { contains: c => false } });
+  for (let i = 0; i < (grandes || 0); i++)
+    filhos.push({ classList: { contains: c => c === 'gr' } });
+  for (let i = 0; i < (barras || 0); i++)
+    filhos.push({ classList: { contains: c => c === 'ppBar' } });
+  return { querySelectorAll: () => filhos };
+}
+t('20 linhas de 3,7 mm dão ~107 mm, não 200',
+  Math.abs(F(papelFalso(20), 3.715) - 107) <= 3, F(papelFalso(20), 3.715));
+t('e 45 linhas dão bem mais — a conta acompanha o cupom',
+  F(papelFalso(45), 3.715) > F(papelFalso(20), 3.715) + 100,
+  F(papelFalso(45), 3.715) + ' vs ' + F(papelFalso(20), 3.715));
+t('a linha grande e o código de barras pesam mais que uma linha comum',
+  F(papelFalso(0, 1, 0), 4) > F(papelFalso(1), 4) &&
+  F(papelFalso(0, 0, 1), 4) > F(papelFalso(0, 1, 0), 4));
+t('papel sem linha nenhuma devolve zero, para o piso decidir',
+  F(papelFalso(0), 4) === 0, F(papelFalso(0), 4));
+t('e não estoura se o papel não existir', F(null, 4) === 0);
+
+console.log('\n── 5. A folha nunca sai deitada\n');
 
 t('o piso continua passando da largura',
   /minAlt=\(Number\(larguraMM\)\|\|80\)\+2/.test(medir),
@@ -91,7 +133,7 @@ t('o piso continua passando da largura',
 t('e a altura escolhida é sempre a maior das três',
   /Math\.max\(30,minAlt,mmAlt\)/.test(medir));
 
-console.log('\n── 5. Linha vazia no fim não estica a folha\n');
+console.log('\n── 6. Linha vazia no fim não estica a folha\n');
 
 t('as linhas vazias do fim somem antes de medir',
   /while\(linhas\.length&&vazia\(linhas\[linhas\.length-1\]\)\)linhas\.pop\(\)/.test(imprimir));
