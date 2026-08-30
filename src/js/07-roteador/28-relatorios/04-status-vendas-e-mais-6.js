@@ -1853,7 +1853,7 @@ function colunasDaLetra(papel,letra){
    guilhotina, e a janela de impressao do navegador quando esta com
    cabecalho e rodape ligados.
    ========================================================== */
-var MARGEM_TOPO=1, MARGEM_PE=1, MARGEM_LADO=2;
+var MARGEM_TOPO=0, MARGEM_PE=1, MARGEM_LADO=2;
 /* o texto e um so, para a tela de ajuste e o aviso da hora da impressao
    nunca divergirem */
 var PASSOS_IMPRESSAO=[

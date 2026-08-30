@@ -1132,12 +1132,14 @@ function servir() {
     vi.setAttribute('style', antes);
     return { largura: +mm[1], pagina: +mm[2], conteudo: +h.toFixed(1),
       regra: regra, cssPapel: (st.textContent.match(/#viaImp \.papel\{[^}]*\}/)||[''])[0],
-      branco: +(+mm[2] - 1 - h).toFixed(1) };
+      branco: +(+mm[2] - h).toFixed(1) };
   });
   t('a folha continua mais alta do que larga — nunca deitada',
     r.pagina > r.largura, r.largura + 'x' + r.pagina);
+  /* a folha e o texto mais o unico milimetro de baixo: o topo agora e
+     rente, entao a folga que sobra e so essa */
   t('o texto CABE na folha, sem empurrar uma segunda página',
-    r.conteudo <= r.pagina - 2, r.conteudo + ' de ' + (r.pagina - 2) + ' mm');
+    r.conteudo <= r.pagina - 1, r.conteudo + ' de ' + (r.pagina - 1) + ' mm');
   /* a medida aprovada pelo Rafael em 30/08/2026: cortar rente, em cima
      no nome da loja e embaixo no "Sem valor fiscal" */
   /* @page{margin:0} e o que apaga o cabecalho e o rodape do Chrome: ele
@@ -1148,8 +1150,10 @@ function servir() {
     /margin:0\}/.test(r.regra), r.regra);
   t('e nenhuma margem em milímetros voltou para a @page',
     !/margin:[^}]*mm/.test(r.regra), r.regra);
-  t('o respiro de 1 mm em cima e embaixo está DENTRO do papel',
-    /padding:1mm 2mm 1mm 2mm/.test(r.cssPapel), r.cssPapel);
+  t('em cima o papel começa RENTE — zero de recuo',
+    /padding:0mm 2mm/.test(r.cssPapel), r.cssPapel);
+  t('e embaixo fica 1 mm, longe do serrilhado do corte',
+    /padding:0mm 2mm 1mm 2mm/.test(r.cssPapel), r.cssPapel);
   t('MEDIDO NO PAPEL: o branco depois da última linha não passa de 2 mm',
     r.branco <= 2, r.branco + ' mm de branco');
   console.log('   folha ' + r.largura + 'x' + r.pagina + ' mm · texto ' +

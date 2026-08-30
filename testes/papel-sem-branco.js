@@ -70,8 +70,13 @@ t('o #viaImp continua com padding zero — ele já foi a causa de estouro antes'
 console.log('\n── 3. As medidas que a loja pediu\n');
 
 const consts = (fonte.match(/var MARGEM_TOPO=(\d+), MARGEM_PE=(\d+), MARGEM_LADO=(\d+);/) || []);
-t('1 mm da borda de cima até a primeira escrita', consts[1] === '1', consts[1]);
-t('1 mm da última escrita até a borda de baixo', consts[2] === '1', consts[2]);
+/* 30/08/2026: com o cabecalho do Chrome desligado, a loja viu que embaixo
+   cortava rente e em cima sobrava. O que era nosso no topo — 1 mm — foi
+   a zero. Embaixo fica 1 mm, que e o que segura a ultima linha longe do
+   serrilhado. */
+t('a folha comeca RENTE em cima: zero mm ate a primeira escrita',
+  consts[1] === '0', consts[1]);
+t('e 1 mm da última escrita até a borda de baixo', consts[2] === '1', consts[2]);
 t('2 mm nos lados, senão a bobina come o último caractere', consts[3] === '2', consts[3]);
 
 t('a altura da folha é o texto medido mais esses dois milímetros, e nada mais',
