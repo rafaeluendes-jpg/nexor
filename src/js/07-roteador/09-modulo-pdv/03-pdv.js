@@ -376,13 +376,15 @@ function modalOpcoes(p,grupos){
     h+='<div class="blk" style="margin:0 0 11px;max-width:none">'+
     '<h3>'+E(g.nome)+(g.forcado?' <span class="tagF">obrigatório</span>':'')+
     '<small>escolha de '+(g.min||0)+' a '+((g.max==null?1:Number(g.max)))+'</small></h3>';
-    if(!(g.opcoes||[]).length)h+='<div class="hint">Sem opções cadastradas neste grupo.</div>';
+    /* so o que esta LIGADO e oferecido; o desligado continua no cadastro */
+    var ops=opcoesAtivas(g);
+    if(!ops.length)h+='<div class="hint">Sem opções disponíveis neste grupo.</div>';
     /* a pergunta é obrigatória responder, mas a resposta pode ser "não quero" */
     if(g.forcado)
       h+='<label class="chkL semOp"><input type="radio" name="g'+gi+'" class="opNao" '+
       'data-g="'+g.id+'" checked><span><b>Não quero</b>'+
       '<small style="display:block;color:var(--ink-3)">nada é acrescentado ao pedido</small></span></label>';
-    (g.opcoes||[]).forEach(function(o,oi){
+    ops.forEach(function(o,oi){
       h+='<label class="chkL"><input type="'+(((g.max==null?1:Number(g.max)))>1?'checkbox':'radio')+'" name="g'+gi+'" '+
       'class="opSel" data-g="'+g.id+'" data-i="'+oi+'">'+
       '<span>'+E(o.nome)+(o.preco?' <b style="color:var(--acc-d)">+ R$ '+money(o.preco)+'</b>':'')+'</span></label>';
@@ -400,7 +402,10 @@ function modalOpcoes(p,grupos){
     for(var i=0;i<cks.length;i++)if(cks[i].checked){
       var gid=cks[i].getAttribute('data-g');
       var g=grupos.find(function(x){return x.id===gid});
-      var o=g.opcoes[cks[i].getAttribute('data-i')];
+      /* o indice e o da lista JA FILTRADA que foi desenhada: ler de
+         `g.opcoes` aqui pegaria a opcao errada assim que houvesse uma
+         desligada no meio */
+      var o=opcoesAtivas(g)[cks[i].getAttribute('data-i')];
       /* ==========================================================
          A OPCAO PRECISA LEVAR A FICHA JUNTO
 

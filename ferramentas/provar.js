@@ -1389,6 +1389,120 @@ function servir() {
     DB.pedidos = []; DB.caixas = []; salvar();
   });
 
+  console.log('\n── 10m. Sabor em vários grupos, e desligar em vez de apagar\n');
+  /* A loja tem "Sabores Gelatos 1 Sabor", "2 Sabores" e "3 Sabores". Um
+     sabor novo tem de entrar nos tres, e sabor que acabou tem de sumir
+     da venda sem perder o cadastro. */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    fecharModal();
+    DB.grupos = [
+      { id: 'grp_s1', nome: 'Sabores Gelatos 1 Sabor', min: 1, max: 2, ordem: 0,
+        sucursais: [], opcoes: [{ id: 'op_a', nome: 'Jolô Gelato', preco: 0 }] },
+      { id: 'grp_s2', nome: 'Sabores Gelatos 2 Sabores', min: 1, max: 2, ordem: 2,
+        sucursais: [], opcoes: [{ id: 'op_b', nome: 'Jolô Gelato', preco: 0 }] },
+      { id: 'grp_s3', nome: 'Sabores Gelatos 3 Sabores', min: 1, max: 3, ordem: 3,
+        sucursais: [], opcoes: [] }
+    ];
+    DB.produtos = []; salvar();
+    /* o grupo e aberto DE DENTRO da tela de cardapio, como na loja: e
+       ela que o `renderProdutos()` do salvar redesenha no fim */
+    _prod = null;
+    telaCardapio();
+    /* abre o grupo 1 e cadastra um sabor novo */
+    formGrupo('grp_s1');
+    addOp();
+    var nomes = document.querySelectorAll('.goN');
+    nomes[nomes.length - 1].value = 'Pistache Siciliano';
+    var bt = [...document.querySelectorAll('#mdOv .mdF button')]
+      .find(b => /salvar/i.test(b.textContent));
+    if (bt) bt.click();
+    return { salvouNoGrupo1: (DB.grupos[0].opcoes || []).map(o => o.nome) };
+  });
+  t('o sabor novo entra no grupo em que foi cadastrado',
+    r.salvouNoGrupo1.indexOf('Pistache Siciliano') >= 0, r.salvouNoGrupo1.join(', '));
+
+  await pg.waitForTimeout(300);
+  r = await pg.evaluate(() => {
+    var ov = document.getElementById('mdOv');
+    var texto = ov ? ov.textContent.replace(/\s+/g, ' ') : '';
+    var cxs = [...document.querySelectorAll('.cpGrp')];
+    /* marca os outros dois grupos de sabores */
+    cxs.forEach(c => { c.checked = true; });
+    var bt = ov ? [...ov.querySelectorAll('button')]
+      .find(b => /cadastrar nos marcados/i.test(b.textContent)) : null;
+    if (bt) bt.click();
+    var nome = g => (DB.grupos.find(x => x.id === g).opcoes || []).map(o => o.nome);
+    return { perguntou: !!ov, texto: texto, quantos: cxs.length,
+      g2: nome('grp_s2'), g3: nome('grp_s3'),
+      copiada: (DB.grupos.find(x => x.id === 'grp_s3').opcoes || [])
+        .find(o => o.nome === 'Pistache Siciliano') || null };
+  });
+  t('O SISTEMA PERGUNTA em quais outros grupos o sabor também entra',
+    r.perguntou === true, r.texto.slice(0, 90));
+  t('e oferece os outros grupos, não o que já está', r.quantos === 2, r.quantos);
+  t('diz qual sabor está copiando', /Pistache Siciliano/.test(r.texto));
+  t('o sabor vai para o grupo de 3 sabores',
+    r.g3.indexOf('Pistache Siciliano') >= 0, r.g3.join(', '));
+  t('e para o de 2 sabores', r.g2.indexOf('Pistache Siciliano') >= 0, r.g2.join(', '));
+  t('SEM duplicar o que o grupo já tinha',
+    r.g2.filter(x => x === 'Jolô Gelato').length === 1, r.g2.join(', '));
+  t('a cópia nasce ligada', r.copiada && r.copiada.ativo !== false);
+  t('e sem identificador copiado — é opção nova naquele grupo',
+    r.copiada && !r.copiada.id, r.copiada && r.copiada.id);
+
+  r = await pg.evaluate(() => {
+    fecharModal();
+    /* desliga o Jolô no grupo 1, em vez de apagar */
+    var g = DB.grupos.find(x => x.id === 'grp_s1');
+    g.opcoes.find(o => o.nome === 'Jolô Gelato').ativo = false;
+    salvar();
+    var p = { id: 'pr_x', nome: 'Gelato 500', preco: 68, ativo: true, grupos: ['grp_s1'] };
+    DB.produtos = [p];
+    return { cadastroTem: (g.opcoes || []).length,
+      vendaOferece: opcoesAtivas(g).map(o => o.nome),
+      grupoAparece: gruposDoProduto(p, 'pdv').length };
+  });
+  t('DESLIGAR não apaga: a opção continua no cadastro', r.cadastroTem === 2, r.cadastroTem);
+  t('mas some do que a venda oferece',
+    r.vendaOferece.indexOf('Jolô Gelato') < 0, r.vendaOferece.join(', '));
+  t('e o que continua ligado segue lá',
+    r.vendaOferece.indexOf('Pistache Siciliano') >= 0, r.vendaOferece.join(', '));
+  t('o grupo continua aparecendo enquanto tiver alguma ligada',
+    r.grupoAparece === 1, r.grupoAparece);
+
+  r = await pg.evaluate(() => {
+    /* desliga TODAS: o grupo não tem o que perguntar */
+    var g = DB.grupos.find(x => x.id === 'grp_s1');
+    g.opcoes.forEach(o => { o.ativo = false; });
+    salvar();
+    return { ativas: opcoesAtivas(g).length,
+      grupoAparece: gruposDoProduto(DB.produtos[0], 'pdv').length };
+  });
+  t('com todas desligadas o grupo não é mais perguntado',
+    r.ativas === 0 && r.grupoAparece === 0, JSON.stringify(r));
+
+  r = await pg.evaluate(() => {
+    var g = DB.grupos.find(x => x.id === 'grp_s1');
+    g.opcoes.forEach(o => { o.ativo = true; });
+    g.opcoes[0].ativo = false;
+    salvar();
+    formGrupo('grp_s1');
+    var linhas = [...document.querySelectorAll('.opRow2')];
+    var chks = [...document.querySelectorAll('.goA')];
+    return { linhas: linhas.length, apagada: linhas.filter(l => l.classList.contains('off')).length,
+      temCaixinha: chks.length, primeiraDesmarcada: chks.length ? !chks[0].checked : null };
+  });
+  t('no cadastro a desligada continua visível, para poder religar',
+    r.linhas === 2 && r.apagada === 1, JSON.stringify(r));
+  t('cada opção tem a caixinha de ligar/desligar', r.temCaixinha === 2, r.temCaixinha);
+  t('e ela vem desmarcada na que está desligada', r.primeiraDesmarcada === true);
+  await pg.evaluate(() => {
+    fecharModal();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    DB.grupos = []; DB.produtos = []; salvar();
+  });
+
   console.log('\n── 10k. Se a medição falhar, a folha NÃO vira 200 mm\n');
   /* O defeito que fez o cupom "ficar certo e voltar" tres vezes: quando
      `medirPapel` nao conseguia medir, devolvia 200 mm fixos. Num cupom de

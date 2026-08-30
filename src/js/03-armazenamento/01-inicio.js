@@ -1245,8 +1245,22 @@ var MAPA=[
      Mesma armadilha da V136 (formaId x forma) e da V135: campo que existe
      na tela e na descida, mas falta na subida, apaga dado em silencio.
      ========================================================== */
+  /* ==========================================================
+     `ativo` DA OPCAO TEM DE SUBIR JUNTO
+
+     A loja passou a poder desligar um sabor em vez de apagar. Se o
+     campo nao subisse, aconteceria o de sempre neste arquivo: a pessoa
+     desliga, o valor fica no aparelho dela, e o proximo download
+     devolve a opcao ligada. Campo que existe de um lado e nao do outro
+     apaga trabalho em silencio — e a decima segunda vez que isto e
+     escrito aqui.
+
+     A coluna `ativo` ja existia na tabela `opcoes`; so ninguem mandava
+     nada para ela.
+     ========================================================== */
   filhos:[{lista:'opcoes',tab:'opcoes',pai:'grupo_id',
     campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k,
+      ativo:o.ativo!==false,
       ficha_id:fk('fichas',o.fichaId)}}}]},
 
  {col:'produtos', espelha:true,    tab:'produtos',

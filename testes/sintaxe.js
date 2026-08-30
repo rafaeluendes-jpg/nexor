@@ -95,6 +95,8 @@ const CRITICAS = [
   'quebrar','papelHTML',
   'irPagamento','finalizarVenda',
   'avisoJanelaImpressao','fecharAvisoImpressao','htmlPassosImpressao',
+  'opcoesAtivas','chaveOp','perguntaCopiarOpcoes','copiarOpcoesEscolhidas',
+  'marcarOpAtiva','renderOps','lerOps','addOp',
   'guardarCancParaImprimir','imprimirCancelamentoGuardado','pedidosDoPeriodo',
   'guardarMovParaImprimir','imprimirMovimentoGuardado',
   'linhasPag','trocoDoPedido','dadosImp','montarImp',

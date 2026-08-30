@@ -579,6 +579,9 @@ function volta(linhas,fn,atual,col){
     opcoes:(x.opcoes||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
       .map(function(o){return {id:o.ref_local||null,nome:o.nome,
         preco:Number(o.preco_adicional)||0,
+        /* o que sobe tem de descer: sem isto o sabor desligado voltava
+           ligado no download seguinte */
+        ativo:o.ativo!==false,
         fichaId:_fichaDaOpcao(o)}})}},_ANT('grupos'),'grupos');
   if(_fichaSalvas)
     logNuvem('vínculo com ficha técnica preservado do aparelho em '+_fichaSalvas+

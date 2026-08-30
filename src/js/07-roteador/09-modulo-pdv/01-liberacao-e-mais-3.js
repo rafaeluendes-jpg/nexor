@@ -1748,7 +1748,9 @@ function grupoValeEm(g,canal){
 function gruposDoProduto(p,canal){
   if(!p||!p.grupos||!p.grupos.length)return [];
   return (DB.grupos||[]).filter(function(g){
-    if(p.grupos.indexOf(g.id)<0||!(g.opcoes||[]).length)return false;
+    /* grupo em que TODAS as opcoes estao desligadas nao tem o que
+        perguntar: nao aparece, como o grupo vazio ja nao aparecia */
+    if(p.grupos.indexOf(g.id)<0||!opcoesAtivas(g).length)return false;
     return canal?grupoValeEm(g,canal):true;
   });
 }
@@ -1835,7 +1837,8 @@ function respondeGrupo(sim){
 function escolherOpcao(gid,k){
   var g=(DB.grupos||[]).find(function(x){return x.id===gid});
   if(!g)return;
-  var o=(g.opcoes||[])[k];if(!o)return;
+  /* o indice vem da lista desenhada, que ja esta filtrada */
+  var o=opcoesAtivas(g)[k];if(!o)return;
   var atual=MON.escolhas[gid]||[];
   var max=maxDoGrupo(g);
   var ja=atual.findIndex(function(x){return x.nome===o.nome});
@@ -1889,7 +1892,7 @@ function telaMontagem(){
   if(perguntar){
     /* SIM ou NAO, duas escolhas do tamanho da mão. O nome do grupo vira a
        pergunta: "Bordas" -> "Quer adicionar borda?" */
-    var barato=(g.opcoes||[]).reduce(function(m,o){
+    var barato=opcoesAtivas(g).reduce(function(m,o){
       var v=Number(o.preco)||0;return (m===null||v<m)?v:m;},null);
     return cab+
      '<div class="tcSimNao">'+
@@ -1910,7 +1913,7 @@ function telaMontagem(){
      '<span>'+(obr
        ?(max>1?'escolha até '+max:'escolha 1')
        :(max>1?'até '+max+' · opcional':'opcional'))+'</span></div>'+
-    '<div class="tcOpcG">'+(g.opcoes||[]).map(function(o,k){
+    '<div class="tcOpcG">'+opcoesAtivas(g).map(function(o,k){
       var on=sel.some(function(x){return x.nome===o.nome});
       return '<button class="tcOp'+(on?' on':'')+'" onclick="escolherOpcao(\''+g.id+'\','+k+')">'+
        '<span class="tcOpM"></span>'+

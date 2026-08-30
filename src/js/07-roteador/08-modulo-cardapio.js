@@ -604,7 +604,10 @@ function abaOpcoes(){
       return '<label><input type="checkbox" class="pGrp" value="'+g.id+'"'+((p.grupos||[]).indexOf(g.id)>=0?' checked':'')+'>'+
       '<span><b>'+E(g.nome)+'</b>'+(g.forcado?' <span class="tagF">pergunta forçada</span>':'')+
       '<div style="font-size:11px;color:var(--ink-3)">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+' · '+
-      (g.opcoes||[]).length+' opções</div></span>'+
+      opcoesAtivas(g).length+' opções'+
+      (((g.opcoes||[]).length>opcoesAtivas(g).length)
+        ? ' · '+((g.opcoes||[]).length-opcoesAtivas(g).length)+' desligada(s)' : '')+
+      '</div></span>'+
       '<small><button class="btn sm" onclick="event.preventDefault();formGrupo(\''+g.id+'\')">editar</button></small></label>';
     }).join('')+'</div>';
   }
@@ -617,9 +620,11 @@ function abaOpcoes(){
       h+='<div class="grpCard"><div class="grpTop"><b>'+E(g.nome)+'</b>'+
       (g.forcado?'<span class="tagF">obrigatório perguntar</span>':'')+
       '<span class="grpMeta">mín '+(g.min||0)+' · máx '+((g.max==null?1:Number(g.max)))+'</span></div>'+
-      '<div class="grpOps">'+((g.opcoes||[]).length?g.opcoes.map(function(o){
+      /* previa do que o CAIXA pergunta: o desligado nao e perguntado,
+         entao nao pode aparecer aqui — a previa mentiria */
+      '<div class="grpOps">'+(opcoesAtivas(g).length?opcoesAtivas(g).map(function(o){
         return '<span class="opChip">'+E(o.nome)+(o.preco?' +R$ '+money(o.preco):'')+'</span>'}).join(''):
-        '<span class="grpMeta">sem opções cadastradas</span>')+'</div></div>';
+        '<span class="grpMeta">sem opções ativas</span>')+'</div></div>';
     });
     h+='<div class="hint">Os grupos marcados como <b>pergunta forçada</b> aparecem automaticamente na frente de caixa antes de fechar o item — o caixa é obrigado a perguntar ao cliente.</div></div>';
   }
@@ -836,9 +841,14 @@ function abrirGrupos(){
     '<button class="btn sm" onclick="excluirGrupo(\''+g.id+'\')">'+sv('trash',13)+'</button></div>'+
     /* mostrar a ficha de cada opcao evita ter de abrir o grupo so para
        conferir se a baixa de estoque foi vinculada */
+    /* esta e a tela de CADASTRO: a desligada aparece, apagada, senao
+       nao ha por onde religa-la */
     '<div class="grpOps">'+((g.opcoes||[]).length?g.opcoes.map(function(o){
       var fn=nomeFichaDe(o.fichaId);
-      return '<span class="opChip'+(fn?' comF':'')+'">'+E(o.nome)+
+      var off=(o.ativo===false);
+      return '<span class="opChip'+(fn?' comF':'')+(off?' off':'')+'"'+
+        (off?' title="desligada — não aparece na venda"':'')+'>'+E(o.nome)+
+        (off?' (desligada)':'')+
         (o.preco?' +R$ '+money(o.preco):'')+
         (fn?'<i>'+E(fn)+'</i>':'<i class="sem">sem ficha</i>')+'</span>'}).join(''):
       '<span class="grpMeta">sem opções</span>')+'</div></div>';
@@ -887,6 +897,9 @@ function formGrupo(id){
      que alguem editasse o grupo. Liberar funcionava; editar desfazia.
      ========================================================== */
   blocoUnidades(g,'grpUn')+'</div>';
+  /* o que o grupo ja tinha ANTES de salvar: e a diferenca que diz o que
+     e opcao nova */
+  var antesNomes=(_gops||[]).map(chaveOp);
   modal((g?'Editar grupo de opções':'Criar grupo de opções'),corpo,'Salvar',function(){
     var nome=$('gNome').value.trim();
     if(!nome){toast('Informe o nome do grupo.');return false;}
@@ -908,10 +921,119 @@ function formGrupo(id){
     lerUnidades('grpUn',alvo);
     salvar();
     toast(g?'Grupo atualizado.':'Grupo criado.');
+    /* ==========================================================
+       O MESMO SABOR VIVE EM TRES GRUPOS
+
+       A loja tem "Sabores Gelatos 1 Sabor", "2 Sabores" e "3 Sabores".
+       Um sabor novo precisa entrar nos tres — e ate agora era cadastrar
+       tres vezes, uma em cada grupo, com o nome, o preco e o vinculo da
+       ficha tecnica de novo. Tres chances de digitar diferente, e foi o
+       que aconteceu: o mesmo sabor com nomes ligeiramente diferentes.
+
+       Agora, ao salvar, se ha opcao NOVA e existe outro grupo, o
+       sistema pergunta em quais mais ela entra. Copia o que a pessoa ja
+       escreveu — nome, preco e ficha — para os grupos escolhidos.
+
+       Os 120 ms sao os mesmos dos outros modais: a janela deste
+       formulario ainda esta fechando.
+       ========================================================== */
+    var novas=(alvo.opcoes||[]).filter(function(o){
+      return o&&String(o.nome||'').trim()&&antesNomes.indexOf(chaveOp(o))<0; });
+    if(novas.length)
+      setTimeout(function(){ perguntaCopiarOpcoes(alvo,novas); },120);
     if(_prod)return renderAbaProd(),true;
     renderProdutos();return true;
   });
   renderOps();
+}
+/* ==========================================================
+   ONDE SE VENDE, SO ENTRA O QUE ESTA LIGADO
+
+   A regra mora aqui, numa funcao so. A frente de caixa, o totem e o
+   cardapio digital passam por ela — se cada tela filtrasse por conta
+   propria, bastava alguem esquecer uma para o sabor desligado voltar a
+   ser oferecido em algum canto.
+
+   O CADASTRO nao usa esta funcao: la a opcao desligada tem de aparecer,
+   senao nao ha como religar.
+   ========================================================== */
+function opcoesAtivas(g){
+  return ((g&&g.opcoes)||[]).filter(function(o){return o&&o.ativo!==false});
+}
+/* o nome, limpo, e o que identifica uma opcao entre grupos: o
+   identificador e de cada grupo, e o mesmo sabor tem um em cada um */
+function chaveOp(o){
+  return String((o&&o.nome)||'').trim().toLowerCase();
+}
+/* ==========================================================
+   "ESTE SABOR TAMBEM VAI PARA QUAIS GRUPOS?"
+
+   Mostra os outros grupos com quantas opcoes cada um tem, para a pessoa
+   reconhecer qual e qual. O que ja existe la com o mesmo nome nao entra
+   de novo — marcar sem querer nao duplica nada.
+   ========================================================== */
+function perguntaCopiarOpcoes(origem,novas){
+  var outros=(DB.grupos||[]).filter(function(g){return g&&g.id!==origem.id});
+  if(!outros.length)return;
+  /* ==========================================================
+     UMA JANELA SO POR VEZ
+
+     Todas as janelas deste arquivo comecam tirando a anterior. Esta
+     nascia por cima: se a do formulario ainda estivesse aberta —
+     porque o redesenho da tela de tras falhou, por exemplo — ficavam
+     DUAS com o mesmo identificador. `getElementById` devolve a
+     primeira, entao o "Cadastrar nos marcados" fechava a de baixo e
+     deixava a de cima na tela, sem copiar nada.
+     ========================================================== */
+  var velho=document.getElementById('mdOv'); if(velho)velho.remove();
+  var lista=novas.map(function(o){return E(o.nome)}).join(', ');
+  var h='<div class="mdB">'+
+   '<div class="hint" style="margin-bottom:11px">Você acabou de cadastrar '+
+    (novas.length>1?'estas opções':'esta opção')+' em <b>'+E(origem.nome)+'</b>:<br>'+
+    '<b>'+lista+'</b></div>'+
+   '<div class="contaGrid">'+outros.map(function(g){
+     var jaTem=novas.filter(function(o){
+       return (g.opcoes||[]).some(function(x){return chaveOp(x)===chaveOp(o)}); }).length;
+     return '<label class="contaBox"><input type="checkbox" class="cpGrp" value="'+E(g.id)+'">'+
+      '<span><b>'+E(g.nome)+'</b><small>'+((g.opcoes||[]).length)+' opções'+
+      (jaTem?' · já tem '+jaTem+' destas':'')+'</small></span></label>';
+   }).join('')+'</div>'+
+   '<div class="hint">O que já existir lá com o mesmo nome não entra de novo.</div>'+
+  '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox lg"><div class="mdH"><b>Cadastrar também em outros grupos?</b>'+
+   '<button onclick="fecharModal()">&times;</button></div>'+h+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não, só neste</button>'+
+   '<button class="btnP2 ok" onclick="copiarOpcoesEscolhidas(\''+origem.id+'\')">'+
+   sv('check',13)+' Cadastrar nos marcados</button></div></div>';
+  document.body.appendChild(o);
+  _COPIA_OPS=novas.map(function(x){return {nome:x.nome,preco:x.preco,
+    fichaId:x.fichaId,ativo:x.ativo!==false}; });
+}
+var _COPIA_OPS=null;
+function copiarOpcoesEscolhidas(origemId){
+  var marc=Array.prototype.filter.call(document.querySelectorAll('.cpGrp'),
+    function(c){return c.checked}).map(function(c){return c.value});
+  fecharModal();
+  if(!marc.length||!_COPIA_OPS||!_COPIA_OPS.length){_COPIA_OPS=null;return;}
+  var postos=0,gruposMex=0;
+  marc.forEach(function(gid){
+    var g=(DB.grupos||[]).find(function(x){return x.id===gid});
+    if(!g||g.id===origemId)return;
+    g.opcoes=g.opcoes||[];
+    var antes=g.opcoes.length;
+    _COPIA_OPS.forEach(function(o){
+      if(g.opcoes.some(function(x){return chaveOp(x)===chaveOp(o)}))return;
+      /* sem `id`: a opcao nasce nova NESTE grupo e ganha o dela ao subir */
+      g.opcoes.push({nome:o.nome,preco:o.preco,fichaId:o.fichaId,ativo:o.ativo!==false});
+      postos++;
+    });
+    if(g.opcoes.length>antes)gruposMex++;
+  });
+  _COPIA_OPS=null;
+  if(!postos){toast('Esses grupos já tinham essas opções.');return;}
+  salvar();
+  toast(postos+' opção(ões) cadastrada(s) em '+gruposMex+' grupo(s).');
 }
 function nomeFichaDe(id){
   if(!id)return '';
@@ -944,7 +1066,7 @@ function renderOps(){
        so olhava o produto. Com a ficha escolhida aqui, a escolha passa a
        consumir o que ela consome de verdade.
        ========================================================== */
-    return '<div class="opRow2">'+
+    return '<div class="opRow2'+(o.ativo===false?' off':'')+'">'+
     '<input value="'+E(o.nome)+'" placeholder="nome da opção" class="goN">'+
     '<div class="cur" style="width:118px"><span>R$</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" class="moeda goP" value="'+((o.preco||0)?money(o.preco):'')+'"></div>'+
     /* ==========================================================
@@ -960,12 +1082,27 @@ function renderOps(){
        ========================================================== */
     '<input class="goF" list="listaFichasOp" placeholder="digite para achar a ficha" '+
       'value="'+E(nomeFichaDe(o.fichaId))+'">'+
-    '<button onclick="remOp('+i+')">'+sv('trash',13)+'</button></div>';}).join('')
+    /* ==========================================================
+       DESLIGAR EM VEZ DE APAGAR
+
+       Sabor que acabou hoje volta na semana que vem. Apagar obriga a
+       cadastrar tudo de novo — nome, preco e o vinculo com a ficha
+       tecnica — e ainda leva embora o historico de quem ja pediu.
+
+       Agora a opcao liga e desliga. Desligada, ela some da frente de
+       caixa, do totem e do cardapio, mas continua no cadastro,
+       inteirinha, esperando voltar. A lixeira fica, para o que foi
+       cadastrado errado de verdade.
+       ========================================================== */
+    '<label class="chkL goAtivoL" title="Desligue para tirar do cardápio sem apagar">'+
+     '<input type="checkbox" class="goA"'+(o.ativo===false?'':' checked')+
+     ' onchange="marcarOpAtiva(this)"><span>Ativo</span></label>'+
+    '<button onclick="remOp('+i+')" title="Excluir de vez">'+sv('trash',13)+'</button></div>';}).join('')
     :'<div class="hint">Nenhuma opção. Exemplo: Borda de Nutella, Borda de Chocolate.</div>';
 }
 function lerOps(){
   var n=document.querySelectorAll('.goN'),p=document.querySelectorAll('.goP'),
-      f=document.querySelectorAll('.goF');
+      f=document.querySelectorAll('.goF'),a=document.querySelectorAll('.goA');
   var antes=_gops.slice();
   _gops=[];
   for(var i=0;i<n.length;i++){
@@ -976,10 +1113,17 @@ function lerOps(){
     _gops.push({
       id:(antes[i]&&antes[i].id)||undefined,
       nome:n[i].value,preco:moedaValor(p[i]),
+      ativo:!a[i]||a[i].checked,
       fichaId:fid});
   }
 }
-function addOp(){lerOps();_gops.push({nome:'',preco:0});renderOps();}
+/* pinta a linha na hora, sem redesenhar a lista inteira — redesenhar
+   faria a pessoa perder o que estava digitando na linha de baixo */
+function marcarOpAtiva(el){
+  var linha=el.closest('.opRow2');
+  if(linha)linha.classList.toggle('off',!el.checked);
+}
+function addOp(){lerOps();_gops.push({nome:'',preco:0,ativo:true});renderOps();}
 function remOp(i){lerOps();_gops.splice(i,1);renderOps();}
 async function excluirGrupo(id){
   var g=DB.grupos.find(function(x){return x.id===id});

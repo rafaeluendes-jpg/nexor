@@ -1519,6 +1519,13 @@ body.comTeclado .mdBox{padding-bottom:290px}
    Usa os tokens do sistema (--acc, --band-line): cor solta no meio do
    codigo e o que faz cada tela ficar de um jeito.
    ========================================================== */
+/* opcao desligada: continua no cadastro, mas apagada — e a linha dela no
+   formulario perde o peso, para o olho separar do que esta valendo */
+.opRow2.off .goN,.opRow2.off .goP input,.opRow2.off .goF{opacity:.5}
+.opRow2.off{background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.02) 6px 12px)}
+.goAtivoL{margin:0;white-space:nowrap}
+.opChip.off{opacity:.55;text-decoration:line-through}
+.opChip.off i{text-decoration:none}
 .impAjuda{background:var(--band);border:1px solid var(--band-line);border-radius:10px;
  padding:13px 15px;margin:0 0 14px}
 .impAjudaH{display:flex;align-items:center;gap:8px;color:var(--acc-d);margin-bottom:6px}

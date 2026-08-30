@@ -140,6 +140,54 @@ console.log('\n── O envio continua mandando o vínculo\n');
 t('a subida das opções manda ficha_id',
   /ficha_id:fk\('fichas',o\.fichaId\)/.test(fonte));
 
+/* ==========================================================
+   O SABOR DESLIGADO NAO PODE VOLTAR LIGADO
+
+   A loja passou a desligar um sabor em vez de apagar. Campo que existe
+   de um lado e nao do outro apaga trabalho em silencio — este arquivo
+   ja registrou isso onze vezes, e a decima segunda seria esta: a pessoa
+   desliga, o valor fica no aparelho, e o proximo download devolve a
+   opcao ligada.
+
+   Estes testes prendem as DUAS pontas do caminho.
+   ========================================================== */
+console.log('\n── O "desligado" da opcao sobe e desce\n');
+
+/* SUBIDA: o mapa que monta a linha da tabela `opcoes` */
+const mapa = fonte.slice(fonte.indexOf("filhos:[{lista:'opcoes'"),
+                          fonte.indexOf("filhos:[{lista:'opcoes'") + 420);
+t('a subida manda `ativo` para a nuvem',
+  /ativo:o\.ativo!==false/.test(mapa), mapa.slice(0, 200));
+t('e continua mandando nome, preco, ordem e a ficha',
+  /nome:o\.nome/.test(mapa) && /preco_adicional/.test(mapa) &&
+  /ordem:k/.test(mapa) && /ficha_id/.test(mapa));
+
+/* DESCIDA: o mapa que reconstroi a opcao a partir da nuvem */
+const desce = fonte.slice(fonte.indexOf('opcoes:(x.opcoes||[]).sort'),
+                          fonte.indexOf('opcoes:(x.opcoes||[]).sort') + 520);
+t('a descida traz `ativo` de volta',
+  /ativo:o\.ativo!==false/.test(desce), desce.slice(0, 240));
+t('faltando na nuvem, a opção volta LIGADA — nunca some da venda por omissão',
+  /ativo:o\.ativo!==false/.test(desce));
+
+/* a regra de quem enxerga, rodada de verdade */
+const oa = new Function(corpoDaFuncao('opcoesAtivas', fonte) + '\nreturn opcoesAtivas;')();
+t('opcoesAtivas tira só o que está desligado',
+  oa({ opcoes: [{ nome: 'a' }, { nome: 'b', ativo: false }, { nome: 'c', ativo: true }] })
+    .map(o => o.nome).join(',') === 'a,c');
+t('opção sem o campo conta como ligada — cadastro antigo continua vendendo',
+  oa({ opcoes: [{ nome: 'velha' }] }).length === 1);
+t('grupo sem opções não estoura', oa(null).length === 0 && oa({}).length === 0);
+
+/* a venda usa a regra; o cadastro NAO — senão não há como religar */
+for (const alvo of ['modalOpcoes', 'gruposDoProduto', 'escolherOpcao']) {
+  t(alvo + ' passa pela regra', /opcoesAtivas\(/.test(corpoDaFuncao(alvo, fonte)));
+}
+t('a lista do cadastro mostra a desligada, para poder religar',
+  /o\.ativo===false/.test(corpoDaFuncao('renderOps', fonte)));
+t('e o formulário grava o estado da caixinha',
+  /ativo:!a\[i\]\|\|a\[i\]\.checked/.test(corpoDaFuncao('lerOps', fonte)));
+
 console.log('\n════════════════════════════════════════════════════');
 console.log('Joia ' + versaoDoSistema() + ' · vínculo da opção com a ficha');
 console.log(testes - falhas + ' de ' + testes + ' testes passaram');
