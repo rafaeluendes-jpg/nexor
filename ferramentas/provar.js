@@ -1126,19 +1126,22 @@ function servir() {
     var h = pap.getBoundingClientRect().height * 25.4 / 96;
     vi.setAttribute('style', antes);
     return { largura: +mm[1], pagina: +mm[2], conteudo: +h.toFixed(1),
-      regra: regra, branco: +(+mm[2] - 3 - h).toFixed(1) };
+      regra: regra, branco: +(+mm[2] - 1 - h).toFixed(1) };
   });
   t('a folha continua mais alta do que larga — nunca deitada',
     r.pagina > r.largura, r.largura + 'x' + r.pagina);
   t('o texto CABE na folha, sem empurrar uma segunda página',
-    r.conteudo <= r.pagina - 7, r.conteudo + ' de ' + (r.pagina - 7) + ' mm');
-  /* a medida que o Rafael pediu em 30/08/2026 */
-  t('3 mm da borda de cima até a primeira escrita',
-    /margin:3mm/.test(r.regra), r.regra);
-  t('e 4 mm da última escrita até a borda de baixo',
-    /margin:3mm 2mm 4mm 2mm/.test(r.regra), r.regra);
-  t('MEDIDO NO PAPEL: o branco depois da última linha não passa de 5 mm',
-    r.branco <= 5, r.branco + ' mm de branco');
+    r.conteudo <= r.pagina - 2, r.conteudo + ' de ' + (r.pagina - 2) + ' mm');
+  /* a medida aprovada pelo Rafael em 30/08/2026: cortar rente, em cima
+     no nome da loja e embaixo no "Sem valor fiscal" */
+  t('CORTA RENTE EM CIMA: 1 mm até a primeira escrita',
+    /margin:1mm/.test(r.regra), r.regra);
+  t('e rente embaixo: 1 mm depois da última',
+    /margin:1mm 2mm 1mm 2mm/.test(r.regra), r.regra);
+  t('os lados ficam em 2 mm, senão a bobina come o último caractere',
+    /margin:1mm 2mm/.test(r.regra), r.regra);
+  t('MEDIDO NO PAPEL: o branco depois da última linha não passa de 2 mm',
+    r.branco <= 2, r.branco + ' mm de branco');
   console.log('   folha ' + r.largura + 'x' + r.pagina + ' mm · texto ' +
     r.conteudo + ' mm · branco embaixo ' + r.branco + ' mm\n');
   await pg.evaluate(() => {
@@ -1228,16 +1231,24 @@ function servir() {
     r.miudas.every(x => !/Cascão|Ninho|Jolô/.test(x)), r.miudas.join(' | '));
   t('O CASCÃO NÃO SAI MISTURADO COM OS SABORES',
     r.blocos.length === 2, r.blocos.join('  ||  '));
-  t('os sabores saem debaixo do grupo de sabores',
-    /^Sabores Gelatos 1 Sabor =>.*Leite Ninho.*Jolô/.test(r.blocos[0] || ''), r.blocos[0]);
-  t('e o cascão debaixo do grupo dele, que é o do cadastro',
-    /^Cascão Adicional =>.*Cascão Tradicional/.test(r.blocos[1] || ''), r.blocos[1]);
-  t('no papel, cada grupo tem seu título',
-    /Sabores Gelatos 1 Sabor:/.test(r.corpo) && /Cascão Adicional:/.test(r.corpo), r.corpo);
-  t('e o adicional mostra o que ele custa a mais',
-    /Cascão Tradicional \+3,00/.test(r.corpo));
+  t('o adicional vem primeiro — é ele que muda o preço',
+    /^Adicionais =>.*Cascão Tradicional/.test(r.blocos[0] || ''), r.blocos[0]);
+  t('e os sabores logo depois',
+    /^Sabores =>.*Leite Ninho.*Jolô/.test(r.blocos[1] || ''), r.blocos[1]);
+  t('o título é curto: "Adicionais" e "Sabores", não o nome do grupo',
+    /^Adicionais:$/m.test(r.corpo) && /^Sabores:$/m.test(r.corpo) &&
+    !/Cascão Adicional:/.test(r.corpo), r.corpo);
+  t('cada opção sai com a quantidade na frente',
+    /1x Cascão Tradicional/.test(r.corpo) && /1x Jolô Gelato/.test(r.corpo));
+  t('e o adicional com o preço encostado na direita, como a linha do produto',
+    /1x Cascão Tradicional\s{2,}3,00$/m.test(r.corpo), r.corpo);
+  t('sabor não leva preço — ele já está no produto',
+    /1x Jolô Gelato$/m.test(r.corpo), r.corpo);
   t('opção de nome comprido desce recuada em vez de estourar a bobina',
-    /Cascão Trufado com Castanha\n\s+de Caju/.test(r.corpo), r.corpo);
+    /1x Cascão Trufado com\n\s{3}Castanha de Caju e\n\s{3}Chocolate Belga/.test(r.corpo),
+    r.corpo);
+  t('e o valor dela vai sozinho na direita, sem encavalar no nome',
+    /Chocolate Belga\n\s+9,00$/m.test(r.corpo), r.corpo);
   t('a letra do cupom é grande: 34 colunas, não as 48 de fábrica',
     r.colunas === 34, r.colunas + ' colunas');
   t('e passa de 3 mm no papel', /font-size:\s*3\.\d+mm/.test(r.fonte), r.fonte);
