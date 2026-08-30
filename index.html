@@ -45296,9 +45296,25 @@ function gruposDasOpcoes(item){
       var g=procurar(nome,doProduto)||procurar(nome,todos);
       if(!g){semGrupo.push(o);return;}
       achouAlgum=true;
-      var b=blocos.find(function(x){return x.id===g.id});
-      if(!b){ b={id:g.id,titulo:g.nome||'',ord:ordem(g,todos.indexOf(g)),itens:[]};
-        blocos.push(b); }
+      /* ==========================================================
+         "Cascao Adicional:" NAO CABE E NAO AJUDA
+
+         O titulo era o nome do grupo do cadastro — "Sabores Gelatos 1
+         Sabor:", "Cascao Adicional:". Num papel de 34 colunas isso
+         ocupa a linha inteira e a loja devolveu: "ficou tudo muito
+         confuso".
+
+         Quem monta o gelato so precisa saber duas coisas: o que e
+         SABOR e o que e ADICIONAL. Grupo cujo nome fala em sabor vira
+         "Sabores"; todo o resto — cascao, borda, cobertura, calda —
+         vira "Adicionais", que e o que eles sao. O adicional vem
+         primeiro, porque e ele que muda o preco.
+         ========================================================== */
+      var ehSabor=/sabor/i.test(g.nome||'');
+      var chave=ehSabor?'sab':'adi';
+      var b=blocos.find(function(x){return x.id===chave});
+      if(!b){ b={id:chave,titulo:ehSabor?'Sabores':'Adicionais',
+        ord:ehSabor?1:0,itens:[]}; blocos.push(b); }
       b.itens.push(o);
     });
     if(!achouAlgum)return simples;
@@ -45361,13 +45377,31 @@ function linhasItens(ped,cols,comPreco){
       });
     };
     gruposDasOpcoes(i).forEach(function(g){
-      if(g.titulo){
-        quebrar('   '+g.titulo+':',cols).forEach(function(t){
-          r.push({tipo:'txt',txt:t,al:'e',n:true});});
-      }
+      if(g.titulo)r.push({tipo:'txt',txt:g.titulo+':',al:'e',n:true});
       g.itens.forEach(function(o){
-        var mais=Number(o.preco)>0?(' +'+money(o.preco)):'';
-        recuado(String(o.nome||o)+mais,g.titulo?'     ':'   + ');
+        /* "1x Cascao Tradicional          3,00" — a quantidade na
+           frente e o preco encostado na direita, igual a linha do
+           produto. Quem confere le a coluna, nao cava no meio do
+           texto. */
+        var qt=(Number(o.qtd)||1)+'x ';
+        var vl=Number(o.preco)>0?money(o.preco):'';
+        var nome=String(o.nome||o);
+        var largura=cols-qt.length-(vl?vl.length+1:0);
+        var partes=quebrar(nome,Math.max(6,largura));
+        partes.forEach(function(t,k){
+          var linha=(k?new Array(qt.length+1).join(' '):qt)+t;
+          if(!k&&vl&&partes.length===1){
+            var esp=cols-linha.length-vl.length;
+            linha=linha+(esp>0?new Array(esp+1).join(' '):' ')+vl;
+          }
+          r.push({tipo:'txt',txt:linha,al:'e'});
+        });
+        /* nome que precisou de duas linhas: o valor vai sozinho na
+           direita embaixo, para nao encavalar */
+        if(vl&&partes.length>1){
+          var esp2=cols-vl.length;
+          r.push({tipo:'txt',txt:(esp2>0?new Array(esp2+1).join(' '):'')+vl,al:'e'});
+        }
       });
     });
     if(i.obs)recuado('obs: '+i.obs,'   ');
@@ -45933,10 +45967,23 @@ function colunasDaLetra(papel,letra){
    fonte de referencia e escalar. Da certo em qualquer fonte, em
    qualquer maquina.
    ========================================================== */
-/* 3 mm ate a primeira escrita, 4 mm depois da ultima — ordem da loja,
-   30/08/2026. Os lados continuam com 2 mm, que e o que a bobina pede
-   para nao comer o ultimo caractere. */
-var MARGEM_TOPO=3, MARGEM_PE=4, MARGEM_LADO=2;
+/* ==========================================================
+   A FOLHA ACABA ONDE ACABA O TEXTO
+
+   Primeiro foram 3 mm em cima e 4 embaixo. A loja olhou e pediu mais:
+   cortar rente — em cima no "Jolo Santa Fe do Sul", embaixo no "Sem
+   valor fiscal", sem faixa branca nenhuma.
+
+   1 mm e o rente possivel: com zero, o arredondamento do navegador
+   come a perna do "p" e do "g" da ultima linha. Os lados ficam em 2,
+   que e o que a bobina pede para nao comer o ultimo caractere.
+
+   O que sobrar de papel depois disso ja nao e da folha: e o avanco
+   que a propria impressora da para a ultima linha passar pela
+   guilhotina, e a janela de impressao do navegador quando esta com
+   cabecalho e rodape ligados.
+   ========================================================== */
+var MARGEM_TOPO=1, MARGEM_PE=1, MARGEM_LADO=2;
 function medirPapel(el,margem,larguraMM,cols){
   var padrao={fonte:+((larguraMM-margem*2)/((cols||48)*0.6)).toFixed(3),altura:200};
   try{
