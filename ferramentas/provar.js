@@ -1126,16 +1126,21 @@ function servir() {
     var h = pap.getBoundingClientRect().height * 25.4 / 96;
     vi.setAttribute('style', antes);
     return { largura: +mm[1], pagina: +mm[2], conteudo: +h.toFixed(1),
-      branco: +(+mm[2] - 4 - h).toFixed(1) };
+      regra: regra, branco: +(+mm[2] - 3 - h).toFixed(1) };
   });
   t('a folha continua mais alta do que larga — nunca deitada',
     r.pagina > r.largura, r.largura + 'x' + r.pagina);
   t('o texto CABE na folha, sem empurrar uma segunda página',
-    r.conteudo <= r.pagina - 4, r.conteudo + ' de ' + (r.pagina - 4) + ' mm');
-  t('E SOBRA POUCO BRANCO: no máximo 10 mm depois da última linha',
-    r.branco <= 10, r.branco + ' mm de branco');
+    r.conteudo <= r.pagina - 7, r.conteudo + ' de ' + (r.pagina - 7) + ' mm');
+  /* a medida que o Rafael pediu em 30/08/2026 */
+  t('3 mm da borda de cima até a primeira escrita',
+    /margin:3mm/.test(r.regra), r.regra);
+  t('e 4 mm da última escrita até a borda de baixo',
+    /margin:3mm 2mm 4mm 2mm/.test(r.regra), r.regra);
+  t('MEDIDO NO PAPEL: o branco depois da última linha não passa de 5 mm',
+    r.branco <= 5, r.branco + ' mm de branco');
   console.log('   folha ' + r.largura + 'x' + r.pagina + ' mm · texto ' +
-    r.conteudo + ' mm · branco ' + r.branco + ' mm\n');
+    r.conteudo + ' mm · branco embaixo ' + r.branco + ' mm\n');
   await pg.evaluate(() => {
     fecharModal();
     var v = document.getElementById('viaImp'); if (v) v.remove();
@@ -1154,6 +1159,21 @@ function servir() {
     var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
     fecharModal();
     DB.modelosImp = []; baseImp();
+    /* o cadastro de grupos COMO ESTA NA LOJA: o cascao e um grupo
+       proprio, os sabores sao outro */
+    DB.grupos = [
+      { id: 'grp_sab1', nome: 'Sabores Gelatos 1 Sabor', ordem: 0, opcoes: [
+        { nome: 'Leite Ninho Trufado Gelato', preco: 0 },
+        { nome: 'Jolô Gelato', preco: 0 }] },
+      { id: 'grp_casc', nome: 'Cascão Adicional', ordem: 1, opcoes: [
+        { nome: 'Cascão Tradicional', preco: 3 },
+        { nome: 'Cascão Trufado com Castanha de Caju e Chocolate Belga', preco: 9 }] },
+      { id: 'grp_sab3', nome: 'Sabores Gelatos  3 Sabores.', ordem: 3, opcoes: [
+        { nome: 'Leite Ninho Trufado Gelato', preco: 0 },
+        { nome: 'Jolô Gelato', preco: 0 }] }
+    ];
+    DB.produtos = [{ id: 'pr_g500', nome: 'Gelato 500 Gramas', preco: 68,
+      grupos: ['grp_sab1', 'grp_casc'], ativo: true }];
     var end = { rua: 'Antônio Laerte margiotte', numero: '530 ',
       referencia: 'Caminho das águas- portão preto ' };
     DB.clientes = [{ id: 'cli_av', nome: 'Anna Vithória', tel: '(17) 99678-6823',
@@ -1165,10 +1185,12 @@ function servir() {
       endereco: enderecoDeEntrega(end), cidade: 'Santa fe do sul',
       zona: 'Todos os Bairros', sucursalId: lojaAtualId(),
       total: 75, taxa: 7, desconto: 0, hora: '13:06',
-      itens: [{ nome: 'Gelato 500 Gramas', qtd: 1, unitario: 68, total: 68, obs: '',
+      itens: [{ produtoId: 'pr_g500', nome: 'Gelato 500 Gramas', qtd: 1,
+        unitario: 68, total: 68, obs: '',
         opcoes: [{ nome: 'Cascão Tradicional', preco: 3 },
                  { nome: 'Leite Ninho Trufado Gelato', preco: 0 },
-                 { nome: 'Jolô Gelato', preco: 0 }] }],
+                 { nome: 'Jolô Gelato', preco: 0 },
+                 { nome: 'Cascão Trufado com Castanha de Caju e Chocolate Belga', preco: 9 }] }],
       pagamentos: [{ forma: 'Dinheiro', valor: 75 }],
       data: new Date().toISOString() };
     DB.pedidos = [ped]; salvar();
@@ -1185,6 +1207,9 @@ function servir() {
       maior: linhas.reduce((a, l) => Math.max(a, (l.textContent || '').length), 0),
       cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length,
       doCadastro: dadosImp(velho).end_entrega,
+      blocos: gruposDasOpcoes(ped.itens[0]).map(g =>
+        g.titulo + ' => ' + g.itens.map(o => o.nome).join(' / ')),
+      regra: (document.getElementById('impCSS').textContent).match(/@page\{[^}]*\}/)[0],
       juntou: enderecoDeEntrega({ rua: 'Rua A', numero: '', referencia: '' }) };
   });
   t('O ENDEREÇO SAI NO CUPOM DA ENTREGA',
@@ -1201,6 +1226,18 @@ function servir() {
     /Leite Ninho Trufado Gelato/.test(r.corpo) && /Jolô Gelato/.test(r.corpo));
   t('E NÃO EM LETRA MIÚDA — sabor é o que a cozinha lê',
     r.miudas.every(x => !/Cascão|Ninho|Jolô/.test(x)), r.miudas.join(' | '));
+  t('O CASCÃO NÃO SAI MISTURADO COM OS SABORES',
+    r.blocos.length === 2, r.blocos.join('  ||  '));
+  t('os sabores saem debaixo do grupo de sabores',
+    /^Sabores Gelatos 1 Sabor =>.*Leite Ninho.*Jolô/.test(r.blocos[0] || ''), r.blocos[0]);
+  t('e o cascão debaixo do grupo dele, que é o do cadastro',
+    /^Cascão Adicional =>.*Cascão Tradicional/.test(r.blocos[1] || ''), r.blocos[1]);
+  t('no papel, cada grupo tem seu título',
+    /Sabores Gelatos 1 Sabor:/.test(r.corpo) && /Cascão Adicional:/.test(r.corpo), r.corpo);
+  t('e o adicional mostra o que ele custa a mais',
+    /Cascão Tradicional \+3,00/.test(r.corpo));
+  t('opção de nome comprido desce recuada em vez de estourar a bobina',
+    /Cascão Trufado com Castanha\n\s+de Caju/.test(r.corpo), r.corpo);
   t('a letra do cupom é grande: 34 colunas, não as 48 de fábrica',
     r.colunas === 34, r.colunas + ' colunas');
   t('e passa de 3 mm no papel', /font-size:\s*3\.\d+mm/.test(r.fonte), r.fonte);

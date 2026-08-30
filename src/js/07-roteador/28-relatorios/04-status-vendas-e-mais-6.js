@@ -1064,6 +1064,51 @@ function quebrar(txt,larg){
   if(linha)r.push(linha);
   return r;
 }
+/* ==========================================================
+   AS OPCOES DO ITEM, SEPARADAS PELO GRUPO DO CADASTRO
+
+   Devolve [{titulo, itens:[...]}] na ordem dos grupos. O que nao tiver
+   grupo conhecido volta num bloco sem titulo, que imprime como antes.
+   ========================================================== */
+function gruposDasOpcoes(item){
+  var esc=(item&&item.opcoes)||[];
+  if(!esc.length)return [];
+  var simples=[{titulo:'',itens:esc}];
+  try{
+    var todos=(DB.grupos||[]);
+    if(!todos.length)return simples;
+    /* os grupos DESTE produto desempatam: a mesma opcao existe em mais
+       de um grupo de sabores */
+    var prod=(DB.produtos||[]).find(function(x){return x.id===item.produtoId})||
+             (DB.produtos||[]).find(function(x){return x.nome===item.nome});
+    var ids=(prod&&prod.grupos)||[];
+    var doProduto=todos.filter(function(g){return ids.indexOf(g.id)>=0});
+    var ordem=function(g,i){return (g.ordem==null?i:Number(g.ordem)); };
+    var procurar=function(nome,lista){
+      for(var k=0;k<lista.length;k++){
+        var g=lista[k];
+        if((g.opcoes||[]).some(function(o){return String(o.nome)===String(nome)}))
+          return g;
+      }
+      return null;
+    };
+    var blocos=[],semGrupo=[],achouAlgum=false;
+    esc.forEach(function(o){
+      var nome=(o&&o.nome)||o;
+      var g=procurar(nome,doProduto)||procurar(nome,todos);
+      if(!g){semGrupo.push(o);return;}
+      achouAlgum=true;
+      var b=blocos.find(function(x){return x.id===g.id});
+      if(!b){ b={id:g.id,titulo:g.nome||'',ord:ordem(g,todos.indexOf(g)),itens:[]};
+        blocos.push(b); }
+      b.itens.push(o);
+    });
+    if(!achouAlgum)return simples;
+    blocos.sort(function(a,b2){return a.ord-b2.ord});
+    if(semGrupo.length)blocos.push({titulo:'',itens:semGrupo});
+    return blocos;
+  }catch(e){ return simples; }
+}
 function linhasItens(ped,cols,comPreco){
   var r=[];
   (ped.itens||[]).forEach(function(i){
@@ -1081,19 +1126,53 @@ function linhasItens(ped,cols,comPreco){
     if(nome.length>Math.max(4,largNome))
       r.push({tipo:'txt',txt:'   '+nome.slice(Math.max(4,largNome)),al:'e'});
     /* ==========================================================
-       SABOR NAO E RODAPE
+       SABOR NAO E RODAPE — E CASCAO NAO E SABOR
 
-       As opcoes saiam com `p:true` — 85% do tamanho e em cinza. Num
-       cupom termico cinza nao existe: a impressora pontilha, e o que
-       sai e um borrao. Justo nos SABORES, que sao a unica coisa que a
-       cozinha precisa ler para montar o gelato. A observacao do item
-       tem o mesmo peso: "sem calda" errado e pedido refeito.
+       Duas coisas erradas na mesma linha.
 
-       Os dois passam a sair no tamanho normal, em preto.
+       A primeira: as opcoes saiam com `p:true` — 85% do tamanho e em
+       cinza. Bobina termica nao faz cinza: pontilha, e sai borrao.
+       Justo nos SABORES, que sao a unica coisa que a cozinha precisa
+       ler para montar o gelato. Sao normais e pretos agora.
+
+       A segunda, do pedido 600 de 30/08/2026: saiam todas embaralhadas
+       numa lista so —
+
+           + Cascao Tradicional
+           + Leite Ninho Trufado Gelato
+           + Jolo Gelato
+
+       Quem monta le tres sabores. Mas o cascao NAO e sabor: e produto
+       a parte, do grupo "Cascao Adicional", e custa R$ 3. Os outros
+       dois sao os sabores do gelato.
+
+       A separacao nao e chute nosso: cada opcao pertence a um GRUPO no
+       cadastro, e e o nome do grupo que vira o titulo. Procuramos
+       primeiro nos grupos DO PRODUTO — "Leite Ninho" existe em tres
+       grupos de sabores diferentes, e so o produto desempata. Sem
+       achar, volta a lista simples de antes: cupom sem grupo e melhor
+       do que cupom sem opcao.
        ========================================================== */
-    (i.opcoes||[]).forEach(function(o){
-      r.push({tipo:'txt',txt:'   + '+(o.nome||o),al:'e'});});
-    if(i.obs)r.push({tipo:'txt',txt:'   obs: '+i.obs,al:'e'});
+    /* opcao com nome comprido — "Cascao Trufado com Castanha de Caju e
+       Chocolate Belga" tem 52 caracteres — estourava a bobina: a linha
+       era empurrada inteira, sem quebra. Aqui ela desce recuada, como o
+       nome do produto ja faz. */
+    var recuado=function(txt,rec){
+      quebrar(String(txt),Math.max(6,cols-rec.length)).forEach(function(t,k){
+        r.push({tipo:'txt',txt:(k?new Array(rec.length+1).join(' '):rec)+t,al:'e'});
+      });
+    };
+    gruposDasOpcoes(i).forEach(function(g){
+      if(g.titulo){
+        quebrar('   '+g.titulo+':',cols).forEach(function(t){
+          r.push({tipo:'txt',txt:t,al:'e',n:true});});
+      }
+      g.itens.forEach(function(o){
+        var mais=Number(o.preco)>0?(' +'+money(o.preco)):'';
+        recuado(String(o.nome||o)+mais,g.titulo?'     ':'   + ');
+      });
+    });
+    if(i.obs)recuado('obs: '+i.obs,'   ');
   });
   if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
   return r;
@@ -1656,6 +1735,10 @@ function colunasDaLetra(papel,letra){
    fonte de referencia e escalar. Da certo em qualquer fonte, em
    qualquer maquina.
    ========================================================== */
+/* 3 mm ate a primeira escrita, 4 mm depois da ultima — ordem da loja,
+   30/08/2026. Os lados continuam com 2 mm, que e o que a bobina pede
+   para nao comer o ultimo caractere. */
+var MARGEM_TOPO=3, MARGEM_PE=4, MARGEM_LADO=2;
 function medirPapel(el,margem,larguraMM,cols){
   var padrao={fonte:+((larguraMM-margem*2)/((cols||48)*0.6)).toFixed(3),altura:200};
   try{
@@ -1681,9 +1764,17 @@ function medirPapel(el,margem,larguraMM,cols){
     el.setAttribute('style',antesEl);
     if(!(h>0))return {fonte:fonte,altura:padrao.altura};
     /* px do navegador (96 dpi) para mm, mais as margens e o corte */
-    /* a folga do corte era 4 mm; 2 mm ja tira a ultima linha de baixo do
-       serrilhado, e o proprio avanco da bobina faz o resto */
-    var mmAlt=Math.ceil(h*25.4/96)+(margem*2)+2;
+    /* ==========================================================
+       O BRANCO DE CIMA E DE BAIXO, MEDIDO
+
+       Ordem do Rafael em 30/08/2026: 3 mm da borda ate a primeira
+       escrita, 4 mm da ultima escrita ate a borda de baixo — os 4 de
+       baixo porque e ali que passa o serrilhado do corte.
+
+       A folha e exatamente isso: o texto medido mais 3 em cima e 4
+       embaixo. Nada de folga extra somada por cima.
+       ========================================================== */
+    var mmAlt=Math.ceil(h*25.4/96)+MARGEM_TOPO+MARGEM_PE;
     /* ==========================================================
        PAPEL MAIS BAIXO DO QUE LARGO SAI DEITADO
 
@@ -1744,7 +1835,7 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
     while(linhas.length&&vazia(linhas[linhas.length-1]))linhas.pop();
   }
   var mm=Number(mmPapel)||(cols<=32?58:80);
-  var margem=2;                             /* mm de cada lado */
+  var margem=MARGEM_LADO;                   /* mm de cada lado */
   var util=mm-(margem*2);
   var fonteMM=+(util/(cols*0.6)).toFixed(3);   /* ponto de partida; medido abaixo */
   var el=document.getElementById('viaImp')||document.createElement('div');
@@ -1767,7 +1858,8 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
   /* o `padding:10px` do #viaImp somava 2,6 mm de cada lado por cima da
      margem da pagina: o comprovante de 76 mm passava dos 80 mm da
      bobina e o ultimo digito ia embora de novo. Aqui ele e zerado. */
-  st.textContent='@media print{@page{size:'+mm+'mm '+alturaMM+'mm;margin:'+margem+'mm}'+
+  st.textContent='@media print{@page{size:'+mm+'mm '+alturaMM+'mm;'+
+   'margin:'+MARGEM_TOPO+'mm '+margem+'mm '+MARGEM_PE+'mm '+margem+'mm}'+
    'html,body{margin:0;padding:0;background:#fff}'+
    'body>*{display:none!important}'+
    '#viaImp{display:block!important;position:static;padding:0!important;'+
