@@ -45290,10 +45290,17 @@ function gruposDasOpcoes(item){
       }
       return null;
     };
+    var porId=function(id){
+      if(!id)return null;
+      return todos.find(function(g){return g.id===id})||null;
+    };
     var blocos=[],semGrupo=[],achouAlgum=false;
     esc.forEach(function(o){
       var nome=(o&&o.nome)||o;
-      var g=procurar(nome,doProduto)||procurar(nome,todos);
+      /* o PDV grava o grupo dentro da opcao (`grupo`): quando ele vem,
+         nao ha o que adivinhar. Procurar pelo nome fica para o que vem
+         do cardapio, que manda so nome e preco. */
+      var g=porId(o&&o.grupo)||procurar(nome,doProduto)||procurar(nome,todos);
       if(!g){semGrupo.push(o);return;}
       achouAlgum=true;
       /* ==========================================================
@@ -45325,20 +45332,45 @@ function gruposDasOpcoes(item){
 }
 function linhasItens(ped,cols,comPreco){
   var r=[];
-  (ped.itens||[]).forEach(function(i){
+  (ped.itens||[]).forEach(function(i,k){
     var q=String(i.qtd||1);
     var val=comPreco?money(i.total):'';
     var largNome=cols-q.length-2-(val?val.length+1:0);
     var nome=String(i.nome||'');
-    var cab=q+'  '+nome.slice(0,Math.max(4,largNome));
-    if(val){
-      var esp=cols-cab.length-val.length;
-      cab=cab+(esp>0?new Array(esp+1).join(' '):' ')+val;
-    }
-    r.push({tipo:'txt',txt:cab,al:'e'});
-    /* nome que nao coube continua na linha de baixo, recuado */
-    if(nome.length>Math.max(4,largNome))
-      r.push({tipo:'txt',txt:'   '+nome.slice(Math.max(4,largNome)),al:'e'});
+    /* ==========================================================
+       O QUE E PRODUTO SALTA AOS OLHOS
+
+       Produto, titulo de bloco e opcao saiam todos com o mesmo peso, um
+       embaixo do outro. Num pedido de tres itens — o 609, com dois
+       Batidos de 500 e um de 300, cada um com cobertura e ovomaltine —
+       viram vinte linhas iguais, e quem monta perde a conta de onde
+       comeca um item e acaba o outro.
+
+       Ordem da loja em 30/08/2026: PRODUTO em negrito, o titulo
+       "Adicionais"/"Sabores" em negrito, e o resto em letra normal.
+       Assim o olho pula de produto em produto, e o que esta debaixo
+       dele e claramente detalhe.
+       ========================================================== */
+    /* ==========================================================
+       NOME DE PRODUTO NAO SE PARTE NO MEIO DA PALAVRA
+
+       Isto cortava na coluna exata: "Batido Di Gelato 300 Gram" e, na
+       linha de baixo, "as". No papel do pedido 609 sairam tres itens
+       assim, e "Gram / as" e o tipo de coisa que faz quem monta parar
+       para entender.
+
+       Agora quebra na PALAVRA, como o resto do cupom ja faz, e o valor
+       fica encostado na direita da primeira linha.
+       ========================================================== */
+    var partesN=quebrar(nome,Math.max(6,largNome));
+    partesN.forEach(function(t,idx){
+      var linha=(idx?new Array(q.length+3).join(' '):(q+'  '))+t;
+      if(!idx&&val){
+        var esp=cols-linha.length-val.length;
+        linha=linha+(esp>0?new Array(esp+1).join(' '):' ')+val;
+      }
+      r.push({tipo:'txt',txt:linha,al:'e',n:true});
+    });
     /* ==========================================================
        SABOR NAO E RODAPE — E CASCAO NAO E SABOR
 
@@ -45405,6 +45437,9 @@ function linhasItens(ped,cols,comPreco){
       });
     });
     if(i.obs)recuado('obs: '+i.obs,'   ');
+    /* uma linha de respiro ENTRE os itens — nunca depois do ultimo, que
+       so esticaria o papel */
+    if(k<(ped.itens||[]).length-1)r.push({tipo:'txt',txt:'',al:'e'});
   });
   if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
   return r;
