@@ -235,13 +235,14 @@ async function confirmarCancelamento(id){
   p.canceladoPor=op.nome;
   /* registro proprio: e dele que o relatorio de Cancelamentos vive */
   DB.cancelamentos=DB.cancelamentos||[];
-  DB.cancelamentos.push({id:uid('cn'),pedidoId:p.id,numero:p.numero,
+  var reg={id:uid('cn'),pedidoId:p.id,numero:p.numero,
     valor:Number(p.total)||0,data:hojeISO(),hora:agoraHM(),
     motivoId:motId,motivo:motivo,obs:obs,
     produzido:foiProduzido,
     estoqueVoltou:!foiProduzido,
     operadorId:op.id,operador:op.nome,
-    caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''});
+    caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''};
+  DB.cancelamentos.push(reg);
   p.produzidoNoCancelamento=foiProduzido;
   /* o estoque so volta quando NAO foi produzido. O valor sai do faturamento
      nos dois casos — quem cuida disso e a fase 'cancelado', que o relatorio
@@ -258,6 +259,18 @@ async function confirmarCancelamento(id){
   if(NUVEM.ligada)sincronizar();
   avisarGerente(p.sucursalId||lojaAtualId(),'cancelamento',
     msgCancelamento(p,p.motivoCancelamento));
+  /* ==========================================================
+     O CANCELAMENTO NAO IMPRIMIA NADA
+
+     Sangria e abertura saem no papel para alguem assinar; cancelar uma
+     venda, que tira dinheiro do faturamento na frente do cliente, nao
+     saia. Agora oferece — sem obrigar, como as outras.
+
+     Os 120 ms sao os mesmos da sangria: o modal deste cancelamento
+     ainda esta fechando, e abrir o proximo em cima empilha dois
+     overlays.
+     ========================================================== */
+  setTimeout(function(){ perguntaImprimirCancelamento(p,reg); },120);
 }
 
 
@@ -1616,7 +1629,9 @@ function medirPapel(el,margem,larguraMM,cols){
     el.setAttribute('style',antesEl);
     if(!(h>0))return {fonte:fonte,altura:padrao.altura};
     /* px do navegador (96 dpi) para mm, mais as margens e o corte */
-    var mmAlt=Math.ceil(h*25.4/96)+(margem*2)+4;
+    /* a folga do corte era 4 mm; 2 mm ja tira a ultima linha de baixo do
+       serrilhado, e o proprio avanco da bobina faz o resto */
+    var mmAlt=Math.ceil(h*25.4/96)+(margem*2)+2;
     /* ==========================================================
        PAPEL MAIS BAIXO DO QUE LARGO SAI DEITADO
 
@@ -1629,7 +1644,20 @@ function medirPapel(el,margem,larguraMM,cols){
        A folha nunca pode ser mais baixa do que larga. Sobra um pedaco
        de papel em comprovante curto; sair deitado nao e opcao.
        ========================================================== */
-    var minAlt=(Number(larguraMM)||80)+8;
+    /* ==========================================================
+       O PISO SO PRECISA PASSAR DA LARGURA, NAO SOBRAR 8 mm
+
+       O piso nasceu `largura+8`: 88 mm de folha para um comprovante de
+       abertura com 50 mm de texto — quase quatro centimetros de papel
+       branco em cada retirada, cada abertura e cada cancelamento.
+
+       Medindo o Chromium (ferramentas, 30/08/2026): ele obedece a
+       `size` ao milimetro, 80x40 sai 80x40. Quem gira a pagina e o
+       DRIVER da impressora, quando a folha e mais larga do que alta.
+       Entao basta a altura passar da largura — `+2` ja passa. Os outros
+       6 mm eram papel jogado fora.
+       ========================================================== */
+    var minAlt=(Number(larguraMM)||80)+2;
     return {fonte:fonte,altura:Math.max(30,minAlt,mmAlt)};
   }catch(e){ return padrao; }
 }
@@ -1647,6 +1675,22 @@ function medirPapel(el,margem,larguraMM,cols){
    ========================================================== */
 function imprimirPapel(linhas,cols,vias,mmPapel){
   cols=Number(cols)||48;
+  /* ==========================================================
+     LINHA VAZIA NO FIM E PAPEL JOGADO FORA
+
+     Linha em branco NO MEIO e desenho e fica. No FIM, depois da ultima
+     coisa escrita, ela so estica a folha: o comprovante fica mais
+     comprido sem nada impresso ali. Some com elas antes de medir — e a
+     medida ja sai menor.
+     ========================================================== */
+  if(Array.isArray(linhas)){
+    linhas=linhas.slice();
+    var vazia=function(l){
+      var t=(l&&typeof l==='object')?l.txt:l;
+      return !String(t==null?'':t).trim();
+    };
+    while(linhas.length&&vazia(linhas[linhas.length-1]))linhas.pop();
+  }
   var mm=Number(mmPapel)||(cols<=32?58:80);
   var margem=2;                             /* mm de cada lado */
   var util=mm-(margem*2);

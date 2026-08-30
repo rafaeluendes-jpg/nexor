@@ -1822,6 +1822,118 @@ function imprimirMovimentoGuardado(){
   var r=linhasMovimento(_MOV_IMP.cx,_MOV_IMP.mv);
   imprimirPapel(r.linhas,r.cols,1,r.mm);
 }
+/* ==========================================================
+   CANCELAMENTO TAMBEM PRECISA DE PAPEL
+
+   Cancelar uma venda e a operacao que mais mexe em dinheiro do turno:
+   o valor sai do faturamento, as vezes o estoque volta, e sempre ha um
+   cliente do outro lado do balcao. Ate aqui nao saia papel nenhum — a
+   sangria de R$ 300 tinha comprovante assinado, e o cancelamento de uma
+   venda de R$ 300 nao tinha nada.
+
+   Mesmo desenho da sangria e da abertura: cabecalho da loja, titulo,
+   quem cancelou, o motivo, o VALOR em destaque e a linha da assinatura.
+   Aqui entram ainda o numero do pedido — que e por onde a conferencia
+   comeca — e se o pedido ja tinha sido produzido, porque e isso que
+   explica o estoque ter voltado ou nao.
+   ========================================================== */
+function linhasCancelamento(ped,cn){
+  cn=cn||{};
+  var papel=80;
+  try{ var m=modeloImp('ficha'); if(m)papel=papelDoModelo(m); }catch(e){}
+  var cols=(papel===58?24:32);
+  var L=[];
+  var esq=function(t,n){ t=String(t==null?'':t);
+    return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };
+  var regra=function(c){ L.push({txt:new Array(cols+1).join(c)}); };
+  var cab=function(a,b){
+    var t=b?a+'  '+b:a;
+    if(t.length<=cols){ L.push({txt:t}); return; }
+    L.push({txt:String(a).slice(0,cols)});
+    if(b)L.push({txt:String(b).slice(0,cols)});
+  };
+  /* a mesma armadilha da sangria: a hora do cancelamento e gravada em
+     UTC, e um cancelamento das 23h imprimiria a data de amanha */
+  var dia='';
+  try{ dia=dataBR(diaLocal(cn.data||ped.canceladoEm||hojeISO())); }
+  catch(e){ dia=String(cn.data||'').slice(0,10); }
+  var loja=''; try{ loja=sucNome(ped.sucursalId||lojaAtualId())||''; }catch(e){}
+  var empresa=''; try{ empresa=cfg().nomePublico||nomeLojaAtual()||''; }catch(e){}
+  var periodo=String(cn.turno||'1').replace(/^\s*turno\s*/i,'')||'1';
+
+  L.push({txt:String(loja||empresa).slice(0,cols),n:true});
+  L.push({txt:''});
+  cab('Data: '+(dia||'-'),'Periodo: '+periodo);
+  cab('Hora: '+(cn.hora||'-'));
+  L.push({txt:''});
+  L.push({txt:'VENDA CANCELADA',n:true});
+  L.push({txt:''});
+  regra('-');
+  cab('Pedido: #'+(ped.numero==null?'-':ped.numero));
+  cab('Cliente: '+(ped.clienteNome||'Consumidor'));
+  cab('Cancelou: '+(cn.operador||ped.canceladoPor||'-'));
+  var motivo=[cn.motivo,cn.obs].filter(Boolean).join(' - ')||
+             ped.motivoCancelamento||'';
+  if(motivo)cab('Motivo: '+motivo);
+  /* produzido explica o estoque: sem isso a conferencia nao fecha */
+  var prod=(cn.produzido!=null?cn.produzido:ped.produzidoNoCancelamento);
+  if(prod!=null){
+    cab('Produzido: '+(prod?'Sim':'Nao'));
+    cab('Estoque: '+(prod?'nao voltou':'voltou'));
+  }
+  L.push({txt:''});
+  L.push({txt:('VALOR: '+money(Number(cn.valor!=null?cn.valor:ped.total)||0)).slice(0,cols),n:true});
+  L.push({txt:''});
+  regra('-');
+  L.push({txt:''});
+  var rot='Assinatura: ';
+  L.push({txt:esq(rot,Math.min(rot.length,cols))+
+    new Array(Math.max(2,cols-rot.length+1)).join('_')});
+  return {linhas:L,cols:cols,mm:papel};
+}
+/* mesma licao do comprovante da sangria: o botao imprime o que ja esta
+   na mao. Procurar o pedido de novo em `DB.pedidos` quebra quando o
+   download da nuvem chega entre cancelar e clicar em imprimir. */
+var _CANC_IMP=null;
+function guardarCancParaImprimir(ped,cn){ _CANC_IMP={ped:ped,cn:cn}; }
+function imprimirCancelamentoGuardado(){
+  if(!_CANC_IMP||!_CANC_IMP.ped){toast('Nada para imprimir.');return;}
+  var r=linhasCancelamento(_CANC_IMP.ped,_CANC_IMP.cn);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
+}
+function imprimirCancelamento(pedId){
+  var ped=(DB.pedidos||[]).find(function(x){return x.id===pedId});
+  var cn=(DB.cancelamentos||[]).filter(function(c){return c.pedidoId===pedId})
+    .slice(-1)[0]||null;
+  if(!ped&&_CANC_IMP&&_CANC_IMP.ped&&_CANC_IMP.ped.id===pedId){
+    imprimirCancelamentoGuardado();return;
+  }
+  if(!ped){toast('Pedido não encontrado.');return;}
+  var r=linhasCancelamento(ped,cn);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
+}
+/* a janela que oferece o papel, no mesmo formato da sangria: mostra o
+   que vai sair e deixa NAO imprimir */
+function perguntaImprimirCancelamento(ped,cn){
+  cn=cn||{};
+  guardarCancParaImprimir(ped,cn);
+  var h='<div class="mdB"><div class="cxRes">'+
+    '<div class="cxrL"><span>Pedido</span><b>#'+E(ped.numero)+'</b></div>'+
+    '<div class="cxrL"><span>Valor</span><b>R$ '+
+      money(Number(cn.valor!=null?cn.valor:ped.total)||0)+'</b></div>'+
+    '<div class="cxrL"><span>Motivo</span><b>'+
+      E(cn.motivo||ped.motivoCancelamento||'—')+'</b></div>'+
+    '<div class="cxrL"><span>Cancelou</span><b>'+
+      E(cn.operador||ped.canceladoPor||'—')+'</b></div>'+
+   '</div></div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox"><div class="mdH"><b>Venda cancelada</b>'+
+    '<button onclick="fecharModal()">&times;</button></div>'+h+
+    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não imprimir</button>'+
+    '<button class="btnP2 ok" onclick="fecharModal();imprimirCancelamentoGuardado()">'+
+    sv('print2',13)+' Imprimir comprovante</button></div></div>';
+  document.body.appendChild(o);
+}
 function imprimirMovimento(cxId,mvId){
   var cx=(DB.caixas||[]).find(function(c){return c.id===cxId});
   var mv=cx?(cx.movimentos||[]).find(function(m){return m.id===mvId}):null;

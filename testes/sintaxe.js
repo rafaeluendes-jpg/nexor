@@ -89,6 +89,8 @@ const CRITICAS = [
   'perguntaImprimirAbertura','imprimirAbertura','linhasAbertura',
   'perguntaImprimirMovimento','imprimirMovimento','linhasMovimento','diaLocal',
   'motivoEnvioZap','avisarGerente','testarAvisoGerente',
+  'linhasCancelamento','imprimirCancelamento','perguntaImprimirCancelamento',
+  'guardarCancParaImprimir','imprimirCancelamentoGuardado','pedidosDoPeriodo',
   'guardarMovParaImprimir','imprimirMovimentoGuardado',
   'linhasPag','trocoDoPedido','dadosImp','montarImp',
   'sociosApp','novoSocioApp','gravarSocioApp','publicarSocioApp',

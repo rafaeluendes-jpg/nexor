@@ -12325,7 +12325,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V244.0.0';
+var VERSAO='V245.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20288,11 +20288,24 @@ var KAN={busca:''};
 function pedidosDoPeriodo(){
   var cx=caixaAberto();
   var lista=(DB.pedidos||[]).filter(function(p){
-    if(ehCancelado(p))return false;
-    /* pedido ainda não entregue aparece sempre, para não perder ninguém */
-    if(!ehFinalizado(p))return true;
-    /* entregues: só os do caixa aberto agora */
-    return !!cx && p.caixaId===cx.id;
+    /* ==========================================================
+       O PEDIDO CANCELADO SUMIA DO KANBAN
+
+       A coluna "Cancelado" existe, esta ligada no cadastro de Status e
+       aparece na tela — mas NUNCA recebia nada. Este filtro jogava fora
+       todo pedido cancelado antes de a tela montar as colunas. Quem
+       cancelava via o cartao evaporar: nao ia para lugar nenhum, nao
+       dava para conferir o que tinha sido cancelado no turno, e o botao
+       "Voltar" daquela coluna era codigo morto — nunca havia cartao ali
+       para clicar.
+
+       Cancelado agora segue a MESMA regra do finalizado: aparece, mas so
+       o do caixa aberto agora. Assim a coluna mostra o turno e nao vira
+       um deposito que cresce para sempre.
+       ========================================================== */
+    if(ehCancelado(p)||ehFinalizado(p))return !!cx && p.caixaId===cx.id;
+    /* pedido ainda em andamento aparece sempre, para não perder ninguém */
+    return true;
   });
   if(KAN.busca){
     var q=KAN.busca.toLowerCase();
@@ -20331,8 +20344,15 @@ function renderKanban(){
       '<div class="acts2">'+
       '<button class="btn sm" onclick="verPedido(\''+p.id+'\')" title="Ver o pedido">'+sv('eye',12)+'</button>'+
       '<button class="btn sm" onclick="imprimirPedido(\''+p.id+'\')">'+sv('print2',12)+'</button>'+(p.tipo==='entrega'?'<button class="btn sm" onclick="atribuirEntregador(\''+p.id+'\')" title="Entregador">'+sv('moto',12)+'</button>':'')+
-      (f.id!=='cancelado'?'<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\'cancelado\')">Cancelar</button>':
-       '<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+(statusInicial('entrega'))+'\')">Voltar</button>')+
+      (papelDaFase(f.id)!=='cancelado'
+       ?'<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+
+         E(statusDoPapel('cancelado')||'cancelado')+'\')">Cancelar</button>'
+       /* a coluna Cancelado so passou a receber cartao agora: alem de
+          voltar o pedido, daqui sai a segunda via do comprovante */
+       :'<button class="btn sm" onclick="imprimirCancelamento(\''+p.id+'\')" '+
+         'title="Comprovante do cancelamento">'+sv('print2',12)+'</button>'+
+        '<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+
+         (statusInicial('entrega'))+'\')">Voltar</button>')+
       '</div></div>';}).join('')
      :'<div class="kanVazio">arraste pedidos para cá</div>')+
     '</div>'+
@@ -43078,6 +43098,118 @@ function imprimirMovimentoGuardado(){
   var r=linhasMovimento(_MOV_IMP.cx,_MOV_IMP.mv);
   imprimirPapel(r.linhas,r.cols,1,r.mm);
 }
+/* ==========================================================
+   CANCELAMENTO TAMBEM PRECISA DE PAPEL
+
+   Cancelar uma venda e a operacao que mais mexe em dinheiro do turno:
+   o valor sai do faturamento, as vezes o estoque volta, e sempre ha um
+   cliente do outro lado do balcao. Ate aqui nao saia papel nenhum — a
+   sangria de R$ 300 tinha comprovante assinado, e o cancelamento de uma
+   venda de R$ 300 nao tinha nada.
+
+   Mesmo desenho da sangria e da abertura: cabecalho da loja, titulo,
+   quem cancelou, o motivo, o VALOR em destaque e a linha da assinatura.
+   Aqui entram ainda o numero do pedido — que e por onde a conferencia
+   comeca — e se o pedido ja tinha sido produzido, porque e isso que
+   explica o estoque ter voltado ou nao.
+   ========================================================== */
+function linhasCancelamento(ped,cn){
+  cn=cn||{};
+  var papel=80;
+  try{ var m=modeloImp('ficha'); if(m)papel=papelDoModelo(m); }catch(e){}
+  var cols=(papel===58?24:32);
+  var L=[];
+  var esq=function(t,n){ t=String(t==null?'':t);
+    return t.length>n?t.slice(0,n):t+new Array(n-t.length+1).join(' '); };
+  var regra=function(c){ L.push({txt:new Array(cols+1).join(c)}); };
+  var cab=function(a,b){
+    var t=b?a+'  '+b:a;
+    if(t.length<=cols){ L.push({txt:t}); return; }
+    L.push({txt:String(a).slice(0,cols)});
+    if(b)L.push({txt:String(b).slice(0,cols)});
+  };
+  /* a mesma armadilha da sangria: a hora do cancelamento e gravada em
+     UTC, e um cancelamento das 23h imprimiria a data de amanha */
+  var dia='';
+  try{ dia=dataBR(diaLocal(cn.data||ped.canceladoEm||hojeISO())); }
+  catch(e){ dia=String(cn.data||'').slice(0,10); }
+  var loja=''; try{ loja=sucNome(ped.sucursalId||lojaAtualId())||''; }catch(e){}
+  var empresa=''; try{ empresa=cfg().nomePublico||nomeLojaAtual()||''; }catch(e){}
+  var periodo=String(cn.turno||'1').replace(/^\s*turno\s*/i,'')||'1';
+
+  L.push({txt:String(loja||empresa).slice(0,cols),n:true});
+  L.push({txt:''});
+  cab('Data: '+(dia||'-'),'Periodo: '+periodo);
+  cab('Hora: '+(cn.hora||'-'));
+  L.push({txt:''});
+  L.push({txt:'VENDA CANCELADA',n:true});
+  L.push({txt:''});
+  regra('-');
+  cab('Pedido: #'+(ped.numero==null?'-':ped.numero));
+  cab('Cliente: '+(ped.clienteNome||'Consumidor'));
+  cab('Cancelou: '+(cn.operador||ped.canceladoPor||'-'));
+  var motivo=[cn.motivo,cn.obs].filter(Boolean).join(' - ')||
+             ped.motivoCancelamento||'';
+  if(motivo)cab('Motivo: '+motivo);
+  /* produzido explica o estoque: sem isso a conferencia nao fecha */
+  var prod=(cn.produzido!=null?cn.produzido:ped.produzidoNoCancelamento);
+  if(prod!=null){
+    cab('Produzido: '+(prod?'Sim':'Nao'));
+    cab('Estoque: '+(prod?'nao voltou':'voltou'));
+  }
+  L.push({txt:''});
+  L.push({txt:('VALOR: '+money(Number(cn.valor!=null?cn.valor:ped.total)||0)).slice(0,cols),n:true});
+  L.push({txt:''});
+  regra('-');
+  L.push({txt:''});
+  var rot='Assinatura: ';
+  L.push({txt:esq(rot,Math.min(rot.length,cols))+
+    new Array(Math.max(2,cols-rot.length+1)).join('_')});
+  return {linhas:L,cols:cols,mm:papel};
+}
+/* mesma licao do comprovante da sangria: o botao imprime o que ja esta
+   na mao. Procurar o pedido de novo em `DB.pedidos` quebra quando o
+   download da nuvem chega entre cancelar e clicar em imprimir. */
+var _CANC_IMP=null;
+function guardarCancParaImprimir(ped,cn){ _CANC_IMP={ped:ped,cn:cn}; }
+function imprimirCancelamentoGuardado(){
+  if(!_CANC_IMP||!_CANC_IMP.ped){toast('Nada para imprimir.');return;}
+  var r=linhasCancelamento(_CANC_IMP.ped,_CANC_IMP.cn);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
+}
+function imprimirCancelamento(pedId){
+  var ped=(DB.pedidos||[]).find(function(x){return x.id===pedId});
+  var cn=(DB.cancelamentos||[]).filter(function(c){return c.pedidoId===pedId})
+    .slice(-1)[0]||null;
+  if(!ped&&_CANC_IMP&&_CANC_IMP.ped&&_CANC_IMP.ped.id===pedId){
+    imprimirCancelamentoGuardado();return;
+  }
+  if(!ped){toast('Pedido não encontrado.');return;}
+  var r=linhasCancelamento(ped,cn);
+  imprimirPapel(r.linhas,r.cols,1,r.mm);
+}
+/* a janela que oferece o papel, no mesmo formato da sangria: mostra o
+   que vai sair e deixa NAO imprimir */
+function perguntaImprimirCancelamento(ped,cn){
+  cn=cn||{};
+  guardarCancParaImprimir(ped,cn);
+  var h='<div class="mdB"><div class="cxRes">'+
+    '<div class="cxrL"><span>Pedido</span><b>#'+E(ped.numero)+'</b></div>'+
+    '<div class="cxrL"><span>Valor</span><b>R$ '+
+      money(Number(cn.valor!=null?cn.valor:ped.total)||0)+'</b></div>'+
+    '<div class="cxrL"><span>Motivo</span><b>'+
+      E(cn.motivo||ped.motivoCancelamento||'—')+'</b></div>'+
+    '<div class="cxrL"><span>Cancelou</span><b>'+
+      E(cn.operador||ped.canceladoPor||'—')+'</b></div>'+
+   '</div></div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
+  o.innerHTML='<div class="mdBox"><div class="mdH"><b>Venda cancelada</b>'+
+    '<button onclick="fecharModal()">&times;</button></div>'+h+
+    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Não imprimir</button>'+
+    '<button class="btnP2 ok" onclick="fecharModal();imprimirCancelamentoGuardado()">'+
+    sv('print2',13)+' Imprimir comprovante</button></div></div>';
+  document.body.appendChild(o);
+}
 function imprimirMovimento(cxId,mvId){
   var cx=(DB.caixas||[]).find(function(c){return c.id===cxId});
   var mv=cx?(cx.movimentos||[]).find(function(m){return m.id===mvId}):null;
@@ -44250,13 +44382,14 @@ async function confirmarCancelamento(id){
   p.canceladoPor=op.nome;
   /* registro proprio: e dele que o relatorio de Cancelamentos vive */
   DB.cancelamentos=DB.cancelamentos||[];
-  DB.cancelamentos.push({id:uid('cn'),pedidoId:p.id,numero:p.numero,
+  var reg={id:uid('cn'),pedidoId:p.id,numero:p.numero,
     valor:Number(p.total)||0,data:hojeISO(),hora:agoraHM(),
     motivoId:motId,motivo:motivo,obs:obs,
     produzido:foiProduzido,
     estoqueVoltou:!foiProduzido,
     operadorId:op.id,operador:op.nome,
-    caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''});
+    caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''};
+  DB.cancelamentos.push(reg);
   p.produzidoNoCancelamento=foiProduzido;
   /* o estoque so volta quando NAO foi produzido. O valor sai do faturamento
      nos dois casos — quem cuida disso e a fase 'cancelado', que o relatorio
@@ -44273,6 +44406,18 @@ async function confirmarCancelamento(id){
   if(NUVEM.ligada)sincronizar();
   avisarGerente(p.sucursalId||lojaAtualId(),'cancelamento',
     msgCancelamento(p,p.motivoCancelamento));
+  /* ==========================================================
+     O CANCELAMENTO NAO IMPRIMIA NADA
+
+     Sangria e abertura saem no papel para alguem assinar; cancelar uma
+     venda, que tira dinheiro do faturamento na frente do cliente, nao
+     saia. Agora oferece — sem obrigar, como as outras.
+
+     Os 120 ms sao os mesmos da sangria: o modal deste cancelamento
+     ainda esta fechando, e abrir o proximo em cima empilha dois
+     overlays.
+     ========================================================== */
+  setTimeout(function(){ perguntaImprimirCancelamento(p,reg); },120);
 }
 
 
@@ -45631,7 +45776,9 @@ function medirPapel(el,margem,larguraMM,cols){
     el.setAttribute('style',antesEl);
     if(!(h>0))return {fonte:fonte,altura:padrao.altura};
     /* px do navegador (96 dpi) para mm, mais as margens e o corte */
-    var mmAlt=Math.ceil(h*25.4/96)+(margem*2)+4;
+    /* a folga do corte era 4 mm; 2 mm ja tira a ultima linha de baixo do
+       serrilhado, e o proprio avanco da bobina faz o resto */
+    var mmAlt=Math.ceil(h*25.4/96)+(margem*2)+2;
     /* ==========================================================
        PAPEL MAIS BAIXO DO QUE LARGO SAI DEITADO
 
@@ -45644,7 +45791,20 @@ function medirPapel(el,margem,larguraMM,cols){
        A folha nunca pode ser mais baixa do que larga. Sobra um pedaco
        de papel em comprovante curto; sair deitado nao e opcao.
        ========================================================== */
-    var minAlt=(Number(larguraMM)||80)+8;
+    /* ==========================================================
+       O PISO SO PRECISA PASSAR DA LARGURA, NAO SOBRAR 8 mm
+
+       O piso nasceu `largura+8`: 88 mm de folha para um comprovante de
+       abertura com 50 mm de texto — quase quatro centimetros de papel
+       branco em cada retirada, cada abertura e cada cancelamento.
+
+       Medindo o Chromium (ferramentas, 30/08/2026): ele obedece a
+       `size` ao milimetro, 80x40 sai 80x40. Quem gira a pagina e o
+       DRIVER da impressora, quando a folha e mais larga do que alta.
+       Entao basta a altura passar da largura — `+2` ja passa. Os outros
+       6 mm eram papel jogado fora.
+       ========================================================== */
+    var minAlt=(Number(larguraMM)||80)+2;
     return {fonte:fonte,altura:Math.max(30,minAlt,mmAlt)};
   }catch(e){ return padrao; }
 }
@@ -45662,6 +45822,22 @@ function medirPapel(el,margem,larguraMM,cols){
    ========================================================== */
 function imprimirPapel(linhas,cols,vias,mmPapel){
   cols=Number(cols)||48;
+  /* ==========================================================
+     LINHA VAZIA NO FIM E PAPEL JOGADO FORA
+
+     Linha em branco NO MEIO e desenho e fica. No FIM, depois da ultima
+     coisa escrita, ela so estica a folha: o comprovante fica mais
+     comprido sem nada impresso ali. Some com elas antes de medir — e a
+     medida ja sai menor.
+     ========================================================== */
+  if(Array.isArray(linhas)){
+    linhas=linhas.slice();
+    var vazia=function(l){
+      var t=(l&&typeof l==='object')?l.txt:l;
+      return !String(t==null?'':t).trim();
+    };
+    while(linhas.length&&vazia(linhas[linhas.length-1]))linhas.pop();
+  }
   var mm=Number(mmPapel)||(cols<=32?58:80);
   var margem=2;                             /* mm de cada lado */
   var util=mm-(margem*2);

@@ -1319,11 +1319,24 @@ var KAN={busca:''};
 function pedidosDoPeriodo(){
   var cx=caixaAberto();
   var lista=(DB.pedidos||[]).filter(function(p){
-    if(ehCancelado(p))return false;
-    /* pedido ainda não entregue aparece sempre, para não perder ninguém */
-    if(!ehFinalizado(p))return true;
-    /* entregues: só os do caixa aberto agora */
-    return !!cx && p.caixaId===cx.id;
+    /* ==========================================================
+       O PEDIDO CANCELADO SUMIA DO KANBAN
+
+       A coluna "Cancelado" existe, esta ligada no cadastro de Status e
+       aparece na tela — mas NUNCA recebia nada. Este filtro jogava fora
+       todo pedido cancelado antes de a tela montar as colunas. Quem
+       cancelava via o cartao evaporar: nao ia para lugar nenhum, nao
+       dava para conferir o que tinha sido cancelado no turno, e o botao
+       "Voltar" daquela coluna era codigo morto — nunca havia cartao ali
+       para clicar.
+
+       Cancelado agora segue a MESMA regra do finalizado: aparece, mas so
+       o do caixa aberto agora. Assim a coluna mostra o turno e nao vira
+       um deposito que cresce para sempre.
+       ========================================================== */
+    if(ehCancelado(p)||ehFinalizado(p))return !!cx && p.caixaId===cx.id;
+    /* pedido ainda em andamento aparece sempre, para não perder ninguém */
+    return true;
   });
   if(KAN.busca){
     var q=KAN.busca.toLowerCase();
@@ -1362,8 +1375,15 @@ function renderKanban(){
       '<div class="acts2">'+
       '<button class="btn sm" onclick="verPedido(\''+p.id+'\')" title="Ver o pedido">'+sv('eye',12)+'</button>'+
       '<button class="btn sm" onclick="imprimirPedido(\''+p.id+'\')">'+sv('print2',12)+'</button>'+(p.tipo==='entrega'?'<button class="btn sm" onclick="atribuirEntregador(\''+p.id+'\')" title="Entregador">'+sv('moto',12)+'</button>':'')+
-      (f.id!=='cancelado'?'<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\'cancelado\')">Cancelar</button>':
-       '<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+(statusInicial('entrega'))+'\')">Voltar</button>')+
+      (papelDaFase(f.id)!=='cancelado'
+       ?'<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+
+         E(statusDoPapel('cancelado')||'cancelado')+'\')">Cancelar</button>'
+       /* a coluna Cancelado so passou a receber cartao agora: alem de
+          voltar o pedido, daqui sai a segunda via do comprovante */
+       :'<button class="btn sm" onclick="imprimirCancelamento(\''+p.id+'\')" '+
+         'title="Comprovante do cancelamento">'+sv('print2',12)+'</button>'+
+        '<button class="btn sm" onclick="moverPedido(\''+p.id+'\',\''+
+         (statusInicial('entrega'))+'\')">Voltar</button>')+
       '</div></div>';}).join('')
      :'<div class="kanVazio">arraste pedidos para cá</div>')+
     '</div>'+

@@ -991,6 +991,158 @@ function servir() {
     DB.caixas = []; salvar();
   });
 
+  console.log('\n── 10g. Cancelar uma venda: papel e coluna no Kanban\n');
+  /* Os dois defeitos que o Rafael achou em 30/08/2026:
+     · cancelou e nao imprimiu nada — o comprovante nao existia;
+     · cancelou e o cartao SUMIU do Kanban em vez de ir para a coluna
+       Cancelado, que estava ligada e vazia desde sempre. */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    baseStatus(); baseCanc(); baseImp();
+    var cx = { id: 'cx_k', turno: 'Turno 1', sucursalId: lojaAtualId(), inicial: 200,
+      operador: 'Maria', aberto: '30/08/2026 09:00', movimentos: [] };
+    DB.caixas = [cx];
+    var novo = function (n, fase) {
+      return { id: 'pd_' + n, numero: n, fase: fase, clienteNome: 'Consumidor',
+        tipo: 'balcao', caixaId: 'cx_k', sucursalId: lojaAtualId(),
+        itens: [{ nome: 'Copo P', qtd: 1, preco: 18, total: 18 }], total: 18,
+        hora: '12:59', data: new Date().toISOString(), pagamentos: [] };
+    };
+    DB.pedidos = [novo(599, statusInicial('balcao')), novo(600, statusInicial('entrega'))];
+    var p = DB.pedidos[0];
+    p.fase = statusDoPapel('cancelado') || 'cancelado';
+    p.canceladoEm = new Date().toISOString();
+    p.canceladoPor = 'Maria';
+    p.motivoCancelamento = 'Cliente desistiu';
+    p.produzidoNoCancelamento = false;
+    /* 23:26 na loja e 02:26 do dia seguinte em UTC — a mesma armadilha
+       de data que o comprovante da sangria tinha */
+    DB.cancelamentos = [{ id: 'cn1', pedidoId: p.id, numero: 599, valor: 18,
+      data: '2026-08-31T02:26:00.000Z', hora: '23:26', motivo: 'Cliente desistiu',
+      obs: '', produzido: false, estoqueVoltou: true, operador: 'Maria',
+      caixaId: 'cx_k', turno: 'Turno 1' }];
+    salvar();
+    PDV.aba = 'pedidos'; telaPDV(); renderKanban();
+    var cols = [...document.querySelectorAll('.kanCol')].map(function (c) {
+      return { nome: c.querySelector('.kanH b').textContent,
+        n: +c.querySelector('.kanH .n').textContent,
+        pedidos: [...c.querySelectorAll('.ped .t1 b')].map(function (b) { return b.textContent }) };
+    });
+    var canc = cols.find(function (c) { return /cancel/i.test(c.nome) }) || { pedidos: [] };
+    var fila = cols.find(function (c) { return /aguardando/i.test(c.nome) }) || { pedidos: [] };
+    return { colunaCancelado: canc.pedidos, colunaFila: fila.pedidos,
+      temSegundaVia: !!document.querySelector('.ped [onclick*="imprimirCancelamento"]') };
+  });
+  t('O PEDIDO CANCELADO VAI PARA A COLUNA CANCELADO, não some',
+    r.colunaCancelado.indexOf('#599') >= 0, JSON.stringify(r.colunaCancelado));
+  t('e sai da fila onde estava', r.colunaFila.indexOf('#599') < 0);
+  t('o pedido que não foi cancelado continua na fila',
+    r.colunaFila.indexOf('#600') >= 0);
+  t('e o cartão cancelado oferece a segunda via do comprovante',
+    r.temSegundaVia === true);
+
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    DB.modelosImp = [];
+    imprimirCancelamento('pd_599');
+    var pap = document.querySelector('#viaImp .papel');
+    var st = document.getElementById('impCSS');
+    var linhas = [...pap.querySelectorAll('.ppL')];
+    return { corpo: [...pap.children].map(l => l.textContent).join('\n'),
+      estilo: pap.getAttribute('style') || '',
+      regra: (st ? st.textContent : '').match(/@page\{[^}]*\}/)[0],
+      vias: document.querySelectorAll('#viaImp .papelPg').length,
+      maior: linhas.reduce((a, l) => Math.max(a, (l.textContent || '').length), 0),
+      cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length };
+  });
+  t('O CANCELAMENTO IMPRIME UM COMPROVANTE', /VENDA CANCELADA/.test(r.corpo), r.corpo);
+  t('diz o número do pedido', /Pedido: #599/.test(r.corpo));
+  t('diz QUEM cancelou', /Cancelou: Maria/.test(r.corpo));
+  t('diz o MOTIVO', /Motivo: Cliente desistiu/.test(r.corpo));
+  t('diz o VALOR', /VALOR: 18,00/.test(r.corpo));
+  t('e explica o estoque, que é o que a conferência precisa',
+    /Produzido: Nao/.test(r.corpo) && /Estoque: voltou/.test(r.corpo));
+  t('tem o espaço para assinar', /Assinatura: _/.test(r.corpo));
+  t('A DATA É A DA LOJA — 23:26 do dia 30, não dia 31 de Greenwich',
+    /Data: 30\/08\/2026/.test(r.corpo), (r.corpo.match(/Data: .*/) || [])[0]);
+  t('sai uma via só', r.vias === 1, r.vias);
+  t('em pé, na bobina, nunca deitado',
+    Number((r.regra.match(/size:\s*(\d+)mm\s+(\d+)mm/) || [])[2]) > 80, r.regra);
+  t('com a letra grande, como a sangria', /font-size:\s*3\.\d+mm/.test(r.estilo), r.estilo);
+  t('nenhuma linha passa da largura do papel', r.maior <= 32, r.maior);
+  t('e nenhuma fica cortada', r.cortadas === 0, r.cortadas);
+  console.log('\n' + r.corpo + '\n');
+  fs.writeFileSync(FOTOS + '/comprovante-cancelamento.txt', r.corpo);
+
+  /* a janela que oferece — e o download da nuvem chegando no meio */
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    window.__ac = [];
+    var _to = window.toast;
+    window.toast = function (m) { window.__ac.push(String(m)); try { _to(m) } catch (x) {} };
+    var p = DB.pedidos.find(function (x) { return x.id === 'pd_599' });
+    perguntaImprimirCancelamento(p, DB.cancelamentos[0]);
+    var ov = document.getElementById('mdOv');
+    var texto = ov ? ov.textContent : '';
+    var bt = ov ? [...ov.querySelectorAll('button')]
+      .find(b => /imprimir comprovante/i.test(b.textContent)) : null;
+    /* o download troca a lista antes do clique */
+    DB.pedidos = []; salvar();
+    if (bt) bt.click();
+    var saiu = !!document.querySelector('#viaImp .papel');
+    window.toast = _to;
+    return { texto: texto, temBotao: !!bt, saiu: saiu,
+      naoImprimir: /não imprimir/i.test(texto), avisos: (window.__ac || []).join(' | ') };
+  });
+  t('depois de cancelar a tela oferece imprimir, sem obrigar',
+    r.temBotao && r.naoImprimir, r.texto.slice(0, 80));
+  t('e já mostra o pedido, o valor e quem cancelou',
+    /#599/.test(r.texto) && /18,00/.test(r.texto) && /Maria/.test(r.texto));
+  t('IMPRIME MESMO SE O DOWNLOAD DA NUVEM CHEGAR NO MEIO', r.saiu === true, r.avisos);
+  t('sem nenhum aviso de erro na tela', r.avisos === '', r.avisos);
+
+  console.log('\n── 10h. O papel não sai com um palmo de branco\n');
+  r = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var st0 = document.getElementById('impCSS'); if (st0) st0.remove();
+    fecharModal();
+    /* o comprovante mais curto do sistema: a abertura */
+    var cx = { id: 'cx_b', turno: 'Turno 1', sucursalId: lojaAtualId(),
+      inicial: 200, operador: 'Maria', aberto: '30/08/2026 09:00', movimentos: [] };
+    DB.caixas = [cx]; DB.modelosImp = []; salvar();
+    imprimirAbertura('cx_b');
+    var st = document.getElementById('impCSS');
+    var regra = (st ? st.textContent : '').match(/@page\{[^}]*\}/)[0];
+    var mm = regra.match(/size:(\d+)mm (\d+)mm/);
+    var vi = document.getElementById('viaImp');
+    var antes = vi.getAttribute('style') || '';
+    vi.setAttribute('style', 'display:block;position:fixed;left:-9000px;top:0;padding:0;margin:0;width:auto');
+    var pap = document.querySelector('#viaImp .papel');
+    pap.style.padding = '0';
+    var h = pap.getBoundingClientRect().height * 25.4 / 96;
+    vi.setAttribute('style', antes);
+    return { largura: +mm[1], pagina: +mm[2], conteudo: +h.toFixed(1),
+      branco: +(+mm[2] - 4 - h).toFixed(1) };
+  });
+  t('a folha continua mais alta do que larga — nunca deitada',
+    r.pagina > r.largura, r.largura + 'x' + r.pagina);
+  t('o texto CABE na folha, sem empurrar uma segunda página',
+    r.conteudo <= r.pagina - 4, r.conteudo + ' de ' + (r.pagina - 4) + ' mm');
+  t('E SOBRA POUCO BRANCO: no máximo 10 mm depois da última linha',
+    r.branco <= 10, r.branco + ' mm de branco');
+  console.log('   folha ' + r.largura + 'x' + r.pagina + ' mm · texto ' +
+    r.conteudo + ' mm · branco ' + r.branco + ' mm\n');
+  await pg.evaluate(() => {
+    fecharModal();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    DB.caixas = []; DB.pedidos = []; DB.cancelamentos = []; salvar();
+  });
+
   console.log('\n── 10c. O PDV obedece a tela de Turnos\n');
   /* o caso exato de 29/08/2026: o dono desativa os dois turnos e a
      abertura de caixa continua exigindo escolher um */
