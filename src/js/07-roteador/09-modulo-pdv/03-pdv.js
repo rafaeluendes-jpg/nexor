@@ -712,6 +712,24 @@ function irPagamento(){
   'placeholder="0,00" value=""></div>'+'<div class="hint" id="descInfo"></div></div></div>'+
   '<div class="linha tot"><span>Total a pagar</span><span id="pgTot">R$ '+money(tot)+'</span></div></div>'+
   '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Forma de pagamento</h3>'+
+  /* ==========================================================
+     O NOME QUE VAI NA COMANDA NAO E CADASTRO DE CLIENTE
+
+     Ordem da loja em 30/08/2026. Com varios pedidos na bancada, o
+     atendente nao sabe de quem e cada um. Escrever o primeiro nome no
+     papel resolve — e so isso: NAO cria cliente, nao entra no cadastro,
+     nao vira historico. E identificacao da comanda, e morre com ela.
+
+     Opcional de proposito: quem nao precisa, deixa em branco e o cupom
+     sai como sempre saiu.
+     ========================================================== */
+  '<div class="fld2" style="margin:0 0 11px"><label>Nome na comanda '+
+   '<small style="font-weight:400;opacity:.7">(opcional)</small></label>'+
+   '<input id="pgNome" autocomplete="off" maxlength="24" '+
+   'placeholder="primeiro nome de quem vai retirar"'+
+   (PDV.cliente?' value="'+E(String(PDV.cliente.nome||'').split(' ')[0])+'"':'')+'>'+
+   '<div class="hint">Só para identificar o pedido no balcão. '+
+   'Não cadastra cliente nem fica guardado.</div></div>'+
   '<div class="pgGrid">'+FORMAS.map(function(f){
     return '<button class="pgBtn" onclick="addPag(\''+f.id+'\')">'+sv('cash',20)+f.n+'</button>'}).join('')+'</div>'+
   '<div class="hint" style="margin-top:9px">Para dividir a conta, clique em mais de uma forma e ajuste o valor de cada uma.</div>'+
@@ -889,6 +907,7 @@ function irPagamento(){
       }
     }
     _trocoVenda=+(somaPg-final).toFixed(2);
+    _nomeComanda=String((($('pgNome')||{}).value)||'').trim().slice(0,24);
     finalizarVenda(final,taxa,desc,_pagosVenda,$('pgFiscal').checked,$('pgImp').checked,entSel?entSel.value:null,fiado);
     return true;
   },'lg');
@@ -1076,6 +1095,8 @@ function addPag(f){
 function remPag(i){_pagos.splice(i,1);recalcPag();}
 
 var _trocoVenda=0;
+/* o nome escrito na tela de pagamento, do clique ate a venda nascer */
+var _nomeComanda='';
 function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado){
   var ag=new Date();
   /* venda na frente de caixa já sai concluída — só delivery passa pelo fluxo.
@@ -1088,6 +1109,8 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
     itens:JSON.parse(JSON.stringify(PDV.comanda)),
     clienteId:PDV.cliente?PDV.cliente.id:null,
     clienteNome:PDV.cliente?PDV.cliente.nome:'Consumidor',
+    /* so o papel usa: nao cria cliente e nao entra em cadastro nenhum */
+    nomeComanda:_nomeComanda||'',
     total:total,taxa:taxa,desconto:desc,pagamentos:pagos,fiscal:!!fiscal,
     entregadorId:entregadorId||(PDV.tipo==='entrega'&&entregadorPadrao()?entregadorPadrao().id:null),
     cidade:_cidadeVenda||(PDV.cliente&&PDV.cliente.cidade)||'',
@@ -1114,7 +1137,7 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
     origem:'pdv',
     troco:_trocoVenda>0.009?_trocoVenda:0
   };
-  _trocoVenda=0;
+  _trocoVenda=0; _nomeComanda='';
   if(_cupomAtivo)ped.cupom={id:_cupomAtivo.id,codigo:_cupomAtivo.codigo,valor:valorCupom(_cupomAtivo,total+desc-taxa)};
   /* de qual aparelho saiu o pagamento — o fechamento separa por isso */
   ped.equipamento=(ped.canal==='totem')?'totem':(ped.canal==='mesa'?'mesa':'balcao');

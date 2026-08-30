@@ -93,6 +93,7 @@ const CRITICAS = [
   'enderecoDeEntrega','_cliDoPedido','linhasItens','aceitarPedidoOnline',
   'gruposDasOpcoes','medirPapel','imprimirPapel',
   'quebrar','papelHTML',
+  'irPagamento','finalizarVenda',
   'guardarCancParaImprimir','imprimirCancelamentoGuardado','pedidosDoPeriodo',
   'guardarMovParaImprimir','imprimirMovimentoGuardado',
   'linhasPag','trocoDoPedido','dadosImp','montarImp',

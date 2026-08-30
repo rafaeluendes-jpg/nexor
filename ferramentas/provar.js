@@ -1305,6 +1305,74 @@ function servir() {
     DB.pedidos = []; DB.clientes = []; salvar();
   });
 
+  console.log('\n── 10j. O nome na comanda — identificar, não cadastrar\n');
+  /* Ordem da loja em 30/08/2026: com varios pedidos na bancada o
+     atendente nao sabe de quem e cada um. Escrever o primeiro nome
+     resolve — e SO isso: nao cria cliente, nao entra no cadastro. */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    fecharModal();
+    DB.modelosImp = []; baseImp();
+    var clientesAntes = (DB.clientes || []).length;
+    /* irPagamento() recusa sem caixa aberto, e com razao: venda sem
+       caixa nasce orfa. O cenario abre um. */
+    DB.caixas = [{ id: 'cx_nm', turno: 'Turno 1', sucursalId: lojaAtualId(),
+      inicial: 100, operador: 'Maria', aberto: '30/08/2026 09:00', movimentos: [] }];
+    salvar();
+    PDV.tipo = 'loja'; PDV.cliente = null; PDV.mesaPag = false;
+    PDV.comanda = [{ nome: 'Copo P', qtd: 1, unitario: 18, total: 18, opcoes: [] }];
+    irPagamento();
+    var campo = document.getElementById('pgNome');
+    var dica = campo ? campo.closest('.fld2').textContent : '';
+    if (campo) campo.value = 'Ana';
+    addPag((FORMAS[0] || {}).id);
+    var bt = [...document.querySelectorAll('#mdOv .mdF button')]
+      .find(b => /finalizar venda/i.test(b.textContent));
+    if (bt) bt.click();
+    var ped = (DB.pedidos || []).slice(-1)[0] || {};
+    return { temCampo: !!campo, opcional: /opcional/i.test(dica), dica: dica,
+      salvouNoPedido: ped.nomeComanda,
+      naoCriouCliente: (DB.clientes || []).length === clientesAntes,
+      semClienteId: !ped.clienteId,
+      noPapel: dadosImp(ped).cliente, pedId: ped.id };
+  });
+  t('a tela de pagamento tem o campo de nome', r.temCampo === true);
+  t('e ele é opcional, escrito na tela', r.opcional === true, r.dica.slice(0, 90));
+  t('a dica diz que NÃO cadastra cliente',
+    /não cadastra cliente/i.test(r.dica), r.dica.slice(0, 120));
+  t('o nome escrito fica gravado na venda', r.salvouNoPedido === 'Ana', r.salvouNoPedido);
+  t('NÃO cria cliente nenhum no cadastro', r.naoCriouCliente === true);
+  t('e a venda continua sem cliente identificado', r.semClienteId === true);
+  t('O NOME SAI NA COMANDA', r.noPapel === 'Ana', r.noPapel);
+
+  r = await pg.evaluate((id) => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var ped = (DB.pedidos || []).find(p => p.id === id);
+    imprimirVia(ped);
+    var pap = document.querySelector('#viaImp .papel');
+    var corpo = [...pap.children].map(l => l.textContent).join('\n');
+    /* e a venda com cliente DE VERDADE: ali quem manda é o cliente */
+    var comCli = JSON.parse(JSON.stringify(ped));
+    comCli.clienteId = 'cli_x'; comCli.clienteNome = 'Maria da Graça';
+    return { corpo: corpo, comCliente: dadosImp(comCli).cliente,
+      semNome: dadosImp(Object.assign({}, ped, { nomeComanda: '' })).cliente };
+  }, r.pedId);
+  t('no papel sai na linha do Cliente, que todo modelo já imprime',
+    /Cliente: Ana/.test(r.corpo), r.corpo);
+  t('cliente identificado continua mandando — ali é o destinatário',
+    r.comCliente === 'Maria da Graça', r.comCliente);
+  t('e sem nome escrito o cupom sai como sempre saiu',
+    r.semNome === 'Consumidor', r.semNome);
+  console.log('\n' + r.corpo.split('\n').slice(0, 8).join('\n') + '\n');
+  await pg.evaluate(() => {
+    fecharModal();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    PDV.comanda = []; DB.pedidos = []; salvar();
+  });
+
   console.log('\n── 10c. O PDV obedece a tela de Turnos\n');
   /* o caso exato de 29/08/2026: o dono desativa os dois turnos e a
      abertura de caixa continua exigindo escolher um */

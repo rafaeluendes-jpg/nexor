@@ -944,7 +944,24 @@ function dadosImp(ped){
     hora:ped.hora||agoraHM(),
     numero:String(ped.numero||''),
     senha:String(ped.senha||ped.numero||''),
-    cliente:ped.clienteNome||'Consumidor',
+    /* ==========================================================
+       O NOME NA COMANDA MANDA NA LINHA DO CLIENTE
+
+       O atendente escreve o primeiro nome na tela de pagamento so para
+       achar o pedido na bancada. Ele sai AQUI, na linha "Cliente:" que
+       todo modelo ja imprime — ficha, entrega e mesa — sem precisar
+       que a loja mexa no modelo de impressao.
+
+       Quando ha cliente identificado de verdade (entrega, fiado), o
+       nome dele continua mandando: ali a linha e o destinatario, nao um
+       apelido de balcao.
+       ========================================================== */
+    /* `clienteNome` vale 'Consumidor' na venda de balcao — texto, e
+       portanto verdadeiro. Encadear com `||` faria o nome escrito nunca
+       aparecer. Quem decide e ter cliente IDENTIFICADO. */
+    cliente:(ped.clienteId?ped.clienteNome:'')||ped.nomeComanda||
+            ped.clienteNome||'Consumidor',
+    nome_comanda:ped.nomeComanda||'',
     /* ==========================================================
        PEDIDO SEM ENDERECO PROCURA NO CADASTRO DO CLIENTE
 
