@@ -293,6 +293,22 @@ async function aceitarPedidoOnline(id){
     canal:'cardapio',
     fase:statusInicial(p.tipo==='entrega'?'entrega':'loja'),
     itens:itens,clienteId:cli.id,clienteNome:cli.nome,
+    /* ==========================================================
+       O ENDERECO CHEGAVA E O PEDIDO NAO LEVAVA
+
+       O cardapio manda `endereco` como {rua, numero, referencia}. Este
+       objeto era usado para gravar o cadastro do cliente — e so. O
+       pedido nascia com cidade e zona, sem rua nenhuma. Resultado no
+       papel da entrega de 30/08/2026: "Todos os Bairros" e mais nada.
+       O entregador teve de escrever "Antonio Laerte margiotte 530" a
+       mao no proprio cupom.
+
+       Agora a rua vai junto no pedido, com o numero, a referencia e o
+       telefone de quem recebe — que e o que o entregador liga quando
+       nao acha a casa.
+       ========================================================== */
+    endereco:enderecoDeEntrega(end),
+    clienteFone:p.cliente_tel||cli.tel||'',
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
     sucursalId:p.sucursal_id||'suc_matriz',
     total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
@@ -318,6 +334,40 @@ async function aceitarPedidoOnline(id){
   desenhaPedidosOnline();
   toast('Pedido #'+p.numero+' lançado no PDV.');
   enviarResumoPedido(ped,p);
+  /* ==========================================================
+     PEDIDO DO CARDAPIO IMPRIME SOZINHO
+
+     Ate aqui o pedido entrava no Kanban e ficava esperando alguem
+     lembrar de clicar na impressora. Numa sorveteria cheia isso e
+     pedido esquecido na tela. Agora, assim que ele e aceito, o cupom
+     sai sozinho — e o aceite e o momento certo: pedido recusado nao
+     gasta papel, e o que foi aceito ja e trabalho da cozinha.
+
+     Os 200 ms deixam a janela de confirmacao terminar de fechar antes
+     de a impressao abrir; sem isso o dialogo do navegador sobe por
+     cima do overlay e o clique do operador se perde.
+     ========================================================== */
+  setTimeout(function(){
+    try{ imprimirVia(ped); }catch(e){ _quieto(e,'imprimirPedidoOnline'); }
+  },200);
+}
+/* ==========================================================
+   UM ENDERECO SO, ESCRITO DO MESMO JEITO EM TODO LUGAR
+
+   O cardapio manda {rua, numero, referencia}; o cadastro do cliente
+   guarda rua/numero/ref; e ha pedido antigo que ja tem o endereco
+   pronto em texto. As tres formas passam por aqui e saem iguais no
+   papel — "Rua, 530 - referencia" — sem virgola solta quando falta
+   pedaco.
+   ========================================================== */
+function enderecoDeEntrega(e){
+  if(!e)return '';
+  if(typeof e==='string')return e.trim();
+  var rua=String(e.rua||'').trim();
+  var num=String(e.numero||'').trim();
+  var ref=String(e.referencia||e.ref||'').trim();
+  var linha=[rua,num].filter(Boolean).join(', ');
+  return [linha,ref].filter(Boolean).join(' - ');
 }
 /* confirmação com o resumo do que o cliente pediu */
 async function enviarResumoPedido(ped,online){

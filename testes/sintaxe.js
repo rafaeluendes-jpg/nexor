@@ -90,6 +90,7 @@ const CRITICAS = [
   'perguntaImprimirMovimento','imprimirMovimento','linhasMovimento','diaLocal',
   'motivoEnvioZap','avisarGerente','testarAvisoGerente',
   'linhasCancelamento','imprimirCancelamento','perguntaImprimirCancelamento',
+  'enderecoDeEntrega','_cliDoPedido','linhasItens','aceitarPedidoOnline',
   'guardarCancParaImprimir','imprimirCancelamentoGuardado','pedidosDoPeriodo',
   'guardarMovParaImprimir','imprimirMovimentoGuardado',
   'linhasPag','trocoDoPedido','dadosImp','montarImp',

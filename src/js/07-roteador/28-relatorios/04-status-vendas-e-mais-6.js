@@ -762,7 +762,9 @@ function blocosParaModelo(bs){
         if(b.telefone)L.push('{?fone_cliente}Telefone: {fone_cliente}');
         break;
       case 'entrega':
-        L.push('{n}{end_entrega}{/n}');
+        /* sem `{?}` a linha do endereco saia em branco e em negrito
+           quando o pedido nao tinha rua — um vazio no meio do cupom */
+        L.push('{?end_entrega}{n}{end_entrega}{/n}');
         L.push('{?bairro}{bairro}');
         break;
       case 'mesa':     L.push('{c}{g}MESA {mesa}{/g}'); break;
@@ -871,6 +873,26 @@ function baseImp(){
     });
     DB._semeado=DB._semeado||{}; DB._semeado.letraImp=true;
   }
+  /* ==========================================================
+     A CORRECAO NAO CHEGOU EM TODOS OS MODELOS
+
+     O aumento acima marcou `letraImp` e nunca mais rodou. So que na
+     loja os tres modelos continuaram em 48 colunas — a marca ficou
+     gravada antes de os modelos existirem, e eles nasceram depois com
+     o padrao antigo. Em 30/08/2026 o Rafael devolveu o cupom da
+     entrega: "essa impressao esta muito pequena e ruim, nao da pra ver
+     nada". Era 2,6 mm de letra.
+
+     Esta segunda passada tem marca propria e alcanca esses. Continua
+     valendo uma vez so, e continua sendo o controle "Tamanho da letra"
+     da tela quem manda a partir daqui — inclusive para voltar a 48.
+     ========================================================== */
+  if(!(DB._semeado&&DB._semeado.letraImp2)){
+    DB.modelosImp.forEach(function(m){
+      if(Number(m.colunas)===48)m.colunas=34;
+    });
+    DB._semeado=DB._semeado||{}; DB._semeado.letraImp2=true;
+  }
 
   return DB.modelosImp;
 }
@@ -923,9 +945,19 @@ function dadosImp(ped){
     numero:String(ped.numero||''),
     senha:String(ped.senha||ped.numero||''),
     cliente:ped.clienteNome||'Consumidor',
-    fone_cliente:ped.clienteFone||'',
-    end_entrega:ped.endereco||'',
-    bairro:ped.zona||ped.cidade||'',
+    /* ==========================================================
+       PEDIDO SEM ENDERECO PROCURA NO CADASTRO DO CLIENTE
+
+       O pedido passou a carregar a rua, mas os que ja estao gravados
+       nao carregam. O endereco desses nao se perdeu: no aceite do
+       cardapio ele SEMPRE foi para a ficha do cliente (rua, numero,
+       ref). Entao, quando o pedido nao tem, buscamos ali — e a
+       segunda via de uma entrega de ontem sai completa.
+       ========================================================== */
+    fone_cliente:ped.clienteFone||_cliDoPedido(ped).tel||'',
+    end_entrega:enderecoDeEntrega(ped.endereco)||
+                enderecoDeEntrega(_cliDoPedido(ped)),
+    bairro:ped.zona||ped.cidade||_cliDoPedido(ped).zona||'',
     mesa:String(ped.mesa||''),
     canal:ped.canal||'',
     obs:ped.obs||'',
@@ -947,6 +979,15 @@ function dadosImp(ped){
   };
 }
 
+/* a ficha do cliente do pedido, ou um objeto vazio — nunca nulo, para
+   quem chama nao precisar conferir */
+function _cliDoPedido(ped){
+  try{
+    var id=ped&&ped.clienteId;
+    if(!id)return {};
+    return (DB.clientes||[]).find(function(c){return c.id===id})||{};
+  }catch(e){ return {}; }
+}
 /* ---------- o motor: modelo + pedido = linhas de papel ----------
    Devolve uma lista de {txt, al, n, g, p, corte, barras} — cru, sem
    HTML. Quem desenha (previa) e quem imprime usam a mesma lista, e e
@@ -1039,9 +1080,20 @@ function linhasItens(ped,cols,comPreco){
     /* nome que nao coube continua na linha de baixo, recuado */
     if(nome.length>Math.max(4,largNome))
       r.push({tipo:'txt',txt:'   '+nome.slice(Math.max(4,largNome)),al:'e'});
+    /* ==========================================================
+       SABOR NAO E RODAPE
+
+       As opcoes saiam com `p:true` — 85% do tamanho e em cinza. Num
+       cupom termico cinza nao existe: a impressora pontilha, e o que
+       sai e um borrao. Justo nos SABORES, que sao a unica coisa que a
+       cozinha precisa ler para montar o gelato. A observacao do item
+       tem o mesmo peso: "sem calda" errado e pedido refeito.
+
+       Os dois passam a sair no tamanho normal, em preto.
+       ========================================================== */
     (i.opcoes||[]).forEach(function(o){
-      r.push({tipo:'txt',txt:'   + '+(o.nome||o),al:'e',p:true});});
-    if(i.obs)r.push({tipo:'txt',txt:'   obs: '+i.obs,al:'e',p:true});
+      r.push({tipo:'txt',txt:'   + '+(o.nome||o),al:'e'});});
+    if(i.obs)r.push({tipo:'txt',txt:'   obs: '+i.obs,al:'e'});
   });
   if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
   return r;

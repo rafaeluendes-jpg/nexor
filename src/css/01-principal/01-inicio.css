@@ -1522,7 +1522,8 @@ body.comTeclado .mdBox{padding-bottom:290px}
 .papel .dr{text-align:right}
 .papel .bd{font-weight:700}
 .papel .gr{font-size:1.55em;font-weight:700;line-height:1.2}
-.papel .pq{font-size:.85em;color:#444}
+.papel .pq{font-size:.85em}   /* cinza nao existe em bobina termica:
+   a impressora pontilha o #444 e o que sai e um borrao. So o tamanho. */
 .papel .ppCorte{color:#999;overflow:hidden;white-space:nowrap;margin:6px 0}
 .papel .ppBar{text-align:center;margin:6px 0}
 .papel .ppBarG{height:34px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 4px,#111 4px 5px,#fff 5px 8px);margin-bottom:2px}

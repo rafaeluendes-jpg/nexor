@@ -1617,7 +1617,8 @@ body.comTeclado .mdBox{padding-bottom:290px}
 .papel .dr{text-align:right}
 .papel .bd{font-weight:700}
 .papel .gr{font-size:1.55em;font-weight:700;line-height:1.2}
-.papel .pq{font-size:.85em;color:#444}
+.papel .pq{font-size:.85em}   /* cinza nao existe em bobina termica:
+   a impressora pontilha o #444 e o que sai e um borrao. So o tamanho. */
 .papel .ppCorte{color:#999;overflow:hidden;white-space:nowrap;margin:6px 0}
 .papel .ppBar{text-align:center;margin:6px 0}
 .papel .ppBarG{height:34px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 4px,#111 4px 5px,#fff 5px 8px);margin-bottom:2px}
@@ -12325,7 +12326,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V245.0.0';
+var VERSAO='V246.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41569,6 +41570,22 @@ async function aceitarPedidoOnline(id){
     canal:'cardapio',
     fase:statusInicial(p.tipo==='entrega'?'entrega':'loja'),
     itens:itens,clienteId:cli.id,clienteNome:cli.nome,
+    /* ==========================================================
+       O ENDERECO CHEGAVA E O PEDIDO NAO LEVAVA
+
+       O cardapio manda `endereco` como {rua, numero, referencia}. Este
+       objeto era usado para gravar o cadastro do cliente — e so. O
+       pedido nascia com cidade e zona, sem rua nenhuma. Resultado no
+       papel da entrega de 30/08/2026: "Todos os Bairros" e mais nada.
+       O entregador teve de escrever "Antonio Laerte margiotte 530" a
+       mao no proprio cupom.
+
+       Agora a rua vai junto no pedido, com o numero, a referencia e o
+       telefone de quem recebe — que e o que o entregador liga quando
+       nao acha a casa.
+       ========================================================== */
+    endereco:enderecoDeEntrega(end),
+    clienteFone:p.cliente_tel||cli.tel||'',
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
     sucursalId:p.sucursal_id||'suc_matriz',
     total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
@@ -41594,6 +41611,40 @@ async function aceitarPedidoOnline(id){
   desenhaPedidosOnline();
   toast('Pedido #'+p.numero+' lançado no PDV.');
   enviarResumoPedido(ped,p);
+  /* ==========================================================
+     PEDIDO DO CARDAPIO IMPRIME SOZINHO
+
+     Ate aqui o pedido entrava no Kanban e ficava esperando alguem
+     lembrar de clicar na impressora. Numa sorveteria cheia isso e
+     pedido esquecido na tela. Agora, assim que ele e aceito, o cupom
+     sai sozinho — e o aceite e o momento certo: pedido recusado nao
+     gasta papel, e o que foi aceito ja e trabalho da cozinha.
+
+     Os 200 ms deixam a janela de confirmacao terminar de fechar antes
+     de a impressao abrir; sem isso o dialogo do navegador sobe por
+     cima do overlay e o clique do operador se perde.
+     ========================================================== */
+  setTimeout(function(){
+    try{ imprimirVia(ped); }catch(e){ _quieto(e,'imprimirPedidoOnline'); }
+  },200);
+}
+/* ==========================================================
+   UM ENDERECO SO, ESCRITO DO MESMO JEITO EM TODO LUGAR
+
+   O cardapio manda {rua, numero, referencia}; o cadastro do cliente
+   guarda rua/numero/ref; e ha pedido antigo que ja tem o endereco
+   pronto em texto. As tres formas passam por aqui e saem iguais no
+   papel — "Rua, 530 - referencia" — sem virgola solta quando falta
+   pedaco.
+   ========================================================== */
+function enderecoDeEntrega(e){
+  if(!e)return '';
+  if(typeof e==='string')return e.trim();
+  var rua=String(e.rua||'').trim();
+  var num=String(e.numero||'').trim();
+  var ref=String(e.referencia||e.ref||'').trim();
+  var linha=[rua,num].filter(Boolean).join(', ');
+  return [linha,ref].filter(Boolean).join(' - ');
 }
 /* confirmação com o resumo do que o cliente pediu */
 async function enviarResumoPedido(ped,online){
@@ -44909,7 +44960,9 @@ function blocosParaModelo(bs){
         if(b.telefone)L.push('{?fone_cliente}Telefone: {fone_cliente}');
         break;
       case 'entrega':
-        L.push('{n}{end_entrega}{/n}');
+        /* sem `{?}` a linha do endereco saia em branco e em negrito
+           quando o pedido nao tinha rua — um vazio no meio do cupom */
+        L.push('{?end_entrega}{n}{end_entrega}{/n}');
         L.push('{?bairro}{bairro}');
         break;
       case 'mesa':     L.push('{c}{g}MESA {mesa}{/g}'); break;
@@ -45018,6 +45071,26 @@ function baseImp(){
     });
     DB._semeado=DB._semeado||{}; DB._semeado.letraImp=true;
   }
+  /* ==========================================================
+     A CORRECAO NAO CHEGOU EM TODOS OS MODELOS
+
+     O aumento acima marcou `letraImp` e nunca mais rodou. So que na
+     loja os tres modelos continuaram em 48 colunas — a marca ficou
+     gravada antes de os modelos existirem, e eles nasceram depois com
+     o padrao antigo. Em 30/08/2026 o Rafael devolveu o cupom da
+     entrega: "essa impressao esta muito pequena e ruim, nao da pra ver
+     nada". Era 2,6 mm de letra.
+
+     Esta segunda passada tem marca propria e alcanca esses. Continua
+     valendo uma vez so, e continua sendo o controle "Tamanho da letra"
+     da tela quem manda a partir daqui — inclusive para voltar a 48.
+     ========================================================== */
+  if(!(DB._semeado&&DB._semeado.letraImp2)){
+    DB.modelosImp.forEach(function(m){
+      if(Number(m.colunas)===48)m.colunas=34;
+    });
+    DB._semeado=DB._semeado||{}; DB._semeado.letraImp2=true;
+  }
 
   return DB.modelosImp;
 }
@@ -45070,9 +45143,19 @@ function dadosImp(ped){
     numero:String(ped.numero||''),
     senha:String(ped.senha||ped.numero||''),
     cliente:ped.clienteNome||'Consumidor',
-    fone_cliente:ped.clienteFone||'',
-    end_entrega:ped.endereco||'',
-    bairro:ped.zona||ped.cidade||'',
+    /* ==========================================================
+       PEDIDO SEM ENDERECO PROCURA NO CADASTRO DO CLIENTE
+
+       O pedido passou a carregar a rua, mas os que ja estao gravados
+       nao carregam. O endereco desses nao se perdeu: no aceite do
+       cardapio ele SEMPRE foi para a ficha do cliente (rua, numero,
+       ref). Entao, quando o pedido nao tem, buscamos ali — e a
+       segunda via de uma entrega de ontem sai completa.
+       ========================================================== */
+    fone_cliente:ped.clienteFone||_cliDoPedido(ped).tel||'',
+    end_entrega:enderecoDeEntrega(ped.endereco)||
+                enderecoDeEntrega(_cliDoPedido(ped)),
+    bairro:ped.zona||ped.cidade||_cliDoPedido(ped).zona||'',
     mesa:String(ped.mesa||''),
     canal:ped.canal||'',
     obs:ped.obs||'',
@@ -45094,6 +45177,15 @@ function dadosImp(ped){
   };
 }
 
+/* a ficha do cliente do pedido, ou um objeto vazio — nunca nulo, para
+   quem chama nao precisar conferir */
+function _cliDoPedido(ped){
+  try{
+    var id=ped&&ped.clienteId;
+    if(!id)return {};
+    return (DB.clientes||[]).find(function(c){return c.id===id})||{};
+  }catch(e){ return {}; }
+}
 /* ---------- o motor: modelo + pedido = linhas de papel ----------
    Devolve uma lista de {txt, al, n, g, p, corte, barras} — cru, sem
    HTML. Quem desenha (previa) e quem imprime usam a mesma lista, e e
@@ -45186,9 +45278,20 @@ function linhasItens(ped,cols,comPreco){
     /* nome que nao coube continua na linha de baixo, recuado */
     if(nome.length>Math.max(4,largNome))
       r.push({tipo:'txt',txt:'   '+nome.slice(Math.max(4,largNome)),al:'e'});
+    /* ==========================================================
+       SABOR NAO E RODAPE
+
+       As opcoes saiam com `p:true` — 85% do tamanho e em cinza. Num
+       cupom termico cinza nao existe: a impressora pontilha, e o que
+       sai e um borrao. Justo nos SABORES, que sao a unica coisa que a
+       cozinha precisa ler para montar o gelato. A observacao do item
+       tem o mesmo peso: "sem calda" errado e pedido refeito.
+
+       Os dois passam a sair no tamanho normal, em preto.
+       ========================================================== */
     (i.opcoes||[]).forEach(function(o){
-      r.push({tipo:'txt',txt:'   + '+(o.nome||o),al:'e',p:true});});
-    if(i.obs)r.push({tipo:'txt',txt:'   obs: '+i.obs,al:'e',p:true});
+      r.push({tipo:'txt',txt:'   + '+(o.nome||o),al:'e'});});
+    if(i.obs)r.push({tipo:'txt',txt:'   obs: '+i.obs,al:'e'});
   });
   if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
   return r;

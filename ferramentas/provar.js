@@ -1143,6 +1143,103 @@ function servir() {
     DB.caixas = []; DB.pedidos = []; DB.cancelamentos = []; salvar();
   });
 
+  console.log('\n── 10i. A entrega do cardápio sai com endereço e sabor legível\n');
+  /* O cupom que chegou da loja em 30/08/2026: pedido 600, Anna Vithória.
+     Saiu com "Todos os Bairros" e NADA de rua — o entregador escreveu
+     "Antonio Laerte margiotte 530" a mao no proprio papel. Os sabores
+     do gelato sairam em letra miuda e cinza, ilegiveis. */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    fecharModal();
+    DB.modelosImp = []; baseImp();
+    var end = { rua: 'Antônio Laerte margiotte', numero: '530 ',
+      referencia: 'Caminho das águas- portão preto ' };
+    DB.clientes = [{ id: 'cli_av', nome: 'Anna Vithória', tel: '(17) 99678-6823',
+      rua: end.rua, numero: end.numero, ref: end.referencia,
+      cidade: 'Santa fe do sul', zona: 'Todos os Bairros' }];
+    var ped = { id: 'pd_600', numero: 600, tipo: 'entrega', canal: 'cardapio',
+      fase: statusInicial('entrega'), clienteId: 'cli_av',
+      clienteNome: 'Anna Vithória', clienteFone: '(17) 99678-6823',
+      endereco: enderecoDeEntrega(end), cidade: 'Santa fe do sul',
+      zona: 'Todos os Bairros', sucursalId: lojaAtualId(),
+      total: 75, taxa: 7, desconto: 0, hora: '13:06',
+      itens: [{ nome: 'Gelato 500 Gramas', qtd: 1, unitario: 68, total: 68, obs: '',
+        opcoes: [{ nome: 'Cascão Tradicional', preco: 3 },
+                 { nome: 'Leite Ninho Trufado Gelato', preco: 0 },
+                 { nome: 'Jolô Gelato', preco: 0 }] }],
+      pagamentos: [{ forma: 'Dinheiro', valor: 75 }],
+      data: new Date().toISOString() };
+    DB.pedidos = [ped]; salvar();
+    imprimirVia(ped);
+    var pap = document.querySelector('#viaImp .papel');
+    var linhas = [...pap.querySelectorAll('.ppL')];
+    /* o mesmo pedido SEM endereco proprio: tem de achar no cadastro */
+    var velho = JSON.parse(JSON.stringify(ped));
+    delete velho.endereco; delete velho.clienteFone;
+    return { corpo: [...pap.children].map(l => l.textContent).join('\n'),
+      fonte: (pap.getAttribute('style') || '').match(/font-size:[^;]*/)[0],
+      miudas: [...pap.querySelectorAll('.pq')].map(x => x.textContent.trim()),
+      colunas: (DB.modelosImp.find(m => m.tipo === 'entrega') || {}).colunas,
+      maior: linhas.reduce((a, l) => Math.max(a, (l.textContent || '').length), 0),
+      cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length,
+      doCadastro: dadosImp(velho).end_entrega,
+      juntou: enderecoDeEntrega({ rua: 'Rua A', numero: '', referencia: '' }) };
+  });
+  t('O ENDEREÇO SAI NO CUPOM DA ENTREGA',
+    /Antônio Laerte margiotte, 530/.test(r.corpo), r.corpo);
+  t('com a referência, que é como se acha a casa',
+    /Caminho das águas- portão preto/.test(r.corpo));
+  t('e o telefone de quem recebe', /Telefone: \(17\) 99678-6823/.test(r.corpo));
+  t('o bairro continua saindo', /Todos os Bairros/.test(r.corpo));
+  t('pedido antigo, sem endereço próprio, busca no cadastro do cliente',
+    /Antônio Laerte margiotte, 530/.test(r.doCadastro), r.doCadastro);
+  t('endereço sem número não sai com vírgula solta',
+    r.juntou === 'Rua A', r.juntou);
+  t('OS SABORES SAEM NO CUPOM', /Cascão Tradicional/.test(r.corpo) &&
+    /Leite Ninho Trufado Gelato/.test(r.corpo) && /Jolô Gelato/.test(r.corpo));
+  t('E NÃO EM LETRA MIÚDA — sabor é o que a cozinha lê',
+    r.miudas.every(x => !/Cascão|Ninho|Jolô/.test(x)), r.miudas.join(' | '));
+  t('a letra do cupom é grande: 34 colunas, não as 48 de fábrica',
+    r.colunas === 34, r.colunas + ' colunas');
+  t('e passa de 3 mm no papel', /font-size:\s*3\.\d+mm/.test(r.fonte), r.fonte);
+  t('nenhuma linha passa da largura do papel', r.maior <= 34, r.maior);
+  t('e nenhuma fica cortada', r.cortadas === 0, r.cortadas);
+  console.log('\n' + r.corpo + '\n');
+  fs.writeFileSync(FOTOS + '/cupom-entrega.txt', r.corpo);
+  await pg.evaluate(() => {
+    var vi = document.getElementById('viaImp');
+    document.querySelectorAll('body>*').forEach(x => { if (x !== vi) x.style.display = 'none' });
+    vi.setAttribute('style', 'display:block;position:fixed;left:0;top:0;background:#fff;padding:0;margin:0;z-index:9999');
+    document.querySelectorAll('#viaImp .papelPg').forEach(g => {
+      g.style.cssText = 'width:80mm;padding:2mm;margin:0;box-sizing:border-box;background:#fff;display:block';
+    });
+    document.querySelectorAll('#viaImp .papel').forEach(g => {
+      g.style.padding = '0'; g.style.boxShadow = 'none'; g.style.maxWidth = 'none';
+    });
+  });
+  await pg.setViewportSize({ width: 330, height: 780 });
+  await pg.screenshot({ path: FOTOS + '/cupom-entrega.png', fullPage: true });
+  await pg.setViewportSize({ width: 1440, height: 900 });
+
+  /* o pedido aceito imprime sozinho: a ligacao tem de existir de verdade */
+  r = await pg.evaluate(() => {
+    var f = String(window.aceitarPedidoOnline || '');
+    return { chamaImprimir: /imprimirVia\(/.test(f),
+             levaEndereco: /endereco:\s*enderecoDeEntrega\(/.test(f),
+             levaFone: /clienteFone:/.test(f) };
+  });
+  t('ACEITAR UM PEDIDO DO CARDÁPIO IMPRIME SOZINHO', r.chamaImprimir === true);
+  t('e o pedido nasce carregando o endereço', r.levaEndereco === true);
+  t('e o telefone do cliente', r.levaFone === true);
+  await pg.evaluate(() => {
+    var vi = document.getElementById('viaImp'); if (vi) vi.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    document.querySelectorAll('body>*').forEach(x => { x.style.display = '' });
+    DB.pedidos = []; DB.clientes = []; salvar();
+  });
+
   console.log('\n── 10c. O PDV obedece a tela de Turnos\n');
   /* o caso exato de 29/08/2026: o dono desativa os dois turnos e a
      abertura de caixa continua exigindo escolher um */
