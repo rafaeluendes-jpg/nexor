@@ -199,6 +199,82 @@ t('enviar pedido repinta',                 /pintarSino[\s\S]{0,80}enviarPedidoBa
 t('avançar de fase repinta',               /pintarSino[\s\S]{0,80}avancarPedido/.test(fonte));
 t('receber as bases repinta',              /pintarSino[\s\S]{0,80}receberPedidoBase/.test(fonte));
 
+/* ==========================================================
+   O PEDIDO DO CARDAPIO NAO PODE CHEGAR E SUMIR
+
+   Ordem da loja em 30/08/2026: "ele toca uma vez so e some; tem que
+   ficar tocando e ficar na tela ate alguem aceitar".
+
+   Como era: tres bipes de um segundo e um aviso que se apagava sozinho
+   em 25 segundos. Numa sorveteria cheia ninguem ouve, e vinte e cinco
+   segundos depois nao ha mais sinal de que entrou pedido.
+
+   Estes testes prendem as quatro pontas do comportamento novo.
+   ========================================================== */
+console.log('\n── O aviso de pedido novo fica ate alguem atender\n');
+
+const pnAv = corpoDaFuncao('avisarPedidoNovo', fonte);
+const pnCh = corpoDaFuncao('chamarSino', fonte);
+const pnPr = corpoDaFuncao('pararSino', fonte);
+const pnTs = corpoDaFuncao('tocarSino', fonte);
+const pnBp = corpoDaFuncao('buscarPedidosOnline', fonte);
+const pnVp = corpoDaFuncao('verPedidosOnline', fonte);
+
+t('o aviso NAO se apaga mais sozinho depois de 25 segundos',
+  !/setTimeout\([^)]*avisoPed[\s\S]*?25000\)/.test(pnAv) && !/25000/.test(pnAv));
+t('e nao tem mais o "x" de dispensar sem ver',
+  !/class="x"/.test(pnAv));
+t('o botao que resta leva para os pedidos', /verPedidosOnline\(\)/.test(pnAv));
+t('o sino passa a ser chamado em ciclo, nao uma vez', /chamarSino\(\)/.test(pnAv));
+
+t('o ciclo toca de novo a cada 8 segundos', /setInterval\([\s\S]*?,8000\)/.test(pnCh));
+t('e limpa o ciclo anterior antes de comecar outro',
+  pnCh.indexOf('pararSino()') < pnCh.indexOf('setInterval'));
+t('o ciclo para sozinho quando o aviso sai da tela',
+  /if\(!document\.getElementById\('avisoPed'\)\)\{pararSino\(\);return;\}/.test(pnCh));
+t('pararSino limpa o relogio e nao deixa rastro',
+  /clearInterval\(PO\.timer\)/.test(pnPr) && /PO\.timer=null/.test(pnPr));
+
+t('clicar em "Ver pedidos" cala o sino', /pararSino\(\)/.test(pnVp));
+t('sem pedido novo na nuvem, o sino cala e o aviso sai',
+  /pararSino\(\)/.test(pnBp) && /avisoPed/.test(pnBp) && /limparSeloPedidos\(\)/.test(pnBp));
+
+/* ==========================================================
+   O DEFEITO QUE TOCAR EM CICLO TRARIA SE NINGUEM OLHASSE
+
+   `tocarSino` abria um AudioContext NOVO a cada toque. Uma vez, tudo
+   bem. A cada 8 segundos, o Chrome estoura o limite de contextos por
+   aba (seis) em menos de um minuto — e o sino emudece justamente
+   quando mais importa.
+   ========================================================== */
+t('há UM contexto de áudio, guardado e reaproveitado',
+  /if\(!PO\.ac\)PO\.ac=new \(window\.AudioContext/.test(pnTs) && /var ac=PO\.ac/.test(pnTs));
+t('e nenhum contexto novo por toque',
+  (pnTs.match(/new \(window\.AudioContext/g) || []).length === 1, pnTs.slice(0, 120));
+t('o contexto suspenso é retomado antes de tocar',
+  /state==='suspended'&&ac\.resume/.test(pnTs));
+
+/* o ciclo roda de verdade, com relogio de mentira */
+const pnAmb = { chamou: 0, aviso: true };
+const pnF = new Function('pnAmb', `
+  var PO={vistos:{},timer:null,ac:null};
+  var document={getElementById:function(){return pnAmb.aviso?{}:null}};
+  function tocarSino(){pnAmb.chamou++;}
+  var setInterval=function(fn,ms){pnAmb.ms=ms;pnAmb.fn=fn;return 7;};
+  var clearInterval=function(id){pnAmb.limpou=id;};
+  ${pnCh}
+  ${pnPr}
+  return {chamarSino:chamarSino,pararSino:pararSino,PO:PO};
+`)(pnAmb);
+pnF.chamarSino();
+t('ao chamar, toca na hora — não espera os 8 segundos', pnAmb.chamou === 1, pnAmb.chamou);
+t('e agenda o próximo para 8 segundos', pnAmb.ms === 8000, pnAmb.ms);
+pnAmb.fn(); pnAmb.fn();
+t('com o aviso na tela, continua tocando', pnAmb.chamou === 3, pnAmb.chamou);
+pnAmb.aviso = false; pnAmb.fn();
+t('tirado o aviso, para de tocar e limpa o relógio',
+  pnAmb.chamou === 3 && pnAmb.limpou === 7, pnAmb.chamou + '/' + pnAmb.limpou);
+
 console.log('\n════════════════════════════════════════════════════');
 console.log('Joia ' + versaoDoSistema() + ' · o sino');
 console.log(testes - falhas + ' de ' + testes + ' testes passaram');

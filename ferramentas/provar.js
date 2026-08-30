@@ -1389,6 +1389,71 @@ function servir() {
     DB.pedidos = []; DB.caixas = []; salvar();
   });
 
+  console.log('\n── 10n. O pedido do cardápio não chega e some\n');
+  /* Ordem da loja: "toca uma vez só e some; tem que ficar tocando e
+     ficar na tela até alguém aceitar". */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var a0 = document.getElementById('avisoPed'); if (a0) a0.remove();
+    fecharModal();
+    pararSino();
+    /* conta os toques em vez de tocar de verdade */
+    window.__toques = 0;
+    var _ts = window.tocarSino;
+    window.tocarSino = function () { window.__toques++; };
+    /* relógio de mentira: guarda o ciclo para disparar na mão */
+    var _si = window.setInterval, _ci = window.clearInterval;
+    window.setInterval = function (fn, ms) { window.__ms = ms; window.__fn = fn; return 4242; };
+    window.clearInterval = function (id) { window.__limpou = id; };
+    avisarPedidoNovo([{ id: 'po1', cliente_nome: 'Anna Vithória', total: 75 },
+                      { id: 'po2', cliente_nome: 'Uendes', total: 29 }]);
+    var av = document.getElementById('avisoPed');
+    var texto = av ? av.textContent.replace(/\s+/g, ' ').trim() : '';
+    var bts = av ? [...av.querySelectorAll('button')].map(b => b.textContent.trim()) : [];
+    var selo = document.querySelector('.mIco[data-m="pdv"] .selo');
+    return { apareceu: !!av, texto: texto, botoes: bts,
+      temX: !!(av && av.querySelector('button.x')),
+      pulsa: !!(av && av.classList.contains('pisca')),
+      selo: selo ? selo.textContent : null,
+      tocouNaHora: window.__toques, intervalo: window.__ms };
+  });
+  t('o aviso aparece no canto da tela', r.apareceu === true);
+  t('dizendo quantos pedidos e de quem',
+    /2 pedidos do cardápio digital/.test(r.texto) && /Anna Vithória/.test(r.texto), r.texto);
+  t('o sino toca na hora', r.tocouNaHora === 1, r.tocouNaHora);
+  t('E FICA TOCANDO: repete a cada 8 segundos', r.intervalo === 8000, r.intervalo);
+  t('não há mais o "×" de dispensar sem ver', r.temX === false);
+  t('o único botão leva para os pedidos', r.botoes.join(',') === 'Ver pedidos', r.botoes.join(','));
+  t('e o selo aparece no ícone do PDV', r.selo === '2', r.selo);
+
+  r = await pg.evaluate(() => {
+    /* o tempo passa três vezes, e ninguém atendeu */
+    window.__fn(); window.__fn(); window.__fn();
+    return { toques: window.__toques, aindaNaTela: !!document.getElementById('avisoPed') };
+  });
+  t('ninguém atendeu: o sino continua tocando', r.toques === 4, r.toques);
+  t('E O AVISO CONTINUA NA TELA — não some sozinho', r.aindaNaTela === true);
+
+  r = await pg.evaluate(() => {
+    var av = document.getElementById('avisoPed');
+    var bt = av ? [...av.querySelectorAll('button')]
+      .find(b => /ver pedidos/i.test(b.textContent)) : null;
+    if (bt) bt.click();
+    var antes = window.__toques;
+    /* o ciclo ainda dispararia uma vez: sem aviso na tela, ele se cala */
+    if (window.__fn) window.__fn();
+    return { saiu: !document.getElementById('avisoPed'),
+      tocouDepois: window.__toques - antes, limpou: window.__limpou };
+  });
+  t('clicar em "Ver pedidos" tira o aviso da tela', r.saiu === true);
+  t('e o sino CALA — não toca mais nenhuma vez', r.tocouDepois === 0, r.tocouDepois);
+  t('o relógio do ciclo é desligado, sem deixar rastro', r.limpou === 4242, r.limpou);
+  await pg.evaluate(() => {
+    window.setInterval = window.__si || setInterval;
+    var av = document.getElementById('avisoPed'); if (av) av.remove();
+    limparSeloPedidos(); fecharModal();
+  });
+
   console.log('\n── 10m. Sabor em vários grupos, e desligar em vez de apagar\n');
   /* A loja tem "Sabores Gelatos 1 Sabor", "2 Sabores" e "3 Sabores". Um
      sabor novo tem de entrar nos tres, e sabor que acabou tem de sumir

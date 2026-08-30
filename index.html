@@ -5521,6 +5521,20 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
 .avisoPed button:hover{background:rgba(255,255,255,.32)}
 .avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+/* ==========================================================
+   O AVISO QUE NAO SOME TEM DE CHAMAR O OLHO
+
+   Ele agora fica no canto ate alguem atender. Parado, vira parte do
+   cenario e some da atencao em dois minutos. A pulsacao lenta o mantem
+   visivel sem virar pisca-pisca — e para de vez para quem pediu menos
+   animacao no sistema operacional.
+   ========================================================== */
+.avisoPed.pisca{animation:avisoPulso 1.6s ease-in-out infinite}
+@keyframes avisoPulso{
+  0%,100%{box-shadow:0 8px 26px rgba(0,0,0,.28)}
+  50%{box-shadow:0 8px 26px rgba(0,0,0,.28),0 0 0 6px rgba(175,127,56,.30)}
+}
+@media (prefers-reduced-motion:reduce){.avisoPed.pisca{animation:none}}
 .poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
 .poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
   border-left:4px solid var(--acc)}
@@ -12365,7 +12379,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V254.0.0';
+var VERSAO='V255.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41492,35 +41506,82 @@ function trocarAbaCardapio(a){
 /* ==========================================================
    PEDIDOS DO CARDÁPIO CHEGANDO NO PDV
    ========================================================== */
-var PO={vistos:{},tocando:false};
+var PO={vistos:{},tocando:false,timer:null,ac:null};
 async function buscarPedidosOnline(){
   if(!NUVEM.ligada)return;
   try{
     var r=await api('pedidos_online?situacao=eq.novo&order=criado_em.desc&limit=30');
-    if(!r||!r.length)return;
+    if(!r||!r.length){
+      /* alguem aceitou ou recusou pela outra tela: nao ha mais o que
+         avisar, e o sino nao pode continuar tocando sozinho */
+      pararSino();
+      var v=document.getElementById('avisoPed'); if(v)v.remove();
+      limparSeloPedidos();
+      return;
+    }
     var novos=r.filter(function(p){return !PO.vistos[p.id]});
     if(!novos.length)return;
     novos.forEach(function(p){PO.vistos[p.id]=true});
     avisarPedidoNovo(novos);
   }catch(e){_quieto(e,'buscarPedidosOnline')}
 }
+/* ==========================================================
+   O PEDIDO NAO PODE CHEGAR E SUMIR
+
+   Como era: tocava tres vezes, o aviso ficava 25 segundos e SUMIA
+   sozinho. Numa sorveteria cheia, com a fila no balcao e o barulho da
+   maquina, ninguem ouve tres bipes de um segundo — e vinte e cinco
+   segundos depois nao ha mais sinal nenhum de que entrou pedido. O
+   pedido ficava esperando na tela de Pedidos do cardapio ate alguem
+   lembrar de olhar.
+
+   Como e agora, por ordem da loja: o aviso FICA no canto da tela e o
+   sino toca de novo a cada 8 segundos, ate alguem clicar em "Ver
+   pedidos". Clicar leva para a lista — e o clique e o "recebi".
+
+   O sino para sozinho tambem quando nao ha mais pedido novo (alguem
+   aceitou pela outra tela) e quando a pessoa sai do sistema.
+   ========================================================== */
 function avisarPedidoNovo(lista){
-  tocarSino();
   marcarPedidosNovos(lista.length);
   var n=lista.length;
   var el=document.getElementById('avisoPed');
   if(el)el.remove();
   var d=document.createElement('div');
-  d.id='avisoPed';d.className='avisoPed';
+  d.id='avisoPed';d.className='avisoPed pisca';
   d.innerHTML=sv('cart',20)+
    '<div><b>'+n+' pedido'+(n>1?'s':'')+' do cardápio digital</b>'+
    '<span>'+lista.slice(0,2).map(function(p){
      return E(p.cliente_nome)+' · R$ '+money(p.total)}).join(' · ')+
    (n>2?' e mais '+(n-2):'')+'</span></div>'+
-   '<button onclick="verPedidosOnline()">Ver</button>'+
-   '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+   '<button onclick="verPedidosOnline()">Ver pedidos</button>';
   document.body.appendChild(d);
-  setTimeout(function(){var a=document.getElementById('avisoPed');if(a)a.remove();},25000);
+  /* toca ja, e continua tocando ate atenderem */
+  chamarSino();
+}
+/* ==========================================================
+   TOCAR DE NOVO NAO PODE CRIAR UM AUDIO NOVO A CADA VEZ
+
+   `tocarSino` abria um AudioContext por toque. Tocando uma vez, sem
+   problema. Tocando a cada 8 segundos ate alguem atender, o Chrome
+   estoura o limite de contextos por aba (seis) em menos de um minuto —
+   e a partir dali o sino emudece justamente quando mais importa.
+
+   Agora ha UM contexto, guardado e reaproveitado. Se o navegador o
+   deixou suspenso (porque a pagina abriu sem ninguem ter clicado
+   ainda), ele e retomado antes de tocar.
+   ========================================================== */
+function chamarSino(){
+  pararSino();
+  tocarSino();
+  PO.timer=setInterval(function(){
+    /* aviso fora da tela = alguem ja atendeu: nao ha o que tocar */
+    if(!document.getElementById('avisoPed')){pararSino();return;}
+    tocarSino();
+  },8000);
+}
+function pararSino(){
+  if(PO.timer){clearInterval(PO.timer);PO.timer=null;}
 }
 function marcarPedidosNovos(n){
   var ic=document.querySelector('.mIco[data-m="pdv"]');
@@ -41535,7 +41596,11 @@ function limparSeloPedidos(){
 }
 function tocarSino(){
   try{
-    var ac=new (window.AudioContext||window.webkitAudioContext)();
+    if(!PO.ac)PO.ac=new (window.AudioContext||window.webkitAudioContext)();
+    var ac=PO.ac;
+    /* o navegador suspende o audio de pagina que ainda nao recebeu
+       clique; retomar e barato e nao faz nada quando ja esta rodando */
+    if(ac.state==='suspended'&&ac.resume)ac.resume();
     [0,0.18,0.36].forEach(function(t){
       var o=ac.createOscillator(),g=ac.createGain();
       o.connect(g);g.connect(ac.destination);
@@ -41551,6 +41616,8 @@ function tocarSino(){
 /* ---------- tela dos pedidos online ---------- */
 var PON={lista:[],carregando:false};
 async function verPedidosOnline(){
+  /* este clique e o "recebi": tira o aviso do canto e cala o sino */
+  pararSino();
   var a=document.getElementById('avisoPed');if(a)a.remove();
   abrir('pdv','pedidos-online');
 }

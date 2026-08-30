@@ -1,35 +1,82 @@
 /* ==========================================================
    PEDIDOS DO CARDÁPIO CHEGANDO NO PDV
    ========================================================== */
-var PO={vistos:{},tocando:false};
+var PO={vistos:{},tocando:false,timer:null,ac:null};
 async function buscarPedidosOnline(){
   if(!NUVEM.ligada)return;
   try{
     var r=await api('pedidos_online?situacao=eq.novo&order=criado_em.desc&limit=30');
-    if(!r||!r.length)return;
+    if(!r||!r.length){
+      /* alguem aceitou ou recusou pela outra tela: nao ha mais o que
+         avisar, e o sino nao pode continuar tocando sozinho */
+      pararSino();
+      var v=document.getElementById('avisoPed'); if(v)v.remove();
+      limparSeloPedidos();
+      return;
+    }
     var novos=r.filter(function(p){return !PO.vistos[p.id]});
     if(!novos.length)return;
     novos.forEach(function(p){PO.vistos[p.id]=true});
     avisarPedidoNovo(novos);
   }catch(e){_quieto(e,'buscarPedidosOnline')}
 }
+/* ==========================================================
+   O PEDIDO NAO PODE CHEGAR E SUMIR
+
+   Como era: tocava tres vezes, o aviso ficava 25 segundos e SUMIA
+   sozinho. Numa sorveteria cheia, com a fila no balcao e o barulho da
+   maquina, ninguem ouve tres bipes de um segundo — e vinte e cinco
+   segundos depois nao ha mais sinal nenhum de que entrou pedido. O
+   pedido ficava esperando na tela de Pedidos do cardapio ate alguem
+   lembrar de olhar.
+
+   Como e agora, por ordem da loja: o aviso FICA no canto da tela e o
+   sino toca de novo a cada 8 segundos, ate alguem clicar em "Ver
+   pedidos". Clicar leva para a lista — e o clique e o "recebi".
+
+   O sino para sozinho tambem quando nao ha mais pedido novo (alguem
+   aceitou pela outra tela) e quando a pessoa sai do sistema.
+   ========================================================== */
 function avisarPedidoNovo(lista){
-  tocarSino();
   marcarPedidosNovos(lista.length);
   var n=lista.length;
   var el=document.getElementById('avisoPed');
   if(el)el.remove();
   var d=document.createElement('div');
-  d.id='avisoPed';d.className='avisoPed';
+  d.id='avisoPed';d.className='avisoPed pisca';
   d.innerHTML=sv('cart',20)+
    '<div><b>'+n+' pedido'+(n>1?'s':'')+' do cardápio digital</b>'+
    '<span>'+lista.slice(0,2).map(function(p){
      return E(p.cliente_nome)+' · R$ '+money(p.total)}).join(' · ')+
    (n>2?' e mais '+(n-2):'')+'</span></div>'+
-   '<button onclick="verPedidosOnline()">Ver</button>'+
-   '<button class="x" onclick="this.parentNode.remove()">&times;</button>';
+   '<button onclick="verPedidosOnline()">Ver pedidos</button>';
   document.body.appendChild(d);
-  setTimeout(function(){var a=document.getElementById('avisoPed');if(a)a.remove();},25000);
+  /* toca ja, e continua tocando ate atenderem */
+  chamarSino();
+}
+/* ==========================================================
+   TOCAR DE NOVO NAO PODE CRIAR UM AUDIO NOVO A CADA VEZ
+
+   `tocarSino` abria um AudioContext por toque. Tocando uma vez, sem
+   problema. Tocando a cada 8 segundos ate alguem atender, o Chrome
+   estoura o limite de contextos por aba (seis) em menos de um minuto —
+   e a partir dali o sino emudece justamente quando mais importa.
+
+   Agora ha UM contexto, guardado e reaproveitado. Se o navegador o
+   deixou suspenso (porque a pagina abriu sem ninguem ter clicado
+   ainda), ele e retomado antes de tocar.
+   ========================================================== */
+function chamarSino(){
+  pararSino();
+  tocarSino();
+  PO.timer=setInterval(function(){
+    /* aviso fora da tela = alguem ja atendeu: nao ha o que tocar */
+    if(!document.getElementById('avisoPed')){pararSino();return;}
+    tocarSino();
+  },8000);
+}
+function pararSino(){
+  if(PO.timer){clearInterval(PO.timer);PO.timer=null;}
 }
 function marcarPedidosNovos(n){
   var ic=document.querySelector('.mIco[data-m="pdv"]');
@@ -44,7 +91,11 @@ function limparSeloPedidos(){
 }
 function tocarSino(){
   try{
-    var ac=new (window.AudioContext||window.webkitAudioContext)();
+    if(!PO.ac)PO.ac=new (window.AudioContext||window.webkitAudioContext)();
+    var ac=PO.ac;
+    /* o navegador suspende o audio de pagina que ainda nao recebeu
+       clique; retomar e barato e nao faz nada quando ja esta rodando */
+    if(ac.state==='suspended'&&ac.resume)ac.resume();
     [0,0.18,0.36].forEach(function(t){
       var o=ac.createOscillator(),g=ac.createGain();
       o.connect(g);g.connect(ac.destination);
@@ -60,6 +111,8 @@ function tocarSino(){
 /* ---------- tela dos pedidos online ---------- */
 var PON={lista:[],carregando:false};
 async function verPedidosOnline(){
+  /* este clique e o "recebi": tira o aviso do canto e cala o sino */
+  pararSino();
   var a=document.getElementById('avisoPed');if(a)a.remove();
   abrir('pdv','pedidos-online');
 }

@@ -538,6 +538,20 @@
   background:rgba(255,255,255,.2);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
 .avisoPed button:hover{background:rgba(255,255,255,.32)}
 .avisoPed button.x{background:transparent;padding:0 4px;font-size:19px}
+/* ==========================================================
+   O AVISO QUE NAO SOME TEM DE CHAMAR O OLHO
+
+   Ele agora fica no canto ate alguem atender. Parado, vira parte do
+   cenario e some da atencao em dois minutos. A pulsacao lenta o mantem
+   visivel sem virar pisca-pisca — e para de vez para quem pediu menos
+   animacao no sistema operacional.
+   ========================================================== */
+.avisoPed.pisca{animation:avisoPulso 1.6s ease-in-out infinite}
+@keyframes avisoPulso{
+  0%,100%{box-shadow:0 8px 26px rgba(0,0,0,.28)}
+  50%{box-shadow:0 8px 26px rgba(0,0,0,.28),0 0 0 6px rgba(175,127,56,.30)}
+}
+@media (prefers-reduced-motion:reduce){.avisoPed.pisca{animation:none}}
 .poGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:0 16px 16px}
 .poCard{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
   border-left:4px solid var(--acc)}
