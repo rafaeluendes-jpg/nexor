@@ -1257,7 +1257,74 @@ function servir() {
   t('com a referência, que é como se acha a casa',
     /Caminho das águas- portão preto/.test(r.corpo));
   t('e o telefone de quem recebe', /Telefone: \(17\) 99678-6823/.test(r.corpo));
-  t('o bairro continua saindo', /Todos os Bairros/.test(r.corpo));
+  t('pedido antigo, sem bairro escrito, continua saindo com a região',
+    /Todos os Bairros/.test(r.corpo));
+
+  /* ==========================================================
+     31/08/2026 — o pedido novo, com o bairro que a pessoa escreveu
+
+     A lista de regiões do cardápio serve para calcular a TAXA e não tem
+     todos os bairros da cidade. Quem morava fora dela escolhia "Todos
+     os Bairros", e era isso que ia para o papel: o entregador recebia a
+     rua sem saber em que bairro procurar.
+     ========================================================== */
+  const rB = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    var ped = JSON.parse(JSON.stringify(DB.pedidos[0]));
+    ped.id = 'pd_601'; ped.numero = 601; ped.bairro = 'Jardim Alvorada';
+    DB.pedidos.push(ped); salvar();
+    imprimirVia(ped);
+    var pap = document.querySelector('#viaImp .papel');
+    var corpo = [...pap.children].map(l => l.textContent).join('\n');
+    /* a segunda via noutro aparelho: o pedido não leva o bairro, mas a
+       ficha do cliente sim — e é de lá que ela se completa */
+    var semBairro = JSON.parse(JSON.stringify(ped));
+    delete semBairro.bairro;
+    var cli = DB.clientes.find(c => c.id === 'cli_av');
+    cli.bairro = 'Jardim Alvorada';
+    return { corpo: corpo,
+      linhas: [...pap.querySelectorAll('.ppL')].map(l => l.textContent),
+      cortadas: [...pap.querySelectorAll('.ppL')]
+        .filter(l => l.scrollWidth > l.clientWidth + 1).length,
+      fonte: (pap.getAttribute('style') || '').match(/font-size:[^;]*/)[0],
+      segundaVia: dadosImp(semBairro).bairro };
+  });
+  t('O BAIRRO ESCRITO PELA PESSOA SAI NO CUPOM',
+    /Jardim Alvorada/.test(rB.corpo), rB.corpo);
+  t('e a região continua do lado, que é o que explica a taxa',
+    /Jardim Alvorada \(Todos os Bairros\)/.test(rB.corpo), rB.corpo);
+  t('a linha do bairro cabe na bobina, sem cortar',
+    rB.cortadas === 0, rB.cortadas + ' linha(s) cortada(s)');
+  t('e a letra do cupom NÃO mudou — é a mesma do cupom acima',
+    rB.fonte === r.fonte, rB.fonte + ' vs ' + r.fonte);
+  t('a segunda via, em outro aparelho, acha o bairro na ficha do cliente',
+    rB.segundaVia === 'Jardim Alvorada (Todos os Bairros)', rB.segundaVia);
+  fs.writeFileSync(FOTOS + '/cupom-entrega-bairro.txt', rB.corpo);
+
+  /* bairro de nome comprido: a bobina tem 34 colunas e "Jardim Alvorada
+     (Todos os Bairros)" já ocupa exatamente 34. Nome maior tem de descer
+     de linha, nunca ser cortado — o entregador leria o endereço pela
+     metade. */
+  const rC = await pg.evaluate(() => {
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    var s2 = document.getElementById('impCSS'); if (s2) s2.remove();
+    var ped = JSON.parse(JSON.stringify(DB.pedidos[0]));
+    ped.id = 'pd_602'; ped.numero = 602;
+    ped.bairro = 'Conjunto Habitacional Doutor Antônio Villela Silva';
+    DB.pedidos.push(ped); salvar();
+    imprimirVia(ped);
+    var pap = document.querySelector('#viaImp .papel');
+    var linhas = [...pap.querySelectorAll('.ppL')];
+    return { corpo: [...pap.children].map(l => l.textContent).join('\n'),
+      cortadas: linhas.filter(l => l.scrollWidth > l.clientWidth + 1).length,
+      maior: linhas.reduce((a, l) => Math.max(a, (l.textContent || '').length), 0) };
+  });
+  t('bairro de nome comprido sai inteiro, sem ser cortado',
+    /Conjunto Habitacional Doutor/.test(rC.corpo) &&
+    /Antônio Villela Silva/.test(rC.corpo), rC.corpo);
+  t('e nenhuma linha estoura a bobina',
+    rC.cortadas === 0 && rC.maior <= 34, rC.cortadas + ' cortada(s), maior ' + rC.maior);
   t('pedido antigo, sem endereço próprio, busca no cadastro do cliente',
     /Antônio Laerte margiotte, 530/.test(r.doCadastro), r.doCadastro);
   t('endereço sem número não sai com vírgula solta',

@@ -12487,7 +12487,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V261.0.0';
+var VERSAO='V262.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42200,6 +42200,7 @@ async function aceitarPedidoOnline(id){
   if(!cli){
     cli={id:uid('cli'),nome:p.cliente_nome,tel:p.cliente_tel,
       rua:end.rua||'',numero:end.numero||'',ref:end.referencia||'',
+      bairro:end.bairro||'',
       cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
       compras:0,gasto:0,origem:'cardapio'};
     DB.clientes.push(cli);
@@ -42207,6 +42208,7 @@ async function aceitarPedidoOnline(id){
     if(end.rua)cli.rua=end.rua;
     if(end.numero)cli.numero=end.numero;
     if(end.referencia)cli.ref=end.referencia;
+    if(end.bairro)cli.bairro=end.bairro;
     if(p.zona_id){cli.zonaId=p.zona_id;cli.zona=p.zona;}
     if(p.cidade)cli.cidade=p.cidade;
   }
@@ -42241,6 +42243,20 @@ async function aceitarPedidoOnline(id){
        nao acha a casa.
        ========================================================== */
     endereco:enderecoDeEntrega(end),
+    /* ==========================================================
+       O BAIRRO ESCRITO PELA PESSOA, E NAO A REGIAO DA TAXA
+
+       A lista de regioes do cardapio existe para calcular a taxa e nao
+       tem todos os bairros da cidade. Quem morava fora dela escolhia
+       "Todos os Bairros", e era isso que saia impresso — o entregador
+       recebia a rua sem saber em que bairro procurar.
+
+       O cardapio passou a pedir o bairro escrito. Ele vai no pedido
+       (para o papel sair completo agora) e na ficha do cliente (que
+       sobe para a nuvem, para a segunda via em outro aparelho tambem
+       sair completa).
+       ========================================================== */
+    bairro:end.bairro||'',
     clienteFone:p.cliente_tel||cli.tel||'',
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
     sucursalId:p.sucursal_id||'suc_matriz',
@@ -42316,6 +42332,33 @@ async function aceitarPedidoOnline(id){
    papel — "Rua, 530 - referencia" — sem virgola solta quando falta
    pedaco.
    ========================================================== */
+/* ==========================================================
+   O BAIRRO DO PAPEL DA ENTREGA
+
+   Sao duas coisas com o mesmo nome, e o entregador precisa da primeira:
+     - o BAIRRO que a pessoa escreveu ("Jardim Alvorada");
+     - a REGIAO da taxa, escolhida numa lista curta ("Todos os Bairros").
+
+   Ate aqui so a segunda existia, e era ela que ia para o papel. Em
+   30/08/2026 saiu "Todos os Bairros" e mais nada — o entregador teve de
+   escrever o endereco a mao no proprio cupom.
+
+   Agora sai o bairro escrito e, do lado, a regiao entre parenteses
+   quando as duas nao sao a mesma coisa: a regiao e o que explica o
+   valor da taxa, e some quando nao acrescenta nada.
+
+   Pedido antigo, sem bairro escrito, continua saindo com a regiao — que
+   e exatamente o que sempre saiu.
+   ========================================================== */
+function bairroDoPedido(ped){
+  if(!ped)return '';
+  var cli=(typeof _cliDoPedido==='function')?(_cliDoPedido(ped)||{}):{};
+  var escrito=String(ped.bairro||cli.bairro||'').trim();
+  var regiao=String(ped.zona||cli.zona||'').trim();
+  if(!escrito)return regiao||String(ped.cidade||cli.cidade||'').trim();
+  if(!regiao||regiao.toLowerCase()===escrito.toLowerCase())return escrito;
+  return escrito+' ('+regiao+')';
+}
 function enderecoDeEntrega(e){
   if(!e)return '';
   if(typeof e==='string')return e.trim();
@@ -45867,7 +45910,11 @@ function dadosImp(ped){
     fone_cliente:ped.clienteFone||_cliDoPedido(ped).tel||'',
     end_entrega:enderecoDeEntrega(ped.endereco)||
                 enderecoDeEntrega(_cliDoPedido(ped)),
-    bairro:ped.zona||ped.cidade||_cliDoPedido(ped).zona||'',
+    /* o bairro escrito pela pessoa vem primeiro; a regiao da taxa entra
+       do lado, porque ela e o que explica o valor da entrega. Pedido
+       antigo, sem bairro escrito, continua saindo com a regiao — que e
+       o que sempre saiu. */
+    bairro:bairroDoPedido(ped),
     mesa:String(ped.mesa||''),
     canal:ped.canal||'',
     obs:ped.obs||'',

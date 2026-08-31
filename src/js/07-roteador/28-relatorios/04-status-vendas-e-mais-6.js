@@ -974,7 +974,11 @@ function dadosImp(ped){
     fone_cliente:ped.clienteFone||_cliDoPedido(ped).tel||'',
     end_entrega:enderecoDeEntrega(ped.endereco)||
                 enderecoDeEntrega(_cliDoPedido(ped)),
-    bairro:ped.zona||ped.cidade||_cliDoPedido(ped).zona||'',
+    /* o bairro escrito pela pessoa vem primeiro; a regiao da taxa entra
+       do lado, porque ela e o que explica o valor da entrega. Pedido
+       antigo, sem bairro escrito, continua saindo com a regiao — que e
+       o que sempre saiu. */
+    bairro:bairroDoPedido(ped),
     mesa:String(ped.mesa||''),
     canal:ped.canal||'',
     obs:ped.obs||'',
