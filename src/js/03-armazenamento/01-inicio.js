@@ -1393,7 +1393,8 @@ var MAPA=[
        resolve o vinculo quando o id chega vazio. A forma deixa de
        depender de o aparelho ter o mapa montado.
        ========================================================== */
-    campos:function(o){return {forma_id:fk('formasPag',o.forma),forma_ref:o.forma||null,
+    campos:function(o){var _f=formaDoPagamento(o);
+      return {forma_id:fk('formasPag',_f),forma_ref:_f||null,
       valor:n(o.valor),equipamento:o.equipamento||null}}}]},
 
  {col:'acertos',     tab:'acertos',

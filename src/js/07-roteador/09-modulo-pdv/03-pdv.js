@@ -1489,7 +1489,7 @@ function verPedido(id){
   '<div style="margin-top:11px">'+
   ((p.pagamentos||[]).length
     ?(p.pagamentos||[]).map(function(x){
-       var f=FORMAS.find(function(y){return y.id===x.forma});
+       var f=FORMAS.find(function(y){return y.id===formaDoPagamento(x)});
        var nome=f?f.n:(x.nome||'forma não informada');
        return '<div class="linha"><span'+(f?'':' style="color:#B4593F"')+'>'+E(nome)+'</span>'+
          '<b>R$ '+money(x.valor)+'</b></div>'}).join('')
@@ -1532,15 +1532,19 @@ function movimentoCaixa(id){
      ========================================================== */
   var _semForma=0;
   ps.forEach(function(p){(p.pagamentos||[]).forEach(function(x){
-    if(!x.forma){ _semForma+=Number(x.valor)||0; return; }
-    porForma[x.forma]=(porForma[x.forma]||0)+x.valor;
-    qtdForma[x.forma]=(qtdForma[x.forma]||0)+1;
+    /* le pelos DOIS nomes: `formaId` e o do pedido do cardapio gravado
+       antes da V256, e ele acusava R$ 285 de venda "sem forma" que
+       tinha forma sim */
+    var _f=formaDoPagamento(x);
+    if(!_f){ _semForma+=Number(x.valor)||0; return; }
+    porForma[_f]=(porForma[_f]||0)+x.valor;
+    qtdForma[_f]=(qtdForma[_f]||0)+1;
     /* De qual APARELHO veio o dinheiro. Sem isso, o fechamento junta a
        maquininha do balcao com a do totem e o operador nao consegue
        bater com o extrato de cada uma. */
     var eq=x.equipamento||p.equipamento||(p.canal==='totem'?'totem':'balcao');
-    porEquip[x.forma]=porEquip[x.forma]||{};
-    porEquip[x.forma][eq]=(porEquip[x.forma][eq]||0)+x.valor;
+    porEquip[_f]=porEquip[_f]||{};
+    porEquip[_f][eq]=(porEquip[_f][eq]||0)+x.valor;
   })});
   var idDin=(FORMAS.find(function(f){return f.tipo==='dinheiro'})||{}).id;
   var _tot=ps.reduce(function(a,p){return a+p.total},0);

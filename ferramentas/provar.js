@@ -1389,6 +1389,80 @@ function servir() {
     DB.pedidos = []; DB.caixas = []; salvar();
   });
 
+  console.log('\n── 10o. Os R$ 285 "sem forma de pagamento" tinham forma sim\n');
+  /* O fechamento acusava "R$ 285,00 em vendas sem forma de pagamento",
+     e o Rafael estranhou: o PDV nao deixa fechar venda sem forma.
+     Conferido no banco em 30/08/2026: os quatro pedidos vindos do
+     cardapio digital nos ultimos tres dias somam exatamente R$ 285,00 e
+     sao os UNICOS sem linha de pagamento. O aviso estava certo; o
+     defeito era o pedido do cardapio gravar a forma com outro nome. */
+  r = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var a0 = document.getElementById('avisoPed'); if (a0) a0.remove();
+    fecharModal(); pararSino();
+    var din = (DB.formasPag || []).find(f => f.tipo === 'dinheiro') ||
+              (DB.formasPag || [])[0];
+    var cx = { id: 'cx_fp', turno: 'Turno 1', sucursalId: lojaAtualId(), inicial: 0,
+      operador: 'Maria', aberto: '30/08/2026 09:00', movimentos: [] };
+    DB.caixas = [cx];
+    var venda = function (n, tot, chave) {
+      var pg2 = { valor: tot }; pg2[chave] = din.id;
+      return { id: 'pd_' + n, numero: n, tipo: 'loja', fase: statusDoPapel('finalizado'),
+        clienteNome: 'Consumidor', caixaId: 'cx_fp', sucursalId: lojaAtualId(),
+        itens: [{ nome: 'Gelato', qtd: 1, unitario: tot, total: tot, opcoes: [] }],
+        total: tot, taxa: 0, desconto: 0, pagamentos: [pg2],
+        hora: '12:00', data: new Date().toISOString() };
+    };
+    /* uma venda do PDV (grava `forma`) e as QUATRO do cardapio, que
+       gravavam `formaId` — 285,00 no total, o valor exato da loja */
+    DB.pedidos = [venda(1, 100, 'forma'),
+      venda(2, 75, 'formaId'), venda(3, 68, 'formaId'),
+      venda(4, 120, 'formaId'), venda(5, 22, 'formaId')];
+    salvar();
+    var mov = movimentoCaixa('cx_fp');
+    var doCardapio = 75 + 68 + 120 + 22;
+    return { total: mov.total, semForma: mov.semForma, descoberto: mov.descoberto,
+      naForma: mov.porForma[din.id] || 0, doCardapio: doCardapio,
+      qtdForma: mov.qtdForma[din.id] || 0 };
+  });
+  t('as cinco vendas somam o faturamento inteiro', r.total === 385, r.total);
+  t('OS R$ 285 DO CARDÁPIO DEIXAM DE SER "SEM FORMA"',
+    r.semForma === 0, 'R$ ' + r.semForma + ' ainda sem forma');
+  t('e não sobra nada descoberto', r.descoberto === 0, r.descoberto);
+  t('eles entram na linha da forma certa, junto com a venda do PDV',
+    r.naForma === 385, r.naForma);
+  t('contadas as cinco vendas naquela forma', r.qtdForma === 5, r.qtdForma);
+  t('o valor do cardápio confere com o que a loja viu: R$ 285',
+    r.doCardapio === 285, r.doCardapio);
+
+  r = await pg.evaluate(() => {
+    /* pagamento SEM forma nenhuma continua sendo acusado — o aviso não
+       pode ser apagado, ele é que achou este defeito */
+    DB.pedidos[0].pagamentos = [{ valor: 100 }];
+    salvar();
+    var mov = movimentoCaixa('cx_fp');
+    return { semForma: mov.semForma,
+      escreve: /em vendas sem forma de pagamento/.test(String(window.telaFecharCaixa || '')) ||
+               /em vendas sem forma de pagamento/.test(document.documentElement.innerHTML) };
+  });
+  t('venda REALMENTE sem forma continua sendo acusada — o aviso fica',
+    r.semForma === 100, r.semForma);
+
+  r = await pg.evaluate(() => {
+    /* e a origem: o pedido aceito do cardápio nasce com o nome certo */
+    var f = String(window.aceitarPedidoOnline || '');
+    return { gravaForma: /pagamentos:\[\{forma:formaPorNome/.test(f),
+      naoGravaFormaId: !/pagamentos:\[\{formaId:/.test(f),
+      subida: /forma_id:fk\('formasPag',_f\)/.test(String(window.formaDoPagamento || '')) ||
+              true };
+  });
+  t('A ORIGEM CORRIGIDA: o pedido do cardápio grava `forma`, como o PDV',
+    r.gravaForma === true);
+  t('e não grava mais o nome trocado', r.naoGravaFormaId === true);
+  await pg.evaluate(() => {
+    DB.pedidos = []; DB.caixas = []; salvar();
+  });
+
   console.log('\n── 10n. O pedido do cardápio não chega e some\n');
   /* Ordem da loja: "toca uma vez só e some; tem que ficar tocando e
      ficar na tela até alguém aceitar". */

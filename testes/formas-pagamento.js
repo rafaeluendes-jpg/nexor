@@ -341,6 +341,49 @@ grupo('Itens 20 e 21 · 22 vendas e o fechamento que as reproduz');
     FORMAS.filter(f => !f.troco).every(f => perto(sistema[f.id], banco[f.id])));
 }
 
+/* ==========================================================
+   `forma` x `formaId` — A TERCEIRA VEZ QUE ESTE PAR MORDE
+
+   V136: a descida da nuvem gravava `formaId` e o sistema lia `forma`.
+   Depois: o relatorio de faturamento lia so `formaId`.
+   E em 30/08/2026: o pedido aceito do cardapio digital gravava
+   `formaId`, e o fechamento acusava "R$ 285,00 em vendas sem forma de
+   pagamento" — conferido no banco, eram exatamente os quatro pedidos
+   vindos do cardapio nos ultimos tres dias.
+
+   A regra que fecha a familia: QUEM GRAVA usa um nome so (`forma`);
+   QUEM LE passa por `formaDoPagamento`, que aceita os dois, para o que
+   ja esta gravado tambem sarar.
+   ========================================================== */
+console.log('\n── A forma do pagamento tem uma porta so de leitura\n');
+
+const fdp = new Function(corpoDaFuncao('formaDoPagamento', fonte) +
+  '\nreturn formaDoPagamento;')();
+
+t('lê o nome certo', fdp({ forma: 'fp_din' }) === 'fp_din');
+t('e aceita o antigo, para o que já está gravado sarar',
+  fdp({ formaId: 'fp_din' }) === 'fp_din');
+t('com os dois, o certo manda', fdp({ forma: 'fp_a', formaId: 'fp_b' }) === 'fp_a');
+t('pagamento sem forma nenhuma continua sem forma — o aviso não pode sumir',
+  fdp({ valor: 10 }) === '' && fdp(null) === '');
+
+console.log('\n── Ninguem mais GRAVA o nome trocado\n');
+
+/* o gerador de dados de demonstracao e a previa da impressao podem: nao
+   viram venda de verdade. Qualquer outro lugar, nao. */
+const gravam = (fonte.match(/pagamentos:\[\{\s*formaId:/g) || []).length;
+t('nenhuma venda de verdade nasce com `formaId`', gravam <= 2, gravam + ' ocorrência(s)');
+t('o pedido do cardápio digital grava `forma`',
+  /pagamentos:\[\{forma:formaPorNome/.test(corpoDaFuncao('aceitarPedidoOnline', fonte)));
+
+console.log('\n── E quem LE passa pela porta\n');
+
+t('o fechamento de caixa', /formaDoPagamento\(x\)/.test(corpoDaFuncao('movimentoCaixa', fonte)));
+t('e não lê mais direto do campo',
+  !/if\(!x\.forma\)/.test(corpoDaFuncao('movimentoCaixa', fonte)));
+t('a subida para a nuvem manda a forma achada pela porta',
+  /forma_id:fk\('formasPag',_f\)/.test(fonte) && /forma_ref:_f\|\|null/.test(fonte));
+
 /* ---------- resultado ---------- */
 console.log('\n' + '═'.repeat(52));
 console.log('Joia ' + versaoDoSistema() + ' · formas de pagamento');

@@ -1,6 +1,25 @@
 /* ==========================================================
    BLOCO 12 — FORMAS DE PAGAMENTO
    ========================================================== */
+/* ==========================================================
+   A FORMA DE UM PAGAMENTO TEM DOIS NOMES NO HISTORICO
+
+   `forma` e o nome certo, e o que o PDV sempre gravou. Mas ha registro
+   antigo com `formaId`: o pedido do cardapio digital gravou assim ate a
+   V256, e a descida da nuvem preenche os dois desde a V136.
+
+   Ler so um dos dois foi a causa de tres defeitos diferentes — venda
+   "sem forma" no fechamento, "nao informado" no relatorio, e venda
+   subindo para a nuvem com o vinculo vazio.
+
+   Esta funcao e a unica porta de leitura. Quem grava usa `forma`, um
+   nome so; quem le passa por aqui e aceita os dois, para o que ja esta
+   gravado tambem sarar sem mexer em dado nenhum.
+   ========================================================== */
+function formaDoPagamento(pg){
+  if(!pg)return '';
+  return pg.forma||pg.formaId||'';
+}
 function tipoPg(id){return TIPOS_PG.find(function(t){return t.id===id})||TIPOS_PG[6]}
 function corTipo(t){
   return t==='dinheiro'?'#0E8A46':t==='debito'?'#2C6FD1':t==='credito'?'#7B5FD4'
@@ -72,7 +91,7 @@ function moverForma(id,d){
 }
 async function excluirForma(id){
   var f=formaPag(id);
-  var usos=(DB.pedidos||[]).filter(function(p){return (p.pagamentos||[]).some(function(x){return x.forma===id})}).length;
+  var usos=(DB.pedidos||[]).filter(function(p){return (p.pagamentos||[]).some(function(x){return formaDoPagamento(x)===id})}).length;
   if(usos){toast('Esta forma já foi usada em '+usos+' pedido(s). Inative em vez de excluir.');return;}
   if(!await pergunta('Excluir a forma "'+f.nome+'"?'))return;
   DB.formasPag=DB.formasPag.filter(function(x){return x.id!==id}); declararExclusao('formasPag',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */

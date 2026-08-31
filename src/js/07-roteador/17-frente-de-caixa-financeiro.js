@@ -389,7 +389,7 @@ function desenharVerCaixa(){
       d.cancelamentos.map(function(x){
         var p=(DB.pedidos||[]).find(function(y){return y.id===x.pedidoId});
         var fp=p&&(p.pagamentos||[])[0];
-        var fn=fp?((FORMAS.find(function(f){return f.id===fp.forma})||{}).n||'—'):'—';
+        var fn=fp?((FORMAS.find(function(f){return f.id===formaDoPagamento(fp)})||{}).n||'—'):'—';
         return '<tr><td>'+E(x.hora||'—')+'</td>'+
           '<td>#'+E(String(x.numero||'—'))+'<small>'+E(fn)+'</small></td>'+
           '<td class="num vcMenos">R$ '+money(x.valor)+'</td>'+
@@ -439,7 +439,7 @@ function desenharVerCaixa(){
          d.ok.slice().sort(function(a,b){return (b.hora||'').localeCompare(a.hora||'')})
           .map(function(p){
             var fs=(p.pagamentos||[]).map(function(g){
-              return (FORMAS.find(function(f){return f.id===g.forma})||{}).n||'sem forma';
+              return (FORMAS.find(function(f){return f.id===formaDoPagamento(g)})||{}).n||'sem forma';
             }).join(' + ');
             return '<tr><td>#'+E(String(p.numero||''))+'</td><td>'+E(p.hora||'')+'</td>'+
               '<td>'+E(p.canal||'pdv')+'</td><td>'+E(fs||'—')+'</td>'+

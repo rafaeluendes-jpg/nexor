@@ -7973,7 +7973,8 @@ var MAPA=[
        resolve o vinculo quando o id chega vazio. A forma deixa de
        depender de o aparelho ter o mapa montado.
        ========================================================== */
-    campos:function(o){return {forma_id:fk('formasPag',o.forma),forma_ref:o.forma||null,
+    campos:function(o){var _f=formaDoPagamento(o);
+      return {forma_id:fk('formasPag',_f),forma_ref:_f||null,
       valor:n(o.valor),equipamento:o.equipamento||null}}}]},
 
  {col:'acertos',     tab:'acertos',
@@ -12379,7 +12380,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V255.0.0';
+var VERSAO='V256.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20659,7 +20660,7 @@ function verPedido(id){
   '<div style="margin-top:11px">'+
   ((p.pagamentos||[]).length
     ?(p.pagamentos||[]).map(function(x){
-       var f=FORMAS.find(function(y){return y.id===x.forma});
+       var f=FORMAS.find(function(y){return y.id===formaDoPagamento(x)});
        var nome=f?f.n:(x.nome||'forma não informada');
        return '<div class="linha"><span'+(f?'':' style="color:#B4593F"')+'>'+E(nome)+'</span>'+
          '<b>R$ '+money(x.valor)+'</b></div>'}).join('')
@@ -20702,15 +20703,19 @@ function movimentoCaixa(id){
      ========================================================== */
   var _semForma=0;
   ps.forEach(function(p){(p.pagamentos||[]).forEach(function(x){
-    if(!x.forma){ _semForma+=Number(x.valor)||0; return; }
-    porForma[x.forma]=(porForma[x.forma]||0)+x.valor;
-    qtdForma[x.forma]=(qtdForma[x.forma]||0)+1;
+    /* le pelos DOIS nomes: `formaId` e o do pedido do cardapio gravado
+       antes da V256, e ele acusava R$ 285 de venda "sem forma" que
+       tinha forma sim */
+    var _f=formaDoPagamento(x);
+    if(!_f){ _semForma+=Number(x.valor)||0; return; }
+    porForma[_f]=(porForma[_f]||0)+x.valor;
+    qtdForma[_f]=(qtdForma[_f]||0)+1;
     /* De qual APARELHO veio o dinheiro. Sem isso, o fechamento junta a
        maquininha do balcao com a do totem e o operador nao consegue
        bater com o extrato de cada uma. */
     var eq=x.equipamento||p.equipamento||(p.canal==='totem'?'totem':'balcao');
-    porEquip[x.forma]=porEquip[x.forma]||{};
-    porEquip[x.forma][eq]=(porEquip[x.forma][eq]||0)+x.valor;
+    porEquip[_f]=porEquip[_f]||{};
+    porEquip[_f][eq]=(porEquip[_f][eq]||0)+x.valor;
   })});
   var idDin=(FORMAS.find(function(f){return f.tipo==='dinheiro'})||{}).id;
   var _tot=ps.reduce(function(a,p){return a+p.total},0);
@@ -22997,6 +23002,25 @@ async function excluirConta(id){
 /* ==========================================================
    BLOCO 12 — FORMAS DE PAGAMENTO
    ========================================================== */
+/* ==========================================================
+   A FORMA DE UM PAGAMENTO TEM DOIS NOMES NO HISTORICO
+
+   `forma` e o nome certo, e o que o PDV sempre gravou. Mas ha registro
+   antigo com `formaId`: o pedido do cardapio digital gravou assim ate a
+   V256, e a descida da nuvem preenche os dois desde a V136.
+
+   Ler so um dos dois foi a causa de tres defeitos diferentes — venda
+   "sem forma" no fechamento, "nao informado" no relatorio, e venda
+   subindo para a nuvem com o vinculo vazio.
+
+   Esta funcao e a unica porta de leitura. Quem grava usa `forma`, um
+   nome so; quem le passa por aqui e aceita os dois, para o que ja esta
+   gravado tambem sarar sem mexer em dado nenhum.
+   ========================================================== */
+function formaDoPagamento(pg){
+  if(!pg)return '';
+  return pg.forma||pg.formaId||'';
+}
 function tipoPg(id){return TIPOS_PG.find(function(t){return t.id===id})||TIPOS_PG[6]}
 function corTipo(t){
   return t==='dinheiro'?'#0E8A46':t==='debito'?'#2C6FD1':t==='credito'?'#7B5FD4'
@@ -23068,7 +23092,7 @@ function moverForma(id,d){
 }
 async function excluirForma(id){
   var f=formaPag(id);
-  var usos=(DB.pedidos||[]).filter(function(p){return (p.pagamentos||[]).some(function(x){return x.forma===id})}).length;
+  var usos=(DB.pedidos||[]).filter(function(p){return (p.pagamentos||[]).some(function(x){return formaDoPagamento(x)===id})}).length;
   if(usos){toast('Esta forma já foi usada em '+usos+' pedido(s). Inative em vez de excluir.');return;}
   if(!await pergunta('Excluir a forma "'+f.nome+'"?'))return;
   DB.formasPag=DB.formasPag.filter(function(x){return x.id!==id}); declararExclusao('formasPag',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
@@ -27877,7 +27901,7 @@ function desenharVerCaixa(){
       d.cancelamentos.map(function(x){
         var p=(DB.pedidos||[]).find(function(y){return y.id===x.pedidoId});
         var fp=p&&(p.pagamentos||[])[0];
-        var fn=fp?((FORMAS.find(function(f){return f.id===fp.forma})||{}).n||'—'):'—';
+        var fn=fp?((FORMAS.find(function(f){return f.id===formaDoPagamento(fp)})||{}).n||'—'):'—';
         return '<tr><td>'+E(x.hora||'—')+'</td>'+
           '<td>#'+E(String(x.numero||'—'))+'<small>'+E(fn)+'</small></td>'+
           '<td class="num vcMenos">R$ '+money(x.valor)+'</td>'+
@@ -27927,7 +27951,7 @@ function desenharVerCaixa(){
          d.ok.slice().sort(function(a,b){return (b.hora||'').localeCompare(a.hora||'')})
           .map(function(p){
             var fs=(p.pagamentos||[]).map(function(g){
-              return (FORMAS.find(function(f){return f.id===g.forma})||{}).n||'sem forma';
+              return (FORMAS.find(function(f){return f.id===formaDoPagamento(g)})||{}).n||'sem forma';
             }).join(' + ');
             return '<tr><td>#'+E(String(p.numero||''))+'</td><td>'+E(p.hora||'')+'</td>'+
               '<td>'+E(p.canal||'pdv')+'</td><td>'+E(fs||'—')+'</td>'+
@@ -41870,7 +41894,30 @@ async function aceitarPedidoOnline(id){
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
     sucursalId:p.sucursal_id||'suc_matriz',
     total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
-    pagamentos:[{formaId:formaPorNome(p.forma_pagamento),valor:Number(p.total)||0}],
+    /* ==========================================================
+       ESTA LINHA ERA OS R$ 285 "SEM FORMA DE PAGAMENTO"
+
+       O sistema inteiro guarda a forma em `pagamento.forma` — o PDV
+       grava assim desde sempre (`addPag` faz `{forma:f,valor:...}`), e
+       o fechamento, o relatorio e o cupom leem assim. So o pedido
+       aceito do cardapio digital gravava `formaId`.
+
+       Resultado, conferido no banco em 30/08/2026: os quatro pedidos do
+       cardapio dos ultimos tres dias somam exatamente R$ 285,00 e sao
+       os unicos sem linha de pagamento — o mesmo valor que o
+       fechamento acusava. O aviso do fechamento estava CERTO; o defeito
+       era aqui.
+
+       Pior do que sumir da conferencia: no envio, `forma_id` e
+       `forma_ref` saiam nulos, e a venda subia para a nuvem sem forma
+       nenhuma.
+
+       E a terceira vez que este par de nomes morde o sistema (V136 e o
+       relatorio de faturamento foram as outras duas). Agora o nome e um
+       so na hora de gravar, e quem le aceita os dois — para o que ja
+       esta gravado tambem sarar.
+       ========================================================== */
+    pagamentos:[{forma:formaPorNome(p.forma_pagamento),valor:Number(p.total)||0}],
     obs:p.observacao||'',trocoPara:Number(p.troco_para)||0,
     entregadorId:(p.tipo==='entrega'&&entregadorPadrao()?entregadorPadrao().id:null),
     data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id,

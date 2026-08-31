@@ -96,6 +96,7 @@ const CRITICAS = [
   'irPagamento','finalizarVenda',
   'avisoJanelaImpressao','fecharAvisoImpressao','htmlPassosImpressao',
   'opcoesAtivas','chaveOp','perguntaCopiarOpcoes','copiarOpcoesEscolhidas',
+  'formaDoPagamento','movimentoCaixa',
   'avisarPedidoNovo','chamarSino','pararSino','tocarSino','buscarPedidosOnline',
   'verPedidosOnline','marcarPedidosNovos','limparSeloPedidos',
   'marcarOpAtiva','renderOps','lerOps','addOp',

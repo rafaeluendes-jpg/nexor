@@ -365,7 +365,30 @@ async function aceitarPedidoOnline(id){
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
     sucursalId:p.sucursal_id||'suc_matriz',
     total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
-    pagamentos:[{formaId:formaPorNome(p.forma_pagamento),valor:Number(p.total)||0}],
+    /* ==========================================================
+       ESTA LINHA ERA OS R$ 285 "SEM FORMA DE PAGAMENTO"
+
+       O sistema inteiro guarda a forma em `pagamento.forma` — o PDV
+       grava assim desde sempre (`addPag` faz `{forma:f,valor:...}`), e
+       o fechamento, o relatorio e o cupom leem assim. So o pedido
+       aceito do cardapio digital gravava `formaId`.
+
+       Resultado, conferido no banco em 30/08/2026: os quatro pedidos do
+       cardapio dos ultimos tres dias somam exatamente R$ 285,00 e sao
+       os unicos sem linha de pagamento — o mesmo valor que o
+       fechamento acusava. O aviso do fechamento estava CERTO; o defeito
+       era aqui.
+
+       Pior do que sumir da conferencia: no envio, `forma_id` e
+       `forma_ref` saiam nulos, e a venda subia para a nuvem sem forma
+       nenhuma.
+
+       E a terceira vez que este par de nomes morde o sistema (V136 e o
+       relatorio de faturamento foram as outras duas). Agora o nome e um
+       so na hora de gravar, e quem le aceita os dois — para o que ja
+       esta gravado tambem sarar.
+       ========================================================== */
+    pagamentos:[{forma:formaPorNome(p.forma_pagamento),valor:Number(p.total)||0}],
     obs:p.observacao||'',trocoPara:Number(p.troco_para)||0,
     entregadorId:(p.tipo==='entrega'&&entregadorPadrao()?entregadorPadrao().id:null),
     data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id,

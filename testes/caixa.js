@@ -17,7 +17,11 @@ const fs = require('fs');
 
 /* ---------- ambiente minimo que as funcoes reais esperam ---------- */
 const fonte = fs.readFileSync(ARQ, 'utf8');
-const REGRAS = ['esperadoCaixa', 'totalMov', 'movimentoCaixa', 'montarSnapshot'];
+/* `formaDoPagamento` entrou na lista quando o fechamento passou a ler a
+   forma pelos dois nomes (V256): a suite roda as funcoes DE VERDADE,
+   entao ela precisa carregar tambem o que elas chamam. */
+const REGRAS = ['esperadoCaixa', 'totalMov', 'formaDoPagamento',
+  'movimentoCaixa', 'montarSnapshot'];
 
 let DB, FORMAS, VERSAO;
 function ambiente() {
