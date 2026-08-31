@@ -1122,6 +1122,35 @@ function volta(linhas,fn,atual,col){
         logNuvem('caixa '+String(c.id).slice(-6)+' foi fechado em outro aparelho — '+
           'encerrado aqui tambem',true);
       }
+      /* ==========================================================
+         O CAIXA FOI FECHADO AQUI E A NUVEM NAO SABE
+
+         AQUI ESTAVA O CAIXA DE 30/08 QUE NAO FECHAVA NUNCA.
+
+         O fechamento foi feito, o comprovante saiu, `fechadoEm` ficou
+         gravado no aparelho. Mas o envio nao chegou a sair (aba
+         fechada, rede caida, sessao expirada). No dia seguinte o
+         aparelho BAIXA antes de enviar, e no fim do download
+         `anotarImpressoes()` anota a impressao da linha LOCAL — que ja
+         tem o fechamento — como se fosse "o ultimo envio confirmado
+         pela nuvem".
+
+         A partir dai a conta do envio (`impressao de agora` x
+         `impressao do ultimo envio`) da IGUAL, e o caixa fechado nunca
+         mais e enviado. Cada download seguinte reconfirma a mentira.
+         Por isso reabria todo dia e por isso refazer o fechamento na
+         mao nao resolvia: o segundo fechamento caia na mesma armadilha.
+
+         A marca abaixo diz a verdade: esta linha NAO esta na nuvem do
+         jeito que esta aqui. `anotarImpressoes()` pula quem tem a
+         marca, o envio seguinte manda o caixa, e o proprio envio apaga
+         a marca quando a nuvem confirma.
+         ========================================================== */
+      if(c.fechadoEm&&!naNuvem[c.id]){
+        c._fechamentoPendente=true;
+        logNuvem('caixa '+String(c.id).slice(-6)+' está fechado aqui e aberto na '+
+          'nuvem — o fechamento será reenviado',true);
+      }
     });
   })();
 
@@ -1442,6 +1471,27 @@ function volta(linhas,fn,atual,col){
      ========================================================== */
   NUVEM.sujo=false; DB._sujo=false;
   clearTimeout(_timerSync);
+  /* ==========================================================
+     UMA COISA O DOWNLOAD NAO PODE DECLARAR LIMPA
+
+     A linha acima existe por um bom motivo (o que acabou de chegar da
+     nuvem nao volta para ela). Mas ela apaga TAMBEM a pendencia que
+     este mesmo download acabou de descobrir: o caixa que esta fechado
+     aqui e aberto la. E o `clearTimeout` ainda cancela o envio que
+     estava agendado.
+
+     Sem este bloco, a marca `_fechamentoPendente` ficaria gravada
+     esperando outra mudanca qualquer para pegar carona. O fechamento
+     de 30/08 nao pode depender de a loja fazer mais uma venda para
+     subir: ele sobe agora.
+     ========================================================== */
+  try{
+    if((DB.caixas||[]).some(function(c){return c&&c._fechamentoPendente===true})){
+      NUVEM.sujo=true; DB._sujo=true;
+      logNuvem('há fechamento de caixa que ainda não está na nuvem — enviando',true);
+      agendarSync();
+    }
+  }catch(e){ _quieto(e,'fechamentoPendente'); }
   gravarLocal();
   return true;
 }

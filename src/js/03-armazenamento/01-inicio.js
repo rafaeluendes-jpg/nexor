@@ -1857,6 +1857,7 @@ function temMudancaNaoEnviada(col,x,i){
   try{
     if(!x||!x.id)return false;
     if(x._novoAqui===true)return true;
+    if(x._fechamentoPendente===true)return true;
     var E=(MAPA||[]).find(function(e){return e.col===col});
     if(!E)return false;
     var h=(DB._hash&&DB._hash[col])||{};
@@ -1878,6 +1879,7 @@ function anotarImpressoes(){
       var x=lista[i];
       if(x._novoAqui===true)continue;    /* nunca confirmado: tem de subir */
       if(x._filhoPendente===true)continue;/* tem filho que a nuvem nao tem */
+      if(x._fechamentoPendente===true)continue;/* fechado aqui, aberto na nuvem */
       if(!uu[x.id])continue;             /* a nuvem nao conhece: tem de subir */
       try{ h[x.id]=impressaoDaLinha(E,x,i); n++; }
       catch(e){ _quieto(e,'anotarImpressoes'); }
@@ -2566,7 +2568,8 @@ async function sincronizar(){
           _ids[r.ref_local]=r.id;DB._uuid[E2.col][r.ref_local]=r.id;
           /* confirmado pela nuvem: deixa de ser "so daqui" */
           var _o=lista.find(function(x){return x.id===r.ref_local});
-          if(_o){delete _o._novoAqui;delete _o._filhoPendente;}
+          if(_o){delete _o._novoAqui;delete _o._filhoPendente;
+                 delete _o._fechamentoPendente;}
         });
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};

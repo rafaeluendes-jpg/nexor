@@ -268,6 +268,117 @@ t('sem id, continua fechando o caixa em operação',
 t('fechar o esquecido não encerra a venda em andamento de hoje',
   /if\(_eraOAtual\)\{encerrarSessaoPDV\(\);telaPDV\(\);\}/.test(codigoNu));
 
+  console.log('\n── O caixa fechado aqui e aberto na nuvem (30/08/2026)\n');
+
+  /* ==========================================================
+     O DEFEITO QUE ESTA SUITE PASSOU A COBRIR
+
+     O fechamento de 30/08 saiu impresso (Total 5.117,04), ficou gravado
+     no computador da loja — e a nuvem seguiu com o caixa aberto.
+
+     A armadilha: no dia seguinte o aparelho BAIXA antes de enviar. A
+     volta preserva o fechamento local (`fechadoEm:x.fechado_txt||
+     fechadosAqui[ref]`), e logo depois `anotarImpressoes()` anota a
+     impressao dessa linha JA COM o fechamento, como se fosse "o ultimo
+     envio confirmado pela nuvem". A partir dai a conta do envio da
+     igual e o fechamento nunca mais sobe. Refazer o fechamento na mao
+     caia na mesma armadilha — por isso repetia todo dia.
+     ========================================================== */
+  const fechadoSoAqui = { id: 'cx_pc7vpk', operador: 'Rafael',
+    aberto: '30/08/2026 12:33', fechadoEm: '30/08/2026 22:48',
+    vendas: 5557.99, _loja: 'emp1' };
+
+  /* como era antes: a linha ganhava impressao e o envio se calava */
+  let mAntes = mundo([Object.assign({}, fechadoSoAqui)], { cx_pc7vpk: 'uuid-pc7' });
+  mAntes.motor.anotarImpressoes();
+  const impressaoMentirosa = mAntes.DB._hash.caixas.cx_pc7vpk;
+  const agoraIgual = mAntes.motor.impressaoDaLinha(MAPA[0], fechadoSoAqui, 0);
+  t('sem marca nenhuma, a impressao bate e o fechamento NAO subiria',
+    impressaoMentirosa === agoraIgual);
+
+  /* como e agora: a volta marca a linha e ela deixa de ser "confirmada" */
+  const marcado = Object.assign({}, fechadoSoAqui, { _fechamentoPendente: true });
+  let mDepois = mundo([marcado], { cx_pc7vpk: 'uuid-pc7' });
+  mDepois.motor.anotarImpressoes();
+  t('caixa fechado aqui e aberto na nuvem fica sem impressao',
+    !mDepois.DB._hash.caixas.cx_pc7vpk);
+  /* a regra que o envio usa: sem impressao guardada, a linha sobe */
+  const vaiSubirAgora =
+    (mDepois.DB._hash.caixas.cx_pc7vpk !== mDepois.motor.impressaoDaLinha(MAPA[0], marcado, 0)) ||
+    !mDepois.DB._uuid.caixas.cx_pc7vpk;
+  t('e por isso o fechamento sobe no envio seguinte', vaiSubirAgora === true);
+
+  t('a volta da nuvem compara o fechamento local com o da nuvem',
+    /if\(c\.fechadoEm&&!naNuvem\[c\.id\]\)\{/.test(codigoNu));
+  t('e marca o caixa como fechamento pendente',
+    /c\._fechamentoPendente=true;/.test(codigoNu));
+  /* o download termina com `NUVEM.sujo=false; DB._sujo=false; clearTimeout`.
+     Sem reabrir a pendencia DEPOIS disso, a marca ficaria esperando outra
+     mudanca qualquer para pegar carona — o fechamento nao pode depender de
+     a loja fazer mais uma venda para subir. */
+  t('e o download reabre o envio depois de se declarar limpo',
+    /NUVEM\.sujo=false; DB\._sujo=false;[\s\S]{0,400}_fechamentoPendente===true\}\)\)\{[\s\S]{0,200}agendarSync\(\);/.test(codigoNu));
+  t('anotarImpressoes pula quem tem a marca',
+    /if\(x\._fechamentoPendente===true\)continue;/.test(codigoNu));
+  t('a marca cai quando a nuvem confirma o envio',
+    /delete _o\._fechamentoPendente;/.test(codigoNu));
+  t('o download continua preservando o fechamento feito aqui',
+    /fechadoEm:x\.fechado_txt\|\|fechadosAqui\[ref\]\|\|null/.test(codigoNu));
+
+  /* a mesma pergunta pelo outro lado: "esta linha tem coisa nao enviada?" */
+  const fMud = new Function('ctx', `
+    var DB=ctx.DB, MAPA=ctx.MAPA, _quieto=function(){};
+    ${corpoDaFuncao('hashTexto', fonte)}
+    ${corpoDaFuncao('impressaoDaLinha', fonte)}
+    ${corpoDaFuncao('temMudancaNaoEnviada', fonte)}
+    return {temMudancaNaoEnviada:temMudancaNaoEnviada};
+  `);
+  const DBm = { _hash: { caixas: {} } };
+  DBm._hash.caixas.cx_pc7vpk = impressaoMentirosa;
+  const MUD = fMud({ DB: DBm, MAPA: MAPA });
+  t('com a marca, a linha e tratada como nao enviada mesmo com a impressao batendo',
+    MUD.temMudancaNaoEnviada('caixas', marcado, 0) === true);
+  t('sem a marca e com a impressao batendo, nada e reenviado a toa',
+    MUD.temMudancaNaoEnviada('caixas', fechadoSoAqui, 0) === false);
+
+  console.log('\n── O fechamento confere se chegou na nuvem\n');
+
+  const fConf = new Function('ctx', `
+    var NUVEM=ctx.NUVEM, api=ctx.api, _quieto=function(){};
+    ${corpoDaFuncao('fechamentoChegouNaNuvem', fonte)}
+    return {fechamentoChegouNaNuvem:fechamentoChegouNaNuvem};
+  `);
+  let urlConf = '';
+  const okNuvem = fConf({ NUVEM: { ligada: true, loja: 'emp1' },
+    api: async u => { urlConf = u; return [{ ref_local: 'cx_pc7vpk',
+      fechado_txt: '30/08/2026 22:48', fechado_em: '2026-08-30T22:48:00' }]; } });
+  const abertoNuvem = fConf({ NUVEM: { ligada: true, loja: 'emp1' },
+    api: async () => [{ ref_local: 'cx_pc7vpk', fechado_txt: null, fechado_em: null }] });
+  const semLinha = fConf({ NUVEM: { ligada: true, loja: 'emp1' }, api: async () => [] });
+  const semRede = fConf({ NUVEM: { ligada: true, loja: 'emp1' },
+    api: async () => { throw new Error('sem conexão'); } });
+  const desligada = fConf({ NUVEM: { ligada: false }, api: async () => [] });
+
+  t('a nuvem com o fechamento responde SIM',
+    (await okNuvem.fechamentoChegouNaNuvem('cx_pc7vpk')) === true);
+  t('e pergunta pelo caixa daquela empresa',
+    /ref_local=eq\.cx_pc7vpk/.test(urlConf) && /loja_id=eq\.emp1/.test(urlConf), urlConf);
+  t('a nuvem com o caixa aberto responde NAO',
+    (await abertoNuvem.fechamentoChegouNaNuvem('cx_pc7vpk')) === false);
+  t('caixa que nem existe na nuvem tambem e NAO',
+    (await semLinha.fechamentoChegouNaNuvem('cx_pc7vpk')) === false);
+  t('rede ruim responde "nao sei" — nunca acusa o que nao sabe',
+    (await semRede.fechamentoChegouNaNuvem('cx_pc7vpk')) === null);
+  t('nuvem desligada tambem responde "nao sei"',
+    (await desligada.fechamentoChegouNaNuvem('cx_pc7vpk')) === null);
+
+  t('o fechamento chama a conferencia em vez de so pedir sincronizacao',
+    /garantirFechamentoNaNuvem\(cx\)/.test(codigoNu));
+  t('a conferencia limpa a impressao mentirosa antes de reenviar',
+    /delete DB\._hash\.caixas\[cx\.id\]/.test(codigoNu));
+  t('e o operador ouve a verdade se mesmo assim nao subir',
+    /O fechamento ainda não chegou à nuvem/.test(fonte));
+
   console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                              : '✓ ' + testes + ' testes passaram') + '\n');
   process.exit(falhas ? 1 : 0);

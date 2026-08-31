@@ -8437,6 +8437,7 @@ function temMudancaNaoEnviada(col,x,i){
   try{
     if(!x||!x.id)return false;
     if(x._novoAqui===true)return true;
+    if(x._fechamentoPendente===true)return true;
     var E=(MAPA||[]).find(function(e){return e.col===col});
     if(!E)return false;
     var h=(DB._hash&&DB._hash[col])||{};
@@ -8458,6 +8459,7 @@ function anotarImpressoes(){
       var x=lista[i];
       if(x._novoAqui===true)continue;    /* nunca confirmado: tem de subir */
       if(x._filhoPendente===true)continue;/* tem filho que a nuvem nao tem */
+      if(x._fechamentoPendente===true)continue;/* fechado aqui, aberto na nuvem */
       if(!uu[x.id])continue;             /* a nuvem nao conhece: tem de subir */
       try{ h[x.id]=impressaoDaLinha(E,x,i); n++; }
       catch(e){ _quieto(e,'anotarImpressoes'); }
@@ -9146,7 +9148,8 @@ async function sincronizar(){
           _ids[r.ref_local]=r.id;DB._uuid[E2.col][r.ref_local]=r.id;
           /* confirmado pela nuvem: deixa de ser "so daqui" */
           var _o=lista.find(function(x){return x.id===r.ref_local});
-          if(_o){delete _o._novoAqui;delete _o._filhoPendente;}
+          if(_o){delete _o._novoAqui;delete _o._filhoPendente;
+                 delete _o._fechamentoPendente;}
         });
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};
@@ -10708,6 +10711,35 @@ function volta(linhas,fn,atual,col){
         logNuvem('caixa '+String(c.id).slice(-6)+' foi fechado em outro aparelho — '+
           'encerrado aqui tambem',true);
       }
+      /* ==========================================================
+         O CAIXA FOI FECHADO AQUI E A NUVEM NAO SABE
+
+         AQUI ESTAVA O CAIXA DE 30/08 QUE NAO FECHAVA NUNCA.
+
+         O fechamento foi feito, o comprovante saiu, `fechadoEm` ficou
+         gravado no aparelho. Mas o envio nao chegou a sair (aba
+         fechada, rede caida, sessao expirada). No dia seguinte o
+         aparelho BAIXA antes de enviar, e no fim do download
+         `anotarImpressoes()` anota a impressao da linha LOCAL — que ja
+         tem o fechamento — como se fosse "o ultimo envio confirmado
+         pela nuvem".
+
+         A partir dai a conta do envio (`impressao de agora` x
+         `impressao do ultimo envio`) da IGUAL, e o caixa fechado nunca
+         mais e enviado. Cada download seguinte reconfirma a mentira.
+         Por isso reabria todo dia e por isso refazer o fechamento na
+         mao nao resolvia: o segundo fechamento caia na mesma armadilha.
+
+         A marca abaixo diz a verdade: esta linha NAO esta na nuvem do
+         jeito que esta aqui. `anotarImpressoes()` pula quem tem a
+         marca, o envio seguinte manda o caixa, e o proprio envio apaga
+         a marca quando a nuvem confirma.
+         ========================================================== */
+      if(c.fechadoEm&&!naNuvem[c.id]){
+        c._fechamentoPendente=true;
+        logNuvem('caixa '+String(c.id).slice(-6)+' está fechado aqui e aberto na '+
+          'nuvem — o fechamento será reenviado',true);
+      }
     });
   })();
 
@@ -11028,6 +11060,27 @@ function volta(linhas,fn,atual,col){
      ========================================================== */
   NUVEM.sujo=false; DB._sujo=false;
   clearTimeout(_timerSync);
+  /* ==========================================================
+     UMA COISA O DOWNLOAD NAO PODE DECLARAR LIMPA
+
+     A linha acima existe por um bom motivo (o que acabou de chegar da
+     nuvem nao volta para ela). Mas ela apaga TAMBEM a pendencia que
+     este mesmo download acabou de descobrir: o caixa que esta fechado
+     aqui e aberto la. E o `clearTimeout` ainda cancela o envio que
+     estava agendado.
+
+     Sem este bloco, a marca `_fechamentoPendente` ficaria gravada
+     esperando outra mudanca qualquer para pegar carona. O fechamento
+     de 30/08 nao pode depender de a loja fazer mais uma venda para
+     subir: ele sobe agora.
+     ========================================================== */
+  try{
+    if((DB.caixas||[]).some(function(c){return c&&c._fechamentoPendente===true})){
+      NUVEM.sujo=true; DB._sujo=true;
+      logNuvem('há fechamento de caixa que ainda não está na nuvem — enviando',true);
+      agendarSync();
+    }
+  }catch(e){ _quieto(e,'fechamentoPendente'); }
   gravarLocal();
   return true;
 }
@@ -12380,7 +12433,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V257.0.0';
+var VERSAO='V258.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21385,6 +21438,94 @@ function pedeSenhaCaixa(pref){
    dia, pela tela de Frente de Caixa. Sem `id`, fecha o caixa em operacao,
    que e como o PDV sempre chamou. A conferencia, a fotografia e o
    lancamento no financeiro sao os mesmos nos dois caminhos. */
+/* ==========================================================
+   O CAIXA SO ESTA FECHADO QUANDO A NUVEM SABE
+
+   O fechamento gravava aqui, pedia a sincronizacao e ia embora sem
+   olhar o resultado. Se o envio nao saiu — aba fechada logo depois de
+   imprimir, internet caindo, sessao expirada — o caixa ficava fechado
+   NESTE aparelho e aberto para todo o resto: o relatorio, a outra
+   maquina do balcao e a abertura do dia seguinte.
+
+   Foi o que aconteceu em 30/08/2026 em Santa Fe do Sul. O comprovante
+   saiu (Total 5.117,04), o caixa ficou fechado no computador da loja e
+   a nuvem seguiu com ele aberto. Na manha seguinte a loja abriu com o
+   caixa de ontem no lugar do de hoje.
+
+   Agora o fechamento CONFERE. Le a linha do caixa no banco e olha se a
+   data de fechamento chegou la. Se nao chegou, marca a linha como
+   pendente (para o motor parar de achar que ela ja subiu), manda de
+   novo e confere outra vez. So depois disso e que o operador ouve
+   "fechado" — e, se mesmo assim nao subir, ele ouve a verdade, com o
+   que fazer.
+   ========================================================== */
+async function fechamentoChegouNaNuvem(id){
+  /* true = chegou · false = nao chegou · null = nao deu para saber */
+  try{
+    if(typeof NUVEM==='undefined'||!NUVEM.ligada||!NUVEM.loja)return null;
+    var r=await api('caixas?select=ref_local,fechado_txt,fechado_em&loja_id=eq.'+
+      encodeURIComponent(NUVEM.loja)+'&ref_local=eq.'+encodeURIComponent(id),'GET');
+    if(!r||!r.length)return false;         /* nem o caixa esta la */
+    return !!(r[0].fechado_txt||r[0].fechado_em);
+  }catch(e){ _quieto(e,'fechamentoChegouNaNuvem'); return null; }
+}
+async function esperarEnvio(){
+  var ate=Date.now()+30000;
+  while(Date.now()<ate&&(NUVEM.sincronizando||NUVEM.pendente)){
+    await new Promise(function(r){setTimeout(r,400)});
+  }
+}
+async function garantirFechamentoNaNuvem(cx){
+  if(!cx||!cx.id||!cx.fechadoEm)return false;
+  if(typeof NUVEM==='undefined'||!NUVEM.ligada){
+    toast('Caixa fechado neste aparelho. O fechamento sobe assim que a internet voltar.');
+    return false;
+  }
+  try{ await sincronizar(); }catch(e){ _quieto(e,'garantirFechamentoNaNuvem'); }
+  await esperarEnvio();
+  var la=await fechamentoChegouNaNuvem(cx.id);
+  if(la===true){
+    if(cx._fechamentoPendente){delete cx._fechamentoPendente;gravarDepois();}
+    return true;
+  }
+  if(la===null)return false;               /* sem resposta do banco: nao acusa */
+  /* nao chegou: a impressao guardada esta mentindo que ja subiu.
+     Tirar a marca e o que faz o envio seguinte mandar o caixa de novo. */
+  cx._fechamentoPendente=true;
+  try{ if(DB._hash&&DB._hash.caixas)delete DB._hash.caixas[cx.id]; }catch(e){}
+  DB._sujo=true;NUVEM.sujo=true;
+  gravarDepois();
+  try{ await sincronizar(); }catch(e){ _quieto(e,'garantirFechamentoNaNuvem'); }
+  await esperarEnvio();
+  la=await fechamentoChegouNaNuvem(cx.id);
+  if(la===true){ delete cx._fechamentoPendente; gravarDepois(); return true; }
+  /* ==========================================================
+     UM AVISO NUNCA POR CIMA DE OUTRO
+
+     `confirmar()` usa um unico `#cfOv` e um unico `window._respConfirma`.
+     Dois abertos ao mesmo tempo se atropelam: o botao do segundo fecha o
+     primeiro e a resposta se perde. Aqui isso aconteceria de verdade —
+     a pergunta "imprimir o fechamento?" abre 120 ms depois de fechar o
+     caixa, e esta conferencia leva segundos. Entao espera a tela ficar
+     livre antes de falar.
+     ========================================================== */
+  var _limite=Date.now()+300000;
+  while(Date.now()<_limite&&
+        (document.getElementById('cfOv')||document.getElementById('mdOv'))){
+    await new Promise(function(r){setTimeout(r,500)});
+  }
+  try{
+    await confirmar({titulo:'O fechamento ainda não chegou à nuvem',
+      texto:'O caixa está fechado neste computador e o comprovante é válido, '+
+        'mas o banco ainda mostra ele aberto. Enquanto isso, outro aparelho '+
+        'pode ver o caixa de hoje como se estivesse em aberto.',
+      aviso:'Deixe este computador ligado e com internet. O sistema continua '+
+        'tentando sozinho e sobe assim que a conexão permitir. '+
+        'Acompanhe em Sistema › Diagnóstico › Fila de envio.',
+      ok:'Entendi',cancelar:null});
+  }catch(e){ _quieto(e,'garantirFechamentoNaNuvem'); }
+  return false;
+}
 function fecharCaixa(id){
   var cx=id?(DB.caixas||[]).find(function(c){return c.id===id&&!c.fechadoEm})
            :caixaAberto();
@@ -21657,7 +21798,8 @@ function fecharCaixa(id){
        caixa de hoje nao tem nada com isso e continua onde estava. */
     if(_eraOAtual){encerrarSessaoPDV();telaPDV();}
     else if(typeof telaFrenteCaixa==='function')telaFrenteCaixa();
-    if(NUVEM.ligada)sincronizar();
+    try{garantirFechamentoNaNuvem(cx).catch(function(e){_quieto(e,'fecharCaixa')})}
+    catch(e){_quieto(e,'fecharCaixa')}
     avisarGerente(lojaAtualId(),'fechamento',msgFechamento(cx,resumoDoCaixa(cx)));
     /* ==========================================================
        O FECHAMENTO ACABA AQUI (itens 11 e 12)
