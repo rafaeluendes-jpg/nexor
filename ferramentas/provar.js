@@ -2071,6 +2071,163 @@ function servir() {
     var e = document.getElementById('mdOv'); if (e) e.remove();
   });
 
+  console.log('\n── 10p. A contagem de estoque de ONTEM, depois de vender hoje\n');
+  /* ==========================================================
+     O caso que o Rafael descreveu em 31/08/2026:
+
+       "se eu colocar que tenho dois copinho no dia trinta e um, quer
+        dizer que eu acabei meu dia com dois copos"
+
+     Ele conta de manhã, antes de abrir, o que sobrou da noite anterior.
+     A contagem tem de valer pelo FIM daquele dia — e o que a loja
+     vender depois continua valendo.
+     ========================================================== */
+  const rCt = await pg.evaluate(async () => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    var v = document.getElementById('viaImp'); if (v) v.remove();
+    fecharModal();
+    /* a confirmação é a única coisa dublada; o resto é o caminho real */
+    window.pergunta = async () => true;
+    window.confirmar = async () => true;
+    var hoje = hojeISO();
+    var d = new Date(); d.setDate(d.getDate() - 1);
+    var ontem = d.toISOString().slice(0, 10);
+
+    baseMov();
+    DB.contagens = []; DB.movEst = []; DB.pedidos = []; DB.caixas = [];
+    DB.insumos = [{ id: 'in_copo', nome: 'Copo P', unidade: 'un', custo: 0.5,
+                    controlaEstoque: true, codigo: '1' }];
+    DB.fichas = [];
+    DB.estoqueUn = []; DB.saldos = {};
+    /* a entrada de 10 copos ANTES da data contada, pelo caminho de
+       verdade: é a entrada que forma o custo médio, e é dele que sai o
+       valor da sobra e da perda */
+    var dAnte = new Date(); dAnte.setDate(dAnte.getDate() - 3);
+    var mvEnt = { id: 'mv_e', data: dAnte.toISOString().slice(0, 10), hora: '09:00',
+      sucursalId: lojaAtualId(), motivoId: 'mv_ent', identificacao: 'Compra',
+      origem: 'manual',
+      linhas: [{ insumoId: 'in_copo', nome: 'Copo P', unidade: 'un', qtd: 10,
+                 custo: 0.5, direcao: 'entrada' }] };
+    DB.movEst.push(mvEnt); aplicarMovimento(mvEnt); salvar();
+    espelharEstoque();
+    var antesDaVenda = (itemEstoque('in_copo') || {}).estoqueAtual;
+    var custoMedio = custoAtual(itemEstoque('in_copo'));
+
+    /* venda de HOJE: saíram 8 copos */
+    var mvVenda = { id: 'mv_v', data: hoje, hora: '14:00', sucursalId: lojaAtualId(),
+      motivoId: 'mv_venda', identificacao: 'Pedido #1', origem: 'venda',
+      linhas: [{ insumoId: 'in_copo', nome: 'Copo P', unidade: 'un', qtd: 8,
+                 custo: 0.5, direcao: 'saida' }] };
+    DB.movEst.push(mvVenda); aplicarMovimento(mvVenda); salvar();
+    espelharEstoque();
+    var hojeNoSistema = (itemEstoque('in_copo') || {}).estoqueAtual;
+
+    /* a loja abre a folha de contagem e escolhe ONTEM */
+    novaContagem();
+    var dataPadrao = document.getElementById('ctData').value;
+    mudarDataContagem(ontem);
+    var cab = document.querySelector('.ctTab thead').textContent;
+    var sisNaTela = document.querySelector('.ctTab tbody tr td:nth-child(4)').textContent.trim();
+
+    /* contou 12: sobraram 2 em relação ao que o sistema achava de ontem */
+    CT2.cont['in_copo'] = '12';
+    atualizaLinhaCont('in_copo');
+    var difNaTela = document.querySelector('.ctTab tbody tr .cDif2').textContent.trim();
+    var resumo = document.getElementById('ctResumo').textContent.replace(/\s+/g, ' ').trim();
+
+    await fecharContagem();
+    espelharEstoque();
+    var c = (DB.contagens || [])[0] || {};
+    var mvAjuste = (DB.movEst || []).find(m => m.origem === 'contagem') || {};
+    return {
+      ontem: ontem, hoje: hoje,
+      antesDaVenda: antesDaVenda, hojeNoSistema: hojeNoSistema,
+      custoMedio: custoMedio,
+      dataPadrao: dataPadrao, cabecalho: cab, sisNaTela: sisNaTela,
+      difNaTela: difNaTela, resumo: resumo,
+      contagemData: c.data, lancadaEm: c.lancadaEm, retroativa: c.retroativa,
+      itens: c.itens, ganho: c.ganho, perda: c.perda, resultado: c.resultado,
+      movData: mvAjuste.data, movIdent: mvAjuste.identificacao,
+      movLinhas: mvAjuste.linhas,
+      estoqueDepois: (itemEstoque('in_copo') || {}).estoqueAtual,
+      saldoDeOntemDepois: saldoNaData('in_copo', ontem, lojaAtualId()),
+      telaVoltou: CT2.aba, dataLimpa: CT2.data
+    };
+  });
+
+  t('o cenário montou: 10 copos ontem, 8 vendidos hoje',
+    rCt.antesDaVenda === 10 && rCt.hojeNoSistema === 2,
+    'ontem ' + rCt.antesDaVenda + ', hoje ' + rCt.hojeNoSistema);
+  t('e a entrada formou o custo médio de R$ 0,50', rCt.custoMedio === 0.5, rCt.custoMedio);
+  t('a folha de contagem abre no dia de hoje', rCt.dataPadrao === rCt.hoje, rCt.dataPadrao);
+  t('escolhendo ontem, a coluna diz de que dia é o saldo',
+    /Qtd\. em /.test(rCt.cabecalho), rCt.cabecalho.replace(/\s+/g, ' '));
+  t('E O SALDO MOSTRADO É O DE ONTEM (10), não o de hoje (2)',
+    /^10 /.test(rCt.sisNaTela), rCt.sisNaTela);
+  t('contando 12, a diferença é +2 — contra o saldo de ontem',
+    /^\+2 /.test(rCt.difNaTela), rCt.difNaTela);
+  t('e o resumo mostra a sobra em dinheiro',
+    /Sobra\s*R\$ 1,00/.test(rCt.resumo), rCt.resumo);
+
+  t('a contagem fica gravada com a DATA CONTADA, não com a de hoje',
+    rCt.contagemData === rCt.ontem, rCt.contagemData);
+  t('e guarda em que dia foi lançada', rCt.lancadaEm === rCt.hoje, rCt.lancadaEm);
+  t('marcada como retroativa', rCt.retroativa === true);
+  t('o movimento do ajuste também leva a data contada',
+    rCt.movData === rCt.ontem, rCt.movData);
+  t('e ele se identifica como contagem daquele dia',
+    /^Contagem /.test(rCt.movIdent || ''), rCt.movIdent);
+
+  t('O ESTOQUE DE HOJE VIRA 4, NÃO 12 — a venda de hoje não some',
+    rCt.estoqueDepois === 4, rCt.estoqueDepois);
+  t('e o saldo de ontem passa a ser exatamente o que foi contado',
+    rCt.saldoDeOntemDepois === 12, rCt.saldoDeOntemDepois);
+
+  t('o relatório da contagem tem o item, o sistema, o contado e a diferença',
+    !!(rCt.itens && rCt.itens[0] && rCt.itens[0].sistema === 10 &&
+       rCt.itens[0].conferido === 12 && rCt.itens[0].diferenca === 2),
+    JSON.stringify(rCt.itens));
+  t('a sobra sai em dinheiro', rCt.ganho === 1, rCt.ganho);
+  t('sem perda nenhuma nesta', rCt.perda === 0, rCt.perda);
+  t('e o resultado é a soma dos dois', rCt.resultado === 1, rCt.resultado);
+  t('a tela volta para o histórico', rCt.telaVoltou === 'hist');
+  t('e a data é limpa, para a próxima não herdar', rCt.dataLimpa === '');
+
+  /* a segunda contagem do MESMO dia não pode acusar a mesma divergência */
+  const rCt2 = await pg.evaluate(() => {
+    var d = new Date(); d.setDate(d.getDate() - 1);
+    var ontem = d.toISOString().slice(0, 10);
+    novaContagem(); mudarDataContagem(ontem);
+    return { sistema: sistemaNaContagem(itemEstoque('in_copo')) };
+  });
+  t('CONTANDO O MESMO DIA DE NOVO, o sistema já mostra 12 — o ajuste não se desfaz',
+    rCt2.sistema === 12, rCt2.sistema);
+
+  /* o histórico e a perda separada da sobra */
+  const rCt3 = await pg.evaluate(async () => {
+    CT2.aba = 'hist'; CT2.de = ''; CT2.ate = '';
+    telaContagem();
+    var h = document.getElementById('content').innerHTML;
+    verDivergencias((DB.contagens[0] || {}).id, 'sobra');
+    var m = document.getElementById('mdOv');
+    var txt = m ? m.textContent.replace(/\s+/g, ' ') : '';
+    fecharModal();
+    return { temSobra: /Sobra no período/.test(h), temPerda: /Perda no período/.test(h),
+      linha: /R\$ 1,00/.test(h), lancada: /lançada em/.test(h),
+      divergencia: txt };
+  });
+  t('o histórico separa sobra e perda do período', rCt3.temSobra && rCt3.temPerda);
+  t('a contagem aparece na lista com o resultado', rCt3.linha === true);
+  t('marcada como lançada em outro dia', rCt3.lancada === true);
+  await pg.evaluate(() => {
+    var d = new Date(); d.setDate(d.getDate() - 1);
+    novaContagem(); mudarDataContagem(d.toISOString().slice(0, 10));
+  });
+  await pg.screenshot({ path: FOTOS + '/contagem-com-data.png' });
+  t('e o olhinho abre o que sobrou, item a item',
+    /Copo P/.test(rCt3.divergencia) && /Itens que sobraram/.test(rCt3.divergencia),
+    rCt3.divergencia.slice(0, 160));
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

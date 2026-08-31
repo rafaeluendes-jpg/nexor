@@ -326,7 +326,45 @@ function exportarEstoque(){
    registrado no historico da contagem, para depois se saber de onde
    veio aquele preco.
    ========================================================== */
-var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:''};
+var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:''};
+/* ==========================================================
+   A CONTAGEM E DO FIM DAQUELE DIA
+
+   A loja conta de manha, antes de abrir, o que sobrou da noite
+   anterior. Se a contagem valer pelo dia de HOJE, ela esta errada assim
+   que a primeira venda sair: "tinha 2 copos" vira mentira depois de
+   vender os 2.
+
+   Entao a contagem tem data propria, e ela quer dizer sempre a mesma
+   coisa: ESTE e o estoque no fim daquele dia, depois de toda a venda.
+
+   A conta e em dois passos, e os dois importam:
+
+     1. a diferenca e achada contra o saldo DAQUELE DIA
+        (`saldoNaData` desfaz os movimentos posteriores);
+     2. a diferenca e aplicada ao estoque de HOJE.
+
+   Assim o que a loja vendeu entre a data da contagem e agora continua
+   valendo. Contar "2 copos em 31/08" e ter vendido 2 no dia 01 termina
+   com zero hoje — e nao com 2, que e o que aconteceria se a contagem
+   escrevesse o numero por cima do saldo de agora.
+
+   Esta funcao e a UNICA porta: a folha, o rodape, o resumo, o
+   "preencher com o sistema" e o fechamento perguntam todos aqui. Duas
+   contas do "saldo do sistema" divergiriam no primeiro dia em que
+   alguem mexesse numa delas.
+   ========================================================== */
+function dataDaContagem(){
+  var d=CT2.data||hojeISO();
+  return (d>hojeISO())?hojeISO():d;      /* contagem do futuro nao existe */
+}
+function contagemRetroativa(){ return dataDaContagem()!==hojeISO(); }
+function sistemaNaContagem(i){
+  if(!i)return 0;
+  if(!contagemRetroativa())return Number(i.estoqueAtual)||0;
+  try{ return Number(saldoNaData(i.id,dataDaContagem(),lojaAtualId()))||0; }
+  catch(e){ _quieto(e,'sistemaNaContagem'); return Number(i.estoqueAtual)||0; }
+}
 /* custo que vale na tela: o digitado, se houver; senao o do cadastro */
 function custoCont(i){
   if(!i)return 0;
@@ -393,7 +431,8 @@ function telaContagem(){
       var dif=(c.itens||[]).filter(function(x){return Math.abs(x.diferenca)>0.0001}).length;
       var nS=(c.itens||[]).filter(function(x){return x.diferenca>0.0001}).length;
       var nP=(c.itens||[]).filter(function(x){return x.diferenca<-0.0001}).length;
-      return '<tr><td><b>'+dataBR(c.data)+'</b><small>'+E(c.hora||'')+'</small></td>'+
+      return '<tr><td><b>'+dataBR(c.data)+'</b><small>'+E(c.hora||'')+
+       (c.retroativa&&c.lancadaEm?' · lançada em '+dataBR(c.lancadaEm):'')+'</small></td>'+
       '<td style="text-align:center">'+(c.itens||[]).length+'</td>'+
       '<td style="text-align:center">'+dif+'</td>'+
       '<td style="text-align:right"><b class="vg">R$ '+money(c.ganho)+'</b>'+
@@ -420,7 +459,21 @@ function mesAtualCT(){
 }
 function verTodasContagens(){CT2.de='';CT2.ate='';telaContagem();}
 function voltarContagem(){CT2.aba='hist';telaContagem();}
-function novaContagem(){CT2.aba='nova';CT2.cont={};CT2.busca='';CT2.grupo='';telaContagem();}
+function novaContagem(){
+  CT2.aba='nova';CT2.cont={};CT2.custo={};CT2.busca='';CT2.grupo='';
+  CT2.data=hojeISO();
+  telaContagem();
+}
+/* trocar a data muda o saldo com que TUDO na folha compara */
+function mudarDataContagem(v){
+  CT2.data=v||hojeISO();
+  if(CT2.data>hojeISO()){CT2.data=hojeISO();toast('A contagem não pode ser de um dia que ainda não chegou.');}
+  telaContagem();
+}
+function contagemDeOntem(){
+  var d=new Date();d.setDate(d.getDate()-1);
+  mudarDataContagem(d.toISOString().slice(0,10));
+}
 function verDivergencias(id,tipo){
   var c=(DB.contagens||[]).find(function(x){return x.id===id});
   if(!c)return;
@@ -473,11 +526,19 @@ function telaContagemNova(){
   $('content').innerHTML='<div class="etWrap ctCheia">'+
    '<div class="etTopo" style="flex:none">'+
     '<button class="btnP2" onclick="voltarContagem()">'+sv('cr2',13)+' Voltar</button>'+
-    '<div><h1>Nova contagem</h1><p>Informe a quantidade contada. O sistema calcula a diferença.</p></div>'+
+    '<div><h1>Nova contagem</h1><p>'+
+     (contagemRetroativa()
+      ?'Contagem de <b>'+dataBR(dataDaContagem())+'</b> — o que sobrou no fim daquele dia, '+
+       'depois de toda a venda. As vendas de depois continuam valendo.'
+      :'Informe a quantidade contada. O sistema calcula a diferença.')+'</p></div>'+
     '<div class="etTot" id="ctResumo">'+resumoContagem(lista)+'</div>'+
     '<button class="btnP2 ok" onclick="fecharContagem()">'+sv('check',13)+' Finalizar contagem</button>'+
    '</div>'+
    '<div class="etFiltros" style="flex:none">'+
+    '<div class="f2" style="max-width:172px"><label>Data da contagem</label>'+
+     '<input type="date" id="ctData" max="'+hojeISO()+'" value="'+dataDaContagem()+'" '+
+     'onchange="mudarDataContagem(this.value)"></div>'+
+    (contagemRetroativa()?'':'<button class="btnP2" onclick="contagemDeOntem()">Ontem</button>')+
     '<div class="f2 gw2"><label>Buscar</label><input id="ctB" value="'+E(CT2.busca)+'" placeholder="nome ou código"></div>'+
     '<div class="f2"><label>Grupo</label><select onchange="CT2.grupo=this.value;telaContagem()">'+
      '<option value="">Todos</option>'+
@@ -490,7 +551,8 @@ function telaContagemNova(){
    (lista.length?'<table class="etTab ctTab"><thead><tr>'+
     '<th style="width:82px">Código</th><th>Ingrediente</th>'+
     '<th style="width:130px">Grupo</th>'+
-    '<th style="width:118px;text-align:right">Qtd. no sistema</th>'+
+    '<th style="width:118px;text-align:right">'+
+     (contagemRetroativa()?'Qtd. em '+dataBR(dataDaContagem()):'Qtd. no sistema')+'</th>'+
     '<th style="width:130px;text-align:right">Qtd. conferida</th>'+
     '<th style="width:120px;text-align:right">Diferença</th>'+
     '<th style="width:118px">Custo médio</th>'+
@@ -508,7 +570,7 @@ function telaContagemNova(){
 }
 function linhaContagem(i){
   var g=grupoIng(i.grupoId);
-  var sis=Number(i.estoqueAtual)||0;
+  var sis=sistemaNaContagem(i);
   var c=CT2.cont[i.id];
   var tem=(c!==undefined&&c!=='');
   var d=tem?((parseFloat(c)||0)-sis):0;
@@ -533,7 +595,7 @@ function resumoContagem(lista){
     var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
     conf++;
-    var d=(parseFloat(c)||0)-(Number(i.estoqueAtual)||0);
+    var d=(parseFloat(c)||0)-sistemaNaContagem(i);
     var v=d*custoCont(i);
     if(d<0)perda+=v; else ganho+=v;
   });
@@ -546,7 +608,7 @@ function resumoContagem(lista){
 function atualizaLinhaCont(id){
   var i=itemEstoque(id);if(!i)return;
   var tr=document.getElementById('lc-'+id);if(!tr)return;
-  var sis=Number(i.estoqueAtual)||0;
+  var sis=sistemaNaContagem(i);
   var c=CT2.cont[id];
   var tem=(c!==undefined&&c!=='');
   var d=tem?((parseFloat(c)||0)-sis):0;
@@ -566,7 +628,7 @@ function atualizaContagem(){
   itensEstoque().forEach(function(i){
     var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
-    var d=(parseFloat(c)||0)-(Number(i.estoqueAtual)||0);
+    var d=(parseFloat(c)||0)-sistemaNaContagem(i);
     var v=d*custoCont(i);
     if(d<0)perda+=v; else ganho+=v;
   });
@@ -600,7 +662,7 @@ function ligarContagem(){
   }
 }
 function preencherContagem(){
-  itensEstoque().forEach(function(i){CT2.cont[i.id]=String(Number(i.estoqueAtual)||0)});
+  itensEstoque().forEach(function(i){CT2.cont[i.id]=String(sistemaNaContagem(i))});
   telaContagem();
   toast('Preenchido com o estoque do sistema — ajuste o que estiver diferente.');
 }
@@ -610,7 +672,7 @@ async function fecharContagem(){
   itensEstoque().forEach(function(i){
     var c=CT2.cont[i.id];
     if(c===undefined||c==='')return;
-    var sis=Number(i.estoqueAtual)||0;
+    var sis=sistemaNaContagem(i);
     var conf=parseFloat(c)||0;
     var d=+(conf-sis).toFixed(4);
     var cAnt=custoAtual(i), cNovo=custoCont(i);
@@ -636,8 +698,17 @@ async function fecharContagem(){
       (precos.length>8?'\n· e mais '+(precos.length-8)+'...':'')+
       '\n\nO novo custo passa a valer em todas as fichas técnicas que usam esses itens.';
   }
-  if(!await pergunta('Finalizar a contagem?\n\n'+det.length+' item(ns) conferido(s), '+linhas.length+' com diferença.\n'+
+  var _dt=dataDaContagem();
+  var _retro=contagemRetroativa();
+  if(!await pergunta('Finalizar a contagem?\n\n'+
+    'Data da contagem: '+dataBR(_dt)+
+    (_retro?' (fim do dia, depois de toda a venda)':' (hoje)')+'\n\n'+
+    det.length+' item(ns) conferido(s), '+linhas.length+' com diferença.\n'+
     'Sobra R$ '+money(ganho)+' · Perda R$ '+money(Math.abs(perda))+'\n\n'+
+    (_retro
+      ?'A diferença foi achada contra o estoque de '+dataBR(_dt)+' e será aplicada ao '+
+       'estoque de hoje — o que a loja vendeu depois daquele dia continua valendo.\n\n'
+      :'')+
     'O estoque será ajustado e o lançamento vai para a movimentação.'+avisoPreco))return;
   /* grava o custo antes do ajuste, para a movimentacao ja usar o valor novo */
   precos.forEach(function(p2){
@@ -645,18 +716,30 @@ async function fecharContagem(){
     p2.item.custoUltima=p2.para;
     p2.item.modoCusto='manual';
   });
-  var ag=new Date();
-  var mov={id:uid('mv'),data:hojeISO(),hora:agoraHM(),motivoId:'mv_cont',
-    identificacao:'Contagem '+ag.toLocaleDateString('pt-BR'),
-    obs:det.length+' itens conferidos',linhas:linhas,origem:'contagem'};
+  /* ==========================================================
+     O AJUSTE LEVA A DATA DA CONTAGEM, NAO A DE HOJE
+
+     `saldoNaData` desfaz os movimentos POSTERIORES a data pedida. Se o
+     ajuste ficasse com a data de hoje, ele seria desfeito junto — e uma
+     segunda contagem do mesmo dia mostraria a mesma divergencia de
+     novo, como se o primeiro ajuste nunca tivesse acontecido.
+
+     Com a data da contagem, o saldo daquele dia passa a ser exatamente
+     o que foi contado, e o de hoje ja nasce corrigido.
+     ========================================================== */
+  var mov={id:uid('mv'),data:_dt,hora:agoraHM(),motivoId:'mv_cont',
+    identificacao:'Contagem '+dataBR(_dt),
+    obs:det.length+' itens conferidos'+(_retro?' · lançada em '+dataBR(hojeISO()):''),
+    linhas:linhas,origem:'contagem'};
   DB.movEst.push(mov);
   aplicarMovimento(mov);
-  DB.contagens.push({id:uid('ct'),data:hojeISO(),hora:agoraHM(),movId:mov.id,
+  DB.contagens.push({id:uid('ct'),data:_dt,hora:agoraHM(),
+    lancadaEm:hojeISO(),retroativa:_retro,movId:mov.id,
     itens:det,perda:+perda.toFixed(2),ganho:+ganho.toFixed(2),
     resultado:+(ganho+perda).toFixed(2),loja:lojaAtual(),sucursalId:lojaAtualId(),
     precos:precos.map(function(p2){return {insumoId:p2.item.id,nome:p2.item.nome,de:p2.de,para:p2.para}})});
-  CT2.cont={};CT2.custo={};CT2.aba='hist';salvar();telaContagem();
-  toast('Contagem finalizada. Estoque ajustado'+
+  CT2.cont={};CT2.custo={};CT2.data='';CT2.aba='hist';salvar();telaContagem();
+  toast('Contagem de '+dataBR(_dt)+' finalizada. Estoque ajustado'+
     (precos.length?', '+precos.length+' custo(s) atualizado(s)':'')+' e lançado na movimentação.');
 }
 function verContagem(id){
@@ -698,7 +781,11 @@ function verContagem(id){
 function exportarContagem(id){
   var c=(DB.contagens||[]).find(function(x){return x.id===id});
   if(!c)return;
-  var l=[['Ingrediente','Unidade','No sistema','Conferido','Diferenca','Custo','Valor']];
+  /* a data da contagem abre o arquivo: sem ela, quem recebe o csv nao
+     sabe se aquele estoque e o do fim do dia 31 ou o do dia 01 */
+  var l=[['Contagem de',dataBR(c.data)+
+    (c.retroativa&&c.lancadaEm?' (lancada em '+dataBR(c.lancadaEm)+')':'')],[],
+    ['Ingrediente','Unidade','No sistema','Conferido','Diferenca','Custo','Valor']];
   (c.itens||[]).forEach(function(x){
     l.push([x.nome,un(x.unidade).ab,x.sistema,x.conferido,x.diferenca,
       String(x.custo).replace('.',','),String(x.valor).replace('.',',')]);
