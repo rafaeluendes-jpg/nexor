@@ -569,10 +569,51 @@ async function faturarPedidoBase(id){
    de rendimento e o destino esta em outra unidade de medida. Recalcular por
    fora daria diferenca no dia em que alguem mexesse no fator.
    ========================================================== */
+/* ==========================================================
+   CAIXA NAO E UNIDADE
+
+   O pedido de base e feito em CAIXAS ("3 cx"), e a tela de Bases e
+   Valores diz quantas unidades tem a caixa ("Qtde/cx") e quanto vale
+   cada unidade ("Valor unitario"). A conta do dinheiro sempre usou as
+   duas: caixa x unidades x preco = valor da caixa, e o total do pedido
+   saia certo.
+
+   A conta da QUANTIDADE, nao. Producao, saida do estoque da matriz e
+   entrada no estoque da loja recebiam o numero de caixas como se fosse
+   a quantidade na unidade da ficha. Com Qtde/cx = 10, um pedido de 3
+   caixas produzia 3 kg em vez de 30, consumia um decimo dos ingredientes
+   e chegava na loja como 3 kg a R$ 120/kg em vez de 30 kg a R$ 12/kg. O
+   dinheiro batia; o estoque e o custo por quilo, nao.
+
+   Enquanto toda base esteve cadastrada com Qtde/cx = 1 — como estao as
+   54 de hoje — caixa e unidade eram a mesma coisa e nada aparecia. O
+   defeito acordaria no dia em que a matriz cadastrasse a primeira caixa
+   com mais de uma unidade.
+
+   Estas duas funcoes sao a unica porta: qualquer lugar que precise da
+   quantidade de verdade pergunta aqui.
+   ========================================================== */
+function porCaixaDoItem(i){
+  var n = Number(i && i.porCaixa);
+  if (n > 0) return n;                     /* gravado no envio: manda ele */
+  /* pedido antigo, de antes desta versao: tenta o catalogo, senao 1 */
+  var b = (DB.basesCat || []).find(function (x) { return x.id === (i || {}).baseRef; });
+  return Number(b && b.qtdCaixa) || 1;
+}
+function unidadesDoItem(i){
+  return (Number(i && i.qtd) || 0) * porCaixaDoItem(i);
+}
+/* preco de UMA unidade (o item guarda o valor da caixa em valorUnit) */
+function precoUnitDoItem(i){
+  var p = Number(i && i.precoUnit);
+  if (p > 0) return p;
+  var cx = porCaixaDoItem(i);
+  return cx ? +((Number(i && i.valorUnit) || 0) / cx).toFixed(6) : 0;
+}
 function itensSaidaBases(p){
   return itensComFicha(p).map(function (i) {
     return { tipo: 'ficha', refId: i.fichaRef, unidade: '',
-             qtd: Number(i.qtd) || 0, custo: 0, obs: i.baseNome };
+             qtd: unidadesDoItem(i), custo: 0, obs: i.baseNome };
   });
 }
 function linhasSaidaBases(p){
@@ -627,8 +668,8 @@ async function receberPedidoBase(id){
   (p.itens || []).forEach(function (it) {
     var f = (DB.fichas || []).find(function (x) { return x.id === it.fichaRef; });
     if (f) itens.push({ tipo: 'ficha', refId: f.id, unidade: f.unidade || 'un',
-                        qtd: Number(it.qtd) || 0,
-                        custo: Number(it.valorUnit) || 0, obs: it.baseNome });
+                        qtd: unidadesDoItem(it),
+                        custo: precoUnitDoItem(it), obs: it.baseNome });
     else semItem.push(it);
   });
   if (!itens.length) {
@@ -751,7 +792,7 @@ async function produzirPedido(id){
 
   var itensProd = comFicha.map(function (i) {
     return { tipo: 'ficha', refId: i.fichaRef, unidade: '',
-             qtd: Number(i.qtd) || 0, custo: 0, obs: i.baseNome };
+             qtd: unidadesDoItem(i), custo: 0, obs: i.baseNome };
   });
   var linhas = montarLinhas(itensProd, 'producao');
   if (!linhas.length) { toast('As fichas ligadas não consomem insumo nenhum.'); return; }
@@ -1387,7 +1428,21 @@ async function enviarPedidoBase(){
     if (q <= 0) return;
     var vCx = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
     esc.push({ id: uid('pbi'), baseRef: b.id, baseNome: b.nome,
-               fichaRef: b.fichaRef || '', qtd: q, valorUnit: vCx, total: q * vCx });
+               fichaRef: b.fichaRef || '', qtd: q, valorUnit: vCx, total: q * vCx,
+               /* ==========================================================
+                  A CAIXA VIAJA JUNTO COM O PEDIDO
+
+                  O pedido e feito em CAIXAS. Producao, saida do estoque da
+                  matriz e entrada no estoque da loja trabalham na unidade da
+                  ficha. Sem o tamanho da caixa gravado aqui, a conversao
+                  teria de ir buscar no catalogo — e o catalogo muda: bastava
+                  a matriz corrigir o "Qtde/cx" de uma base para um pedido
+                  antigo passar a valer outra quantidade.
+
+                  Fica gravado no item, no momento do envio, junto com o preco
+                  por unidade. O que foi pedido nao muda depois.
+                  ========================================================== */
+               porCaixa: Number(b.qtdCaixa) || 1, precoUnit: Number(b.valorUnit) || 0 });
   });
   if (!esc.length) { PB.erro = 'Informe a quantidade de ao menos um item.'; return telaPedidoBase(); }
   if (!String(PB.responsavel || '').trim()) {

@@ -233,6 +233,55 @@ t('conta as unidades diferentes',         porSabor[0].nUnidades === 2);
 t('o mês sai da data do pedido',          rel.mesDoPedido({ data: '2026-08-24' }) === '2026-08');
 t('e vira nome legível',                  rel.nomeDoMes('2026-08') === 'agosto de 2026');
 
+console.log('\n── Caixa não é unidade\n');
+
+/* ==========================================================
+   31/08/2026. Na varredura dos cadastros: o pedido e feito em CAIXAS, e
+   "Qtde/cx" diz quantas unidades tem a caixa. A conta do DINHEIRO usava
+   as duas (caixa x unidades x preco). A conta da QUANTIDADE, nao:
+   producao, saida da matriz e entrada na loja recebiam o numero de
+   caixas como se fosse a quantidade na unidade da ficha.
+
+   Com Qtde/cx = 10, um pedido de 3 caixas produzia 3 kg em vez de 30 e
+   consumia um decimo dos ingredientes. As 54 bases de hoje estao com
+   Qtde/cx = 1 — por isso nada aparecia.
+   ========================================================== */
+const conv = rodar(['porCaixaDoItem', 'unidadesDoItem', 'precoUnitDoItem'],
+  { basesCat: [{ id: 'bc_velha', qtdCaixa: 6, valorUnit: 5 }] }, amb);
+
+const itemNovo = { baseRef: 'bc1', qtd: 3, porCaixa: 10, precoUnit: 12, valorUnit: 120 };
+t('a caixa gravada no pedido é a que vale', conv.porCaixaDoItem(itemNovo) === 10);
+t('3 caixas de 10 são 30 unidades',         conv.unidadesDoItem(itemNovo) === 30);
+t('e o preço por unidade é o da base',      conv.precoUnitDoItem(itemNovo) === 12);
+
+/* pedido feito ANTES desta versão: não tem porCaixa gravado */
+const itemVelho = { baseRef: 'bc_velha', qtd: 2, valorUnit: 30 };
+t('pedido antigo busca a caixa no catálogo',  conv.porCaixaDoItem(itemVelho) === 6);
+t('e converte a quantidade com ela',          conv.unidadesDoItem(itemVelho) === 12);
+t('o preço unitário sai do valor da caixa',   conv.precoUnitDoItem(itemVelho) === 5);
+
+/* base que sumiu do catálogo: cai em 1, que é o que sempre valeu */
+const itemOrfao = { baseRef: 'nao_existe', qtd: 4, valorUnit: 9 };
+t('base fora do catálogo vale 1 por caixa',   conv.porCaixaDoItem(itemOrfao) === 1);
+t('e aí caixa e unidade são a mesma coisa',   conv.unidadesDoItem(itemOrfao) === 4);
+t('sem item nenhum, não quebra',              conv.unidadesDoItem(null) === 0);
+
+/* o caso de hoje: com Qtde/cx = 1 nada muda — a correção é neutra */
+const hojeItem = { baseRef: 'bc1', qtd: 3, porCaixa: 1, precoUnit: 86, valorUnit: 86 };
+t('com Qtde/cx = 1 a quantidade não muda',    conv.unidadesDoItem(hojeItem) === 3);
+t('nem o preço por unidade',                  conv.precoUnitDoItem(hojeItem) === 86);
+
+/* e o envio passou a gravar as duas coisas no item */
+const nu = fonte.replace(/\/\*[\s\S]*?\*\//g, '');
+t('o envio grava o tamanho da caixa no item',
+  /porCaixa: Number\(b\.qtdCaixa\) \|\| 1/.test(nu));
+t('e o preço por unidade',        /precoUnit: Number\(b\.valorUnit\) \|\| 0/.test(nu));
+t('a produção usa as unidades',   /qtd: unidadesDoItem\(i\), custo: 0, obs: i\.baseNome/.test(nu));
+t('a saída da matriz também',
+  (nu.match(/qtd: unidadesDoItem\(i\)/g) || []).length >= 2);
+t('e a entrada na loja usa unidade e preço unitário',
+  /qtd: unidadesDoItem\(it\),\s*custo: precoUnitDoItem\(it\)/.test(nu));
+
 console.log('\n════════════════════════════════════════════════════');
 console.log('Joia ' + versaoDoSistema() + ' · pedido de base');
 console.log(testes - falhas + ' de ' + testes + ' testes passaram');

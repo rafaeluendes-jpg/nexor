@@ -170,15 +170,51 @@ async function excluirSub(pid,k){
 /* ==========================================================
    CONTAS BANCÁRIAS
    ========================================================== */
+/* ==========================================================
+   O SALDO DA CONTA LIA A COLECAO ERRADA
+
+   Esta funcao somava `DB.lancamentos` — a colecao LEGADA, que
+   `baseFin()` migra para `DB.lancFin` e que nasce vazia em qualquer
+   loja de hoje. Pior: ela procurava `tipo` valendo 'entrada'/'saida', e
+   o financeiro de verdade grava 'receita'/'despesa'. Dois motivos para
+   nunca achar nada.
+
+   O efeito: o saldo de todo banco cadastrado ficava congelado no saldo
+   inicial para sempre. Vendia no cartao, o dinheiro caia na conta, o
+   lancamento nascia certo — e a tela de Contas Bancarias, a lista de
+   contas do lancamento, a caixa de escolha da forma de pagamento e o
+   acerto com entregadores continuavam mostrando o valor do primeiro dia.
+
+   Agora le `DB.lancFin`, que e onde o financeiro mora, com a mesma
+   regra que a conciliacao bancaria ja usava:
+     - so entra o que esta PAGO (previsto nao e saldo em banco);
+     - receita soma, despesa desce;
+     - transferencia desce da conta de origem e soma na de destino.
+   ========================================================== */
 function saldoConta(c){
+  if(!c)return 0;
   if(c.fixa==='caixa'){
     var cx=caixaAberto();
     return cx?esperadoCaixa(cx):0;
   }
-  var mov=(DB.lancamentos||[]).filter(function(l){return l.contaId===c.id});
-  var e=mov.filter(function(l){return l.tipo==='entrada'}).reduce(function(a,l){return a+l.valor},0);
-  var s=mov.filter(function(l){return l.tipo==='saida'}).reduce(function(a,l){return a+l.valor},0);
-  return (Number(c.saldoInicial)||0)+e-s;
+  var s=Number(c.saldoInicial)||0;
+  (DB.lancFin||[]).forEach(function(l){
+    if(!l||!l.pago)return;                 /* a receber/a pagar nao e saldo */
+    var v=Number(l.valor)||0;
+    if(l.tipo==='transferencia'){
+      if(l.contaId===c.id)s-=v;
+      if(l.contaDestinoId===c.id)s+=v;
+      return;
+    }
+    if(l.contaId!==c.id)return;
+    if(l.tipo==='receita')s+=v; else s-=v;
+  });
+  return s;
+}
+/* quantos lancamentos financeiros dependem desta conta (pagos ou nao) */
+function lancamentosDaConta(id){
+  return (DB.lancFin||[]).filter(function(l){
+    return l&&(l.contaId===id||l.contaDestinoId===id);}).length;
 }
 function telaContas(){
   baseCat();
@@ -292,8 +328,17 @@ function modalConta(id){
 async function excluirConta(id){
   var c=DB.contas.find(function(x){return x.id===id});
   if(c.fixa){toast('Contas fixas do sistema não podem ser excluídas.');return;}
-  var usos=(DB.lancamentos||[]).filter(function(l){return l.contaId===id}).length;
+  /* a mesma correcao do saldo: quem conta e o financeiro de verdade.
+     Lendo a colecao legada, uma conta com centenas de lancamentos era
+     apagada sem aviso e eles ficavam orfaos. */
+  var usos=lancamentosDaConta(id);
   if(usos){toast('Esta conta tem '+usos+' lançamento(s). Não é possível excluir.');return;}
+  var formas=(DB.formasPag||[]).filter(function(f){return f.contaId===id});
+  if(formas.length){
+    toast('Esta conta é o destino de '+formas.length+' forma(s) de pagamento ('+
+      formas.map(function(f){return f.nome}).join(', ')+'). Troque o destino antes de excluir.');
+    return;
+  }
   if(!await pergunta('Excluir a conta "'+c.nome+'"?'))return;
   DB.contas=DB.contas.filter(function(x){return x.id!==id}); declararExclusao('contas',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();telaContas();toast('Conta excluída.');

@@ -1,0 +1,459 @@
+/* ==========================================================
+   VARREDURA DOS CADASTROS — pedida pelo Rafael em 31/08/2026
+
+   Não confere se a tela abre (varrer.js já faz isso). Confere se o
+   VÍNCULO funciona: o que eu cadastro aqui chega lá.
+
+     1. banco/conta      → saldo, persistência
+     2. forma de pagamento → taxa, prazo e a conta de destino
+     3. o vínculo de verdade: vendi no crédito, o líquido caiu na conta?
+     4. usuário/operador → senha, permissão, unidade
+     5. pedido de base   → envia, a matriz muda, o sino da loja avisa
+     6. baixa manual     → registra e desce do estoque
+   ========================================================== */
+process.env.TZ='America/Sao_Paulo';
+const fs=require('fs'),path=require('path'),http=require('http');
+const {chromium}=require('playwright');
+const RAIZ='/home/user/nexor';
+const SEMENTE=fs.readFileSync(path.join(RAIZ,'ferramentas','semente-loja.js'),'utf8');
+const TIPOS={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.json':'application/json'};
+let falhas=0,feitos=0; const problemas=[];
+function t(n,ok,d){feitos++;if(ok)console.log('   ok   '+n);
+  else{falhas++;problemas.push(n+(d!==undefined?'  → '+d:''));console.log('   FALHOU  '+n+(d!==undefined?'  → '+d:''));}}
+function servir(){return new Promise(ok=>{const s=http.createServer((rq,rs)=>{
+  let p=decodeURIComponent(rq.url.split('?')[0]); if(p==='/')p='/index.html';
+  const f=path.join(RAIZ,p);
+  if(!f.startsWith(RAIZ)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){rs.writeHead(404);return rs.end('x');}
+  rs.writeHead(200,{'Content-Type':TIPOS[path.extname(f)]||'application/octet-stream'});
+  rs.end(fs.readFileSync(f));});s.listen(0,'127.0.0.1',()=>ok({s,porta:s.address().port}));});}
+
+(async function(){
+const {s,porta}=await servir();
+const nav=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+const ctx=await nav.newContext({viewport:{width:1440,height:900},locale:'pt-BR',timezoneId:'America/Sao_Paulo'});
+const pg=await ctx.newPage();
+const erros=[];
+pg.on('pageerror',e=>erros.push(e.message.slice(0,180)));
+pg.on('console',m=>{if(m.type()==='error'&&!/Failed to fetch|net::ERR|ServiceWorker|sem conexão/i.test(m.text()))erros.push(m.text().slice(0,180));});
+await pg.route('**/*',r=>r.request().url().startsWith('http://127.0.0.1:'+porta)
+  ? r.continue() : r.fulfill({status:200,contentType:'text/javascript',body:'/*x*/'}));
+
+async function entrar(){
+  await pg.goto('http://127.0.0.1:'+porta+'/index.html',{waitUntil:'domcontentloaded'});
+  await pg.waitForTimeout(2500);
+  await pg.evaluate(()=>{ window.print=()=>{}; window.alert=()=>{};
+    window.confirmar=async()=>true; window.pergunta=async()=>true; window.confirm=()=>true;
+    try{SESSAO.login='admin';SESSAO.usuarioId='usr_mestre';}catch(e){}
+    abrirSessao(); });
+  await pg.waitForTimeout(400);
+}
+await entrar();
+await pg.evaluate(SEMENTE);
+await pg.evaluate(()=>{try{localStorage.setItem('nexor_impressao_ok','1')}catch(e){}});
+
+/* ---------------------------------------------------------- */
+console.log('\n══ 1. CADASTRO DE BANCO / CONTA\n');
+let r=await pg.evaluate(()=>{
+  telaContas();
+  var antes=(DB.contas||[]).length;
+  modalConta();
+  var abriu=!!document.getElementById('mdOv');
+  document.getElementById('cbN').value='Nubank PJ Santa Fé';
+  document.getElementById('cbS').value='1500';
+  document.getElementById('cbA').value='0001';
+  document.getElementById('cbC').value='12345-6';
+  var bt=[].slice.call(document.querySelectorAll('#mdOv button'))
+    .find(x=>/^Salvar$/i.test(x.textContent.trim()));
+  bt.click();
+  var c=(DB.contas||[]).find(x=>x.nome==='Nubank PJ Santa Fé');
+  return {abriu:abriu, criou:!!c, id:c&&c.id, saldoIni:c&&c.saldoInicial,
+    ag:c&&c.agencia, num:c&&c.numero, banco:c&&c.banco,
+    saldoCalc:c?saldoConta(c):null, total:(DB.contas||[]).length-antes,
+    naTela:/Nubank PJ Santa Fé/.test(document.getElementById('content').innerHTML)};
+});
+t('o modal de conta abre', r.abriu===true);
+t('a conta é criada com nome, agência e conta', r.criou&&r.ag==='0001'&&r.num==='12345-6', JSON.stringify(r));
+t('o banco escolhido fica gravado', !!r.banco, r.banco);
+t('o saldo inicial entra', r.saldoIni===1500, r.saldoIni);
+t('o saldo calculado parte do saldo inicial', r.saldoCalc===1500, r.saldoCalc);
+t('e ela aparece na lista da tela', r.naTela===true);
+const contaId=r.id;
+
+await pg.reload({waitUntil:'domcontentloaded'});
+await pg.waitForTimeout(2200);
+await pg.evaluate(()=>{window.print=()=>{};window.confirmar=async()=>true;window.pergunta=async()=>true;
+  try{SESSAO.login='admin';SESSAO.usuarioId='usr_mestre';}catch(e){}abrirSessao();});
+await pg.waitForTimeout(500);
+r=await pg.evaluate(id=>({achou:!!(DB.contas||[]).find(x=>x.id===id)}),contaId);
+t('e continua lá depois de recarregar a página', r.achou===true);
+
+/* ---------------------------------------------------------- */
+console.log('\n══ 2. FORMA DE PAGAMENTO: TAXA, PRAZO E DESTINO\n');
+r=await pg.evaluate(id=>{
+  telaFormasPag();
+  modalForma();
+  var abriu=!!document.getElementById('mdOv');
+  document.getElementById('fpN').value='Crédito Mastercard';
+  document.getElementById('fpT').value='credito';
+  document.getElementById('fpTx').value='3.49';
+  document.getElementById('fpTf').value='0,50';
+  document.getElementById('fpD').value='30';
+  var radio=document.querySelector('input[name=fpC][value="'+id+'"]');
+  var achouRadio=!!radio; if(radio)radio.checked=true;
+  var bt=[].slice.call(document.querySelectorAll('#mdOv button'))
+    .find(x=>/^Salvar$/i.test(x.textContent.trim()));
+  bt.click();
+  var f=(DB.formasPag||[]).find(x=>x.nome==='Crédito Mastercard');
+  return {abriu:abriu, achouRadio:achouRadio, criou:!!f, id:f&&f.id,
+    tipo:f&&f.tipo, taxaPct:f&&f.taxaPct, taxaFixa:f&&f.taxaFixa,
+    dias:f&&f.dias, contaId:f&&f.contaId, ativa:f&&f.ativa,
+    naTela:/Crédito Mastercard/.test(document.getElementById('content').innerHTML),
+    mostraConta:/Nubank PJ Santa Fé/.test(document.getElementById('content').innerHTML)};
+},contaId);
+t('o modal da forma abre', r.abriu===true);
+t('a conta cadastrada aparece como destino escolhível', r.achouRadio===true);
+t('a forma é criada', r.criou===true);
+t('com a taxa por transação', r.taxaPct===3.49, r.taxaPct);
+t('com a taxa fixa', r.taxaFixa===0.5, r.taxaFixa);
+t('com o prazo de recebimento', r.dias===30, r.dias);
+t('E COM A CONTA DE DESTINO VINCULADA', r.contaId===contaId, r.contaId);
+t('a tela mostra a conta que recebe', r.mostraConta===true);
+const formaId=r.id;
+
+r=await pg.evaluate(id=>{
+  syncFormas();
+  var noPdv=(typeof FORMAS!=='undefined')&&FORMAS.some(f=>f.id===id);
+  return {noPdv:noPdv, quantas:(typeof FORMAS!=='undefined')?FORMAS.length:0};
+},formaId);
+t('e ela passa a existir na frente de caixa', r.noPdv===true, JSON.stringify(r));
+
+/* ---------------------------------------------------------- */
+console.log('\n══ 3. O VÍNCULO DE VERDADE: vendi no crédito, o dinheiro foi para a conta?\n');
+r=await pg.evaluate(async o=>{
+  var hoje=new Date().toLocaleDateString('pt-BR');
+  DB.caixas=[{id:'cx_v',inicial:100,operador:'Bia',operadorId:'op_bia',
+    sucursalId:lojaAtualId(),movimentos:[],aberto:hoje+' 09:00'}];
+  DB.pedidos=[{id:'pd_v',caixaId:'cx_v',fase:'finalizado',total:1000,
+    itens:[{produtoId:'pr_agua',nome:'Água',qtd:1,preco:1000}],
+    pagamentos:[{forma:o.formaId,valor:1000}],
+    data:new Date().toISOString(),hora:'10:00',sucursalId:lojaAtualId()}];
+  salvar();
+  var cx=DB.caixas[0];
+  var mov=movimentoCaixa('cx_v');
+  var antesLanc=(DB.lancFin||[]).length;
+  var n=lancarFechamento(cx,mov);
+  var l=(DB.lancFin||[]).slice(antesLanc).find(x=>x.metodoId===o.formaId);
+  var conta=(DB.contas||[]).find(x=>x.id===o.contaId);
+  return {porForma:mov.porForma[o.formaId], criou:n, temLanc:!!l,
+    contaDoLanc:l&&l.contaId, valorLiq:l&&l.valor, venc:l&&l.vencimento,
+    pago:l&&l.pago, saldoDaConta:conta?saldoConta(conta):null,
+    descricao:l&&l.descricao};
+},{formaId,contaId});
+t('a venda no crédito entra no movimento do turno', r.porForma===1000, r.porForma);
+t('o fechamento cria o lançamento financeiro dessa forma', r.temLanc===true);
+t('O LANÇAMENTO VAI PARA A CONTA CADASTRADA', r.contaDoLanc===contaId, r.contaDoLanc);
+/* 1000 − 3,49% − 0,50 fixa = 1000 − 34,90 − 0,50 = 964,60 */
+t('o valor é o LÍQUIDO, com a taxa descontada', r.valorLiq===964.6, r.valorLiq);
+t('e com o prazo de 30 dias no vencimento', (()=> {
+  const d=new Date(); d.setDate(d.getDate()+30);
+  return r.venc===d.toISOString().slice(0,10);})(), r.venc);
+t('nasce como "a receber", não como já recebido', r.pago===false, r.pago);
+/* a receber em 30 dias NAO e saldo em banco — so entra quando for pago */
+t('a receber em 30 dias ainda NÃO entra no saldo da conta', r.saldoDaConta===1500,
+  'saldo=' + r.saldoDaConta);
+
+/* agora o que TEM de andar: uma forma sem prazo, que cai na conta na hora */
+r=await pg.evaluate(o=>{
+  var f=(DB.formasPag||[]).find(x=>x.id===o.formaId);
+  var l={id:uid('lf'),tipo:'receita',contaId:o.contaId,metodoId:o.formaId,
+    descricao:'Venda à vista no Pix',categoriaTxt:'Frente de Caixa',
+    valor:200,emissao:hojeISO(),vencimento:hojeISO(),pagamento:hojeISO(),
+    pago:true,origem:'fechamento-caixa'};
+  DB.lancFin.push(l); salvar();
+  var conta=(DB.contas||[]).find(x=>x.id===o.contaId);
+  return {saldo:saldoConta(conta), lancPagos:(DB.lancFin||[])
+    .filter(x=>x.contaId===o.contaId&&x.pago).length};
+},{formaId,contaId});
+t('há lançamento PAGO nessa conta', r.lancPagos>=1, r.lancPagos);
+t('O SALDO DA CONTA ANDA COM O LANÇAMENTO PAGO', r.saldo===1700,
+  'saldo=' + r.saldo + ' (esperado 1.700,00 = 1.500 + 200)');
+
+r=await pg.evaluate(o=>{
+  var l={id:uid('lf'),tipo:'despesa',contaId:o.contaId,descricao:'Conta de luz',
+    valor:300,emissao:hojeISO(),vencimento:hojeISO(),pagamento:hojeISO(),pago:true};
+  DB.lancFin.push(l); salvar();
+  var conta=(DB.contas||[]).find(x=>x.id===o.contaId);
+  return {saldo:saldoConta(conta)};
+},{formaId,contaId});
+t('e a despesa paga desce do saldo', r.saldo===1400,
+  'saldo=' + r.saldo + ' (esperado 1.400,00)');
+
+console.log('\n══ 4. USUÁRIO / OPERADOR: senha, permissão e unidade\n');
+r=await pg.evaluate(()=>{
+  baseUsr(); baseOper();
+  DB.sucursais=[{id:'suc_matriz',nome:'Matriz',matriz:true,ativa:true},
+                {id:'suc_sf',nome:'Santa Fé do Sul',ativa:true}];
+  var antes=(DB.usuarios||[]).length;
+  DB.usuarios.push({id:'us_novo',login:'carla',nome:'Carla',ativo:true,
+    senha:'',perms:{'pdv':true},sucursais:['suc_sf']});
+  salvar();
+  var u=(DB.usuarios||[]).find(x=>x.id==='us_novo');
+  DB.lojaAtual='suc_sf'; S.loja='suc_sf';
+  var ops=operAtivos().map(o=>({id:o.id,nome:o.nome,senha:!!o.senha}));
+  DB.operadores.push({id:'op_carla',nome:'Carla',funcao:'caixa',senha:'4321',ativo:true});
+  salvar();
+  var ops2=operAtivos();
+  var carla=ops2.find(o=>/Carla/i.test(o.nome));
+  return {criou:!!u, perms:u&&u.perms, suc:u&&u.sucursais,
+    cresceu:(DB.usuarios||[]).length-antes,
+    listaAntes:ops, temCarla:!!carla, carlaSenha:carla?temSenhaCadastrada(carla):null,
+    podePdv:carla?podeFazer(carla,'sangria'):null,
+    quemFecha:(typeof quemPode==='function')?quemPode('fechamento').map(o=>o.nome):null};
+});
+t('o usuário novo é criado', r.criou===true);
+t('com a permissão marcada', !!(r.perms&&r.perms.pdv), JSON.stringify(r.perms));
+t('e amarrado à unidade de Santa Fé', Array.isArray(r.suc)&&r.suc.indexOf('suc_sf')>=0, JSON.stringify(r.suc));
+t('o operador do caixa aparece na lista de quem opera', r.temCarla===true);
+t('e o sistema reconhece que ele tem senha', r.carlaSenha===true, r.carlaSenha);
+t('a permissão por função é consultada de verdade', r.podePdv!==null, JSON.stringify(r.podePdv));
+
+console.log('\n══ 5. PEDIDO DE BASE: envia · a matriz muda · o sino da loja avisa\n');
+/* IMPORTANTE: quem entra como dono/sem unidade E a franqueadora — entao o
+   lado da LOJA so pode ser testado entrando como um usuario DE Santa Fe. */
+r=await pg.evaluate(async()=>{
+  DB.pedidosBase=[]; DB.basesCat=[{id:'bs1',nome:'BASE CHOCOLATE',fichaRef:'fi_base',
+    qtdCaixa:10,valorUnit:12,ativo:true}];
+  DB.lojaAtual='suc_sf'; S.loja='suc_sf';
+  SESSAO.login='carla'; SESSAO.usuarioId='us_novo';   /* usuario DA LOJA */
+  var euSou={matriz:ehDaMatriz(), nome:(usuarioLogado()||{}).nome,
+             suc:(usuarioLogado()||{}).sucursais};
+  try{localStorage.removeItem(chaveSino())}catch(e){}
+  PB.itens={bs1:3}; PB.responsavel='Carla'; PB.data=hojeISO(); PB.obs='';
+  await enviarPedidoBase();
+  var p=(DB.pedidosBase||[])[0];
+  sinoEstreia();                       /* o aparelho da loja "estreia" o sino */
+  return {euSou:euSou, criou:!!p, id:p&&p.id, sit:p&&p.situacao,
+    enviadoEm:!!(p&&p.enviadoEm), total:p&&p.total, suc:p&&p.sucursalRef,
+    novosNaEstreia:avisosNovos().length};
+});
+t('entrando como usuário DA LOJA, o sistema não a trata como matriz',
+  r.euSou.matriz===false, JSON.stringify(r.euSou));
+t('a loja envia o pedido', r.criou===true);
+t('com a situação "enviado" e a hora gravada', r.sit==='enviado'&&r.enviadoEm===true, r.sit);
+t('com o total certo (3 caixas × 10 × R$ 12 = R$ 360)', r.total===360, r.total);
+t('e carimbado com a unidade que pediu', r.suc==='suc_sf', r.suc);
+t('o sino começa quieto neste aparelho (histórico não é novidade)',
+  r.novosNaEstreia===0, r.novosNaEstreia);
+const pedId=r.id;
+
+r=await pg.evaluate(id=>{
+  /* a MATRIZ olhando */
+  DB.lojaAtual='suc_matriz'; S.loja='suc_matriz';
+  SESSAO.login='rafael@uendes.com'; SESSAO.usuarioId='usr_mestre';
+  var avisos=avisosPedidoBase();
+  return {daMatriz:ehDaMatriz(), tipos:avisos.map(a=>a.tipo),
+    titulo:(avisos[0]||{}).titulo, texto:(avisos[0]||{}).texto};
+},pedId);
+t('a franqueadora é reconhecida como matriz', r.daMatriz===true);
+t('E O PEDIDO NOVO APARECE NO SINO DA MATRIZ', r.tipos.indexOf('novo')>=0, JSON.stringify(r.tipos));
+console.log('   aviso na matriz: "'+r.titulo+' — '+r.texto+'"');
+
+r=await pg.evaluate(async id=>{
+  await avancarPedido(id,'confirmado');
+  var p=(DB.pedidosBase||[]).find(x=>x.id===id);
+  return {sit:p.situacao, confirmadoEm:!!p.confirmadoEm};
+},pedId);
+t('A MATRIZ MUDA O PEDIDO (confirma)', r.sit==='confirmado'&&r.confirmadoEm===true, r.sit);
+
+r=await pg.evaluate(id=>{
+  /* de volta na LOJA, com o usuario da loja */
+  DB.lojaAtual='suc_sf'; S.loja='suc_sf';
+  SESSAO.login='carla'; SESSAO.usuarioId='us_novo';
+  var todos=avisosPedidoBase(), novos=avisosNovos();
+  if(!document.getElementById('sinoBadge'))
+    document.body.insertAdjacentHTML('beforeend','<span id="sinoBadge"></span>');
+  pintarSino();
+  var badge=document.getElementById('sinoBadge');
+  return {daMatriz:ehDaMatriz(), tipos:todos.map(a=>a.tipo),
+    titulo:(todos[0]||{}).titulo, texto:(todos[0]||{}).texto,
+    novos:novos.length, badge:badge.textContent, visivel:badge.style.display!=='none'};
+},pedId);
+t('a loja NÃO é tratada como matriz', r.daMatriz===false);
+t('E A LOJA RECEBE O AVISO NO SININHO', r.tipos.indexOf('confirmado')>=0, JSON.stringify(r.tipos));
+console.log('   aviso na loja: "'+r.titulo+' — '+r.texto+'"');
+t('ele conta como aviso NÃO lido', r.novos>=1, r.novos);
+t('O NÚMERO APARECE NO SINO', Number(r.badge)>=1, r.badge);
+t('e o sino fica visível', r.visivel===true);
+
+r=await pg.evaluate(()=>{
+  var lista=avisosPedidoBase();
+  marcarSinoVisto(lista);
+  pintarSino();
+  var b=document.getElementById('sinoBadge');
+  return {novosDepois:avisosNovos().length, escondeu:b.style.display==='none'};
+});
+t('depois de abrir o sino, o aviso deixa de ser novidade', r.novosDepois===0, r.novosDepois);
+t('e o número some', r.escondeu===true);
+
+/* o que a matriz CONSOME para produzir esse pedido */
+r=await pg.evaluate(async id=>{
+  DB.lojaAtual='suc_matriz'; S.loja='suc_matriz';
+  SESSAO.login='rafael@uendes.com'; SESSAO.usuarioId='usr_mestre';
+  var f=(DB.fichas||[]).find(x=>x.id==='fi_base');
+  var antes=(itemEstoque('in_leite')||{}).estoqueAtual||0;
+  ajustaEstoque(DB.insumos.find(i=>i.id==='in_leite'),100,'l',1,lojaAtualId());
+  var antes2=(itemEstoque('in_leite')||{}).estoqueAtual||0;
+  await produzirPedido(id);
+  var depois=(itemEstoque('in_leite')||{}).estoqueAtual||0;
+  var b=DB.basesCat[0];
+  return {rendimento:f.rendimento, receitaLeite:f.itens[0].qtd,
+    caixas:3, qtdCaixa:b.qtdCaixa,
+    consumiu:+(antes2-depois).toFixed(3),
+    esperadoSeCaixaFosseUnidade:+( (3/f.rendimento)*f.itens[0].qtd ).toFixed(3),
+    esperadoSeCaixaTivesse10:+( (3*b.qtdCaixa/f.rendimento)*f.itens[0].qtd ).toFixed(3)};
+},pedId);
+console.log('   ficha: rende '+r.rendimento+' kg e leva '+r.receitaLeite+' L de leite');
+console.log('   pedido: '+r.caixas+' caixa(s) de '+r.qtdCaixa+' → consumiu '+r.consumiu+' L de leite');
+t('a produção consome pelas UNIDADES do pedido, não pelo número de caixas',
+  r.consumiu===r.esperadoSeCaixaTivesse10,
+  'consumiu '+r.consumiu+' L; por caixas daria '+r.esperadoSeCaixaFosseUnidade+
+  ' L, por unidades daria '+r.esperadoSeCaixaTivesse10+' L');
+
+r=await pg.evaluate(async id=>{
+  DB.lojaAtual='suc_matriz'; S.loja='suc_matriz';
+  SESSAO.login='rafael@uendes.com'; SESSAO.usuarioId='usr_mestre';
+  await avancarPedido(id,'enviado_matriz');
+  await avancarPedido(id,'entregue');
+  var p=(DB.pedidosBase||[]).find(x=>x.id===id);
+  var lanc=(DB.lancFin||[]).find(x=>x.origemRef===id);
+  return {sit:p.situacao, entregueEm:!!p.entregueEm,
+    cobranca:lanc?{tipo:lanc.tipo,valor:lanc.valor,pago:lanc.pago}:null};
+},pedId);
+t('a matriz marca entregue', r.sit==='entregue'&&r.entregueEm===true, r.sit);
+t('e nasce a cobrança da unidade, no valor do pedido',
+  !!(r.cobranca&&r.cobranca.tipo==='receita'&&r.cobranca.valor===360&&r.cobranca.pago===false),
+  JSON.stringify(r.cobranca));
+
+r=await pg.evaluate(id=>{
+  DB.lojaAtual='suc_sf'; S.loja='suc_sf';
+  SESSAO.login='carla'; SESSAO.usuarioId='us_novo';
+  var tipos=avisosPedidoBase().map(a=>a.tipo);
+  pintarSino();
+  return {tipos:tipos, novos:avisosNovos().length,
+    badge:document.getElementById('sinoBadge').textContent};
+},pedId);
+t('E A LOJA É AVISADA DE QUE ESTÁ PRONTO PARA RETIRAR', r.tipos.indexOf('pronto')>=0, JSON.stringify(r.tipos));
+t('e esse aviso novo faz o sino tocar de novo', Number(r.badge)>=1, r.badge);
+
+r=await pg.evaluate(async id=>{
+  /* a loja confere e dá entrada: "Recebi as bases".
+     A base entra como a FICHA que ela é (produto acabado na filial). */
+  var antes=(itemEstoque('fi_base')||{}).estoqueAtual||0;
+  await receberPedidoBase(id);
+  var p=(DB.pedidosBase||[]).find(x=>x.id===id);
+  var pagar=(DB.lancFin||[]).find(x=>x.origemRef===id&&x.tipo==='despesa');
+  var mv=(DB.movEst||[]).find(x=>x.id===p.movEntradaRef);
+  var it=itemEstoque('fi_base')||{};
+  return {entrada:!!p.entradaEstoque, depois:it.estoqueAtual||0, unidade:it.unidade,
+    antes:antes, pagar:pagar?{valor:pagar.valor,pago:pagar.pago}:null,
+    finPagarRef:!!p.finPagarRef,
+    linha:mv?mv.linhas[0]:null, pedidoQtd:p.itens[0].qtd,
+    caixaDe:(DB.basesCat[0]||{}).qtdCaixa, precoUnit:(DB.basesCat[0]||{}).valorUnit};
+},pedId);
+t('a loja dá entrada no recebimento', r.entrada===true);
+t('o estoque da loja sobe com a base recebida', r.depois>r.antes, r.antes+' → '+r.depois);
+console.log('   entrada: '+JSON.stringify(r.linha)+'  unidade do item: '+r.unidade);
+console.log('   o pedido era de '+r.pedidoQtd+' caixa(s) de '+r.caixaDe+' × R$ '+r.precoUnit);
+t('A QUANTIDADE QUE ENTRA É EM UNIDADES, NÃO EM CAIXAS',
+  r.depois-r.antes === r.pedidoQtd*r.caixaDe,
+  'entrou ' + (r.depois-r.antes) + ' ' + r.unidade + ', esperado ' + (r.pedidoQtd*r.caixaDe));
+t('e o custo unitário gravado bate com o preço da base',
+  r.linha && r.linha.custo === r.precoUnit,
+  'custo gravado ' + (r.linha&&r.linha.custo) + ', preço da base ' + r.precoUnit);
+t('e nasce a conta A PAGAR da loja para a matriz',
+  !!(r.pagar&&r.pagar.valor===360&&r.pagar.pago===false), JSON.stringify(r.pagar));
+
+r=await pg.evaluate(()=>{
+  SESSAO.login='rafael@uendes.com'; SESSAO.usuarioId='usr_mestre';
+  DB.lojaAtual='suc_matriz'; S.loja='suc_matriz';
+  return {tipos:avisosPedidoBase().map(a=>a.tipo)};
+});
+t('E A MATRIZ É AVISADA DE QUE A LOJA CONFERIU', r.tipos.indexOf('conferido')>=0, JSON.stringify(r.tipos));
+
+console.log('\n══ 6. BAIXA MANUAL\n');
+r=await pg.evaluate(()=>{
+  DB.lojaAtual='suc_matriz'; S.loja='suc_matriz';
+  DB.baixasPend=[]; DB.movEst=[];
+  ajustaEstoque(DB.insumos.find(i=>i.id==='in_nut'),10,'kg',1,lojaAtualId());
+  salvar();
+  var antes=itemEstoque('in_nut');
+  telaBaixaManual();
+  var abriu=/Baixa/i.test(document.getElementById('content').innerHTML);
+  return {abriu:abriu, saldoAntes:antes};
+});
+t('a tela de baixa manual monta', r.abriu===true);
+const saldoAntes=r.saldoAntes;
+console.log('   saldo de Nutella antes: '+JSON.stringify(saldoAntes));
+
+r=await pg.evaluate(()=>({motivos:(typeof motivosBaixa==='function')?motivosBaixa().map(m=>m.nome):null}));
+console.log('   motivos de baixa disponíveis: '+JSON.stringify(r.motivos));
+t('há motivo de baixa cadastrado para escolher', (r.motivos||[]).length>0, JSON.stringify(r.motivos));
+
+r=await pg.evaluate(()=>{
+  /* o formulário grava em BX pelos oninput — é assim que a tela funciona */
+  escolherItemBaixa('in_nut','insumo');
+  var pego=!!BX.item && BX.item.id==='in_nut';
+  BX.qtd='2';
+  BX.motivo=motivosBaixa()[0].id;
+  BX.quem='Carla';
+  BX.obs='quebra na produção';
+  salvarBaixa();
+  var b=(DB.baixasPend||[])[0];
+  return {pego:pego, erro:BX.erro, gravou:!!b, item:b&&b.itemNome, qtd:b&&b.qtd,
+    motivo:b&&b.motivoNome, quem:b&&b.quem, sit:b&&b.situacao,
+    unidade:b&&b.unidade, suc:b&&b.sucursalRef};
+});
+t('o item é escolhido no campo', r.pego===true, r.erro);
+t('a baixa é registrada na lista de pendentes', r.gravou===true, r.erro||JSON.stringify(r));
+t('com o item certo', r.item==='Nutella', r.item);
+t('com a quantidade digitada', Number(r.qtd)===2, r.qtd);
+t('com o motivo escolhido', !!r.motivo, r.motivo);
+t('com quem registrou', r.quem==='Carla', r.quem);
+t('carimbada com a unidade', !!r.suc, r.suc);
+t('e nasce PENDENTE — nada sai do estoque ainda', r.sit==='pendente', r.sit);
+
+r=await pg.evaluate(()=>({saldo:(itemEstoque('in_nut')||{}).estoqueAtual}));
+t('conferindo: o estoque NÃO mudou só por registrar', r.saldo===15, r.saldo);
+
+r=await pg.evaluate(async ()=>{
+  var antes=(itemEstoque('in_nut')||{}).estoqueAtual||0;
+  await lancarBaixasNoEstoque();
+  var b=(DB.baixasPend||[])[0];
+  var depois=(itemEstoque('in_nut')||{}).estoqueAtual||0;
+  var mv=(DB.movEst||[]).slice(-1)[0];
+  return {antes:antes, depois:depois, sit:b&&b.situacao,
+    pendentes:(DB.baixasPend||[]).filter(x=>x.situacao!=='lancada').length,
+    mov:mv?{ident:mv.identificacao,linhas:(mv.linhas||[]).length,
+            dir:(mv.linhas||[])[0]&&mv.linhas[0].direcao}:null};
+});
+t('O LANÇAMENTO TIRA DO ESTOQUE a quantidade da baixa',
+  r.antes-r.depois===2, r.antes+' → '+r.depois);
+t('a baixa fica marcada como lançada', r.sit==='lancada', r.sit);
+t('e sai da fila de pendentes', r.pendentes===0, r.pendentes);
+t('e o movimento de estoque fica gravado, como saída',
+  !!(r.mov&&r.mov.dir==='saida'), JSON.stringify(r.mov));
+
+r=await pg.evaluate(()=>{
+  telaRelatorioBaixas();
+  var h=document.getElementById('content').innerHTML;
+  return {temTela:/Baixa/i.test(h), temItem:/Nutella/.test(h), temQuem:/Carla/.test(h)};
+});
+t('o relatório de baixas monta', r.temTela===true);
+t('e mostra a baixa lançada, com quem registrou', r.temItem&&r.temQuem, JSON.stringify(r));
+
+await nav.close(); s.close();
+console.log('\n'+(falhas?'✗ '+falhas+' de '+feitos+' verificações falharam':'✓ '+feitos+' verificações passaram'));
+if(problemas.length){console.log('\nPROBLEMAS:');problemas.forEach(p=>console.log(' · '+p));}
+if(erros.length)console.log('\nerros de console: '+JSON.stringify(erros.slice(0,6)));
+process.exit(0);
+})();

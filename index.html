@@ -12487,7 +12487,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V260.0.0';
+var VERSAO='V261.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23121,15 +23121,51 @@ async function excluirSub(pid,k){
 /* ==========================================================
    CONTAS BANCÁRIAS
    ========================================================== */
+/* ==========================================================
+   O SALDO DA CONTA LIA A COLECAO ERRADA
+
+   Esta funcao somava `DB.lancamentos` — a colecao LEGADA, que
+   `baseFin()` migra para `DB.lancFin` e que nasce vazia em qualquer
+   loja de hoje. Pior: ela procurava `tipo` valendo 'entrada'/'saida', e
+   o financeiro de verdade grava 'receita'/'despesa'. Dois motivos para
+   nunca achar nada.
+
+   O efeito: o saldo de todo banco cadastrado ficava congelado no saldo
+   inicial para sempre. Vendia no cartao, o dinheiro caia na conta, o
+   lancamento nascia certo — e a tela de Contas Bancarias, a lista de
+   contas do lancamento, a caixa de escolha da forma de pagamento e o
+   acerto com entregadores continuavam mostrando o valor do primeiro dia.
+
+   Agora le `DB.lancFin`, que e onde o financeiro mora, com a mesma
+   regra que a conciliacao bancaria ja usava:
+     - so entra o que esta PAGO (previsto nao e saldo em banco);
+     - receita soma, despesa desce;
+     - transferencia desce da conta de origem e soma na de destino.
+   ========================================================== */
 function saldoConta(c){
+  if(!c)return 0;
   if(c.fixa==='caixa'){
     var cx=caixaAberto();
     return cx?esperadoCaixa(cx):0;
   }
-  var mov=(DB.lancamentos||[]).filter(function(l){return l.contaId===c.id});
-  var e=mov.filter(function(l){return l.tipo==='entrada'}).reduce(function(a,l){return a+l.valor},0);
-  var s=mov.filter(function(l){return l.tipo==='saida'}).reduce(function(a,l){return a+l.valor},0);
-  return (Number(c.saldoInicial)||0)+e-s;
+  var s=Number(c.saldoInicial)||0;
+  (DB.lancFin||[]).forEach(function(l){
+    if(!l||!l.pago)return;                 /* a receber/a pagar nao e saldo */
+    var v=Number(l.valor)||0;
+    if(l.tipo==='transferencia'){
+      if(l.contaId===c.id)s-=v;
+      if(l.contaDestinoId===c.id)s+=v;
+      return;
+    }
+    if(l.contaId!==c.id)return;
+    if(l.tipo==='receita')s+=v; else s-=v;
+  });
+  return s;
+}
+/* quantos lancamentos financeiros dependem desta conta (pagos ou nao) */
+function lancamentosDaConta(id){
+  return (DB.lancFin||[]).filter(function(l){
+    return l&&(l.contaId===id||l.contaDestinoId===id);}).length;
 }
 function telaContas(){
   baseCat();
@@ -23243,8 +23279,17 @@ function modalConta(id){
 async function excluirConta(id){
   var c=DB.contas.find(function(x){return x.id===id});
   if(c.fixa){toast('Contas fixas do sistema não podem ser excluídas.');return;}
-  var usos=(DB.lancamentos||[]).filter(function(l){return l.contaId===id}).length;
+  /* a mesma correcao do saldo: quem conta e o financeiro de verdade.
+     Lendo a colecao legada, uma conta com centenas de lancamentos era
+     apagada sem aviso e eles ficavam orfaos. */
+  var usos=lancamentosDaConta(id);
   if(usos){toast('Esta conta tem '+usos+' lançamento(s). Não é possível excluir.');return;}
+  var formas=(DB.formasPag||[]).filter(function(f){return f.contaId===id});
+  if(formas.length){
+    toast('Esta conta é o destino de '+formas.length+' forma(s) de pagamento ('+
+      formas.map(function(f){return f.nome}).join(', ')+'). Troque o destino antes de excluir.');
+    return;
+  }
   if(!await pergunta('Excluir a conta "'+c.nome+'"?'))return;
   DB.contas=DB.contas.filter(function(x){return x.id!==id}); declararExclusao('contas',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
   salvar();telaContas();toast('Conta excluída.');
@@ -31505,10 +31550,51 @@ async function faturarPedidoBase(id){
    de rendimento e o destino esta em outra unidade de medida. Recalcular por
    fora daria diferenca no dia em que alguem mexesse no fator.
    ========================================================== */
+/* ==========================================================
+   CAIXA NAO E UNIDADE
+
+   O pedido de base e feito em CAIXAS ("3 cx"), e a tela de Bases e
+   Valores diz quantas unidades tem a caixa ("Qtde/cx") e quanto vale
+   cada unidade ("Valor unitario"). A conta do dinheiro sempre usou as
+   duas: caixa x unidades x preco = valor da caixa, e o total do pedido
+   saia certo.
+
+   A conta da QUANTIDADE, nao. Producao, saida do estoque da matriz e
+   entrada no estoque da loja recebiam o numero de caixas como se fosse
+   a quantidade na unidade da ficha. Com Qtde/cx = 10, um pedido de 3
+   caixas produzia 3 kg em vez de 30, consumia um decimo dos ingredientes
+   e chegava na loja como 3 kg a R$ 120/kg em vez de 30 kg a R$ 12/kg. O
+   dinheiro batia; o estoque e o custo por quilo, nao.
+
+   Enquanto toda base esteve cadastrada com Qtde/cx = 1 — como estao as
+   54 de hoje — caixa e unidade eram a mesma coisa e nada aparecia. O
+   defeito acordaria no dia em que a matriz cadastrasse a primeira caixa
+   com mais de uma unidade.
+
+   Estas duas funcoes sao a unica porta: qualquer lugar que precise da
+   quantidade de verdade pergunta aqui.
+   ========================================================== */
+function porCaixaDoItem(i){
+  var n = Number(i && i.porCaixa);
+  if (n > 0) return n;                     /* gravado no envio: manda ele */
+  /* pedido antigo, de antes desta versao: tenta o catalogo, senao 1 */
+  var b = (DB.basesCat || []).find(function (x) { return x.id === (i || {}).baseRef; });
+  return Number(b && b.qtdCaixa) || 1;
+}
+function unidadesDoItem(i){
+  return (Number(i && i.qtd) || 0) * porCaixaDoItem(i);
+}
+/* preco de UMA unidade (o item guarda o valor da caixa em valorUnit) */
+function precoUnitDoItem(i){
+  var p = Number(i && i.precoUnit);
+  if (p > 0) return p;
+  var cx = porCaixaDoItem(i);
+  return cx ? +((Number(i && i.valorUnit) || 0) / cx).toFixed(6) : 0;
+}
 function itensSaidaBases(p){
   return itensComFicha(p).map(function (i) {
     return { tipo: 'ficha', refId: i.fichaRef, unidade: '',
-             qtd: Number(i.qtd) || 0, custo: 0, obs: i.baseNome };
+             qtd: unidadesDoItem(i), custo: 0, obs: i.baseNome };
   });
 }
 function linhasSaidaBases(p){
@@ -31563,8 +31649,8 @@ async function receberPedidoBase(id){
   (p.itens || []).forEach(function (it) {
     var f = (DB.fichas || []).find(function (x) { return x.id === it.fichaRef; });
     if (f) itens.push({ tipo: 'ficha', refId: f.id, unidade: f.unidade || 'un',
-                        qtd: Number(it.qtd) || 0,
-                        custo: Number(it.valorUnit) || 0, obs: it.baseNome });
+                        qtd: unidadesDoItem(it),
+                        custo: precoUnitDoItem(it), obs: it.baseNome });
     else semItem.push(it);
   });
   if (!itens.length) {
@@ -31687,7 +31773,7 @@ async function produzirPedido(id){
 
   var itensProd = comFicha.map(function (i) {
     return { tipo: 'ficha', refId: i.fichaRef, unidade: '',
-             qtd: Number(i.qtd) || 0, custo: 0, obs: i.baseNome };
+             qtd: unidadesDoItem(i), custo: 0, obs: i.baseNome };
   });
   var linhas = montarLinhas(itensProd, 'producao');
   if (!linhas.length) { toast('As fichas ligadas não consomem insumo nenhum.'); return; }
@@ -32323,7 +32409,21 @@ async function enviarPedidoBase(){
     if (q <= 0) return;
     var vCx = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
     esc.push({ id: uid('pbi'), baseRef: b.id, baseNome: b.nome,
-               fichaRef: b.fichaRef || '', qtd: q, valorUnit: vCx, total: q * vCx });
+               fichaRef: b.fichaRef || '', qtd: q, valorUnit: vCx, total: q * vCx,
+               /* ==========================================================
+                  A CAIXA VIAJA JUNTO COM O PEDIDO
+
+                  O pedido e feito em CAIXAS. Producao, saida do estoque da
+                  matriz e entrada no estoque da loja trabalham na unidade da
+                  ficha. Sem o tamanho da caixa gravado aqui, a conversao
+                  teria de ir buscar no catalogo — e o catalogo muda: bastava
+                  a matriz corrigir o "Qtde/cx" de uma base para um pedido
+                  antigo passar a valer outra quantidade.
+
+                  Fica gravado no item, no momento do envio, junto com o preco
+                  por unidade. O que foi pedido nao muda depois.
+                  ========================================================== */
+               porCaixa: Number(b.qtdCaixa) || 1, precoUnit: Number(b.valorUnit) || 0 });
   });
   if (!esc.length) { PB.erro = 'Informe a quantidade de ao menos um item.'; return telaPedidoBase(); }
   if (!String(PB.responsavel || '').trim()) {
