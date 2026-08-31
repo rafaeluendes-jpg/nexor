@@ -1445,7 +1445,10 @@ function inativoDemais(){
     if(inativoDemais()){
       registrarFalha('sessao','inatividade',
         'sessão encerrada após '+INATIVIDADE_H+' h sem uso',{situacao:'encerrada'});
-      try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){_quieto(e,'vigiarInatividade')}
+      /* local: o aparelho que ficou 8 h parado sai sozinho; a loja que
+         esta vendendo com a mesma conta nao pode cair junto */
+      try{ if(NUVEM.cli)NUVEM.cli.auth.signOut({scope:'local'}); }
+      catch(e){_quieto(e,'vigiarInatividade')}
       try{ localStorage.removeItem('nexor_visto'); }catch(e){_quieto(e,'inativoDemais')}
       location.reload();
     }

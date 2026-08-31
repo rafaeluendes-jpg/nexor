@@ -2251,15 +2251,67 @@ async function esperarEnvio(){
     await new Promise(function(r){setTimeout(r,400)});
   }
 }
+/* ==========================================================
+   O FECHAMENTO NAO ESPERA A FILA
+
+   AQUI ESTAVA O QUE FALTAVA NA V258.
+
+   O envio sobe tabela por tabela, na ordem do MAPA, e `caixas` vem
+   depois de `pedidos` e `pedido_pagamentos`. Nos registros do banco de
+   31/08 da para ver o aparelho da loja subindo pagamento por pagamento,
+   um POST a cada 190 ms, centenas deles — e o caixa, no fim da fila,
+   nunca chegava a vez. Quando a sessao caia no meio (os 401 seguidos
+   nos registros), o que faltava simplesmente nao subia.
+
+   O fechamento e a unica coisa do dia que nao pode ficar na fila. Esta
+   funcao grava DIRETO a linha do caixa, sozinha, com um PATCH que toca
+   somente os campos do fechamento — nunca os vinculos (turno, operador,
+   unidade), que dependem do mapa de identificadores montado pelo envio
+   e virariam nulo fora dele.
+
+   Os campos saem do proprio MAPA (`E.campos`), nao de uma segunda copia
+   da regra: mudou la, muda aqui.
+   ========================================================== */
+function camposDoFechamento(cx){
+  var E=(typeof MAPA!=='undefined'?MAPA:[]).find(function(e){return e.col==='caixas'});
+  var o=E?E.campos(cx):{};
+  var quero=['fechado_txt','fechado_em','vendas','esperado','contado','total_informado',
+             'qtd_pedidos','conferencia','observacao','snapshot','esperado_por_forma',
+             'fundo_proximo','fechado_por','fechado_por_id','diferenca_total','conciliado'];
+  var r={};
+  quero.forEach(function(k){ if(o[k]!==undefined)r[k]=o[k]; });
+  return r;
+}
+async function gravarFechamentoNaNuvem(cx){
+  try{
+    if(typeof NUVEM==='undefined'||!NUVEM.ligada||!NUVEM.loja)return false;
+    var corpo=camposDoFechamento(cx);
+    if(!corpo.fechado_txt&&!corpo.fechado_em)return false;
+    await api('caixas?ref_local=eq.'+encodeURIComponent(cx.id)+
+      '&loja_id=eq.'+encodeURIComponent(NUVEM.loja),'PATCH',corpo,
+      {'Prefer':'return=minimal'});
+    return true;
+  }catch(e){ _quieto(e,'gravarFechamentoNaNuvem'); return false; }
+}
 async function garantirFechamentoNaNuvem(cx){
   if(!cx||!cx.id||!cx.fechadoEm)return false;
   if(typeof NUVEM==='undefined'||!NUVEM.ligada){
     toast('Caixa fechado neste aparelho. O fechamento sobe assim que a internet voltar.');
     return false;
   }
+  /* 1. a linha do caixa vai direto, na frente de tudo */
+  await gravarFechamentoNaNuvem(cx);
+  var la=await fechamentoChegouNaNuvem(cx.id);
+  if(la===true){
+    if(cx._fechamentoPendente){delete cx._fechamentoPendente;gravarDepois();}
+    /* o resto do fechamento (movimentos, lancamentos) segue pela fila normal */
+    try{ sincronizar(); }catch(e){ _quieto(e,'garantirFechamentoNaNuvem'); }
+    return true;
+  }
+  /* 2. nao deu: caminho longo, pela fila, com a marca de pendente */
   try{ await sincronizar(); }catch(e){ _quieto(e,'garantirFechamentoNaNuvem'); }
   await esperarEnvio();
-  var la=await fechamentoChegouNaNuvem(cx.id);
+  la=await fechamentoChegouNaNuvem(cx.id);
   if(la===true){
     if(cx._fechamentoPendente){delete cx._fechamentoPendente;gravarDepois();}
     return true;

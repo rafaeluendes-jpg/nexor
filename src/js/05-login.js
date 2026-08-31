@@ -86,7 +86,9 @@ async function entrarPeloAuth(lg,sn){
     .select('id,nome,cargo,loja_id,empresa_id,sucursal_ref,nome_unidade')
     .eq('id',r.data.user.id).maybeSingle();
   if(rp.error||!rp.data){
-    try{cli.auth.signOut()}catch(e){_quieto(e,'entrarPeloAuth')}
+    /* local: derrubar a sessao das OUTRAS lojas por causa de um perfil
+       que nao carregou aqui e o defeito descrito em desconectarNuvem() */
+    try{cli.auth.signOut({scope:'local'})}catch(e){_quieto(e,'entrarPeloAuth')}
     return {ok:false,motivo:'perfil'};
   }
   /* daqui em diante o aparelho esta ligado na nuvem — sem passar por

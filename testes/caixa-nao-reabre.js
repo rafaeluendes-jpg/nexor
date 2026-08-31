@@ -374,6 +374,90 @@ t('fechar o esquecido não encerra a venda em andamento de hoje',
 
   t('o fechamento chama a conferencia em vez de so pedir sincronizacao',
     /garantirFechamentoNaNuvem\(cx\)/.test(codigoNu));
+
+  console.log('\n── A linha do caixa vai direto, na frente da fila\n');
+
+  /* ==========================================================
+     31/08/2026, nos registros do banco: o aparelho da loja subindo
+     `pedido_pagamentos` um por POST, a cada 190 ms, centenas deles. A
+     tabela `caixas` vem depois de `pedidos` na ordem do envio — o
+     fechamento simplesmente nao chegava a vez. Por isso ele deixou de
+     depender da fila.
+     ========================================================== */
+  const fPatch = new Function('ctx', `
+    var NUVEM=ctx.NUVEM, MAPA=ctx.MAPA, api=ctx.api, _quieto=function(){};
+    var n=function(v){return Number(v)||0};
+    ${corpoDaFuncao('camposDoFechamento', fonte)}
+    ${corpoDaFuncao('gravarFechamentoNaNuvem', fonte)}
+    return {camposDoFechamento:camposDoFechamento,
+            gravarFechamentoNaNuvem:gravarFechamentoNaNuvem};
+  `);
+  /* o MAPA de verdade tem os campos do caixa; aqui basta o formato */
+  const MAPA_CX = [{ col: 'caixas', tab: 'caixas', campos: function (x) {
+    return { operador: x.operador || null, valor_inicial: 0,
+      turno_id: null, turno_nome: x.turno || null, operador_id: x.operadorId || null,
+      aberto_txt: x.aberto || null, fechado_txt: x.fechadoEm || null,
+      aberto_em: null, fechado_em: x.fechadoEm ? '2026-08-30T22:48:00' : null,
+      sucursal_id: x.sucursalId || null,
+      esperado: 0, contado: 512.05, total_informado: 5117.04, vendas: 5557.99,
+      qtd_pedidos: 125, conferencia: {}, observacao: null,
+      snapshot: { total: 5117.04 }, esperado_por_forma: null, fundo_proximo: 100,
+      fechado_por: 'Rafael', fechado_por_id: 'op1', diferenca_total: 0,
+      conciliado: true };
+  } }];
+  let urlPatch = '', corpoPatch = null, metodoPatch = '';
+  const P = fPatch({ NUVEM: { ligada: true, loja: 'emp1' }, MAPA: MAPA_CX,
+    api: async (u, m, b) => { urlPatch = u; metodoPatch = m; corpoPatch = b; return null; } });
+
+  const corpo = P.camposDoFechamento(fechadoSoAqui);
+  t('o corpo leva o fechamento', corpo.fechado_txt === '30/08/2026 22:48' && !!corpo.fechado_em);
+  t('leva tambem a conferencia e a fotografia do turno',
+    corpo.vendas === 5557.99 && corpo.contado === 512.05 && !!corpo.snapshot);
+  /* o motivo de nao mandar a linha inteira: fk() le um mapa que so existe
+     dentro do envio. Fora dele, turno e operador virariam nulo — e o PATCH
+     apagaria o vinculo bom que ja esta na nuvem. */
+  t('NAO leva os vinculos, que fora do envio viriam nulos',
+    corpo.turno_id === undefined && corpo.sucursal_id === undefined &&
+    corpo.operador_id === undefined && corpo.aberto_txt === undefined,
+    Object.keys(corpo).join(','));
+
+  const gravou = await P.gravarFechamentoNaNuvem(fechadoSoAqui);
+  t('grava com PATCH, nao com um envio inteiro', metodoPatch === 'PATCH', metodoPatch);
+  t('e mira exatamente aquele caixa daquela empresa',
+    /ref_local=eq\.cx_pc7vpk/.test(urlPatch) && /loja_id=eq\.emp1/.test(urlPatch), urlPatch);
+  t('o campo do fechamento vai no corpo', !!(corpoPatch && corpoPatch.fechado_txt));
+  t('e responde que gravou', gravou === true);
+
+  const semNuvem = fPatch({ NUVEM: { ligada: false }, MAPA: MAPA_CX,
+    api: async () => { throw new Error('nao devia chamar'); } });
+  t('sem nuvem, nem tenta', (await semNuvem.gravarFechamentoNaNuvem(fechadoSoAqui)) === false);
+  const caiu = fPatch({ NUVEM: { ligada: true, loja: 'emp1' }, MAPA: MAPA_CX,
+    api: async () => { throw new Error('sem conexão'); } });
+  t('rede ruim nao quebra o fechamento',
+    (await caiu.gravarFechamentoNaNuvem(fechadoSoAqui)) === false);
+  const aberto = fPatch({ NUVEM: { ligada: true, loja: 'emp1' }, MAPA: MAPA_CX,
+    api: async () => null });
+  t('caixa sem fechamento nenhum nao vira PATCH',
+    (await aberto.gravarFechamentoNaNuvem({ id: 'x', fechadoEm: '' })) === false);
+  t('a gravacao direta acontece ANTES da fila',
+    codigoNu.indexOf('await gravarFechamentoNaNuvem(cx)') <
+    codigoNu.indexOf('/* 2.') || /await gravarFechamentoNaNuvem\(cx\);\s*var la=await fechamentoChegouNaNuvem/.test(codigoNu));
+
+  console.log('\n── Sair daqui nao derruba a sessao da loja\n');
+
+  /* `signOut()` sem escopo, no Supabase, e GLOBAL: revoga a conta em todos
+     os aparelhos. Loja e escritorio usam a mesma conta. Nos registros de
+     31/08: logout global as 15:11:02 e, 400 ms depois, 401 em
+     config_operacao, config_loja e pedidos — o envio da loja morrendo. */
+  const semEscopo = (fonte.match(/auth\.signOut\(\)/g) || []).length;
+  t('nenhum signOut sem escopo sobrou no sistema', semEscopo === 0, semEscopo + ' encontrado(s)');
+  const locais = (fonte.match(/auth\.signOut\(\{scope:'local'\}\)/g) || []).length;
+  t('sair do sistema, perfil que nao carrega e inatividade saem so daqui',
+    locais === 3, locais + ' de 3');
+  t('e o comando de encerrar TODAS as sessoes continua global',
+    /signOut\(\{scope:'global'\}\)/.test(codigoNu));
+  t('esse comando continua sendo o de Administracao',
+    /async function encerrarTodasAsSessoes\(\)/.test(codigoNu));
   t('a conferencia limpa a impressao mentirosa antes de reenviar',
     /delete DB\._hash\.caixas\[cx\.id\]/.test(codigoNu));
   t('e o operador ouve a verdade se mesmo assim nao subir',

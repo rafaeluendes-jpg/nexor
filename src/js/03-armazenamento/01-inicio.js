@@ -795,7 +795,28 @@ async function conectarNuvem(email,senha){
   return true;
 }
 function desconectarNuvem(){
-  try{ if(NUVEM.cli)NUVEM.cli.auth.signOut(); }catch(e){_quieto(e,'desconectarNuvem')}
+  /* ==========================================================
+     SAIR DAQUI NAO PODE DERRUBAR A LOJA
+
+     AQUI ESTAVA O CAIXA DE 30/08 QUE NAO SUBIU.
+
+     `signOut()` sem escopo, na biblioteca do Supabase, e GLOBAL: ele
+     revoga a sessao da conta em TODOS os aparelhos. A loja e o
+     escritorio entram com a mesma conta. Entao bastava alguem sair do
+     sistema aqui para o computador da loja perder o token no meio de um
+     envio — e o que ainda estava na fila (o fechamento, que sobe depois
+     de pedidos e pagamentos) ficava para tras, sem erro na tela.
+
+     Esta no registro do banco de 31/08/2026: `logout?scope=global` as
+     15:11:02 e, nos 400 ms seguintes, 401 em config_operacao, config_loja
+     e pedidos — o envio daquele aparelho morrendo no meio. E a mesma
+     lista de tabelas recusadas que ja tinha aparecido antes.
+
+     Sair daqui e sair DAQUI. Encerrar a conta em todos os aparelhos
+     continua existindo, com esse nome, em Administracao.
+     ========================================================== */
+  try{ if(NUVEM.cli)NUVEM.cli.auth.signOut({scope:'local'}); }
+  catch(e){_quieto(e,'desconectarNuvem')}
   apagarSessaoGuardada();   /* sair tem de ser sair, inclusive da copia */
   desligarTempoReal();
   NUVEM.ligada=false;NUVEM.cli=null;NUVEM.token=null;NUVEM.perfil=null;NUVEM.loja=null;
