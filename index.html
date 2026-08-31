@@ -12380,7 +12380,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V256.0.0';
+var VERSAO='V257.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -43163,10 +43163,26 @@ function blocoRotinas() {
    ========================================================== */
 function linhasFechamento(cx){
   baseFormas();
-  var cols=48, papel=80;
-  try{ var m=modeloImp('ficha');
-    if(m){ papel=papelDoModelo(m); cols=(papel===58?32:48); }
-  }catch(e){}
+  /* ==========================================================
+     O FECHAMENTO FICOU SOZINHO NA LETRA PEQUENA
+
+     Quando a abertura, a sangria, o suprimento e o cancelamento
+     ganharam comprovante, todos foram montados em 32 colunas na bobina
+     de 80 mm — que e a letra que a loja aprovou. O fechamento ficou nas
+     48 colunas de antes: a mesma bobina dividida em metade a mais de
+     caracteres da 1,6 mm de largura de letra, contra 2,4. Legivel na
+     tela, pequena demais no papel termico, e ele e justamente o papel
+     que se le no fim da noite com pouca luz.
+
+     Agora usa a MESMA conta das outras: 32 na bobina larga, 24 na
+     estreita. O desenho ja e todo calculado a partir de `cols` — os
+     cabecalhos encurtam sozinhos para "Qt" e "Valor" abaixo de 40
+     colunas, e a largura do nome da forma sai da subtracao. Nada
+     precisou ser reescrito a mao.
+     ========================================================== */
+  var papel=80;
+  try{ var m=modeloImp('ficha'); if(m)papel=papelDoModelo(m); }catch(e){}
+  var cols=(papel===58?24:32);
   var s=cx.snapshot;
   var reconstruido=false;
   if(!s||!s.formas){

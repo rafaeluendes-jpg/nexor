@@ -495,8 +495,11 @@ function servir() {
   t('NÃO sai a coluna de diferença', !/\bDIF\b/i.test(r.corpo));
   t('nem valor do sistema nenhum escondido em outro bloco',
     r.corpo.indexOf('1.918,05') < 0 && r.corpo.indexOf('133,05') < 0);
-  t('tem o bloco Dinheiro, com Quant e Valor Total',
-    /\nDinheiro\n/.test(r.corpo) && /Quant\s+Valor Total/.test(r.corpo));
+  /* em 32 colunas os cabecalhos encurtam sozinhos para "Qt" e "Valor" —
+     e o desenho previsto para a bobina estreita, e agora o fechamento
+     usa a mesma letra grande dos outros comprovantes */
+  t('tem o bloco Dinheiro, com a coluna da quantidade e a do valor',
+    /\nDinheiro\n/.test(r.corpo) && /Qt\s+Valor/.test(r.corpo), r.corpo.slice(0, 200));
   t('e o bloco Cartao', /\nCartao\n/.test(r.corpo));
   t('cada bloco fecha com Subtotal...',
     (r.corpo.match(/Subtotal\.\.\./g) || []).length === 2);
@@ -527,12 +530,30 @@ function servir() {
       if (l.scrollWidth > l.clientWidth + 1) estoura++;
     });
     return { estilo: st, larguraPapel: Math.round(larguraPapel),
+             colsFech: linhasFechamento(cx).cols,
              maiorLinha: Math.round(maior), cortadas: estoura, qtLinhas: linhas.length };
   });
-  t('o papel tem largura em caracteres, calculada, não um número fixo',
-    /width:\s*48ch/.test(r.estilo || ''), r.estilo);
+  /* a largura em `ch` tem de ser a MESMA que o comprovante declarou —
+     conferir contra um numero fixo escondia justamente a divergencia
+     que fez o fechamento ficar com letra menor que os outros */
+  t('o papel tem a largura em caracteres que o comprovante pediu',
+    new RegExp('width:\\s*' + r.colsFech + 'ch').test(r.estilo || ''),
+    r.estilo + ' · esperado ' + r.colsFech + 'ch');
   t('e a fonte é dimensionada em milímetros para a bobina',
     /font-size:\s*[\d.]+mm/.test(r.estilo || ''), r.estilo);
+  /* ==========================================================
+     O FECHAMENTO ESTAVA SOZINHO NA LETRA PEQUENA
+
+     Abertura, sangria, suprimento e cancelamento foram montados em 32
+     colunas; o fechamento ficou nas 48 de antes. Mesma bobina dividida
+     em metade a mais de caracteres da letra menor — e ele e o papel que
+     se le no fim da noite, com pouca luz.
+     ========================================================== */
+  t('O FECHAMENTO USA A MESMA LETRA DOS OUTROS COMPROVANTES: 32 colunas',
+    r.colsFech === 32, r.colsFech + ' colunas');
+  t('e a letra passa de 3 mm no papel, como a da sangria',
+    +(((r.estilo || '').match(/font-size:\s*([\d.]+)mm/) || [0, 0])[1]) >= 3,
+    r.estilo);
   t('NENHUMA linha fica cortada na largura — era isso que comia os centavos',
     r.cortadas === 0, r.cortadas + ' linha(s) cortada(s)');
   /* o comprovante inteiro, como vai sair na bobina, gravado para conferência */
