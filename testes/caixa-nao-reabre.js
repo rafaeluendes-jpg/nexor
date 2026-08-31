@@ -316,8 +316,19 @@ t('fechar o esquecido não encerra a venda em andamento de hoje',
      Sem reabrir a pendencia DEPOIS disso, a marca ficaria esperando outra
      mudanca qualquer para pegar carona — o fechamento nao pode depender de
      a loja fazer mais uma venda para subir. */
-  t('e o download reabre o envio depois de se declarar limpo',
-    /NUVEM\.sujo=false; DB\._sujo=false;[\s\S]{0,400}_fechamentoPendente===true\}\)\)\{[\s\S]{0,200}agendarSync\(\);/.test(codigoNu));
+  t('o fechamento que ficou para tras vai pelo caminho curto, nao pela fila',
+    /if\(!\(await gravarFechamentoNaNuvem\(_cxp\)\)\)continue;/.test(codigoNu));
+  t('e so tira a marca depois de conferir que chegou',
+    /if\(\(await fechamentoChegouNaNuvem\(_cxp\.id\)\)===true\)\{\s*delete _cxp\._fechamentoPendente;/.test(codigoNu));
+  t('se a funcao nao existir, o download nao quebra',
+    /if\(typeof gravarFechamentoNaNuvem!=='function'\)break;/.test(codigoNu));
+  const iLimpo = codigoNu.indexOf('NUVEM.sujo=false; DB._sujo=false;');
+  const iPend  = codigoNu.indexOf('_pend=(DB.caixas||[]).filter');
+  t('e o download reabre o envio DEPOIS de se declarar limpo',
+    iLimpo > 0 && iPend > iLimpo, 'limpo em ' + iLimpo + ', pendencia em ' + iPend);
+  t('reabrindo de verdade: marca sujo e agenda o envio',
+    /if\(_pend\.length\)\{\s*NUVEM\.sujo=true; DB\._sujo=true;/.test(codigoNu) &&
+    /\}\s*agendarSync\(\);\s*\}\s*\}catch\(e\)\{ _quieto\(e,'fechamentoPendente'\); \}/.test(codigoNu));
   t('anotarImpressoes pula quem tem a marca',
     /if\(x\._fechamentoPendente===true\)continue;/.test(codigoNu));
   t('a marca cai quando a nuvem confirma o envio',

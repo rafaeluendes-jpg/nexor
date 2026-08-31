@@ -1486,9 +1486,40 @@ function volta(linhas,fn,atual,col){
      subir: ele sobe agora.
      ========================================================== */
   try{
-    if((DB.caixas||[]).some(function(c){return c&&c._fechamentoPendente===true})){
+    var _pend=(DB.caixas||[]).filter(function(c){return c&&c._fechamentoPendente===true});
+    if(_pend.length){
       NUVEM.sujo=true; DB._sujo=true;
-      logNuvem('há fechamento de caixa que ainda não está na nuvem — enviando',true);
+      logNuvem('há '+_pend.length+' fechamento(s) de caixa que ainda não estão na '+
+        'nuvem — enviando agora',true);
+      /* ==========================================================
+         O FECHAMENTO QUE FICOU PARA TRAS NAO ENTRA NA FILA
+
+         Marcar como pendente resolve a conta do envio, mas o envio sobe
+         tabela por tabela e `caixas` vem depois de `pedidos` e
+         `pedido_pagamentos`. Num aparelho com fila grande — o da loja
+         subia pagamento por pagamento, um POST a cada 190 ms — o caixa
+         levaria minutos para chegar a vez, e nao chegaria nenhuma se a
+         sessao caisse antes.
+
+         O fechamento que ja existe aqui vai pelo mesmo caminho curto
+         que o fechamento novo usa: a linha do caixa sozinha, com os
+         campos do fechamento e mais nada. E depois se confere.
+
+         E por isso que o operador NAO precisa fechar o caixa de novo:
+         basta abrir o sistema no aparelho onde o fechamento foi feito.
+         ========================================================== */
+      for(var _i=0;_i<_pend.length;_i++){
+        try{
+          if(typeof gravarFechamentoNaNuvem!=='function')break;
+          var _cxp=_pend[_i];
+          if(!(await gravarFechamentoNaNuvem(_cxp)))continue;
+          if((await fechamentoChegouNaNuvem(_cxp.id))===true){
+            delete _cxp._fechamentoPendente;
+            logNuvem('fechamento do caixa '+String(_cxp.id).slice(-6)+
+              ' foi gravado na nuvem',true);
+          }
+        }catch(e){ _quieto(e,'fechamentoPendente'); }
+      }
       agendarSync();
     }
   }catch(e){ _quieto(e,'fechamentoPendente'); }
