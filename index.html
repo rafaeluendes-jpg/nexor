@@ -8073,7 +8073,7 @@ var MAPA=[
       responsavel:o.responsavel||null,responsavel_id:o.responsavelId||null,
       destino_conta_id:fk('contas',o.destinoContaId),destino_nome:o.destinoNome||null,
       lanc_ref:o.lancRef||null,hora:o.hora||null,
-      data_hora:o.data||null}}}]},
+      data_hora:dataParaNuvem(o.data)}}}]},
 
  {col:'pedidos',     tab:'pedidos',
   campos:function(x){return {numero:n(x.numero),tipo:x.tipo||'loja',fase:x.fase||'aguardando',
@@ -8621,6 +8621,38 @@ function anotarImpressoes(){
    simplesmente some do registro, e aí um tem 12 chaves e o outro 11 — daí o
    "All object keys must match". Aqui os registros são igualados antes de subir:
    quem não tem o campo sobe com ele em branco. Vale para as 41 tabelas. */
+/* ==========================================================
+   UMA DATA EM FORMATO BRASILEIRO DERRUBA O LOTE INTEIRO
+
+   As colunas de data do banco sao `date` e `timestamptz`. Elas aceitam
+   "2026-08-31" e "2026-09-01T02:24:00.000Z"; recusam "31/08/2026" com
+   "invalid input syntax", que o PostgREST devolve como erro 400 — e o 400
+   derruba o LOTE inteiro, nao so a linha errada.
+
+   Isso importa porque o sistema tem registro gravado por versoes antigas,
+   e nem toda tela gravava a data no mesmo formato. Um unico movimento
+   antigo com a data no formato do Brasil trava a subida de tudo o que
+   estiver no mesmo lote, para sempre, a cada sincronizacao.
+
+   Aqui a data e normalizada antes de sair: o que ja esta certo passa
+   intacto; "31/08/2026" e "31/08/2026 23:24" viram ISO; e o que nao for
+   data de jeito nenhum vira nulo, em vez de derrubar o envio. Perder o
+   carimbo de uma linha antiga e ruim; perder o lote inteiro toda vez, e
+   com ele a sangria de hoje, e muito pior.
+   ========================================================== */
+function dataParaNuvem(v){
+  if(v===null||v===undefined||v==='')return null;
+  var t=String(v).trim();
+  if(!t)return null;
+  /* ja esta no formato que o banco entende */
+  if(/^\d{4}-\d{2}-\d{2}([T ]|$)/.test(t))return t;
+  /* dd/mm/aaaa, com hora ou sem */
+  var m=/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}:\d{2}(?::\d{2})?))?$/.exec(t);
+  if(m)return m[3]+'-'+m[2]+'-'+m[1]+(m[4]?'T'+(m[4].length===5?m[4]+':00':m[4]):'');
+  var d=new Date(t);
+  if(!isNaN(d))return d.toISOString();
+  return null;
+}
 function igualarChaves(linhas){
   var todas={};
   linhas.forEach(function(o){
@@ -12692,7 +12724,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V274.0.0';
+var VERSAO='V275.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

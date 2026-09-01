@@ -147,6 +147,23 @@ console.log('\n── O motivo da sangria sobe junto\n');
   t('não sobe mais só a descrição livre', !/motivo:o\.motivo\|\|null/.test(bloco));
 }
 
+console.log('\n── Data em formato brasileiro não derruba mais o lote\n');
+{
+  const i = fonte.indexOf('function dataParaNuvem');
+  const f = new Function(fonte.slice(i, fonte.indexOf('function igualarChaves')) +
+    '\nreturn dataParaNuvem;')();
+  t('o que já está certo passa intacto', f('2026-08-31') === '2026-08-31');
+  t('o carimbo completo também',
+    f('2026-09-01T02:24:00.000Z') === '2026-09-01T02:24:00.000Z');
+  t('31/08/2026 vira 2026-08-31', f('31/08/2026') === '2026-08-31', f('31/08/2026'));
+  t('com hora também', f('31/08/2026 23:24') === '2026-08-31T23:24:00', f('31/08/2026 23:24'));
+  t('vazio vira nulo', f('') === null && f(null) === null && f(undefined) === null);
+  t('o que não é data vira nulo em vez de derrubar o envio', f('banana') === null);
+  const i2 = fonte.indexOf("filhos:[{lista:'movimentos'");
+  t('o movimento de caixa passa pela normalização',
+    /data_hora:dataParaNuvem\(o\.data\)/.test(fonte.slice(i2, i2 + 1800)));
+}
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' verificações, todas certas') + '\n');
 process.exit(falhas ? 1 : 0);
