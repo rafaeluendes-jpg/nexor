@@ -192,7 +192,13 @@ t('o csv exportado abre com a data da contagem',
 t('e traz item, sistema, conferido, diferença e valor',
   /\['Ingrediente','Unidade','No sistema','Conferido','Diferenca','Custo','Valor'\]/.test(nu));
 t('a nova contagem começa no dia de hoje', /CT2\.data=hojeISO\(\);/.test(nu));
-t('e a data é limpa depois de finalizar', /CT2\.data='';CT2\.aba='hist'/.test(nu));
+/* a asserção era pela linha literal e quebrou quando o rascunho entrou
+   no meio dela; o que importa é o comportamento: data limpa e volta ao
+   histórico, com o rascunho apagado junto */
+t('e a data é limpa depois de finalizar',
+  /CT2\.data='';/.test(nu) && /CT2\.aba='hist'/.test(nu));
+t('e o rascunho da folha é apagado ao finalizar',
+  /limparRascunhoContagem\(\)/.test(nu));
 
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' testes passaram') + '\n');

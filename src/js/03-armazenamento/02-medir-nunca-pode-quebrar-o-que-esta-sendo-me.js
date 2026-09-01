@@ -279,7 +279,6 @@ function guardarIds(col,linhas){
 function _ANT(col){
   try{ var a=DB[col]; return Array.isArray(a)?a:null; }catch(e){ return null; }
 }
-var _FILHOS_MAPA=null;
 function volta(linhas,fn,atual,col){
     var _antesVolta=Array.isArray(atual)?atual.slice():null;
     if(col)guardarIds(col,linhas);
@@ -404,20 +403,23 @@ function volta(linhas,fn,atual,col){
          lembrar de nada. E cada pai pode ter mais de uma lista, que e o
          caso do pedido (itens E pagamentos).
          ========================================================== */
-      if(!_FILHOS_MAPA){
-        _FILHOS_MAPA={};
+      /* a conta fica guardada na propria funcao: `volta` e extraida e
+         rodada isolada pelos testes, e nao pode depender de variavel
+         que mora fora dela */
+      if(!volta._filhos){
+        volta._filhos={};
         try{
           (MAPA||[]).forEach(function(E9){
             (E9.filhos||[]).forEach(function(F9){
               if(!F9||!F9.lista)return;
-              _FILHOS_MAPA[E9.col]=_FILHOS_MAPA[E9.col]||[];
-              if(_FILHOS_MAPA[E9.col].indexOf(F9.lista)<0)
-                _FILHOS_MAPA[E9.col].push(F9.lista);
+              volta._filhos[E9.col]=volta._filhos[E9.col]||[];
+              if(volta._filhos[E9.col].indexOf(F9.lista)<0)
+                volta._filhos[E9.col].push(F9.lista);
             });
           });
-        }catch(e){ _quieto(e,'_FILHOS_MAPA'); }
+        }catch(e){ volta._filhos={}; }
       }
-      var listasF=_FILHOS_MAPA[col]||[];
+      var listasF=volta._filhos[col]||[];
       for(var _lf=0;_lf<listasF.length;_lf++){
         var campoF=listasF[_lf];
         var antesPorId={};

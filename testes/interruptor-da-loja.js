@@ -47,6 +47,8 @@ function montar(opts) {
     cfg: () => DB.config,
     baseCard: () => DB.cardapio, baseZap: () => DB.zap, baseSuc: () => {},
     lojaAtualId: () => opts.loja || 'suc_santafe',
+    _ids: { suc_santafe: 'f0de0748-3532-4f4c-b107-3dc2e90e696e',
+            suc_jales: '86cc4036-7a02-4a74-8963-4c06f3458fa6' },
     salvar: () => { chamadas.salvou++; },
     _quieto: () => {},
     api: async (caminho, metodo, corpo) => {
@@ -58,7 +60,7 @@ function montar(opts) {
       chamadas.zap.push({ suc, campos }); return true;
     }
   };
-  const nomes = ['lojaLigada', 'definirLojaLigada'];
+  const nomes = ['sucursalNaNuvem', 'lojaLigada', 'definirLojaLigada'];
   const feito = new Function('amb',
     'with(amb){' + nomes.map(n => corpoDaFuncao(n, fonte)).join('\n') +
     '\nreturn {' + nomes.join(',') + '};}')(amb);
@@ -86,9 +88,12 @@ console.log('\n── Desligar a loja desliga o cardápio e o robô\n');
     t('o robô de Santa Fé fica desligado', m.DB.zap.suc_santafe.ativo === false);
     t('Jales não foi tocada',
       m.DB.cardapio.suc_jales.ativo === true && m.DB.zap.suc_jales.ativo === true);
-    t('gravou na nuvem o cardápio da unidade certa',
+    /* o endereço da unidade na nuvem é UUID, não o identificador local —
+       mandar o local dava erro 400 e o interruptor não chegava lá (V273) */
+    t('gravou na nuvem o cardápio da unidade certa, pelo UUID dela',
       m.chamadas.cardapio.length === 1 &&
-      /cardapio_config\?sucursal_id=eq\.suc_santafe/.test(m.chamadas.cardapio[0].caminho),
+      /cardapio_config\?sucursal_id=eq\.f0de0748-3532-4f4c-b107-3dc2e90e696e/
+        .test(m.chamadas.cardapio[0].caminho),
       JSON.stringify(m.chamadas.cardapio));
     t('com ativo=false', m.chamadas.cardapio[0].corpo.ativo === false);
     t('e gravou robo_ativo=false na unidade certa',
@@ -154,13 +159,18 @@ function fechar() {
   t('a faixa só aparece quando há coisa presa para subir',
     /if\(!\(NUVEM\.sujo\|\|DB\._sujo\)\)return '';/.test(tp));
   t('e só depois de cinco minutos parado, para não piscar a cada envio',
-    /_parado<5\*60\*1000/.test(tp));
+    /Date\.now\(\)-_ud<5\*60\*1000/.test(tp));
   t('ela diz desde que hora o aparelho não recebe nada',
     /não recebe novidade da nuvem desde as/.test(tp));
   t('avisa que o pedido na tela pode não ser o que já aconteceu',
     /pode não ser o que já aconteceu nos outros aparelhos/.test(tp));
-  t('e explica por que o sistema não baixa por cima',
-    /para não apagar o que você lançou aqui/.test(tp));
+  /* a frase "o sistema não baixa nada por cima" saiu na V276, e saiu certo:
+     de lá para cá ele BAIXA — o que protege é a guarda linha a linha.
+     Deixar a frase seria a tela explicando um comportamento que acabou. */
+  t('não promete mais que o sistema deixou de baixar',
+    !/não baixa nada por cima/.test(tp));
+  t('e diz quantas alterações ainda não subiram',
+    /alterações feitas aqui ainda não subiram/.test(tp));
   const da = corpoDaFuncao('destravarAparelho', fonte);
   t('o botão tenta enviar primeiro', /await sincronizar\(\)/.test(da));
   t('e só baixa depois que a pendência saiu',

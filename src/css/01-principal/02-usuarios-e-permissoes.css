@@ -1714,6 +1714,28 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
    uma tira para os insumos. Aqui eles ficam mais baixos — so nesta
    tela — e a tabela leva o resto.
    ========================================================== */
+/* ==========================================================
+   A FOLHA DA CONTAGEM USA A TELA INTEIRA
+
+   O Rafael, em 01/09/2026: "a tela de nova contagem precisa subir tudo
+   inteiro; ela sobe so a metade, e a visualizacao fica muito ruim."
+
+   `.etWrap` e uma coluna flexivel de altura fixa com `overflow:hidden`,
+   e a lista (`.etTabW`) e um item flexivel com `overflow:auto`. O
+   cabecalho, os totais e a barra de filtros comem a altura primeiro; o
+   que sobra vira uma janelinha rolando por dentro, no meio da tela, com
+   o resto vazio em volta. Contar duzentos e cinquenta itens espiando por
+   uma fresta e o que ele descreveu.
+
+   Mesmo tratamento que a Frente de Caixa recebeu: quem rola e a PAGINA,
+   de fora a fora, e a lista deixa de ter rolagem propria. O cabecalho da
+   tabela fica grudado no topo — sem ele, quem desce ate o item 180 nao
+   sabe mais qual coluna e "contada" e qual e "diferenca".
+   ========================================================== */
+.etWrap.ctCheia{overflow-y:auto;overflow-x:hidden}
+.etWrap.ctCheia>.etTabW{flex:none;overflow:visible}
+.etWrap.ctCheia .ctTab thead th{position:sticky;top:0;z-index:6;background:var(--alt);
+  box-shadow:0 1px 0 var(--line)}
 .ctCheia .etTopo{padding:9px 16px;gap:12px}
 .ctCheia .etTopo h1{font-size:15px}
 .ctCheia .etTopo p{font-size:11.5px}

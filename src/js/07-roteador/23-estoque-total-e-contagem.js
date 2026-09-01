@@ -373,6 +373,41 @@ function custoCont(i){
   if(v!==undefined&&v!==''&&isFinite(parseFloat(v)))return parseFloat(v);
   return custoAtual(i);
 }
+/* ==========================================================
+   SAIR DA TELA NAO PODE PERDER A CONTAGEM
+
+   O Rafael, em 01/09/2026: "se eu estiver fazendo a contagem e estiver
+   na metade e eu sair da tela, tudo que eu digitei precisa ficar la. So
+   apagar quando eu clicar em finalizar a contagem."
+
+   Desde a V278 o que ele digita ja e guardado no aparelho a cada tecla.
+   Faltava a outra metade: ENCONTRAR a folha depois. Quem saia da
+   contagem — clicando em Voltar, indo para outro modulo, ou fechando o
+   navegador — voltava para o HISTORICO, uma lista de contagens
+   finalizadas, sem nada dizendo que havia uma folha pela metade
+   esperando. Do lado de quem esta contando, isso e identico a ter
+   perdido: a tela nao mostra o trabalho dele em lugar nenhum.
+
+   Agora, enquanto houver folha em andamento, o historico abre com ela
+   anunciada em cima, dizendo quantos itens ja foram digitados e desde
+   quando, com o botao de continuar do lado. A folha so some quando ele
+   clicar em Finalizar — ou quando ele mesmo mandar comecar do zero.
+   ========================================================== */
+function faixaContagemEmAndamento(){
+  var r=(typeof lerRascunhoContagem==='function')?lerRascunhoContagem():null;
+  if(!r)return '';
+  var n=Object.keys(r.cont||{}).filter(function(k){
+    return String(r.cont[k]||'').trim()!==''; }).length;
+  if(!n)return '';
+  var q=new Date(r.quando);
+  var quando=isNaN(q)?'':' desde as '+q.toLocaleTimeString('pt-BR').slice(0,5);
+  return '<div class="cmdFaixa cmdAlerta" style="flex:none">'+sv('help',14)+
+   '<div><b>Você tem uma contagem em andamento.</b> '+n+' item(ns) já digitado(s)'+quando+
+   (r.data?', para o dia '+dataBR(r.data):'')+
+   '. Ela fica guardada aqui até você finalizar.</div>'+
+   '<button class="btnP2 ok" onclick="novaContagem()">Continuar a contagem</button>'+
+   '<button class="btnP2" onclick="descartarRascunhoContagem()">Descartar</button></div>';
+}
 function telaContagem(){
   baseMov();
   /* ==========================================================
@@ -443,8 +478,10 @@ function telaContagem(){
      '<div class="etT"><span>Perda no período</span><b class="vr">R$ '+money(tPerda)+'</b></div>'+
      '<div class="etT dest"><span>Resultado</span><b class="'+((tGanho-tPerda)>=0?'vg':'vr')+'">R$ '+money(tGanho-tPerda)+'</b></div>'+
     '</div>'+
-    '<button class="btnP2 ok" onclick="novaContagem()">'+sv('plus',14)+' Realizar nova contagem</button>'+
+    '<button class="btnP2 ok" onclick="novaContagem()">'+sv('plus',14)+
+      (lerRascunhoContagem()?' Continuar a contagem':' Realizar nova contagem')+'</button>'+
    '</div>'+
+   faixaContagemEmAndamento()+
    '<div class="etFiltros">'+
     '<div class="f2" style="max-width:150px"><label>De</label><input type="date" id="ctDe" value="'+CT2.de+'"></div>'+
     '<div class="f2" style="max-width:150px"><label>Até</label><input type="date" id="ctAte" value="'+CT2.ate+'"></div>'+
@@ -538,12 +575,36 @@ function limparRascunhoContagem(){
   clearTimeout(_tRascunho);
   try{ localStorage.removeItem(_CHAVE_RASCUNHO); }catch(e){ _quieto(e,'limparRascunhoContagem'); }
 }
-function descartarRascunhoContagem(){
+/* ==========================================================
+   O UNICO BOTAO QUE APAGA A FOLHA TEM DE PERGUNTAR
+
+   "So apagar quando eu clicar em finalizar a contagem" — entao o botao
+   que apaga sem finalizar nao pode fazer isso num clique so. Antes,
+   "Limpar" zerava uma folha de duzentos itens contados a mao na hora,
+   sem pergunta e sem volta. Com a folha vazia ele continua limpando
+   direto: nao ha o que perder.
+   ========================================================== */
+async function descartarRascunhoContagem(){
+  var n=Object.keys(CT2.cont||{}).filter(function(k){
+    return String(CT2.cont[k]||'').trim()!==''; }).length;
+  var r=lerRascunhoContagem();
+  if(!n&&r)n=Object.keys(r.cont||{}).filter(function(k){
+    return String(r.cont[k]||'').trim()!==''; }).length;
+  if(n){
+    var ok=await confirmar({
+      titulo:'Apagar a contagem que está em andamento?',
+      texto:'Você já digitou '+n+' item(ns). Apagar aqui não finaliza nada: '+
+        'a contagem some e o estoque NÃO é ajustado.',
+      aviso:'Não dá para desfazer. Se quiser guardar o que contou, feche esta '+
+        'janela e clique em "Finalizar contagem".',
+      ok:'Apagar mesmo assim',cancelar:'Voltar para a contagem',tipo:'perigo'});
+    if(!ok)return;
+  }
   limparRascunhoContagem();
   CT2.cont={};CT2.custo={};CT2._retomado='';
   CT2.data=hojeISO();
   telaContagem();
-  toast('Folha limpa. A contagem começa do zero.');
+  toast(n?'Folha apagada. A contagem começa do zero.':'Folha limpa.');
 }
 function novaContagem(){
   CT2.aba='nova';CT2.busca='';CT2.grupo='';

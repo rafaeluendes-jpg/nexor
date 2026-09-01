@@ -94,7 +94,7 @@ console.log('\n── A proteção por linha continua inteira\n');
   const v = corpoDaFuncao('volta', fonte);
   t('o download guarda as linhas com mudança não enviada',
     /temMudancaNaoEnviada\(col,x,i\)\)meus\[x\.id\]=x/.test(v));
-  t('e devolve os filhos que só existem aqui', /_FILHOS_MAPA\[col\]/.test(v));
+  t('e devolve os filhos que só existem aqui', /volta\._filhos\[col\]/.test(v));
 }
 
 console.log('\n── A faixa fala português\n');

@@ -54,7 +54,7 @@ function ambiente(DB) {
   };
   const codigo = MAPA_REAL + '\n' +
     ['_ANT', 'volta'].map(x => corpoDaFuncao(x, fonte)).join('\n') +
-    '\nvar _FILHOS_MAPA=null;';
+    '';
   const feito = new Function('amb',
     'with(amb){' + codigo + '\nreturn {volta:volta,MAPA:MAPA};}')(amb);
   Object.assign(amb, feito);

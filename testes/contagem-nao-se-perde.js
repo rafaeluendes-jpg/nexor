@@ -45,6 +45,8 @@ function mundo() {
     telaContagem: () => { amb._desenhou = (amb._desenhou || 0) + 1; },
     toast: () => {}, _quieto: () => {},
     setTimeout: (f) => { f(); return 1; }, clearTimeout: () => {},
+    confirmar: async () => (amb._respondeSim !== false),
+    dataBR: d => d, sv: () => '',
     _guardado: guardado
   };
   const nomes = ['guardarRascunhoContagem', 'lerRascunhoContagem',
@@ -108,19 +110,49 @@ console.log('\n── Mas sem confundir loja, nem ressuscitar folha vazia\n');
     m2.CT2._retomado === '');
 }
 
-console.log('\n── "Começar do zero" e finalizar apagam o rascunho\n');
-{
+async function apagarERetomar() {
+  console.log('\n── Apagar a folha pergunta antes, e finalizar limpa sozinho\n');
+  /* com itens digitados, o botão tem de perguntar — e respeitar o "não" */
+  const m0 = mundo();
+  m0.CT2.cont = { in_copo: '13' };
+  m0.f.guardarRascunhoContagem();
+  m0.amb._respondeSim = false;
+  await m0.f.descartarRascunhoContagem();
+  t('quem responde "voltar para a contagem" NÃO perde nada',
+    !!m0.guardado['nexor_contagem_rascunho'] && m0.CT2.cont.in_copo === '13');
+
   const m = mundo();
   m.CT2.cont = { in_copo: '13' };
   m.f.guardarRascunhoContagem();
-  m.f.descartarRascunhoContagem();
-  t('"Começar do zero" limpa o navegador', !m.guardado['nexor_contagem_rascunho']);
+  await m.f.descartarRascunhoContagem();
+  t('quem confirma, aí sim limpa o navegador', !m.guardado['nexor_contagem_rascunho']);
   t('e limpa a folha da tela', Object.keys(m.CT2.cont).length === 0);
   t('e a marca de retomada', m.CT2._retomado === '');
+
+  const dr = corpoDaFuncao('descartarRascunhoContagem', fonte);
+  t('a pergunta avisa que o estoque NÃO é ajustado',
+    /o estoque NÃO é ajustado/.test(dr));
+  t('e oferece voltar para a contagem', /cancelar:'Voltar para a contagem'/.test(dr));
 
   const fc = corpoDaFuncao('fecharContagem', fonte);
   t('finalizar a contagem apaga o rascunho', /limparRascunhoContagem\(\)/.test(fc));
   t('e só depois grava', fc.indexOf('limparRascunhoContagem()') < fc.indexOf('salvar();telaContagem()'));
+
+  console.log('\n── Sair da tela: a folha se anuncia no histórico\n');
+  const fx = corpoDaFuncao('faixaContagemEmAndamento', fonte);
+  t('a faixa só aparece com item digitado', /if\(!n\)return '';/.test(fx));
+  t('ela diz quantos itens já foram digitados', /item\(ns\) já digitado\(s\)/.test(fx));
+  t('e desde que hora', /desde as /.test(fx));
+  t('diz que fica guardada até finalizar', /fica guardada aqui até você finalizar/.test(fx));
+  t('e o botão principal é continuar', /Continuar a contagem/.test(fx));
+  const tc = corpoDaFuncao('telaContagem', fonte);
+  t('o histórico mostra a faixa', /faixaContagemEmAndamento\(\)/.test(tc));
+  t('e o botão de cima muda para "Continuar a contagem"',
+    /lerRascunhoContagem\(\)\?' Continuar a contagem':' Realizar nova contagem'/.test(tc));
+
+  console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
+                             : '✓ ' + testes + ' verificações, todas certas') + '\n');
+  process.exit(falhas ? 1 : 0);
 }
 
 console.log('\n── O rascunho não vira dado nem sobe para a nuvem\n');
@@ -150,6 +182,4 @@ console.log('\n── Cada tecla digitada é guardada\n');
     /guardarRascunhoContagem\(\)/.test(corpoDaFuncao('mudarDataContagem', fonte)));
 }
 
-console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
-                           : '✓ ' + testes + ' verificações, todas certas') + '\n');
-process.exit(falhas ? 1 : 0);
+apagarERetomar();
