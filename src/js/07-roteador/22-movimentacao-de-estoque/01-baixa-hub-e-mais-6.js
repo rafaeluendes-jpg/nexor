@@ -1409,8 +1409,11 @@ function verPedidoBase(id){
   var h = '<div class="mdB">' +
    '<div class="acHead"><div class="av3" style="width:40px;height:40px">' +
     sv('box', 18) + '</div><div><b>Pedido #' + String(p.numero || 0).padStart(4, '0') + '</b>' +
+    /* o responsavel costuma vir gravado com o nome da propria unidade —
+       escrever "Santa Fe do Sul · Santa Fe do Sul" so parece defeito */
     '<span>' + E(dataBR(p.data)) + ' · ' + E(p.sucursalNome || '—') +
-    (p.responsavel ? ' · ' + E(p.responsavel) : '') + ' · ' + seloPedBase(p.situacao) +
+    (p.responsavel && String(p.responsavel).trim() !== String(p.sucursalNome || '').trim()
+      ? ' · ' + E(p.responsavel) : '') + ' · ' + seloPedBase(p.situacao) +
     '</span></div></div>' +
    (itens.length
     ? '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">' +
@@ -1430,11 +1433,29 @@ function verPedidoBase(id){
        '<tfoot><tr><td colspan="3"><b>Total do pedido</b></td>' +
        '<td style="text-align:right"><b>R$ ' + money(p.total) + '</b></td></tr></tfoot>' +
       '</table></div></div>'
-    /* pedido antigo, de quando o item nao subia: o cabecalho existe e a
-       lista nao. Dizer isso e melhor do que mostrar uma tabela vazia. */
-    : '<div class="hint" style="padding:20px;text-align:center">' +
-      'Este pedido não tem a lista de bases neste aparelho.<br>' +
-      'O total enviado foi de <b>R$ ' + money(p.total) + '</b>.</div>') +
+    /* ==========================================================
+       LISTA QUE NAO CHEGOU: DIZER ONDE ELA ESTA, NAO SO QUE FALTA
+
+       Ate a V279 o item do pedido de base era recusado pela nuvem — a
+       chave do upsert citava uma coluna que a tabela nao tem. O
+       cabecalho subia, a lista nao. Quem abre o pedido na matriz ve o
+       total e mais nada.
+
+       "Nao tem a lista neste aparelho" e verdade e nao serve de nada
+       sozinho. A lista existe no computador que MONTOU o pedido; o que
+       falta e ele subir com a versao corrigida. E o que a tela diz
+       agora, com o caminho.
+       ========================================================== */
+    : '<div class="hint" style="padding:22px;line-height:1.75">' +
+      '<b>A lista de bases deste pedido não chegou a este aparelho.</b><br>' +
+      'O pedido foi enviado por <b>' + E(p.sucursalNome || 'uma unidade') +
+      '</b>, no valor de <b>R$ ' + money(p.total) + '</b>.<br><br>' +
+      'Até a versão V279 a nuvem recusava os itens do pedido de base — o ' +
+      'cabeçalho subia e a lista não. No computador que montou o pedido a ' +
+      'lista pode estar guardada: <b>atualize aquele aparelho</b> ' +
+      '(Ctrl+Shift+R) e ela sobe sozinha na primeira sincronização.<br><br>' +
+      'Se lá também não aparecer, a lista se perdeu e o pedido precisa ser ' +
+      'refeito — o total acima é o que foi enviado.</div>') +
    '</div>';
   var o = document.createElement('div');
   o.className = 'mdOv'; o.id = 'mdOv';

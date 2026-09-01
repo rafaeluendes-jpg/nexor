@@ -92,7 +92,13 @@ console.log('\n── O olhinho abre o pedido inteiro\n');
     /unidadesDoItem\(it\)/.test(vp) && /precoUnitDoItem\(it\)/.test(vp));
   t('e fecha com o total do pedido', /Total do pedido/.test(vp));
   t('pedido sem lista não mostra tabela vazia: explica',
-    /não tem a lista de bases neste aparelho/.test(vp));
+    /A lista de bases deste pedido não chegou a este aparelho/.test(vp));
+  t('e diz onde a lista pode estar e o que fazer',
+    /atualize aquele aparelho/.test(vp) && /Ctrl\+Shift\+R/.test(vp));
+  t('e diz o que significa se lá também não aparecer',
+    /a lista se perdeu e o pedido precisa ser/.test(vp));
+  t('não escreve o nome da unidade duas vezes',
+    /String\(p\.responsavel\)\.trim\(\) !== String\(p\.sucursalNome \|\| ''\)\.trim\(\)/.test(vp));
   const tp = corpoDaFuncao('telaPedidoBase', fonte);
   t('a lista "Meus pedidos" tem o olhinho', /verPedidoBase\(/.test(tp));
   t('e ele fica no fim da linha, com o título certo',
