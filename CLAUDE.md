@@ -150,21 +150,28 @@ ele autorizou: corrigir defeito do que já está publicado, com a bateria
 completa verde, sobe direto; regra de negócio nova ou recurso novo espera
 ordem.
 
-**A resposta no chat tem no máximo três linhas**, neste formato:
+**REGRA DURA (Rafael, 01/09/2026): resposta no chat de 2 a 3 linhas, no
+máximo. Ele não é programador — nada de explicação técnica, nada de "como"
+funciona por dentro, nada de lista de arquivos. Ele dá a ideia, eu aplico
+e digo só o resultado.** Ele repetiu isto mais de uma vez; passar de três
+linhas é desobedecer uma ordem, não um detalhe de estilo.
+
+Formato:
 
 ```
-Pronto: [o que ficou concluído].
-Testei: [o que foi verificado].
+Pronto: [o que ficou concluído, em português de gente].
+Testei: [uma frase].
 Acesse aqui: [link].
 ```
 
-Se não estiver pronto: `Ainda não está pronto. / Problema encontrado: … /
-Próxima ação: …`. Se depender dele: `Isso depende de você: … / Acesse: … /
-Passo a passo: 1. … 2. … 3. …`. Relatório técnico, quando precisar, é
-arquivo separado — no chat vai só o resumo e o link.
+Se não estiver pronto: `Ainda não está pronto. / Problema: … / Próxima
+ação: …`. Se depender dele: `Isso depende de você: … / Passo a passo: 1. …
+2. …`. Todo o resto — causa, mecanismo, arquivos, relatório — vai para
+arquivo separado (`SEGURANCA.md`, um `.md` de relatório); no chat, nunca.
+Só explique o mecanismo se ELE perguntar "por quê" ou "como".
 
 ## Como falar com o Rafael
 
-Português. Ele não é programador de formação, mas conhece o sistema dele a
-fundo — explique o mecanismo, não só a conclusão. Sem jargão gratuito.
-Quando algo der errado, diga o que quebrou e por quê, sem enfeitar.
+Português, curto, sem jargão. Ele conhece o sistema dele a fundo, mas não
+é programador e não quer explicação técnica no chat — quer o resultado.
+Diga o que ficou pronto em uma frase; o "por quê" só se ele pedir.
