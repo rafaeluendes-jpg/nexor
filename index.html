@@ -12530,7 +12530,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V269.0.0';
+var VERSAO='V270.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -37363,17 +37363,49 @@ function exportarComparativo(){
    ========================================================== */
 var DIAS_SEM=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 function diaSemana(d){ return new Date(String(d)+'T12:00:00').getDay(); }
+/* ==========================================================
+   O SELETOR DE CANAIS TINHA UMA LISTA PARALELA
+
+   Esta funcao montava a lista de canais somando tres nomes fixos
+   ("Frente de caixa", "Entrega", "Retirada") com TODO valor cru que
+   aparecesse em `pedido.canal`. O seletor de cinco relatorios —
+   Faturamento por Dia, Itens Vendidos, Vendas por Area, Vendas por
+   Forma de Pagamento e Vendas por Periodo — mostrava, um embaixo do
+   outro: "Frente de caixa", "Entrega", "Retirada", "pdv", "cardapio".
+   Nomes de banco de dados na tela, e a mesma venda em duas opcoes.
+
+   Pior: o filtro comparava `p.canal||p.tipo`, e o resto do sistema
+   compara `canalDoPedido(p)`. Marcar "Entrega" aqui nao trazia a mesma
+   venda que "Delivery" trazia na tela de Canais de Venda.
+
+   Agora estes cinco relatorios usam a mesma lista e a mesma regra dos
+   outros: CANAIS_REL e canalDoPedido.
+   ========================================================== */
 function canaisVenda(){
-  var s={'loja':'Frente de caixa','entrega':'Entrega','retirada':'Retirada'};
-  (DB.pedidos||[]).forEach(function(p){ if(p.canal&&!s[p.canal])s[p.canal]=p.canal; });
+  var s={};
+  CANAIS_REL.forEach(function(c){s[c.id]=c.n});
   return s;
 }
+/* ==========================================================
+   A TRAVA DE UNIDADE VALIA SO PARA METADE DOS RELATORIOS
+
+   `pedsPeriodo` corta pela unidade aberta desde a V-do-tenant, e o
+   comentario dela diz que o corte "nao pode depender de o painel
+   lembrar de filtrar". Mas os cinco relatorios que passam por AQUI
+   nunca tiveram esse corte: quem estava com Santa Fe aberta via, no
+   Faturamento por Dia, a venda de Jales somada a sua.
+
+   Passa pela mesma porta agora. A matriz continua vendo a rede toda.
+   O pedido cancelado NAO e cortado aqui de proposito: o Faturamento
+   por Dia mostra uma coluna de cancelamentos e precisa dele.
+   ========================================================== */
 function pedidosFiltrados(f){
   return (DB.pedidos||[]).filter(function(p){
+    if(!vendaDaUnidadeAberta(p))return false;
     var d=diaLocal(p.data);
     if(f.de&&d<f.de)return false;
     if(f.ate&&d>f.ate)return false;
-    if(f.canais&&f.canais.length&&f.canais.indexOf(p.canal||p.tipo||'loja')<0)return false;
+    if(f.canais&&f.canais.length&&f.canais.indexOf(canalDoPedido(p))<0)return false;
     if(f.dias&&f.dias.length&&f.dias.indexOf(diaSemana(d))<0)return false;
     return true;
   });
@@ -39594,10 +39626,40 @@ async function excluirSucursal(id){
    tudo — e para ela que existe a comparacao por loja. Qualquer outra
    unidade so enxerga a propria venda.
    ========================================================== */
+/* ==========================================================
+   DE QUAL LOJA E ESTA VENDA
+
+   O pedido aceito do cardapio digital nascia SEM loja: a linha era
+   `sucursalId: p.sucursal_id||'suc_matriz'`, e o cardapio nao manda
+   sucursal nenhuma. Entao toda venda do cardapio virava venda da
+   MATRIZ — enquanto o dinheiro dela entrava no caixa da loja que
+   aceitou o pedido.
+
+   Efeito, conferido no banco em 01/09/2026: os 9 pedidos do cardapio de
+   agosto (R$ 608,00) estavam todos em caixas de Santa Fe do Sul e todos
+   com `sucursal_id` nulo. Santa Fe abria Canais de Venda e via
+   "Delivery R$ 213,00 · 2 pedidos" — os dois unicos digitados como
+   entrega no PDV. As nove entregas do cardapio nao apareciam em lugar
+   nenhum do relatorio dela.
+
+   A origem esta corrigida (o pedido agora nasce na loja que o aceitou),
+   mas o que ja foi gravado continuaria invisivel. Por isso o relatorio
+   nao pergunta so ao pedido: quando ele nao diz de que loja e, quem
+   responde e o CAIXA em que a venda entrou — que e o mesmo caixa que
+   contou esse dinheiro no fechamento. Nao ha chute: se nem o caixa
+   souber, ai sim cai na matriz, como era antes.
+   ========================================================== */
+function sucursalDoPedido(p){
+  if(!p)return 'suc_matriz';
+  if(p.sucursalId)return p.sucursalId;
+  var cx=p.caixaId&&(DB.caixas||[]).find(function(c){return c.id===p.caixaId});
+  if(cx&&cx.sucursalId)return cx.sucursalId;
+  return 'suc_matriz';
+}
 function vendaDaUnidadeAberta(p){
   var suc=lojaAtualId();
   if(ehSucMatriz(suc))return true;          /* a matriz compara a rede */
-  return (p&&(p.sucursalId||'suc_matriz'))===suc;
+  return sucursalDoPedido(p)===suc;
 }
 /* filtro de sucursais usado nos painéis */
 
@@ -39611,22 +39673,42 @@ function periodoPadrao(o){
 }
 /* De qual porta a venda entrou. E uma so por pedido, e ela e a base de
    todo relatorio que separa balcao, entrega, totem e mesa. */
+/* ==========================================================
+   ENTREGA E ENTREGA, VENHA DE ONDE VIER
+
+   O relatorio tinha "Delivery" e "Cardapio digital" como dois canais
+   diferentes, e a mesma venda so podia cair num deles. Como o pedido do
+   cardapio nasce com `canal:'cardapio'`, TODA entrega pedida pelo
+   cardapio saia de dentro do Delivery e ia para o outro cartao. Sobrava
+   no Delivery so o que alguem digitou como entrega na mao, no PDV.
+
+   O Rafael, em 01/09/2026: "a gente tem delivery e tem cardapio digital,
+   nao faz sentido... toda venda que sai no WhatsApp e delivery digital,
+   tem que ser um so, o outro tem que tirar."
+
+   Ele esta certo, e o aplicativo do celular ja fazia assim: la o
+   delivery e `tipo==='entrega'`, sem olhar o canal — por isso os dois
+   davam numeros diferentes para o mesmo dia.
+
+   Agora e um canal so, Delivery, e ele responde a mesma pergunta que o
+   aplicativo responde: esta venda saiu para entrega? O cardapio, o
+   WhatsApp e o PDV sao a PORTA por onde o pedido entrou, nao o canal —
+   e a porta continua gravada em `pedido.canal`, visivel no detalhe do
+   pedido. Pedido de RETIRADA feito pelo cardapio continua sendo balcao,
+   porque o cliente veio buscar no balcao.
+   ========================================================== */
 function canalDoPedido(p){
   var c=String(p.canal||'').toLowerCase();
+  if(p.tipo==='entrega')return 'entrega';
   if(c==='totem')return 'totem';
   if(c==='mesa')return 'mesa';
-  if(c==='cardapio'||c==='online')return 'cardapio';
-  if(c==='whatsapp')return 'whatsapp';
-  if(p.tipo==='entrega')return 'entrega';
   return 'balcao';
 }
 var CANAIS_REL=[
  {id:'balcao',  n:'Balcão',          cor:'#0E8A46'},
- {id:'totem',   n:'Totem',           cor:'#1F5F8B'},
- {id:'mesa',    n:'Mesa',            cor:'#B4542F'},
- {id:'entrega', n:'Entrega',         cor:'#E8574A'},
- {id:'cardapio',n:'Cardápio digital',cor:'#F5A623'},
- {id:'whatsapp',n:'WhatsApp',        cor:'#7E57C2'}
+ {id:'entrega', n:'Delivery',        cor:'#E8574A'},
+ {id:'mesa',    n:'Mesa (QR Code)',  cor:'#B4542F'},
+ {id:'totem',   n:'Totem',           cor:'#1F5F8B'}
 ];
 /* Porta unica dos relatorios: filtrar o canal AQUI faz o filtro valer em
    todas as telas de uma vez, em vez de cada uma ter a sua regra. */
@@ -39638,7 +39720,7 @@ function pedsPeriodo(o){
     var d=diaLocal(p.data);
     if(o.de&&d<o.de)return false;
     if(o.ate&&d>o.ate)return false;
-    if(o.sucs&&o.sucs.length&&o.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return false;
+    if(o.sucs&&o.sucs.length&&o.sucs.indexOf(sucursalDoPedido(p))<0)return false;
     if(o.canais&&o.canais.length&&o.canais.indexOf(canalDoPedido(p))<0)return false;
     return true;
   });
@@ -39773,19 +39855,24 @@ function telaCanaisVenda(){
   periodoPadrao(CV2);
   var peds=pedsPeriodo(CV2);
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
-  var canais=[
-   {id:'entrega', n:'Delivery',      cor:'#E8574A', fn:function(p){return p.tipo==='entrega'&&(p.canal||'')!=='whatsapp'&&(p.canal||'')!=='cardapio'}},
-   /* antes isto engolia mesa e totem: tudo que nao era entrega virava "loja
-      fisica", e a venda do totem sumia dentro do balcao */
-   {id:'loja',    n:'Balcão',        cor:'#4CAF50', fn:function(p){
-     var c=(p.canal||'');
-     return p.tipo!=='entrega'&&c!=='mesa'&&c!=='totem'&&c!=='cardapio'&&c!=='whatsapp';}},
-   {id:'whatsapp',n:'WhatsApp',      cor:'#7E57C2', fn:function(p){return (p.canal||'')==='whatsapp'}},
-   {id:'cardapio',n:'Cardápio digital',cor:'#F5A623',fn:function(p){return (p.canal||'')==='cardapio'}},
-   {id:'mesa',    n:'Mesa (QR Code)',  cor:'#B4542F',fn:function(p){return (p.canal||'')==='mesa'}},
-   {id:'totem',   n:'Totem',           cor:'#1F5F8B',fn:function(p){return (p.canal||'')==='totem'}}
-  ].map(function(c){
-    var lista=peds.filter(c.fn);
+  /* ==========================================================
+     ESTA TELA TINHA A PROPRIA REGRA DE CANAL
+
+     O sistema tem uma porta unica para dizer de que canal e a venda —
+     `canalDoPedido` — e o comentario dela diz, desde que foi escrita,
+     que filtrar ali faz o filtro valer em todas as telas de uma vez.
+     Só que esta tela, a que se chama Canais de Venda, nao passava por
+     essa porta: tinha a propria lista, com a propria regra em cada
+     linha. As duas foram ficando diferentes, e o mesmo pedido era
+     "Cardapio digital" aqui e "Entrega" no seletor de canais logo
+     acima, na mesma tela.
+
+     Agora ela le CANAIS_REL e chama `canalDoPedido`, como as outras.
+     Um pedido cai em um cartao so, e o cartao e o mesmo em toda parte.
+     ========================================================== */
+  var canais=CANAIS_REL.map(function(c0){
+    var c={id:c0.id,n:c0.n,cor:c0.cor};
+    var lista=peds.filter(function(p){return canalDoPedido(p)===c.id});
     c.valor=lista.reduce(function(a,p){return a+(Number(p.total)||0)},0);
     c.qtd=lista.length;
     c.pct=total?(c.valor/total*100):0;
@@ -39900,7 +39987,7 @@ function telaFaturamento(){
   var fic=tk(peds.filter(function(p){return p.tipo!=='entrega'&&p.tipo!=='retirada'}));
 
   var porLoja=sucAtivas().map(function(s){
-    var l=peds.filter(function(p){return (p.sucursalId||'suc_matriz')===s.id});
+    var l=peds.filter(function(p){return sucursalDoPedido(p)===s.id});
     var x=tk(l);
     return {suc:s,valor:x.v,qtd:x.q,ticket:x.t,
       ent:tk(l.filter(function(p){return p.tipo==='entrega'})).t,
@@ -40041,22 +40128,68 @@ function telaVendaDataHora(){
   var peds=pedsPeriodo(VDH);
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
 
+  /* ==========================================================
+     A HORA DA VENDA IMPORTADA NAO EXISTE
+
+     A carga do sistema antigo trouxe 315 vendas de agosto de 2026 — R$
+     50.763,38 — e nenhuma delas tinha hora. Todas foram gravadas com
+     "19:00" para ocupar o campo. O grafico somava esse carimbo como se
+     fosse hora de venda: uma barra de R$ 51,5 mil as 19h contra menos
+     de R$ 2 mil em cada uma das outras onze horas do dia, e "Melhor
+     horario: 19h" no topo da tela.
+
+     Nunca houve pico as 19h. O que houve foi a importacao.
+
+     Quem tem hora de verdade e a venda registrada no PDV, no cardapio
+     ou no WhatsApp — nessas o relogio marcou o momento do atendimento,
+     no horario de Sao Paulo (`agoraHM`). A venda importada continua
+     contando no faturamento, no numero de pedidos e no dia da semana,
+     porque a DATA dela e verdadeira; so a hora nao e, e por isso ela
+     fica fora do grafico de horario, com o aviso na tela dizendo
+     quantas ficaram e quanto elas somam.
+     ========================================================== */
+  var comHora=peds.filter(function(p){return String(p.origem||'')!=='importado'});
+  var semHora=peds.filter(function(p){return String(p.origem||'')==='importado'});
+  var vSemHora=semHora.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   /* por hora */
   var horas=[];for(var h=0;h<24;h++)horas.push({v:0,q:0});
-  peds.forEach(function(p){
+  comHora.forEach(function(p){
     var hh=parseInt(String(p.hora||'0').slice(0,2),10);
     if(isNaN(hh)||hh<0||hh>23)return;
     horas[hh].v+=Number(p.total)||0;horas[hh].q++;
   });
+  var temHora=horas.some(function(x){return x.q>0});
   var hIni=0,hFim=23;
   while(hIni<23&&!horas[hIni].q)hIni++;
   while(hFim>0&&!horas[hFim].q)hFim--;
   if(hIni>hFim){hIni=8;hFim=22;}
-  /* por dia da semana */
+  /* ==========================================================
+     "DOMINGO: 177 PEDIDOS EM 120 DIA(S)" — EM UM MES DE 31 DIAS
+
+     A conta da media dividia pelo numero de dias em que aquele dia da
+     semana apareceu. So que a chave usada para contar os dias era
+     `p.data` — o carimbo INTEIRO da venda, com hora, minuto, segundo e
+     fuso ("2026-08-30T18:00:31.364Z"). Cada pedido virava um "dia".
+
+     Agosto de 2026 tem cinco domingos. A tela dizia 120, que e
+     exatamente o numero de carimbos diferentes dos domingos: 117 vendas
+     de PDV, cada uma no seu segundo, mais os tres domingos importados,
+     que compartilham o mesmo carimbo por dia.
+
+     Consequencia: a media de cada dia da semana saia dividida por um
+     numero inventado, e o "Melhor dia" era o dia com menos carimbos
+     distintos — quarta-feira, com 11, que so tinha essa marca por ser o
+     dia com mais venda importada em relacao a venda digitada. Domingo,
+     que e o dia forte da loja, aparecia em quinto.
+
+     A chave agora e o DIA da loja (`diaLocal`, fuso de Sao Paulo), que
+     e o que a frase "em N dia(s)" sempre quis dizer.
+     ========================================================== */
   var sem=[];for(var d=0;d<7;d++)sem.push({v:0,q:0,dias:{}});
   peds.forEach(function(p){
-    var k=diaSemana(diaLocal(p.data));
-    sem[k].v+=Number(p.total)||0;sem[k].q++;sem[k].dias[p.data]=true;
+    var dia=diaLocal(p.data);
+    var k=diaSemana(dia);
+    sem[k].v+=Number(p.total)||0;sem[k].q++;sem[k].dias[dia]=true;
   });
   sem.forEach(function(x){x.nd=Object.keys(x.dias).length;x.media=x.nd?x.v/x.nd:0;});
   var maxSem=Math.max.apply(null,sem.map(function(x){return x.media}).concat([1]));
@@ -40086,15 +40219,22 @@ function telaVendaDataHora(){
    '<div class="relKpis">'+
     '<div class="rk dest"><span>Faturamento</span><b>R$ '+money(total)+'</b></div>'+
     '<div class="rk"><span>Pedidos</span><b>'+peds.length+'</b></div>'+
-    '<div class="rk"><span>Melhor horário</span><b>'+String(melhorH).padStart(2,'0')+'h</b></div>'+
+    '<div class="rk"><span>Melhor horário</span><b>'+
+     (temHora?String(melhorH).padStart(2,'0')+'h':'—')+'</b></div>'+
     '<div class="rk"><span>Melhor dia</span><b>'+DIAS_SEM[melhorD]+'</b></div>'+
     '<div class="rk"><span>Média por dia da semana</span><b>R$ '+money(sem[melhorD].media)+'</b></div>'+
    '</div>'+
    '<div class="grafCard" style="margin:12px 16px" id="relArea">'+
     '<div class="grafH"><div><b>Faturamento por horário</b>'+
-     '<span>soma de todos os dias do período</span></div>'+
+     '<span>soma de todos os dias do período · horário de São Paulo'+
+      (semHora.length?' · fora: '+semHora.length+' venda(s) importada(s), R$ '+money(vSemHora)+
+       ', sem hora de venda':'')+'</span></div>'+
      '<div class="grafLeg"><span><i class="lg1"></i>valor por hora</span></div></div>'+
     '<div class="grafBox">'+(function(){
+      if(!temHora)return '<div class="hint" style="padding:26px;text-align:center">'+
+        'Nenhuma venda com hora de venda no período'+
+        (semHora.length?' — as '+semHora.length+' vendas do período vieram da importação do sistema antigo, que não trouxe horário.':'.')+
+        '</div>';
       var n=hFim-hIni+1;
       var W=Math.max(620,n*54),H=250,PL=62,PR=18,PT=22,PB=42;
       var iw=W-PL-PR,ih=H-PT-PB,passo=iw/n,larg=Math.min(30,passo*0.55);
@@ -40142,7 +40282,7 @@ function telaVendaDataHora(){
         '<small>'+x.q+' pedidos em '+x.nd+' dia(s)</small></div></div>';
     }).join('')+'</div></div>'+
    '</div></div>';
-  rodape('R$ '+money(total)+' · pico às '+String(melhorH).padStart(2,'0')+'h');
+  rodape('R$ '+money(total)+(temHora?' · pico às '+String(melhorH).padStart(2,'0')+'h':''));
 }
 function togVDH(s){togFiltro(VDH.sucs,s);telaVendaDataHora();}
 function togTodosVDH(){VDH.sucs=VDH.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaVendaDataHora();}
@@ -40156,13 +40296,15 @@ function perVDH(n){
 }
 function explicaDataHora(){
   explicaRel('Venda por Data e Hora — como é feito',[
-   ['Faturamento por horário','soma das vendas de cada hora, juntando todos os dias do período'],
+   ['Faturamento por horário','soma das vendas de cada hora, juntando todos os dias do período. A hora é a de São Paulo, gravada no momento da venda'],
    ['Melhor horário','a hora que mais faturou — útil para escalar equipe'],
-   ['Média por dia da semana','faturamento total daquele dia dividido por quantas vezes ele apareceu no período'],
+   ['Média por dia da semana','faturamento total daquele dia dividido por quantos DIAS daquele dia da semana houve no período (agosto tem 5 domingos, então divide por 5)'],
    ['Melhor dia','o dia da semana com maior média, não com maior total'],
    ['Sucursais','com várias marcadas, os números somam; com uma só, mostra o comportamento dela']
-  ],'a data e a hora gravadas em cada pedido no momento da venda.',
-   'pedidos cancelados e pedidos sem hora registrada.');
+  ],'a data e a hora gravadas em cada pedido no momento da venda, no fuso de São Paulo.',
+   'pedidos cancelados. E, só no gráfico de horário, a venda trazida do sistema antigo: '+
+   'ela não tem hora de venda, e entrar com a hora de carimbo criaria um pico que nunca existiu. '+
+   'Essa venda continua contando no faturamento, nos pedidos e no dia da semana.');
 }
 
 /* ==========================================================
@@ -42580,7 +42722,23 @@ async function aceitarPedidoOnline(id){
     bairro:end.bairro||'',
     clienteFone:p.cliente_tel||cli.tel||'',
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
-    sucursalId:p.sucursal_id||'suc_matriz',
+    /* ==========================================================
+       A VENDA DO CARDAPIO NASCIA NA MATRIZ
+
+       Esta linha era `p.sucursal_id||'suc_matriz'`, e o cardapio digital
+       nao manda sucursal nenhuma — nao existe esse campo no pedido
+       online. Entao TODA venda aceita pelo cardapio nascia como venda da
+       matriz, enquanto o dinheiro dela entrava no caixa da loja que
+       aceitou, logo abaixo nesta mesma funcao (`caixaId:caixaAberto()`).
+
+       O pedido ficava em desacordo consigo mesmo: caixa de Santa Fe,
+       loja da matriz. E como o relatorio corta por unidade, Santa Fe
+       nao via as proprias entregas: em agosto de 2026 foram nove
+       pedidos, R$ 608,00, invisiveis para quem os vendeu e entregou.
+
+       A loja da venda e a loja que aceitou o pedido — a mesma do caixa.
+       ========================================================== */
+    sucursalId:p.sucursal_id||lojaAtualId()||'suc_matriz',
     total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
     /* ==========================================================
        ESTA LINHA ERA OS R$ 285 "SEM FORMA DE PAGAMENTO"
@@ -42692,7 +42850,9 @@ function enderecoDeEntrega(e){
 /* confirmação com o resumo do que o cliente pediu */
 async function enviarResumoPedido(ped,online){
   baseZap();
-  var suc=ped.sucursalId||'suc_matriz';
+  /* o pedido do cardapio nascia sem loja e caia na configuracao do robo
+     da matriz; quem responde agora e o caixa em que a venda entrou */
+  var suc=sucursalDoPedido(ped);
   var c=cfgZapDe(suc);
   if(!c||c.ativo===false)return;
   var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId})||{};
@@ -43385,7 +43545,7 @@ async function lojaConectada(){
 async function avisarCliente(ped,fase){
   if(!ped)return;
   baseZap();
-  var suc=ped.sucursalId||'suc_matriz';
+  var suc=sucursalDoPedido(ped);
   var c=cfgZapDe(suc);
   if(!c){toast('Robô sem configuração — não avisei no WhatsApp.');return;}
   if(c.ativo===false)return;

@@ -28,7 +28,7 @@ function telaFaturamento(){
   var fic=tk(peds.filter(function(p){return p.tipo!=='entrega'&&p.tipo!=='retirada'}));
 
   var porLoja=sucAtivas().map(function(s){
-    var l=peds.filter(function(p){return (p.sucursalId||'suc_matriz')===s.id});
+    var l=peds.filter(function(p){return sucursalDoPedido(p)===s.id});
     var x=tk(l);
     return {suc:s,valor:x.v,qtd:x.q,ticket:x.t,
       ent:tk(l.filter(function(p){return p.tipo==='entrega'})).t,
@@ -169,22 +169,68 @@ function telaVendaDataHora(){
   var peds=pedsPeriodo(VDH);
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
 
+  /* ==========================================================
+     A HORA DA VENDA IMPORTADA NAO EXISTE
+
+     A carga do sistema antigo trouxe 315 vendas de agosto de 2026 — R$
+     50.763,38 — e nenhuma delas tinha hora. Todas foram gravadas com
+     "19:00" para ocupar o campo. O grafico somava esse carimbo como se
+     fosse hora de venda: uma barra de R$ 51,5 mil as 19h contra menos
+     de R$ 2 mil em cada uma das outras onze horas do dia, e "Melhor
+     horario: 19h" no topo da tela.
+
+     Nunca houve pico as 19h. O que houve foi a importacao.
+
+     Quem tem hora de verdade e a venda registrada no PDV, no cardapio
+     ou no WhatsApp — nessas o relogio marcou o momento do atendimento,
+     no horario de Sao Paulo (`agoraHM`). A venda importada continua
+     contando no faturamento, no numero de pedidos e no dia da semana,
+     porque a DATA dela e verdadeira; so a hora nao e, e por isso ela
+     fica fora do grafico de horario, com o aviso na tela dizendo
+     quantas ficaram e quanto elas somam.
+     ========================================================== */
+  var comHora=peds.filter(function(p){return String(p.origem||'')!=='importado'});
+  var semHora=peds.filter(function(p){return String(p.origem||'')==='importado'});
+  var vSemHora=semHora.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   /* por hora */
   var horas=[];for(var h=0;h<24;h++)horas.push({v:0,q:0});
-  peds.forEach(function(p){
+  comHora.forEach(function(p){
     var hh=parseInt(String(p.hora||'0').slice(0,2),10);
     if(isNaN(hh)||hh<0||hh>23)return;
     horas[hh].v+=Number(p.total)||0;horas[hh].q++;
   });
+  var temHora=horas.some(function(x){return x.q>0});
   var hIni=0,hFim=23;
   while(hIni<23&&!horas[hIni].q)hIni++;
   while(hFim>0&&!horas[hFim].q)hFim--;
   if(hIni>hFim){hIni=8;hFim=22;}
-  /* por dia da semana */
+  /* ==========================================================
+     "DOMINGO: 177 PEDIDOS EM 120 DIA(S)" — EM UM MES DE 31 DIAS
+
+     A conta da media dividia pelo numero de dias em que aquele dia da
+     semana apareceu. So que a chave usada para contar os dias era
+     `p.data` — o carimbo INTEIRO da venda, com hora, minuto, segundo e
+     fuso ("2026-08-30T18:00:31.364Z"). Cada pedido virava um "dia".
+
+     Agosto de 2026 tem cinco domingos. A tela dizia 120, que e
+     exatamente o numero de carimbos diferentes dos domingos: 117 vendas
+     de PDV, cada uma no seu segundo, mais os tres domingos importados,
+     que compartilham o mesmo carimbo por dia.
+
+     Consequencia: a media de cada dia da semana saia dividida por um
+     numero inventado, e o "Melhor dia" era o dia com menos carimbos
+     distintos — quarta-feira, com 11, que so tinha essa marca por ser o
+     dia com mais venda importada em relacao a venda digitada. Domingo,
+     que e o dia forte da loja, aparecia em quinto.
+
+     A chave agora e o DIA da loja (`diaLocal`, fuso de Sao Paulo), que
+     e o que a frase "em N dia(s)" sempre quis dizer.
+     ========================================================== */
   var sem=[];for(var d=0;d<7;d++)sem.push({v:0,q:0,dias:{}});
   peds.forEach(function(p){
-    var k=diaSemana(diaLocal(p.data));
-    sem[k].v+=Number(p.total)||0;sem[k].q++;sem[k].dias[p.data]=true;
+    var dia=diaLocal(p.data);
+    var k=diaSemana(dia);
+    sem[k].v+=Number(p.total)||0;sem[k].q++;sem[k].dias[dia]=true;
   });
   sem.forEach(function(x){x.nd=Object.keys(x.dias).length;x.media=x.nd?x.v/x.nd:0;});
   var maxSem=Math.max.apply(null,sem.map(function(x){return x.media}).concat([1]));
@@ -214,15 +260,22 @@ function telaVendaDataHora(){
    '<div class="relKpis">'+
     '<div class="rk dest"><span>Faturamento</span><b>R$ '+money(total)+'</b></div>'+
     '<div class="rk"><span>Pedidos</span><b>'+peds.length+'</b></div>'+
-    '<div class="rk"><span>Melhor horário</span><b>'+String(melhorH).padStart(2,'0')+'h</b></div>'+
+    '<div class="rk"><span>Melhor horário</span><b>'+
+     (temHora?String(melhorH).padStart(2,'0')+'h':'—')+'</b></div>'+
     '<div class="rk"><span>Melhor dia</span><b>'+DIAS_SEM[melhorD]+'</b></div>'+
     '<div class="rk"><span>Média por dia da semana</span><b>R$ '+money(sem[melhorD].media)+'</b></div>'+
    '</div>'+
    '<div class="grafCard" style="margin:12px 16px" id="relArea">'+
     '<div class="grafH"><div><b>Faturamento por horário</b>'+
-     '<span>soma de todos os dias do período</span></div>'+
+     '<span>soma de todos os dias do período · horário de São Paulo'+
+      (semHora.length?' · fora: '+semHora.length+' venda(s) importada(s), R$ '+money(vSemHora)+
+       ', sem hora de venda':'')+'</span></div>'+
      '<div class="grafLeg"><span><i class="lg1"></i>valor por hora</span></div></div>'+
     '<div class="grafBox">'+(function(){
+      if(!temHora)return '<div class="hint" style="padding:26px;text-align:center">'+
+        'Nenhuma venda com hora de venda no período'+
+        (semHora.length?' — as '+semHora.length+' vendas do período vieram da importação do sistema antigo, que não trouxe horário.':'.')+
+        '</div>';
       var n=hFim-hIni+1;
       var W=Math.max(620,n*54),H=250,PL=62,PR=18,PT=22,PB=42;
       var iw=W-PL-PR,ih=H-PT-PB,passo=iw/n,larg=Math.min(30,passo*0.55);
@@ -270,7 +323,7 @@ function telaVendaDataHora(){
         '<small>'+x.q+' pedidos em '+x.nd+' dia(s)</small></div></div>';
     }).join('')+'</div></div>'+
    '</div></div>';
-  rodape('R$ '+money(total)+' · pico às '+String(melhorH).padStart(2,'0')+'h');
+  rodape('R$ '+money(total)+(temHora?' · pico às '+String(melhorH).padStart(2,'0')+'h':''));
 }
 function togVDH(s){togFiltro(VDH.sucs,s);telaVendaDataHora();}
 function togTodosVDH(){VDH.sucs=VDH.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaVendaDataHora();}
@@ -284,13 +337,15 @@ function perVDH(n){
 }
 function explicaDataHora(){
   explicaRel('Venda por Data e Hora — como é feito',[
-   ['Faturamento por horário','soma das vendas de cada hora, juntando todos os dias do período'],
+   ['Faturamento por horário','soma das vendas de cada hora, juntando todos os dias do período. A hora é a de São Paulo, gravada no momento da venda'],
    ['Melhor horário','a hora que mais faturou — útil para escalar equipe'],
-   ['Média por dia da semana','faturamento total daquele dia dividido por quantas vezes ele apareceu no período'],
+   ['Média por dia da semana','faturamento total daquele dia dividido por quantos DIAS daquele dia da semana houve no período (agosto tem 5 domingos, então divide por 5)'],
    ['Melhor dia','o dia da semana com maior média, não com maior total'],
    ['Sucursais','com várias marcadas, os números somam; com uma só, mostra o comportamento dela']
-  ],'a data e a hora gravadas em cada pedido no momento da venda.',
-   'pedidos cancelados e pedidos sem hora registrada.');
+  ],'a data e a hora gravadas em cada pedido no momento da venda, no fuso de São Paulo.',
+   'pedidos cancelados. E, só no gráfico de horário, a venda trazida do sistema antigo: '+
+   'ela não tem hora de venda, e entrar com a hora de carimbo criaria um pico que nunca existiu. '+
+   'Essa venda continua contando no faturamento, nos pedidos e no dia da semana.');
 }
 
 /* ==========================================================

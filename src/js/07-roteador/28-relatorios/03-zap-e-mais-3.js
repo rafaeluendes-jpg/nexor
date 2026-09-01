@@ -379,7 +379,23 @@ async function aceitarPedidoOnline(id){
     bairro:end.bairro||'',
     clienteFone:p.cliente_tel||cli.tel||'',
     cidade:p.cidade||'',zonaId:p.zona_id||'',zona:p.zona||'',
-    sucursalId:p.sucursal_id||'suc_matriz',
+    /* ==========================================================
+       A VENDA DO CARDAPIO NASCIA NA MATRIZ
+
+       Esta linha era `p.sucursal_id||'suc_matriz'`, e o cardapio digital
+       nao manda sucursal nenhuma — nao existe esse campo no pedido
+       online. Entao TODA venda aceita pelo cardapio nascia como venda da
+       matriz, enquanto o dinheiro dela entrava no caixa da loja que
+       aceitou, logo abaixo nesta mesma funcao (`caixaId:caixaAberto()`).
+
+       O pedido ficava em desacordo consigo mesmo: caixa de Santa Fe,
+       loja da matriz. E como o relatorio corta por unidade, Santa Fe
+       nao via as proprias entregas: em agosto de 2026 foram nove
+       pedidos, R$ 608,00, invisiveis para quem os vendeu e entregou.
+
+       A loja da venda e a loja que aceitou o pedido — a mesma do caixa.
+       ========================================================== */
+    sucursalId:p.sucursal_id||lojaAtualId()||'suc_matriz',
     total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
     /* ==========================================================
        ESTA LINHA ERA OS R$ 285 "SEM FORMA DE PAGAMENTO"
@@ -491,7 +507,9 @@ function enderecoDeEntrega(e){
 /* confirmação com o resumo do que o cliente pediu */
 async function enviarResumoPedido(ped,online){
   baseZap();
-  var suc=ped.sucursalId||'suc_matriz';
+  /* o pedido do cardapio nascia sem loja e caia na configuracao do robo
+     da matriz; quem responde agora e o caixa em que a venda entrou */
+  var suc=sucursalDoPedido(ped);
   var c=cfgZapDe(suc);
   if(!c||c.ativo===false)return;
   var cli=(DB.clientes||[]).find(function(x){return x.id===ped.clienteId})||{};
@@ -1184,7 +1202,7 @@ async function lojaConectada(){
 async function avisarCliente(ped,fase){
   if(!ped)return;
   baseZap();
-  var suc=ped.sucursalId||'suc_matriz';
+  var suc=sucursalDoPedido(ped);
   var c=cfgZapDe(suc);
   if(!c){toast('Robô sem configuração — não avisei no WhatsApp.');return;}
   if(c.ativo===false)return;

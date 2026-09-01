@@ -3,17 +3,49 @@
    ========================================================== */
 var DIAS_SEM=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 function diaSemana(d){ return new Date(String(d)+'T12:00:00').getDay(); }
+/* ==========================================================
+   O SELETOR DE CANAIS TINHA UMA LISTA PARALELA
+
+   Esta funcao montava a lista de canais somando tres nomes fixos
+   ("Frente de caixa", "Entrega", "Retirada") com TODO valor cru que
+   aparecesse em `pedido.canal`. O seletor de cinco relatorios —
+   Faturamento por Dia, Itens Vendidos, Vendas por Area, Vendas por
+   Forma de Pagamento e Vendas por Periodo — mostrava, um embaixo do
+   outro: "Frente de caixa", "Entrega", "Retirada", "pdv", "cardapio".
+   Nomes de banco de dados na tela, e a mesma venda em duas opcoes.
+
+   Pior: o filtro comparava `p.canal||p.tipo`, e o resto do sistema
+   compara `canalDoPedido(p)`. Marcar "Entrega" aqui nao trazia a mesma
+   venda que "Delivery" trazia na tela de Canais de Venda.
+
+   Agora estes cinco relatorios usam a mesma lista e a mesma regra dos
+   outros: CANAIS_REL e canalDoPedido.
+   ========================================================== */
 function canaisVenda(){
-  var s={'loja':'Frente de caixa','entrega':'Entrega','retirada':'Retirada'};
-  (DB.pedidos||[]).forEach(function(p){ if(p.canal&&!s[p.canal])s[p.canal]=p.canal; });
+  var s={};
+  CANAIS_REL.forEach(function(c){s[c.id]=c.n});
   return s;
 }
+/* ==========================================================
+   A TRAVA DE UNIDADE VALIA SO PARA METADE DOS RELATORIOS
+
+   `pedsPeriodo` corta pela unidade aberta desde a V-do-tenant, e o
+   comentario dela diz que o corte "nao pode depender de o painel
+   lembrar de filtrar". Mas os cinco relatorios que passam por AQUI
+   nunca tiveram esse corte: quem estava com Santa Fe aberta via, no
+   Faturamento por Dia, a venda de Jales somada a sua.
+
+   Passa pela mesma porta agora. A matriz continua vendo a rede toda.
+   O pedido cancelado NAO e cortado aqui de proposito: o Faturamento
+   por Dia mostra uma coluna de cancelamentos e precisa dele.
+   ========================================================== */
 function pedidosFiltrados(f){
   return (DB.pedidos||[]).filter(function(p){
+    if(!vendaDaUnidadeAberta(p))return false;
     var d=diaLocal(p.data);
     if(f.de&&d<f.de)return false;
     if(f.ate&&d>f.ate)return false;
-    if(f.canais&&f.canais.length&&f.canais.indexOf(p.canal||p.tipo||'loja')<0)return false;
+    if(f.canais&&f.canais.length&&f.canais.indexOf(canalDoPedido(p))<0)return false;
     if(f.dias&&f.dias.length&&f.dias.indexOf(diaSemana(d))<0)return false;
     return true;
   });
@@ -2234,10 +2266,40 @@ async function excluirSucursal(id){
    tudo — e para ela que existe a comparacao por loja. Qualquer outra
    unidade so enxerga a propria venda.
    ========================================================== */
+/* ==========================================================
+   DE QUAL LOJA E ESTA VENDA
+
+   O pedido aceito do cardapio digital nascia SEM loja: a linha era
+   `sucursalId: p.sucursal_id||'suc_matriz'`, e o cardapio nao manda
+   sucursal nenhuma. Entao toda venda do cardapio virava venda da
+   MATRIZ — enquanto o dinheiro dela entrava no caixa da loja que
+   aceitou o pedido.
+
+   Efeito, conferido no banco em 01/09/2026: os 9 pedidos do cardapio de
+   agosto (R$ 608,00) estavam todos em caixas de Santa Fe do Sul e todos
+   com `sucursal_id` nulo. Santa Fe abria Canais de Venda e via
+   "Delivery R$ 213,00 · 2 pedidos" — os dois unicos digitados como
+   entrega no PDV. As nove entregas do cardapio nao apareciam em lugar
+   nenhum do relatorio dela.
+
+   A origem esta corrigida (o pedido agora nasce na loja que o aceitou),
+   mas o que ja foi gravado continuaria invisivel. Por isso o relatorio
+   nao pergunta so ao pedido: quando ele nao diz de que loja e, quem
+   responde e o CAIXA em que a venda entrou — que e o mesmo caixa que
+   contou esse dinheiro no fechamento. Nao ha chute: se nem o caixa
+   souber, ai sim cai na matriz, como era antes.
+   ========================================================== */
+function sucursalDoPedido(p){
+  if(!p)return 'suc_matriz';
+  if(p.sucursalId)return p.sucursalId;
+  var cx=p.caixaId&&(DB.caixas||[]).find(function(c){return c.id===p.caixaId});
+  if(cx&&cx.sucursalId)return cx.sucursalId;
+  return 'suc_matriz';
+}
 function vendaDaUnidadeAberta(p){
   var suc=lojaAtualId();
   if(ehSucMatriz(suc))return true;          /* a matriz compara a rede */
-  return (p&&(p.sucursalId||'suc_matriz'))===suc;
+  return sucursalDoPedido(p)===suc;
 }
 /* filtro de sucursais usado nos painéis */
 
@@ -2251,22 +2313,42 @@ function periodoPadrao(o){
 }
 /* De qual porta a venda entrou. E uma so por pedido, e ela e a base de
    todo relatorio que separa balcao, entrega, totem e mesa. */
+/* ==========================================================
+   ENTREGA E ENTREGA, VENHA DE ONDE VIER
+
+   O relatorio tinha "Delivery" e "Cardapio digital" como dois canais
+   diferentes, e a mesma venda so podia cair num deles. Como o pedido do
+   cardapio nasce com `canal:'cardapio'`, TODA entrega pedida pelo
+   cardapio saia de dentro do Delivery e ia para o outro cartao. Sobrava
+   no Delivery so o que alguem digitou como entrega na mao, no PDV.
+
+   O Rafael, em 01/09/2026: "a gente tem delivery e tem cardapio digital,
+   nao faz sentido... toda venda que sai no WhatsApp e delivery digital,
+   tem que ser um so, o outro tem que tirar."
+
+   Ele esta certo, e o aplicativo do celular ja fazia assim: la o
+   delivery e `tipo==='entrega'`, sem olhar o canal — por isso os dois
+   davam numeros diferentes para o mesmo dia.
+
+   Agora e um canal so, Delivery, e ele responde a mesma pergunta que o
+   aplicativo responde: esta venda saiu para entrega? O cardapio, o
+   WhatsApp e o PDV sao a PORTA por onde o pedido entrou, nao o canal —
+   e a porta continua gravada em `pedido.canal`, visivel no detalhe do
+   pedido. Pedido de RETIRADA feito pelo cardapio continua sendo balcao,
+   porque o cliente veio buscar no balcao.
+   ========================================================== */
 function canalDoPedido(p){
   var c=String(p.canal||'').toLowerCase();
+  if(p.tipo==='entrega')return 'entrega';
   if(c==='totem')return 'totem';
   if(c==='mesa')return 'mesa';
-  if(c==='cardapio'||c==='online')return 'cardapio';
-  if(c==='whatsapp')return 'whatsapp';
-  if(p.tipo==='entrega')return 'entrega';
   return 'balcao';
 }
 var CANAIS_REL=[
  {id:'balcao',  n:'Balcão',          cor:'#0E8A46'},
- {id:'totem',   n:'Totem',           cor:'#1F5F8B'},
- {id:'mesa',    n:'Mesa',            cor:'#B4542F'},
- {id:'entrega', n:'Entrega',         cor:'#E8574A'},
- {id:'cardapio',n:'Cardápio digital',cor:'#F5A623'},
- {id:'whatsapp',n:'WhatsApp',        cor:'#7E57C2'}
+ {id:'entrega', n:'Delivery',        cor:'#E8574A'},
+ {id:'mesa',    n:'Mesa (QR Code)',  cor:'#B4542F'},
+ {id:'totem',   n:'Totem',           cor:'#1F5F8B'}
 ];
 /* Porta unica dos relatorios: filtrar o canal AQUI faz o filtro valer em
    todas as telas de uma vez, em vez de cada uma ter a sua regra. */
@@ -2278,7 +2360,7 @@ function pedsPeriodo(o){
     var d=diaLocal(p.data);
     if(o.de&&d<o.de)return false;
     if(o.ate&&d>o.ate)return false;
-    if(o.sucs&&o.sucs.length&&o.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return false;
+    if(o.sucs&&o.sucs.length&&o.sucs.indexOf(sucursalDoPedido(p))<0)return false;
     if(o.canais&&o.canais.length&&o.canais.indexOf(canalDoPedido(p))<0)return false;
     return true;
   });
@@ -2413,19 +2495,24 @@ function telaCanaisVenda(){
   periodoPadrao(CV2);
   var peds=pedsPeriodo(CV2);
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
-  var canais=[
-   {id:'entrega', n:'Delivery',      cor:'#E8574A', fn:function(p){return p.tipo==='entrega'&&(p.canal||'')!=='whatsapp'&&(p.canal||'')!=='cardapio'}},
-   /* antes isto engolia mesa e totem: tudo que nao era entrega virava "loja
-      fisica", e a venda do totem sumia dentro do balcao */
-   {id:'loja',    n:'Balcão',        cor:'#4CAF50', fn:function(p){
-     var c=(p.canal||'');
-     return p.tipo!=='entrega'&&c!=='mesa'&&c!=='totem'&&c!=='cardapio'&&c!=='whatsapp';}},
-   {id:'whatsapp',n:'WhatsApp',      cor:'#7E57C2', fn:function(p){return (p.canal||'')==='whatsapp'}},
-   {id:'cardapio',n:'Cardápio digital',cor:'#F5A623',fn:function(p){return (p.canal||'')==='cardapio'}},
-   {id:'mesa',    n:'Mesa (QR Code)',  cor:'#B4542F',fn:function(p){return (p.canal||'')==='mesa'}},
-   {id:'totem',   n:'Totem',           cor:'#1F5F8B',fn:function(p){return (p.canal||'')==='totem'}}
-  ].map(function(c){
-    var lista=peds.filter(c.fn);
+  /* ==========================================================
+     ESTA TELA TINHA A PROPRIA REGRA DE CANAL
+
+     O sistema tem uma porta unica para dizer de que canal e a venda —
+     `canalDoPedido` — e o comentario dela diz, desde que foi escrita,
+     que filtrar ali faz o filtro valer em todas as telas de uma vez.
+     Só que esta tela, a que se chama Canais de Venda, nao passava por
+     essa porta: tinha a propria lista, com a propria regra em cada
+     linha. As duas foram ficando diferentes, e o mesmo pedido era
+     "Cardapio digital" aqui e "Entrega" no seletor de canais logo
+     acima, na mesma tela.
+
+     Agora ela le CANAIS_REL e chama `canalDoPedido`, como as outras.
+     Um pedido cai em um cartao so, e o cartao e o mesmo em toda parte.
+     ========================================================== */
+  var canais=CANAIS_REL.map(function(c0){
+    var c={id:c0.id,n:c0.n,cor:c0.cor};
+    var lista=peds.filter(function(p){return canalDoPedido(p)===c.id});
     c.valor=lista.reduce(function(a,p){return a+(Number(p.total)||0)},0);
     c.qtd=lista.length;
     c.pct=total?(c.valor/total*100):0;
