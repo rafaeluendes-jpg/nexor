@@ -1368,7 +1368,7 @@ function telaPedidoBase(){
        '<th style="width:80px">Nº</th><th style="width:100px">Data</th>' +
        '<th style="width:80px;text-align:right">Itens</th>' +
        '<th style="width:120px;text-align:right">Total</th>' +
-       '<th>Situação</th></tr></thead><tbody>' +
+       '<th>Situação</th><th style="width:52px"></th></tr></thead><tbody>' +
        meus.map(function (p) {
          return '<tr><td><b>#' + String(p.numero || 0).padStart(4, '0') + '</b></td>' +
           '<td>' + E(dataBR(p.data)) + '</td>' +
@@ -1380,13 +1380,70 @@ function telaPedidoBase(){
                '\')">Recebi as bases</button>'
              : (p.entradaEstoque
                 ? ' <span class="prFeito">' + sv('check', 11) + ' no estoque</span>'
-                : '')) + '</td></tr>';
+                : '')) + '</td>' +
+          '<td style="text-align:right">' +
+           '<button class="rBtn" title="Ver o pedido" onclick="verPedidoBase(\'' + p.id +
+            '\')">' + sv('eye', 12) + '</button></td></tr>';
        }).join('') + '</tbody></table></div></div>'
     : '') +
   '</div></div>';
   rodape(nItens ? ('pedido em aberto — R$ ' + money(total)) : 'nenhum item selecionado');
 }
 
+/* ==========================================================
+   O PEDIDO ENVIADO PRECISA PODER SER ABERTO
+
+   O Rafael, em 01/09/2026: "a loja de Santa Fe fez um pedido de base,
+   esta la nos meus pedidos, o numero 0002. Porem nao tem nenhuma opcao
+   de visualizar."
+
+   A lista mostrava numero, data, quantos itens e o total — e nada mais.
+   Quem manda um pedido de R$ 2.557,00 na segunda e quer conferir na
+   quarta o que pediu nao tinha por onde. O olhinho abre o pedido inteiro,
+   base por base, com quantidade, valor da unidade e total de cada linha.
+   ========================================================== */
+function verPedidoBase(id){
+  var p = basePedidos().find(function (x) { return x.id === id; });
+  if (!p) { toast('Pedido não encontrado neste aparelho.'); return; }
+  var itens = p.itens || [];
+  var h = '<div class="mdB">' +
+   '<div class="acHead"><div class="av3" style="width:40px;height:40px">' +
+    sv('box', 18) + '</div><div><b>Pedido #' + String(p.numero || 0).padStart(4, '0') + '</b>' +
+    '<span>' + E(dataBR(p.data)) + ' · ' + E(p.sucursalNome || '—') +
+    (p.responsavel ? ' · ' + E(p.responsavel) : '') + ' · ' + seloPedBase(p.situacao) +
+    '</span></div></div>' +
+   (itens.length
+    ? '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">' +
+      '<div class="acTabW" style="max-height:360px"><table class="acTab"><thead><tr>' +
+       '<th>Base</th><th style="width:110px;text-align:right">Quantidade</th>' +
+       '<th style="width:120px;text-align:right">Valor da unidade</th>' +
+       '<th style="width:120px;text-align:right">Total</th></tr></thead><tbody>' +
+       itens.map(function (it) {
+         var q = unidadesDoItem(it);
+         var vu = precoUnitDoItem(it);
+         return '<tr><td><b>' + E(it.baseNome || it.nome || '—') + '</b></td>' +
+          '<td style="text-align:right">' + fmtQt(q) + '</td>' +
+          '<td style="text-align:right">R$ ' + money(vu) + '</td>' +
+          '<td style="text-align:right"><b>R$ ' + money(Number(it.total) || q * vu) +
+          '</b></td></tr>';
+       }).join('') + '</tbody>' +
+       '<tfoot><tr><td colspan="3"><b>Total do pedido</b></td>' +
+       '<td style="text-align:right"><b>R$ ' + money(p.total) + '</b></td></tr></tfoot>' +
+      '</table></div></div>'
+    /* pedido antigo, de quando o item nao subia: o cabecalho existe e a
+       lista nao. Dizer isso e melhor do que mostrar uma tabela vazia. */
+    : '<div class="hint" style="padding:20px;text-align:center">' +
+      'Este pedido não tem a lista de bases neste aparelho.<br>' +
+      'O total enviado foi de <b>R$ ' + money(p.total) + '</b>.</div>') +
+   '</div>';
+  var o = document.createElement('div');
+  o.className = 'mdOv'; o.id = 'mdOv';
+  o.innerHTML = '<div class="mdBox lg"><div class="mdH"><b>Pedido de base</b>' +
+   '<button onclick="fecharModal()">&times;</button></div>' + h +
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+  document.body.appendChild(o);
+  fecharSoForaDeVerdade(o);
+}
 function mudarQtdPedido(id, v){
   var q = Math.max(0, Math.floor(Number(v) || 0));
   if (q > 0) PB.itens[id] = q; else delete PB.itens[id];

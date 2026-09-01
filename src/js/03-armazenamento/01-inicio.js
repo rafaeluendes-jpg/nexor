@@ -2075,7 +2075,39 @@ var _TABS_SEM_LOJA=['ficha_itens','opcoes','produto_grupos','pedido_itens',
  'pedido_pagamentos','entregador_taxas','caixa_movimentos','areas_zonas',
  'subcategorias_financeiras','usuario_permissoes','usuario_sucursais',
  'sucursal_permissoes'];
-function chaveConflito(tab){
+/* ==========================================================
+   O PEDIDO DE BASE SUBIA SEM OS ITENS
+
+   Santa Fe do Sul mandou o pedido 0002 em 01/09/2026, R$ 2.557,00. Na
+   nuvem chegou o cabecalho — data, unidade, situacao, total — e ZERO
+   itens. A matriz recebia um pedido de dois mil e quinhentos reais sem
+   saber quais bases foram pedidas. O pedido 0001, de Jales, idem.
+
+   A causa, no registro do banco:
+
+     POST /rest/v1/pedido_base_itens?on_conflict=loja_id,ref_local -> 400
+
+   `pedido_base_itens` NAO TEM coluna `loja_id` — quem isola e o pai. A
+   chave do upsert saia dessa lista escrita a mao, `_TABS_SEM_LOJA`, e
+   `pedido_base_itens` nunca foi acrescentado nela. Postgres recusa
+   conflito numa coluna que nao existe, e a recusa derruba o LOTE
+   INTEIRO: nenhum item entrava, em nenhum pedido, desde sempre.
+
+   Terceira vez nesta semana que uma lista escrita a mao envelhece e
+   custa dado (o mapa de filhos do download foi a outra). Entao esta
+   tambem deixa de ser escrita a mao: quem decide a chave e o PROPRIO
+   LOTE que esta indo. Se a linha tem `loja_id`, a chave e por loja; se
+   nao tem, e so o ref_local. Nao ha nome de tabela para esquecer, e
+   tabela filha nova nasce certa.
+
+   A lista antiga fica como rede de seguranca para quem chamar sem lote.
+   ========================================================== */
+function chaveConflito(tab,linhas){
+  try{
+    if(linhas&&linhas.length&&linhas[0]&&typeof linhas[0]==='object')
+      return Object.prototype.hasOwnProperty.call(linhas[0],'loja_id')
+        ?'loja_id,ref_local':'ref_local';
+  }catch(e){ _quieto(e,'chaveConflito'); }
   return (_TABS_SEM_LOJA.indexOf(tab)>=0)?'ref_local':'loja_id,ref_local';
 }
 /* ==========================================================
@@ -2119,7 +2151,7 @@ async function enviar(tab,linhas){
   var out=[];
   for(var i=0;i<linhas.length;i+=200){
     var lote=igualarChaves(linhas.slice(i,i+200));
-    var r=await api(tab+'?on_conflict='+chaveConflito(tab),'POST',lote,
+    var r=await api(tab+'?on_conflict='+chaveConflito(tab,lote),'POST',lote,
       {'Prefer':'resolution=merge-duplicates,return=representation'});
     out=out.concat(r||[]);
     /* ==========================================================
