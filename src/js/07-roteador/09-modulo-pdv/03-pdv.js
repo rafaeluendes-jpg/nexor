@@ -124,14 +124,17 @@ function telaPDV(){
     if(!_ud)return '';
     if(Date.now()-_ud<5*60*1000)return '';
     var _hm=new Date(_ud).toLocaleTimeString('pt-BR').slice(0,5);
+    /* "9 alteraçãoões": o plural era montado colando 'ões' no fim de
+       'alteração'. Frase que a loja lê não pode sair torta — as duas
+       versões da frase ficam escritas por extenso. */
+    var _frase=(_n>1
+      ? _n+' alterações feitas aqui ainda não subiram'
+      : 'uma alteração feita aqui ainda não subiu');
     return '<div class="cmdFaixa cmdAlerta">'+sv('help',14)+
      '<div><b>Este aparelho está atrasado.</b> '+
      'Ele não recebe novidade da nuvem desde as '+_hm+'.'+
      ' O que está nesta tela pode não ser o que já aconteceu nos outros aparelhos — '+
-     'pedido, estado da loja, tudo. '+
-     'Há '+_n+' alteração'+(_n>1?'ões':'')+' feita'+(_n>1?'s':'')+' aqui que ainda não '+
-     'subiu, e o sistema não baixa nada por cima dela'+(_n>1?'s':'')+' para não apagar '+
-     'o que você lançou.'+
+     'pedido, estado da loja, tudo. '+E(_frase)+'.'+
      '</div>'+
      '<button class="btnP2" onclick="destravarAparelho()">Tentar enviar agora</button></div>';
   })()+

@@ -2218,10 +2218,17 @@ function servir() {
     fecharModal();
     return { temSobra: /Sobra no período/.test(h), temPerda: /Perda no período/.test(h),
       linha: /R\$ 1,00/.test(h), lancada: /lançada em/.test(h),
-      divergencia: txt };
+      divergencia: txt,
+      _quantas: (DB.contagens||[]).length,
+      _amostra: (DB.contagens||[]).map(function(c){
+        return c.data+'|'+c.hora+'|retro='+c.retroativa+'|lancadaEm='+c.lancadaEm+
+               '|ganho='+c.ganho+'|suc='+c.sucursalId; }).join('  ///  '),
+      _lojaAtual: lojaAtualId(),
+      _trecho: (h.match(/<tbody>[\s\S]{0,400}/)||[''])[0].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ') };
   });
   t('o histórico separa sobra e perda do período', rCt3.temSobra && rCt3.temPerda);
-  t('a contagem aparece na lista com o resultado', rCt3.linha === true);
+  t('a contagem aparece na lista com o resultado', rCt3.linha === true,
+    rCt3._quantas + ' contagem(ns) · ' + rCt3._amostra + ' · tabela: ' + rCt3._trecho);
   t('marcada como lançada em outro dia', rCt3.lancada === true);
   await pg.evaluate(() => {
     novaContagem(); mudarDataContagem(diaAnteriorDaLoja());

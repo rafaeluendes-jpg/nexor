@@ -140,11 +140,45 @@ async function _baixarDaNuvem(forcar){
     NUVEM.sujo=false;DB._sujo=false;
     return true;                       /* o dono nao baixa dados de loja */
   }
-  /* NUNCA sobrescreve o aparelho enquanto houver algo esperando subir */
+  /* ==========================================================
+     APARELHO NO MESMO LOGIN NAO PODE FICAR ATRASADO PARA SEMPRE
+
+     Aqui estava, depois de tentar enviar:
+
+       if(NUVEM.sujo){ logNuvem('download cancelado'); return; }
+
+     A intencao era certa — nao sobrescrever o aparelho enquanto houver
+     coisa esperando para subir. O efeito nao era. Basta UMA coisa que
+     nao consegue subir para aquele aparelho parar de RECEBER, e parar
+     para sempre: nao ha limite de tempo, nem recuperacao. A tela
+     continua desenhando o mundo do momento em que travou — pedido em
+     "aguardando preparo" que ja saiu para entrega, loja ligada que ja
+     foi desligada. Foi isso que o Rafael viu no tablet e no computador
+     da loja: mesmo login, mesma internet, telas diferentes.
+
+     E era uma trava a mais, nao a unica. A protecao de verdade e POR
+     LINHA e mora dentro de `volta()`:
+
+       - `temMudancaNaoEnviada` guarda a linha alterada aqui e ainda nao
+         enviada, e a versao da nuvem nao entra por cima dela;
+       - `_novoAqui` guarda a linha que so existe neste aparelho;
+       - o mapa de filhos (V274) devolve o item, o pagamento e o
+         movimento de caixa que ainda nao subiram.
+
+     As 45 colecoes do download passam por `volta()` com o nome da
+     colecao — conferido uma a uma — entao todas tem essa protecao. O
+     bloqueio geral so acrescentava o congelamento.
+
+     Continua valendo o que importa: antes de baixar, tenta enviar. Se o
+     envio nao concluir, o download acontece assim mesmo, e cada linha
+     nao enviada e preservada individualmente.
+     ========================================================== */
   if(NUVEM.sujo&&!forcar){
     logNuvem('há mudanças pendentes — enviando antes de baixar');
     try{ await sincronizar(); }catch(e){_quieto(e,'baixarDaNuvem')}
-    if(NUVEM.sujo){ logNuvem('download cancelado: envio não concluiu',true); return; }
+    if(NUVEM.sujo)
+      logNuvem('o envio não concluiu — baixando assim mesmo; o que não subiu '+
+        'fica preservado linha a linha',true);
   }
   var antesCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   logNuvem('baixando da nuvem...');

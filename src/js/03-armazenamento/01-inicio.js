@@ -177,9 +177,11 @@ function estadoNuvem(e,msg){
     try{ pend=(NUVEM.sujo||DB._sujo)?contarPendencias():0; }
     catch(x){ _quieto(x,'estadoNuvem'); }
     var sufixo=pend?' · '+pend+' pendência'+(pend>1?'s':''):'';
+    /* o plural era colado no fim da palavra e saia "alteraçãoões" no rodape */
+    var _alt=pend?' '+pend+(pend>1?' alterações':' alteração'):'';
     if(e==='conectando')el.innerHTML='<i style="background:#B8730B"></i>Conectando...';
     else if(e==='sincronizando')el.innerHTML='<i style="background:#1F6FB2"></i>Sincronizando'+
-      (pend?' '+pend+' alteração'+(pend>1?'ões':''):'')+'...';
+      _alt+'...';
     else if(e==='online')el.innerHTML='<i></i>Online'+sufixo;
     else if(e==='erro')el.innerHTML='<i style="background:#C94141"></i>'+(msg||'sincronização pendente')+sufixo;
     else el.innerHTML='<i style="background:#8A8578"></i>Offline'+sufixo;

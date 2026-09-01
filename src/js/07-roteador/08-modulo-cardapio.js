@@ -1267,10 +1267,19 @@ function agendarRecarga(tabela){
          Com o envio custando centenas de milissegundos, isso e exatamente
          a tela congelando ~750 ms uma vez por segundo, sem parar, que
          aparece no diagnostico.
-         Agora: se ha coisa pendente, apenas nao baixa. Quem envia e o
-         agendamento normal, uma vez, depois de 2,5 s de silencio.
+         A correcao foi tirar o agendarSync() daqui — quem envia e o
+         agendamento normal, uma vez, depois de 2,5 s de silencio. Junto
+         dela veio um `return` quando havia coisa pendente, e ESSE
+         return era a segunda porta do aparelho que congela: bastava uma
+         coisa nao conseguir subir para o tempo real parar de trazer
+         qualquer novidade, para sempre.
+
+         A protecao de verdade e por LINHA, dentro de `volta()` — as 45
+         colecoes passam por ela. O download pode acontecer: a linha nao
+         enviada e preservada uma a uma. E o laco continua fechado,
+         porque o que foi tirado daqui (o agendarSync) continua fora, e
+         `baixarDaNuvem` so baixa a base inteira uma vez a cada 20 s.
          ========================================================== */
-      if(NUVEM.sujo||DB._sujo){ return; }
       /* ==========================================================
          FICHA ABERTA NA TELA NAO E TROCADA POR BAIXO
 

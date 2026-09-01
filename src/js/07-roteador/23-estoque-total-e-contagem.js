@@ -326,7 +326,7 @@ function exportarEstoque(){
    registrado no historico da contagem, para depois se saber de onde
    veio aquele preco.
    ========================================================== */
-var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:''};
+var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:'',_auto:false};
 /* ==========================================================
    A CONTAGEM E DO FIM DAQUELE DIA
 
@@ -387,9 +387,33 @@ function telaContagem(){
      ========================================================== */
   try{ espelharEstoque(); }catch(e){ _quieto(e,'telaContagem'); }
   if(CT2.aba==='nova')return telaContagemNova();
-  if(!CT2.de){var d=new Date();
-    CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-    CT2.ate=hojeISO();}
+  /* ==========================================================
+     NO DIA 1o DO MES A CONTAGEM DE ONTEM SUMIA DA TELA
+
+     O historico abre filtrando do dia 1o do mes ate hoje. Em 01/09/2026
+     isso vira "de 01/09 ate 01/09" — e a contagem de 31/08, lancada
+     naquela manha, nao aparecia em lugar nenhum. Ela estava gravada,
+     ajustou o estoque, entrou na movimentacao; so nao estava na lista.
+     Quem conta de manha e lanca como o dia anterior — que e o jeito que
+     a loja trabalha — encontra a tela vazia todo comeco de mes e conclui
+     que o sistema perdeu a contagem.
+
+     A regra agora tem uma segunda metade: se o mes ainda nao tem
+     contagem nenhuma, o periodo automatico nao esconde nada — mostra
+     todas. Quando ha contagem no mes, a tela continua exatamente como
+     era. O periodo escolhido A MAO nunca e mexido: quem filtrou quis
+     aquilo, mesmo que de vazio.
+
+     A data tambem passou a sair do dia DA LOJA (`hojeISO`) em vez de
+     `toISOString`, que devolve o dia de Greenwich e vira o dia seguinte
+     depois das 21h em Sao Paulo.
+     ========================================================== */
+  if(!CT2.de){
+    var _h=hojeISO();
+    CT2.de=_h.slice(0,8)+'01';
+    CT2.ate=_h;
+    CT2._auto=true;
+  }
   /* inventario e de UMA loja: o historico nunca mistura. A matriz ve o
      dela; contagem antiga, sem carimbo, fica com a matriz. */
   var _suc=lojaAtualId();
@@ -398,6 +422,14 @@ function telaContagem(){
     if(s?(s!==_suc):!ehSucMatriz(_suc))return false;
     return (!CT2.de||c.data>=CT2.de)&&(!CT2.ate||c.data<=CT2.ate);
   }).sort(function(a,b){return (b.data+b.hora).localeCompare(a.data+a.hora)});
+  /* periodo automatico que esconderia tudo nao serve para nada */
+  if(!lista.length&&CT2._auto&&(DB.contagens||[]).length){
+    CT2.de='';CT2.ate='';
+    lista=(DB.contagens||[]).filter(function(c){
+      var s2=c.sucursalId||c.loja||'';
+      return s2?(s2===_suc):ehSucMatriz(_suc);
+    }).sort(function(a,b){return (b.data+b.hora).localeCompare(a.data+a.hora)});
+  }
   var tGanho=lista.reduce(function(a,c){return a+(Number(c.ganho)||0)},0);
   var tPerda=lista.reduce(function(a,c){return a+Math.abs(Number(c.perda)||0)},0);
 
@@ -451,13 +483,14 @@ function telaContagem(){
    '</div></div></div>';
   rodape(lista.length+' contagens no período');
 }
-function filtrarContagens(){CT2.de=$('ctDe').value;CT2.ate=$('ctAte').value;telaContagem();}
+function filtrarContagens(){
+  CT2.de=$('ctDe').value;CT2.ate=$('ctAte').value;CT2._auto=false;telaContagem();}
 function mesAtualCT(){
-  var d=new Date();
-  CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-  CT2.ate=hojeISO();telaContagem();
+  var _h=hojeISO();
+  CT2.de=_h.slice(0,8)+'01';
+  CT2.ate=_h;CT2._auto=false;telaContagem();
 }
-function verTodasContagens(){CT2.de='';CT2.ate='';telaContagem();}
+function verTodasContagens(){CT2.de='';CT2.ate='';CT2._auto=false;telaContagem();}
 function voltarContagem(){CT2.aba='hist';telaContagem();}
 function novaContagem(){
   CT2.aba='nova';CT2.cont={};CT2.custo={};CT2.busca='';CT2.grupo='';

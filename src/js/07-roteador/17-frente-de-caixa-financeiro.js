@@ -1,13 +1,33 @@
 /* ==========================================================
    BLOCO 17 — FRENTE DE CAIXA (financeiro)
    ========================================================== */
-var FC={de:'',ate:'',turno:''};
+var FC={de:'',ate:'',turno:'',_auto:false};
 function telaFrenteCaixa(){
   baseLanc();baseTurnos();
   DB.caixas=DB.caixas||[];
-  if(!FC.de){var d=new Date();
-    FC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-    FC.ate=hojeISO();}
+  /* ==========================================================
+     NO DIA 1o DO MES A TELA ABRIA VAZIA
+
+     O periodo automatico e "do dia 1o do mes ate hoje". Em 01/09/2026
+     isso vira "de 01/09 ate 01/09": nenhum caixa fechado de agosto
+     aparece, e a lista de fechamentos abre em branco. Quem chega de
+     manha no dia 1o ve a tela vazia e conclui que perdeu os
+     fechamentos do mes inteiro — eles estao todos la, so escondidos
+     pelo filtro que a propria tela pos sozinha.
+
+     Mesmo defeito da Contagem de Estoque, e a mesma regra resolve: se o
+     periodo AUTOMATICO nao mostraria nada, ele nao filtra. O periodo
+     escolhido a mao nunca e mexido — quem filtrou quis aquilo.
+
+     A data tambem passou a sair do dia DA LOJA (`hojeISO`) em vez de
+     `toISOString`, que devolve o dia de Greenwich.
+     ========================================================== */
+  if(!FC.de){
+    var _h=hojeISO();
+    FC.de=_h.slice(0,8)+'01';
+    FC.ate=_h;
+    FC._auto=true;
+  }
   var aberto=caixaAberto();
   /* ==========================================================
      CAIXA QUE FICOU ABERTO DE OUTRO DIA PRECISA APARECER
@@ -29,6 +49,19 @@ function telaFrenteCaixa(){
     var d=isoDoCaixa(c.aberto);
     return (!FC.de||d>=FC.de)&&(!FC.ate||d<=FC.ate);
   }).sort(function(a,b){return isoDoCaixa(b.aberto).localeCompare(isoDoCaixa(a.aberto))});
+  /* periodo automatico que esconderia todos os fechamentos nao serve para nada */
+  if(!fechados.length&&FC._auto){
+    var _todos=(DB.caixas||[]).filter(function(c){
+      if(!c.fechadoEm)return false;
+      if(FC.turno&&c.turnoId!==FC.turno)return false;
+      return true;
+    });
+    if(_todos.length){
+      FC.de='';FC.ate='';
+      fechados=_todos.sort(function(a,b){
+        return isoDoCaixa(b.aberto).localeCompare(isoDoCaixa(a.aberto))});
+    }
+  }
 
   var totV=fechados.reduce(function(a,c){return a+(Number(c.vendas)||0)},0);
   var totDif=fechados.reduce(function(a,c){return a+((Number(c.contado)||0)-(Number(c.esperado)||0))},0);
@@ -116,7 +149,7 @@ function telaFrenteCaixa(){
       return '<option value="'+E(t.id)+'"'+(FC.turno===t.id?' selected':'')+'>'+E(t.nome)+'</option>';
     }).join('')+'</select></div>'+
    '<button class="btnP2 ok" onclick="buscarCaixas()">'+sv('search',14)+' Buscar</button>'+
-   '<button class="btnP2" onclick="FC.de=\'\';FC.ate=\'\';FC.turno=\'\';telaFrenteCaixa()">Limpar</button>'+
+   '<button class="btnP2" onclick="FC.de=\'\';FC.ate=\'\';FC.turno=\'\';FC._auto=false;telaFrenteCaixa()">Limpar</button>'+
    '<div style="flex:1"></div>'+
    '<div class="fcResumo">'+
     '<div><span>Turnos</span><b>'+fechados.length+'</b></div>'+
@@ -164,7 +197,7 @@ function isoDoCaixa(txt){
   return p[2]+'-'+p[1]+'-'+p[0];
 }
 function buscarCaixas(){
-  FC.de=$('fcDe').value;FC.ate=$('fcAte').value;
+  FC.de=$('fcDe').value;FC.ate=$('fcAte').value;FC._auto=false;
   FC.turno=($('fcTurno')||{}).value||'';
   telaFrenteCaixa();
 }

@@ -6810,9 +6810,11 @@ function estadoNuvem(e,msg){
     try{ pend=(NUVEM.sujo||DB._sujo)?contarPendencias():0; }
     catch(x){ _quieto(x,'estadoNuvem'); }
     var sufixo=pend?' · '+pend+' pendência'+(pend>1?'s':''):'';
+    /* o plural era colado no fim da palavra e saia "alteraçãoões" no rodape */
+    var _alt=pend?' '+pend+(pend>1?' alterações':' alteração'):'';
     if(e==='conectando')el.innerHTML='<i style="background:#B8730B"></i>Conectando...';
     else if(e==='sincronizando')el.innerHTML='<i style="background:#1F6FB2"></i>Sincronizando'+
-      (pend?' '+pend+' alteração'+(pend>1?'ões':''):'')+'...';
+      _alt+'...';
     else if(e==='online')el.innerHTML='<i></i>Online'+sufixo;
     else if(e==='erro')el.innerHTML='<i style="background:#C94141"></i>'+(msg||'sincronização pendente')+sufixo;
     else el.innerHTML='<i style="background:#8A8578"></i>Offline'+sufixo;
@@ -9945,11 +9947,45 @@ async function _baixarDaNuvem(forcar){
     NUVEM.sujo=false;DB._sujo=false;
     return true;                       /* o dono nao baixa dados de loja */
   }
-  /* NUNCA sobrescreve o aparelho enquanto houver algo esperando subir */
+  /* ==========================================================
+     APARELHO NO MESMO LOGIN NAO PODE FICAR ATRASADO PARA SEMPRE
+
+     Aqui estava, depois de tentar enviar:
+
+       if(NUVEM.sujo){ logNuvem('download cancelado'); return; }
+
+     A intencao era certa — nao sobrescrever o aparelho enquanto houver
+     coisa esperando para subir. O efeito nao era. Basta UMA coisa que
+     nao consegue subir para aquele aparelho parar de RECEBER, e parar
+     para sempre: nao ha limite de tempo, nem recuperacao. A tela
+     continua desenhando o mundo do momento em que travou — pedido em
+     "aguardando preparo" que ja saiu para entrega, loja ligada que ja
+     foi desligada. Foi isso que o Rafael viu no tablet e no computador
+     da loja: mesmo login, mesma internet, telas diferentes.
+
+     E era uma trava a mais, nao a unica. A protecao de verdade e POR
+     LINHA e mora dentro de `volta()`:
+
+       - `temMudancaNaoEnviada` guarda a linha alterada aqui e ainda nao
+         enviada, e a versao da nuvem nao entra por cima dela;
+       - `_novoAqui` guarda a linha que so existe neste aparelho;
+       - o mapa de filhos (V274) devolve o item, o pagamento e o
+         movimento de caixa que ainda nao subiram.
+
+     As 45 colecoes do download passam por `volta()` com o nome da
+     colecao — conferido uma a uma — entao todas tem essa protecao. O
+     bloqueio geral so acrescentava o congelamento.
+
+     Continua valendo o que importa: antes de baixar, tenta enviar. Se o
+     envio nao concluir, o download acontece assim mesmo, e cada linha
+     nao enviada e preservada individualmente.
+     ========================================================== */
   if(NUVEM.sujo&&!forcar){
     logNuvem('há mudanças pendentes — enviando antes de baixar');
     try{ await sincronizar(); }catch(e){_quieto(e,'baixarDaNuvem')}
-    if(NUVEM.sujo){ logNuvem('download cancelado: envio não concluiu',true); return; }
+    if(NUVEM.sujo)
+      logNuvem('o envio não concluiu — baixando assim mesmo; o que não subiu '+
+        'fica preservado linha a linha',true);
   }
   var antesCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   logNuvem('baixando da nuvem...');
@@ -12724,7 +12760,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V275.0.0';
+var VERSAO='V276.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -14548,10 +14584,19 @@ function agendarRecarga(tabela){
          Com o envio custando centenas de milissegundos, isso e exatamente
          a tela congelando ~750 ms uma vez por segundo, sem parar, que
          aparece no diagnostico.
-         Agora: se ha coisa pendente, apenas nao baixa. Quem envia e o
-         agendamento normal, uma vez, depois de 2,5 s de silencio.
+         A correcao foi tirar o agendarSync() daqui — quem envia e o
+         agendamento normal, uma vez, depois de 2,5 s de silencio. Junto
+         dela veio um `return` quando havia coisa pendente, e ESSE
+         return era a segunda porta do aparelho que congela: bastava uma
+         coisa nao conseguir subir para o tempo real parar de trazer
+         qualquer novidade, para sempre.
+
+         A protecao de verdade e por LINHA, dentro de `volta()` — as 45
+         colecoes passam por ela. O download pode acontecer: a linha nao
+         enviada e preservada uma a uma. E o laco continua fechado,
+         porque o que foi tirado daqui (o agendarSync) continua fora, e
+         `baixarDaNuvem` so baixa a base inteira uma vez a cada 20 s.
          ========================================================== */
-      if(NUVEM.sujo||DB._sujo){ return; }
       /* ==========================================================
          FICHA ABERTA NA TELA NAO E TROCADA POR BAIXO
 
@@ -19642,14 +19687,17 @@ function telaPDV(){
     if(!_ud)return '';
     if(Date.now()-_ud<5*60*1000)return '';
     var _hm=new Date(_ud).toLocaleTimeString('pt-BR').slice(0,5);
+    /* "9 alteraçãoões": o plural era montado colando 'ões' no fim de
+       'alteração'. Frase que a loja lê não pode sair torta — as duas
+       versões da frase ficam escritas por extenso. */
+    var _frase=(_n>1
+      ? _n+' alterações feitas aqui ainda não subiram'
+      : 'uma alteração feita aqui ainda não subiu');
     return '<div class="cmdFaixa cmdAlerta">'+sv('help',14)+
      '<div><b>Este aparelho está atrasado.</b> '+
      'Ele não recebe novidade da nuvem desde as '+_hm+'.'+
      ' O que está nesta tela pode não ser o que já aconteceu nos outros aparelhos — '+
-     'pedido, estado da loja, tudo. '+
-     'Há '+_n+' alteração'+(_n>1?'ões':'')+' feita'+(_n>1?'s':'')+' aqui que ainda não '+
-     'subiu, e o sistema não baixa nada por cima dela'+(_n>1?'s':'')+' para não apagar '+
-     'o que você lançou.'+
+     'pedido, estado da loja, tudo. '+E(_frase)+'.'+
      '</div>'+
      '<button class="btnP2" onclick="destravarAparelho()">Tentar enviar agora</button></div>';
   })()+
@@ -28277,13 +28325,33 @@ async function excluirForn(id){
 /* ==========================================================
    BLOCO 17 — FRENTE DE CAIXA (financeiro)
    ========================================================== */
-var FC={de:'',ate:'',turno:''};
+var FC={de:'',ate:'',turno:'',_auto:false};
 function telaFrenteCaixa(){
   baseLanc();baseTurnos();
   DB.caixas=DB.caixas||[];
-  if(!FC.de){var d=new Date();
-    FC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-    FC.ate=hojeISO();}
+  /* ==========================================================
+     NO DIA 1o DO MES A TELA ABRIA VAZIA
+
+     O periodo automatico e "do dia 1o do mes ate hoje". Em 01/09/2026
+     isso vira "de 01/09 ate 01/09": nenhum caixa fechado de agosto
+     aparece, e a lista de fechamentos abre em branco. Quem chega de
+     manha no dia 1o ve a tela vazia e conclui que perdeu os
+     fechamentos do mes inteiro — eles estao todos la, so escondidos
+     pelo filtro que a propria tela pos sozinha.
+
+     Mesmo defeito da Contagem de Estoque, e a mesma regra resolve: se o
+     periodo AUTOMATICO nao mostraria nada, ele nao filtra. O periodo
+     escolhido a mao nunca e mexido — quem filtrou quis aquilo.
+
+     A data tambem passou a sair do dia DA LOJA (`hojeISO`) em vez de
+     `toISOString`, que devolve o dia de Greenwich.
+     ========================================================== */
+  if(!FC.de){
+    var _h=hojeISO();
+    FC.de=_h.slice(0,8)+'01';
+    FC.ate=_h;
+    FC._auto=true;
+  }
   var aberto=caixaAberto();
   /* ==========================================================
      CAIXA QUE FICOU ABERTO DE OUTRO DIA PRECISA APARECER
@@ -28305,6 +28373,19 @@ function telaFrenteCaixa(){
     var d=isoDoCaixa(c.aberto);
     return (!FC.de||d>=FC.de)&&(!FC.ate||d<=FC.ate);
   }).sort(function(a,b){return isoDoCaixa(b.aberto).localeCompare(isoDoCaixa(a.aberto))});
+  /* periodo automatico que esconderia todos os fechamentos nao serve para nada */
+  if(!fechados.length&&FC._auto){
+    var _todos=(DB.caixas||[]).filter(function(c){
+      if(!c.fechadoEm)return false;
+      if(FC.turno&&c.turnoId!==FC.turno)return false;
+      return true;
+    });
+    if(_todos.length){
+      FC.de='';FC.ate='';
+      fechados=_todos.sort(function(a,b){
+        return isoDoCaixa(b.aberto).localeCompare(isoDoCaixa(a.aberto))});
+    }
+  }
 
   var totV=fechados.reduce(function(a,c){return a+(Number(c.vendas)||0)},0);
   var totDif=fechados.reduce(function(a,c){return a+((Number(c.contado)||0)-(Number(c.esperado)||0))},0);
@@ -28392,7 +28473,7 @@ function telaFrenteCaixa(){
       return '<option value="'+E(t.id)+'"'+(FC.turno===t.id?' selected':'')+'>'+E(t.nome)+'</option>';
     }).join('')+'</select></div>'+
    '<button class="btnP2 ok" onclick="buscarCaixas()">'+sv('search',14)+' Buscar</button>'+
-   '<button class="btnP2" onclick="FC.de=\'\';FC.ate=\'\';FC.turno=\'\';telaFrenteCaixa()">Limpar</button>'+
+   '<button class="btnP2" onclick="FC.de=\'\';FC.ate=\'\';FC.turno=\'\';FC._auto=false;telaFrenteCaixa()">Limpar</button>'+
    '<div style="flex:1"></div>'+
    '<div class="fcResumo">'+
     '<div><span>Turnos</span><b>'+fechados.length+'</b></div>'+
@@ -28440,7 +28521,7 @@ function isoDoCaixa(txt){
   return p[2]+'-'+p[1]+'-'+p[0];
 }
 function buscarCaixas(){
-  FC.de=$('fcDe').value;FC.ate=$('fcAte').value;
+  FC.de=$('fcDe').value;FC.ate=$('fcAte').value;FC._auto=false;
   FC.turno=($('fcTurno')||{}).value||'';
   telaFrenteCaixa();
 }
@@ -35125,7 +35206,7 @@ function exportarEstoque(){
    registrado no historico da contagem, para depois se saber de onde
    veio aquele preco.
    ========================================================== */
-var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:''};
+var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:'',_auto:false};
 /* ==========================================================
    A CONTAGEM E DO FIM DAQUELE DIA
 
@@ -35186,9 +35267,33 @@ function telaContagem(){
      ========================================================== */
   try{ espelharEstoque(); }catch(e){ _quieto(e,'telaContagem'); }
   if(CT2.aba==='nova')return telaContagemNova();
-  if(!CT2.de){var d=new Date();
-    CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-    CT2.ate=hojeISO();}
+  /* ==========================================================
+     NO DIA 1o DO MES A CONTAGEM DE ONTEM SUMIA DA TELA
+
+     O historico abre filtrando do dia 1o do mes ate hoje. Em 01/09/2026
+     isso vira "de 01/09 ate 01/09" — e a contagem de 31/08, lancada
+     naquela manha, nao aparecia em lugar nenhum. Ela estava gravada,
+     ajustou o estoque, entrou na movimentacao; so nao estava na lista.
+     Quem conta de manha e lanca como o dia anterior — que e o jeito que
+     a loja trabalha — encontra a tela vazia todo comeco de mes e conclui
+     que o sistema perdeu a contagem.
+
+     A regra agora tem uma segunda metade: se o mes ainda nao tem
+     contagem nenhuma, o periodo automatico nao esconde nada — mostra
+     todas. Quando ha contagem no mes, a tela continua exatamente como
+     era. O periodo escolhido A MAO nunca e mexido: quem filtrou quis
+     aquilo, mesmo que de vazio.
+
+     A data tambem passou a sair do dia DA LOJA (`hojeISO`) em vez de
+     `toISOString`, que devolve o dia de Greenwich e vira o dia seguinte
+     depois das 21h em Sao Paulo.
+     ========================================================== */
+  if(!CT2.de){
+    var _h=hojeISO();
+    CT2.de=_h.slice(0,8)+'01';
+    CT2.ate=_h;
+    CT2._auto=true;
+  }
   /* inventario e de UMA loja: o historico nunca mistura. A matriz ve o
      dela; contagem antiga, sem carimbo, fica com a matriz. */
   var _suc=lojaAtualId();
@@ -35197,6 +35302,14 @@ function telaContagem(){
     if(s?(s!==_suc):!ehSucMatriz(_suc))return false;
     return (!CT2.de||c.data>=CT2.de)&&(!CT2.ate||c.data<=CT2.ate);
   }).sort(function(a,b){return (b.data+b.hora).localeCompare(a.data+a.hora)});
+  /* periodo automatico que esconderia tudo nao serve para nada */
+  if(!lista.length&&CT2._auto&&(DB.contagens||[]).length){
+    CT2.de='';CT2.ate='';
+    lista=(DB.contagens||[]).filter(function(c){
+      var s2=c.sucursalId||c.loja||'';
+      return s2?(s2===_suc):ehSucMatriz(_suc);
+    }).sort(function(a,b){return (b.data+b.hora).localeCompare(a.data+a.hora)});
+  }
   var tGanho=lista.reduce(function(a,c){return a+(Number(c.ganho)||0)},0);
   var tPerda=lista.reduce(function(a,c){return a+Math.abs(Number(c.perda)||0)},0);
 
@@ -35250,13 +35363,14 @@ function telaContagem(){
    '</div></div></div>';
   rodape(lista.length+' contagens no período');
 }
-function filtrarContagens(){CT2.de=$('ctDe').value;CT2.ate=$('ctAte').value;telaContagem();}
+function filtrarContagens(){
+  CT2.de=$('ctDe').value;CT2.ate=$('ctAte').value;CT2._auto=false;telaContagem();}
 function mesAtualCT(){
-  var d=new Date();
-  CT2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-  CT2.ate=hojeISO();telaContagem();
+  var _h=hojeISO();
+  CT2.de=_h.slice(0,8)+'01';
+  CT2.ate=_h;CT2._auto=false;telaContagem();
 }
-function verTodasContagens(){CT2.de='';CT2.ate='';telaContagem();}
+function verTodasContagens(){CT2.de='';CT2.ate='';CT2._auto=false;telaContagem();}
 function voltarContagem(){CT2.aba='hist';telaContagem();}
 function novaContagem(){
   CT2.aba='nova';CT2.cont={};CT2.custo={};CT2.busca='';CT2.grupo='';
