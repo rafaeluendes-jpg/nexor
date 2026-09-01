@@ -2327,6 +2327,68 @@ function servir() {
   t('a mudança não vazou para as outras telas do mesmo painel',
     rOutras.vazaram.length === 0, rOutras.vazaram.join(', '));
 
+  console.log('\n── 10r. O Cadastro de Clientes tinha o mesmo defeito\n');
+  /* Mesma causa da Frente de Caixa, e aqui pior: o filtro tem cinco
+     campos e ainda há a faixa de números, então sobravam duas linhas de
+     cliente numa janelinha com barra própria. A regra de CSS é a MESMA,
+     compartilhada — não uma cópia. */
+  const rCR = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    fecharModal();
+    DB.clientes = [];
+    for (var i = 1; i <= 30; i++) DB.clientes.push({ id: 'cliR_' + i,
+      nome: 'Cliente ' + i, tel: '179999900' + String(i).padStart(2, '0'),
+      cidade: 'Santa Fé do Sul', bairro: 'Centro', zona: 'Centro',
+      compras: i, gasto: i * 40, rua: 'Rua A', numero: String(i) });
+    salvar();
+    telaClientes();
+    var wrap = document.querySelector('.finWrap');
+    var pnl = document.querySelector('.finWrap>.pnl2');
+    var corpo = pnl.querySelector('.pnl2B');
+    wrap.scrollTop = 99999;
+    var linhas = [...pnl.querySelectorAll('tbody tr')];
+    var ult = linhas[linhas.length - 1].getBoundingClientRect();
+    var th = pnl.querySelector('thead th').getBoundingClientRect();
+    var w = wrap.getBoundingClientRect();
+    return {
+      classe: wrap.classList.contains('crTela'),
+      barraInterna: corpo.scrollHeight > corpo.clientHeight + 1,
+      paginaRola: wrap.scrollHeight > wrap.clientHeight + 1,
+      larguraPainel: Math.round(pnl.getBoundingClientRect().width),
+      larguraTela: window.innerWidth,
+      esqPainel: Math.round(pnl.getBoundingClientRect().left),
+      esqFiltro: Math.round(document.querySelector('.filtroCard').getBoundingClientRect().left),
+      esqKpi: Math.round(document.querySelector('.kpiRow').getBoundingClientRect().left),
+      linhas: linhas.length,
+      ultimaAlcancada: ult.bottom <= window.innerHeight + 1 && ult.top > 0,
+      cabecalhoGrudado: Math.abs(th.top - w.top) < 2,
+      rolagemH: document.documentElement.scrollWidth > window.innerWidth + 1
+    };
+  });
+  t('a tela usa a marca própria do Cadastro de Clientes', rCR.classe === true);
+  t('os 30 clientes estão na lista', rCR.linhas === 30, rCR.linhas);
+  t('A BARRA DE ROLAGEM DE DENTRO DA LISTA SUMIU', rCR.barraInterna === false);
+  t('quem rola é a página inteira', rCR.paginaRola === true);
+  t('e o último cliente é alcançado rolando', rCR.ultimaAlcancada === true);
+  t('O PAINEL VAI DE BORDA A BORDA', rCR.larguraPainel === rCR.larguraTela,
+    rCR.larguraPainel + ' de ' + rCR.larguraTela);
+  t('o filtro e a faixa de números ficam com a margem de sempre',
+    rCR.esqFiltro === 20 && rCR.esqKpi === 20, rCR.esqFiltro + ' / ' + rCR.esqKpi);
+  t('a linha de título da tabela fica grudada no topo enquanto rola',
+    rCR.cabecalhoGrudado === true);
+  t('e não criou rolagem lateral', rCR.rolagemH === false);
+
+  await pg.setViewportSize({ width: 390, height: 844 });
+  const rCRm = await pg.evaluate(() => {
+    telaClientes();
+    var corpo = document.querySelector('.finWrap>.pnl2 .pnl2B');
+    return { rolagemH: document.documentElement.scrollWidth > window.innerWidth + 1,
+      barraInterna: corpo.scrollHeight > corpo.clientHeight + 1 };
+  });
+  t('no celular também não sobra barrinha', rCRm.barraInterna === false);
+  t('nem rolagem para o lado', rCRm.rolagemH === false);
+  await pg.setViewportSize({ width: 1440, height: 900 });
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

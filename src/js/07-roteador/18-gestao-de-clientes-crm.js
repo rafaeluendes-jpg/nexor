@@ -81,7 +81,21 @@ function telaClientes(){
   var ticketGeral=lista.reduce(function(a,x){return a+x.s.qtd},0);
   ticketGeral=ticketGeral?totGasto/ticketGeral:0;
 
-  $('content').innerHTML='<div class="finWrap">'+
+  /* ==========================================================
+     A LISTA DE CLIENTES FICAVA NUMA JANELINHA COM ROLAGEM PROPRIA
+
+     Mesmo defeito da Frente de Caixa. `.finWrap` e uma coluna flexivel
+     de altura fixa; o painel da lista, como item flexivel, ENCOLHE
+     quando nao cabe — e o `overflow:auto` do corpo dele vira uma barra
+     de rolagem minuscula dentro da pagina, com a tela vazia embaixo.
+     Aqui e pior: o filtro tem cinco campos e ainda ha a faixa de
+     numeros, entao sobravam duas linhas de cliente.
+
+     `crTela` diz que nesta tela o painel NAO encolhe: ele cresce com o
+     conteudo, vai de borda a borda e quem rola e a pagina inteira. A
+     regra e a MESMA da Frente de Caixa, compartilhada — nao uma copia.
+     ========================================================== */
+  $('content').innerHTML='<div class="finWrap crTela">'+
   '<div class="finTop"><div><h1>Cadastro de Clientes</h1>'+
   '<p>Alimentado automaticamente pelas vendas do PDV. Identificação pelo telefone.</p></div>'+
   '<div class="finActs">'+

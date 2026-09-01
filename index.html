@@ -3478,18 +3478,31 @@ tbody td small{font-size:10.5px}
 /* o respiro do topo sai do padding e vira margem do titulo: com padding,
    a linha de titulo da tabela grudava 18 px abaixo da borda de cima e
    sobrava uma fresta onde a linha anterior aparecia por cima dela */
-.finWrap.fcTela{padding-left:0;padding-right:0;padding-top:0}
-.finWrap.fcTela>.finTop{margin-top:18px}
+.finWrap.fcTela,.finWrap.crTela{padding-left:0;padding-right:0;padding-top:0}
+.finWrap.fcTela>.finTop,.finWrap.crTela>.finTop{margin-top:18px}
 .finWrap.fcTela>.finTop,
 .finWrap.fcTela>.fcAberto,
 .finWrap.fcTela>.fcFechado,
-.finWrap.fcTela>.filtroCard{margin-left:20px;margin-right:20px}
+.finWrap.fcTela>.filtroCard,
+.finWrap.crTela>.finTop,
+.finWrap.crTela>.filtroCard,
+.finWrap.crTela>.kpiRow{margin-left:20px;margin-right:20px}
 /* `overflow:hidden` no painel faria a linha de titulo da tabela grudar
    NELE, e ela sumiria junto quando a pagina rolasse. Solto, o cabecalho
    gruda na pagina e continua a vista com os doze turnos passando. */
-.finWrap.fcTela>.pnl2{flex:none;border-left:0;border-right:0;border-radius:0;overflow:visible}
-.finWrap.fcTela>.pnl2>.pnl2B{overflow:visible;padding-left:14px;padding-right:14px}
-.finWrap.fcTela>.pnl2>.pnl2H{padding-left:18px;padding-right:18px}
+.finWrap.fcTela>.pnl2,
+.finWrap.crTela>.pnl2{flex:none;border-left:0;border-right:0;border-radius:0;overflow:visible}
+.finWrap.fcTela>.pnl2>.pnl2B,
+.finWrap.crTela>.pnl2>.pnl2B{overflow:visible;padding-left:14px;padding-right:14px}
+.finWrap.fcTela>.pnl2>.pnl2H,
+.finWrap.crTela>.pnl2>.pnl2H{padding-left:18px;padding-right:18px}
+/* ==========================================================
+   `crTela` e o Cadastro de Clientes, com o MESMO defeito e a MESMA
+   cura. Ela entra na lista de seletores em vez de ganhar um bloco
+   proprio: duas copias da mesma regra divergem na primeira vez que
+   alguem mexer numa delas, e ai as duas telas passam a se comportar
+   diferente sem ninguem entender por que.
+   ========================================================== */
 .fcAberto{background:#fff;border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc);padding:13px 15px;gap:13px}
 .fcIco{width:40px;height:40px;border-radius:6px;background:var(--acc-soft);color:var(--acc-d)}
 .fcTag{background:var(--acc-soft);color:var(--acc-d);font-size:9px}
@@ -12517,7 +12530,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V264.0.0';
+var VERSAO='V265.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -28671,7 +28684,21 @@ function telaClientes(){
   var ticketGeral=lista.reduce(function(a,x){return a+x.s.qtd},0);
   ticketGeral=ticketGeral?totGasto/ticketGeral:0;
 
-  $('content').innerHTML='<div class="finWrap">'+
+  /* ==========================================================
+     A LISTA DE CLIENTES FICAVA NUMA JANELINHA COM ROLAGEM PROPRIA
+
+     Mesmo defeito da Frente de Caixa. `.finWrap` e uma coluna flexivel
+     de altura fixa; o painel da lista, como item flexivel, ENCOLHE
+     quando nao cabe — e o `overflow:auto` do corpo dele vira uma barra
+     de rolagem minuscula dentro da pagina, com a tela vazia embaixo.
+     Aqui e pior: o filtro tem cinco campos e ainda ha a faixa de
+     numeros, entao sobravam duas linhas de cliente.
+
+     `crTela` diz que nesta tela o painel NAO encolhe: ele cresce com o
+     conteudo, vai de borda a borda e quem rola e a pagina inteira. A
+     regra e a MESMA da Frente de Caixa, compartilhada — nao uma copia.
+     ========================================================== */
+  $('content').innerHTML='<div class="finWrap crTela">'+
   '<div class="finTop"><div><h1>Cadastro de Clientes</h1>'+
   '<p>Alimentado automaticamente pelas vendas do PDV. Identificação pelo telefone.</p></div>'+
   '<div class="finActs">'+
