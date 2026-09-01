@@ -46,8 +46,12 @@ function telaPDV(){
   '<div class="pdvBar">'+
    '<button class="voltarSis" onclick="sairPdvCheio()" title="Voltar ao menu do sistema">'+sv('menu2',15)+' Sistema</button>'+
    '<div class="pdvSep"></div>'+
-   '<button class="lojaSw '+(c.lojaAberta?'ab':'fe')+'" onclick="toggleLoja()">'+
-     '<i></i>'+(c.lojaAberta?'LOJA ABERTA':'LOJA FECHADA')+'</button>'+
+   (function(){var _ab=lojaLigada();
+     return '<button class="lojaSw '+(_ab?'ab':'fe')+'" onclick="toggleLoja()" '+
+      'role="switch" aria-checked="'+(_ab?'true':'false')+'" '+
+      'title="'+(_ab?'A loja está ligada: cardápio digital no ar e robô do WhatsApp atendendo. Clique para desligar.'
+                    :'A loja está desligada: o cardápio digital não recebe pedido e o robô não atende. Clique para ligar.')+'">'+
+      '<span class="swT"><i></i></span>'+(_ab?'LOJA LIGADA':'LOJA DESLIGADA')+'</button>';})()+
    '<div class="pdvSep"></div>'+
    '<div class="pdvFld"><label>Entrega</label><input type="number" id="tEnt" value="'+c.tempoEntrega+'"><i>min</i></div>'+
    '<div class="pdvFld"><label>Retirada</label><input type="number" id="tRet" value="'+c.tempoRetirada+'"><i>min</i></div>'+
@@ -73,6 +77,50 @@ function telaPDV(){
      ' sem fechamento (<b>'+sobra.map(function(c){return E(c.aberto)}).join(' · ')+'</b>). '+
      'A venda de agora está indo para o caixa aberto em '+E(cx?cx.aberto:'—')+'.</div>'+
      '<button class="btnP2" onclick="abrir(\'financeira\',\'frente-caixa\')">Resolver</button></div>';
+  })()+
+  /* ==========================================================
+     APARELHO ATRASADO PRECISA DIZER QUE ESTA ATRASADO
+
+     O Rafael, em 01/09/2026: "no tablet tem pedido aguardando preparacao,
+     e no computador o pedido esta todo pronto. Se o login e o mesmo,
+     precisa ser a mesma coisa."
+
+     E o mesmo login. O que muda e o aparelho. O sistema guarda tudo aqui
+     e sincroniza; e ha uma regra, que esta certa, dizendo que NAO se
+     baixa nada por cima enquanto houver mudanca esperando para subir —
+     baixar por cima apagaria o que ainda nao foi enviado.
+
+     O problema nao era a regra: era o silencio dela. Se uma tabela falha
+     no envio, a marca de pendente fica ligada, e a partir dai aquele
+     aparelho para de receber atualizacao PARA SEMPRE, sem avisar nada. A
+     tela continua desenhando o mundo do dia em que travou — pedido em
+     "aguardando preparo" que no computador ja saiu para entrega, loja
+     ligada que no computador esta desligada.
+
+     Agora, quando o aparelho passa mais de cinco minutos sem conseguir
+     receber, ele diz isso na cara do operador, no PDV, com o botao de
+     tentar de novo do lado. A regra continua a mesma; o que acabou foi o
+     silencio.
+     ========================================================== */
+  (function(){
+    if(!NUVEM.ligada)return '';
+    if(!(NUVEM.sujo||DB._sujo))return '';
+    var _ud=(typeof _ultimoDownload!=='undefined'?_ultimoDownload:0);
+    var _parado=Date.now()-(_ud||0);
+    if(_ud&&_parado<5*60*1000)return '';
+    var _n=0; try{_n=contarPendencias()}catch(e){}
+    var _hm=_ud?new Date(_ud).toLocaleTimeString('pt-BR').slice(0,5):null;
+    return '<div class="cmdFaixa cmdAlerta">'+sv('help',14)+
+     '<div><b>Este aparelho está atrasado.</b> '+
+     (_hm?'Ele não recebe novidade da nuvem desde as '+_hm+'.'
+        :'Ele ainda não conseguiu receber nada da nuvem.')+
+     ' O que está nesta tela pode não ser o que já aconteceu nos outros aparelhos — '+
+     'pedido, estado da loja, tudo. '+
+     (_n?'Há '+_n+' alteração'+(_n>1?'ões':'')+' esperando para subir, e o sistema não '+
+         'baixa nada por cima delas para não apagar o que você lançou aqui.'
+       :'Há algo esperando para subir, e o sistema não baixa nada por cima disso.')+
+     '</div>'+
+     '<button class="btnP2" onclick="destravarAparelho()">Tentar enviar agora</button></div>';
   })()+
   (PDV.comandaId?(function(){var c=comandaPorId(PDV.comandaId);
     return c?'<div class="cmdFaixa">'+sv('store',14)+
@@ -114,10 +162,20 @@ async function aplicarTempos(){
   baseCard();
   var suc=lojaAtualId();
   var cd=(DB.cardapio||{})[suc];
+  /* ==========================================================
+     MUDAR O TEMPO DE ENTREGA NAO PODE ABRIR NEM FECHAR A LOJA
+
+     Esta funcao mandava `ativo: c.lojaAberta`, e `cfg()` e da EMPRESA,
+     nao da unidade. Quem entrasse em Jales e corrigisse os minutos da
+     entrega gravava, junto, o estado de loja da ultima unidade que
+     alguem tinha aberto no aparelho. O estado agora e lido da propria
+     unidade que esta sendo alterada.
+     ========================================================== */
+  var _lig=lojaLigada(suc);
   if(cd){
     cd.tempoEntrega=c.tempoEntrega?c.tempoEntrega+' min':'';
     cd.tempoRetirada=c.tempoRetirada?c.tempoRetirada+' min':'';
-    cd.ativo=c.lojaAberta!==false;
+    cd.ativo=_lig;
   }
   salvar();
   if(NUVEM.ligada){
@@ -125,7 +183,7 @@ async function aplicarTempos(){
       await api('cardapio_config?sucursal_id=eq.'+suc,'PATCH',{
         tempo_entrega:cd?cd.tempoEntrega:null,
         tempo_retirada:cd?cd.tempoRetirada:null,
-        ativo:c.lojaAberta!==false
+        ativo:_lig
       });
     }catch(e){_quieto(e,'aplicarTempos')}
   }
@@ -154,14 +212,108 @@ function ligarBuscaKanban(){
     if(n){n.focus();n.setSelectionRange(p,p);}
   };
 }
+/* tenta subir o que travou e, se conseguir, busca o que ficou para tras */
+async function destravarAparelho(){
+  toast('Enviando o que ficou aqui...');
+  try{ await sincronizar(); }catch(e){ _quieto(e,'destravarAparelho'); }
+  if(NUVEM.sujo||DB._sujo){
+    telaPDV();
+    await confirmar({
+      titulo:'Ainda não consegui enviar',
+      texto:'Alguma coisa deste aparelho não está subindo, e por isso ele continua '+
+        'sem receber o que os outros lançaram.',
+      aviso:'Abra Configuração da Loja › Diagnóstico da nuvem: lá aparece qual tabela '+
+        'está falhando e a mensagem que o banco devolveu.',
+      ok:'Entendi',cancelar:null});
+    return;
+  }
+  try{ await baixarDaNuvem(true); }catch(e){ _quieto(e,'destravarAparelho'); }
+  telaPDV();
+  toast('Aparelho em dia — agora ele está vendo o mesmo que os outros.');
+}
 function abaPDV(a){PDV.aba=a;telaPDV();}
 function sairPdvCheio(){document.body.classList.remove('pdvFull');toast('Menu do sistema liberado.');}
-function toggleLoja(){
-  var c=cfg();c.lojaAberta=!c.lojaAberta;
-  aplicarTempos();
+/* ==========================================================
+   O INTERRUPTOR DA LOJA — E ELE MANDA DE VERDADE
+
+   O Rafael, em 01/09/2026: "isso nao pode ser so de enfeite, isso
+   precisa ser fato. Cliquei loja ligada, automaticamente o cardapio
+   digital liga e o robo liga. Desliguei, tudo para de funcionar."
+
+   Ele estava certo em desconfiar. O botao mexia em `cfg().lojaAberta`,
+   que mora em `config_loja` — uma linha POR EMPRESA, nao por loja. Tres
+   coisas saiam erradas dai:
+
+   1. Fechar Santa Fe fechava Jales e Alphaville junto, porque o campo e
+      um so para a rede inteira.
+   2. Cada aparelho reenviava o proprio valor a cada sincronizacao. O
+      tablet com "fechada" na memoria empurrava "fechada" para a nuvem, o
+      computador empurrava "aberta" de volta, e o estado ficava sendo o
+      de quem sincronizou por ultimo.
+   3. O robo do WhatsApp nunca soube de nada: o botao nao encostava em
+      `whatsapp_config.robo_ativo`. Loja "fechada" no PDV e a Carla
+      continuava atendendo e aceitando pedido.
+
+   Agora o estado da loja mora onde ele ja e por unidade e ja e o que o
+   cliente enxerga: `cardapio_config.ativo`. A regra do banco so entrega
+   cardapio com `ativo=true` para quem nao esta logado — entao loja
+   desligada some do cardapio publico, nao e questao de aviso na tela.
+   E o mesmo clique grava `whatsapp_config.robo_ativo`, que e o campo que
+   o robo le para decidir se responde.
+
+   Se a nuvem estiver fora, o interruptor NAO mente: ele avisa que a
+   mudanca ficou so neste aparelho e que o cardapio e o robo continuam
+   como estavam ate a nuvem voltar.
+   ========================================================== */
+function lojaLigada(suc){
+  baseCard();
+  suc=suc||lojaAtualId();
+  var cd=(DB.cardapio||{})[suc];
+  if(cd&&cd.ativo!==undefined)return cd.ativo!==false;
+  return cfg().lojaAberta!==false;
+}
+async function definirLojaLigada(ligada,suc){
+  baseCard();baseZap();
+  suc=suc||lojaAtualId();
+  var cd=(DB.cardapio||{})[suc];
+  if(cd){cd.ativo=!!ligada;delete cd._padrao;}
+  if(DB.zap&&DB.zap[suc])DB.zap[suc].ativo=!!ligada;
+  cfg().lojaAberta=!!ligada;          /* espelho da unidade aberta, para o resto do sistema */
+  salvar();
+  if(!NUVEM.ligada)return {ok:false,motivo:'sem nuvem'};
+  var falhou=[];
+  try{
+    await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(suc),'PATCH',{ativo:!!ligada});
+  }catch(e){falhou.push('cardápio digital');_quieto(e,'definirLojaLigada/cardapio')}
+  try{
+    if(!(await gravarCfgZap(suc,{robo_ativo:!!ligada})))falhou.push('robô do WhatsApp');
+  }catch(e){falhou.push('robô do WhatsApp');_quieto(e,'definirLojaLigada/zap')}
+  return falhou.length?{ok:false,motivo:falhou.join(' e ')}:{ok:true};
+}
+async function toggleLoja(){
+  var suc=lojaAtualId();
+  var ligar=!lojaLigada(suc);
+  var bt=document.querySelector('.lojaSw');
+  if(bt)bt.disabled=true;
+  var r=await definirLojaLigada(ligar,suc);
+  try{ await aplicarTempos(); }catch(e){_quieto(e,'toggleLoja')}
   telaPDV();
-  toast(c.lojaAberta?'Loja aberta — o cardápio já mostra que estamos atendendo.'
-    :'Loja fechada — o cardápio avisa que não estamos atendendo agora.');}
+  if(r.ok){
+    toast(ligar?'Loja ligada — cardápio digital no ar e robô do WhatsApp atendendo.'
+               :'Loja desligada — o cardápio não recebe mais pedido e o robô parou de atender.');
+    return;
+  }
+  /* nao dizer que ligou o que nao ligou */
+  await confirmar({
+    titulo:ligar?'Liguei aqui, mas não lá fora':'Desliguei aqui, mas não lá fora',
+    texto:'Neste aparelho a loja já está '+(ligar?'ligada':'desligada')+'. '+
+      (r.motivo==='sem nuvem'
+        ? 'Só que o sistema está sem conexão com a nuvem, e é a nuvem que avisa o cardápio digital e o robô.'
+        : 'Não consegui avisar: '+r.motivo+'.'),
+    aviso:ligar?'Até a nuvem voltar, o cardápio digital continua fora do ar para o cliente.'
+               :'ATENÇÃO: até a nuvem voltar, o cliente ainda consegue pedir pelo cardápio e o robô continua atendendo.',
+    ok:'Entendi',cancelar:null});
+}
 
 /* ---------- ABA: NOVA VENDA ---------- */
 function renderVenda(){

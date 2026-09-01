@@ -6,7 +6,7 @@
   "scripts": {
     "test:reconciliacao": "node testes/reconciliacao.js",
     "test:sintaxe": "node testes/sintaxe.js",
-    "test": "npm run test:arranque && npm run test:montagem && npm run test:versao && npm run test:backup && npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa && npm run test:formas && npm run test:ux && npm run test:tenant && npm run test:unidade && npm run test:cego && npm run test:pedbase && npm run test:sino && npm run test:trilho && npm run test:vinculo && npm run test:horario && npm run test:rolagem && npm run test:ligacoes && npm run test:cadastro && npm run test:envio && npm run test:salvar && npm run test:canais && npm run test:caixareabre && npm run test:sessao && npm run test:reconexao && npm run test:sosia && npm run test:fechamento && npm run test:semsenha && npm run test:turno && npm run test:enxugado && npm run test:exclusao && npm run test:papel && npm run test:avisozap && npm run test:saldo && npm run test:bairro && npm run test:contagem && npm run test:gelato && npm run test:canaishora && npm run test:e2e",
+    "test": "npm run test:arranque && npm run test:montagem && npm run test:versao && npm run test:backup && npm run test:sintaxe && npm run test:reconciliacao && npm run test:caixa && npm run test:formas && npm run test:ux && npm run test:tenant && npm run test:unidade && npm run test:cego && npm run test:pedbase && npm run test:sino && npm run test:trilho && npm run test:vinculo && npm run test:horario && npm run test:rolagem && npm run test:ligacoes && npm run test:cadastro && npm run test:envio && npm run test:salvar && npm run test:canais && npm run test:caixareabre && npm run test:sessao && npm run test:reconexao && npm run test:sosia && npm run test:fechamento && npm run test:semsenha && npm run test:turno && npm run test:enxugado && npm run test:exclusao && npm run test:papel && npm run test:avisozap && npm run test:saldo && npm run test:bairro && npm run test:contagem && npm run test:gelato && npm run test:canaishora && npm run test:interruptor && npm run test:e2e",
     "test:pedbase": "node testes/pedido-base.js",
     "test:sino": "node testes/sino.js",
     "test:trilho": "node testes/frente-de-caixa.js",
@@ -51,7 +51,8 @@
     "test:bairro": "node testes/bairro-na-entrega.js",
     "test:contagem": "node testes/contagem-retroativa.js",
     "test:gelato": "node testes/gelato-venda.js",
-    "test:canaishora": "node testes/canais-e-horarios.js"
+    "test:canaishora": "node testes/canais-e-horarios.js",
+    "test:interruptor": "node testes/interruptor-da-loja.js"
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
