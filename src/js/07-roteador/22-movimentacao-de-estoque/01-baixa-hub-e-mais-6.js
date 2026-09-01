@@ -1413,49 +1413,47 @@ function verPedidoBase(id){
        escrever "Santa Fe do Sul · Santa Fe do Sul" so parece defeito */
     '<span>' + E(dataBR(p.data)) + ' · ' + E(p.sucursalNome || '—') +
     (p.responsavel && String(p.responsavel).trim() !== String(p.sucursalNome || '').trim()
-      ? ' · ' + E(p.responsavel) : '') + ' · ' + seloPedBase(p.situacao) +
-    '</span></div></div>' +
+      ? ' · ' + E(p.responsavel) : '') + ' · R$ ' + money(p.total) +
+    '</span><span class="pbSit">' + seloPedBase(p.situacao) + '</span></div></div>' +
+   (p.obs ? '<div class="pbObs"><b>Observação da unidade</b><span>' +
+     E(p.obs) + '</span></div>' : '') +
    (itens.length
     ? '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">' +
-      '<div class="acTabW" style="max-height:360px"><table class="acTab"><thead><tr>' +
+      '<div class="acTabW" style="max-height:360px"><table class="acTab pbTabPed"><thead><tr>' +
        '<th>Base</th><th style="width:110px;text-align:right">Quantidade</th>' +
        '<th style="width:120px;text-align:right">Valor da unidade</th>' +
        '<th style="width:120px;text-align:right">Total</th></tr></thead><tbody>' +
        itens.map(function (it) {
          var q = unidadesDoItem(it);
          var vu = precoUnitDoItem(it);
-         return '<tr><td><b>' + E(it.baseNome || it.nome || '—') + '</b></td>' +
+         return '<tr><td><b>' + E(it.baseNome || it.nome || '—') + '</b>' +
+          '<span class="pbUn">R$ ' + money(vu) + ' a unidade</span></td>' +
           '<td style="text-align:right">' + fmtQt(q) + '</td>' +
           '<td style="text-align:right">R$ ' + money(vu) + '</td>' +
           '<td style="text-align:right"><b>R$ ' + money(Number(it.total) || q * vu) +
           '</b></td></tr>';
-       }).join('') + '</tbody>' +
-       '<tfoot><tr><td colspan="3"><b>Total do pedido</b></td>' +
-       '<td style="text-align:right"><b>R$ ' + money(p.total) + '</b></td></tr></tfoot>' +
-      '</table></div></div>'
+       }).join('') + '</tbody></table></div>' +
+      /* o total fora da tabela: dentro dele era uma celula com `colspan`,
+         e no celular, com uma coluna escondida, a conta do colspan
+         deixava a tabela mais estreita que a caixa */
+      '<div class="pbTotPed"><span>Total do pedido</span>' +
+      '<b>R$ ' + money(p.total) + '</b></div></div>'
     /* ==========================================================
-       LISTA QUE NAO CHEGOU: DIZER ONDE ELA ESTA, NAO SO QUE FALTA
+       LISTA QUE NAO CHEGOU: TRES LINHAS, EM PORTUGUES DE GENTE
 
-       Ate a V279 o item do pedido de base era recusado pela nuvem — a
-       chave do upsert citava uma coluna que a tabela nao tem. O
-       cabecalho subia, a lista nao. Quem abre o pedido na matriz ve o
-       total e mais nada.
+       A primeira versao desta tela explicava o defeito: citava a versao,
+       a chave do upsert e o Ctrl+Shift+R. O Rafael abriu e respondeu
+       "E SERIO ISSO?". Estava certo: tela de loja nao e relatorio
+       tecnico, e a regra da casa e zero texto tecnico na tela.
 
-       "Nao tem a lista neste aparelho" e verdade e nao serve de nada
-       sozinho. A lista existe no computador que MONTOU o pedido; o que
-       falta e ele subir com a versao corrigida. E o que a tela diz
-       agora, com o caminho.
+       O que a matriz precisa saber cabe em tres linhas: de quem e o
+       pedido, quanto vale, e que a lista chega sozinha. Nada do que ela
+       tem de fazer — porque nao ha nada que ela possa fazer daqui.
        ========================================================== */
-    : '<div class="hint" style="padding:22px;line-height:1.75">' +
-      '<b>A lista de bases deste pedido não chegou a este aparelho.</b><br>' +
-      'O pedido foi enviado por <b>' + E(p.sucursalNome || 'uma unidade') +
-      '</b>, no valor de <b>R$ ' + money(p.total) + '</b>.<br><br>' +
-      'Até a versão V279 a nuvem recusava os itens do pedido de base — o ' +
-      'cabeçalho subia e a lista não. No computador que montou o pedido a ' +
-      'lista pode estar guardada: <b>atualize aquele aparelho</b> ' +
-      '(Ctrl+Shift+R) e ela sobe sozinha na primeira sincronização.<br><br>' +
-      'Se lá também não aparecer, a lista se perdeu e o pedido precisa ser ' +
-      'refeito — o total acima é o que foi enviado.</div>') +
+    : '<div class="pbVazio">' +
+      '<b>A lista de bases ainda não chegou aqui.</b>' +
+      '<span>Ela está no computador que fez o pedido e sobe sozinha ' +
+      'quando aquela loja abrir o sistema.</span></div>') +
    '</div>';
   var o = document.createElement('div');
   o.className = 'mdOv'; o.id = 'mdOv';

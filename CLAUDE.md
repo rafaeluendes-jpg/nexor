@@ -95,8 +95,18 @@ apresentado como real ou recurso pela metade.
    `/tmp/provas` — **olhe as fotos**. Defeito visual não aparece em
    teste que passa: a etiqueta virando barra vazia e a comanda do PDV
    espremida em 82 px no celular só apareceram na fotografia.
-5. Corrigir tudo o que apareceu e **rodar os quatro de novo**.
-6. **Todo passo a passo que for para o Rafael tem de ser executado antes**,
+5. `node ferramentas/conferir-nuvem.js` — compara **campo por campo** o
+   que o código manda para o Supabase com o que o banco realmente aceita:
+   coluna que não existe, chave de `on_conflict` sem índice único, id
+   local indo para coluna `uuid`. Os quatro testes acima rodam com a nuvem
+   desligada — **nenhum deles vê esse tipo de erro**, e foi daí que
+   vieram os quatro defeitos de 01/09/2026. A referência é
+   `ferramentas/esquema-nuvem.json`; depois de qualquer migration,
+   regrave-o com a consulta que está no fim do `conferir-nuvem.js`.
+   Ele já entra no `npm test`, e vale também para o robô do WhatsApp e o
+   cardápio digital quando as pastas irmãs estão ao lado.
+6. Corrigir tudo o que apareceu e **rodar os cinco de novo**.
+7. **Todo passo a passo que for para o Rafael tem de ser executado antes**,
    no navegador, no estado exato em que ele está. Em 29/08/2026 eu mandei
    ele clicar num botão que não existia naquela situação — a faixa com o
    botão só aparecia quando havia DOIS caixas abertos, e ele tinha um. Se

@@ -101,6 +101,39 @@
 .pbTot b{display:block;font-size:18px;color:var(--acc-d);font-variant-numeric:tabular-nums}
 .pbAcoes{display:flex;gap:9px;justify-content:flex-end;margin-top:12px}
 tr.pbSel td{background:var(--acc-soft)}
+.pbObs{margin:0 0 12px;padding:11px 13px;border-radius:var(--r-s);
+  background:var(--amber-soft);border:1px solid var(--line)}
+.pbObs b{display:block;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--ink-3);margin-bottom:3px}
+.pbObs span{display:block;font-size:13.5px;color:var(--ink);line-height:1.5}
+/* no celular nao cabem quatro colunas: o valor da unidade desce para
+   baixo do nome da base e a coluna do total volta para dentro da tela */
+.pbUn{display:none}
+@media(max-width:640px){
+  .pbTabPed{width:100%;table-layout:auto}
+  .pbTabPed th:nth-child(3),.pbTabPed td:nth-child(3){display:none}
+  /* as larguras fixas das colunas vem do proprio HTML e sobram no
+     celular: aqui a tabela volta a se ajustar a tela */
+  .pbTabPed th,.pbTabPed td{width:auto!important}
+  .pbTabPed th:nth-child(2),.pbTabPed td:nth-child(2){width:52px!important}
+  .pbTabPed th:nth-child(4),.pbTabPed td:nth-child(4){white-space:nowrap}
+  .pbUn{display:block;font-size:11.5px;color:var(--ink-3);
+    font-weight:400;margin-top:2px}
+}
+/* dentro do `.acHead` todo span vira bloco; sem isto a etiqueta de
+   situacao estica e vira uma barra bege vazia atravessando a caixa */
+.acHead .pbSit{margin-top:5px}
+.acHead .pbSit .pill{display:inline-block;width:auto}
+.pbTotPed{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:12px 14px;background:var(--alt);
+  border-top:2px solid var(--line)}
+.pbTotPed span{font-size:13px;font-weight:600;color:var(--ink)}
+.pbTotPed b{font-size:15.5px;color:var(--acc-d);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.pbVazio{padding:26px 22px;text-align:center}
+.pbVazio b{display:block;font-size:14.5px;color:var(--ink);margin-bottom:6px}
+.pbVazio span{display:block;font-size:13px;color:var(--ink-3);line-height:1.6;
+  max-width:44ch;margin:0 auto}
 .pill.az{background:var(--blue-soft);color:var(--blue)}
 .pill.vd{background:var(--ok-soft);color:var(--ok)}
 .pill.am{background:var(--amber-soft);color:var(--amber)}

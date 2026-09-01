@@ -1,0 +1,2287 @@
+{
+ "gerado": "2026-09-01",
+ "projeto": "cevghkndzpzvnzwifhnm",
+ "tabelas": {
+  "acertos": {
+   "colunas": {
+    "acrescimos": "numeric",
+    "conta_id": "uuid",
+    "data": "date",
+    "descontos": "numeric",
+    "diaria": "numeric",
+    "entregador_id": "uuid",
+    "forma": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "observacao": "text",
+    "pago": "numeric",
+    "periodo_ate": "date",
+    "periodo_de": "date",
+    "qtd": "integer",
+    "ref_local": "text",
+    "taxas": "numeric",
+    "vendas": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "app_sessoes": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "expira_em": "timestamp with time zone",
+    "token": "text",
+    "ultimo_uso": "timestamp with time zone",
+    "usuario_id": "uuid"
+   },
+   "unicos": [
+    [
+     "token"
+    ]
+   ]
+  },
+  "app_usuarios": {
+   "colunas": {
+    "ativo": "boolean",
+    "bloqueado_ate": "timestamp with time zone",
+    "cartoes": "jsonb",
+    "criado_em": "timestamp with time zone",
+    "falhas": "integer",
+    "id": "uuid",
+    "login": "text",
+    "loja_id": "uuid",
+    "mestre": "boolean",
+    "nome": "text",
+    "permissoes": "jsonb",
+    "ref_local": "text",
+    "senha": "text",
+    "senha_hash": "text",
+    "sucursais": "jsonb",
+    "tudo": "boolean",
+    "ultimo_acesso": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "login"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "areas_entrega": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ref_local": "text",
+    "taxa_padrao": "numeric",
+    "tempo": "integer",
+    "uf": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "areas_zonas": {
+   "colunas": {
+    "area_id": "uuid",
+    "ativa": "boolean",
+    "id": "uuid",
+    "km": "numeric",
+    "nome": "text",
+    "observacao": "text",
+    "ordem": "integer",
+    "ref_local": "text",
+    "taxa": "numeric",
+    "tempo": "integer",
+    "tipo": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "assistente_conversas": {
+   "colunas": {
+    "data": "date",
+    "enviada_em": "timestamp with time zone",
+    "feito": "boolean",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "motivo": "text",
+    "motivo_em": "timestamp with time zone",
+    "pergunta": "text",
+    "quem": "text",
+    "ref_local": "text",
+    "respondida_em": "timestamp with time zone",
+    "resposta": "text",
+    "rotina_id": "uuid",
+    "rotina_nome": "text",
+    "sucursal_id": "text",
+    "telefone": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "assistente_rotinas": {
+   "colunas": {
+    "ativa": "boolean",
+    "dias": "jsonb",
+    "hora": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "pergunta": "text",
+    "ref_local": "text",
+    "sucursais": "jsonb",
+    "tipo_resposta": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "audit_log": {
+   "colunas": {
+    "antes": "jsonb",
+    "cargo": "text",
+    "depois": "jsonb",
+    "id": "bigint",
+    "loja_id": "uuid",
+    "operacao": "text",
+    "quando": "timestamp with time zone",
+    "ref_local": "text",
+    "registro_id": "uuid",
+    "tabela": "text",
+    "usuario": "uuid",
+    "usuario_email": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "backups": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "dados": "jsonb",
+    "data": "date",
+    "feito_por": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "origem": "text",
+    "resumo": "jsonb",
+    "tamanho_kb": "integer",
+    "versao": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "baixas_pendentes": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "custo_unit": "numeric",
+    "data": "date",
+    "hora": "text",
+    "id": "uuid",
+    "item_nome": "text",
+    "item_ref": "text",
+    "item_tipo": "text",
+    "lancada_em": "timestamp with time zone",
+    "loja_id": "uuid",
+    "motivo_nome": "text",
+    "motivo_ref": "text",
+    "mov_ref": "text",
+    "observacao": "text",
+    "quantidade": "numeric",
+    "quem_registrou": "text",
+    "ref_local": "text",
+    "registrado_por": "text",
+    "situacao": "text",
+    "sucursal_id": "text",
+    "unidade": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "bases_catalogo": {
+   "colunas": {
+    "ativo": "boolean",
+    "criado_em": "timestamp with time zone",
+    "ficha_ref": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "qtd_caixa": "numeric",
+    "ref_local": "text",
+    "valor_unit": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "bkp_app_usuarios_20260814": {
+   "colunas": {
+    "ativo": "boolean",
+    "bloqueado_ate": "timestamp with time zone",
+    "cartoes": "jsonb",
+    "criado_em": "timestamp with time zone",
+    "falhas": "integer",
+    "id": "uuid",
+    "login": "text",
+    "loja_id": "uuid",
+    "mestre": "boolean",
+    "nome": "text",
+    "permissoes": "jsonb",
+    "ref_local": "text",
+    "senha": "text",
+    "senha_hash": "text",
+    "sucursais": "jsonb",
+    "tudo": "boolean",
+    "ultimo_acesso": "timestamp with time zone"
+   },
+   "unicos": []
+  },
+  "bkp_excluidas_lojas": {
+   "colunas": {
+    "apagada_em": "timestamp with time zone",
+    "ativa": "boolean",
+    "cidade": "text",
+    "codigo": "text",
+    "criado_em": "timestamp with time zone",
+    "empresa_id": "uuid",
+    "id": "uuid",
+    "matriz": "boolean",
+    "nome": "text",
+    "plataforma": "boolean"
+   },
+   "unicos": []
+  },
+  "bkp_ficha_itens_20260815": {
+   "colunas": {
+    "ficha_id": "uuid",
+    "id": "uuid",
+    "insumo_id": "uuid",
+    "perda": "numeric",
+    "quantidade": "numeric",
+    "ref_local": "text",
+    "unidade": "text"
+   },
+   "unicos": []
+  },
+  "bkp_insumos_unidade_20260815": {
+   "colunas": {
+    "id": "uuid",
+    "nome": "text",
+    "unidade": "text"
+   },
+   "unicos": []
+  },
+  "bkp_usuarios_sistema_20260815": {
+   "colunas": {
+    "ativo": "boolean",
+    "criado_em": "timestamp with time zone",
+    "excluido_em": "timestamp with time zone",
+    "excluido_por": "text",
+    "id": "uuid",
+    "login": "text",
+    "loja_id": "uuid",
+    "mestre": "boolean",
+    "nome": "text",
+    "permissoes": "jsonb",
+    "ref_local": "text",
+    "senha": "text",
+    "sucursais": "jsonb",
+    "tudo": "boolean"
+   },
+   "unicos": []
+  },
+  "bkp_whatsapp_config_20260814": {
+   "colunas": {
+    "assistente_ativa": "boolean",
+    "assistente_nome": "text",
+    "assistente_zap": "text",
+    "atualizado_em": "timestamp with time zone",
+    "gestor_nome": "text",
+    "gestor_zap": "text",
+    "ia_apresenta": "boolean",
+    "ia_ativa": "boolean",
+    "ia_nome": "text",
+    "ia_regras": "text",
+    "ia_tom": "text",
+    "id": "uuid",
+    "link_cardapio": "text",
+    "loja_id": "uuid",
+    "msg_aceito": "text",
+    "msg_entregue": "text",
+    "msg_preparo": "text",
+    "msg_saiu": "text",
+    "nome_loja": "text",
+    "pede_avaliacao": "boolean",
+    "ref_local": "text",
+    "relatorio_freq": "text",
+    "relatorio_zap": "text",
+    "respostas": "jsonb",
+    "robo_ativo": "boolean",
+    "saudacao": "text",
+    "sucursal_id": "text",
+    "texto_endereco": "text",
+    "texto_entrega": "text",
+    "texto_horario": "text",
+    "texto_pagamento": "text"
+   },
+   "unicos": []
+  },
+  "caixa_movimentos": {
+   "colunas": {
+    "caixa_id": "uuid",
+    "criado_em": "timestamp with time zone",
+    "data_hora": "timestamp with time zone",
+    "destino_conta_id": "uuid",
+    "destino_nome": "text",
+    "hora": "text",
+    "id": "uuid",
+    "lanc_ref": "text",
+    "motivo": "text",
+    "ref_local": "text",
+    "responsavel": "text",
+    "responsavel_id": "text",
+    "tipo": "text",
+    "valor": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "caixas": {
+   "colunas": {
+    "aberto_em": "timestamp with time zone",
+    "aberto_txt": "text",
+    "conciliado": "boolean",
+    "conferencia": "jsonb",
+    "contado": "numeric",
+    "diferenca_total": "numeric",
+    "esperado": "numeric",
+    "esperado_por_forma": "jsonb",
+    "fechado_em": "timestamp with time zone",
+    "fechado_por": "text",
+    "fechado_por_id": "text",
+    "fechado_txt": "text",
+    "fundo_proximo": "numeric",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "observacao": "text",
+    "operador": "text",
+    "operador_id": "text",
+    "qtd_pedidos": "integer",
+    "ref_local": "text",
+    "snapshot": "jsonb",
+    "sucursal_id": "text",
+    "total_informado": "numeric",
+    "turno_id": "uuid",
+    "turno_nome": "text",
+    "valor_inicial": "numeric",
+    "vendas": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "cancelamentos": {
+   "colunas": {
+    "caixa_ref": "text",
+    "criado_em": "timestamp with time zone",
+    "data": "text",
+    "estoque_voltou": "boolean",
+    "hora": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "motivo_id": "uuid",
+    "motivo_nome": "text",
+    "observacao": "text",
+    "operador_id": "text",
+    "operador_nome": "text",
+    "pedido_numero": "integer",
+    "pedido_ref": "text",
+    "produzido": "boolean",
+    "ref_local": "text",
+    "turno_nome": "text",
+    "valor": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "cardapio_config": {
+   "colunas": {
+    "aceita_entrega": "boolean",
+    "aceita_retirada": "boolean",
+    "ativo": "boolean",
+    "atualizado_em": "timestamp with time zone",
+    "aviso": "text",
+    "capa": "text",
+    "cor_fundo": "text",
+    "cor_principal": "text",
+    "endereco": "text",
+    "formas_aceitas": "jsonb",
+    "horarios": "jsonb",
+    "id": "uuid",
+    "instagram": "text",
+    "logo": "text",
+    "loja_id": "uuid",
+    "mostra_esgotado": "boolean",
+    "nome_publico": "text",
+    "pede_cpf": "boolean",
+    "pedido_minimo": "numeric",
+    "pix_chave": "text",
+    "ref_local": "text",
+    "slogan": "text",
+    "so_retirada": "boolean",
+    "sucursal_id": "uuid",
+    "tempo_entrega": "text",
+    "tempo_retirada": "text",
+    "titulo": "text",
+    "whatsapp": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "categorias": {
+   "colunas": {
+    "ativa": "boolean",
+    "cor": "text",
+    "criado_em": "timestamp with time zone",
+    "descricao": "text",
+    "id": "uuid",
+    "imagem": "text",
+    "imposto": "text",
+    "impressao": "text",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "ref_local": "text",
+    "replicado_de": "uuid",
+    "replicado_em": "timestamp with time zone",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "categorias_financeiras": {
+   "colunas": {
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "ref_local": "text",
+    "sucursais": "jsonb",
+    "tipo": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "categorias_removidas_duplicadas": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "id": "uuid",
+    "motivo": "text",
+    "nome": "text",
+    "ref_local": "text",
+    "removido_em": "timestamp with time zone",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "clientes": {
+   "colunas": {
+    "bairro": "text",
+    "cidade": "text",
+    "compras": "integer",
+    "cpf": "text",
+    "criado_em": "timestamp with time zone",
+    "gasto": "numeric",
+    "id": "uuid",
+    "limite_fiado": "numeric",
+    "loja_id": "uuid",
+    "nascimento": "date",
+    "nome": "text",
+    "numero": "text",
+    "observacao": "text",
+    "ref_local": "text",
+    "referencia": "text",
+    "rua": "text",
+    "saldo_fiado": "numeric",
+    "telefone": "text",
+    "ultima_compra": "timestamp with time zone",
+    "zona": "text",
+    "zona_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ],
+    [
+     "loja_id",
+     "telefone"
+    ]
+   ]
+  },
+  "clientes_nexor": {
+   "colunas": {
+    "cidade": "text",
+    "cobrancas": "jsonb",
+    "criado_em": "timestamp with time zone",
+    "dia_vencimento": "integer",
+    "documento": "text",
+    "email": "text",
+    "id": "uuid",
+    "inicio": "date",
+    "loja_id": "uuid",
+    "mensalidade": "numeric",
+    "modulos": "jsonb",
+    "nome_fantasia": "text",
+    "observacao": "text",
+    "plano": "text",
+    "rede": "text",
+    "ref_local": "text",
+    "responsavel": "text",
+    "situacao": "text",
+    "telefone": "text",
+    "uf": "text",
+    "unidades": "integer"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "compras_sem_vinculo": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "dados": "jsonb",
+    "descricao": "text",
+    "documento": "text",
+    "excluido_em": "timestamp with time zone",
+    "excluido_por": "text",
+    "fornecedor_nome": "text",
+    "id": "uuid",
+    "itens": "jsonb",
+    "loja_id": "uuid",
+    "nota_id": "text",
+    "nota_numero": "text",
+    "ref_local": "text",
+    "valor": "numeric",
+    "vencimento": "date"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "config_loja": {
+   "colunas": {
+    "caixa_cego": "boolean",
+    "cfg_dre": "jsonb",
+    "cfg_fiscal": "jsonb",
+    "cfg_mesa": "jsonb",
+    "cfg_modos": "jsonb",
+    "cfg_pdv": "jsonb",
+    "cfg_totem": "jsonb",
+    "fases": "jsonb",
+    "layout": "text",
+    "loja_aberta": "boolean",
+    "loja_id": "uuid",
+    "tempo_entrega": "integer",
+    "tempo_retirada": "integer"
+   },
+   "unicos": [
+    [
+     "loja_id"
+    ]
+   ]
+  },
+  "config_operacao": {
+   "colunas": {
+    "ass_plat": "jsonb",
+    "atualizado_em": "timestamp with time zone",
+    "canais": "jsonb",
+    "gerente": "jsonb",
+    "loja_id": "uuid",
+    "operadores": "jsonb",
+    "redes": "jsonb",
+    "zap": "jsonb"
+   },
+   "unicos": [
+    [
+     "loja_id"
+    ]
+   ]
+  },
+  "contagens_estoque": {
+   "colunas": {
+    "data": "date",
+    "ganho": "numeric",
+    "hora": "text",
+    "id": "uuid",
+    "itens": "jsonb",
+    "lancada_em": "date",
+    "loja_id": "uuid",
+    "mov_ref": "text",
+    "perda": "numeric",
+    "precos": "jsonb",
+    "ref_local": "text",
+    "resultado": "numeric",
+    "retroativa": "boolean",
+    "sucursal_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "contas_capital": {
+   "colunas": {
+    "agencia": "text",
+    "banco": "text",
+    "criado_em": "timestamp with time zone",
+    "fixa": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "numero": "text",
+    "ref_local": "text",
+    "saldo_inicial": "numeric",
+    "sucursais": "jsonb",
+    "tipo": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "cupom_usos": {
+   "colunas": {
+    "cliente_id": "uuid",
+    "cliente_nome": "text",
+    "cupom_id": "uuid",
+    "data": "date",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "numero": "integer",
+    "pedido_id": "uuid",
+    "ref_local": "text",
+    "total_pedido": "numeric",
+    "valor": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "cupons": {
+   "colunas": {
+    "ativo": "boolean",
+    "canais": "jsonb",
+    "codigo": "text",
+    "criado_em": "timestamp with time zone",
+    "formas": "jsonb",
+    "hora_ate": "text",
+    "hora_de": "text",
+    "id": "uuid",
+    "limite_cliente": "integer",
+    "loja_id": "uuid",
+    "minimo": "numeric",
+    "quantidade": "integer",
+    "ref_local": "text",
+    "teto": "numeric",
+    "tipo": "text",
+    "valido_ate": "date",
+    "valido_de": "date",
+    "valor": "numeric"
+   },
+   "unicos": [
+    [
+     "codigo",
+     "loja_id"
+    ],
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "cupons_fiscais": {
+   "colunas": {
+    "ambiente": "text",
+    "cancelado_em": "timestamp with time zone",
+    "chave": "text",
+    "consumidor_doc": "text",
+    "consumidor_nome": "text",
+    "contingencia": "boolean",
+    "criado_em": "timestamp with time zone",
+    "danfe_url": "text",
+    "data_venda": "date",
+    "emitido_em": "timestamp with time zone",
+    "hora_venda": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "modelo": "text",
+    "motivo": "text",
+    "motivo_cancelamento": "text",
+    "nfe_agrupada_ref": "text",
+    "numero": "integer",
+    "origem": "text",
+    "pagamento": "text",
+    "pedido_numero": "integer",
+    "pedido_ref": "text",
+    "protocolo": "text",
+    "qr_code": "text",
+    "ref_local": "text",
+    "serie": "integer",
+    "status": "text",
+    "url_consulta": "text",
+    "valor_desconto": "numeric",
+    "valor_entrega": "numeric",
+    "valor_total": "numeric",
+    "xml_url": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "empresas": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "id": "uuid",
+    "nome": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "entregador_taxas": {
+   "colunas": {
+    "cidade": "text",
+    "entregador_id": "uuid",
+    "id": "uuid",
+    "ref_local": "text",
+    "valor": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "entregadores": {
+   "colunas": {
+    "ativo": "boolean",
+    "cpf": "text",
+    "criado_em": "timestamp with time zone",
+    "diarias": "jsonb",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "padrao": "boolean",
+    "pix": "text",
+    "ref_local": "text",
+    "sucursais": "jsonb",
+    "telefone": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "estoque_unidade": {
+   "colunas": {
+    "atualizado_em": "timestamp with time zone",
+    "custo_medio": "numeric",
+    "estoque": "numeric",
+    "id": "uuid",
+    "item_ref": "text",
+    "loja_id": "uuid",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "tipo": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "item_ref",
+     "loja_id",
+     "sucursal_id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "fiado_movimentos": {
+   "colunas": {
+    "cliente_id": "uuid",
+    "conta_id": "uuid",
+    "data": "date",
+    "forma_id": "uuid",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "observacao": "text",
+    "pedido_id": "uuid",
+    "ref_local": "text",
+    "tipo": "text",
+    "valor": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "ficha_grupos": {
+   "colunas": {
+    "destino_id": "uuid",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "pai_id": "uuid",
+    "ref_local": "text",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "ficha_itens": {
+   "colunas": {
+    "ficha_id": "uuid",
+    "ficha_ref": "uuid",
+    "id": "uuid",
+    "insumo_id": "uuid",
+    "perda": "numeric",
+    "quantidade": "numeric",
+    "ref_local": "text",
+    "unidade": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "fichas_tecnicas": {
+   "colunas": {
+    "aliquota": "numeric",
+    "cest": "text",
+    "cfop": "text",
+    "codigo": "text",
+    "cst": "text",
+    "custo_medio": "numeric",
+    "destino_fator": "numeric",
+    "destino_id": "uuid",
+    "destino_modo": "text",
+    "destino_nome": "text",
+    "disponivel_hoje": "boolean",
+    "disponivel_venda": "boolean",
+    "estocavel": "boolean",
+    "estoque_atual": "numeric",
+    "foto": "text",
+    "grupo_id": "uuid",
+    "id": "uuid",
+    "lancamento": "boolean",
+    "loja_id": "uuid",
+    "lojas": "jsonb",
+    "na_producao": "boolean",
+    "ncm": "text",
+    "nome": "text",
+    "observacao": "text",
+    "origem": "text",
+    "preco": "numeric",
+    "produto_id": "uuid",
+    "receita": "text",
+    "ref_local": "text",
+    "rend_unidade": "text",
+    "rendimento": "numeric",
+    "replicado_de": "uuid",
+    "replicado_em": "timestamp with time zone",
+    "subcategoria_id": "uuid",
+    "subgrupo_id": "text",
+    "sucursais": "jsonb",
+    "temperatura": "text",
+    "tempo": "integer",
+    "unidade": "text",
+    "unidades_venda": "numeric",
+    "validade": "integer",
+    "zero_acucar": "boolean"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ],
+    [
+     "produto_id"
+    ]
+   ]
+  },
+  "fiscal_config": {
+   "colunas": {
+    "ambiente": "text",
+    "api_token": "text",
+    "api_url": "text",
+    "ativo": "boolean",
+    "atualizado_em": "timestamp with time zone",
+    "certificado_validade": "date",
+    "cfop_padrao": "text",
+    "cnpj": "text",
+    "csc_codigo": "text",
+    "csc_id": "text",
+    "csosn_padrao": "text",
+    "cst_padrao": "text",
+    "endereco": "jsonb",
+    "ie": "text",
+    "loja_id": "uuid",
+    "modo": "text",
+    "ncm_padrao": "text",
+    "nome_fantasia": "text",
+    "numero_atual": "integer",
+    "origem_padrao": "text",
+    "provedor": "text",
+    "razao_social": "text",
+    "regime": "text",
+    "serie": "integer",
+    "serie_contingencia": "integer"
+   },
+   "unicos": [
+    [
+     "loja_id"
+    ]
+   ]
+  },
+  "formas_pagamento": {
+   "colunas": {
+    "ativa": "boolean",
+    "bandeira": "text",
+    "conta_id": "uuid",
+    "dias_recebimento": "integer",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "online": "boolean",
+    "ordem": "integer",
+    "ref_local": "text",
+    "sucursais": "jsonb",
+    "taxa_fixa": "numeric",
+    "taxa_pct": "numeric",
+    "tipo": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "fornecedores": {
+   "colunas": {
+    "cnpj": "text",
+    "contato": "text",
+    "criado_em": "timestamp with time zone",
+    "email": "text",
+    "empresa": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "ref_local": "text",
+    "sucursais": "jsonb",
+    "telefone": "text",
+    "whatsapp": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "grupos_ingredientes": {
+   "colunas": {
+    "categoria": "text",
+    "compoe_cmv": "boolean",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ref_local": "text",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "grupos_opcoes": {
+   "colunas": {
+    "ativo": "boolean",
+    "canais": "jsonb",
+    "criado_em": "timestamp with time zone",
+    "forcado": "boolean",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "maximo": "integer",
+    "minimo": "integer",
+    "nome": "text",
+    "obrigatorio": "boolean",
+    "ordem": "integer",
+    "ref_local": "text",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "insumos": {
+   "colunas": {
+    "atualizado_em": "timestamp with time zone",
+    "codigo": "text",
+    "compoe_cmv": "boolean",
+    "compras": "jsonb",
+    "controla_estoque": "boolean",
+    "custo": "numeric",
+    "custo_ultima": "numeric",
+    "custo_unitario": "numeric",
+    "descricao": "text",
+    "ean13": "text",
+    "embalagem": "text",
+    "estoque": "numeric",
+    "estoque_atual": "numeric",
+    "estoque_max": "numeric",
+    "estoque_min": "numeric",
+    "estoque_minimo": "numeric",
+    "fator": "numeric",
+    "fornecedor_id": "uuid",
+    "gelato_venda": "boolean",
+    "grupo_id": "uuid",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "modo_custo": "text",
+    "nome": "text",
+    "permite_compra": "boolean",
+    "permite_venda": "boolean",
+    "ref_local": "text",
+    "replicado_de": "uuid",
+    "replicado_em": "timestamp with time zone",
+    "subcategoria_id": "uuid",
+    "subgrupo_id": "uuid",
+    "sucursais": "jsonb",
+    "unidade": "text",
+    "validade": "date"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "lancamentos_financeiros": {
+   "colunas": {
+    "cancelado": "boolean",
+    "categoria_texto": "text",
+    "codigo_barras": "text",
+    "conciliado": "boolean",
+    "conta_destino_id": "uuid",
+    "conta_id": "uuid",
+    "criado_em": "timestamp with time zone",
+    "data_conciliacao": "date",
+    "descricao": "text",
+    "documento": "text",
+    "emissao": "date",
+    "forma_id": "uuid",
+    "fornecedor_id": "uuid",
+    "fornecedor_nome": "text",
+    "id": "uuid",
+    "juros": "numeric",
+    "loja_id": "uuid",
+    "multa": "numeric",
+    "observacao": "text",
+    "origem": "text",
+    "origem_ref": "text",
+    "pagamento": "date",
+    "pago": "boolean",
+    "ref_local": "text",
+    "ref_local_origem": "text",
+    "referencia": "uuid",
+    "subcategoria_id": "uuid",
+    "tipo": "text",
+    "valor": "numeric",
+    "valor_original": "numeric",
+    "vencimento": "date"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "loja_versao": {
+   "colunas": {
+    "atualizado_em": "timestamp with time zone",
+    "loja_id": "uuid",
+    "versao": "bigint"
+   },
+   "unicos": [
+    [
+     "loja_id"
+    ]
+   ]
+  },
+  "lojas": {
+   "colunas": {
+    "ativa": "boolean",
+    "cidade": "text",
+    "codigo": "text",
+    "criado_em": "timestamp with time zone",
+    "empresa_id": "uuid",
+    "id": "uuid",
+    "matriz": "boolean",
+    "nome": "text",
+    "plataforma": "boolean"
+   },
+   "unicos": [
+    [
+     "empresa_id"
+    ],
+    [
+     "id"
+    ]
+   ]
+  },
+  "menu_layout": {
+   "colunas": {
+    "atualizado_em": "timestamp with time zone",
+    "id": "integer",
+    "itens": "jsonb",
+    "mods": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "mesa_comandas": {
+   "colunas": {
+    "aberta": "boolean",
+    "aberta_em": "timestamp with time zone",
+    "fechada_em": "timestamp with time zone",
+    "id": "uuid",
+    "itens": "jsonb",
+    "loja_id": "uuid",
+    "mesa_numero": "integer",
+    "mesa_ref": "text",
+    "nome": "text",
+    "pedido_ref": "text",
+    "ref_local": "text",
+    "sucursal_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "mesas": {
+   "colunas": {
+    "ativa": "boolean",
+    "criado_em": "timestamp with time zone",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "lugares": "integer",
+    "nome": "text",
+    "numero": "integer",
+    "ref_local": "text",
+    "sucursal_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "migracao_sucursal_loja": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "loja_id": "uuid",
+    "loja_nome": "text",
+    "sucursal_id": "uuid",
+    "sucursal_nome": "text",
+    "sucursal_ref": "text"
+   },
+   "unicos": [
+    [
+     "sucursal_id"
+    ]
+   ]
+  },
+  "modelos_impressao": {
+   "colunas": {
+    "ativo": "boolean",
+    "blocos": "jsonb",
+    "colunas": "integer",
+    "corte": "boolean",
+    "criado_em": "timestamp with time zone",
+    "gaveta": "boolean",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "manual": "boolean",
+    "modelo": "text",
+    "nome": "text",
+    "ref_local": "text",
+    "sucursais": "jsonb",
+    "tipo": "text",
+    "vias": "integer"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ],
+    [
+     "loja_id",
+     "tipo"
+    ]
+   ]
+  },
+  "motivos_cancelamento": {
+   "colunas": {
+    "ativo": "boolean",
+    "criado_em": "timestamp with time zone",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "ref_local": "text",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "motivos_movimentacao": {
+   "colunas": {
+    "ativo": "boolean",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "lojas_visiveis": "jsonb",
+    "nome": "text",
+    "ref_local": "text",
+    "sistema": "boolean",
+    "sucursais": "jsonb",
+    "tipo": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "movimentacoes_estoque": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "data": "date",
+    "hora": "text",
+    "id": "uuid",
+    "identificacao": "text",
+    "linhas": "jsonb",
+    "loja_id": "uuid",
+    "motivo_id": "uuid",
+    "observacao": "text",
+    "origem": "text",
+    "ref_local": "text",
+    "sucursal_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "notas_entrada": {
+   "colunas": {
+    "codigo_barras": "text",
+    "criado_em": "timestamp with time zone",
+    "data": "date",
+    "fornecedor_id": "uuid",
+    "fornecedor_nome": "text",
+    "hora": "text",
+    "id": "uuid",
+    "itens": "jsonb",
+    "loja_id": "uuid",
+    "numero": "text",
+    "pagamento": "jsonb",
+    "recebida": "boolean",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "valor_mercadorias": "numeric",
+    "valor_total": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "opcoes": {
+   "colunas": {
+    "ativo": "boolean",
+    "ficha_id": "uuid",
+    "grupo_id": "uuid",
+    "id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "preco_adicional": "numeric",
+    "ref_local": "text"
+   },
+   "unicos": [
+    [
+     "grupo_id"
+    ],
+    [
+     "id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "operador_senhas": {
+   "colunas": {
+    "atualizado_em": "timestamp with time zone",
+    "hash": "text",
+    "loja_id": "uuid",
+    "operador_ref": "text"
+   },
+   "unicos": [
+    [
+     "loja_id",
+     "operador_ref"
+    ]
+   ]
+  },
+  "operador_tentativas": {
+   "colunas": {
+    "bloqueado_ate": "timestamp with time zone",
+    "erros": "integer",
+    "loja_id": "uuid",
+    "operador_ref": "text",
+    "ultima": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "loja_id",
+     "operador_ref"
+    ]
+   ]
+  },
+  "ordens_producao": {
+   "colunas": {
+    "criado_em": "timestamp with time zone",
+    "data": "date",
+    "diferenca": "numeric",
+    "hora": "text",
+    "id": "uuid",
+    "itens": "jsonb",
+    "loja_id": "uuid",
+    "mov_id": "text",
+    "numero": "text",
+    "observacao": "text",
+    "previsto": "numeric",
+    "real_produzido": "numeric",
+    "ref_local": "text",
+    "responsavel": "text",
+    "situacao": "text",
+    "sucursal_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "pagamentos_zerados_removidos": {
+   "colunas": {
+    "data_venda": "timestamp with time zone",
+    "forma_ref": "text",
+    "id": "uuid",
+    "motivo": "text",
+    "numero": "integer",
+    "pedido_id": "uuid",
+    "ref_local": "text",
+    "removido_em": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "pedido_base_itens": {
+   "colunas": {
+    "base_nome": "text",
+    "base_ref": "text",
+    "ficha_ref": "text",
+    "id": "uuid",
+    "pedido_id": "uuid",
+    "quantidade": "numeric",
+    "ref_local": "text",
+    "total": "numeric",
+    "valor_unit": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "pedido_id",
+     "ref_local"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "pedido_itens": {
+   "colunas": {
+    "id": "uuid",
+    "nome": "text",
+    "observacao": "text",
+    "opcoes": "jsonb",
+    "pedido_id": "uuid",
+    "produto_id": "uuid",
+    "quantidade": "integer",
+    "ref_local": "text",
+    "total": "numeric",
+    "unitario": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "pedido_id",
+     "ref_local"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "pedido_pagamentos": {
+   "colunas": {
+    "equipamento": "text",
+    "forma_id": "uuid",
+    "forma_ref": "text",
+    "id": "uuid",
+    "pedido_id": "uuid",
+    "ref_local": "text",
+    "valor": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "pedido_id",
+     "ref_local"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "pedidos": {
+   "colunas": {
+    "acerto_id": "uuid",
+    "caixa_id": "uuid",
+    "canal": "text",
+    "cidade": "text",
+    "cliente_id": "uuid",
+    "cliente_nome": "text",
+    "comanda_nome": "text",
+    "comanda_ref": "text",
+    "criado_em": "timestamp with time zone",
+    "cupom_codigo": "text",
+    "cupom_valor": "numeric",
+    "data_venda": "timestamp with time zone",
+    "desconto": "numeric",
+    "entregador_id": "uuid",
+    "equipamento": "text",
+    "fase": "text",
+    "fiscal": "boolean",
+    "hora": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "mesa_id": "uuid",
+    "mesa_numero": "integer",
+    "numero": "integer",
+    "origem_venda": "text",
+    "ref_local": "text",
+    "senha_totem": "integer",
+    "sucursal_id": "uuid",
+    "taxa": "numeric",
+    "taxa_servico": "numeric",
+    "tipo": "text",
+    "total": "numeric",
+    "zona": "text",
+    "zona_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "pedidos_base": {
+   "colunas": {
+    "confirmado_em": "timestamp with time zone",
+    "criado_em": "timestamp with time zone",
+    "data": "date",
+    "entrada_estoque": "boolean",
+    "entregue_em": "timestamp with time zone",
+    "enviado_em": "timestamp with time zone",
+    "financeiro_pagar_ref": "text",
+    "financeiro_receber_ref": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "motivo_rejeicao": "text",
+    "mov_entrada_ref": "text",
+    "mov_producao_ref": "text",
+    "numero": "integer",
+    "observacao": "text",
+    "pago_em": "timestamp with time zone",
+    "produzido": "boolean",
+    "ref_local": "text",
+    "responsavel": "text",
+    "situacao": "text",
+    "sucursal_id": "text",
+    "sucursal_nome": "text",
+    "total": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "pedidos_online": {
+   "colunas": {
+    "canal": "text",
+    "cidade": "text",
+    "cliente_cpf": "text",
+    "cliente_nome": "text",
+    "cliente_tel": "text",
+    "comanda_nome": "text",
+    "criado_em": "timestamp with time zone",
+    "endereco": "jsonb",
+    "forma_pagamento": "text",
+    "id": "uuid",
+    "itens": "jsonb",
+    "loja_id": "uuid",
+    "mesa_numero": "integer",
+    "numero": "text",
+    "observacao": "text",
+    "pedido_id": "text",
+    "situacao": "text",
+    "subtotal": "numeric",
+    "sucursal_id": "uuid",
+    "taxa": "numeric",
+    "tipo": "text",
+    "total": "numeric",
+    "troco_para": "numeric",
+    "zona": "text",
+    "zona_id": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "perfis": {
+   "colunas": {
+    "cargo": "text",
+    "criado_em": "timestamp with time zone",
+    "empresa_id": "uuid",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "nome_unidade": "text",
+    "sessoes_desde": "timestamp with time zone",
+    "sucursal_ref": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "produto_grupos": {
+   "colunas": {
+    "grupo_id": "uuid",
+    "id": "uuid",
+    "ordem": "integer",
+    "produto_id": "uuid",
+    "ref_local": "text"
+   },
+   "unicos": [
+    [
+     "grupo_id",
+     "produto_id"
+    ],
+    [
+     "id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "produtos": {
+   "colunas": {
+    "ativo": "boolean",
+    "atualizado_em": "timestamp with time zone",
+    "categoria_id": "uuid",
+    "cest": "text",
+    "cfop": "text",
+    "codigo": "text",
+    "criado_em": "timestamp with time zone",
+    "csosn": "text",
+    "cst": "text",
+    "descricao": "text",
+    "disponivel": "jsonb",
+    "disponivel_delivery": "boolean",
+    "ficha_id": "uuid",
+    "gtin": "text",
+    "id": "uuid",
+    "imagem": "text",
+    "imagem_url": "text",
+    "insumo_id": "uuid",
+    "insumo_qtd": "numeric",
+    "insumo_un": "text",
+    "loja_id": "uuid",
+    "ncm": "text",
+    "nome": "text",
+    "nome_online": "text",
+    "ordem": "integer",
+    "origem_fiscal": "text",
+    "pesado": "boolean",
+    "preco": "numeric",
+    "promocoes": "jsonb",
+    "ref_local": "text",
+    "replicado_de": "uuid",
+    "replicado_em": "timestamp with time zone",
+    "sucursais": "jsonb",
+    "unidade_tributavel": "text",
+    "variacao": "boolean",
+    "vincula_estoque": "boolean"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "status_venda": {
+   "colunas": {
+    "ativo": "boolean",
+    "confere_pagamento": "boolean",
+    "cor": "text",
+    "criado_em": "timestamp with time zone",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "minutos": "integer",
+    "nome": "text",
+    "ordem": "integer",
+    "papel": "text",
+    "ref_local": "text",
+    "som": "boolean",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "subcategorias_financeiras": {
+   "colunas": {
+    "categoria_id": "uuid",
+    "id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "ref_local": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "sucursais": {
+   "colunas": {
+    "apelido": "text",
+    "ativa": "boolean",
+    "cep": "text",
+    "cidade": "text",
+    "cnpj": "text",
+    "cobranca_situacao": "text",
+    "cobrancas": "jsonb",
+    "complemento": "text",
+    "cor": "text",
+    "criado_em": "timestamp with time zone",
+    "dia_vencimento": "integer",
+    "email": "text",
+    "empresa_id": "uuid",
+    "endereco": "text",
+    "excluida_em": "timestamp with time zone",
+    "id": "uuid",
+    "login_responsavel": "text",
+    "loja_id": "uuid",
+    "matriz": "boolean",
+    "mensalidade": "numeric",
+    "nome": "text",
+    "nome_fantasia": "text",
+    "numero": "text",
+    "plano": "text",
+    "razao_social": "text",
+    "rede_id": "text",
+    "rede_nome": "text",
+    "ref_local": "text",
+    "responsavel": "text",
+    "telefone": "text",
+    "uf": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "sucursal_permissoes": {
+   "colunas": {
+    "id": "uuid",
+    "item": "text",
+    "liberado": "boolean",
+    "modulo": "text",
+    "ref_local": "text",
+    "sucursal_id": "uuid"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "item",
+     "modulo",
+     "sucursal_id"
+    ],
+    [
+     "ref_local"
+    ]
+   ]
+  },
+  "transferencias": {
+   "colunas": {
+    "data_envio": "date",
+    "destino_suc": "text",
+    "divergencia": "boolean",
+    "enviada_em": "timestamp with time zone",
+    "enviada_por": "text",
+    "id": "uuid",
+    "itens": "jsonb",
+    "loja_id": "uuid",
+    "numero": "integer",
+    "observacao": "text",
+    "origem_suc": "text",
+    "recebida_em": "timestamp with time zone",
+    "recebida_por": "text",
+    "ref_local": "text",
+    "situacao": "text",
+    "valor_total": "numeric"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "turnos": {
+   "colunas": {
+    "ativo": "boolean",
+    "criado_em": "timestamp with time zone",
+    "hora_fim": "text",
+    "hora_inicio": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ordem": "integer",
+    "ref_local": "text",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "unidades_medida": {
+   "colunas": {
+    "base": "text",
+    "fator": "numeric",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "ref_local": "text",
+    "sigla": "text",
+    "sucursais": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "usuarios_sistema": {
+   "colunas": {
+    "ativo": "boolean",
+    "criado_em": "timestamp with time zone",
+    "excluido_em": "timestamp with time zone",
+    "excluido_por": "text",
+    "id": "uuid",
+    "login": "text",
+    "login_app": "text",
+    "loja_id": "uuid",
+    "mestre": "boolean",
+    "nome": "text",
+    "permissoes": "jsonb",
+    "ref_local": "text",
+    "senha": "text",
+    "senha_caixa": "text",
+    "sucursais": "jsonb",
+    "tudo": "boolean"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
+  "vw_vendas_sem_pagamento": {
+   "colunas": {
+    "data_venda": "timestamp with time zone",
+    "falta": "numeric",
+    "fase": "text",
+    "loja_id": "uuid",
+    "n_pag": "bigint",
+    "numero": "integer",
+    "pago": "numeric",
+    "sucursal_id": "uuid",
+    "total": "numeric"
+   },
+   "unicos": []
+  },
+  "whatsapp_config": {
+   "colunas": {
+    "assistente_ativa": "boolean",
+    "assistente_nome": "text",
+    "assistente_zap": "text",
+    "atualizado_em": "timestamp with time zone",
+    "gestor_nome": "text",
+    "gestor_zap": "text",
+    "ia_apresenta": "boolean",
+    "ia_ativa": "boolean",
+    "ia_nome": "text",
+    "ia_regras": "text",
+    "ia_tom": "text",
+    "id": "uuid",
+    "link_cardapio": "text",
+    "loja_id": "uuid",
+    "msg_aceito": "text",
+    "msg_entregue": "text",
+    "msg_preparo": "text",
+    "msg_saiu": "text",
+    "nome_loja": "text",
+    "pede_avaliacao": "boolean",
+    "ref_local": "text",
+    "relatorio_freq": "text",
+    "relatorio_zap": "text",
+    "respostas": "jsonb",
+    "robo_ativo": "boolean",
+    "saudacao": "text",
+    "sucursal_id": "text",
+    "texto_endereco": "text",
+    "texto_entrega": "text",
+    "texto_horario": "text",
+    "texto_pagamento": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "sucursal_id"
+    ]
+   ]
+  },
+  "whatsapp_gestores": {
+   "colunas": {
+    "ativo": "boolean",
+    "criado_em": "timestamp with time zone",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "nome": "text",
+    "pode_consultar": "boolean",
+    "pode_lancar": "boolean",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "telefone": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ],
+    [
+     "telefone"
+    ]
+   ]
+  },
+  "whatsapp_mensagens": {
+   "colunas": {
+    "direcao": "text",
+    "id": "bigint",
+    "quando": "timestamp with time zone",
+    "resposta": "text",
+    "sucursal_id": "text",
+    "telefone": "text",
+    "texto": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "whatsapp_pendentes": {
+   "colunas": {
+    "acao": "text",
+    "aplicado_em": "timestamp with time zone",
+    "aplicado_por": "text",
+    "confirmado_em": "timestamp with time zone",
+    "conversa": "jsonb",
+    "criado_em": "timestamp with time zone",
+    "dados": "jsonb",
+    "erro": "text",
+    "id": "uuid",
+    "loja_id": "uuid",
+    "resumo": "text",
+    "situacao": "text",
+    "sucursal_id": "text",
+    "telefone": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "whatsapp_sessoes": {
+   "colunas": {
+    "chave": "text",
+    "dados": "text",
+    "loja_id": "text",
+    "quando": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "chave",
+     "loja_id"
+    ]
+   ]
+  }
+ }
+}
