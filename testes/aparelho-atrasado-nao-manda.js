@@ -120,6 +120,50 @@ console.log('\n── O caso do dia 31, campo por campo\n');
   });
 }
 
+console.log('\n── Download que falha não abre a porta para a semente\n');
+{
+  /* A outra porta para o mesmo estrago: `baixarTab()` devolve [] quando a
+     consulta FALHA. Se `volta` aceitasse isso como "a nuvem está vazia",
+     DB.formasPag ficaria vazio, `baseFormas()` semearia 1,99 / 3,49 de
+     fábrica com os MESMOS identificadores — e aí sim subiria por cima.
+     Foi assim que os dois turnos desativados voltaram em 29/08. */
+  const amb = { _quieto: () => {}, logNuvem: () => {}, registrarSumico: () => {},
+    guardarIds: () => {}, MAPA: [],
+    DB: { formasPag: [
+      { id: 'fp_debito',  nome: 'Cartão débito',  taxaPct: 0.73, dias: 1, contaId: 'ct_banco' },
+      { id: 'fp_credito', nome: 'Cartão crédito', taxaPct: 2.73, dias: 1, contaId: 'ct_banco' }] } };
+  amb._ANT = new Function('amb', 'with(amb){' + corpoDaFuncao('_ANT', fonte) +
+    '\nreturn _ANT;}')(amb);
+  const volta = new Function('amb', 'with(amb){' + corpoDaFuncao('volta', fonte) +
+    '\nreturn volta;}')(amb);
+
+  const mapear = (x) => ({ id: x.ref_local, nome: x.nome,
+    taxaPct: Number(x.taxa_pct) || 0, dias: x.dias_recebimento || 0, contaId: x.conta_id || '' });
+
+  /* o download falhou: veio [] */
+  const depois = volta([], mapear, null, 'formasPag');
+  t('a lista da loja continua de pé', depois.length === 2, JSON.stringify(depois));
+  t('e com as taxas que o Rafael gravou',
+    depois[0].taxaPct === 0.73 && depois[1].taxaPct === 2.73,
+    JSON.stringify(depois.map(f => f.taxaPct)));
+  t('e com a conta em que o dinheiro cai',
+    depois.every(f => f.contaId === 'ct_banco'));
+
+  /* e a semente não tem por que rodar: a lista não está vazia */
+  const semear = new Function('amb', 'with(amb){' + corpoDaFuncao('baseFormas', fonte) +
+    '\nreturn baseFormas;}')({ DB: amb.DB, syncFormas: () => {} });
+  semear();
+  t('a semente de fábrica não repõe nada por cima',
+    amb.DB.formasPag.length === 2 && amb.DB.formasPag[0].taxaPct === 0.73,
+    JSON.stringify(amb.DB.formasPag.map(f => f.id + ':' + f.taxaPct)));
+
+  /* download de verdade continua mandando */
+  const real = volta([{ ref_local: 'fp_debito', nome: 'Cartão débito',
+    taxa_pct: 0.73, dias_recebimento: 1, conta_id: 'ct_banco' }], mapear, null, 'formasPag');
+  t('download com conteúdo continua sendo a fonte da verdade',
+    real.length === 1 && real[0].taxaPct === 0.73);
+}
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' verificações, todas certas') + '\n');
 process.exit(falhas ? 1 : 0);
