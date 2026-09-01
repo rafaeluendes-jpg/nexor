@@ -2389,6 +2389,99 @@ function servir() {
   t('nem rolagem para o lado', rCRm.rolagemH === false);
   await pg.setViewportSize({ width: 1440, height: 900 });
 
+  console.log('\n── 10s. Movimentação: o rodapé soma, e a lista abre embaixo do campo\n');
+  /* ==========================================================
+     Foto da loja, 31/08: filtrando GELATO VENDA no dia, 29 consumos, o
+     rodapé dizia "255,172 g — média de 29 consumos". A loja quer saber
+     QUANTO saiu no dia, não quanto saiu por pedido.
+
+     E o campo Item era um `<datalist>`: quem desenha aquilo é o
+     navegador, e ele joga a lista onde quer — no Chrome do balcão saía
+     colada na lateral, com a letra do sistema.
+     ========================================================== */
+  const rMV = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    fecharModal();
+    baseMov();
+    DB.insumos = [
+      { id: 'in_gv', nome: 'GELATO VENDA', unidade: 'g', custo: 0.02,
+        controlaEstoque: true, codigo: '9' },
+      { id: 'in_leite', nome: 'Leite', unidade: 'l', custo: 5,
+        controlaEstoque: true, codigo: '2' },
+      { id: 'in_casq', nome: 'Casquinha', unidade: 'un', custo: 0.8,
+        controlaEstoque: true, codigo: '1' }];
+    DB.fichas = [];
+    /* três consumos no mesmo dia: 120 + 360 + 220 = 700 g */
+    DB.movEst = [[120, '#731'], [360, '#730'], [220, '#729']].map(function (p, k) {
+      return { id: 'mvR' + k, data: hojeISO(), hora: '1' + k + ':00',
+        sucursalId: lojaAtualId(), motivoId: 'mv_venda',
+        identificacao: 'Pedido ' + p[1], origem: 'venda',
+        linhas: [{ insumoId: 'in_gv', nome: 'GELATO VENDA', unidade: 'g',
+                   qtd: p[0], custo: 0.02, direcao: 'saida' }] };
+    });
+    salvar();
+    MV = { de: hojeISO(), ate: hojeISO(), insumoId: 'in_gv', grupo: '', motivoId: '', busca: '' };
+    telaMovimentacao();
+    var tds = [...document.querySelectorAll('.mvTab tfoot td')]
+      .map(function (t) { return t.textContent.replace(/\s+/g, ' ').trim(); });
+    return { rodape: tds, consumo: tds[2] || '', custo: tds[4] || '' };
+  });
+  t('O RODAPÉ SOMA OS CONSUMOS: 120 + 360 + 220 = 700 g',
+    /^700 g/.test(rMV.consumo), rMV.consumo);
+  t('e diz "total", não "média"',
+    /total de 3 consumos/.test(rMV.consumo) && !/média/.test(rMV.consumo), rMV.consumo);
+  t('o custo total continua batendo (700 g × R$ 0,02)',
+    /R\$ 14,00/.test(rMV.custo), rMV.custo);
+
+  const rMV2 = await pg.evaluate(() => {
+    MV = { de: hojeISO(), ate: hojeISO(), insumoId: '', grupo: '', motivoId: '', busca: '' };
+    telaMovimentacao();
+    var inp = document.getElementById('mvBusca');
+    var sug = document.getElementById('mvSug');
+    var out = { semDatalist: !document.getElementById('mvLista'),
+      escondidaNoInicio: sug.style.display === 'none' };
+    inp.focus(); inp.onfocus();
+    out.aoClicar = [...sug.querySelectorAll('div[data-id]')].length;
+    out.visivel = sug.style.display !== 'none';
+    var a = inp.getBoundingClientRect(), b = sug.getBoundingClientRect();
+    out.abaixo = b.top >= a.bottom - 2;
+    out.mesmaLargura = Math.abs(b.width - a.width) < 3;
+    inp.value = 'ge'; inp.oninput();
+    out.duasLetras = sug.style.display === 'none';
+    inp.value = 'gel'; inp.oninput();
+    out.tresLetras = [...sug.querySelectorAll('div[data-id]')]
+      .map(function (d) { return d.textContent.trim(); });
+    return out;
+  });
+  t('o datalist do navegador saiu de cena', rMV2.semDatalist === true);
+  t('a lista começa fechada', rMV2.escondidaNoInicio === true);
+  t('CLICANDO NO CAMPO, ela abre com os itens', rMV2.visivel && rMV2.aoClicar === 3,
+    rMV2.aoClicar + ' item(ns)');
+  t('EMBAIXO do campo, não na lateral', rMV2.abaixo === true);
+  t('e com a mesma largura dele', rMV2.mesmaLargura === true);
+  t('com duas letras ela ainda não filtra', rMV2.duasLetras === true);
+  t('COM TRÊS LETRAS aparece o que casa', rMV2.tresLetras.length === 1 &&
+    /GELATO VENDA/.test(rMV2.tresLetras[0]), JSON.stringify(rMV2.tresLetras));
+  t('e cada linha diz se é insumo ou ficha',
+    /insumo/.test(rMV2.tresLetras[0]), rMV2.tresLetras[0]);
+
+  const rMV3 = await pg.evaluate(() => {
+    var inp = document.getElementById('mvBusca'); inp.focus(); inp.onfocus();
+    var sug = document.getElementById('mvSug');
+    var alvo = [...sug.querySelectorAll('div[data-id]')]
+      .find(function (d) { return /GELATO VENDA/.test(d.textContent); });
+    alvo.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    return { escolhido: MV.insumoId,
+      campo: document.getElementById('mvBusca').value,
+      linhas: document.querySelectorAll('.mvTab tbody tr').length,
+      consumo: (document.querySelectorAll('.mvTab tfoot td')[2] || {}).textContent
+        .replace(/\s+/g, ' ').trim() };
+  });
+  t('CLICAR NA SUGESTÃO escolhe o item', rMV3.escolhido === 'in_gv', rMV3.escolhido);
+  t('o nome fica escrito no campo', rMV3.campo === 'GELATO VENDA', rMV3.campo);
+  t('e a tabela passa a mostrar só ele', rMV3.linhas === 3, rMV3.linhas);
+  t('com o rodapé somando os 700 g', /^700 g/.test(rMV3.consumo), rMV3.consumo);
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

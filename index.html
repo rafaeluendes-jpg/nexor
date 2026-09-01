@@ -12530,7 +12530,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V267.0.0';
+var VERSAO='V268.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33594,17 +33594,26 @@ function telaMovimentacao(){
      trataria 1 kg e 500 kg como se pesassem o mesmo. */
   var qtdTotal=linhas.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
   /* ==========================================================
-     MEDIA E SOMA DIVIDIDA PELO NUMERO DE LANCAMENTOS
-     Tres entradas de 10 kg somam 30 e a media e 10 — nao 30. O rodape
-     mostrava a soma com o nome de media, que e pior que nao mostrar:
-     o numero parece conferido e nao e o que diz ser.
+     O RODAPE MOSTRA O TOTAL, NAO A MEDIA
+
+     A media por lancamento entrou aqui para corrigir um rotulo errado —
+     o rodape dizia "media" e mostrava a soma. Consertou o nome e
+     estragou o numero: quem abre a Movimentacao filtrando um item quer
+     saber QUANTO saiu no periodo, nao quanto saiu por pedido. Filtrando
+     Gelato Venda em 31/08, 29 consumos, o rodape dizia "255,172 g -
+     media de 29 consumos", quando o que a loja precisa e o total do dia.
+
+     Agora e a soma, com o nome certo: "total de 29 consumos".
+
+     Quando o filtro mistura unidades (g com kg), somar seria mentira —
+     500 g + 2 kg nao sao 502 de coisa nenhuma. Nesse caso o rodape diz
+     que as unidades estao misturadas, em vez de exibir um numero que
+     nao quer dizer nada.
      ========================================================== */
   var ent=linhas.filter(function(x){return x.l.direcao==='entrada'});
   var sai=linhas.filter(function(x){return x.l.direcao!=='entrada'});
   var somaEnt=ent.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
   var somaSai=sai.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
-  var qtdEnt=ent.length?somaEnt/ent.length:0;   /* media por lancamento */
-  var qtdSai=sai.length?somaSai/sai.length:0;
   /* ==========================================================
      CUSTO MEDIO OLHA A ENTRADA, NAO O CONSUMO
      Custo medio responde "quanto me custa o quilo deste item". Quem
@@ -33636,14 +33645,27 @@ function telaMovimentacao(){
    '<div class="mvFiltros">'+
     '<div class="f2" style="max-width:140px"><label>De</label><input type="date" id="mvDe" value="'+MV.de+'"></div>'+
     '<div class="f2" style="max-width:140px"><label>Até</label><input type="date" id="mvAte" value="'+MV.ate+'"></div>'+
-    '<div class="f2" style="min-width:210px"><label>Item</label>'+
-     '<input id="mvBusca" list="mvLista" placeholder="digite 3 letras ou o código" autocomplete="off" '+
+    /* ==========================================================
+       A LISTA DE ITENS APARECE EMBAIXO DO CAMPO
+
+       Era um `<datalist>`: quem escolhe onde e como desenhar aquilo e o
+       navegador, e ele joga a lista onde quer — no Chrome do balcao ela
+       saia colada na lateral e com a letra do sistema, nao a do Joia.
+       Nao da para posicionar nem estilizar um datalist.
+
+       Agora e a mesma lista de sugestao que a Baixa Manual ja usa
+       (`.bxSug`): abre logo abaixo do campo, com o nome do item e a
+       etiqueta de insumo ou ficha. Clicar no campo mostra o que existe;
+       a partir de tres letras ela filtra.
+
+       A escolha usa `onmousedown`, nao `onclick`: o clique tira o foco
+       do campo, e o `onblur` redesenharia a tela ANTES de o clique
+       chegar — que e como a sugestao antiga sumia debaixo do dedo.
+       ========================================================== */
+    '<div class="f2" style="min-width:210px;position:relative"><label>Item</label>'+
+     '<input id="mvBusca" placeholder="clique ou digite 3 letras" autocomplete="off" '+
      'value="'+E(MV.insumoId?((itemEstoque(MV.insumoId)||{}).nome||''):(MV.busca||''))+'">'+
-     '<datalist id="mvLista">'+
-     itensEstoque().slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
-       .map(function(i){return '<option value="'+E(i.nome)+'">'+E(i.codigo||'')+' · '+
-         (ehFicha(i)?'ficha técnica':'insumo')+'</option>'}).join('')+
-     '</datalist></div>'+
+     '<div class="bxSug" id="mvSug" style="display:none"></div></div>'+
     '<div class="f2"><label>Grupo</label><select onchange="MV.grupo=this.value;telaMovimentacao()">'+
      '<option value="">Todos</option>'+
      (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(MV.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
@@ -33701,10 +33723,12 @@ function telaMovimentacao(){
        ========================================================== */
     '<tfoot><tr>'+
      '<td colspan="5"><b>Subtotal — '+linhas.length+' movimentações</b></td>'+
-     '<td style="text-align:right"><b>'+fmtQt(qtdEnt)+(unMedia?' '+E(unMedia):'')+'</b>'+
-      '<small>média de '+ent.length+' entrada'+(ent.length===1?'':'s')+'</small></td>'+
-     '<td style="text-align:right"><b>'+fmtQt(qtdSai)+(unMedia?' '+E(unMedia):'')+'</b>'+
-      '<small>média de '+sai.length+' consumo'+(sai.length===1?'':'s')+'</small></td>'+
+     '<td style="text-align:right"><b>'+fmtQt(somaEnt)+(unMedia?' '+E(unMedia):'')+'</b>'+
+      '<small>total de '+ent.length+' entrada'+(ent.length===1?'':'s')+
+       (unMedia||!ent.length?'':' · unidades misturadas')+'</small></td>'+
+     '<td style="text-align:right"><b>'+fmtQt(somaSai)+(unMedia?' '+E(unMedia):'')+'</b>'+
+      '<small>total de '+sai.length+' consumo'+(sai.length===1?'':'s')+
+       (unMedia||!sai.length?'':' · unidades misturadas')+'</small></td>'+
      '<td style="text-align:right"><b>R$ '+money(custoMedio)+'</b>'+
       '<small>custo médio'+(unMedia?' / '+E(unMedia):'')+
        (ent.length?'':' (consumo)')+'</small></td>'+
@@ -33747,10 +33771,51 @@ function telaMovimentacao(){
       if(nova===MV.busca&&!MV.insumoId)return;
       MV.insumoId='';MV.busca=nova;telaMovimentacao();
     }
-    mb.oninput=function(){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,false); };
+    /* ---------- a lista de sugestão, desenhada por nós ---------- */
+    var cxSug=document.getElementById('mvSug');
+    function _sugestoesMov(txt){
+      var t=String(txt||'').trim().toLowerCase();
+      var l2=itensEstoque().slice()
+        .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+      if(t.length>=3)l2=l2.filter(function(i){
+        return (i.nome||'').toLowerCase().indexOf(t)>=0 ||
+               String(i.codigo||'').toLowerCase().indexOf(t)>=0; });
+      else if(t.length)return [];        /* 1 ou 2 letras: ainda nao filtra */
+      return l2.slice(0,40);
+    }
+    function _pintaSugMov(txt){
+      if(!cxSug)return;
+      var l2=_sugestoesMov(txt);
+      if(!l2.length){ cxSug.style.display='none'; cxSug.innerHTML=''; return; }
+      cxSug.innerHTML=l2.map(function(i){
+        return '<div data-id="'+E(i.id)+'">'+E(i.nome)+
+          '<span class="bxTg'+(ehFicha(i)?' f':'')+'">'+
+          (ehFicha(i)?'ficha':'insumo')+'</span></div>';
+      }).join('');
+      cxSug.style.display='';
+      var ds=cxSug.querySelectorAll('div[data-id]');
+      for(var k=0;k<ds.length;k++)ds[k].onmousedown=function(ev){
+        /* nao tira o foco antes de o clique chegar: era assim que a
+           sugestao antiga sumia debaixo do dedo */
+        ev.preventDefault();
+        MV.insumoId=this.getAttribute('data-id'); MV.busca='';
+        _focoBusca=''; cxSug.style.display='none';
+        telaMovimentacao();
+      };
+    }
+    mb.onfocus=function(){ _focoBusca='mvBusca'; _pintaSugMov(this.value); };
+    mb.oninput=function(){ _focoBusca='mvBusca'; _pintaSugMov(this.value);
+      _aplicaBuscaMov(this.value,false); };
     mb.onchange=function(){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,true); };
-    mb.onblur=function(){ var v=this.value; setTimeout(function(){_aplicaBuscaMov(v,true)},180); };
-    mb.onkeydown=function(e){ if(e.key==='Enter'){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,true); } };
+    mb.onblur=function(){ var v=this.value;
+      if(cxSug)cxSug.style.display='none';
+      setTimeout(function(){_aplicaBuscaMov(v,true)},180); };
+    mb.onkeydown=function(e){
+      if(e.key==='Escape'&&cxSug){cxSug.style.display='none';return;}
+      if(e.key==='Enter'){ _focoBusca='mvBusca';
+        if(cxSug)cxSug.style.display='none';
+        _aplicaBuscaMov(this.value,true); } };
+    if(_focoBusca==='mvBusca')_pintaSugMov(mb.value);
   }
   rodape(linhas.length+' movimentações no período');
 }
