@@ -13,6 +13,9 @@ um bug seu para uma loja de vender.
 - Publicação: GitHub Pages, **só a partir da `main`** → joiagest.com.br
 - Banco: Supabase, projeto `cevghkndzpzvnzwifhnm` ("Joia Gestão Inteligente")
 - Robô do WhatsApp: repositório separado `rafaeluendes-jpg/nexor-whatsapp`
+- **Como se altera este sistema: `JOIA_REGRAS_DE_ENGENHARIA.md`** —
+  ordem do Rafael de 01/09/2026. Leia ANTES de qualquer alteração.
+- O que já está aprovado e não pode quebrar: `BASELINE.md`
 - Decisões de produto e histórico: `DECISOES.md`
 - Visão técnica: `ARQUITETURA.md`
 - Índice do código: **rode `node ferramentas/mapear.js`** e leia o `MAPA.md`.
@@ -30,7 +33,11 @@ um bug seu para uma loja de vender.
 4. **Nunca editar o `index.html` à mão.** Ele é gerado a partir do `src/`.
    Edite o módulo e rode `npm run montar`. `npm test` reprova se os dois
    estiverem fora de compasso.
-5. **`VERSAO` (em `src/js/06-interface.js`) e `VERSAO_SW` (em `sw.js`)
+5. **Corrigir uma coisa não autoriza alterar outra.** O que já funciona
+   continua funcionando, a menos que o pedido cite aquela funcionalidade.
+   Configuração da loja é DADO: publicar código nunca repõe valor de
+   fábrica. O protocolo inteiro está em `JOIA_REGRAS_DE_ENGENHARIA.md`.
+6. **`VERSAO` (em `src/js/06-interface.js`) e `VERSAO_SW` (em `sw.js`)
    sobem juntas.** Se só uma subir, o navegador da loja continua servindo
    o sistema velho do cache — foi o defeito da V195. `testes/versao.js`
    reprova a publicação quando não batem.
@@ -105,8 +112,22 @@ apresentado como real ou recurso pela metade.
    regrave-o com a consulta que está no fim do `conferir-nuvem.js`.
    Ele já entra no `npm test`, e vale também para o robô do WhatsApp e o
    cardápio digital quando as pastas irmãs estão ao lado.
-6. Corrigir tudo o que apareceu e **rodar os cinco de novo**.
-7. **Todo passo a passo que for para o Rafael tem de ser executado antes**,
+6. `node ferramentas/auditar-configuracoes.js` — nenhuma rotina apaga o
+   que a loja configurou: semente que só entra com a lista vazia, download
+   que falha não vira nuvem vazia, nada sobe antes de baixar, e entrar de
+   novo não limpa o aparelho. Foi por essas portas que as taxas de cartão
+   de Santa Fé voltaram ao valor de fábrica em 31/08/2026.
+7. `node ferramentas/persistir.js` — configura a taxa de cartão pela tela,
+   salva pelo botão, e confere depois de sair da tela, do F5, de trocar de
+   módulo, de uma versão nova e da semente de fábrica. É o fluxo real, no
+   Chromium.
+8. Corrigir tudo o que apareceu e **rodar tudo de novo**.
+
+**Ou, em vez dos oito: `node ferramentas/portao.js`** — o portão de
+publicação roda as nove etapas na ordem, para na primeira reprovação e só
+diz "pode publicar" quando tudo passou. Qualquer outro resultado: não
+publique.
+9. **Todo passo a passo que for para o Rafael tem de ser executado antes**,
    no navegador, no estado exato em que ele está. Em 29/08/2026 eu mandei
    ele clicar num botão que não existia naquela situação — a faixa com o
    botão só aparecia quando havia DOIS caixas abertos, e ele tinha um. Se

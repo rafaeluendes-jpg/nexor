@@ -12203,7 +12203,26 @@ async function entrarPeloAuth(lg,sn){
 
   if(_mesmoDono){
     DB=_ant;
-    try{ semear(); }catch(eS3){_quieto(eS3,'entrarPeloAuth')}
+    /* ==========================================================
+       `semear()` AQUI DESFAZIA A LINHA DE CIMA
+
+       `semear()` nao acrescenta nada: ela TROCA o DB inteiro por
+       `{categorias:[],produtos:[],grupos:[],fichas:[]}` — e o que ela
+       faz e certo, para cliente NOVO. Chamada logo depois de `DB=_ant`,
+       ela jogava fora exatamente o que a linha anterior tinha acabado de
+       restaurar: formas de pagamento, contas, motivos, o registro do que
+       ja subiu (`_hash`, `_uuid`) e o que ainda nao tinha subido.
+
+       O efeito era o oposto do que o comentario acima promete. E o pior:
+       com as listas vazias, as sementes de fabrica (`baseFormas`,
+       `baseContas`) repunham os valores de fabrica — 1,99% no debito,
+       3,49% no credito, conta nenhuma — e o envio seguinte levava isso
+       para a nuvem por cima da configuracao da loja. Foi assim que as
+       taxas de Santa Fe do Sul voltaram sozinhas em 31/08/2026, meia
+       hora depois de o Rafael as ter gravado.
+
+       As linhas abaixo ja garantem que nenhuma lista basica falte.
+       ========================================================== */
     DB.usuarios=DB.usuarios||[];DB.sucursais=DB.sucursais||[];
     DB.insumos=DB.insumos||[];DB.produtos=DB.produtos||[];
     DB.categorias=DB.categorias||[];DB.fichas=DB.fichas||[];
