@@ -201,6 +201,14 @@ tr.pbSel td{background:var(--acc-soft)}
   padding:12px 14px 0}
 .bxLin3{display:grid;grid-template-columns:1fr 1.3fr 2fr;gap:10px;padding:10px 14px 0}
 .bxAcoes{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px 14px}
+.bxSug:empty{display:none}
+/* o motivo e o botao de cadastrar um novo, lado a lado */
+.bxMotLin{display:flex;gap:6px;align-items:stretch}
+.bxMotLin select{flex:1;min-width:0}
+.bxMotNovo{flex:none;width:38px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:var(--r-s);background:var(--alt);
+  color:var(--acc-d);cursor:pointer}
+.bxMotNovo:hover{background:var(--acc-soft);border-color:var(--acc)}
 .bxSug{position:absolute;left:0;right:0;top:100%;z-index:40;background:var(--panel);
   border:1px solid var(--acc);border-radius:var(--r-s);box-shadow:var(--sh2);
   overflow:hidden;margin-top:2px;max-height:230px;overflow-y:auto}

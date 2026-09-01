@@ -2583,6 +2583,133 @@ function servir() {
   t('ficha de sabor SEM destino continua descontando — a regra olha o destino, não o nome',
     rSab2.base < rSab2.antes, rSab2.antes + ' → ' + rSab2.base);
 
+  console.log('\n── 10u. Baixa Manual: digitar sem perder o cursor, e achar o item\n');
+  /* ==========================================================
+     O Rafael, 01/09/2026: "aonde eu digito produto ou insumo, eu digito
+     uma letra e tenho que ficar clicando em cima" e "quando eu digito
+     gelato venda nao aparece".
+
+     Era um defeito so por fora e dois por dentro. O campo mandava
+     refazer a tela a cada tecla: o proprio <input> deixava de existir e
+     o foco ia embora. E a busca exigia tres letras, casava so o pedaco
+     exato e parava nos oito primeiros — a loja tem 61 nomes com
+     "gelato" e GELATO VENDA e o ultimo deles.
+
+     Isto so aparece no navegador de verdade: um teste que le o codigo
+     nao sabe onde esta o cursor. Por isso a prova mora aqui.
+     ========================================================== */
+  /* sessao nova para esta secao: as provas anteriores deixam relogios
+     ligados (o sistema reabre a tela sozinha quando chega novidade de
+     outro aparelho) e um deles trocava a tela no meio da digitacao */
+  await entrar();
+  await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    try { fecharModal(); } catch (e2) {}
+    baseMov();
+    DB.insumos = [{ id: 'in_gv', nome: 'GELATO VENDA', unidade: 'kg', custo: 20 }];
+    for (var k = 0; k < 40; k++)
+      DB.insumos.push({ id: 'in_g' + k, nome: 'SABOR ' + k + ' GELATO', unidade: 'kg', custo: 1 });
+    DB.insumos.push({ id: 'in_tz', nome: 'TENTAÇÃO ZERO GELATO', unidade: 'kg', custo: 1 });
+    DB.fichas = [];
+    /* a tela so mostra o formulario quando ha motivo de SAIDA cadastrado */
+    DB.motivosMov = (DB.motivosMov || []).filter(m => m.id !== 'mv_sai');
+    DB.motivosMov.push({ id: 'mv_sai', nome: 'Saída manual', tipo: 'saida',
+      sistema: false, ativo: true, lojas: [] });
+    BX.item = null; BX.busca = ''; BX.motivo = '';
+    /* pela navegacao, nao chamando a tela na mao: o sistema guarda qual e a
+       tela aberta e redesenha ELA sozinho — chamando direto, a tela anterior
+       voltava por cima no meio da digitacao */
+    HUB.baixa = 'manual';
+    /* o sistema reabre a tela sozinho de 2 em 2 segundos e meio quando
+       chega novidade de outro aparelho (RT.pendenteTela). Uma prova
+       anterior deixou essa marca ligada, e a tela de Movimentacao voltava
+       por cima desta no meio da digitacao. Aqui a marca e baixada: o que
+       se prova nesta secao e a Baixa Manual, nao o tempo real. */
+    try { RT.pendenteTela = false; } catch (e) {}
+    /* e os relogios que reabrem a tela ficam parados enquanto esta secao
+       digita — sao restaurados no fim dela */
+    window.aplicarPendente = function () {};
+    window.agendarRecarga = function () {};
+    abrir('controle', 'baixa-manual');
+    return { campo: !!document.getElementById('bxItem'),
+             motivos: (typeof motivosBaixa === 'function' ? motivosBaixa().length : -1) };
+  }).then(r => t('a tela da Baixa Manual monta com o campo de busca',
+                 r.campo, JSON.stringify(r)));
+  /* desenhar e focar no mesmo passo: entre uma chamada e outra o sistema
+     pode redesenhar sozinho. E o foco pelo elemento, nao pelo clique: um
+     aviso na tela cobre o campo e o clique do robo esperaria para sempre.
+     O que se quer provar e que o foco SOBREVIVE a digitacao. */
+  await pg.evaluate(() => { var e = document.getElementById('bxItem'); if (e) e.focus(); });
+  await pg.keyboard.type('gelato venda', { delay: 30 });
+  await pg.waitForTimeout(200);
+  const rBX = await pg.evaluate(() => ({
+    foco: document.activeElement && document.activeElement.id,
+    valor: (document.getElementById('bxItem') || {}).value,
+    sug: Array.from(document.querySelectorAll('#bxSug div')).map(d => d.textContent)
+  }));
+  t('o cursor continua no campo depois de digitar o nome inteiro',
+    rBX.foco === 'bxItem', rBX.foco);
+  t('e as doze letras entraram', rBX.valor === 'gelato venda', rBX.valor);
+  t('GELATO VENDA aparece, e em primeiro',
+    (rBX.sug[0] || '').indexOf('GELATO VENDA') === 0, JSON.stringify(rBX.sug.slice(0, 3)));
+
+  await pg.evaluate(() => { document.querySelector('#bxSug div').click(); });
+  await pg.waitForTimeout(200);
+  const rBX2 = await pg.evaluate(() => ({
+    campo: (document.getElementById('bxItem') || {}).value,
+    item: BX.item && BX.item.id,
+    sumiu: !document.querySelector('#bxSug div')
+  }));
+  t('clicar na sugestão escolhe o item', rBX2.item === 'in_gv', rBX2.item);
+  t('o nome fica escrito no campo', rBX2.campo === 'GELATO VENDA', rBX2.campo);
+  t('e a listinha some depois de escolher', rBX2.sumiu);
+
+  /* acento: quem digita sem cedilha tem de achar mesmo assim */
+  await pg.evaluate(() => { BX.item = null; BX.busca = ''; telaBaixaManual(); });
+  /* focar pelo proprio elemento: um aviso na tela pode cobrir o campo e
+     fazer o clique do robo esperar para sempre — o que se quer provar e
+     que o foco SOBREVIVE a digitacao, nao o clique */
+  await pg.evaluate(() => { var e = document.getElementById('bxItem'); if (e) e.focus(); });
+  await pg.keyboard.type('tentacao', { delay: 20 });
+  await pg.waitForTimeout(200);
+  const rBX3 = await pg.evaluate(() =>
+    Array.from(document.querySelectorAll('#bxSug div')).map(d => d.textContent));
+  t('"tentacao" sem cedilha acha TENTAÇÃO ZERO GELATO',
+    rBX3.some(x => x.indexOf('TENTAÇÃO ZERO GELATO') === 0), JSON.stringify(rBX3));
+
+  /* o motivo novo: cadastrar sem sair da tela, e ja vir escolhido */
+  const rMot = await pg.evaluate(() => {
+    novoMotivoDaBaixa();
+    if (!document.getElementById('mvNome')) return { abriu: false };
+    document.getElementById('mvNome').value = 'Degustação no balcão';
+    var bts = Array.from(document.querySelectorAll('#mdOv button'));
+    var salvar = bts.find(b => /salvar/i.test(b.textContent));
+    if (salvar) salvar.click();
+    return { abriu: true,
+      naLista: (DB.motivosMov || []).some(m => m.nome === 'Degustação no balcão'),
+      escolhido: BX.motivo,
+      idNovo: ((DB.motivosMov || []).find(m => m.nome === 'Degustação no balcão') || {}).id };
+  });
+  await pg.waitForTimeout(250);
+  t('o + abre o cadastro de motivo por cima da baixa', rMot.abriu);
+  t('o motivo salvo entra na lista da loja', rMot.naLista);
+  t('e já vem escolhido, sem precisar procurar',
+    rMot.escolhido && rMot.escolhido === rMot.idNovo, rMot.escolhido);
+  const rMot2 = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    telaBaixaManual();
+    var sel = document.getElementById('bxMot');
+    return { voltou: !!sel,
+      temOpcao: sel ? Array.from(sel.options).some(o => /Degustação no balcão/.test(o.text)) : false,
+      selecionado: sel ? sel.value : '' };
+  });
+  t('a tela volta para a Baixa Manual', rMot2.voltou);
+  t('o motivo novo aparece na lista da tela', rMot2.temOpcao);
+  t('e é ele que está selecionado', rMot2.selecionado === rMot.idNovo, rMot2.selecionado);
+  await pg.screenshot({ path: FOTOS + '/baixa-manual-busca.png' });
+  /* a sessao volta ao normal para as provas seguintes */
+  await entrar();
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

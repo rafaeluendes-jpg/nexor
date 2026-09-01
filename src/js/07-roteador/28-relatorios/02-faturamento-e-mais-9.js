@@ -771,7 +771,10 @@ function telaCfgMovimentacao(){
    '</div></div></div>';
   rodape((DB.motivosMov||[]).length+' motivos cadastrados');
 }
-function formMotivo(id,tipoPadrao){
+/* `aoSalvar` (opcional) recebe o motivo gravado. Quem chama de outra tela
+   — a Baixa Manual — usa isso para voltar para la com o motivo escolhido,
+   em vez de ser jogado na tela de configuracao. Sem ele, nada muda. */
+function formMotivo(id,tipoPadrao,aoSalvar){
   baseMov();
   var m=id?DB.motivosMov.find(function(x){return x.id===id}):null;
   modal(m?'Editar motivo':'Cadastrar motivo',
@@ -798,9 +801,13 @@ function formMotivo(id,tipoPadrao){
     var rs=document.querySelectorAll('input[name="mvTipo"]');
     for(var i=0;i<rs.length;i++)if(rs[i].checked)tipo=rs[i].value;
     var o={nome:nome,tipo:tipo,ativo:$('mvAtivo').checked};
+    var gravado=m;
     if(m)Object.assign(m,o);
-    else DB.motivosMov.push(Object.assign({id:uid('mt'),sistema:false,lojas:[]},o));
-    salvar();telaCfgMovimentacao();
+    else{gravado=Object.assign({id:uid('mt'),sistema:false,lojas:[]},o);
+      DB.motivosMov.push(gravado);}
+    salvar();
+    if(typeof aoSalvar==='function')aoSalvar(gravado);
+    else telaCfgMovimentacao();
     toast('Motivo salvo.');
     return true;
   },'lg');

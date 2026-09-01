@@ -1814,12 +1814,72 @@ function itensParaBaixa(){
   });
   return out;
 }
+/* ==========================================================
+   PROCURAR ITEM: SEM ACENTO, EM QUALQUER ORDEM, DUAS LETRAS
+
+   O Rafael, em 01/09/2026: "quando eu digito gelato venda, que e o que
+   esta vinculado a ficha tecnica dos produtos, nao aparece".
+
+   Eram tres travas somadas. Exigia TRES letras antes de procurar; casava
+   so o pedaco exato, entao "venda gelato" nao achava "GELATO VENDA"; e
+   parava nos 8 primeiros — a loja tem 61 itens com "gelato" no nome, e
+   "GELATO VENDA" e o ultimo deles em ordem de cadastro.
+
+   Agora: duas letras bastam, acento nao atrapalha ("tentacao" acha
+   "TENTAÇÃO"), cada palavra digitada e procurada por conta propria em
+   qualquer ordem, e quem COMECA com o que foi digitado sobe para o topo
+   da lista. Doze resultados.
+   ========================================================== */
+function _semAcento(t){
+  t = String(t == null ? '' : t).toLowerCase();
+  try { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  catch (e) { return t; }
+}
 function buscarItensBaixa(txt){
-  txt = String(txt || '').trim().toLowerCase();
-  if (txt.length < 3) return [];
-  return itensParaBaixa().filter(function (i) {
-    return String(i.nome || '').toLowerCase().indexOf(txt) >= 0;
-  }).slice(0, 8);
+  var alvo = _semAcento(txt).trim();
+  if (alvo.length < 2) return [];
+  var palavras = alvo.split(/\s+/).filter(Boolean);
+  var achados = [];
+  itensParaBaixa().forEach(function (i) {
+    var nome = _semAcento(i.nome);
+    for (var p = 0; p < palavras.length; p++)
+      if (nome.indexOf(palavras[p]) < 0) return;
+    /* peso 0 = comeca com o que foi digitado; 1 = so contem */
+    achados.push({ it: i, peso: nome.indexOf(alvo) === 0 ? 0 : (nome.indexOf(alvo) > 0 ? 1 : 2) });
+  });
+  achados.sort(function (a, b) {
+    return a.peso - b.peso || String(a.it.nome).localeCompare(String(b.it.nome));
+  });
+  return achados.slice(0, 12).map(function (a) { return a.it; });
+}
+/* o HTML da listinha, para desenhar sem refazer a tela */
+function sugestoesBaixaHTML(){
+  var sug = BX.item ? [] : buscarItensBaixa(BX.busca);
+  if (!sug.length) return '';
+  return sug.map(function (i) {
+    return '<div onclick="escolherItemBaixa(\'' + i.id + '\',\'' + i.tipo + '\')">' +
+      E(i.nome) + '<span class="bxTg ' + (i.tipo === 'ficha' ? 'f' : '') + '">' +
+      (i.tipo === 'ficha' ? 'ficha' : 'insumo') + '</span></div>';
+  }).join('');
+}
+/* ==========================================================
+   DIGITAR SEM PERDER O CURSOR
+
+   O Rafael: "aonde eu digito produto ou insumo, eu digito uma letra e
+   tenho que ficar clicando em cima".
+
+   O campo chamava `telaBaixaManual` a cada tecla. Essa funcao reescreve
+   o `content` inteiro — o `<input>` que estava sendo digitado deixa de
+   existir e o foco volta para o corpo da pagina. Uma letra por clique.
+
+   Aqui so a listinha e redesenhada. O campo continua sendo o mesmo
+   elemento, com o cursor onde estava.
+   ========================================================== */
+function sugerirItemBaixa(el){
+  BX.item = null;
+  BX.busca = el.value;
+  var cx = document.getElementById('bxSug');
+  if (cx) cx.innerHTML = sugestoesBaixaHTML();
 }
 /* os últimos nomes digitados, para não redigitar toda vez */
 function quemJaRegistrou(){
@@ -1851,7 +1911,6 @@ function telaBaixaManual(){
   var totPend = pend.reduce(function (a, b) {
     return a + (Number(b.qtd) || 0) * (Number(b.custo) || 0);
   }, 0);
-  var sug = buscarItensBaixa(BX.busca);
 
   $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
    '<div class="etTopo"><div><h1>Baixa Manual</h1>' +
@@ -1861,8 +1920,11 @@ function telaBaixaManual(){
 
    (!motivos.length
      ? '<div class="entVazio"><b>Nenhum motivo cadastrado</b>' +
-       '<span>Cadastre em Configuração da Loja › Motivos de baixa manual ' +
-       'antes de registrar.</span></div>'
+       '<span>O motivo diz por que a mercadoria saiu — perda, quebra, ' +
+       'vencimento, consumo interno. Cadastre o primeiro para começar.</span>' +
+       '<button class="btnVerde" style="margin-top:12px" ' +
+        'onclick="novoMotivoDaBaixa()">' + sv('plus', 13) +
+        ' Cadastrar motivo</button></div>'
      :
     /* ---------- formulário ---------- */
     '<div class="blk" style="max-width:none">' +
@@ -1873,16 +1935,11 @@ function telaBaixaManual(){
      '<div class="bxLin4">' +
       '<div class="f2" style="position:relative"><label>Produto ou insumo</label>' +
        '<input id="bxItem" value="' + E(BX.item ? BX.item.nome : BX.busca) + '" ' +
-       'placeholder="digite 3 letras" autocomplete="off" ' +
-       'oninput="BX.item=null;BX.busca=this.value;clearTimeout(window._bxT);' +
-       'window._bxT=setTimeout(telaBaixaManual,250)">' +
-       (sug.length && !BX.item
-         ? '<div class="bxSug">' + sug.map(function (i) {
-             return '<div onclick="escolherItemBaixa(\'' + i.id + '\',\'' + i.tipo + '\')">' +
-               E(i.nome) + '<span class="bxTg ' + (i.tipo === 'ficha' ? 'f' : '') + '">' +
-               (i.tipo === 'ficha' ? 'ficha' : 'insumo') + '</span></div>';
-           }).join('') + '</div>'
-         : '') +
+       'placeholder="digite 2 letras do nome" autocomplete="off" ' +
+       'oninput="sugerirItemBaixa(this)">' +
+       /* o quadro existe sempre, mesmo vazio: e nele que a busca escreve
+          sem refazer a tela */
+       '<div class="bxSug" id="bxSug">' + sugestoesBaixaHTML() + '</div>' +
       '</div>' +
       '<div class="f2"><label>Quantidade</label>' +
        '<input id="bxQtd" type="number" step="0.001" value="' + E(BX.qtd) + '" ' +
@@ -1894,12 +1951,16 @@ function telaBaixaManual(){
                  '>' + E(u.ab) + '</option>';
         }).join('') + '</select></div>' +
       '<div class="f2"><label>Motivo</label>' +
-       '<select id="bxMot" onchange="BX.motivo=this.value">' +
-        '<option value="">escolha</option>' +
-        motivos.map(function (m) {
-          return '<option value="' + m.id + '"' + (BX.motivo === m.id ? ' selected' : '') +
-                 '>' + E(m.nome) + '</option>';
-        }).join('') + '</select></div>' +
+       '<div class="bxMotLin">' +
+        '<select id="bxMot" onchange="BX.motivo=this.value">' +
+         '<option value="">escolha</option>' +
+         motivos.map(function (m) {
+           return '<option value="' + m.id + '"' + (BX.motivo === m.id ? ' selected' : '') +
+                  '>' + E(m.nome) + '</option>';
+         }).join('') + '</select>' +
+        '<button type="button" class="bxMotNovo" title="Cadastrar um motivo novo" ' +
+         'onclick="novoMotivoDaBaixa()">' + sv('plus', 13) + '</button>' +
+       '</div></div>' +
      '</div>' +
      '<div class="bxLin3">' +
       '<div class="f2"><label>Data</label>' +
@@ -1990,6 +2051,25 @@ function telaBaixaManual(){
   rodape(pend.length + ' baixa(s) aguardando lançamento');
 }
 
+/* ==========================================================
+   CADASTRAR O MOTIVO SEM SAIR DA BAIXA
+
+   O Rafael: "coloca um assim, pra mim cadastrar esses motivos; ao
+   cadastrar, ja vai aparecer na parte de baixo de todos os motivos".
+
+   O cadastro ja existia, em Configuracao da Loja. O que faltava era o
+   caminho: quem estava no meio de um registro tinha de sair da tela,
+   procurar a configuracao e voltar — perdendo o que ja tinha digitado.
+   Agora e o mesmo formulario, aberto por cima; ao salvar, a tela volta
+   com o motivo novo JA ESCOLHIDO, e ele passa a aparecer tambem no
+   filtro do relatorio de Movimentacao de Estoque, que le a mesma lista.
+   ========================================================== */
+function novoMotivoDaBaixa(){
+  formMotivo('', 'saida', function (m) {
+    if (m && m.id) BX.motivo = m.id;
+    telaBaixaManual();
+  });
+}
 function escolherItemBaixa(id, tipo){
   var i = itensParaBaixa().find(function (x) { return x.id === id && x.tipo === tipo; });
   if (!i) return;

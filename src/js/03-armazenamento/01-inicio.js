@@ -2430,9 +2430,43 @@ async function sincronizar(){
      algum dia nascer outro, ele nao chega na nuvem.
      O envio nao e perdido: fica pendente e sai assim que o download terminar.
      ========================================================== */
-  if(NUVEM.zerado&&!NUVEM.baixou){
+  /* ==========================================================
+     APARELHO ATRASADO NAO MANDA NA NUVEM
+
+     AQUI ESTAVA A CONFIGURACAO DE CARTAO DA LOJA SENDO APAGADA.
+
+     Registro do banco, 31/08/2026: as 20h50 o Rafael gravou, em Santa Fe
+     do Sul, debito 0,73%, credito 2,73% em 1 dia, e a conta em que o
+     dinheiro cai nas tres formas. As 23h21 tudo voltou sozinho para
+     1,99% / 3,49% / 30 dias / conta nenhuma. Junto voltou a bandeira do
+     Dinheiro, de "—" para vazia — um campo que ele tinha mexido as
+     20h50. Ou seja: subiu uma copia ANTERIOR a edicao dele, inteira,
+     por cima da nova.
+
+     O motor decide o que enviar assim:
+
+       if(hAnt[x.id]!==hNovo[x.id] || !DB._uuid[col][x.id]) mudou=true
+
+     Isso responde "a minha copia mudou desde o meu ultimo envio". NAO
+     responde "a minha copia e mais nova que a da nuvem" — o motor nao
+     tem como saber isso. Um aparelho que ficou horas fora do ar acorda,
+     nao reconhece a propria impressao, e empurra o que TEM.
+
+     A trava para isso ja existia escrita logo acima, e valia so para o
+     aparelho COMPLETAMENTE vazio (`NUVEM.zerado`). O aparelho que tem
+     dado — velho, mas tem — passava direto. O espelhamento de exclusoes
+     ja usava a regra certa (`if(!NUVEM.baixou)`, no `apagarRemovidos`);
+     o envio de linhas nao.
+
+     Agora e a mesma regra para os dois: enquanto este aparelho nao
+     tiver COMPLETADO um download nesta sessao, ele nao escreve na
+     nuvem. Nada se perde — o envio fica pendente e sai no instante em
+     que o download termina, que e sempre alguns segundos depois.
+     ========================================================== */
+  if(!NUVEM.baixou){
     NUVEM.pendente=true;
-    logNuvem('envio adiado: este aparelho ainda não baixou da nuvem');
+    logNuvem('envio adiado: este aparelho ainda não baixou da nuvem — '+
+      'o que está aqui só sobe depois de conferir o que já existe lá');
     return;
   }
   if(NUVEM.sincronizando){
