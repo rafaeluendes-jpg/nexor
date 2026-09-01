@@ -238,6 +238,11 @@ console.log('\n── O código não guarda mais as regras antigas\n');
   const ac = corpoDaFuncao('aceitarPedidoOnline', fonte);
   t('o pedido do cardápio nasce na loja aberta',
     /sucursalId:p\.sucursal_id\|\|lojaAtualId\(\)\|\|'suc_matriz'/.test(ac));
+  const ex = corpoDaFuncao('explicaCanais', fonte);
+  t('a explicação da tela não promete módulo que já existe',
+    !/ficam em zero até os módulos existirem/.test(ex));
+  t('e diz que Delivery é toda entrega, venha de onde vier',
+    /não importa por onde o pedido entrou/.test(ex));
   const vd = corpoDaFuncao('telaVendaDataHora', fonte);
   t('a contagem de dias usa o dia da loja', /sem\[k\]\.dias\[dia\]=true/.test(vd));
   t('e nunca mais o carimbo inteiro', !/dias\[p\.data\]=true/.test(vd));

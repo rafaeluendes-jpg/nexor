@@ -2587,12 +2587,16 @@ function perCV(n){
 function explicaCanais(){
   explicaRel('Canais de Venda — como é feito',[
    ['Total','soma de todos os pedidos do período, sem os cancelados'],
-   ['Delivery','pedidos do tipo entrega feitos no PDV'],
-   ['Loja física','vendas de salão e balcão'],
-   ['WhatsApp e Cardápio digital','pedidos que chegam por esses canais; ficam em zero até os módulos existirem'],
+   ['Delivery','toda venda que saiu para entrega, não importa por onde o pedido entrou: '+
+    'cardápio digital, WhatsApp ou digitada no PDV. É a mesma conta que o aplicativo do celular faz'],
+   ['Balcão','quem foi atendido na loja — inclui a retirada pedida pelo cardápio, '+
+    'porque o cliente veio buscar no balcão'],
+   ['Mesa e Totem','pedidos feitos pelo QR Code da mesa e pelo autoatendimento'],
+   ['Por onde o pedido entrou','o cardápio e o WhatsApp não são canais, são a porta de entrada. '+
+    'Isso fica gravado em cada pedido e aparece no detalhe dele'],
    ['Evolução no período','faturamento de cada dia — passe o mouse para ver o valor'],
    ['Ranking','participação de cada canal no faturamento do período']
-  ],'os pedidos do PDV, separados pelo tipo de venda e pelo canal de origem, '+
+  ],'os pedidos da unidade aberta, separados pelo tipo de venda, '+
     'filtrados pelas sucursais escolhidas.',
    'pedidos cancelados e vendas fora do período selecionado.');
 }
