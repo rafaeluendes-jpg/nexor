@@ -186,20 +186,75 @@ function estadoNuvem(e,msg){
   }
   try{conferirNuvem();}catch(e2){_quieto(e2,'estadoNuvem')}
 }
-/* quantas alteracoes ainda nao subiram — so cadastros que o motor envia */
+/* ==========================================================
+   O CONTADOR DIZIA 763 COM A NUVEM EM DIA
+
+   01/09/2026, computador de Santa Fe do Sul: a tela avisava "763
+   alteracoes esperando para subir". Conferido no banco no mesmo minuto:
+   756 pedidos aqui, 756 pedidos la, o ultimo as 22:47. Nao faltava nada.
+
+   Havia DUAS regras para a mesma pergunta, e elas discordavam:
+
+     - `anotarImpressoes` so anota a linha quando ela e desta empresa
+       (`_loja === l`) E a nuvem ja a conhece (`_uuid`).
+     - este contador contava toda linha sem anotacao, pulando apenas a de
+       empresa DIFERENTE — a linha SEM `_loja` ele contava.
+
+   Uma linha sem `_loja` nasceu antes de a sessao da empresa ficar pronta.
+   O motor nao a envia de proposito (nao se adota dado orfao), e
+   `anotarImpressoes` nao a anota. Entao ela ficava contada para sempre.
+   Bastavam os 756 pedidos caindo nesse caso para a tela gritar 763.
+
+   Agora ha uma regra so, e ela e a do motor de envio, palavra por
+   palavra: e desta empresa, e ou a impressao mudou ou a nuvem ainda nao
+   conhece a linha. O que o motor nao envia deixou de se chamar
+   "esperando para subir" — porque nao esta esperando, esta retido, e
+   isso tem nome e contador proprios (`contarRetidas`), que e o que o
+   Diagnostico mostra.
+   ========================================================== */
+function precisaSubir(E,x,i,h,uu){
+  if(!x||typeof x!=='object'||!x.id)return false;
+  if(!uu[x.id])return true;                 /* a nuvem nao conhece esta linha */
+  if(x._novoAqui===true)return true;
+  if(x._filhoPendente===true)return true;
+  if(x._fechamentoPendente===true)return true;
+  var g=h[x.id];
+  if(!g)return true;
+  try{ return impressaoDaLinha(E,x,i)!==g; }catch(e){ return true; }
+}
+/* quantas alteracoes ainda nao subiram — a mesma conta que o motor faz */
 function contarPendencias(){
   var n=0;
   try{
+    var l=NUVEM.loja;
     (MAPA||[]).forEach(function(E2){
       var lista=DB[E2.col]; if(!Array.isArray(lista))return;
       var h=(DB._hash&&DB._hash[E2.col])||{};
-      lista.forEach(function(x){
-        if(!x||typeof x!=='object')return;
-        if(x._loja&&x._loja!==NUVEM.loja)return;   /* de outra empresa: nao conta */
-        if(!h[x.id])n++;
-      });
+      var uu=(DB._uuid&&DB._uuid[E2.col])||{};
+      /* o motor filtra assim antes de calcular a impressao; o indice tem de
+         ser o mesmo, senao a impressao nao bate e tudo parece alterado */
+      var minhas=lista.filter(function(x){
+        return x&&typeof x==='object'&&x._loja===l;});
+      for(var i=0;i<minhas.length;i++)
+        if(precisaSubir(E2,minhas[i],i,h,uu))n++;
     });
   }catch(e){ _quieto(e,'contarPendencias'); }
+  return n;
+}
+/* linhas que o motor NAO envia: de outra empresa, ou sem empresa de origem.
+   Nao sao pendencia — sao retencao, e o Diagnostico explica cada caso. */
+function contarRetidas(){
+  var n=0;
+  try{
+    var l=NUVEM.loja;
+    (MAPA||[]).forEach(function(E2){
+      var lista=DB[E2.col]; if(!Array.isArray(lista))return;
+      lista.forEach(function(x){
+        if(!x||typeof x!=='object')return;
+        if(!x._loja||x._loja!==l)n++;
+      });
+    });
+  }catch(e){ _quieto(e,'contarRetidas'); }
   return n;
 }
 function modo(){try{return localStorage.getItem('nexor_modo')||'local'}catch(e){return 'local'}}
@@ -2687,9 +2742,23 @@ async function sincronizar(){
             if(conf!==lf.length){
               _falhouFilho=true;
               NUVEM.erros=NUVEM.erros||[];
-              NUVEM.erros.push({tab:F.tab,
-                motivo:(lf.length-conf)+' item(ns) de "'+
-                  (lista[k].nome||F.tab)+'" não foram aceitos'});
+              /* ==========================================================
+                 O ERRO DO FILHO APARECIA COMO "undefined"
+
+                 O resto do sistema grava o texto da falha em `msg` — e e
+                 `msg` que o Diagnostico le e que vai para o registro. So
+                 esta linha, a das tabelas FILHAS, gravava em `motivo`.
+                 Resultado: quando um item de caixa, de ficha ou de pedido
+                 era recusado, o Diagnostico mostrava "falha ao enviar" sem
+                 dizer nada, e o registro escrevia literalmente
+                 "nao subiu — caixa_movimentos: undefined".
+
+                 Era o unico rastro que sobrava de um item que nao entrou.
+                 Agora o texto vai nos dois campos.
+                 ========================================================== */
+              var _mFilho=(lf.length-conf)+' item(ns) de "'+
+                  (lista[k].nome||F.tab)+'" não foram aceitos';
+              NUVEM.erros.push({tab:F.tab,motivo:_mFilho,msg:_mFilho});
               /* o pai volta a contar como NAO enviado, para o proximo envio
                  recalcular e mandar os filhos de novo. hSalvar ja foi gravado
                  em DB._hash antes deste ponto, entao mexe-se ali. */

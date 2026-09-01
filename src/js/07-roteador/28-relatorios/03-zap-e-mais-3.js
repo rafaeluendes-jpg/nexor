@@ -2429,10 +2429,32 @@ async function salvarAssPlat(){
 
    Aqui o PATCH so toca nas colunas enviadas. Se a linha ainda nao existe,
    o PATCH nao acha nada e ai sim criamos com POST. */
+/* ==========================================================
+   A UNIDADE TINHA DUAS LINHAS, E O ROBO LIA A OUTRA
+
+   Conferido no banco em 01/09/2026: Santa Fe do Sul tem DUAS linhas em
+   whatsapp_config, as duas com ref_local "wz_suc_mt1unhbx2xrb" — uma com
+   sucursal_id no formato local ("suc_mt1unhbx2xrb") e outra com o uuid
+   ("f0de0748-..."). A coluna e texto, entao as duas sao validas e nenhum
+   indice barrou.
+
+   Este PATCH filtrava por `sucursal_id`, ou seja, acertava UMA delas. E o
+   robo, no servidor, procura primeiro pelo uuid — a outra. Resultado:
+   desligar o robo pelo interruptor gravava numa linha que o robo nao le.
+
+   `ref_local` e igual nas duas e e a chave que o proprio sistema cria
+   ('wz_'+id da unidade). Filtrando por ela, um PATCH so acerta as duas —
+   sem apagar linha nenhuma, que e o que nao se faz em banco de producao
+   sem ordem.
+   ========================================================== */
 async function gravarCfgZap(sucursalId, campos){
   if(!NUVEM.ligada||!NUVEM.loja||!sucursalId)return false;
-  var r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(sucursalId),
+  var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+sucursalId),
                   'PATCH',campos,{'Prefer':'return=representation'});
+  if(Array.isArray(r)&&r.length)return true;
+  /* linha antiga, gravada antes de o ref_local existir: tenta pela unidade */
+  r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(sucursalId),
+              'PATCH',campos,{'Prefer':'return=representation'});
   if(Array.isArray(r)&&r.length)return true;
   /* linha inexistente: cria com as colunas desta tela + as chaves */
   var novo={}; for(var k in campos)novo[k]=campos[k];

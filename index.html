@@ -6819,20 +6819,75 @@ function estadoNuvem(e,msg){
   }
   try{conferirNuvem();}catch(e2){_quieto(e2,'estadoNuvem')}
 }
-/* quantas alteracoes ainda nao subiram — so cadastros que o motor envia */
+/* ==========================================================
+   O CONTADOR DIZIA 763 COM A NUVEM EM DIA
+
+   01/09/2026, computador de Santa Fe do Sul: a tela avisava "763
+   alteracoes esperando para subir". Conferido no banco no mesmo minuto:
+   756 pedidos aqui, 756 pedidos la, o ultimo as 22:47. Nao faltava nada.
+
+   Havia DUAS regras para a mesma pergunta, e elas discordavam:
+
+     - `anotarImpressoes` so anota a linha quando ela e desta empresa
+       (`_loja === l`) E a nuvem ja a conhece (`_uuid`).
+     - este contador contava toda linha sem anotacao, pulando apenas a de
+       empresa DIFERENTE — a linha SEM `_loja` ele contava.
+
+   Uma linha sem `_loja` nasceu antes de a sessao da empresa ficar pronta.
+   O motor nao a envia de proposito (nao se adota dado orfao), e
+   `anotarImpressoes` nao a anota. Entao ela ficava contada para sempre.
+   Bastavam os 756 pedidos caindo nesse caso para a tela gritar 763.
+
+   Agora ha uma regra so, e ela e a do motor de envio, palavra por
+   palavra: e desta empresa, e ou a impressao mudou ou a nuvem ainda nao
+   conhece a linha. O que o motor nao envia deixou de se chamar
+   "esperando para subir" — porque nao esta esperando, esta retido, e
+   isso tem nome e contador proprios (`contarRetidas`), que e o que o
+   Diagnostico mostra.
+   ========================================================== */
+function precisaSubir(E,x,i,h,uu){
+  if(!x||typeof x!=='object'||!x.id)return false;
+  if(!uu[x.id])return true;                 /* a nuvem nao conhece esta linha */
+  if(x._novoAqui===true)return true;
+  if(x._filhoPendente===true)return true;
+  if(x._fechamentoPendente===true)return true;
+  var g=h[x.id];
+  if(!g)return true;
+  try{ return impressaoDaLinha(E,x,i)!==g; }catch(e){ return true; }
+}
+/* quantas alteracoes ainda nao subiram — a mesma conta que o motor faz */
 function contarPendencias(){
   var n=0;
   try{
+    var l=NUVEM.loja;
     (MAPA||[]).forEach(function(E2){
       var lista=DB[E2.col]; if(!Array.isArray(lista))return;
       var h=(DB._hash&&DB._hash[E2.col])||{};
-      lista.forEach(function(x){
-        if(!x||typeof x!=='object')return;
-        if(x._loja&&x._loja!==NUVEM.loja)return;   /* de outra empresa: nao conta */
-        if(!h[x.id])n++;
-      });
+      var uu=(DB._uuid&&DB._uuid[E2.col])||{};
+      /* o motor filtra assim antes de calcular a impressao; o indice tem de
+         ser o mesmo, senao a impressao nao bate e tudo parece alterado */
+      var minhas=lista.filter(function(x){
+        return x&&typeof x==='object'&&x._loja===l;});
+      for(var i=0;i<minhas.length;i++)
+        if(precisaSubir(E2,minhas[i],i,h,uu))n++;
     });
   }catch(e){ _quieto(e,'contarPendencias'); }
+  return n;
+}
+/* linhas que o motor NAO envia: de outra empresa, ou sem empresa de origem.
+   Nao sao pendencia — sao retencao, e o Diagnostico explica cada caso. */
+function contarRetidas(){
+  var n=0;
+  try{
+    var l=NUVEM.loja;
+    (MAPA||[]).forEach(function(E2){
+      var lista=DB[E2.col]; if(!Array.isArray(lista))return;
+      lista.forEach(function(x){
+        if(!x||typeof x!=='object')return;
+        if(!x._loja||x._loja!==l)n++;
+      });
+    });
+  }catch(e){ _quieto(e,'contarRetidas'); }
   return n;
 }
 function modo(){try{return localStorage.getItem('nexor_modo')||'local'}catch(e){return 'local'}}
@@ -9320,9 +9375,23 @@ async function sincronizar(){
             if(conf!==lf.length){
               _falhouFilho=true;
               NUVEM.erros=NUVEM.erros||[];
-              NUVEM.erros.push({tab:F.tab,
-                motivo:(lf.length-conf)+' item(ns) de "'+
-                  (lista[k].nome||F.tab)+'" não foram aceitos'});
+              /* ==========================================================
+                 O ERRO DO FILHO APARECIA COMO "undefined"
+
+                 O resto do sistema grava o texto da falha em `msg` — e e
+                 `msg` que o Diagnostico le e que vai para o registro. So
+                 esta linha, a das tabelas FILHAS, gravava em `motivo`.
+                 Resultado: quando um item de caixa, de ficha ou de pedido
+                 era recusado, o Diagnostico mostrava "falha ao enviar" sem
+                 dizer nada, e o registro escrevia literalmente
+                 "nao subiu — caixa_movimentos: undefined".
+
+                 Era o unico rastro que sobrava de um item que nao entrou.
+                 Agora o texto vai nos dois campos.
+                 ========================================================== */
+              var _mFilho=(lf.length-conf)+' item(ns) de "'+
+                  (lista[k].nome||F.tab)+'" não foram aceitos';
+              NUVEM.erros.push({tab:F.tab,motivo:_mFilho,msg:_mFilho});
               /* o pai volta a contar como NAO enviado, para o proximo envio
                  recalcular e mandar os filhos de novo. hSalvar ja foi gravado
                  em DB._hash antes deste ponto, entao mexe-se ali. */
@@ -12540,7 +12609,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V272.0.0';
+var VERSAO='V273.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -19439,20 +19508,33 @@ function telaPDV(){
   (function(){
     if(!NUVEM.ligada)return '';
     if(!(NUVEM.sujo||DB._sujo))return '';
+    /* ==========================================================
+       ESTA FAIXA SO PODE APARECER COM MOTIVO DE VERDADE
+
+       Na V272 ela olhava so a marca `NUVEM.sujo` e mostrava o numero do
+       contador antigo — que contava linha ja gravada na nuvem. No
+       computador de Santa Fe deu "763 alteracoes esperando para subir"
+       com os 756 pedidos todos na nuvem, e assustou por nada.
+
+       Agora ela exige as tres coisas ao mesmo tempo: ha pendencia de
+       verdade pela conta do motor, ja houve download nesta sessao (senao
+       nao ha atraso a medir — a pagina acabou de abrir) e esse download
+       foi ha mais de cinco minutos.
+       ========================================================== */
+    var _n=0; try{_n=contarPendencias()}catch(e){ _quieto(e,'faixaAtraso'); }
+    if(!_n)return '';
     var _ud=(typeof _ultimoDownload!=='undefined'?_ultimoDownload:0);
-    var _parado=Date.now()-(_ud||0);
-    if(_ud&&_parado<5*60*1000)return '';
-    var _n=0; try{_n=contarPendencias()}catch(e){}
-    var _hm=_ud?new Date(_ud).toLocaleTimeString('pt-BR').slice(0,5):null;
+    if(!_ud)return '';
+    if(Date.now()-_ud<5*60*1000)return '';
+    var _hm=new Date(_ud).toLocaleTimeString('pt-BR').slice(0,5);
     return '<div class="cmdFaixa cmdAlerta">'+sv('help',14)+
      '<div><b>Este aparelho está atrasado.</b> '+
-     (_hm?'Ele não recebe novidade da nuvem desde as '+_hm+'.'
-        :'Ele ainda não conseguiu receber nada da nuvem.')+
+     'Ele não recebe novidade da nuvem desde as '+_hm+'.'+
      ' O que está nesta tela pode não ser o que já aconteceu nos outros aparelhos — '+
      'pedido, estado da loja, tudo. '+
-     (_n?'Há '+_n+' alteração'+(_n>1?'ões':'')+' esperando para subir, e o sistema não '+
-         'baixa nada por cima delas para não apagar o que você lançou aqui.'
-       :'Há algo esperando para subir, e o sistema não baixa nada por cima disso.')+
+     'Há '+_n+' alteração'+(_n>1?'ões':'')+' feita'+(_n>1?'s':'')+' aqui que ainda não '+
+     'subiu, e o sistema não baixa nada por cima dela'+(_n>1?'s':'')+' para não apagar '+
+     'o que você lançou.'+
      '</div>'+
      '<button class="btnP2" onclick="destravarAparelho()">Tentar enviar agora</button></div>';
   })()+
@@ -19490,6 +19572,42 @@ function telaPDV(){
   if(PDV.aba==='mesas')renderMesas();
   rodape(DB.pedidos.length+' pedidos · '+DB.clientes.length+' clientes');
 }
+/* ==========================================================
+   O NOME DA LOJA AQUI NAO E O NOME DA LOJA LA
+
+   `cardapio_config.sucursal_id` e uma coluna UUID. Este arquivo mandava
+   o identificador LOCAL da unidade — "suc_mt1unhbx2xrb" — direto na
+   consulta:
+
+     cardapio_config?sucursal_id=eq.suc_mt1unhbx2xrb
+
+   O Postgres recusa: "invalid input syntax for type uuid". Erro 400, e
+   o `catch` engolia. Conferido no registro do banco em 01/09/2026: cinco
+   dessas, do computador da loja, entre 31/08 14:19 e 01/09 01:13 — as
+   tres primeiras de `aplicarTempos` (o campo de minutos do PDV) e a
+   ultima do interruptor da loja que subiu na V272.
+
+   Ou seja: o interruptor mudava a tela e nao mudava nada la fora. Era
+   exatamente o "botao de enfeite" que o Rafael nao queria.
+
+   `fk('sucursais', ref)` e a traducao oficial local -> nuvem, mas ela so
+   funciona durante o envio, quando `_ids` esta montado. Fora dele quem
+   guarda a traducao e `DB._uuid.sucursais`, que fica salvo no aparelho.
+   Se nem um nem outro souberem, esta funcao devolve nulo — e quem chamou
+   NAO manda a consulta quebrada: avisa.
+   ========================================================== */
+function sucursalNaNuvem(suc){
+  if(!suc)return null;
+  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(suc)))return suc;
+  try{
+    var m=(DB._uuid&&DB._uuid.sucursais)||{};
+    if(m[suc])return m[suc];
+  }catch(e){ _quieto(e,'sucursalNaNuvem'); }
+  try{
+    if(typeof _ids!=='undefined'&&_ids&&_ids[suc])return _ids[suc];
+  }catch(e){ _quieto(e,'sucursalNaNuvem'); }
+  return null;
+}
 /* leva os tempos do PDV para o cardápio digital e para o robô */
 async function aplicarTempos(){
   var c=cfg();
@@ -19512,9 +19630,10 @@ async function aplicarTempos(){
     cd.ativo=_lig;
   }
   salvar();
-  if(NUVEM.ligada){
+  var _uu=sucursalNaNuvem(suc);
+  if(NUVEM.ligada&&_uu){
     try{
-      await api('cardapio_config?sucursal_id=eq.'+suc,'PATCH',{
+      await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(_uu),'PATCH',{
         tempo_entrega:cd?cd.tempoEntrega:null,
         tempo_retirada:cd?cd.tempoRetirada:null,
         ativo:_lig
@@ -19616,8 +19735,14 @@ async function definirLojaLigada(ligada,suc){
   salvar();
   if(!NUVEM.ligada)return {ok:false,motivo:'sem nuvem'};
   var falhou=[];
-  try{
-    await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(suc),'PATCH',{ativo:!!ligada});
+  var uu=sucursalNaNuvem(suc);
+  if(!uu)falhou.push('cardápio digital (esta unidade ainda não tem vínculo com a nuvem)');
+  else try{
+    var r=await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(uu),'PATCH',
+                    {ativo:!!ligada},{'Prefer':'return=representation'});
+    /* PATCH que nao acha linha nenhuma devolve lista vazia e nao e erro:
+       sem esta conferencia o interruptor diria "pronto" sem ter mudado nada */
+    if(Array.isArray(r)&&!r.length)falhou.push('cardápio digital (não achei a configuração desta unidade)');
   }catch(e){falhou.push('cardápio digital');_quieto(e,'definirLojaLigada/cardapio')}
   try{
     if(!(await gravarCfgZap(suc,{robo_ativo:!!ligada})))falhou.push('robô do WhatsApp');
@@ -44938,10 +45063,32 @@ async function salvarAssPlat(){
 
    Aqui o PATCH so toca nas colunas enviadas. Se a linha ainda nao existe,
    o PATCH nao acha nada e ai sim criamos com POST. */
+/* ==========================================================
+   A UNIDADE TINHA DUAS LINHAS, E O ROBO LIA A OUTRA
+
+   Conferido no banco em 01/09/2026: Santa Fe do Sul tem DUAS linhas em
+   whatsapp_config, as duas com ref_local "wz_suc_mt1unhbx2xrb" — uma com
+   sucursal_id no formato local ("suc_mt1unhbx2xrb") e outra com o uuid
+   ("f0de0748-..."). A coluna e texto, entao as duas sao validas e nenhum
+   indice barrou.
+
+   Este PATCH filtrava por `sucursal_id`, ou seja, acertava UMA delas. E o
+   robo, no servidor, procura primeiro pelo uuid — a outra. Resultado:
+   desligar o robo pelo interruptor gravava numa linha que o robo nao le.
+
+   `ref_local` e igual nas duas e e a chave que o proprio sistema cria
+   ('wz_'+id da unidade). Filtrando por ela, um PATCH so acerta as duas —
+   sem apagar linha nenhuma, que e o que nao se faz em banco de producao
+   sem ordem.
+   ========================================================== */
 async function gravarCfgZap(sucursalId, campos){
   if(!NUVEM.ligada||!NUVEM.loja||!sucursalId)return false;
-  var r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(sucursalId),
+  var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+sucursalId),
                   'PATCH',campos,{'Prefer':'return=representation'});
+  if(Array.isArray(r)&&r.length)return true;
+  /* linha antiga, gravada antes de o ref_local existir: tenta pela unidade */
+  r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(sucursalId),
+              'PATCH',campos,{'Prefer':'return=representation'});
   if(Array.isArray(r)&&r.length)return true;
   /* linha inexistente: cria com as colunas desta tela + as chaves */
   var novo={}; for(var k in campos)novo[k]=campos[k];

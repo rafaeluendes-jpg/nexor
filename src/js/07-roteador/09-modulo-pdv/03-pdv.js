@@ -105,20 +105,33 @@ function telaPDV(){
   (function(){
     if(!NUVEM.ligada)return '';
     if(!(NUVEM.sujo||DB._sujo))return '';
+    /* ==========================================================
+       ESTA FAIXA SO PODE APARECER COM MOTIVO DE VERDADE
+
+       Na V272 ela olhava so a marca `NUVEM.sujo` e mostrava o numero do
+       contador antigo — que contava linha ja gravada na nuvem. No
+       computador de Santa Fe deu "763 alteracoes esperando para subir"
+       com os 756 pedidos todos na nuvem, e assustou por nada.
+
+       Agora ela exige as tres coisas ao mesmo tempo: ha pendencia de
+       verdade pela conta do motor, ja houve download nesta sessao (senao
+       nao ha atraso a medir — a pagina acabou de abrir) e esse download
+       foi ha mais de cinco minutos.
+       ========================================================== */
+    var _n=0; try{_n=contarPendencias()}catch(e){ _quieto(e,'faixaAtraso'); }
+    if(!_n)return '';
     var _ud=(typeof _ultimoDownload!=='undefined'?_ultimoDownload:0);
-    var _parado=Date.now()-(_ud||0);
-    if(_ud&&_parado<5*60*1000)return '';
-    var _n=0; try{_n=contarPendencias()}catch(e){}
-    var _hm=_ud?new Date(_ud).toLocaleTimeString('pt-BR').slice(0,5):null;
+    if(!_ud)return '';
+    if(Date.now()-_ud<5*60*1000)return '';
+    var _hm=new Date(_ud).toLocaleTimeString('pt-BR').slice(0,5);
     return '<div class="cmdFaixa cmdAlerta">'+sv('help',14)+
      '<div><b>Este aparelho está atrasado.</b> '+
-     (_hm?'Ele não recebe novidade da nuvem desde as '+_hm+'.'
-        :'Ele ainda não conseguiu receber nada da nuvem.')+
+     'Ele não recebe novidade da nuvem desde as '+_hm+'.'+
      ' O que está nesta tela pode não ser o que já aconteceu nos outros aparelhos — '+
      'pedido, estado da loja, tudo. '+
-     (_n?'Há '+_n+' alteração'+(_n>1?'ões':'')+' esperando para subir, e o sistema não '+
-         'baixa nada por cima delas para não apagar o que você lançou aqui.'
-       :'Há algo esperando para subir, e o sistema não baixa nada por cima disso.')+
+     'Há '+_n+' alteração'+(_n>1?'ões':'')+' feita'+(_n>1?'s':'')+' aqui que ainda não '+
+     'subiu, e o sistema não baixa nada por cima dela'+(_n>1?'s':'')+' para não apagar '+
+     'o que você lançou.'+
      '</div>'+
      '<button class="btnP2" onclick="destravarAparelho()">Tentar enviar agora</button></div>';
   })()+
@@ -156,6 +169,42 @@ function telaPDV(){
   if(PDV.aba==='mesas')renderMesas();
   rodape(DB.pedidos.length+' pedidos · '+DB.clientes.length+' clientes');
 }
+/* ==========================================================
+   O NOME DA LOJA AQUI NAO E O NOME DA LOJA LA
+
+   `cardapio_config.sucursal_id` e uma coluna UUID. Este arquivo mandava
+   o identificador LOCAL da unidade — "suc_mt1unhbx2xrb" — direto na
+   consulta:
+
+     cardapio_config?sucursal_id=eq.suc_mt1unhbx2xrb
+
+   O Postgres recusa: "invalid input syntax for type uuid". Erro 400, e
+   o `catch` engolia. Conferido no registro do banco em 01/09/2026: cinco
+   dessas, do computador da loja, entre 31/08 14:19 e 01/09 01:13 — as
+   tres primeiras de `aplicarTempos` (o campo de minutos do PDV) e a
+   ultima do interruptor da loja que subiu na V272.
+
+   Ou seja: o interruptor mudava a tela e nao mudava nada la fora. Era
+   exatamente o "botao de enfeite" que o Rafael nao queria.
+
+   `fk('sucursais', ref)` e a traducao oficial local -> nuvem, mas ela so
+   funciona durante o envio, quando `_ids` esta montado. Fora dele quem
+   guarda a traducao e `DB._uuid.sucursais`, que fica salvo no aparelho.
+   Se nem um nem outro souberem, esta funcao devolve nulo — e quem chamou
+   NAO manda a consulta quebrada: avisa.
+   ========================================================== */
+function sucursalNaNuvem(suc){
+  if(!suc)return null;
+  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(suc)))return suc;
+  try{
+    var m=(DB._uuid&&DB._uuid.sucursais)||{};
+    if(m[suc])return m[suc];
+  }catch(e){ _quieto(e,'sucursalNaNuvem'); }
+  try{
+    if(typeof _ids!=='undefined'&&_ids&&_ids[suc])return _ids[suc];
+  }catch(e){ _quieto(e,'sucursalNaNuvem'); }
+  return null;
+}
 /* leva os tempos do PDV para o cardápio digital e para o robô */
 async function aplicarTempos(){
   var c=cfg();
@@ -178,9 +227,10 @@ async function aplicarTempos(){
     cd.ativo=_lig;
   }
   salvar();
-  if(NUVEM.ligada){
+  var _uu=sucursalNaNuvem(suc);
+  if(NUVEM.ligada&&_uu){
     try{
-      await api('cardapio_config?sucursal_id=eq.'+suc,'PATCH',{
+      await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(_uu),'PATCH',{
         tempo_entrega:cd?cd.tempoEntrega:null,
         tempo_retirada:cd?cd.tempoRetirada:null,
         ativo:_lig
@@ -282,8 +332,14 @@ async function definirLojaLigada(ligada,suc){
   salvar();
   if(!NUVEM.ligada)return {ok:false,motivo:'sem nuvem'};
   var falhou=[];
-  try{
-    await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(suc),'PATCH',{ativo:!!ligada});
+  var uu=sucursalNaNuvem(suc);
+  if(!uu)falhou.push('cardápio digital (esta unidade ainda não tem vínculo com a nuvem)');
+  else try{
+    var r=await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(uu),'PATCH',
+                    {ativo:!!ligada},{'Prefer':'return=representation'});
+    /* PATCH que nao acha linha nenhuma devolve lista vazia e nao e erro:
+       sem esta conferencia o interruptor diria "pronto" sem ter mudado nada */
+    if(Array.isArray(r)&&!r.length)falhou.push('cardápio digital (não achei a configuração desta unidade)');
   }catch(e){falhou.push('cardápio digital');_quieto(e,'definirLojaLigada/cardapio')}
   try{
     if(!(await gravarCfgZap(suc,{robo_ativo:!!ligada})))falhou.push('robô do WhatsApp');
