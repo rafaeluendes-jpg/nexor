@@ -693,6 +693,29 @@ function modalGrupoIng(id){
   modal(g?'Editar grupo':'Novo grupo de ingredientes',h,'Salvar',function(){
     var nome=$('giN').value.trim();
     if(!nome){toast('Informe a descrição.');return false;}
+    /* ==========================================================
+       DOIS GRUPOS COM O MESMO NOME, SO QUE UM COM ACENTO
+
+       Foi assim que a Movimentacao de Estoque chegou a 33 grupos com
+       dez repetidos: "Cascao" e "Cascão", "Zero Acucar" e "Zero
+       Açucar", "Material de Escritorio" e "Material de Escritório",
+       "Gelato_Venda", "Gelato Venda" e "Gelato_Vendas". Na lista sao
+       duas linhas iguais; os ingredientes ficam todos numa e a outra
+       fica vazia, e quem filtra pela vazia conclui que o sistema perdeu
+       o estoque.
+
+       A comparacao ignora maiuscula, espaco sobrando e acento — que e
+       exatamente o que difere os pares que apareceram. E a mesma conta
+       que `conferirCadastro` ja usava para categoria e produto.
+       ========================================================== */
+    var _cmp=function(x){ return String(x||'').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,''); };
+    var _igual=(DB.gruposIng||[]).find(function(x){
+      return x&&(!g||x.id!==g.id)&&_cmp(x.nome)===_cmp(nome); });
+    if(_igual){
+      toast('Já existe o grupo "'+_igual.nome+'". Use ele em vez de criar outro igual.');
+      return false;
+    }
     var alvo;
     if(g){ g.nome=nome; g.compoeCMV=$('giC').checked; alvo=g; }
     else { alvo={id:uid('gi'),nome:nome,compoeCMV:$('giC').checked,sucursais:[]};

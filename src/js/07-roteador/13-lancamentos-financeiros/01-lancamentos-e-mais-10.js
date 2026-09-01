@@ -1745,7 +1745,21 @@ function conferirCadastro(){
     repetidos('produtos','Produto');
     repetidos('insumos','Ingrediente');
     repetidos('fichas','Ficha técnica');
+    /* o grupo de ingredientes faltava nesta lista — e foi por isso que
+       dez repetidos passaram despercebidos ate alguem abrir o filtro da
+       Movimentacao de Estoque e ver a lista dobrada */
+    repetidos('gruposIng','Grupo de ingredientes');
 
+    /* grupo sem ingrediente nenhum e o rastro tipico do repetido: os
+       itens ficaram todos no outro, e este sobrou vazio no filtro */
+    (DB.gruposIng||[]).forEach(function(g){
+      if(!g||!g.id)return;
+      var n=(DB.insumos||[]).filter(function(i){return i&&i.grupoId===g.id}).length;
+      if(!n)achados.push({tipo:'grupo vazio',grave:false,
+        o:'Grupo de ingredientes "'+g.nome+'" está sem nenhum item',
+        faca:'Ele só ocupa espaço nos filtros de estoque. Mova itens para ele '+
+             'ou apague o grupo em Gestão de Estoque › Grupos.'});
+    });
     var prods=(DB.produtos||[]).filter(function(p){return p&&p.ativo!==false});
     (DB.categorias||[]).forEach(function(c){
       if(!c||c.ativo===false)return;

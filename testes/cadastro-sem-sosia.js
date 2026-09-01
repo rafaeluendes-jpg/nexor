@@ -109,6 +109,62 @@ let achados = conf({ DB: {
 t('o nome repetido é apontado',
   achados.some(x => x.tipo === 'nome repetido' && /Categoria/.test(x.o)),
   JSON.stringify(achados.map(x => x.tipo)));
+console.log('\n── Grupo de ingredientes repetido: o caso de 01/09/2026\n');
+
+/* ==========================================================
+   O filtro "Grupo" da Movimentação de Estoque mostrava 33 grupos, dez
+   deles repetidos — a mesma coisa escrita de dois jeitos:
+
+     Cascao / Cascão                              6 itens / 0
+     Zero Acucar / Zero Açucar                    9 itens / 0
+     Material de Escritorio / Material de Escritório  3 / 0
+     Gelato_Venda / Gelato Venda / Gelato_Vendas 13 / 0 / 0
+     Base de Gelato / Base Gelato                44 / 0
+     ... e mais quatro pares
+
+   Em TODOS os pares os itens estavam num só e o outro estava vazio.
+   Quem filtrava pelo vazio via estoque nenhum e concluía que o sistema
+   tinha perdido. `conferirCadastro` já procurava nome repetido em
+   categoria, produto, ingrediente e ficha — o grupo de ingredientes
+   faltava na lista, e por isso os dez passaram despercebidos.
+   ========================================================== */
+const gr = conf({ DB: {
+  categorias: [], produtos: [], insumos: [
+    { id: 'i1', nome: 'Casquinha', grupoId: 'g1', ativo: true }],
+  fichas: [],
+  gruposIng: [{ id: 'g1', nome: 'Cascao' }, { id: 'g2', nome: 'Cascão' }] } })();
+t('grupo de ingredientes repetido é apontado',
+  gr.some(x => x.tipo === 'nome repetido' && /Grupo de ingredientes/.test(x.o)),
+  JSON.stringify(gr.map(x => x.o)));
+t('o acento sozinho já conta como repetido',
+  gr.some(x => x.tipo === 'nome repetido' && /2x/.test(x.o)), JSON.stringify(gr.map(x => x.o)));
+t('e o grupo que ficou vazio é apontado',
+  gr.some(x => x.tipo === 'grupo vazio' && /Cascão/.test(x.o)),
+  JSON.stringify(gr.map(x => x.o)));
+t('o apontamento diz onde resolver',
+  gr.filter(x => x.tipo === 'grupo vazio').every(x => /Grupos/.test(x.faca)));
+
+const grOk = conf({ DB: { categorias: [], produtos: [], fichas: [],
+  insumos: [{ id: 'i1', nome: 'Casquinha', grupoId: 'g1', ativo: true }],
+  gruposIng: [{ id: 'g1', nome: 'Cascao' }] } })();
+t('grupo único e com item não vira apontamento',
+  !grOk.some(x => /Grupo de ingredientes/.test(x.o) || x.tipo === 'grupo vazio'),
+  JSON.stringify(grOk.map(x => x.o)));
+t('sem grupo nenhum cadastrado, a conferência não quebra',
+  Array.isArray(conf({ DB: { categorias: [], produtos: [], insumos: [], fichas: [] } })()));
+
+console.log('\n── E o sistema não deixa criar outro igual\n');
+
+t('salvar grupo compara ignorando maiúscula, espaço e acento',
+  /_cmp=function\(x\)\{ return String\(x\|\|''\)\.trim\(\)\.toLowerCase\(\)\s*\.normalize\('NFD'\)\.replace\(\/\[\\u0300-\\u036f\]\/g,''\); \}/.test(codigoNu));
+t('e barra o nome que já existe',
+  /Já existe o grupo "'\+_igual\.nome\+'"\. Use ele em vez de criar outro igual\./.test(fonte));
+t('editar o próprio grupo não é bloqueado por ele mesmo',
+  /x&&\(!g\|\|x\.id!==g\.id\)&&_cmp\(x\.nome\)===_cmp\(nome\)/.test(codigoNu));
+t('e o grupo só é gravado depois dessa conferência',
+  codigoNu.indexOf('var _igual=(DB.gruposIng||[]).find') <
+  codigoNu.indexOf("DB.gruposIng.push(alvo)"));
+
 t('a categoria vazia é apontada',
   achados.some(x => x.tipo === 'categoria vazia' && /Taxa de entrega/.test(x.o)));
 t('e cada apontamento diz o que fazer',
