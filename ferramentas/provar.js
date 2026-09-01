@@ -2482,6 +2482,100 @@ function servir() {
   t('e a tabela passa a mostrar só ele', rMV3.linhas === 3, rMV3.linhas);
   t('com o rodapé somando os 700 g', /^700 g/.test(rMV3.consumo), rMV3.consumo);
 
+  console.log('\n── 10t. Sabor de gelato não desconta a base de novo na venda\n');
+  /* ==========================================================
+     Pedido #735 da loja, 31/08/2026: um Gelato 500gr com sabor Belga e
+     Morango. Saiu, certo, GELATO VENDA 500 g pela receita do produto. E
+     saiu, ERRADO, BASE BELGA 0,2083 un e BASE MORANGO 0,2175 un.
+
+     A rotina das opções abria a RECEITA da ficha do sabor, como se o
+     gelato estivesse sendo produzido na hora da venda. A base já tinha
+     sido consumida na produção, quando virou gelato: descontar de novo
+     é contar duas vezes.
+
+     A regra da casa: toda base produzida vira gelato de venda, e a loja
+     só vende gelato de venda. O que separa um sabor de um extra é o
+     DESTINO da ficha — sabor tem (a produção já entregou no estoque),
+     borda de Nutella não tem (só existe no momento da venda).
+     ========================================================== */
+  const rSab = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    fecharModal();
+    baseMov();
+    DB.insumos = [
+      { id: 'in_base', nome: 'BASE BELGA', unidade: 'un', custo: 86,
+        controlaEstoque: true, codigo: '1' },
+      { id: 'in_gv', nome: 'GELATO VENDA', unidade: 'g', custo: 0.02,
+        controlaEstoque: true, codigo: '2' },
+      { id: 'in_nut', nome: 'Nutella', unidade: 'kg', custo: 60,
+        controlaEstoque: true, codigo: '3' },
+      { id: 'in_emb', nome: 'Embalagem 500g', unidade: 'un', custo: 1,
+        controlaEstoque: true, codigo: '4' }];
+    DB.fichas = [
+      /* o SABOR: consome base e entrega gelato de venda — TEM destino */
+      { id: 'fi_belga', nome: 'BELGA GELATO', unidade: 'kg', rendimento: 4.8,
+        destinoId: 'in_gv', destinoModo: 'igual', destinoFator: 1, estocavel: false,
+        itens: [{ insumoId: 'in_base', qtd: 1, unidade: 'un' }] },
+      /* o EXTRA: só existe no momento da venda — NÃO tem destino */
+      { id: 'fi_borda', nome: 'BORDA NUTELLA', unidade: 'kg', rendimento: 1,
+        estocavel: false, itens: [{ insumoId: 'in_nut', qtd: 0.05, unidade: 'kg' }] },
+      /* o PRODUTO vendido: sem destino, consome o gelato pronto */
+      { id: 'fi_500', nome: 'GELATO 500GR', unidade: 'un', rendimento: 1,
+        estocavel: false,
+        itens: [{ insumoId: 'in_gv', qtd: 500, unidade: 'g' },
+                { insumoId: 'in_emb', qtd: 1, unidade: 'un' }] }];
+    DB.produtos = [{ id: 'pr_500', nome: 'Gelato 500gr', preco: 68, ativo: true,
+      vinculaEstoque: true, fichaId: 'fi_500' }];
+    DB.movEst = []; DB.estoqueUn = []; DB.saldos = {};
+    ['in_base', 'in_gv', 'in_nut', 'in_emb'].forEach(function (id) {
+      var i = DB.insumos.find(function (x) { return x.id === id; });
+      ajustaEstoque(i, 1000, i.unidade, 1, lojaAtualId());
+    });
+    salvar(); espelharEstoque();
+    var antes = { base: (itemEstoque('in_base') || {}).estoqueAtual,
+      gv: (itemEstoque('in_gv') || {}).estoqueAtual,
+      nut: (itemEstoque('in_nut') || {}).estoqueAtual };
+    var ped = { id: 'pd_sab', numero: 735, fase: 'finalizado', total: 71,
+      sucursalId: lojaAtualId(), hora: '16:21', data: new Date().toISOString(),
+      itens: [{ produtoId: 'pr_500', nome: 'Gelato 500gr', qtd: 1, unitario: 71, total: 71,
+        opcoes: [{ nome: 'Belga', fichaId: 'fi_belga', preco: 0 },
+                 { nome: 'Borda de Nutella', fichaId: 'fi_borda', preco: 3 }] }],
+      pagamentos: [{ forma: 'fp_din', valor: 71 }] };
+    DB.pedidos = [ped];
+    baixarEstoqueVenda(ped);
+    salvar(); espelharEstoque();
+    var mv = (DB.movEst || []).find(function (m) { return m.origem === 'venda'; }) || {};
+    return { antes: antes,
+      base: (itemEstoque('in_base') || {}).estoqueAtual,
+      gv: (itemEstoque('in_gv') || {}).estoqueAtual,
+      nut: (itemEstoque('in_nut') || {}).estoqueAtual,
+      itens: (mv.linhas || []).map(function (l) { return l.nome; }) };
+  });
+  t('A BASE NÃO SAI MAIS NA VENDA', rSab.base === rSab.antes.base,
+    rSab.antes.base + ' → ' + rSab.base);
+  t('e nem aparece no lançamento do estoque',
+    rSab.itens.indexOf('BASE BELGA') < 0, JSON.stringify(rSab.itens));
+  t('O QUE SAI É O GELATO DE VENDA: 500 g', rSab.antes.gv - rSab.gv === 500,
+    rSab.antes.gv + ' → ' + rSab.gv);
+  t('O EXTRA CONTINUA SAINDO: a borda desconta a Nutella',
+    +(rSab.antes.nut - rSab.nut).toFixed(4) === 0.05,
+    rSab.antes.nut + ' → ' + rSab.nut);
+  t('e a embalagem também', rSab.itens.indexOf('Embalagem 500g') >= 0,
+    JSON.stringify(rSab.itens));
+
+  /* a ficha de sabor SEM destino continua abrindo a receita: quem não
+     produz antes precisa consumir na hora */
+  const rSab2 = await pg.evaluate(() => {
+    DB.fichas.find(function (f) { return f.id === 'fi_belga'; }).destinoId = '';
+    DB.movEst = [];
+    var antes = (itemEstoque('in_base') || {}).estoqueAtual;
+    baixarEstoqueVenda(DB.pedidos[0]);
+    salvar(); espelharEstoque();
+    return { antes: antes, base: (itemEstoque('in_base') || {}).estoqueAtual };
+  });
+  t('ficha de sabor SEM destino continua descontando — a regra olha o destino, não o nome',
+    rSab2.base < rSab2.antes, rSab2.antes + ' → ' + rSab2.base);
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

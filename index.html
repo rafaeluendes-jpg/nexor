@@ -12530,7 +12530,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V268.0.0';
+var VERSAO='V269.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -34297,6 +34297,38 @@ function baixarEstoqueVenda(ped){
       }
       var f=(DB.fichas||[]).find(function(x){return x.id===fid});
       if(!f)return;
+      /* ==========================================================
+         SABOR DE GELATO NAO SE DESCONTA DUAS VEZES
+
+         AQUI ESTAVA A BASE SAINDO NA VENDA.
+
+         Pedido #735, 31/08/2026: um Gelato 500gr com sabor Belga e
+         Morango. Saiu, certo, GELATO VENDA 500 g pela receita do
+         produto. E saiu, errado, BASE BELGA 0,2083 un e BASE MORANGO
+         0,2175 un — porque este trecho abria a RECEITA da ficha do
+         sabor, como se o gelato estivesse sendo produzido na hora da
+         venda.
+
+         A base ja tinha sido consumida na producao, quando virou
+         gelato. Descontar de novo na venda e contar duas vezes.
+
+         A regra da casa, dita pelo Rafael: toda base produzida vira
+         gelato de venda, e a loja SO vende gelato de venda. Nao se
+         desconta base nem sabor. Vale igual para a massa de cascao, que
+         vira cascao pronto na producao.
+
+         Como o sistema sabe a diferenca: a ficha que TEM DESTINO e algo
+         que a producao ja transformou e ja entregou no estoque como o
+         item de destino — o produto vendido consome esse item pela
+         propria receita dele. A ficha SEM destino e o extra que so
+         existe no momento da venda (borda de Nutella, cobertura,
+         Ovomaltine): essa continua abrindo a receita, que foi o motivo
+         de este trecho existir.
+
+         O caminho do PRODUTO, logo abaixo, ja respeitava o destino. Era
+         so este, o das opcoes, que nao respeitava.
+         ========================================================== */
+      if(destinoDaFicha(f))return;
       var porUn=(Number(f.unidadesVenda)||Number(f.rendimento)||1);
       var fator=(Number(o.qtd)||1)*q/porUn;
       (f.itens||[]).forEach(function(ci){
