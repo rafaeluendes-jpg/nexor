@@ -1007,10 +1007,15 @@ function volta(linhas,fn,atual,col){
     origem:x.origem||'',linhas:x.linhas||[]}},null,'movEst');
 
   var ct=await _p34;
+  /* o que sobe tem de descer: sem estas quatro, a contagem voltava da
+     nuvem sem a marca de retroativa, sem o vinculo do ajuste e sem os
+     custos corrigidos — e o envio seguinte regravava tudo em branco */
   DB.contagens=volta(ct,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     sucursalId:x.sucursal_id||'',loja:x.sucursal_id||'',
     perda:Number(x.perda)||0,ganho:Number(x.ganho)||0,resultado:Number(x.resultado)||0,
-    itens:x.itens||[]}},null,'contagens');
+    itens:x.itens||[],
+    retroativa:x.retroativa===true,lancadaEm:x.lancada_em||'',
+    movId:x.mov_ref||'',precos:x.precos||[]}},null,'contagens');
 
   var ae=await _p35;
   DB.areas=volta(ae,function(x){

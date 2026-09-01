@@ -7912,10 +7912,40 @@ var MAPA=[
     mandava a unidade, o download nao lia de volta. Depois da primeira
     sincronizacao todo movimento ficava sem dono na memoria.
     ========================================================== */
+ /* ==========================================================
+    A CONTAGEM SUBIA PELA METADE
+
+    O Rafael, em 01/09/2026: "isso nao e pra ficar so no computador de
+    quem fez, isso e pra subir na nuvem. Tudo que foi feito e pra subir
+    na nuvem."
+
+    Subiam a data, a hora, a unidade, a sobra, a perda, o resultado e o
+    detalhe item a item. Ficavam de fora QUATRO coisas, porque a tabela
+    nao tinha coluna para elas:
+
+      retroativa + lancadaEm — a marca de "contei hoje e lancei como
+        ontem", que e exatamente o jeito que a loja trabalha: a contagem
+        e o fecho do dia anterior, e o que foi vendido ou usado hoje
+        desconta em cima dela. Sem a marca, em qualquer outro aparelho a
+        contagem parecia ter sido feita no dia em que foi digitada.
+      movId  — o vinculo com o movimento que fez o ajuste.
+      precos — quais custos a contagem corrigiu, de quanto para quanto.
+
+    O dinheiro nunca se perdeu; o que se perdia era a explicacao dele.
+    As quatro colunas foram acrescentadas ao banco (nenhuma linha
+    existente foi tocada) e agora sobem e descem junto.
+
+    `mov_ref` guarda a REFERENCIA LOCAL do movimento, nao um vinculo de
+    chave: assim ela sobe mesmo que o movimento ainda nao tenha chegado
+    la, e continua servindo para achar o movimento quando ele chegar.
+    Vinculo de chave nao resolvido seguraria a contagem inteira na fila.
+    ========================================================== */
  {col:'contagens',   tab:'contagens_estoque',
   campos:function(x){return {data:x.data||null,hora:x.hora||null,
     sucursal_id:x.sucursalId||x.loja||null,
-    perda:n(x.perda),ganho:n(x.ganho),resultado:n(x.resultado),itens:x.itens||[]}}},
+    perda:n(x.perda),ganho:n(x.ganho),resultado:n(x.resultado),itens:x.itens||[],
+    retroativa:x.retroativa===true,lancada_em:dataParaNuvem(x.lancadaEm),
+    mov_ref:x.movId||null,precos:x.precos||[]}}},
 
  {col:'categorias', espelha:true,  tab:'categorias',
   campos:function(x,i){return {nome:x.nome,impressao:x.impressao||null,imposto:x.imposto||null,
@@ -10814,10 +10844,15 @@ function volta(linhas,fn,atual,col){
     origem:x.origem||'',linhas:x.linhas||[]}},null,'movEst');
 
   var ct=await _p34;
+  /* o que sobe tem de descer: sem estas quatro, a contagem voltava da
+     nuvem sem a marca de retroativa, sem o vinculo do ajuste e sem os
+     custos corrigidos — e o envio seguinte regravava tudo em branco */
   DB.contagens=volta(ct,function(x){return {id:x.ref_local||x.id,data:x.data,hora:x.hora,
     sucursalId:x.sucursal_id||'',loja:x.sucursal_id||'',
     perda:Number(x.perda)||0,ganho:Number(x.ganho)||0,resultado:Number(x.resultado)||0,
-    itens:x.itens||[]}},null,'contagens');
+    itens:x.itens||[],
+    retroativa:x.retroativa===true,lancadaEm:x.lancada_em||'',
+    movId:x.mov_ref||'',precos:x.precos||[]}},null,'contagens');
 
   var ae=await _p35;
   DB.areas=volta(ae,function(x){
@@ -12760,7 +12795,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V276.0.0';
+var VERSAO='V277.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

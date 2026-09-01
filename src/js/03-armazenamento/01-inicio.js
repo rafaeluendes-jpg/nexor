@@ -1279,10 +1279,40 @@ var MAPA=[
     mandava a unidade, o download nao lia de volta. Depois da primeira
     sincronizacao todo movimento ficava sem dono na memoria.
     ========================================================== */
+ /* ==========================================================
+    A CONTAGEM SUBIA PELA METADE
+
+    O Rafael, em 01/09/2026: "isso nao e pra ficar so no computador de
+    quem fez, isso e pra subir na nuvem. Tudo que foi feito e pra subir
+    na nuvem."
+
+    Subiam a data, a hora, a unidade, a sobra, a perda, o resultado e o
+    detalhe item a item. Ficavam de fora QUATRO coisas, porque a tabela
+    nao tinha coluna para elas:
+
+      retroativa + lancadaEm — a marca de "contei hoje e lancei como
+        ontem", que e exatamente o jeito que a loja trabalha: a contagem
+        e o fecho do dia anterior, e o que foi vendido ou usado hoje
+        desconta em cima dela. Sem a marca, em qualquer outro aparelho a
+        contagem parecia ter sido feita no dia em que foi digitada.
+      movId  — o vinculo com o movimento que fez o ajuste.
+      precos — quais custos a contagem corrigiu, de quanto para quanto.
+
+    O dinheiro nunca se perdeu; o que se perdia era a explicacao dele.
+    As quatro colunas foram acrescentadas ao banco (nenhuma linha
+    existente foi tocada) e agora sobem e descem junto.
+
+    `mov_ref` guarda a REFERENCIA LOCAL do movimento, nao um vinculo de
+    chave: assim ela sobe mesmo que o movimento ainda nao tenha chegado
+    la, e continua servindo para achar o movimento quando ele chegar.
+    Vinculo de chave nao resolvido seguraria a contagem inteira na fila.
+    ========================================================== */
  {col:'contagens',   tab:'contagens_estoque',
   campos:function(x){return {data:x.data||null,hora:x.hora||null,
     sucursal_id:x.sucursalId||x.loja||null,
-    perda:n(x.perda),ganho:n(x.ganho),resultado:n(x.resultado),itens:x.itens||[]}}},
+    perda:n(x.perda),ganho:n(x.ganho),resultado:n(x.resultado),itens:x.itens||[],
+    retroativa:x.retroativa===true,lancada_em:dataParaNuvem(x.lancadaEm),
+    mov_ref:x.movId||null,precos:x.precos||[]}}},
 
  {col:'categorias', espelha:true,  tab:'categorias',
   campos:function(x,i){return {nome:x.nome,impressao:x.impressao||null,imposto:x.imposto||null,
