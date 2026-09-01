@@ -245,6 +245,7 @@ function guardarIds(col,linhas){
 function _ANT(col){
   try{ var a=DB[col]; return Array.isArray(a)?a:null; }catch(e){ return null; }
 }
+var _FILHOS_MAPA=null;
 function volta(linhas,fn,atual,col){
     var _antesVolta=Array.isArray(atual)?atual.slice():null;
     if(col)guardarIds(col,linhas);
@@ -341,9 +342,50 @@ function volta(linhas,fn,atual,col){
          Aqui os filhos que so existem no aparelho sao devolvidos ao
          registro que veio da nuvem. O resto continua vindo da nuvem.
          ========================================================== */
-      var _FILHOS={fichas:'itens', grupos:'opcoes', contas:'movs'};
-      var campoF=_FILHOS[col];
-      if(campoF){
+      /* ==========================================================
+         A PROTECAO VALIA PARA TRES LISTAS DE OITO
+
+         Este mapa era escrito a mao: {fichas:'itens', grupos:'opcoes',
+         contas:'movs'} — e `contas` nem tem filho no MAPA, era entrada
+         morta. Ficavam DE FORA, sem protecao nenhuma:
+
+           caixas   -> movimentos   (sangria e suprimento)
+           pedidos  -> itens, pagamentos
+           catfin   -> itens
+           pedidosBase -> itens
+           entregadores -> taxas
+           areas    -> zonas
+
+         O caso que apareceu, 31/08/2026, Santa Fe do Sul: sangria de
+         R$ 85,00 as 23:24, cupom impresso, dinheiro fora da gaveta. O
+         movimento entrou em `cx.movimentos` aqui e ainda nao tinha
+         subido. Veio um download, o caixa voltou da nuvem sem
+         movimento nenhum, e a lista local foi substituida pela de la.
+         No fechamento, meia hora depois: "Sangrias - R$ 0,00". O
+         dinheiro saiu e o sistema esqueceu.
+
+         Um mapa escrito a mao envelhece: quem criou o filho do caixa
+         nao sabia que precisava vir aqui. Agora ele e montado a partir
+         do proprio MAPA — filho novo nasce protegido, sem ninguem
+         lembrar de nada. E cada pai pode ter mais de uma lista, que e o
+         caso do pedido (itens E pagamentos).
+         ========================================================== */
+      if(!_FILHOS_MAPA){
+        _FILHOS_MAPA={};
+        try{
+          (MAPA||[]).forEach(function(E9){
+            (E9.filhos||[]).forEach(function(F9){
+              if(!F9||!F9.lista)return;
+              _FILHOS_MAPA[E9.col]=_FILHOS_MAPA[E9.col]||[];
+              if(_FILHOS_MAPA[E9.col].indexOf(F9.lista)<0)
+                _FILHOS_MAPA[E9.col].push(F9.lista);
+            });
+          });
+        }catch(e){ _quieto(e,'_FILHOS_MAPA'); }
+      }
+      var listasF=_FILHOS_MAPA[col]||[];
+      for(var _lf=0;_lf<listasF.length;_lf++){
+        var campoF=listasF[_lf];
         var antesPorId={};
         atual.forEach(function(x){ if(x&&x.id)antesPorId[x.id]=x; });
         var devolvidos=0;
@@ -373,8 +415,8 @@ function volta(linhas,fn,atual,col){
           }
         });
         if(devolvidos)
-          logNuvem(col+': '+devolvidos+' item(ns) ainda não enviados foram '+
-            'mantidos na lista');
+          logNuvem(col+' · '+campoF+': '+devolvidos+' item(ns) ainda não enviados '+
+            'foram mantidos na lista');
       }
     }
     /* o download substitui a coleção inteira: se algo encolheu aqui, foi a

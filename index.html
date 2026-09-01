@@ -8051,7 +8051,25 @@ var MAPA=[
        dizer para onde o dinheiro foi, e a contrapartida ficava so no
        aparelho que fez a retirada. Campo que existe de um lado e nao do
        outro — o mesmo padrao de sempre. */
-    campos:function(o){return {tipo:o.tipo,valor:n(o.valor),motivo:o.motivo||null,
+    /* ==========================================================
+       O MOTIVO DA SANGRIA NAO SUBIA
+
+       A tela guarda o motivo em DOIS campos: `motivoNome` e o rotulo
+       escolhido na lista ("Pagamento autorizado", "Deposito bancario"),
+       e `motivo` e a descricao livre, que so existe quando a pessoa
+       escolhe "outro". O cupom impresso ja junta os dois.
+
+       Esta linha subia so a descricao livre. Como quase toda sangria e
+       feita pela lista, subia NULO: conferido no banco, a sangria de
+       R$ 850,00 de 31/08 esta la com motivo em branco. Quem abrisse o
+       relatorio em outro aparelho via a retirada sem saber por que.
+
+       Sobe o mesmo texto que sai no papel. A volta da nuvem devolve
+       isso em `motivo`, e o cupom continua imprimindo igual — sem
+       repetir, porque `motivoNome` nao existe no registro baixado.
+       ========================================================== */
+    campos:function(o){return {tipo:o.tipo,valor:n(o.valor),
+      motivo:[o.motivoNome,o.motivo].filter(Boolean).join(' — ')||null,
       responsavel:o.responsavel||null,responsavel_id:o.responsavelId||null,
       destino_conta_id:fk('contas',o.destinoContaId),destino_nome:o.destinoNome||null,
       lanc_ref:o.lancRef||null,hora:o.hora||null,
@@ -9524,11 +9542,34 @@ async function sincronizar(){
         var _invalido = (eT&&eT.status===400) &&
           !/timeout|network|fetch/i.test((eT&&eT.message)||'');
         if(_invalido){
+          /* ==========================================================
+             DADO RECUSADO NAO PODE SER DECLARADO ENVIADO
+
+             Aqui estava `DB._hash[E2.col]=hNovo`. A intencao era nao
+             insistir num registro que o banco recusa — e nao insistir
+             esta certo. Mas gravar a impressao e dizer, para o resto do
+             sistema, "esta linha JA ESTA na nuvem". E ai:
+
+               `temMudancaNaoEnviada` responde NAO;
+               o download seguinte substitui a linha pela versao da nuvem;
+               o registro recusado DESAPARECE do aparelho.
+
+             Era uma segunda porta para o mesmo prejuizo da sangria: o
+             que nao subiu some daqui tambem, e ninguem fica sabendo.
+
+             `hAnt` sao as impressoes do ultimo envio CONFIRMADO. Mantendo
+             elas, a linha recusada continua marcada como "tem coisa nao
+             enviada" — o download nao passa por cima dela, e ela sobe
+             sozinha assim que a causa da recusa for corrigida. Que e
+             exatamente o que se quer: o dado espera a correcao, no lugar
+             de ser apagado por causa dela.
+             ========================================================== */
           registrarFalha('dado',etapa,(eT&&eT.message)||'dado recusado',
-            {situacao:'precisa de correção; não será tentado de novo',codigo:400});
+            {situacao:'guardado no aparelho; sobe sozinho quando a causa for corrigida',
+             codigo:400});
           logNuvem('dado recusado em '+etapa+': '+((eT&&eT.message)||'')+
-                   ' — registrado no diagnóstico',true);
-          DB._hash[E2.col]=hNovo;
+                   ' — guardado no aparelho e registrado no diagnóstico',true);
+          DB._hash[E2.col]=hAnt;
           continue;
         }
         /* daqui para baixo e falha temporaria de verdade: mantem na fila */
@@ -9977,6 +10018,7 @@ function guardarIds(col,linhas){
 function _ANT(col){
   try{ var a=DB[col]; return Array.isArray(a)?a:null; }catch(e){ return null; }
 }
+var _FILHOS_MAPA=null;
 function volta(linhas,fn,atual,col){
     var _antesVolta=Array.isArray(atual)?atual.slice():null;
     if(col)guardarIds(col,linhas);
@@ -10073,9 +10115,50 @@ function volta(linhas,fn,atual,col){
          Aqui os filhos que so existem no aparelho sao devolvidos ao
          registro que veio da nuvem. O resto continua vindo da nuvem.
          ========================================================== */
-      var _FILHOS={fichas:'itens', grupos:'opcoes', contas:'movs'};
-      var campoF=_FILHOS[col];
-      if(campoF){
+      /* ==========================================================
+         A PROTECAO VALIA PARA TRES LISTAS DE OITO
+
+         Este mapa era escrito a mao: {fichas:'itens', grupos:'opcoes',
+         contas:'movs'} — e `contas` nem tem filho no MAPA, era entrada
+         morta. Ficavam DE FORA, sem protecao nenhuma:
+
+           caixas   -> movimentos   (sangria e suprimento)
+           pedidos  -> itens, pagamentos
+           catfin   -> itens
+           pedidosBase -> itens
+           entregadores -> taxas
+           areas    -> zonas
+
+         O caso que apareceu, 31/08/2026, Santa Fe do Sul: sangria de
+         R$ 85,00 as 23:24, cupom impresso, dinheiro fora da gaveta. O
+         movimento entrou em `cx.movimentos` aqui e ainda nao tinha
+         subido. Veio um download, o caixa voltou da nuvem sem
+         movimento nenhum, e a lista local foi substituida pela de la.
+         No fechamento, meia hora depois: "Sangrias - R$ 0,00". O
+         dinheiro saiu e o sistema esqueceu.
+
+         Um mapa escrito a mao envelhece: quem criou o filho do caixa
+         nao sabia que precisava vir aqui. Agora ele e montado a partir
+         do proprio MAPA — filho novo nasce protegido, sem ninguem
+         lembrar de nada. E cada pai pode ter mais de uma lista, que e o
+         caso do pedido (itens E pagamentos).
+         ========================================================== */
+      if(!_FILHOS_MAPA){
+        _FILHOS_MAPA={};
+        try{
+          (MAPA||[]).forEach(function(E9){
+            (E9.filhos||[]).forEach(function(F9){
+              if(!F9||!F9.lista)return;
+              _FILHOS_MAPA[E9.col]=_FILHOS_MAPA[E9.col]||[];
+              if(_FILHOS_MAPA[E9.col].indexOf(F9.lista)<0)
+                _FILHOS_MAPA[E9.col].push(F9.lista);
+            });
+          });
+        }catch(e){ _quieto(e,'_FILHOS_MAPA'); }
+      }
+      var listasF=_FILHOS_MAPA[col]||[];
+      for(var _lf=0;_lf<listasF.length;_lf++){
+        var campoF=listasF[_lf];
         var antesPorId={};
         atual.forEach(function(x){ if(x&&x.id)antesPorId[x.id]=x; });
         var devolvidos=0;
@@ -10105,8 +10188,8 @@ function volta(linhas,fn,atual,col){
           }
         });
         if(devolvidos)
-          logNuvem(col+': '+devolvidos+' item(ns) ainda não enviados foram '+
-            'mantidos na lista');
+          logNuvem(col+' · '+campoF+': '+devolvidos+' item(ns) ainda não enviados '+
+            'foram mantidos na lista');
       }
     }
     /* o download substitui a coleção inteira: se algo encolheu aqui, foi a
@@ -12609,7 +12692,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V273.0.0';
+var VERSAO='V274.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

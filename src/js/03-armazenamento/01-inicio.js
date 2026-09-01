@@ -1418,7 +1418,25 @@ var MAPA=[
        dizer para onde o dinheiro foi, e a contrapartida ficava so no
        aparelho que fez a retirada. Campo que existe de um lado e nao do
        outro — o mesmo padrao de sempre. */
-    campos:function(o){return {tipo:o.tipo,valor:n(o.valor),motivo:o.motivo||null,
+    /* ==========================================================
+       O MOTIVO DA SANGRIA NAO SUBIA
+
+       A tela guarda o motivo em DOIS campos: `motivoNome` e o rotulo
+       escolhido na lista ("Pagamento autorizado", "Deposito bancario"),
+       e `motivo` e a descricao livre, que so existe quando a pessoa
+       escolhe "outro". O cupom impresso ja junta os dois.
+
+       Esta linha subia so a descricao livre. Como quase toda sangria e
+       feita pela lista, subia NULO: conferido no banco, a sangria de
+       R$ 850,00 de 31/08 esta la com motivo em branco. Quem abrisse o
+       relatorio em outro aparelho via a retirada sem saber por que.
+
+       Sobe o mesmo texto que sai no papel. A volta da nuvem devolve
+       isso em `motivo`, e o cupom continua imprimindo igual — sem
+       repetir, porque `motivoNome` nao existe no registro baixado.
+       ========================================================== */
+    campos:function(o){return {tipo:o.tipo,valor:n(o.valor),
+      motivo:[o.motivoNome,o.motivo].filter(Boolean).join(' — ')||null,
       responsavel:o.responsavel||null,responsavel_id:o.responsavelId||null,
       destino_conta_id:fk('contas',o.destinoContaId),destino_nome:o.destinoNome||null,
       lanc_ref:o.lancRef||null,hora:o.hora||null,
@@ -2891,11 +2909,34 @@ async function sincronizar(){
         var _invalido = (eT&&eT.status===400) &&
           !/timeout|network|fetch/i.test((eT&&eT.message)||'');
         if(_invalido){
+          /* ==========================================================
+             DADO RECUSADO NAO PODE SER DECLARADO ENVIADO
+
+             Aqui estava `DB._hash[E2.col]=hNovo`. A intencao era nao
+             insistir num registro que o banco recusa — e nao insistir
+             esta certo. Mas gravar a impressao e dizer, para o resto do
+             sistema, "esta linha JA ESTA na nuvem". E ai:
+
+               `temMudancaNaoEnviada` responde NAO;
+               o download seguinte substitui a linha pela versao da nuvem;
+               o registro recusado DESAPARECE do aparelho.
+
+             Era uma segunda porta para o mesmo prejuizo da sangria: o
+             que nao subiu some daqui tambem, e ninguem fica sabendo.
+
+             `hAnt` sao as impressoes do ultimo envio CONFIRMADO. Mantendo
+             elas, a linha recusada continua marcada como "tem coisa nao
+             enviada" — o download nao passa por cima dela, e ela sobe
+             sozinha assim que a causa da recusa for corrigida. Que e
+             exatamente o que se quer: o dado espera a correcao, no lugar
+             de ser apagado por causa dela.
+             ========================================================== */
           registrarFalha('dado',etapa,(eT&&eT.message)||'dado recusado',
-            {situacao:'precisa de correção; não será tentado de novo',codigo:400});
+            {situacao:'guardado no aparelho; sobe sozinho quando a causa for corrigida',
+             codigo:400});
           logNuvem('dado recusado em '+etapa+': '+((eT&&eT.message)||'')+
-                   ' — registrado no diagnóstico',true);
-          DB._hash[E2.col]=hNovo;
+                   ' — guardado no aparelho e registrado no diagnóstico',true);
+          DB._hash[E2.col]=hAnt;
           continue;
         }
         /* daqui para baixo e falha temporaria de verdade: mantem na fila */
