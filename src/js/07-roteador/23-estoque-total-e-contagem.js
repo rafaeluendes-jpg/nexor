@@ -470,10 +470,27 @@ function mudarDataContagem(v){
   if(CT2.data>hojeISO()){CT2.data=hojeISO();toast('A contagem não pode ser de um dia que ainda não chegou.');}
   telaContagem();
 }
-function contagemDeOntem(){
-  var d=new Date();d.setDate(d.getDate()-1);
-  mudarDataContagem(d.toISOString().slice(0,10));
+/* ==========================================================
+   ONTEM E O DIA ANTERIOR DA LOJA, NAO O DE GREENWICH
+
+   A primeira versao deste botao fazia `new Date()`, tirava um dia e
+   cortava o `toISOString()`. Entre 21h e a meia-noite em Santa Fe do
+   Sul ja e o dia seguinte em Greenwich — entao "ontem" devolvia HOJE,
+   e a contagem que a loja faz depois de fechar (o caixa fecha 22:30)
+   nasceria com a data errada, calada.
+
+   A rolagem do relogio pegou isso na bateria, as 21h. Agora o dia sai
+   do proprio `hojeISO()`, que ja e o dia da loja, e a subtracao e feita
+   ao meio-dia — hora que nenhum fuso empurra para o dia vizinho.
+   ========================================================== */
+function diaAnteriorDaLoja(){
+  var h=hojeISO();
+  var d=new Date(h+'T12:00:00');
+  d.setDate(d.getDate()-1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+
+         String(d.getDate()).padStart(2,'0');
 }
+function contagemDeOntem(){ mudarDataContagem(diaAnteriorDaLoja()); }
 function verDivergencias(id,tipo){
   var c=(DB.contagens||[]).find(function(x){return x.id===id});
   if(!c)return;

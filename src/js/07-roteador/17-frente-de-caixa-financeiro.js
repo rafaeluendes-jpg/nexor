@@ -33,7 +33,24 @@ function telaFrenteCaixa(){
   var totV=fechados.reduce(function(a,c){return a+(Number(c.vendas)||0)},0);
   var totDif=fechados.reduce(function(a,c){return a+((Number(c.contado)||0)-(Number(c.esperado)||0))},0);
 
-  $('content').innerHTML='<div class="finWrap">'+
+  /* ==========================================================
+     A LISTA DE TURNOS FICAVA NUMA JANELINHA COM ROLAGEM PROPRIA
+
+     `.finWrap` e uma coluna flexivel de altura fixa (o que sobra da
+     tela). O painel da lista, como item flexivel, ENCOLHE quando nao
+     cabe — e o `overflow:auto` do corpo dele vira uma barra de rolagem
+     minuscula de dois dedos, dentro da pagina, com o resto da tela
+     vazio embaixo. Com o caixa aberto e o filtro ocupando o topo,
+     sobravam duas linhas e meia de turno visiveis.
+
+     `fcTela` diz que nesta tela o painel NAO encolhe: ele cresce com o
+     conteudo e quem rola e a pagina inteira. E ele vai de borda a
+     borda, que e o espaco que a tabela precisa para as sete colunas.
+
+     A marca fica nesta tela. As outras telas que usam `.finWrap` e
+     `.pnl2` continuam exatamente como estao.
+     ========================================================== */
+  $('content').innerHTML='<div class="finWrap fcTela">'+
   '<div class="finTop"><div><h1>Frente de Caixa</h1>'+
   '<p>Aberturas e fechamentos do PDV, com a conferência de cada turno.</p></div>'+
   '<div class="finActs"><button class="btnP2" onclick="abrir(\'pdv\',\'pdv\')">'+sv('pos',14)+' Ir ao PDV</button></div></div>'+

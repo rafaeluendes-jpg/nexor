@@ -120,6 +120,35 @@ t('compra que chegou depois da data é desfeita no saldo daquele dia',
 
 t('item nulo não quebra a folha', M.sistemaNaContagem(null) === 0);
 
+console.log('\n── "Ontem" é o dia anterior DA LOJA\n');
+
+/* ==========================================================
+   A primeira versão do botão fazia `new Date()`, tirava um dia e
+   cortava o `toISOString()`. Entre 21h e a meia-noite em Santa Fé do
+   Sul já é o dia seguinte em Greenwich — então "ontem" devolvia HOJE, e
+   a contagem que a loja faz depois de fechar (o caixa fecha 22:30)
+   nasceria com a data errada, calada. A rolagem do relógio pegou isso
+   na bateria, às 21h.
+   ========================================================== */
+const fOntem = new Function('ctx', `
+  var hojeISO=ctx.hojeISO;
+  ${corpoDaFuncao('diaAnteriorDaLoja', fonte)}
+  return {diaAnteriorDaLoja:diaAnteriorDaLoja};
+`);
+t('ontem de 01/09 é 31/08',
+  fOntem({ hojeISO: () => '2026-09-01' }).diaAnteriorDaLoja() === '2026-08-31',
+  fOntem({ hojeISO: () => '2026-09-01' }).diaAnteriorDaLoja());
+t('ontem de 01/01 é 31/12 do ano anterior',
+  fOntem({ hojeISO: () => '2026-01-01' }).diaAnteriorDaLoja() === '2025-12-31');
+t('ontem de 01/03 num ano bissexto é 29/02',
+  fOntem({ hojeISO: () => '2028-03-01' }).diaAnteriorDaLoja() === '2028-02-29');
+t('e nunca devolve o próprio dia de hoje',
+  fOntem({ hojeISO: () => '2026-09-01' }).diaAnteriorDaLoja() !== '2026-09-01');
+t('o botão usa o dia da loja, não o do meridiano',
+  /function contagemDeOntem\(\)\{ mudarDataContagem\(diaAnteriorDaLoja\(\)\); \}/.test(nu));
+t('e não sobrou toISOString no cálculo do dia anterior',
+  !/setDate\(d\.getDate\(\)-1\);\s*mudarDataContagem\(d\.toISOString/.test(nu));
+
 console.log('\n── Uma conta só, num lugar só\n');
 
 t('a folha compara pela porta única', /var sis=sistemaNaContagem\(i\);/.test(nu));

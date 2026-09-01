@@ -3460,6 +3460,36 @@ tbody td small{font-size:10.5px}
 .fpInfo b{font-size:13px}
 
 /* frente de caixa */
+/* ==========================================================
+   A LISTA DE TURNOS ROLA COM A PAGINA, NAO DENTRO DE SI
+
+   `.finWrap` e uma coluna flexivel com altura fixa. Um item flexivel
+   encolhe antes de estourar o pai — entao o painel da lista encolhia
+   ate caber no que sobrava, e o `overflow:auto` do corpo dele virava
+   aquela barra de rolagem de dois dedos, com a tela vazia embaixo.
+
+   Aqui o painel deixa de encolher (`flex:none`) e o corpo dele deixa de
+   rolar: quem rola e a pagina. E ele vai de borda a borda — os cartoes
+   de cima ficam onde estavam, com a margem de sempre.
+
+   Tudo preso a `.fcTela`, que so a Frente de Caixa usa. As outras telas
+   com `.finWrap` e `.pnl2` nao mudam.
+   ========================================================== */
+/* o respiro do topo sai do padding e vira margem do titulo: com padding,
+   a linha de titulo da tabela grudava 18 px abaixo da borda de cima e
+   sobrava uma fresta onde a linha anterior aparecia por cima dela */
+.finWrap.fcTela{padding-left:0;padding-right:0;padding-top:0}
+.finWrap.fcTela>.finTop{margin-top:18px}
+.finWrap.fcTela>.finTop,
+.finWrap.fcTela>.fcAberto,
+.finWrap.fcTela>.fcFechado,
+.finWrap.fcTela>.filtroCard{margin-left:20px;margin-right:20px}
+/* `overflow:hidden` no painel faria a linha de titulo da tabela grudar
+   NELE, e ela sumiria junto quando a pagina rolasse. Solto, o cabecalho
+   gruda na pagina e continua a vista com os doze turnos passando. */
+.finWrap.fcTela>.pnl2{flex:none;border-left:0;border-right:0;border-radius:0;overflow:visible}
+.finWrap.fcTela>.pnl2>.pnl2B{overflow:visible;padding-left:14px;padding-right:14px}
+.finWrap.fcTela>.pnl2>.pnl2H{padding-left:18px;padding-right:18px}
 .fcAberto{background:#fff;border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc);padding:13px 15px;gap:13px}
 .fcIco{width:40px;height:40px;border-radius:6px;background:var(--acc-soft);color:var(--acc-d)}
 .fcTag{background:var(--acc-soft);color:var(--acc-d);font-size:9px}
@@ -12487,7 +12517,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V263.0.0';
+var VERSAO='V264.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -27841,7 +27871,24 @@ function telaFrenteCaixa(){
   var totV=fechados.reduce(function(a,c){return a+(Number(c.vendas)||0)},0);
   var totDif=fechados.reduce(function(a,c){return a+((Number(c.contado)||0)-(Number(c.esperado)||0))},0);
 
-  $('content').innerHTML='<div class="finWrap">'+
+  /* ==========================================================
+     A LISTA DE TURNOS FICAVA NUMA JANELINHA COM ROLAGEM PROPRIA
+
+     `.finWrap` e uma coluna flexivel de altura fixa (o que sobra da
+     tela). O painel da lista, como item flexivel, ENCOLHE quando nao
+     cabe — e o `overflow:auto` do corpo dele vira uma barra de rolagem
+     minuscula de dois dedos, dentro da pagina, com o resto da tela
+     vazio embaixo. Com o caixa aberto e o filtro ocupando o topo,
+     sobravam duas linhas e meia de turno visiveis.
+
+     `fcTela` diz que nesta tela o painel NAO encolhe: ele cresce com o
+     conteudo e quem rola e a pagina inteira. E ele vai de borda a
+     borda, que e o espaco que a tabela precisa para as sete colunas.
+
+     A marca fica nesta tela. As outras telas que usam `.finWrap` e
+     `.pnl2` continuam exatamente como estao.
+     ========================================================== */
+  $('content').innerHTML='<div class="finWrap fcTela">'+
   '<div class="finTop"><div><h1>Frente de Caixa</h1>'+
   '<p>Aberturas e fechamentos do PDV, com a conferência de cada turno.</p></div>'+
   '<div class="finActs"><button class="btnP2" onclick="abrir(\'pdv\',\'pdv\')">'+sv('pos',14)+' Ir ao PDV</button></div></div>'+
@@ -34650,10 +34697,27 @@ function mudarDataContagem(v){
   if(CT2.data>hojeISO()){CT2.data=hojeISO();toast('A contagem não pode ser de um dia que ainda não chegou.');}
   telaContagem();
 }
-function contagemDeOntem(){
-  var d=new Date();d.setDate(d.getDate()-1);
-  mudarDataContagem(d.toISOString().slice(0,10));
+/* ==========================================================
+   ONTEM E O DIA ANTERIOR DA LOJA, NAO O DE GREENWICH
+
+   A primeira versao deste botao fazia `new Date()`, tirava um dia e
+   cortava o `toISOString()`. Entre 21h e a meia-noite em Santa Fe do
+   Sul ja e o dia seguinte em Greenwich — entao "ontem" devolvia HOJE,
+   e a contagem que a loja faz depois de fechar (o caixa fecha 22:30)
+   nasceria com a data errada, calada.
+
+   A rolagem do relogio pegou isso na bateria, as 21h. Agora o dia sai
+   do proprio `hojeISO()`, que ja e o dia da loja, e a subtracao e feita
+   ao meio-dia — hora que nenhum fuso empurra para o dia vizinho.
+   ========================================================== */
+function diaAnteriorDaLoja(){
+  var h=hojeISO();
+  var d=new Date(h+'T12:00:00');
+  d.setDate(d.getDate()-1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+
+         String(d.getDate()).padStart(2,'0');
 }
+function contagemDeOntem(){ mudarDataContagem(diaAnteriorDaLoja()); }
 function verDivergencias(id,tipo){
   var c=(DB.contagens||[]).find(function(x){return x.id===id});
   if(!c)return;

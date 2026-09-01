@@ -944,6 +944,36 @@ tbody td small{font-size:10.5px}
 .fpInfo b{font-size:13px}
 
 /* frente de caixa */
+/* ==========================================================
+   A LISTA DE TURNOS ROLA COM A PAGINA, NAO DENTRO DE SI
+
+   `.finWrap` e uma coluna flexivel com altura fixa. Um item flexivel
+   encolhe antes de estourar o pai — entao o painel da lista encolhia
+   ate caber no que sobrava, e o `overflow:auto` do corpo dele virava
+   aquela barra de rolagem de dois dedos, com a tela vazia embaixo.
+
+   Aqui o painel deixa de encolher (`flex:none`) e o corpo dele deixa de
+   rolar: quem rola e a pagina. E ele vai de borda a borda — os cartoes
+   de cima ficam onde estavam, com a margem de sempre.
+
+   Tudo preso a `.fcTela`, que so a Frente de Caixa usa. As outras telas
+   com `.finWrap` e `.pnl2` nao mudam.
+   ========================================================== */
+/* o respiro do topo sai do padding e vira margem do titulo: com padding,
+   a linha de titulo da tabela grudava 18 px abaixo da borda de cima e
+   sobrava uma fresta onde a linha anterior aparecia por cima dela */
+.finWrap.fcTela{padding-left:0;padding-right:0;padding-top:0}
+.finWrap.fcTela>.finTop{margin-top:18px}
+.finWrap.fcTela>.finTop,
+.finWrap.fcTela>.fcAberto,
+.finWrap.fcTela>.fcFechado,
+.finWrap.fcTela>.filtroCard{margin-left:20px;margin-right:20px}
+/* `overflow:hidden` no painel faria a linha de titulo da tabela grudar
+   NELE, e ela sumiria junto quando a pagina rolasse. Solto, o cabecalho
+   gruda na pagina e continua a vista com os doze turnos passando. */
+.finWrap.fcTela>.pnl2{flex:none;border-left:0;border-right:0;border-radius:0;overflow:visible}
+.finWrap.fcTela>.pnl2>.pnl2B{overflow:visible;padding-left:14px;padding-right:14px}
+.finWrap.fcTela>.pnl2>.pnl2H{padding-left:18px;padding-right:18px}
 .fcAberto{background:#fff;border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc);padding:13px 15px;gap:13px}
 .fcIco{width:40px;height:40px;border-radius:6px;background:var(--acc-soft);color:var(--acc-d)}
 .fcTag{background:var(--acc-soft);color:var(--acc-d);font-size:9px}

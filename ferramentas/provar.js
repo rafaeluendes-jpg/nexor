@@ -2090,8 +2090,9 @@ function servir() {
     window.pergunta = async () => true;
     window.confirmar = async () => true;
     var hoje = hojeISO();
-    var d = new Date(); d.setDate(d.getDate() - 1);
-    var ontem = d.toISOString().slice(0, 10);
+    /* ontem é o dia anterior DA LOJA — a prova não pode cair no mesmo
+       defeito que ela existe para pegar */
+    var ontem = diaAnteriorDaLoja();
 
     baseMov();
     DB.contagens = []; DB.movEst = []; DB.pedidos = []; DB.caixas = [];
@@ -2102,8 +2103,10 @@ function servir() {
     /* a entrada de 10 copos ANTES da data contada, pelo caminho de
        verdade: é a entrada que forma o custo médio, e é dele que sai o
        valor da sobra e da perda */
-    var dAnte = new Date(); dAnte.setDate(dAnte.getDate() - 3);
-    var mvEnt = { id: 'mv_e', data: dAnte.toISOString().slice(0, 10), hora: '09:00',
+    var dAnte = new Date(hoje + 'T12:00:00'); dAnte.setDate(dAnte.getDate() - 3);
+    var mvEnt = { id: 'mv_e', data: dAnte.getFullYear() + '-' +
+        String(dAnte.getMonth() + 1).padStart(2, '0') + '-' +
+        String(dAnte.getDate()).padStart(2, '0'), hora: '09:00',
       sucursalId: lojaAtualId(), motivoId: 'mv_ent', identificacao: 'Compra',
       origem: 'manual',
       linhas: [{ insumoId: 'in_copo', nome: 'Copo P', unidade: 'un', qtd: 10,
@@ -2195,8 +2198,9 @@ function servir() {
 
   /* a segunda contagem do MESMO dia não pode acusar a mesma divergência */
   const rCt2 = await pg.evaluate(() => {
-    var d = new Date(); d.setDate(d.getDate() - 1);
-    var ontem = d.toISOString().slice(0, 10);
+    /* ontem é o dia anterior DA LOJA — a prova não pode cair no mesmo
+       defeito que ela existe para pegar */
+    var ontem = diaAnteriorDaLoja();
     novaContagem(); mudarDataContagem(ontem);
     return { sistema: sistemaNaContagem(itemEstoque('in_copo')) };
   });
@@ -2220,13 +2224,108 @@ function servir() {
   t('a contagem aparece na lista com o resultado', rCt3.linha === true);
   t('marcada como lançada em outro dia', rCt3.lancada === true);
   await pg.evaluate(() => {
-    var d = new Date(); d.setDate(d.getDate() - 1);
-    novaContagem(); mudarDataContagem(d.toISOString().slice(0, 10));
+    novaContagem(); mudarDataContagem(diaAnteriorDaLoja());
   });
   await pg.screenshot({ path: FOTOS + '/contagem-com-data.png' });
   t('e o olhinho abre o que sobrou, item a item',
     /Copo P/.test(rCt3.divergencia) && /Itens que sobraram/.test(rCt3.divergencia),
     rCt3.divergencia.slice(0, 160));
+
+  console.log('\n── 10q. A lista da Frente de Caixa não pode caber numa janelinha\n');
+  /* ==========================================================
+     Foto da loja, 31/08/2026: com o caixa aberto e o filtro ocupando o
+     topo, a lista dos turnos fechados sobrava numa faixa de duas linhas
+     e meia, com uma barra de rolagem de dois dedos do lado direito — e
+     o resto da tela vazio embaixo.
+
+     `.finWrap` é uma coluna flexível de altura fixa. Item flexível
+     encolhe antes de estourar o pai: o painel encolhia até caber no que
+     restava, e o `overflow:auto` do corpo dele virava aquela barrinha.
+     ========================================================== */
+  const rFC = await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    fecharModal();
+    var hoje = new Date().toLocaleDateString('pt-BR');
+    DB.caixas = [{ id: 'cx_ab', inicial: 100, operador: 'Administrador', operadorId: 'op1',
+      sucursalId: lojaAtualId(), movimentos: [], aberto: hoje + ' 13:30' }];
+    for (var i = 1; i <= 12; i++) {
+      var d = String(i).padStart(2, '0') + '/08/2026';
+      DB.caixas.push({ id: 'cxf_' + i, inicial: 100, operador: 'Administrador',
+        operadorId: 'op1', sucursalId: lojaAtualId(), movimentos: [],
+        aberto: d + ' 13:40', fechadoEm: d + ' 23:00', turno: 'Turno 1',
+        vendas: 1680, esperado: 821.05, contado: 578.05, qtd: 47,
+        diferencaTotal: -243, fechadoPor: 'Administrador', snapshot: {} });
+    }
+    salvar();
+    FC.de = ''; FC.ate = ''; FC.turno = '';
+    telaFrenteCaixa();
+    var wrap = document.querySelector('.finWrap');
+    var pnl = document.querySelector('.finWrap>.pnl2');
+    var corpo = pnl.querySelector('.pnl2B');
+    wrap.scrollTop = 99999;
+    var th = document.querySelector('.tabFC thead th').getBoundingClientRect();
+    var linhas = [...document.querySelectorAll('.tabFC tbody tr')];
+    var ultima = linhas[linhas.length - 1].getBoundingClientRect();
+    var w = wrap.getBoundingClientRect();
+    return {
+      temClasse: wrap.classList.contains('fcTela'),
+      barraInterna: corpo.scrollHeight > corpo.clientHeight + 1,
+      paginaRola: wrap.scrollHeight > wrap.clientHeight + 1,
+      larguraPainel: Math.round(pnl.getBoundingClientRect().width),
+      larguraTela: window.innerWidth,
+      esqPainel: Math.round(pnl.getBoundingClientRect().left),
+      esqFiltro: Math.round(document.querySelector('.filtroCard').getBoundingClientRect().left),
+      linhas: linhas.length,
+      cabecalhoGrudado: Math.abs(th.top - w.top) < 2,
+      ultimaAlcancada: ultima.bottom <= window.innerHeight + 1 && ultima.top > 0,
+      rolagemH: document.documentElement.scrollWidth > window.innerWidth + 1
+    };
+  });
+  t('a tela usa a marca própria da Frente de Caixa', rFC.temClasse === true);
+  t('os 12 turnos estão na lista', rFC.linhas === 12, rFC.linhas);
+  t('A BARRA DE ROLAGEM DE DENTRO DA LISTA SUMIU', rFC.barraInterna === false);
+  t('quem rola agora é a página inteira', rFC.paginaRola === true);
+  t('e o último turno é alcançado rolando', rFC.ultimaAlcancada === true);
+  t('O PAINEL VAI DE BORDA A BORDA', rFC.larguraPainel === rFC.larguraTela,
+    rFC.larguraPainel + ' de ' + rFC.larguraTela);
+  t('encostado na esquerda da tela', rFC.esqPainel === 0, rFC.esqPainel);
+  t('e os cartões de cima continuam com a margem de sempre',
+    rFC.esqFiltro === 20, rFC.esqFiltro);
+  t('a linha de título da tabela fica grudada no topo enquanto rola',
+    rFC.cabecalhoGrudado === true);
+  t('e nada disso criou rolagem lateral', rFC.rolagemH === false);
+
+  /* no celular a mesma tela não pode estourar para o lado */
+  await pg.setViewportSize({ width: 390, height: 844 });
+  const rFCm = await pg.evaluate(() => {
+    telaFrenteCaixa();
+    var corpo = document.querySelector('.finWrap>.pnl2 .pnl2B');
+    return { rolagemH: document.documentElement.scrollWidth > window.innerWidth + 1,
+      barraInterna: corpo.scrollHeight > corpo.clientHeight + 1,
+      largura: Math.round(document.querySelector('.finWrap>.pnl2').getBoundingClientRect().width),
+      tela: window.innerWidth };
+  });
+  t('no celular também não sobra barrinha dentro da lista', rFCm.barraInterna === false);
+  t('nem rolagem para o lado', rFCm.rolagemH === false);
+  t('e o painel ocupa a largura do aparelho', rFCm.largura === rFCm.tela,
+    rFCm.largura + ' de ' + rFCm.tela);
+  await pg.setViewportSize({ width: 1440, height: 900 });
+
+  /* as outras telas que usam o mesmo painel não podem ter mudado */
+  const rOutras = await pg.evaluate(() => {
+    var fora = [];
+    ['telaFornecedores', 'telaClientes', 'telaCupons'].forEach(function (fn) {
+      if (typeof window[fn] !== 'function') return;
+      try {
+        window[fn]();
+        var w = document.querySelector('.finWrap');
+        if (w && w.classList.contains('fcTela')) fora.push(fn);
+      } catch (e) {}
+    });
+    return { vazaram: fora };
+  });
+  t('a mudança não vazou para as outras telas do mesmo painel',
+    rOutras.vazaram.length === 0, rOutras.vazaram.join(', '));
 
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {

@@ -147,16 +147,23 @@ r=await pg.evaluate(async o=>{
   return {porForma:mov.porForma[o.formaId], criou:n, temLanc:!!l,
     contaDoLanc:l&&l.contaId, valorLiq:l&&l.valor, venc:l&&l.vencimento,
     pago:l&&l.pago, saldoDaConta:conta?saldoConta(conta):null,
-    descricao:l&&l.descricao};
+    descricao:l&&l.descricao,
+    vencEsperado:(function(){var d=new Date(hojeISO()+'T12:00:00');
+      d.setDate(d.getDate()+30);
+      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+
+             String(d.getDate()).padStart(2,'0');})()};
 },{formaId,contaId});
 t('a venda no crédito entra no movimento do turno', r.porForma===1000, r.porForma);
 t('o fechamento cria o lançamento financeiro dessa forma', r.temLanc===true);
 t('O LANÇAMENTO VAI PARA A CONTA CADASTRADA', r.contaDoLanc===contaId, r.contaDoLanc);
 /* 1000 − 3,49% − 0,50 fixa = 1000 − 34,90 − 0,50 = 964,60 */
 t('o valor é o LÍQUIDO, com a taxa descontada', r.valorLiq===964.6, r.valorLiq);
-t('e com o prazo de 30 dias no vencimento', (()=> {
-  const d=new Date(); d.setDate(d.getDate()+30);
-  return r.venc===d.toISOString().slice(0,10);})(), r.venc);
+/* o vencimento e conferido contra o DIA DA LOJA lido na propria pagina.
+   Calcular aqui, com o relogio do computador, quebrava a verificacao
+   quando a bateria atravessava a meia-noite — foi o que aconteceu em
+   01/09/2026, as 21h. */
+t('e com o prazo de 30 dias no vencimento', r.venc===r.vencEsperado,
+  r.venc + ' (esperado ' + r.vencEsperado + ')');
 t('nasce como "a receber", não como já recebido', r.pago===false, r.pago);
 /* a receber em 30 dias NAO e saldo em banco — so entra quando for pago */
 t('a receber em 30 dias ainda NÃO entra no saldo da conta', r.saldoDaConta===1500,
