@@ -326,7 +326,8 @@ function exportarEstoque(){
    registrado no historico da contagem, para depois se saber de onde
    veio aquele preco.
    ========================================================== */
-var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:'',_auto:false};
+var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:'',
+  _auto:false,_retomado:''};
 /* ==========================================================
    A CONTAGEM E DO FIM DAQUELE DIA
 
@@ -492,15 +493,76 @@ function mesAtualCT(){
 }
 function verTodasContagens(){CT2.de='';CT2.ate='';CT2._auto=false;telaContagem();}
 function voltarContagem(){CT2.aba='hist';telaContagem();}
-function novaContagem(){
-  CT2.aba='nova';CT2.cont={};CT2.custo={};CT2.busca='';CT2.grupo='';
+/* ==========================================================
+   A FOLHA DA CONTAGEM SO EXISTIA NA MEMORIA DA PAGINA
+
+   O Rafael, no meio do inventario em 01/09/2026: "se eu atualizar, tudo
+   que eu preenchi eu vou perder, nao e isso?" Era isso mesmo. O que ele
+   digitava ficava em `CT2.cont`, uma variavel da pagina; `salvar()` so
+   era chamado no fim, ao finalizar. Recarregar, fechar sem querer, a
+   maquina reiniciar, o navegador matar a aba por memoria — qualquer um
+   desses apagava um inventario de duzentos e cinquenta itens contados a
+   mao, sem aviso e sem volta. Foi so a sorte que impediu isso de
+   acontecer antes.
+
+   Agora cada numero digitado e guardado no aparelho na hora. E um
+   RASCUNHO: mora numa chave propria do navegador, nao entra no `DB` e
+   nao sobe para a nuvem — contagem pela metade nao e dado, e nao pode
+   virar ajuste de estoque em lugar nenhum. Ao finalizar, o rascunho e
+   apagado; o que vale dali em diante e a contagem gravada.
+
+   O rascunho e de UMA unidade: quem abre a contagem em Jales nao recebe
+   a folha que ficou pela metade em Santa Fe.
+   ========================================================== */
+var _CHAVE_RASCUNHO='nexor_contagem_rascunho', _tRascunho=null;
+function guardarRascunhoContagem(){
+  clearTimeout(_tRascunho);
+  _tRascunho=setTimeout(function(){
+    try{
+      localStorage.setItem(_CHAVE_RASCUNHO,JSON.stringify({
+        suc:lojaAtualId(),data:CT2.data||'',
+        cont:CT2.cont||{},custo:CT2.custo||{},
+        quando:new Date().toISOString()}));
+    }catch(e){ _quieto(e,'guardarRascunhoContagem'); }
+  },250);
+}
+function lerRascunhoContagem(){
+  try{
+    var r=JSON.parse(localStorage.getItem(_CHAVE_RASCUNHO)||'null');
+    if(!r||!r.cont||!Object.keys(r.cont).length)return null;
+    if(r.suc&&r.suc!==lojaAtualId())return null;
+    return r;
+  }catch(e){ return null; }
+}
+function limparRascunhoContagem(){
+  clearTimeout(_tRascunho);
+  try{ localStorage.removeItem(_CHAVE_RASCUNHO); }catch(e){ _quieto(e,'limparRascunhoContagem'); }
+}
+function descartarRascunhoContagem(){
+  limparRascunhoContagem();
+  CT2.cont={};CT2.custo={};CT2._retomado='';
   CT2.data=hojeISO();
+  telaContagem();
+  toast('Folha limpa. A contagem começa do zero.');
+}
+function novaContagem(){
+  CT2.aba='nova';CT2.busca='';CT2.grupo='';
+  /* folha que ficou pela metade volta inteira, em vez de virar pó */
+  var r=lerRascunhoContagem();
+  if(r){
+    CT2.cont=r.cont;CT2.custo=r.custo||{};
+    CT2.data=r.data||hojeISO();
+    CT2._retomado=r.quando||'';
+  }else{
+    CT2.cont={};CT2.custo={};CT2.data=hojeISO();CT2._retomado='';
+  }
   telaContagem();
 }
 /* trocar a data muda o saldo com que TUDO na folha compara */
 function mudarDataContagem(v){
   CT2.data=v||hojeISO();
   if(CT2.data>hojeISO()){CT2.data=hojeISO();toast('A contagem não pode ser de um dia que ainda não chegou.');}
+  guardarRascunhoContagem();   /* a data escolhida faz parte da folha */
   telaContagem();
 }
 /* ==========================================================
@@ -584,6 +646,16 @@ function telaContagemNova(){
     '<div class="etTot" id="ctResumo">'+resumoContagem(lista)+'</div>'+
     '<button class="btnP2 ok" onclick="fecharContagem()">'+sv('check',13)+' Finalizar contagem</button>'+
    '</div>'+
+   /* a folha retomada precisa se anunciar: numero que aparece sozinho na
+      tela, sem ninguem entender de onde veio, e pior do que folha vazia */
+   (CT2._retomado
+     ?'<div class="cmdFaixa" style="flex:none">'+sv('check',14)+
+      '<div>Retomei a contagem que você tinha começado'+
+      (function(){var d=new Date(CT2._retomado);
+        return isNaN(d)?'':', de '+d.toLocaleTimeString('pt-BR').slice(0,5);})()+
+      ' — os números que você já tinha digitado estão aqui.</div>'+
+      '<button class="btnP2" onclick="descartarRascunhoContagem()">Começar do zero</button></div>'
+     :'')+
    '<div class="etFiltros" style="flex:none">'+
     '<div class="f2" style="max-width:172px"><label>Data da contagem</label>'+
      '<input type="date" id="ctData" max="'+hojeISO()+'" value="'+dataDaContagem()+'" '+
@@ -595,7 +667,7 @@ function telaContagemNova(){
      (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(CT2.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
     '</select></div>'+
     '<button class="btnP2" onclick="preencherContagem()">Preencher com o sistema</button>'+
-    '<button class="btnP2" onclick="CT2.cont={};CT2.custo={};telaContagem()">Limpar</button>'+
+    '<button class="btnP2" onclick="descartarRascunhoContagem()">Limpar</button>'+
    '</div>'+
    '<div class="etTabW">'+
    (lista.length?'<table class="etTab ctTab"><thead><tr>'+
@@ -693,6 +765,7 @@ function ligarContagem(){
       var id=this.getAttribute('data-id');
       if(this.value==='')delete CT2.custo[id]; else CT2.custo[id]=this.value;
       atualizaLinhaCont(id);
+      guardarRascunhoContagem();
     };
   }
   var ins=document.querySelectorAll('.ctIn');
@@ -700,6 +773,7 @@ function ligarContagem(){
     ins[i].oninput=function(){
       CT2.cont[this.getAttribute('data-id')]=this.value;
       atualizaLinhaCont(this.getAttribute('data-id'));
+      guardarRascunhoContagem();
     };
     ins[i].onkeydown=function(e){
       if(e.key==='Enter'){
@@ -713,6 +787,7 @@ function ligarContagem(){
 }
 function preencherContagem(){
   itensEstoque().forEach(function(i){CT2.cont[i.id]=String(sistemaNaContagem(i))});
+  guardarRascunhoContagem();
   telaContagem();
   toast('Preenchido com o estoque do sistema — ajuste o que estiver diferente.');
 }
@@ -788,7 +863,9 @@ async function fecharContagem(){
     itens:det,perda:+perda.toFixed(2),ganho:+ganho.toFixed(2),
     resultado:+(ganho+perda).toFixed(2),loja:lojaAtual(),sucursalId:lojaAtualId(),
     precos:precos.map(function(p2){return {insumoId:p2.item.id,nome:p2.item.nome,de:p2.de,para:p2.para}})});
-  CT2.cont={};CT2.custo={};CT2.data='';CT2.aba='hist';salvar();telaContagem();
+  CT2.cont={};CT2.custo={};CT2.data='';CT2._retomado='';CT2.aba='hist';
+  limparRascunhoContagem();       /* a contagem foi gravada: o rascunho acabou */
+  salvar();telaContagem();
   toast('Contagem de '+dataBR(_dt)+' finalizada. Estoque ajustado'+
     (precos.length?', '+precos.length+' custo(s) atualizado(s)':'')+' e lançado na movimentação.');
 }
