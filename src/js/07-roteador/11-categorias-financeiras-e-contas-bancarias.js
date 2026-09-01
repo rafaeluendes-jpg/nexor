@@ -209,7 +209,16 @@ function saldoConta(c){
     if(l.contaId!==c.id)return;
     if(l.tipo==='receita')s+=v; else s-=v;
   });
-  return s;
+  /* ==========================================================
+     CENTAVO NAO TEM CASA DECIMAL SOBRANDO
+
+     Somando liquido de cartao (66.113,69 + 100 + 99,27 + 97,27) o
+     JavaScript devolve 66410.23000000001. Na tela nao aparece, porque
+     `money()` corta em dois; mas quem COMPARA saldo — a conciliacao
+     bancaria, um confronto com o extrato, um teste — pega a diferenca
+     de um bilionesimo e conclui que nao bate.
+     ========================================================== */
+  return +s.toFixed(2);
 }
 /* quantos lancamentos financeiros dependem desta conta (pagos ou nao) */
 function lancamentosDaConta(id){

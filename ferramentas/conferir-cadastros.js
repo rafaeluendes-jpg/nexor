@@ -458,6 +458,192 @@ r=await pg.evaluate(()=>{
 t('o relatório de baixas monta', r.temTela===true);
 t('e mostra a baixa lançada, com quem registrou', r.temItem&&r.temQuem, JSON.stringify(r));
 
+/* ---------------------------------------------------------- */
+console.log('\n══ 7. O CADASTRO DE VERDADE DA LOJA, DE PONTA A PONTA\n');
+/* Os números que o Rafael cadastrou em 01/09/2026:
+   Itaú ag 0614 c/c 993368, saldo inicial R$ 66.113,69
+   Dinheiro 0% → Caixa da loja · Débito 0,73% D+1 → Itaú
+   Crédito 2,73% D+1 → Itaú · Pix 0% mesmo dia → Itaú          */
+r = await pg.evaluate(async () => {
+  var e = document.getElementById('mdOv'); if (e) e.remove();
+  fecharModal();
+  baseCat(); baseMov(); baseFin();
+  DB.contas = [
+    { id: 'ct_caixa', nome: 'Caixa da loja', tipo: 'Caixa', fixa: 'caixa', saldoInicial: 0 },
+    { id: 'ct_cofre', nome: 'Cofre', tipo: 'Cofre', fixa: 'cofre', saldoInicial: 0 },
+    { id: 'ct_itau', nome: 'Banco Itaú — conta corrente', banco: 'itau', tipo: 'Banco',
+      agencia: '0614', numero: '993368', saldoInicial: 66113.69 }];
+  DB.formasPag = [
+    { id: 'fp_din', nome: 'Dinheiro', tipo: 'dinheiro', taxaPct: 0, taxaFixa: 0, dias: 0,
+      contaId: 'ct_caixa', ativa: true, ordem: 0 },
+    { id: 'fp_deb', nome: 'Cartão débito', tipo: 'debito', bandeira: 'Mastercard',
+      taxaPct: 0.73, taxaFixa: 0, dias: 1, contaId: 'ct_itau', ativa: true, ordem: 1 },
+    { id: 'fp_cred', nome: 'Cartão crédito', tipo: 'credito', bandeira: 'Mastercard',
+      taxaPct: 2.73, taxaFixa: 0, dias: 1, contaId: 'ct_itau', ativa: true, ordem: 2 },
+    { id: 'fp_pix', nome: 'Pix', tipo: 'pix', taxaPct: 0, taxaFixa: 0, dias: 0,
+      contaId: 'ct_itau', ativa: true, online: true, ordem: 3 }];
+  syncFormas(); salvar();
+
+  var hoje = new Date().toLocaleDateString('pt-BR');
+  DB.caixas = [{ id: 'cx_r', inicial: 200, operador: 'Bia', operadorId: 'op_bia',
+    sucursalId: lojaAtualId(), movimentos: [], aberto: hoje + ' 12:00' }];
+  /* uma venda de R$ 100 em cada forma */
+  DB.pedidos = ['fp_din', 'fp_deb', 'fp_cred', 'fp_pix'].map(function (f, k) {
+    return { id: 'pd_r' + k, caixaId: 'cx_r', fase: 'finalizado', total: 100,
+      itens: [{ produtoId: 'pr_agua', nome: 'Água', qtd: 1, unitario: 100, total: 100 }],
+      pagamentos: [{ forma: f, valor: 100 }], data: new Date().toISOString(),
+      hora: '13:00', sucursalId: lojaAtualId() };
+  });
+  salvar();
+  var mov = movimentoCaixa('cx_r');
+  var antes = (DB.lancFin || []).length;
+  lancarFechamento(DB.caixas[0], mov);
+  var novos = (DB.lancFin || []).slice(antes);
+  function lan(f) { return novos.find(function (l) { return l.metodoId === f; }) || {}; }
+  var itau = DB.contas.find(function (c) { return c.id === 'ct_itau'; });
+  return {
+    porForma: mov.porForma, total: mov.total,
+    din: lan('fp_din'), deb: lan('fp_deb'), cred: lan('fp_cred'), pix: lan('fp_pix'),
+    saldoItauAntes: saldoConta(itau),
+    hoje: hojeISO()
+  };
+});
+t('as quatro vendas entram no movimento do turno', r.total === 400, r.total);
+t('cada forma soma R$ 100', r.porForma.fp_cred === 100 && r.porForma.fp_deb === 100, JSON.stringify(r.porForma));
+
+console.log('   ── dinheiro (0%, na hora)');
+t('vai para o Caixa da loja', r.din.contaId === 'ct_caixa', r.din.contaId);
+t('sem taxa: entra os R$ 100 cheios', r.din.valor === 100, r.din.valor);
+t('e já nasce recebido', r.din.pago === true);
+
+console.log('   ── débito 0,73% em 1 dia');
+t('vai para o Itaú', r.deb.contaId === 'ct_itau', r.deb.contaId);
+t('LÍQUIDO com a taxa descontada: R$ 99,27', r.deb.valor === 99.27, r.deb.valor);
+t('a descrição mostra a taxa cobrada',
+  /taxa R\$ 0,73/.test(r.deb.descricao || ''), r.deb.descricao);
+t('nasce como A RECEBER, não como recebido', r.deb.pago === false);
+
+console.log('   ── crédito 2,73% em 1 dia');
+t('vai para o Itaú', r.cred.contaId === 'ct_itau', r.cred.contaId);
+t('LÍQUIDO com a taxa descontada: R$ 97,27', r.cred.valor === 97.27, r.cred.valor);
+t('a descrição mostra a taxa cobrada',
+  /taxa R\$ 2,73/.test(r.cred.descricao || ''), r.cred.descricao);
+t('nasce como A RECEBER', r.cred.pago === false);
+
+console.log('   ── pix (0%, na hora)');
+t('vai para o Itaú', r.pix.contaId === 'ct_itau', r.pix.contaId);
+t('sem taxa: R$ 100 cheios', r.pix.valor === 100, r.pix.valor);
+t('e já nasce recebido', r.pix.pago === true);
+
+/* o saldo do banco: o que caiu hoje entra, o que vence amanhã não */
+t('O SALDO DO ITAÚ SOBE COM O PIX (66.113,69 + 100)',
+  r.saldoItauAntes === 66213.69, r.saldoItauAntes);
+t('e o cartão de amanhã ainda NÃO entrou no saldo — está a receber',
+  r.saldoItauAntes !== 66213.69 + 99.27 + 97.27, r.saldoItauAntes);
+
+r = await pg.evaluate(() => {
+  /* o dia seguinte: a loja marca o cartão como recebido */
+  var itau = DB.contas.find(function (c) { return c.id === 'ct_itau'; });
+  (DB.lancFin || []).forEach(function (l) {
+    if (l.contaId === 'ct_itau' && !l.pago) { l.pago = true; l.pagamento = l.vencimento; }
+  });
+  salvar();
+  return { saldo: saldoConta(itau) };
+});
+/* 66.113,69 + 100,00 (pix) + 99,27 (débito) + 97,27 (crédito) */
+t('recebido o cartão, o saldo do Itaú fecha em 66.410,23',
+  r.saldo === 66410.23, r.saldo);
+t('e sem casa decimal sobrando na soma',
+  String(r.saldo).split('.')[1].length <= 2, String(r.saldo));
+
+console.log('\n   ── e os relatórios enxergam tudo isso\n');
+r = await pg.evaluate(() => {
+  var out = {};
+  telaLancamentos();
+  var h = document.getElementById('content').innerHTML;
+  out.lancTemCredito = /Cartão crédito/.test(h);
+  out.lancTemConta = /Itaú/.test(h);
+  telaFluxo();
+  out.fluxoMonta = /Fluxo/i.test(document.getElementById('content').innerHTML);
+  telaContas();
+  var hc = document.getElementById('content').innerHTML;
+  out.contaMostraSaldo = /66\.410,23/.test(hc);
+  telaFormasPag();
+  var hf = document.getElementById('content').innerHTML;
+  out.formaMostraTaxa = /2,73%/.test(hf) && /0,73%/.test(hf);
+  out.formaMostraConta = (hf.match(/Itaú/g) || []).length >= 3;
+  telaFaturamentoDia();
+  var hd = document.getElementById('content').innerHTML;
+  out.faturamento = /400,00/.test(hd);
+  return out;
+});
+t('o lançamento do crédito aparece em Lançamentos Financeiros', r.lancTemCredito === true);
+t('com a conta do Itaú', r.lancTemConta === true);
+t('o Fluxo de Caixa monta com esses lançamentos', r.fluxoMonta === true);
+t('a tela de Contas mostra o saldo já com o cartão recebido', r.contaMostraSaldo === true);
+t('a tela de Formas mostra as taxas cadastradas', r.formaMostraTaxa === true);
+t('e a conta que recebe cada uma', r.formaMostraConta === true);
+t('o faturamento do dia soma as quatro vendas', r.faturamento === true);
+
+console.log('\n══ 8. A VENDA DO PDV BAIXA O ESTOQUE E APARECE NO RELATÓRIO\n');
+r = await pg.evaluate(async () => {
+  DB.movEst = [];
+  DB.insumos = [{ id: 'in_casq', nome: 'Casquinha', unidade: 'un', custo: 0.8,
+                  controlaEstoque: true, codigo: '1' },
+                { id: 'in_leite', nome: 'Leite', unidade: 'l', custo: 5,
+                  controlaEstoque: true, codigo: '2' },
+                { id: 'in_gv', nome: 'Gelato Venda', unidade: 'kg', custo: 0,
+                  controlaEstoque: true, codigo: '3', gelatoVenda: true }];
+  DB.fichas = [{ id: 'fi_base', nome: 'BASE CHOCOLATE', unidade: 'kg', rendimento: 10,
+    rendUnidade: 'kg', unidadesVenda: 100, destinoId: 'in_gv', destinoModo: 'igual',
+    destinoFator: 1, estocavel: true, itens: [{ insumoId: 'in_leite', qtd: 4, unidade: 'l' }] }];
+  DB.produtos = [
+    { id: 'pr_casq', nome: 'Casquinha', categoriaId: 'ct1', preco: 12, ativo: true,
+      vinculaEstoque: true, insumoId: 'in_casq', insumoQtd: 1, insumoUn: 'un' },
+    { id: 'pr_pote', nome: 'Pote 100g', categoriaId: 'ct1', preco: 20, ativo: true,
+      vinculaEstoque: true, fichaId: 'fi_base' }];
+  DB.estoqueUn = []; DB.saldos = {};
+  ['in_casq', 'in_leite', 'in_gv'].forEach(function (id) {
+    ajustaEstoque(DB.insumos.find(function (i) { return i.id === id; }), 100,
+      DB.insumos.find(function (i) { return i.id === id; }).unidade, 1, lojaAtualId());
+  });
+  salvar(); espelharEstoque();
+  var antes = {
+    casq: (itemEstoque('in_casq') || {}).estoqueAtual,
+    gv: (itemEstoque('in_gv') || {}).estoqueAtual
+  };
+  var ped = { id: 'pd_est', numero: 900, caixaId: 'cx_r', fase: 'finalizado',
+    total: 32, sucursalId: lojaAtualId(), hora: '14:00', data: new Date().toISOString(),
+    itens: [{ produtoId: 'pr_casq', nome: 'Casquinha', qtd: 2, unitario: 12, total: 24 },
+            { produtoId: 'pr_pote', nome: 'Pote 100g', qtd: 1, unitario: 20, total: 20 }],
+    pagamentos: [{ forma: 'fp_cred', valor: 44 }] };
+  DB.pedidos.push(ped);
+  baixarEstoqueVenda(ped);
+  salvar(); espelharEstoque();
+  var mv = (DB.movEst || []).find(function (m) { return m.origem === 'venda'; }) || {};
+  telaMovimentacao();
+  var hm = document.getElementById('content').innerHTML;
+  return { antes: antes,
+    casq: (itemEstoque('in_casq') || {}).estoqueAtual,
+    gv: (itemEstoque('in_gv') || {}).estoqueAtual,
+    mvData: mv.data, mvIdent: mv.identificacao,
+    linhas: (mv.linhas || []).map(function (l) {
+      return l.nome + ' ' + l.direcao + ' ' + l.qtd + ' ' + l.unidade; }),
+    relatorioMostra: /Casquinha/.test(hm), relatorioPedido: /900/.test(hm),
+    hoje: hojeISO() };
+});
+t('a venda gera movimento de estoque', !!r.mvIdent, r.mvIdent);
+t('com a data de hoje', r.mvData === r.hoje, r.mvData);
+t('o produto ligado a INSUMO baixa 2 casquinhas',
+  r.antes.casq - r.casq === 2, r.antes.casq + ' → ' + r.casq);
+t('o produto ligado a FICHA baixa do destino dela (Gelato Venda)',
+  r.gv < r.antes.gv, r.antes.gv + ' → ' + r.gv);
+t('o movimento diz item, direção e quantidade',
+  r.linhas.length >= 2 && r.linhas.every(function (l) { return /saida/.test(l); }),
+  JSON.stringify(r.linhas));
+t('e o relatório de Movimentação mostra a baixa', r.relatorioMostra === true);
+t('identificando o pedido que a gerou', r.relatorioPedido === true);
+
 await nav.close(); s.close();
 console.log('\n'+(falhas?'✗ '+falhas+' de '+feitos+' verificações falharam':'✓ '+feitos+' verificações passaram'));
 if(problemas.length){console.log('\nPROBLEMAS:');problemas.forEach(p=>console.log(' · '+p));}

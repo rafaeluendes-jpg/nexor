@@ -100,6 +100,17 @@ t('e com o caixa fechado ele é zero',
   `)({ DB: { lancFin: [] }, caixaAberto: () => null, esperadoCaixa: () => 0 })
     .saldoConta({ id: 'ct_caixa', fixa: 'caixa' }) === 0);
 
+/* 6b. centavo nao tem casa decimal sobrando */
+DB = { contas: [], lancFin: [
+  { id: 'a', tipo: 'receita', contaId: 'ct_nu', valor: 100, pago: true },
+  { id: 'b', tipo: 'receita', contaId: 'ct_nu', valor: 99.27, pago: true },
+  { id: 'c', tipo: 'receita', contaId: 'ct_nu', valor: 97.27, pago: true }] };
+M = motor(DB);
+const somaCartao = M.saldoConta({ id: 'ct_nu', saldoInicial: 66113.69 });
+t('somando líquido de cartão o saldo fecha exato', somaCartao === 66410.23, somaCartao);
+t('sem casa decimal sobrando — quem compara com o extrato não erra por um bilionésimo',
+  String(somaCartao).split('.')[1].length <= 2, String(somaCartao));
+
 /* 7. a colecao legada nao pode voltar a ser a fonte */
 t('saldoConta não lê mais a coleção legada',
   !/function saldoConta\(c\)\{[\s\S]{0,600}DB\.lancamentos/.test(codigoNu));
