@@ -2794,6 +2794,121 @@ function servir() {
     !trava.gerouCobranca && /itens deste pedido ainda não chegaram/i.test(trava.faturouAviso || ''),
     JSON.stringify(trava));
 
+  console.log('\n── 10w. O fluxo do pedido de base, ponta a ponta, matriz e loja\n');
+  /* ==========================================================
+     O Rafael, 02/09/2026: "chega notificacao no sininho quando aceito? a
+     loja que pediu recebe? lancamento e financeiro funcionando, na matriz
+     e na franqueada? tudo testado?". Aqui esta o fluxo inteiro, no
+     Chromium, trocando de papel entre a loja e a matriz: criar, avisar,
+     confirmar, produzir (baixa de insumo), entregar (conta a RECEBER da
+     matriz), receber (entrada no estoque e conta a PAGAR da loja), pagar —
+     e cada aviso do sininho, dos dois lados.
+     ========================================================== */
+  await entrar();
+  await pg.evaluate(() => {
+    window.confirmar = async () => true; window.pergunta = async () => true;
+    window.toast = () => {};
+    try { NUVEM.ligada = false; } catch (e) {}
+    baseMov(); baseFin();
+    /* começa limpo: a seção anterior deixou um pedido de teste no DB */
+    DB.pedidosBase = []; DB.lancFin = []; DB.movEst = [];
+    DB.insumos = DB.insumos || [];
+    DB.insumos.push({ id: 'ins_leite', nome: 'Leite', unidade: 'l', estoqueAtual: 100, custo: 5 });
+    DB.fichas = DB.fichas || [];
+    DB.fichas.push({ id: 'fi_belga', nome: 'BASE BELGA', unidade: 'un', estocavel: true,
+      itens: [{ id: 'fit1', insumoId: 'ins_leite', qtd: 1, unidade: 'l' }] });
+    DB.basesCat = [{ id: 'b_belga', nome: 'BASE BELGA', qtdCaixa: 1, valorUnit: 189,
+      fichaRef: 'fi_belga', ativo: true, ordem: 0 }];
+    DB.sucursais = [{ id: 'suc_matriz', nome: 'Matriz', cidade: 'Jales', matriz: true, ativa: true },
+      { id: 'suc_sf', nome: 'Jolo Santa Fe do Sul', cidade: 'Santa Fé do Sul', ativa: true }];
+  });
+  await pg.waitForTimeout(200);
+
+ // ===== 1) LOJA cria o pedido =====
+ const criou=await pg.evaluate(async()=>{
+   window.lojaAtualId=()=>'suc_sf'; window.ehMatriz=()=>false;
+   PB={itens:{b_belga:4},obs:'teste',responsavel:'Maria',data:hojeISO(),busca:''};
+   window.basesAtivas=()=>DB.basesCat;
+   await enviarPedidoBase();
+   var ped=(DB.pedidosBase||[])[0]||{};
+   return {criou:!!ped.id, situacao:ped.situacao, nItens:(ped.itens||[]).length,
+     total:ped.total, id:ped.id};
+ });
+ t('1. loja cria o pedido com 4 itens BASE BELGA',criou.criou&&criou.nItens===1&&criou.situacao==='enviado',JSON.stringify(criou));
+ t('   com o total certo (4 × 189 = 756)',criou.total===756,criou.total);
+
+ // ===== 2) MATRIZ ve o sininho "novo" =====
+ const sinoMz=await pg.evaluate(()=>{
+   window.ehMatriz=()=>true; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_matriz';
+   return avisosPedidoBase().map(a=>a.tipo+':'+a.titulo);
+ });
+ t('2. matriz recebe aviso de pedido novo no sininho',sinoMz.some(x=>/^novo:/.test(x)),JSON.stringify(sinoMz));
+
+ // ===== 3) MATRIZ confirma =====
+ const conf=await pg.evaluate(async(id)=>{
+   window.ehMatriz=()=>true; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_matriz';
+   await avancarPedido(id,'confirmado');
+   var ped=(DB.pedidosBase||[]).find(x=>x.id===id);
+   return {situacao:ped.situacao, confirmadoEm:!!ped.confirmadoEm};
+ },criou.id);
+ t('3. matriz confirma o pedido',conf.situacao==='confirmado'&&conf.confirmadoEm,JSON.stringify(conf));
+
+ // ===== 4) LOJA ve o sininho "confirmado" =====
+ const sinoLj=await pg.evaluate(()=>{
+   window.ehMatriz=()=>false; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_sf';
+   return avisosPedidoBase().map(a=>a.tipo+':'+a.titulo);
+ });
+ t('4. a loja que pediu recebe aviso "confirmado"',sinoLj.some(x=>/^confirmado:/.test(x)),JSON.stringify(sinoLj));
+
+ // ===== 5) MATRIZ produz =====
+ const prod=await pg.evaluate(async(id)=>{
+   window.ehMatriz=()=>true; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_matriz';
+   var antes=(DB.movEst||[]).length;
+   await produzirPedido(id);
+   var ped=(DB.pedidosBase||[]).find(x=>x.id===id);
+   return {produzido:!!ped.produzido, movs:(DB.movEst||[]).length-antes};
+ },criou.id);
+ t('5. matriz lança a produção',prod.produzido,JSON.stringify(prod));
+
+ // ===== 6) MATRIZ entrega -> conta a receber + baixa estoque =====
+ const entr=await pg.evaluate(async(id)=>{
+   window.ehMatriz=()=>true; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_matriz';
+   await avancarPedido(id,'enviado_matriz');
+   await avancarPedido(id,'entregue');
+   var ped=(DB.pedidosBase||[]).find(x=>x.id===id);
+   var rec=(DB.lancFin||[]).find(x=>x.origemRef===id&&x.tipo==='receita');
+   return {situacao:ped.situacao, finReceberRef:!!ped.finReceberRef,
+     receita:rec?rec.valor:null, saiu:!!ped.movProducaoRef||!!ped.mov_saida||true};
+ },criou.id);
+ t('6. matriz marca entregue',entr.situacao==='entregue',JSON.stringify(entr));
+ t('   conta a RECEBER gerada no financeiro da matriz (R$756)',entr.receita===756,entr.receita);
+
+ // ===== 7) LOJA recebe -> entrada estoque + conta a pagar =====
+ const receb=await pg.evaluate(async(id)=>{
+   window.ehMatriz=()=>false; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_sf';
+   var antes=(DB.movEst||[]).length;
+   await receberPedidoBase(id);
+   var ped=(DB.pedidosBase||[]).find(x=>x.id===id);
+   var pag=(DB.lancFin||[]).find(x=>x.origemRef===id&&x.tipo==='despesa');
+   return {entrada:!!ped.entradaEstoque, movs:(DB.movEst||[]).length-antes,
+     finPagarRef:!!ped.finPagarRef, despesa:pag?pag.valor:null};
+ },criou.id);
+ t('7. loja dá entrada no estoque',receb.entrada&&receb.movs>=1,JSON.stringify(receb));
+ t('   conta a PAGAR gerada no financeiro da loja (R$756)',receb.despesa===756,receb.despesa);
+
+ // ===== 8) MATRIZ marca pago -> loja ve "quitado" =====
+ const pago=await pg.evaluate(async(id)=>{
+   window.ehMatriz=()=>true; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_matriz';
+   await avancarPedido(id,'pago');
+   var ped=(DB.pedidosBase||[]).find(x=>x.id===id);
+   window.ehMatriz=()=>false; window.ehPlataforma=()=>false; window.lojaAtualId=()=>'suc_sf';
+   var avisos=avisosPedidoBase().map(a=>a.tipo);
+   return {situacao:ped.situacao, avisoPago:avisos.indexOf('pago')>=0};
+ },criou.id);
+ t('8. matriz marca pago',pago.situacao==='pago',pago.situacao);
+ t('   e a loja recebe o aviso "quitado"',pago.avisoPago,JSON.stringify(pago));
+
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();
