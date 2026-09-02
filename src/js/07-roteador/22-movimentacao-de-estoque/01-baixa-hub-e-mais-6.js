@@ -1750,10 +1750,7 @@ function telaBasesValores(){
    '<div class="etTopo"><div><h1>Central de Bases e Valores</h1>' +
    '<p>A matriz define nome, valor e disponibilidade. As unidades enxergam ' +
    'esta tabela ao fazer o pedido.</p></div>' +
-   (BS.sujo
-     ? '<button class="btnVerde" onclick="salvarBases()">' + sv('save', 13) +
-       ' Salvar alterações</button>'
-     : '<span class="bsOk">' + sv('check', 13) + ' tudo salvo</span>') +
+   '<span id="bsSalvar">' + htmlBotaoSalvarBases() + '</span>' +
    '</div>' +
 
    '<div class="hpNums" style="border:1px solid var(--line);border-radius:8px;' +
@@ -1807,7 +1804,7 @@ function telaBasesValores(){
       '</tr></thead><tbody>' +
       lista.map(function (b) {
         var vlrCx = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
-        return '<tr>' +
+        return '<tr data-bid="' + b.id + '">' +
          '<td><input class="bsIn" value="' + E(b.nome) + '" ' +
            'onchange="mudarBase(\'' + b.id + '\',\'nome\',this.value)"></td>' +
          '<td><select class="bsIn" onchange="mudarBase(\'' + b.id +
@@ -1817,9 +1814,10 @@ function telaBasesValores(){
              return '<option value="' + f.id + '"' +
                (b.fichaRef === f.id ? ' selected' : '') + '>' + E(f.nome) + '</option>';
            }).join('') + '</select>' +
+           '<div class="bsDica" data-bid="' + b.id + '">' +
            (!b.fichaRef && b.ativo !== false
-             ? '<div class="hint" style="color:var(--amber)">sem baixa de estoque</div>'
-             : '') + '</td>' +
+             ? '<span class="hint" style="color:var(--amber)">sem baixa de estoque</span>'
+             : '') + '</div></td>' +
          '<td><input class="bsIn nu" type="number" step="0.001" value="' +
            E(b.qtdCaixa) + '" onchange="mudarBase(\'' + b.id +
            '\',\'qtdCaixa\',this.value)"></td>' +
@@ -1851,6 +1849,31 @@ function novaBase(){
   BS.sujo = true;
   telaBasesValores();
 }
+/* o botao "Salvar alteracoes" (ou "tudo salvo"), montado a parte para poder
+   ser trocado sem redesenhar a tela */
+function htmlBotaoSalvarBases(){
+  return BS.sujo
+    ? '<button class="btnVerde" onclick="salvarBases()">' + sv('save', 13) +
+      ' Salvar alterações</button>'
+    : '<span class="bsOk">' + sv('check', 13) + ' tudo salvo</span>';
+}
+/* ==========================================================
+   A TELA NAO PODE TREMER A CADA CLIQUE
+
+   O Rafael, 02/09/2026, ligando a ficha tecnica a cada base: "a hora que
+   clico a tela fica tremendo, e a selecao some sozinha".
+
+   `mudarBase` redesenhava a TELA INTEIRA (`telaBasesValores`) a cada
+   digito e a cada escolha de ficha. Redesenhar destroi o proprio <select>
+   que estava sendo usado — dai o tremor, e a escolha parecia "voltar"
+   porque o elemento era recriado no meio do clique. Sao 50 bases: montar
+   a tabela toda de novo a cada tecla trava.
+
+   Agora nada de redesenho. O dado e atualizado, e so o que muda na tela e
+   tocado: o valor da caixa daquela linha, a dica de "sem baixa" daquela
+   base, e o botao de salvar la em cima. O <select> que a pessoa esta
+   usando nao e tocado.
+   ========================================================== */
 function mudarBase(id, campo, valor){
   var b = baseCatalogo().find(function (x) { return x.id === id; });
   if (!b) return;
@@ -1858,8 +1881,26 @@ function mudarBase(id, campo, valor){
   else if (campo === 'qtdCaixa' || campo === 'valorUnit')
     b[campo] = Number(String(valor).replace(',', '.')) || 0;
   else b[campo] = valor;
+  var eraSujo = BS.sujo;
   BS.sujo = true;
-  telaBasesValores();
+
+  /* o valor da caixa daquela linha */
+  if (campo === 'qtdCaixa' || campo === 'valorUnit') {
+    var vlr = (Number(b.qtdCaixa) || 1) * (Number(b.valorUnit) || 0);
+    var cel = document.querySelector('tr[data-bid="' + id + '"] .bsVlr');
+    if (cel) cel.textContent = 'R$ ' + money(vlr);
+  }
+  /* a dica de "sem baixa de estoque" daquela base (some quando liga a ficha) */
+  if (campo === 'fichaRef' || campo === 'ativo') {
+    var dica = document.querySelector('.bsDica[data-bid="' + id + '"]');
+    if (dica) dica.innerHTML = (!b.fichaRef && b.ativo !== false)
+      ? '<span class="hint" style="color:var(--amber)">sem baixa de estoque</span>' : '';
+  }
+  /* o botao de salvar, so quando o estado muda de "salvo" para "sujo" */
+  if (!eraSujo) {
+    var bt = document.getElementById('bsSalvar');
+    if (bt) bt.innerHTML = htmlBotaoSalvarBases();
+  }
 }
 async function excluirBase(id){
   var b = baseCatalogo().find(function (x) { return x.id === id; });
