@@ -2154,6 +2154,9 @@ async function enviar(tab,linhas){
     var r=await api(tab+'?on_conflict='+chaveConflito(tab,lote),'POST',lote,
       {'Prefer':'resolution=merge-duplicates,return=representation'});
     out=out.concat(r||[]);
+    /* o envio foi confirmado agora: um download que comecou antes disto
+       ficou velho e nao pode mandar por cima (ver volta) */
+    NUVEM._enviouEm=Date.now();
     /* ==========================================================
        SINAL DE VIDA DO ENVIO
 

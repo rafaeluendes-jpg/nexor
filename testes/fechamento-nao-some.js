@@ -134,9 +134,13 @@ t('quem não tem pendência continua vindo da nuvem',
 console.log('\n── O que ficou preso no código\n');
 
 t('o download pergunta antes de substituir',
-  /temMudancaNaoEnviada\(col,x,i\)\)meus\[x\.id\]=x/.test(codigoNu));
+  /if\(temMudancaNaoEnviada\(col,x,i\)\)\{ meus\[x\.id\]=x/.test(codigoNu));
 t('e mantém a versão daqui quando há pendência',
   /if\(x&&x\.id&&meus\[x\.id\]\)\{ _fic\+\+; return meus\[x\.id\]; \}/.test(codigoNu));
+/* corrida corrigida em V287: download que começou antes do envio confirmado
+   não manda por cima do que está no aparelho */
+t('e um download que ficou velho não sobrescreve o que já subiu',
+  /_baixaVelha/.test(codigoNu) && /_enviouEm > _NV._baixaIniciou|_enviouEm > NUVEM\._baixaIniciou/.test(codigoNu));
 t('a impressão comparada é a do último envio CONFIRMADO',
   /var guardada=h\[x\.id\];[\s\S]{0,120}return impressaoDaLinha\(E,x,i\|\|0\)!==guardada/.test(codigoNu));
 t('na dúvida, preserva o que está no aparelho',

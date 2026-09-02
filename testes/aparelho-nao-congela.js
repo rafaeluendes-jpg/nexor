@@ -93,7 +93,7 @@ console.log('\n── A proteção por linha continua inteira\n');
   t('linha sem envio confirmado é preservada', /if\(!guardada\)return true/.test(tm));
   const v = corpoDaFuncao('volta', fonte);
   t('o download guarda as linhas com mudança não enviada',
-    /temMudancaNaoEnviada\(col,x,i\)\)meus\[x\.id\]=x/.test(v));
+    /if\(temMudancaNaoEnviada\(col,x,i\)\)\{ meus\[x\.id\]=x/.test(v));
   t('e devolve os filhos que só existem aqui', /volta\._filhos\[col\]/.test(v));
 }
 

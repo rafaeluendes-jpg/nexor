@@ -341,7 +341,21 @@ function volta(linhas,fn,atual,col){
        ========================================================== */
     if(col&&Array.isArray(atual)&&atual.length&&typeof temMudancaNaoEnviada==='function'){
       var meus={};
-      atual.forEach(function(x,i){ if(x&&x.id&&temMudancaNaoEnviada(col,x,i))meus[x.id]=x; });
+      /* download que ficou velho: comecou a ser buscado ANTES do meu ultimo
+         envio confirmado. Nele, o que existe aqui e mais novo — mantem-se o
+         local. O proximo download limpo reconcilia. Isso mata a corrida que
+         apagava a edicao recem-salva. */
+      var _NV = (typeof NUVEM!=='undefined' && NUVEM) ? NUVEM : {};
+      var _baixaVelha = !!(_NV._enviouEm && _NV._baixaIniciou &&
+                           _NV._enviouEm > _NV._baixaIniciou);
+      atual.forEach(function(x,i){
+        if(!x||!x.id)return;
+        if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; return; }
+        if(_baixaVelha) meus[x.id]=x;
+      });
+      if(_baixaVelha)
+        logNuvem(col+': download começou antes do último envio — mantido o que '+
+          'está no aparelho, a nuvem reconcilia no próximo ciclo',true);
       var _fic=0;
       r=r.map(function(x){
         if(x&&x.id&&meus[x.id]){ _fic++; return meus[x.id]; }
@@ -461,6 +475,20 @@ function volta(linhas,fn,atual,col){
     return r;
   }
   try{
+  /* ==========================================================
+     A HORA EM QUE ESTE DOWNLOAD FOI BUSCADO
+
+     Corrida que apagava a edicao do Rafael no MESMO aparelho: um download
+     parte (busca a nuvem VELHA), a pessoa salva (a nuvem vira NOVA, e a
+     impressao local passa a bater com o que subiu), e ai o download velho
+     CHEGA e joga o valor velho por cima — a protecao "manter o que ainda
+     nao subiu" nao dispara, porque o que ela editou JA subiu.
+
+     Marcando a hora em que a busca comecou, o `volta` sabe reconhecer um
+     download que ficou velho: se um envio foi confirmado DEPOIS desta
+     hora, este download nao pode mandar por cima do que esta aqui.
+     ========================================================== */
+  NUVEM._baixaIniciou=Date.now();
   /* partem todas agora; cada "await baixarTab" abaixo apenas recolhe a sua */
   _EMVOO={};
   ['contas_capital'+qs,'formas_pagamento'+qs+'&order=ordem','fornecedores'+qs,
