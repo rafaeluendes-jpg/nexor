@@ -168,6 +168,28 @@ console.log('\n── A lista que ficou no aparelho da loja sobe sozinha\n');
     precisa(E9, { id: 'pb_outro' }, 0, { pb_outro: 'igual' }, { pb_outro: 'u' }) === false);
 }
 
+console.log('\n── O pedido de base se imprime e sai em PDF, nos dois lados\n');
+{
+  const vp = corpoDaFuncao('verPedidoBase', fonte);
+  t('o modal da loja tem o botão Imprimir / PDF',
+    /imprimirPedidoBase\(/.test(vp) && /Imprimir \/ PDF/.test(vp));
+  const cp = corpoDaFuncao('cartaoPedido', fonte);
+  t('o cartão da matriz tem o botão Imprimir / PDF',
+    /imprimirPedidoBase\(/.test(cp) && /Imprimir \/ PDF/.test(cp));
+  t('e mostra a cidade de quem pediu', /cidadeDaUnidade\(p\)/.test(cp));
+
+  const ip = corpoDaFuncao('imprimirPedidoBase', fonte);
+  t('o comprovante identifica o cliente', /Cliente:/.test(ip));
+  t('e a cidade', /Cidade:/.test(ip) && /cidadeDaUnidade\(p\)/.test(ip));
+  t('lista base, quantidade, valor unitário e total',
+    /unidadesDoItem\(it\)/.test(ip) && /precoUnitDoItem\(it\)/.test(ip) && /Total do pedido/.test(ip));
+  t('e imprimir É exportar PDF — a mesma janela do navegador',
+    /window\.print\(\)/.test(ip));
+  /* a cidade sai de sucursais, que carrega o campo cidade do banco */
+  const cu = corpoDaFuncao('cidadeDaUnidade', fonte);
+  t('a cidade vem do cadastro da unidade', /\.cidade/.test(cu) && /sucursalRef/.test(cu));
+}
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' verificações, todas certas') + '\n');
 process.exit(falhas ? 1 : 0);

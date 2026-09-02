@@ -6393,6 +6393,7 @@ pos:'<rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="9" y1="6" x2="
 money:'<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
 users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/>',
 file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+print:'<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
 box:'<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>',
 chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
 store:'<path d="M3 9l1.5-5h15L21 9M3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/>',
@@ -12945,7 +12946,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V282.0.0';
+var VERSAO='V283.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -32683,8 +32684,9 @@ function cartaoPedido(p){
    '<div class="prH" onclick="PR.aberto=' +
      (aberto ? 'null' : '\'' + p.id + '\'') + ';telaBasesHub()">' +
     '<b class="prNum">#' + String(p.numero || 0).padStart(4, '0') + '</b>' +
-    '<div class="prLoja"><b>' + E(p.sucursalNome || '—') + '</b>' +
-     '<span>' + (p.itens || []).length + ' itens · ' + E(dataBR(p.data)) +
+    '<div class="prLoja"><b>' + E(p.sucursalNome || '—') +
+     (cidadeDaUnidade(p) ? ' <span class="prCid">· ' + E(cidadeDaUnidade(p)) + '</span>' : '') +
+     '</b><span>' + (p.itens || []).length + ' itens · ' + E(dataBR(p.data)) +
      (p.responsavel ? ' · ' + E(p.responsavel) : '') + '</span></div>' +
     '<div style="flex:1"></div>' +
     '<b class="prTot">R$ ' + money(p.total) + '</b>' +
@@ -32718,7 +32720,9 @@ function cartaoPedido(p){
             : '<span class="pill am">sem ficha</span>') + '</td></tr>';
        }).join('') + '</tbody></table></div>' +
       (p.obs ? '<div class="prObs"><b>Observação:</b> ' + E(p.obs) + '</div>' : '') +
-      '<div class="prAcoes">' + acoesPedido(p) + '</div>' +
+      '<div class="prAcoes"><button class="btnP2" onclick="event.stopPropagation();' +
+       'imprimirPedidoBase(\'' + p.id + '\')">' + sv('print', 12) +
+       ' Imprimir / PDF</button>' + acoesPedido(p) + '</div>' +
      '</div>'
     : '') +
   '</div>';
@@ -33171,6 +33175,68 @@ function telaPedidoBase(){
    quarta o que pediu nao tinha por onde. O olhinho abre o pedido inteiro,
    base por base, com quantidade, valor da unidade e total de cada linha.
    ========================================================== */
+/* ==========================================================
+   O PEDIDO DE BASE PRECISA SER VISTO INTEIRO — E IMPRESSO
+
+   O Rafael, 02/09/2026: "o pedido chegou na matriz e nao tenho como ver;
+   quando clico, quero que expanda com a identificacao de quem pediu, a
+   cidade, todos os itens com quantidade e valor, e a opcao de imprimir ou
+   exportar em PDF — tanto na franqueadora quanto na loja".
+
+   Um comprovante so, usado nos dois lugares. Imprimir e exportar PDF sao a
+   MESMA acao: o botao abre a janela de impressao do navegador, e ali a
+   propria loja escolhe "Imprimir" numa impressora ou "Salvar como PDF" —
+   e como o sistema inteiro ja imprime (fechamento, cupom, relatorio).
+   ========================================================== */
+function cidadeDaUnidade(p){
+  if(!p)return '';
+  var s=(typeof baseSuc==='function'?baseSuc():(DB.sucursais||[]))
+    .find(function(x){return x.id===p.sucursalRef||x.nome===p.sucursalNome;});
+  return (s&&s.cidade)||'';
+}
+function imprimirPedidoBase(id){
+  var p=basePedidos().find(function(x){return x.id===id;});
+  if(!p){toast('Pedido nao encontrado neste aparelho.');return;}
+  var itens=p.itens||[];
+  var cidade=cidadeDaUnidade(p);
+  var linhas=itens.map(function(it){
+    var q=unidadesDoItem(it), vu=precoUnitDoItem(it);
+    return '<tr><td>'+E(it.baseNome||it.nome||'-')+'</td>'+
+     '<td style="text-align:right">'+fmtQt(q)+'</td>'+
+     '<td style="text-align:right">R$ '+money(vu)+'</td>'+
+     '<td style="text-align:right">R$ '+money(Number(it.total)||q*vu)+'</td></tr>';
+  }).join('');
+  var el=document.getElementById('viaImp')||document.createElement('div');
+  el.id='viaImp';
+  el.innerHTML=
+   '<style>#viaImp{font-family:Arial,Helvetica,sans-serif;color:#000;padding:6px}'+
+   '#viaImp h2{font-size:16px;margin:0}#viaImp .cab{border-bottom:2px solid #000;'+
+   'padding-bottom:8px;margin-bottom:10px}#viaImp .lin{font-size:12px;margin:2px 0}'+
+   '#viaImp table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}'+
+   '#viaImp th{background:#eee;text-align:left;padding:5px;border-bottom:1px solid #000}'+
+   '#viaImp td{padding:4px 5px;border-bottom:1px solid #ddd}'+
+   '#viaImp th:nth-child(n+2),#viaImp td:nth-child(n+2){text-align:right}'+
+   '#viaImp tfoot td{font-weight:700;border-top:2px solid #000;font-size:13px}</style>'+
+   '<div class="cab"><h2>Pedido de Base #'+String(p.numero||0).padStart(4,'0')+'</h2>'+
+    '<div class="lin"><b>Cliente:</b> '+E(p.sucursalNome||'-')+
+      (cidade?' &nbsp; <b>Cidade:</b> '+E(cidade):'')+'</div>'+
+    '<div class="lin"><b>Data:</b> '+E(dataBR(p.data))+
+      ' &nbsp; <b>Situacao:</b> '+E((ROTULO_FASE[p.situacao]||p.situacao||'-'))+
+      (p.responsavel&&String(p.responsavel).trim()!==String(p.sucursalNome||'').trim()
+        ?' &nbsp; <b>Responsavel:</b> '+E(p.responsavel):'')+'</div>'+
+    (p.obs?'<div class="lin"><b>Observacao:</b> '+E(p.obs)+'</div>':'')+
+    '<div class="lin" style="color:#555">Emitido em '+
+      new Date().toLocaleString('pt-BR')+'</div></div>'+
+   (linhas
+    ? '<table><thead><tr><th>Base</th><th>Qtd.</th><th>Valor unit.</th>'+
+      '<th>Total</th></tr></thead><tbody>'+linhas+'</tbody>'+
+      '<tfoot><tr><td colspan="3">Total do pedido</td>'+
+      '<td>R$ '+money(p.total)+'</td></tr></tfoot></table>'
+    : '<div class="lin">A lista de itens nao esta neste aparelho — total do '+
+      'pedido: <b>R$ '+money(p.total)+'</b>.</div>');
+  document.body.appendChild(el);
+  setTimeout(function(){window.print();},250);
+}
 function verPedidoBase(id){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) { toast('Pedido não encontrado neste aparelho.'); return; }
@@ -33228,7 +33294,9 @@ function verPedidoBase(id){
   o.className = 'mdOv'; o.id = 'mdOv';
   o.innerHTML = '<div class="mdBox lg"><div class="mdH"><b>Pedido de base</b>' +
    '<button onclick="fecharModal()">&times;</button></div>' + h +
-   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
+   '<button class="btnVerde" onclick="imprimirPedidoBase(\''+p.id+'\')">'+
+    sv('print',13)+' Imprimir / PDF</button></div></div>';
   document.body.appendChild(o);
   fecharSoForaDeVerdade(o);
 }

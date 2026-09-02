@@ -914,8 +914,9 @@ function cartaoPedido(p){
    '<div class="prH" onclick="PR.aberto=' +
      (aberto ? 'null' : '\'' + p.id + '\'') + ';telaBasesHub()">' +
     '<b class="prNum">#' + String(p.numero || 0).padStart(4, '0') + '</b>' +
-    '<div class="prLoja"><b>' + E(p.sucursalNome || '—') + '</b>' +
-     '<span>' + (p.itens || []).length + ' itens · ' + E(dataBR(p.data)) +
+    '<div class="prLoja"><b>' + E(p.sucursalNome || '—') +
+     (cidadeDaUnidade(p) ? ' <span class="prCid">· ' + E(cidadeDaUnidade(p)) + '</span>' : '') +
+     '</b><span>' + (p.itens || []).length + ' itens · ' + E(dataBR(p.data)) +
      (p.responsavel ? ' · ' + E(p.responsavel) : '') + '</span></div>' +
     '<div style="flex:1"></div>' +
     '<b class="prTot">R$ ' + money(p.total) + '</b>' +
@@ -949,7 +950,9 @@ function cartaoPedido(p){
             : '<span class="pill am">sem ficha</span>') + '</td></tr>';
        }).join('') + '</tbody></table></div>' +
       (p.obs ? '<div class="prObs"><b>Observação:</b> ' + E(p.obs) + '</div>' : '') +
-      '<div class="prAcoes">' + acoesPedido(p) + '</div>' +
+      '<div class="prAcoes"><button class="btnP2" onclick="event.stopPropagation();' +
+       'imprimirPedidoBase(\'' + p.id + '\')">' + sv('print', 12) +
+       ' Imprimir / PDF</button>' + acoesPedido(p) + '</div>' +
      '</div>'
     : '') +
   '</div>';
@@ -1402,6 +1405,68 @@ function telaPedidoBase(){
    quarta o que pediu nao tinha por onde. O olhinho abre o pedido inteiro,
    base por base, com quantidade, valor da unidade e total de cada linha.
    ========================================================== */
+/* ==========================================================
+   O PEDIDO DE BASE PRECISA SER VISTO INTEIRO — E IMPRESSO
+
+   O Rafael, 02/09/2026: "o pedido chegou na matriz e nao tenho como ver;
+   quando clico, quero que expanda com a identificacao de quem pediu, a
+   cidade, todos os itens com quantidade e valor, e a opcao de imprimir ou
+   exportar em PDF — tanto na franqueadora quanto na loja".
+
+   Um comprovante so, usado nos dois lugares. Imprimir e exportar PDF sao a
+   MESMA acao: o botao abre a janela de impressao do navegador, e ali a
+   propria loja escolhe "Imprimir" numa impressora ou "Salvar como PDF" —
+   e como o sistema inteiro ja imprime (fechamento, cupom, relatorio).
+   ========================================================== */
+function cidadeDaUnidade(p){
+  if(!p)return '';
+  var s=(typeof baseSuc==='function'?baseSuc():(DB.sucursais||[]))
+    .find(function(x){return x.id===p.sucursalRef||x.nome===p.sucursalNome;});
+  return (s&&s.cidade)||'';
+}
+function imprimirPedidoBase(id){
+  var p=basePedidos().find(function(x){return x.id===id;});
+  if(!p){toast('Pedido nao encontrado neste aparelho.');return;}
+  var itens=p.itens||[];
+  var cidade=cidadeDaUnidade(p);
+  var linhas=itens.map(function(it){
+    var q=unidadesDoItem(it), vu=precoUnitDoItem(it);
+    return '<tr><td>'+E(it.baseNome||it.nome||'-')+'</td>'+
+     '<td style="text-align:right">'+fmtQt(q)+'</td>'+
+     '<td style="text-align:right">R$ '+money(vu)+'</td>'+
+     '<td style="text-align:right">R$ '+money(Number(it.total)||q*vu)+'</td></tr>';
+  }).join('');
+  var el=document.getElementById('viaImp')||document.createElement('div');
+  el.id='viaImp';
+  el.innerHTML=
+   '<style>#viaImp{font-family:Arial,Helvetica,sans-serif;color:#000;padding:6px}'+
+   '#viaImp h2{font-size:16px;margin:0}#viaImp .cab{border-bottom:2px solid #000;'+
+   'padding-bottom:8px;margin-bottom:10px}#viaImp .lin{font-size:12px;margin:2px 0}'+
+   '#viaImp table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}'+
+   '#viaImp th{background:#eee;text-align:left;padding:5px;border-bottom:1px solid #000}'+
+   '#viaImp td{padding:4px 5px;border-bottom:1px solid #ddd}'+
+   '#viaImp th:nth-child(n+2),#viaImp td:nth-child(n+2){text-align:right}'+
+   '#viaImp tfoot td{font-weight:700;border-top:2px solid #000;font-size:13px}</style>'+
+   '<div class="cab"><h2>Pedido de Base #'+String(p.numero||0).padStart(4,'0')+'</h2>'+
+    '<div class="lin"><b>Cliente:</b> '+E(p.sucursalNome||'-')+
+      (cidade?' &nbsp; <b>Cidade:</b> '+E(cidade):'')+'</div>'+
+    '<div class="lin"><b>Data:</b> '+E(dataBR(p.data))+
+      ' &nbsp; <b>Situacao:</b> '+E((ROTULO_FASE[p.situacao]||p.situacao||'-'))+
+      (p.responsavel&&String(p.responsavel).trim()!==String(p.sucursalNome||'').trim()
+        ?' &nbsp; <b>Responsavel:</b> '+E(p.responsavel):'')+'</div>'+
+    (p.obs?'<div class="lin"><b>Observacao:</b> '+E(p.obs)+'</div>':'')+
+    '<div class="lin" style="color:#555">Emitido em '+
+      new Date().toLocaleString('pt-BR')+'</div></div>'+
+   (linhas
+    ? '<table><thead><tr><th>Base</th><th>Qtd.</th><th>Valor unit.</th>'+
+      '<th>Total</th></tr></thead><tbody>'+linhas+'</tbody>'+
+      '<tfoot><tr><td colspan="3">Total do pedido</td>'+
+      '<td>R$ '+money(p.total)+'</td></tr></tfoot></table>'
+    : '<div class="lin">A lista de itens nao esta neste aparelho — total do '+
+      'pedido: <b>R$ '+money(p.total)+'</b>.</div>');
+  document.body.appendChild(el);
+  setTimeout(function(){window.print();},250);
+}
 function verPedidoBase(id){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) { toast('Pedido não encontrado neste aparelho.'); return; }
@@ -1459,7 +1524,9 @@ function verPedidoBase(id){
   o.className = 'mdOv'; o.id = 'mdOv';
   o.innerHTML = '<div class="mdBox lg"><div class="mdH"><b>Pedido de base</b>' +
    '<button onclick="fecharModal()">&times;</button></div>' + h +
-   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
+   '<button class="btnVerde" onclick="imprimirPedidoBase(\''+p.id+'\')">'+
+    sv('print',13)+' Imprimir / PDF</button></div></div>';
   document.body.appendChild(o);
   fecharSoForaDeVerdade(o);
 }
