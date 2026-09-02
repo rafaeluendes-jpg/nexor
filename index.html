@@ -13016,7 +13016,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V289.0.0';
+var VERSAO='V290.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15389,9 +15389,36 @@ var TIPOS_PG=[
  {id:'outro',n:'Outros'}
 ];
 var BANDEIRAS=['—','Visa','Mastercard','Elo','American Express','Hipercard','Alelo','Sodexo','Ticket','VR','Ifood','Outra'];
+/* ==========================================================
+   A SEMENTE DE FÁBRICA NUNCA REPÕE TAXA QUE A NUVEM JÁ CONHECE
+
+   02/09/2026. A taxa de cartão de Santa Fé ficava voltando ao valor de
+   fábrica (débito 1,99% / crédito 3,49%) sozinha, mesmo depois de
+   corrigida — o aparelho reenviava o valor de fábrica por cima do que
+   estava na nuvem (0,73% / 2,73%). O `audit_log` mostrou o vaivém, sempre
+   em lote, sob a sessão da loja.
+
+   A porta: se a lista de formas fica vazia por um instante (troca de
+   login que limpa o `DB`, um estado zerado), esta semente enchia com o
+   valor de FÁBRICA — e o envio seguinte levava isso para a nuvem, por
+   cima da taxa real. A regra 1 da engenharia é clara: valor de fábrica só
+   entra quando o registro NÃO EXISTE. E "existe" aqui é "a nuvem já
+   conhece" — o que se sabe pelo mapa de identificadores (`DB._uuid`), que
+   sobrevive no aparelho de uma sessão para outra.
+
+   Então: só semeia fábrica quando a nuvem NUNCA soube destas formas
+   (loja nova, sem uuid). Se já soube, deixa vazio e espera o download
+   trazer os valores REAIS — nunca repõe fábrica por cima. `baseFormas` é
+   chamada em dez telas; qualquer uma delas podia disparar a reposição.
+   ========================================================== */
 function baseFormas(){
+  var _jaNaNuvem=!!(DB._uuid&&DB._uuid.formasPag&&
+                    Object.keys(DB._uuid.formasPag).length);
   if(!DB.formasPag||!DB.formasPag.length){
-    DB.formasPag=[
+    /* vazia E a nuvem nunca soube: loja nova, pode semear. Vazia mas a
+       nuvem já conhece (uuid guardado): NÃO semeia — espera o download
+       trazer a taxa real, nunca repõe fábrica por cima. */
+    if(!_jaNaNuvem) DB.formasPag=[
       {id:'fp_dinheiro',nome:'Dinheiro',tipo:'dinheiro',bandeira:'',taxaPct:0,taxaFixa:0,dias:0,contaId:'ct_caixa',ativa:true,online:false,ordem:0},
       {id:'fp_debito',nome:'Cartão débito',tipo:'debito',bandeira:'Mastercard',taxaPct:1.99,taxaFixa:0,dias:1,contaId:'',ativa:true,online:false,ordem:1},
       {id:'fp_credito',nome:'Cartão crédito',tipo:'credito',bandeira:'Mastercard',taxaPct:3.49,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:2},
