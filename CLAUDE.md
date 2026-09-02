@@ -13,8 +13,14 @@ um bug seu para uma loja de vender.
 - Publicação: GitHub Pages, **só a partir da `main`** → joiagest.com.br
 - Banco: Supabase, projeto `cevghkndzpzvnzwifhnm` ("Joia Gestão Inteligente")
 - Robô do WhatsApp: repositório separado `rafaeluendes-jpg/nexor-whatsapp`
+- **PROTOCOLO PERMANENTE, LEIA ANTES DE TUDO:
+  `JOIA_PROTOCOLO_PERMANENTE_DE_ENGENHARIA.md`** — ordem do Rafael de
+  02/09/2026. Amarra as regras de engenharia, regressão e proteção numa só
+  e é obrigatório antes de QUALQUER alteração. Nenhum pedido futuro o
+  apaga; só o Rafael, dizendo que quer mudar o protocolo.
 - **Como se altera este sistema: `JOIA_REGRAS_DE_ENGENHARIA.md`** —
   ordem do Rafael de 01/09/2026. Leia ANTES de qualquer alteração.
+- Como a proteção roda e o que cada suíte cobre: `JOIA_TESTES_E_REGRESSAO.md`
 - O que já está aprovado e não pode quebrar: `BASELINE.md`
 - Decisões de produto e histórico: `DECISOES.md`
 - Visão técnica: `ARQUITETURA.md`
