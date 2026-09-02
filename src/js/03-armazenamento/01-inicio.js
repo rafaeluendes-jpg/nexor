@@ -2771,7 +2771,23 @@ async function sincronizar(){
           o.ref_local=x.id;
           /* a mesma conta que a volta da nuvem usa — impressaoDaLinha */
           hNovo[x.id]=impressaoDaLinha(E2,x,i);
-          if(hAnt[x.id]!==hNovo[x.id]||!DB._uuid[E2.col][x.id])mudou[x.id]=true;
+          /* ==========================================================
+             O PAI COM FILHO PRESO PRECISA SUBIR DE NOVO — E LEVAR O FILHO
+
+             02/09/2026. O pedido 0002 de Santa Fe chegou na matriz com
+             R$ 2.557,00 e ZERO itens, DE NOVO. A chave do upsert ja tinha
+             sido corrigida (V284), entao o item era ACEITO — mas nunca era
+             enviado: os filhos so sobem quando o pai "mudou", e o cabecalho
+             do pedido nao muda mais. O item ficou preso no aparelho da loja.
+
+             O download ja fazia a metade certa: `volta` devolve o item que
+             so existe aqui e marca o pai com `_filhoPendente`, justamente
+             para ele subir de novo. Faltava a outra metade — aqui. Esta
+             conta olhava so a impressao do cabecalho, e `_filhoPendente`
+             passava batido. Agora o pai com filho pendente conta como
+             mudado, sobe (upsert idempotente, mesmo cabecalho) e arrasta o
+             filho junto. A marca e limpa quando a nuvem confirma. */
+          if(hAnt[x.id]!==hNovo[x.id]||!DB._uuid[E2.col][x.id]||x._filhoPendente===true)mudou[x.id]=true;
           return o;
         });
         var envio=linhas.filter(function(o){return mudou[o.ref_local]});

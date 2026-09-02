@@ -219,6 +219,48 @@ console.log('\n── A trava: pedido sem itens não anda\n');
     /!pedidoSemItens\(p\)/.test(ac));
 }
 
+console.log('\n── O ENVIO respeita o filho pendente: o item preso sobe\n');
+{
+  /* O outro lado da história. `volta` (acima) já devolve o item que só
+     existe no aparelho e marca o pai com `_filhoPendente`. Mas quem decide
+     REENVIAR o pai — e com ele os filhos — é a conta de "mudou" dentro de
+     sincronizar. Ela olhava só a impressão do cabeçalho; um pedido cujo
+     cabeçalho já subiu ficava com "mudou = false" para sempre, e a linha
+     `if(!mudou) continue` pulava os filhos. O item de R$ 2.557,00 do
+     pedido 0002 ficava preso no computador de Santa Fé — para sempre.
+
+     Aqui roda a PRÓPRIA expressão do código-fonte, não uma cópia. */
+  const cond = (fonte.match(
+    /if\((hAnt\[x\.id\]!==hNovo\[x\.id\]\|\|!DB\._uuid\[E2\.col\]\[x\.id\]\|\|x\._filhoPendente===true)\)mudou/
+  ) || [])[1];
+  t('a decisão de "mudou" existe e olha o filho pendente', !!cond, cond);
+  if (cond) {
+    const mudou = new Function('hAnt', 'hNovo', 'DB', 'x',
+      'var E2={col:"pedidosBase"};return !!(' + cond + ');');
+
+    /* o caso do 0002: cabeçalho IGUAL (mesma impressão), já tem uuid na
+       nuvem — mas o download marcou filho pendente */
+    const hA = { pb: 'igual' }, hN = { pb: 'igual' };
+    const DBc = { _uuid: { pedidosBase: { pb: 'uuid-existe' } } };
+    t('cabeçalho igual + filho pendente ⇒ o pai sobe de novo',
+      mudou(hA, hN, DBc, { id: 'pb', _filhoPendente: true }) === true);
+    t('cabeçalho igual e SEM filho pendente ⇒ o pai não sobe à toa',
+      mudou(hA, hN, DBc, { id: 'pb' }) === false);
+    t('cabeçalho diferente ⇒ o pai sobe, como sempre foi',
+      mudou({ pb: 'antes' }, { pb: 'depois' }, DBc, { id: 'pb' }) === true);
+    t('pai que a nuvem ainda não conhece ⇒ sobe',
+      mudou({}, { pb: 'x' }, { _uuid: { pedidosBase: {} } }, { id: 'pb' }) === true);
+  }
+
+  /* e a marca é limpa quando a nuvem confirma o pai — senão ele reenviaria
+     para sempre. Isso já estava no código; aqui fica preso. */
+  const env = corpoDaFuncao('sincronizar', fonte);
+  t('confirmado pela nuvem, o pai perde a marca de filho pendente',
+    /delete _o\._novoAqui;delete _o\._filhoPendente/.test(env));
+  t('e o envio dos filhos continua atrás do "mudou" do pai',
+    /if\(!mudou\[lista\[k\]\.id\]\)continue;/.test(env));
+}
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' verificações, todas certas') + '\n');
 process.exit(falhas ? 1 : 0);
