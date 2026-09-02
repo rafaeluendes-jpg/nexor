@@ -49,10 +49,8 @@ grupo('A sessão existe antes de alguém escrever nela');
    do primeiro uso, porque os dois são código de topo */
 const decl = fonte.indexOf("var SESSAO={usuarioId:null,login:null};");
 const usoLogin = fonte.indexOf("SESSAO.usuarioId=u.id;");
-const usoManter = fonte.indexOf("SESSAO.usuarioId=_u.id;");
 t('SESSAO é declarada no arquivo', decl > 0);
 t('e ANTES do login escrever nela', decl < usoLogin, decl + ' vs ' + usoLogin);
-t('e antes do "manter conectado" escrever nela', decl < usoManter, decl + ' vs ' + usoManter);
 /* o comentário que EXPLICA o defeito cita a declaração; contar o texto
    cru acusaria a própria explicação */
 const semComent = fonte.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -83,8 +81,10 @@ const restaura = corpoDaFuncao('restaurarSessaoGuardada', fonte);
 t('o restauro virou função, não código solto de topo', restaura.length > 100);
 t('e é chamado por setTimeout, depois do arquivo carregar',
   /setTimeout\(restaurarSessaoGuardada,0\);/.test(fonte));
-t('o "manter conectado" continua lá', /nexor_sessao/.test(restaura));
-t('e chama abrirSessao quando acha o usuário', /abrirSessao\(\)/.test(restaura));
+t('a restauração ainda mexe na sessão guardada (para descartá-la)', /nexor_sessao/.test(restaura));
+/* ordem do Rafael, 02/09/2026: o login aparece SEMPRE. A restauração não
+   entra mais sozinha — não chama abrirSessao. */
+t('e NÃO entra sozinha: não chama abrirSessao', !/abrirSessao\(\)/.test(restaura));
 
 /* a chamada tem de vir DEPOIS da declaração, e ser a única */
 t('não sobrou chamada direta no topo',

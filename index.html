@@ -6318,7 +6318,7 @@ body.semRolagem{overflow:hidden}
         <div class="loginForm" id="loginForm">
           <div class="group"><label for="lgU">E-mail</label><input id="lgU" type="text" placeholder="Digite seu e-mail" autocomplete="username" required></div>
           <div class="group"><label for="lgP">Senha</label><div class="wrap pass"><input id="lgP" type="password" placeholder="Digite sua senha" autocomplete="current-password" required><button class="eye" id="tg" type="button" aria-label="Mostrar senha">◉</button></div></div>
-          <div class="options"><label class="check"><input type="checkbox" id="lgK" checked><span>Manter conectado</span></label><button class="forgot" id="lgEsq" type="button">Esqueci minha senha</button></div>
+          <div class="options"><label class="check"><input type="checkbox" id="lgK" checked><span>Lembrar meu e-mail</span></label><button class="forgot" id="lgEsq" type="button">Esqueci minha senha</button></div>
           <button class="submit" id="lgB" type="button">Entrar</button>
           <div class="security"><span class="badge">♢</span><span>Ambiente seguro e dados protegidos</span></div><p class="message lgErr" id="lgE" aria-live="polite"></p>
         </div>
@@ -12424,20 +12424,16 @@ async function entrar(){
     SESSAO.login=String(u.login||'').toLowerCase();
     u.ultimoAcesso=new Date().toISOString();
     salvar();
-    /* "Manter conectado" ligado: a sessão fica no aparelho e ele volta direto.
-       Desligado: vale só enquanto a aba estiver aberta. */
-    var manter=!$('lgK')||$('lgK').checked;
+    /* o login aparece SEMPRE (ordem do Rafael, 02/09/2026): nao se guarda
+       mais sessao para entrar sozinho. A caixa "Lembrar meu e-mail" so
+       decide se o e-mail volta preenchido no proximo acesso. */
+    var lembrar=!$('lgK')||$('lgK').checked;
     try{
-      /* so o e-mail, para voltar preenchido numa proxima entrada */
-      localStorage.setItem('nexor_ultimo_email',SESSAO.login);
-      localStorage.setItem('nexor_manter',manter?'1':'0');
-      if(manter){
-        localStorage.setItem('nexor_sessao',SESSAO.login);
-        sessionStorage.removeItem('nexor_sessao');
-      }else{
-        localStorage.removeItem('nexor_sessao');
-        sessionStorage.setItem('nexor_sessao',SESSAO.login);
-      }
+      if(lembrar)localStorage.setItem('nexor_ultimo_email',SESSAO.login);
+      else localStorage.removeItem('nexor_ultimo_email');
+      /* qualquer sessao antiga que ainda esteja guardada sai daqui */
+      localStorage.removeItem('nexor_sessao');
+      sessionStorage.removeItem('nexor_sessao');
     }catch(e){_quieto(e,'entrar')}
     abrirSessao();
     return;
@@ -12543,25 +12539,37 @@ async function sair(){
    `setTimeout(...,0)`: ele espera o script terminar, e ai todo `var` de
    todo bloco ja tem valor.
    ========================================================== */
+/* ==========================================================
+   O LOGIN APARECE SEMPRE — ORDEM DO RAFAEL, 02/09/2026
+
+   "Toda vez que vai entrar, quando fechou a pagina e clica de novo, ele ja
+   entra direto, nao passa pelo login. Tem que seguir o processo: clicou,
+   aparece o login, dai entra."
+
+   Antes, com "Manter conectado", a sessao ficava guardada e o aparelho
+   voltava DIRETO para dentro do sistema, pulando a tela de login. Agora
+   nao pula mais: ao abrir, sempre para no login. O e-mail volta preenchido
+   e o cursor vai para a senha — o processo e o mesmo de sempre, so nao se
+   entra sozinho. Nada do que estava no aparelho e apagado; os dados
+   continuam la para quando a pessoa entrar.
+   ========================================================== */
 function restaurarSessaoGuardada(){
 try{
-  var _ses=localStorage.getItem('nexor_sessao');
-  try{ if(!_ses)_ses=sessionStorage.getItem('nexor_sessao'); }catch(e){_quieto(e,'sair')}
+  /* a sessao guardada nao entra mais sozinha: ela so serve para trazer o
+     e-mail de volta ao campo. O login e sempre mostrado. */
+  try{ localStorage.removeItem('nexor_sessao'); }catch(e){_quieto(e,'restaurar')}
+  try{ sessionStorage.removeItem('nexor_sessao'); }catch(e){_quieto(e,'restaurar')}
+  var _ult='';
+  try{ _ult=localStorage.getItem('nexor_ultimo_email')||''; }catch(e){}
+  var _u=document.getElementById('lgU'), _p=document.getElementById('lgP');
+  if(_u&&_ult&&!_u.value){ _u.value=_ult; if(_p)setTimeout(function(){try{_p.focus()}catch(e){}} ,80); }
+  try{ var _c=document.getElementById('lgK'); if(_c)_c.checked=!!_ult; }catch(e){}
+  /* a tela de login ja esta visivel por padrao (app com .hide); nada a fazer
+     alem de garantir que continua assim */
   try{
-    var _mk=localStorage.getItem('nexor_manter');
-    if(_mk==='0'){var _c=document.getElementById('lgK');if(_c)_c.checked=false;}
-  }catch(e){_quieto(e,'sair')}
-  if(_ses){
-    try{ if(!DB||!DB.usuarios)carregar(); }catch(e){_quieto(e,'sair')}
-    baseUsr();
-    if(_ses==='1'){try{localStorage.removeItem('nexor_sessao')}catch(e){_quieto(e,'sair')}}
-    else{
-      var _k=String(_ses).toLowerCase();
-      var _u=(DB.usuarios||[]).find(function(x){return String(x.login||'').toLowerCase()===_k})
-          ||(DB.usuarios||[]).find(function(x){return x.id===_ses});
-      if(_u&&_u.ativo!==false){SESSAO.usuarioId=_u.id;SESSAO.login=String(_u.login||'').toLowerCase();abrirSessao();}
-    }
-  }
+    var _l=document.getElementById('login'); if(_l)_l.classList.remove('hide');
+    var _a=document.getElementById('app');   if(_a)_a.classList.add('hide');
+  }catch(e){}
 }catch(e){
   /* nao pode mais ficar so anotado: se o restauro falha, a pessoa fica
      olhando uma tela vazia sem nenhuma explicacao. Volta para o login,
@@ -12946,7 +12954,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V284.0.0';
+var VERSAO='V285.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

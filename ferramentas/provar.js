@@ -2909,6 +2909,24 @@ function servir() {
  t('   e a loja recebe o aviso "quitado"',pago.avisoPago,JSON.stringify(pago));
 
 
+  console.log('\n── 10x. O login aparece sempre — não entra direto\n');
+  /* O Rafael, 02/09/2026: fechou a pagina e reabriu, e o sistema entrava
+     direto pulando o login. Agora para sempre no login. Aqui, numa aba
+     limpa (sem o abrirSessao forcado do entrar()), o sistema abre e tem de
+     ficar na tela de login. */
+  {
+    const pg2 = await pg.context().newPage();
+    await pg2.route('**/*', r => r.request().url().startsWith('http://127.0.0.1:' + porta)
+      ? r.continue() : r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
+    await pg2.goto('http://127.0.0.1:' + porta + '/index.html', { waitUntil: 'domcontentloaded' });
+    await pg2.waitForTimeout(1600);
+    const r = await pg2.evaluate(() => ({
+      login: !document.getElementById('login').classList.contains('hide'),
+      app: document.getElementById('app').classList.contains('hide') }));
+    t('ao abrir, para no login (não entra direto)', r.login && r.app, JSON.stringify(r));
+    await pg2.close();
+  }
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();
