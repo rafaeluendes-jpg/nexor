@@ -12946,7 +12946,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V283.0.0';
+var VERSAO='V284.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -32309,6 +32309,7 @@ function gerarReceberPedido(p){
 async function faturarPedidoBase(id){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) return;
+  if (await travaPedidoSemItens(p)) return;
   if (p.finReceberRef) { toast('Este pedido já foi faturado.'); return; }
   var ok = await confirmar({
     titulo: 'Gerar conta a receber?',
@@ -32542,6 +32543,7 @@ function itensSemFicha(p){
 async function produzirPedido(id){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) return;
+  if (await travaPedidoSemItens(p)) return;
   if (p.produzido) { toast('Este pedido já foi produzido.'); return; }
   baseMov();
   var comFicha = itensComFicha(p), semFicha = itensSemFicha(p);
@@ -32695,6 +32697,13 @@ function cartaoPedido(p){
    '</div>' +
    (aberto
     ? '<div class="prCorpo">' +
+      (pedidoSemItens(p)
+       ? '<div class="avisoIn" style="margin:0 0 12px"><b>Os itens deste ' +
+         'pedido ainda não chegaram.</b> Ele vale R$ ' + money(p.total) +
+         ', mas a lista de bases não chegou aqui — sobe sozinha quando ' +
+         E(p.sucursalNome || 'a unidade') + ' abrir o sistema atualizado. ' +
+         'Enquanto isso, o pedido não pode ser confirmado nem cobrado.</div>'
+       : '') +
       (rejeitado
        ? '<div class="avisoIn" style="margin:0 0 12px">Rejeitado: ' +
          E(p.motivoRejeicao || 'sem motivo informado') + '</div>'
@@ -32771,7 +32780,7 @@ function acoesPedido(p){
   if (matriz && p.situacao === 'enviado')
     h += '<button class="btnP2 rdB" onclick="rejeitarPedido(\'' + p.id + '\')">' +
          'Rejeitar</button>';
-  if (matriz && prox){
+  if (matriz && prox && !pedidoSemItens(p)){
     h += '<button class="btnVerde" onclick="avancarPedido(\'' + p.id + '\',\'' +
          prox[0] + '\')">' + prox[1] + '</button>';
   }else if (p.situacao === 'pago'){
@@ -32793,9 +32802,43 @@ function acoesPedido(p){
    Por isso e um clique so, e a caixa de confirmacao diz exatamente o que vai
    acontecer antes de acontecer.
    ========================================================== */
+/* ==========================================================
+   PEDIDO SEM ITENS NAO ANDA — A TRAVA
+
+   O Rafael, 02/09/2026: o pedido #0002, de R$ 2.557,00, chegou na matriz
+   SEM os itens (a lista nunca subiu da loja) e mesmo assim foi confirmado
+   e seguia para virar cobranca. Uma cobranca de dois mil e quinhentos
+   reais sem saber quais bases — e sem baixar nada do estoque da matriz,
+   porque nao ha o que baixar.
+
+   `pedidoSemItens` reconhece esse estado: tem valor, mas a lista nao
+   chegou a este aparelho. A partir daqui, um pedido assim NAO confirma,
+   NAO produz e NAO fatura. Ele espera os itens — que sobem sozinhos
+   quando a loja que o fez abrir o sistema atualizado, ou entao o pedido e
+   refeito. Assim a matriz nunca mais processa um pedido fantasma.
+   ========================================================== */
+function pedidoSemItens(p){
+  return !!p && (Number(p.total)||0) > 0 && (!(p.itens||[]).length);
+}
+async function travaPedidoSemItens(p){
+  if(!pedidoSemItens(p))return false;
+  await confirmar({
+    titulo:'Os itens deste pedido ainda não chegaram',
+    texto:'O pedido #'+String(p.numero||0).padStart(4,'0')+' de '+
+      E(p.sucursalNome||'uma unidade')+' vale R$ '+money(p.total)+
+      ', mas a lista de bases não chegou a este aparelho.',
+    aviso:'Enquanto a lista não aparecer, o pedido não pode ser confirmado, '+
+      'produzido nem cobrado — seria uma cobrança sem saber o que foi pedido. '+
+      'Peça para <b>'+E(p.sucursalNome||'a unidade')+'</b> abrir o sistema '+
+      'atualizado: a lista sobe sozinha. Se não aparecer, o pedido precisa ser refeito.',
+    ok:'Entendi', cancelar:null, tipo:'info'
+  });
+  return true;
+}
 async function avancarPedido(id, para){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) return;
+  if (await travaPedidoSemItens(p)) return;
   var entrega = (para === 'entregue');
   var jaSaiu  = entrega && saidaBaseJaFeita(p);
   var linhasSai = (entrega && !jaSaiu) ? linhasSaidaBases(p) : [];

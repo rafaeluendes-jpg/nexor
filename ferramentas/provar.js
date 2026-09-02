@@ -2710,6 +2710,90 @@ function servir() {
   /* a sessao volta ao normal para as provas seguintes */
   await entrar();
 
+  console.log('\n── 10v. Pedido de base: os itens sobem, e sem eles a matriz trava\n');
+  /* ==========================================================
+     O Rafael, 02/09/2026: o pedido #0002 (R$ 2.557) chegou na matriz SEM
+     os itens e mesmo assim foi confirmado, rumo a uma cobranca sem saber
+     quais bases. A lista nunca subiu — a chave do upsert citava loja_id,
+     que a tabela filha nao tem (corrigido). Aqui, no Chromium, com o
+     `sincronizar` de verdade: um pedido novo com dois itens sobe, e
+     capturamos o POST para provar que pedido_base_itens VAI para a nuvem
+     com a chave certa. Depois, a trava: um pedido sem itens nao avanca.
+     ========================================================== */
+  await entrar();
+  const envio = await pg.evaluate(async () => {
+    /* captura tudo que sai para a nuvem, sem tocar na rede */
+    const posts = [];
+    window.api = async function (caminho, metodo, corpo) {
+      if (metodo === 'POST') {
+        posts.push({ tab: String(caminho).split('?')[0], qs: String(caminho),
+                     linhas: corpo });
+        return (corpo || []).map(function (l) {
+          return Object.assign({}, l, { id: 'uuid_' + l.ref_local }); });
+      }
+      return [];
+    };
+    NUVEM.ligada = true; NUVEM.cli = null; NUVEM.token = 't'; NUVEM.chave = 'k';
+    NUVEM.url = 'http://x'; NUVEM.baixou = true; NUVEM.zerado = false;
+    NUVEM.plataforma = false; NUVEM.sincronizando = false;
+    NUVEM.loja = '6001c62e-26f3-4d81-8b6c-fa367c14146c';
+    /* um pedido de base novo, feito neste aparelho, com dois itens */
+    basePedidos();
+    DB.pedidosBase = [{ id: 'pb_teste', _loja: NUVEM.loja, numero: 99,
+      sucursalRef: 'suc_x', sucursalNome: 'Loja Teste', data: '2026-09-02',
+      responsavel: 'Fulano', total: 1107, situacao: 'enviado',
+      itens: [{ id: 'pbi_a', baseRef: 'b1', baseNome: 'BASE BELGA', qtd: 4,
+                valorUnit: 189, total: 756 },
+              { id: 'pbi_b', baseRef: 'b2', baseNome: 'BASE MORANGO', qtd: 2,
+                valorUnit: 175.5, total: 351 }] }];
+    DB._hash = DB._hash || {}; DB._uuid = DB._uuid || {};
+    delete DB._hash.pedidosBase;              /* nunca enviado: tem de subir */
+    try { await sincronizar(); } catch (e) { return { erro: String(e.message) }; }
+    const pai = posts.find(x => x.tab === 'pedidos_base');
+    const filho = posts.find(x => x.tab === 'pedido_base_itens');
+    return {
+      erro: null,
+      subiuPai: !!pai,
+      subiuItens: !!filho,
+      qtItens: filho ? filho.linhas.length : 0,
+      chaveItens: filho ? (filho.qs.match(/on_conflict=([^&]*)/) || [])[1] : '',
+      nomes: filho ? filho.linhas.map(l => l.base_nome).sort() : []
+    };
+  });
+  t('o cabeçalho do pedido sobe', envio.subiuPai, JSON.stringify(envio));
+  t('E OS ITENS SOBEM JUNTO — pedido_base_itens vai para a nuvem',
+    envio.subiuItens, JSON.stringify(envio));
+  t('os dois itens do pedido sobem', envio.qtItens === 2, envio.qtItens);
+  t('com a chave certa (ref_local, sem loja_id que a tabela não tem)',
+    envio.chaveItens === 'ref_local', envio.chaveItens);
+  t('e são as bases certas', envio.nomes.join(',') === 'BASE BELGA,BASE MORANGO',
+    JSON.stringify(envio.nomes));
+
+  /* a trava: pedido sem itens não avança nem vira cobrança */
+  const trava = await pg.evaluate(async () => {
+    let aviso = null;
+    window.confirmar = async (o) => { aviso = o && o.titulo; return true; };
+    const sem = { id: 'p_sem', numero: 2, sucursalNome: 'Santa Fé', total: 2557,
+      situacao: 'enviado', itens: [] };
+    window.basePedidos = () => [sem];
+    window.ehMatriz = () => true;
+    await avancarPedido('p_sem', 'confirmado');
+    const avisou = aviso;
+    const situacaoDepois = sem.situacao;
+    aviso = null;
+    await faturarPedidoBase('p_sem');
+    return { avisou: avisou, situacaoDepois: situacaoDepois,
+             faturouAviso: aviso, gerouCobranca: !!sem.finReceberRef,
+             reconhece: pedidoSemItens(sem) };
+  });
+  t('a trava reconhece o pedido sem itens', trava.reconhece);
+  t('confirmar um pedido sem itens é bloqueado com aviso',
+    /itens deste pedido ainda não chegaram/i.test(trava.avisou || ''), trava.avisou);
+  t('e a situação não avança', trava.situacaoDepois === 'enviado', trava.situacaoDepois);
+  t('faturar também é bloqueado — nenhuma cobrança nasce',
+    !trava.gerouCobranca && /itens deste pedido ainda não chegaram/i.test(trava.faturouAviso || ''),
+    JSON.stringify(trava));
+
   console.log('\n── 11. O aviso vermelho não pode cobrir a operação\n');
   await pg.evaluate(() => {
     NUVEM.ligada = false; NUVEM.sessaoCaiu = false; telaPDV();

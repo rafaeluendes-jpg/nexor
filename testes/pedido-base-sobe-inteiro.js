@@ -190,6 +190,35 @@ console.log('\n── O pedido de base se imprime e sai em PDF, nos dois lados\n
   t('a cidade vem do cadastro da unidade', /\.cidade/.test(cu) && /sucursalRef/.test(cu));
 }
 
+console.log('\n── A trava: pedido sem itens não anda\n');
+{
+  const amb = { money: (v) => String(v), E: (s) => String(s) };
+  const f = new Function('amb', 'with(amb){' + corpoDaFuncao('pedidoSemItens', fonte) +
+    '\nreturn pedidoSemItens;}')(amb);
+  t('reconhece pedido com valor e sem lista',
+    f({ total: 2557, itens: [] }) === true);
+  t('não trava pedido com itens',
+    f({ total: 756, itens: [{ id: 'i1' }] }) === false);
+  t('não trava pedido zerado (rascunho vazio)',
+    f({ total: 0, itens: [] }) === false);
+
+  const av = corpoDaFuncao('avancarPedido', fonte);
+  t('avançar chama a trava antes de qualquer coisa',
+    /travaPedidoSemItens\(p\)/.test(av) &&
+    av.indexOf('travaPedidoSemItens') < av.indexOf('p.situacao = para'));
+  const pr = corpoDaFuncao('produzirPedido', fonte);
+  t('produzir chama a trava', /travaPedidoSemItens\(p\)/.test(pr));
+  const ft = corpoDaFuncao('faturarPedidoBase', fonte);
+  t('faturar chama a trava', /travaPedidoSemItens\(p\)/.test(ft));
+
+  const cp = corpoDaFuncao('cartaoPedido', fonte);
+  t('o cartão mostra o aviso quando faltam os itens',
+    /pedidoSemItens\(p\)/.test(cp) && /ainda não chegaram/.test(cp));
+  const ac = corpoDaFuncao('acoesPedido', fonte);
+  t('e o botão de avançar some quando faltam os itens',
+    /!pedidoSemItens\(p\)/.test(ac));
+}
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' verificações, todas certas') + '\n');
 process.exit(falhas ? 1 : 0);
