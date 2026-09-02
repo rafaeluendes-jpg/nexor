@@ -1794,7 +1794,7 @@ function telaBasesValores(){
    '</div>' +
 
    (lista.length
-    ? '<div class="lbTabW"><table class="pTable"><thead><tr>' +
+    ? '<div class="lbTabW bvTabW"><table class="pTable bvTab"><thead><tr>' +
       '<th>Nome da base</th>' +
       '<th style="width:200px">Ficha técnica</th>' +
       '<th style="width:92px;text-align:right">Qtde/cx</th>' +

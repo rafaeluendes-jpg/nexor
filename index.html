@@ -2784,6 +2784,21 @@ tr.pbSel td{background:var(--acc-soft)}
 .lbSegm button.on{background:var(--deep);color:#fff;font-weight:600}
 .lbSegm button b{font-variant-numeric:tabular-nums;opacity:.75;font-weight:600}
 .lbTabW{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+/* ==========================================================
+   O CABECALHO DA CENTRAL DE BASES TEM DE GRUDAR — SEM TREMER
+
+   O Rafael, 02/09/2026: "rolo o mouse e a tela fica tremendo".
+   A `.lbTabW` corta o overflow (para arredondar os cantos), e um
+   `overflow:hidden` no caminho QUEBRA o `position:sticky`: o cabecalho
+   deixa de grudar e briga com a repintura a cada rolagem — o tremor.
+   Medido: o topo do cabecalho ia de 371 a -439 rolando, em vez de ficar
+   fixo. Aqui a tabela de bases ganha um wrapper que NAO corta o overflow,
+   entao o cabecalho gruda no topo da area de rolagem e para de tremer. */
+.bvTabW{overflow:visible;border-radius:var(--r)}
+.bvTab thead th{position:sticky;top:0;z-index:3;background:var(--alt);
+  box-shadow:inset 0 -1px 0 var(--line)}
+.bvTab thead th:first-child{border-top-left-radius:var(--r)}
+.bvTab thead th:last-child{border-top-right-radius:var(--r)}
 .lbLote{position:sticky;bottom:0;background:var(--deep);color:#fff;padding:11px 16px;
   display:flex;align-items:center;gap:10px;border-radius:var(--r);margin-top:12px;
   box-shadow:0 -4px 14px rgba(31,42,36,.13);z-index:3}
@@ -12985,7 +13000,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V287.0.0';
+var VERSAO='V288.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33603,7 +33618,7 @@ function telaBasesValores(){
    '</div>' +
 
    (lista.length
-    ? '<div class="lbTabW"><table class="pTable"><thead><tr>' +
+    ? '<div class="lbTabW bvTabW"><table class="pTable bvTab"><thead><tr>' +
       '<th>Nome da base</th>' +
       '<th style="width:200px">Ficha técnica</th>' +
       '<th style="width:92px;text-align:right">Qtde/cx</th>' +
