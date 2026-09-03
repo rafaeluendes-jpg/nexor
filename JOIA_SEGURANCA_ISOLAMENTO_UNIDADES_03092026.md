@@ -68,7 +68,51 @@ Banco) são uma só para a rede, ou cada unidade tem a sua?**
   apertar o RLS nas tabelas que já têm `sucursal_id`, mantendo o Financeiro
   compartilhado só para a matriz.
 
+## Decisão do Rafael (03/09/2026): isolar TUDO por unidade
+
+Cada unidade passa a ter o seu — caixa, cofre, banco, lançamentos, pedidos,
+estoque. Ninguém vê o da outra; a matriz vê todas; a plataforma vê tudo.
+
+## Complicador achado na preparação
+
+O `sucursal_id` é **inconsistente** entre tabelas: é **texto** (`suc_…`, =
+`sucursais.ref_local`) em `estoque_unidade`, `caixas`,
+`movimentacoes_estoque`, `contagens_estoque`; e **uuid** (= `sucursais.id`)
+em `pedidos`. O RLS precisa de duas chaves (uma função para o `ref` texto,
+outra para o `id` uuid), e cada linha antiga tem de ter o `sucursal_id`
+preenchido — senão o dono é trancado fora do próprio dado.
+
+## Plano por etapas (cada uma testada por perfil antes da seguinte)
+
+Nenhuma etapa publica nem aplica RLS sem antes provar, num teste que
+simula cada usuário (gerente de A não lê B; gerente de A lê A; matriz lê
+todas; plataforma lê tudo) e confirma que ninguém perde o próprio dado.
+
+1. **Base**: `minha_sucursal_ref()` (texto) e `minha_sucursal_uuid()` (uuid)
+   — funções novas, ainda sem uso. Risco zero.
+2. **Conferir o dado**: toda linha das tabelas com `sucursal_id` tem um
+   valor válido; corrigir as órfãs ANTES de apertar o RLS.
+3. **Tabelas que já têm unidade** (pedidos, estoque, movimentação,
+   contagem, caixas): RLS passa a exigir
+   `minha_rede(loja_id) AND (sou_admin() OR sou_plataforma() OR
+   sucursal_id = minha_sucursal_*)`. Teste por perfil. Ajustar o download
+   e o frontend se preciso.
+4. **Financeiro (o do print)**: dar `sucursal_id` a `contas_capital`,
+   `lancamentos_financeiros`, `caixa_movimentos`, `transferencias`,
+   `acertos`; preencher o histórico pela origem (o caixa/ a sucursal do
+   lançamento); então o mesmo RLS. É a etapa maior — cada conta vira uma
+   por unidade.
+5. **Sucursais e cadastros compartilhados**: decidir caso a caso o que
+   é da rede (formas, fichas, produtos podem ser padronizados pela
+   franqueadora) e o que é da unidade; o gerente só vê a própria unidade
+   no seletor.
+6. **Frontend**: esconder outras unidades de quem não é matriz (seletor de
+   loja, filtros), como segunda camada.
+
 ## O que foi feito nesta investigação
 
-Nada foi alterado. Só leitura. A correção espera a decisão de escopo,
-porque é grande e é o núcleo financeiro + de segurança de 6 lojas ao vivo.
+Nada foi alterado no banco nem no código. Só leitura. É a etapa 0
+(diagnóstico). As etapas seguintes entram uma a uma, testadas, sem
+publicar até o isolamento estar provado — porque é o núcleo financeiro e
+de segurança de 6 lojas ao vivo, e o protocolo proíbe arriscar isso de
+uma vez.
