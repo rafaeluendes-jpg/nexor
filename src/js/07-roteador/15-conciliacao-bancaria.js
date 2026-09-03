@@ -51,7 +51,17 @@ function telaConciliacao(){
      '<div class="cbPaneB">'+
       '<div class="cbSecT">Sucursal</div>'+
       '<div class="cbLista">'+
-       (DB.lojasFin||[{id:'lj_matriz',nome:'Matriz'}]).map(function(l,i){
+       /* ==========================================================
+          O GERENTE DE UNIDADE NÃO VÊ O NOME DAS OUTRAS LOJAS AQUI
+
+          03/09/2026. Este filtro listava DB.lojasFin — TODAS as unidades
+          da rede — e um gerente de Santa Fé via Matriz, Jales e Alphaville.
+          Trava de frontend (primeira camada): a lista passa a ser
+          `sucursaisDoUsuario()`, que já devolve só a(s) unidade(s) do
+          usuário; a matriz (mestre/tudo/sem sucursal) continua vendo todas.
+          O isolamento de VERDADE (o dado no banco) é o projeto de RLS por
+          unidade em `JOIA_SEGURANCA_ISOLAMENTO_UNIDADES_03092026.md`. */
+       sucursaisDoUsuario().map(function(l,i){
          return '<div class="cbItem'+(i===0?' on':'')+'">'+sv('folder',14)+' '+E(l.nome)+'</div>'}).join('')+
       '</div>'+
       '<div class="cbSecT">Conta de capital</div>'+
