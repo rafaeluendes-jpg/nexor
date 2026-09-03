@@ -82,23 +82,41 @@ t('e sem saldo inicial vale zero',
 t('conta inexistente não quebra a tela',
   motor({ contas: [], lancFin: [] }).saldoConta(null) === 0);
 
-/* 6. o Caixa da loja continua vindo do PDV, não do financeiro */
+/* 6. Caixa ABERTO vem do PDV ao vivo; FECHADO soma os lançamentos.
+   Antes o caixa fechado retornava ZERO e jogava fora as movimentações — a
+   Caixa da loja aparecia R$ 0,00 mesmo com vendas em dinheiro e sangrias
+   (Rafael, 03/09/2026). */
 const comCaixa = new Function('ctx', `
   var DB=ctx.DB, caixaAberto=ctx.caixaAberto, esperadoCaixa=ctx.esperadoCaixa;
   ${corpoDaFuncao('saldoConta', fonte)}
   return {saldoConta:saldoConta};
 `)({ DB: { lancFin: [{ id: 'z', tipo: 'receita', contaId: 'ct_caixa', valor: 99, pago: true }] },
      caixaAberto: () => ({ id: 'cx' }), esperadoCaixa: () => 132 });
-t('o Caixa da loja continua vindo da frente de caixa',
+t('caixa ABERTO continua vindo da frente de caixa (PDV ao vivo)',
   comCaixa.saldoConta({ id: 'ct_caixa', fixa: 'caixa' }) === 132,
   comCaixa.saldoConta({ id: 'ct_caixa', fixa: 'caixa' }));
-t('e com o caixa fechado ele é zero',
+const caixaFechada = new Function('ctx', `
+  var DB=ctx.DB, caixaAberto=ctx.caixaAberto, esperadoCaixa=ctx.esperadoCaixa;
+  ${corpoDaFuncao('saldoConta', fonte)}
+  return {saldoConta:saldoConta};
+`)({ DB: { lancFin: [
+      { id:'v1', tipo:'receita', contaId:'ct_caixa', valor:817, pago:true },
+      { id:'v2', tipo:'receita', contaId:'ct_caixa', valor:90,  pago:true },
+      { id:'s1', tipo:'transferencia', contaId:'ct_caixa', contaDestinoId:'ct_cofre', valor:850, pago:true }
+    ] }, caixaAberto: () => null, esperadoCaixa: () => 0 });
+t('caixa FECHADO NÃO é mais zero: soma vendas em dinheiro − sangrias',
+  caixaFechada.saldoConta({ id: 'ct_caixa', fixa: 'caixa' }) === 57,
+  caixaFechada.saldoConta({ id: 'ct_caixa', fixa: 'caixa' }));
+t('e o "a receber" em dinheiro (não pago) não entra na Caixa fechada',
   new Function('ctx', `
     var DB=ctx.DB, caixaAberto=ctx.caixaAberto, esperadoCaixa=ctx.esperadoCaixa;
     ${corpoDaFuncao('saldoConta', fonte)}
     return {saldoConta:saldoConta};
-  `)({ DB: { lancFin: [] }, caixaAberto: () => null, esperadoCaixa: () => 0 })
-    .saldoConta({ id: 'ct_caixa', fixa: 'caixa' }) === 0);
+  `)({ DB: { lancFin: [
+        { id:'p1', tipo:'receita', contaId:'ct_caixa', valor:500, pago:false },
+        { id:'p2', tipo:'receita', contaId:'ct_caixa', valor:40,  pago:true }
+      ] }, caixaAberto: () => null, esperadoCaixa: () => 0 })
+    .saldoConta({ id: 'ct_caixa', fixa: 'caixa' }) === 40);
 
 /* 6b. centavo nao tem casa decimal sobrando */
 DB = { contas: [], lancFin: [

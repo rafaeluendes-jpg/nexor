@@ -195,7 +195,23 @@ function saldoConta(c){
   if(!c)return 0;
   if(c.fixa==='caixa'){
     var cx=caixaAberto();
-    return cx?esperadoCaixa(cx):0;
+    /* ==========================================================
+       O SALDO DA CAIXA FECHADA NÃO É ZERO
+
+       03/09/2026. No Financeiro, a Caixa da loja mostrava R$ 0,00 mesmo
+       com vendas em dinheiro e sangrias lançadas. A causa era este ramo:
+       com o caixa ABERTO, o saldo vem do PDV ao vivo (esperadoCaixa) —
+       certo, porque os lançamentos da sessão só nascem no fechamento. Mas
+       com o caixa FECHADO, ele retornava ZERO — jogava fora toda a
+       movimentação já lançada (vendas em dinheiro, sangrias,
+       transferências).
+
+       Agora o caixa fechado cai no MESMO cálculo por lançamentos das
+       outras contas (logo abaixo): saldo inicial + receitas − despesas −
+       o que saiu em transferência + o que entrou. A Caixa passa a bater
+       com as entradas e saídas, como o Cofre e o Banco. */
+    if(cx)return esperadoCaixa(cx);
+    /* fechado: segue para o cálculo por lançamentos */
   }
   var s=Number(c.saldoInicial)||0;
   (DB.lancFin||[]).forEach(function(l){
