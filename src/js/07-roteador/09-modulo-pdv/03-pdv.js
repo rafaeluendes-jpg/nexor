@@ -529,10 +529,16 @@ function renderComanda(){
     (it.opcoes&&it.opcoes.length?'<div class="ops">'+it.opcoes.map(function(o){
       return '+ '+E(o.nome)+(o.preco?' (R$ '+money(o.preco)+')':'')}).join('<br>')+'</div>':'')+
     (it.obs?'<div class="ops obs">obs: '+E(it.obs)+'</div>':'')+
-    '<div class="l2"><button class="qtBtn" onclick="mudarQt('+i+',-1)">'+sv('minus',13)+'</button>'+
-    '<span class="qtN">'+it.qtd+'</span>'+
-    '<button class="qtBtn" onclick="mudarQt('+i+',1)">'+sv('plus',13)+'</button>'+
-    '<div style="flex:1"></div>'+
+    /* ==========================================================
+       O ITEM LANCADO NAO TEM MAIS + NEM - (ordem do Rafael, 03/09/2026)
+
+       Antes, cada item da comanda trazia - [qtd] + para mexer na
+       quantidade. O + inflava a venda e o - a reduzia. A regra passou a
+       ser: quantidade nao se altera na comanda. Quem quer outra unidade
+       volta ao cardapio e lanca de novo (cada toque = uma unidade); quem
+       errou tira a linha na lixeira. A quantidade continua a vista no selo
+       do topo da linha. Sobra so observacao e remover. */
+    '<div class="l2"><div style="flex:1"></div>'+
     '<button class="qtBtn" onclick="obsItem('+i+')" title="Observação">'+sv('edit',13)+'</button>'+
     '<button class="qtBtn rd2" onclick="remItem('+i+')" title="Remover">'+sv('trash',13)+'</button></div></div>';
   });
@@ -563,11 +569,8 @@ function lancar(p,opcoes,qtd,obs){
   PDV.comanda.push({produtoId:p.id,nome:p.nome,qtd:qtd,unit:unit,total:unit*qtd,opcoes:opcoes,obs:obs||''});
   renderVenda();
 }
-function mudarQt(i,d){
-  var it=PDV.comanda[i];it.qtd+=d;
-  if(it.qtd<1){PDV.comanda.splice(i,1);}else{it.total=it.unit*it.qtd;}
-  renderVenda();
-}
+/* mudarQt saiu junto com os botoes + e - da comanda (03/09/2026): a
+   quantidade do item nao se altera mais depois de lancado. */
 function remItem(i){PDV.comanda.splice(i,1);renderVenda();}
 function obsItem(i){
   var it=PDV.comanda[i];
