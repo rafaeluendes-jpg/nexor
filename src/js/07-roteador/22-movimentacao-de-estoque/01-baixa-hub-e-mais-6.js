@@ -119,6 +119,28 @@ function custoNaUnidade(ins,unidade){
   if(q===null)return c;
   return +(c*q).toFixed(6);
 }
+/* ==========================================================
+   QUANTIDADE QUE SE LÊ: ACIMA DE 1 kg MOSTRA kg, ABAIXO MOSTRA g
+
+   Regra do Rafael (03/09/2026): "se tem 1 quilo, põe quilo; se tem
+   0,999, põe grama". Antes o estoque saía tudo numa unidade só — GELATO
+   VENDA com 53 mil gramas, ou saldo negativo em milhares de gramas, que
+   ninguém lê. Peso adapta entre g e kg; volume entre ml e L; o resto (un)
+   sai como está. Recebe o valor JÁ na unidade-base do item e devolve
+   {n:'53,22', u:'kg'} para caber no layout <b>número</b> <small>un</small>. */
+function qtdLegivel(v,u){
+  v=Number(v)||0; u=String(u||'').toLowerCase();
+  if(u==='g'||u==='kg'||u==='mg'){
+    var g=convUnid(v,u,'g'); if(g===null)g=v;
+    return Math.abs(g)>=1000?{n:fmtQt(g/1000),u:'kg'}:{n:fmtQt(g),u:'g'};
+  }
+  if(u==='ml'||u==='l'){
+    var ml=convUnid(v,u,'ml'); if(ml===null)ml=v;
+    return Math.abs(ml)>=1000?{n:fmtQt(ml/1000),u:'L'}:{n:fmtQt(ml),u:'ml'};
+  }
+  return {n:fmtQt(v),u:un(u).ab};
+}
+function qtdLegivelTxt(v,u){var q=qtdLegivel(v,u);return q.n+' '+q.u;}
 /* item de estoque = insumo OU ficha técnica marcada como estocável */
 function itemEstoque(id){
   var i=insumo(id);

@@ -162,7 +162,7 @@ function blocoRastreio(){
       var pc=tot?(d.d.q/tot*100):0;
       return '<tr><td><b>'+E(d.nome)+'</b>'+
        '<span class="hpBar"><i style="width:'+Math.min(100,pc)+'%"></i></span></td>'+
-       '<td class="hpFxQ"><b>'+fmtQt(d.d.q)+' '+ab+'</b>'+
+       '<td class="hpFxQ"><b>'+qtdLegivelTxt(d.d.q,i.unidade)+'</b>'+
         '<small>'+pc.toFixed(0)+'% · '+d.d.n+' mov.</small></td>'+
        '<td class="hpFxV">R$ '+money(d.d.v)+'</td></tr>';
     }).join('')+'</tbody></table>';
@@ -172,13 +172,13 @@ function blocoRastreio(){
     '<div class="hp2Nome">'+sv('box',17)+'<div><b>'+E(i.nome)+'</b>'+
      '<span>'+un(i.unidade).n+(i.codigo?' · cód. '+E(i.codigo):'')+'</span></div></div>'+
     '<div class="hp2Fluxo">'+
-     '<div class="hp2K"><span>Saldo no início</span><b>'+fmtQt(saldoInicial)+' '+ab+'</b></div>'+
+     '<div class="hp2K"><span>Saldo no início</span><b>'+qtdLegivelTxt(saldoInicial,i.unidade)+'</b></div>'+
      '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
-     '<div class="hp2K vg2"><span>Entrou</span><b>+'+fmtQt(qEnt)+' '+ab+'</b><small>R$ '+money(vEnt)+'</small></div>'+
+     '<div class="hp2K vg2"><span>Entrou</span><b>+'+qtdLegivelTxt(qEnt,i.unidade)+'</b><small>R$ '+money(vEnt)+'</small></div>'+
      '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
-     '<div class="hp2K vr2"><span>Saiu</span><b>&minus;'+fmtQt(qSai)+' '+ab+'</b><small>R$ '+money(vSai)+'</small></div>'+
+     '<div class="hp2K vr2"><span>Saiu</span><b>&minus;'+qtdLegivelTxt(qSai,i.unidade)+'</b><small>R$ '+money(vSai)+'</small></div>'+
      '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
-     '<div class="hp2K hp2Atual"><span>Saldo atual</span><b>'+fmtQt(saldoFinal)+' '+ab+'</b>'+
+     '<div class="hp2K hp2Atual"><span>Saldo atual</span><b>'+qtdLegivelTxt(saldoFinal,i.unidade)+'</b>'+
       '<small>R$ '+money(saldoFinal*custoDoItem(i))+' em estoque · custo médio R$ '+money(custoDoItem(i))+'</small></div>'+
     '</div></div>'+
    '<div class="hpGrade" style="padding-top:0">'+
@@ -207,8 +207,8 @@ function blocoRastreio(){
         '<td><b>'+E(nomeMotivo(x.m.motivoId))+'</b><small>'+E(destinoLinha(x))+
          (x.l.custo?' · R$ '+money(x.l.qtd*x.l.custo):'')+'</small></td>'+
         '<td style="text-align:right"><b class="'+(x.l.direcao==='entrada'?'vg':'vr')+'">'+
-         (x.l.direcao==='entrada'?'+':'&minus;')+fmtQt(x.l.qtd)+' '+un(x.l.unidade).ab+'</b></td>'+
-        '<td style="text-align:right"><b>'+fmtQt(saldos[k3])+' '+ab+'</b></td></tr>';
+         (x.l.direcao==='entrada'?'+':'&minus;')+qtdLegivelTxt(x.l.qtd,x.l.unidade)+'</b></td>'+
+        '<td style="text-align:right"><b>'+qtdLegivelTxt(saldos[k3],i.unidade)+'</b></td></tr>';
       }).join('')+'</tbody></table></div>'
      :'<div class="hint" style="padding:20px">Nenhum movimento no período.</div>')+
     '</div></div></div>';

@@ -63,9 +63,14 @@ function telaMovMercadoria(){
   var grupos={};
   lanc.forEach(function(x){
     var k=x.data+'|'+x.id;
-    if(!grupos[k])grupos[k]={data:x.data,id:x.id,nome:x.nome,un:x.un,ent:0,sai:0,itens:[]};
+    /* soma sempre na UNIDADE-BASE do item; a linha pode vir em grama e o
+       item ser guardado em quilo. Sem converter, o dia somava grama com
+       quilo e o saldo não fazia sentido (era o número "nada a ver"). */
+    var baseUn=(itemEstoque(x.id)||{}).unidade||x.un;
+    if(!grupos[k])grupos[k]={data:x.data,id:x.id,nome:x.nome,un:baseUn,ent:0,sai:0,itens:[]};
     var g=grupos[k];
-    if(x.ent)g.ent+=x.qtd; else g.sai+=x.qtd;
+    var qb=convUnid(x.qtd,x.un,baseUn); if(qb===null)qb=x.qtd;
+    if(x.ent)g.ent+=qb; else g.sai+=qb;
     g.itens.push(x);
   });
   var lista=Object.keys(grupos).map(function(k){return grupos[k]});
@@ -128,17 +133,19 @@ function telaMovMercadoria(){
   lista.forEach(function(g){
     var k=g.data+'|'+g.id, aberto=!!MM.abertos[k];
     var saldoFim=saldoNaData(g.id,g.data);
+    var qE=qtdLegivel(g.ent,g.un), qS=qtdLegivel(g.sai,g.un), qF=qtdLegivel(saldoFim,g.un);
     html+='<tr style="cursor:pointer" onclick="mmAbrir(\''+E(k)+'\')">'+
       '<td>'+dataBR(g.data)+'</td>'+
       '<td><span class="mmMais">'+(aberto?'−':'+')+'</span> <b>'+E(g.nome)+'</b></td>'+
-      '<td style="text-align:right;color:var(--ok)"><b>'+fmtQt(g.ent)+'</b> <small>'+E(g.un)+'</small></td>'+
-      '<td style="text-align:right;color:var(--rd)"><b>'+fmtQt(g.sai)+'</b> <small>'+E(g.un)+'</small></td>'+
-      '<td style="text-align:right"><b>'+fmtQt(saldoFim)+'</b> <small>'+E(g.un)+'</small></td></tr>';
+      '<td style="text-align:right;color:var(--ok)"><b>'+qE.n+'</b> <small>'+qE.u+'</small></td>'+
+      '<td style="text-align:right;color:var(--rd)"><b>'+qS.n+'</b> <small>'+qS.u+'</small></td>'+
+      '<td style="text-align:right"><b>'+qF.n+'</b> <small>'+qF.u+'</small></td></tr>';
 
     if(aberto){
       /* saldo corrido: comeca no fim do dia anterior e caminha lancamento a lancamento */
       var ini=new Date(g.data+'T12:00:00'); ini.setDate(ini.getDate()-1);
       var saldo=saldoNaData(g.id, ini.toISOString().slice(0,10));
+      var _qi=qtdLegivel(saldo,g.un);
       var det=g.itens.slice().sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'')});
       /* ==========================================================
          O DETALHE TEM DE TER AS MESMAS COLUNAS DE FORA
@@ -153,17 +160,21 @@ function telaMovMercadoria(){
         '<tr class="mmIni"><td style="width:110px">—</td>'+
         '<td>Saldo no início do dia</td>'+
         '<td style="width:150px"></td><td style="width:150px"></td>'+
-        '<td style="width:160px;text-align:right"><b>'+fmtQt(saldo)+'</b> '+E(g.un)+'</td></tr>';
+        '<td style="width:160px;text-align:right"><b>'+_qi.n+'</b> '+_qi.u+'</td></tr>';
       det.forEach(function(x){
-        saldo += x.ent? x.qtd : -x.qtd;
+        /* o saldo caminha na unidade-base; o movimento aparece na unidade
+           que se lê (grama abaixo de 1 kg, quilo acima) */
+        var qb=convUnid(x.qtd,x.un,g.un); if(qb===null)qb=x.qtd;
+        saldo += x.ent? qb : -qb;
+        var qm=qtdLegivel(x.qtd,x.un), qsd=qtdLegivel(saldo,g.un);
         html+='<tr><td style="width:110px">'+E(x.hora||'')+'</td>'+
           '<td>'+E(mmRotulo(x.mov,x.l))+
             (x.mov.identificacao?' <small>· '+E(x.mov.identificacao)+'</small>':'')+'</td>'+
           '<td style="width:150px;text-align:right;color:var(--ok)">'+
-            (x.ent?'+'+fmtQt(x.qtd)+' '+E(x.un):'')+'</td>'+
+            (x.ent?'+'+qm.n+' '+qm.u:'')+'</td>'+
           '<td style="width:150px;text-align:right;color:var(--rd)">'+
-            (x.ent?'':'−'+fmtQt(x.qtd)+' '+E(x.un))+'</td>'+
-          '<td style="width:160px;text-align:right">'+fmtQt(saldo)+' '+E(x.un)+'</td></tr>';
+            (x.ent?'':'−'+qm.n+' '+qm.u)+'</td>'+
+          '<td style="width:160px;text-align:right">'+qsd.n+' '+qsd.u+'</td></tr>';
       });
       html+='</tbody></table></td></tr>';
     }

@@ -13107,7 +13107,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V299.0.0';
+var VERSAO='V300.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -32145,6 +32145,28 @@ function custoNaUnidade(ins,unidade){
   if(q===null)return c;
   return +(c*q).toFixed(6);
 }
+/* ==========================================================
+   QUANTIDADE QUE SE LÊ: ACIMA DE 1 kg MOSTRA kg, ABAIXO MOSTRA g
+
+   Regra do Rafael (03/09/2026): "se tem 1 quilo, põe quilo; se tem
+   0,999, põe grama". Antes o estoque saía tudo numa unidade só — GELATO
+   VENDA com 53 mil gramas, ou saldo negativo em milhares de gramas, que
+   ninguém lê. Peso adapta entre g e kg; volume entre ml e L; o resto (un)
+   sai como está. Recebe o valor JÁ na unidade-base do item e devolve
+   {n:'53,22', u:'kg'} para caber no layout <b>número</b> <small>un</small>. */
+function qtdLegivel(v,u){
+  v=Number(v)||0; u=String(u||'').toLowerCase();
+  if(u==='g'||u==='kg'||u==='mg'){
+    var g=convUnid(v,u,'g'); if(g===null)g=v;
+    return Math.abs(g)>=1000?{n:fmtQt(g/1000),u:'kg'}:{n:fmtQt(g),u:'g'};
+  }
+  if(u==='ml'||u==='l'){
+    var ml=convUnid(v,u,'ml'); if(ml===null)ml=v;
+    return Math.abs(ml)>=1000?{n:fmtQt(ml/1000),u:'L'}:{n:fmtQt(ml),u:'ml'};
+  }
+  return {n:fmtQt(v),u:un(u).ab};
+}
+function qtdLegivelTxt(v,u){var q=qtdLegivel(v,u);return q.n+' '+q.u;}
 /* item de estoque = insumo OU ficha técnica marcada como estocável */
 function itemEstoque(id){
   var i=insumo(id);
@@ -34680,9 +34702,14 @@ function telaMovMercadoria(){
   var grupos={};
   lanc.forEach(function(x){
     var k=x.data+'|'+x.id;
-    if(!grupos[k])grupos[k]={data:x.data,id:x.id,nome:x.nome,un:x.un,ent:0,sai:0,itens:[]};
+    /* soma sempre na UNIDADE-BASE do item; a linha pode vir em grama e o
+       item ser guardado em quilo. Sem converter, o dia somava grama com
+       quilo e o saldo não fazia sentido (era o número "nada a ver"). */
+    var baseUn=(itemEstoque(x.id)||{}).unidade||x.un;
+    if(!grupos[k])grupos[k]={data:x.data,id:x.id,nome:x.nome,un:baseUn,ent:0,sai:0,itens:[]};
     var g=grupos[k];
-    if(x.ent)g.ent+=x.qtd; else g.sai+=x.qtd;
+    var qb=convUnid(x.qtd,x.un,baseUn); if(qb===null)qb=x.qtd;
+    if(x.ent)g.ent+=qb; else g.sai+=qb;
     g.itens.push(x);
   });
   var lista=Object.keys(grupos).map(function(k){return grupos[k]});
@@ -34745,17 +34772,19 @@ function telaMovMercadoria(){
   lista.forEach(function(g){
     var k=g.data+'|'+g.id, aberto=!!MM.abertos[k];
     var saldoFim=saldoNaData(g.id,g.data);
+    var qE=qtdLegivel(g.ent,g.un), qS=qtdLegivel(g.sai,g.un), qF=qtdLegivel(saldoFim,g.un);
     html+='<tr style="cursor:pointer" onclick="mmAbrir(\''+E(k)+'\')">'+
       '<td>'+dataBR(g.data)+'</td>'+
       '<td><span class="mmMais">'+(aberto?'−':'+')+'</span> <b>'+E(g.nome)+'</b></td>'+
-      '<td style="text-align:right;color:var(--ok)"><b>'+fmtQt(g.ent)+'</b> <small>'+E(g.un)+'</small></td>'+
-      '<td style="text-align:right;color:var(--rd)"><b>'+fmtQt(g.sai)+'</b> <small>'+E(g.un)+'</small></td>'+
-      '<td style="text-align:right"><b>'+fmtQt(saldoFim)+'</b> <small>'+E(g.un)+'</small></td></tr>';
+      '<td style="text-align:right;color:var(--ok)"><b>'+qE.n+'</b> <small>'+qE.u+'</small></td>'+
+      '<td style="text-align:right;color:var(--rd)"><b>'+qS.n+'</b> <small>'+qS.u+'</small></td>'+
+      '<td style="text-align:right"><b>'+qF.n+'</b> <small>'+qF.u+'</small></td></tr>';
 
     if(aberto){
       /* saldo corrido: comeca no fim do dia anterior e caminha lancamento a lancamento */
       var ini=new Date(g.data+'T12:00:00'); ini.setDate(ini.getDate()-1);
       var saldo=saldoNaData(g.id, ini.toISOString().slice(0,10));
+      var _qi=qtdLegivel(saldo,g.un);
       var det=g.itens.slice().sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'')});
       /* ==========================================================
          O DETALHE TEM DE TER AS MESMAS COLUNAS DE FORA
@@ -34770,17 +34799,21 @@ function telaMovMercadoria(){
         '<tr class="mmIni"><td style="width:110px">—</td>'+
         '<td>Saldo no início do dia</td>'+
         '<td style="width:150px"></td><td style="width:150px"></td>'+
-        '<td style="width:160px;text-align:right"><b>'+fmtQt(saldo)+'</b> '+E(g.un)+'</td></tr>';
+        '<td style="width:160px;text-align:right"><b>'+_qi.n+'</b> '+_qi.u+'</td></tr>';
       det.forEach(function(x){
-        saldo += x.ent? x.qtd : -x.qtd;
+        /* o saldo caminha na unidade-base; o movimento aparece na unidade
+           que se lê (grama abaixo de 1 kg, quilo acima) */
+        var qb=convUnid(x.qtd,x.un,g.un); if(qb===null)qb=x.qtd;
+        saldo += x.ent? qb : -qb;
+        var qm=qtdLegivel(x.qtd,x.un), qsd=qtdLegivel(saldo,g.un);
         html+='<tr><td style="width:110px">'+E(x.hora||'')+'</td>'+
           '<td>'+E(mmRotulo(x.mov,x.l))+
             (x.mov.identificacao?' <small>· '+E(x.mov.identificacao)+'</small>':'')+'</td>'+
           '<td style="width:150px;text-align:right;color:var(--ok)">'+
-            (x.ent?'+'+fmtQt(x.qtd)+' '+E(x.un):'')+'</td>'+
+            (x.ent?'+'+qm.n+' '+qm.u:'')+'</td>'+
           '<td style="width:150px;text-align:right;color:var(--rd)">'+
-            (x.ent?'':'−'+fmtQt(x.qtd)+' '+E(x.un))+'</td>'+
-          '<td style="width:160px;text-align:right">'+fmtQt(saldo)+' '+E(x.un)+'</td></tr>';
+            (x.ent?'':'−'+qm.n+' '+qm.u)+'</td>'+
+          '<td style="width:160px;text-align:right">'+qsd.n+' '+qsd.u+'</td></tr>';
       });
       html+='</tbody></table></td></tr>';
     }
@@ -36813,7 +36846,7 @@ function blocoRastreio(){
       var pc=tot?(d.d.q/tot*100):0;
       return '<tr><td><b>'+E(d.nome)+'</b>'+
        '<span class="hpBar"><i style="width:'+Math.min(100,pc)+'%"></i></span></td>'+
-       '<td class="hpFxQ"><b>'+fmtQt(d.d.q)+' '+ab+'</b>'+
+       '<td class="hpFxQ"><b>'+qtdLegivelTxt(d.d.q,i.unidade)+'</b>'+
         '<small>'+pc.toFixed(0)+'% · '+d.d.n+' mov.</small></td>'+
        '<td class="hpFxV">R$ '+money(d.d.v)+'</td></tr>';
     }).join('')+'</tbody></table>';
@@ -36823,13 +36856,13 @@ function blocoRastreio(){
     '<div class="hp2Nome">'+sv('box',17)+'<div><b>'+E(i.nome)+'</b>'+
      '<span>'+un(i.unidade).n+(i.codigo?' · cód. '+E(i.codigo):'')+'</span></div></div>'+
     '<div class="hp2Fluxo">'+
-     '<div class="hp2K"><span>Saldo no início</span><b>'+fmtQt(saldoInicial)+' '+ab+'</b></div>'+
+     '<div class="hp2K"><span>Saldo no início</span><b>'+qtdLegivelTxt(saldoInicial,i.unidade)+'</b></div>'+
      '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
-     '<div class="hp2K vg2"><span>Entrou</span><b>+'+fmtQt(qEnt)+' '+ab+'</b><small>R$ '+money(vEnt)+'</small></div>'+
+     '<div class="hp2K vg2"><span>Entrou</span><b>+'+qtdLegivelTxt(qEnt,i.unidade)+'</b><small>R$ '+money(vEnt)+'</small></div>'+
      '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
-     '<div class="hp2K vr2"><span>Saiu</span><b>&minus;'+fmtQt(qSai)+' '+ab+'</b><small>R$ '+money(vSai)+'</small></div>'+
+     '<div class="hp2K vr2"><span>Saiu</span><b>&minus;'+qtdLegivelTxt(qSai,i.unidade)+'</b><small>R$ '+money(vSai)+'</small></div>'+
      '<div class="hp2Seta">'+sv('cr',13)+'</div>'+
-     '<div class="hp2K hp2Atual"><span>Saldo atual</span><b>'+fmtQt(saldoFinal)+' '+ab+'</b>'+
+     '<div class="hp2K hp2Atual"><span>Saldo atual</span><b>'+qtdLegivelTxt(saldoFinal,i.unidade)+'</b>'+
       '<small>R$ '+money(saldoFinal*custoDoItem(i))+' em estoque · custo médio R$ '+money(custoDoItem(i))+'</small></div>'+
     '</div></div>'+
    '<div class="hpGrade" style="padding-top:0">'+
@@ -36858,8 +36891,8 @@ function blocoRastreio(){
         '<td><b>'+E(nomeMotivo(x.m.motivoId))+'</b><small>'+E(destinoLinha(x))+
          (x.l.custo?' · R$ '+money(x.l.qtd*x.l.custo):'')+'</small></td>'+
         '<td style="text-align:right"><b class="'+(x.l.direcao==='entrada'?'vg':'vr')+'">'+
-         (x.l.direcao==='entrada'?'+':'&minus;')+fmtQt(x.l.qtd)+' '+un(x.l.unidade).ab+'</b></td>'+
-        '<td style="text-align:right"><b>'+fmtQt(saldos[k3])+' '+ab+'</b></td></tr>';
+         (x.l.direcao==='entrada'?'+':'&minus;')+qtdLegivelTxt(x.l.qtd,x.l.unidade)+'</b></td>'+
+        '<td style="text-align:right"><b>'+qtdLegivelTxt(saldos[k3],i.unidade)+'</b></td></tr>';
       }).join('')+'</tbody></table></div>'
      :'<div class="hint" style="padding:20px">Nenhum movimento no período.</div>')+
     '</div></div></div>';
