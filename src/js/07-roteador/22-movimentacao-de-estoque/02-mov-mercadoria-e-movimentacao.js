@@ -192,7 +192,25 @@ function mmLimpar(){
   MM.de=hoje.slice(0,8)+'01'; MM.ate=hoje; MM.item=''; MM.abertos={};
   telaMovMercadoria();
 }
-function mmAbrir(k){ MM.abertos[k]=!MM.abertos[k]; telaMovMercadoria(); }
+function mmAbrir(k){
+  MM.abertos[k]=!MM.abertos[k];
+  /* ==========================================================
+     CLICAR NO "+" NÃO PODE EMPURRAR A TELA PARA O TOPO
+
+     03/09/2026. Abrir o detalhe de um item redesenha a lista inteira; o
+     redesenho troca a caixa que rola (.mvTabW) por uma nova, e a guarda
+     geral de rolagem tenta devolver a posição — mas a altura ainda não foi
+     recalculada e o scrollTop é cortado para zero. A tela "treme" e sobe.
+
+     Aqui a posição é guardada e devolvida na hora E no quadro seguinte,
+     quando a altura já assentou. A tela fica parada; só o detalhe abre
+     abaixo do item. */
+  var cx=document.querySelector('.mvTabW');
+  var y=cx?cx.scrollTop:0;
+  telaMovMercadoria();
+  var cx2=document.querySelector('.mvTabW');
+  if(cx2){ cx2.scrollTop=y; requestAnimationFrame(function(){ var c=document.querySelector('.mvTabW'); if(c)c.scrollTop=y; }); }
+}
 
 function telaMovimentacao(){
   baseMov();
