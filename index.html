@@ -13125,7 +13125,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V303.0.0';
+var VERSAO='V304.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -34810,54 +34810,21 @@ function telaMovMercadoria(){
     '<th style="width:160px;text-align:right">Saldo do dia</th>'+
    '</tr></thead><tbody>';
 
-  lista.forEach(function(g){
+  /* guarda os grupos por índice: abrir/fechar um dia mexe SÓ na linha dele,
+     sem redesenhar a lista (era o redesenho que fazia a tela tremer) */
+  MM._grupos={};
+  lista.forEach(function(g,i){
+    MM._grupos[i]=g;
     var k=g.data+'|'+g.id, aberto=!!MM.abertos[k];
     var saldoFim=saldoNaData(g.id,g.data);
     var qE=qtdLegivel(g.ent,g.un), qS=qtdLegivel(g.sai,g.un), qF=qtdLegivel(saldoFim,g.un);
-    html+='<tr style="cursor:pointer" onclick="mmAbrir(\''+E(k)+'\')">'+
+    html+='<tr id="mmr'+i+'" style="cursor:pointer" onclick="mmAbrir('+i+')">'+
       '<td>'+dataBR(g.data)+'</td>'+
       '<td><span class="mmMais">'+(aberto?'−':'+')+'</span> <b>'+E(g.nome)+'</b></td>'+
       '<td style="text-align:right;color:var(--ok)"><b>'+qE.n+'</b> <small>'+qE.u+'</small></td>'+
       '<td style="text-align:right;color:var(--rd)"><b>'+qS.n+'</b> <small>'+qS.u+'</small></td>'+
       '<td style="text-align:right"><b>'+qF.n+'</b> <small>'+qF.u+'</small></td></tr>';
-
-    if(aberto){
-      /* saldo corrido: comeca no fim do dia anterior e caminha lancamento a lancamento */
-      var ini=new Date(g.data+'T12:00:00'); ini.setDate(ini.getDate()-1);
-      var saldo=saldoNaData(g.id, ini.toISOString().slice(0,10));
-      var _qi=qtdLegivel(saldo,g.un);
-      var det=g.itens.slice().sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'')});
-      /* ==========================================================
-         O DETALHE TEM DE TER AS MESMAS COLUNAS DE FORA
-         A tabela de dentro tinha 4 colunas e a de fora tem 5. Resultado:
-         tudo andava uma casa, e uma ENTRADA de 4,8 kg aparecia debaixo de
-         "Qtde saida". Numero na coluna errada nao e detalhe de layout — e
-         informacao errada. Agora entrada e saida tem cada uma a sua coluna,
-         iguais as de cima, e cada valor cai onde deve.
-         ========================================================== */
-      html+='<tr class="mmDet"><td colspan="5" style="padding:0">'+
-        '<table class="mmSub"><tbody>'+
-        '<tr class="mmIni"><td style="width:110px">—</td>'+
-        '<td>Saldo no início do dia</td>'+
-        '<td style="width:150px"></td><td style="width:150px"></td>'+
-        '<td style="width:160px;text-align:right"><b>'+_qi.n+'</b> '+_qi.u+'</td></tr>';
-      det.forEach(function(x){
-        /* o saldo caminha na unidade-base; o movimento aparece na unidade
-           que se lê (grama abaixo de 1 kg, quilo acima) */
-        var qb=convUnid(x.qtd,x.un,g.un); if(qb===null)qb=x.qtd;
-        saldo += x.ent? qb : -qb;
-        var qm=qtdLegivel(x.qtd,x.un), qsd=qtdLegivel(saldo,g.un);
-        html+='<tr><td style="width:110px">'+E(x.hora||'')+'</td>'+
-          '<td>'+E(mmRotulo(x.mov,x.l))+
-            (x.mov.identificacao?' <small>· '+E(x.mov.identificacao)+'</small>':'')+'</td>'+
-          '<td style="width:150px;text-align:right;color:var(--ok)">'+
-            (x.ent?'+'+qm.n+' '+qm.u:'')+'</td>'+
-          '<td style="width:150px;text-align:right;color:var(--rd)">'+
-            (x.ent?'':'−'+qm.n+' '+qm.u)+'</td>'+
-          '<td style="width:160px;text-align:right">'+qsd.n+' '+qsd.u+'</td></tr>';
-      });
-      html+='</tbody></table></td></tr>';
-    }
+    if(aberto)html+=mmDetalheHTML(g);
   });
   html+='</tbody></table></div></div>';
   $('content').innerHTML=html;
@@ -34872,24 +34839,60 @@ function mmLimpar(){
   MM.de=hoje.slice(0,8)+'01'; MM.ate=hoje; MM.item=''; MM.abertos={};
   telaMovMercadoria();
 }
-function mmAbrir(k){
+/* o detalhe de um dia, como uma linha <tr class="mmDet"> pronta para inserir */
+function mmDetalheHTML(g){
+  /* saldo corrido: comeca no fim do dia anterior e caminha lancamento a lancamento */
+  var ini=new Date(g.data+'T12:00:00'); ini.setDate(ini.getDate()-1);
+  var saldo=saldoNaData(g.id, ini.toISOString().slice(0,10));
+  var _qi=qtdLegivel(saldo,g.un);
+  var det=g.itens.slice().sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'')});
+  /* o detalhe tem as MESMAS 5 colunas de fora, para cada valor cair na sua */
+  var h='<tr class="mmDet"><td colspan="5" style="padding:0">'+
+    '<table class="mmSub"><tbody>'+
+    '<tr class="mmIni"><td style="width:110px">—</td>'+
+    '<td>Saldo no início do dia</td>'+
+    '<td style="width:150px"></td><td style="width:150px"></td>'+
+    '<td style="width:160px;text-align:right"><b>'+_qi.n+'</b> '+_qi.u+'</td></tr>';
+  det.forEach(function(x){
+    /* o saldo caminha na unidade-base; o movimento aparece na unidade que se lê */
+    var qb=convUnid(x.qtd,x.un,g.un); if(qb===null)qb=x.qtd;
+    saldo += x.ent? qb : -qb;
+    var qm=qtdLegivel(x.qtd,x.un), qsd=qtdLegivel(saldo,g.un);
+    h+='<tr><td style="width:110px">'+E(x.hora||'')+'</td>'+
+      '<td>'+E(mmRotulo(x.mov,x.l))+
+        (x.mov.identificacao?' <small>· '+E(x.mov.identificacao)+'</small>':'')+'</td>'+
+      '<td style="width:150px;text-align:right;color:var(--ok)">'+
+        (x.ent?'+'+qm.n+' '+qm.u:'')+'</td>'+
+      '<td style="width:150px;text-align:right;color:var(--rd)">'+
+        (x.ent?'':'−'+qm.n+' '+qm.u)+'</td>'+
+      '<td style="width:160px;text-align:right">'+qsd.n+' '+qsd.u+'</td></tr>';
+  });
+  return h+'</tbody></table></td></tr>';
+}
+/* ==========================================================
+   ABRIR/FECHAR UM DIA NÃO REDESENHA A LISTA
+
+   03/09/2026. Antes, clicar no "+" chamava telaMovMercadoria() e refazia a
+   tela toda — a caixa que rola (.mvTabW) era trocada, a guarda de rolagem
+   devolvia a posição antes de a altura assentar, e a tela TREMIA e subia.
+
+   Agora o clique mexe SÓ na linha do dia: insere (ou remove) a linha de
+   detalhe logo abaixo, troca o + por − e para por aí. Nada mais na tela se
+   move, e a rolagem com o mouse continua lisa porque não há redesenho. */
+function mmAbrir(i){
+  var g=MM._grupos&&MM._grupos[i]; if(!g)return;
+  var k=g.data+'|'+g.id;
+  var row=document.getElementById('mmr'+i); if(!row)return;
+  var icone=row.querySelector('.mmMais');
   MM.abertos[k]=!MM.abertos[k];
-  /* ==========================================================
-     CLICAR NO "+" NÃO PODE EMPURRAR A TELA PARA O TOPO
-
-     03/09/2026. Abrir o detalhe de um item redesenha a lista inteira; o
-     redesenho troca a caixa que rola (.mvTabW) por uma nova, e a guarda
-     geral de rolagem tenta devolver a posição — mas a altura ainda não foi
-     recalculada e o scrollTop é cortado para zero. A tela "treme" e sobe.
-
-     Aqui a posição é guardada e devolvida na hora E no quadro seguinte,
-     quando a altura já assentou. A tela fica parada; só o detalhe abre
-     abaixo do item. */
-  var cx=document.querySelector('.mvTabW');
-  var y=cx?cx.scrollTop:0;
-  telaMovMercadoria();
-  var cx2=document.querySelector('.mvTabW');
-  if(cx2){ cx2.scrollTop=y; requestAnimationFrame(function(){ var c=document.querySelector('.mvTabW'); if(c)c.scrollTop=y; }); }
+  if(MM.abertos[k]){
+    row.insertAdjacentHTML('afterend', mmDetalheHTML(g));
+    if(icone)icone.textContent='−';
+  }else{
+    var prox=row.nextElementSibling;
+    if(prox&&prox.classList&&prox.classList.contains('mmDet'))prox.parentNode.removeChild(prox);
+    if(icone)icone.textContent='+';
+  }
 }
 
 function telaMovimentacao(){
