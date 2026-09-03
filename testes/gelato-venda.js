@@ -104,6 +104,14 @@ function api(DB, extras) {
     catFicha: () => null,
     custoNaUnidade: ins => Number(ins && ins.custo) || 0,
     custoPorUnidade: () => 0,
+    /* o convUnid de verdade: converte pela base comum (peso/volume), senão null */
+    convUnid: (qtd, de, para) => {
+      const F = { g: 0.001, kg: 1, mg: 0.000001, ml: 0.001, l: 1 };
+      const b = { g: 'p', kg: 'p', mg: 'p', ml: 'v', l: 'v' };
+      const a = String(de || '').toLowerCase(), c = String(para || '').toLowerCase();
+      if (!F[a] || !F[c] || b[a] !== b[c]) return null;
+      return qtd * F[a] / F[c];
+    },
     baseMov: () => {}, toast: () => {}, uid: p => p + '1',
     hojeISO: () => '2026-09-01', agoraHM: () => '10:00', diaLocal: d => d,
     aplicarMovimento: () => {}
@@ -174,9 +182,11 @@ console.log('\n── A venda do pedido #735: 500gr de Belga com Morango\n');
   t('não sai BASE MORANGO', !nomes.includes('BASE MORANGO'), nomes.join(', '));
   t('não sai Pasta Morango', !nomes.includes('Pasta Morango'), nomes.join(', '));
   t('sai só uma linha', linhas.length === 1, linhas.length);
-  /* a receita do GELATO 500GR e 500 g de GELATO VENDA — meio quilo, na unidade dela */
-  t('e sai meio quilo (500 g)',
-    linhas[0] && Math.abs(linhas[0].qtd - 500) < 0.0001 && linhas[0].unidade === 'g',
+  /* a receita do GELATO 500GR é 500 g de GELATO VENDA. GELATO VENDA é
+     guardado em QUILO — então a baixa tem de sair em 0,5 kg, não em 500 g.
+     Antes saía "500 g" e o pacote da nuvem descontava 500 kg (mil vezes). */
+  t('e sai meio quilo, já na unidade do item (0,5 kg, não 500 g)',
+    linhas[0] && Math.abs(linhas[0].qtd - 0.5) < 0.0001 && linhas[0].unidade === 'kg',
     linhas[0] && linhas[0].qtd + ' ' + linhas[0].unidade);
 }
 

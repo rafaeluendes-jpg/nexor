@@ -62,6 +62,14 @@ function baixar(DB, opcao) {
   const amb = {
     DB: DB,
     insumo: id => DB.insumos.find(i => i.id === id),
+    itemEstoque: id => DB.insumos.find(i => i.id === id) || DB.fichas.find(f => f.id === id) || null,
+    convUnid: (qtd, de, para) => {
+      const F = { g: 0.001, kg: 1, mg: 0.000001, ml: 0.001, l: 1 };
+      const b = { g: 'p', kg: 'p', mg: 'p', ml: 'v', l: 'v' };
+      const a = String(de || '').toLowerCase(), c = String(para || '').toLowerCase();
+      if (!F[a] || !F[c] || b[a] !== b[c]) return null;
+      return qtd * F[a] / F[c];
+    },
     custoNaUnidade: () => 1,
     baseMov: () => {}, toast: () => {}, uid: p => p + '1',
     hojeISO: () => '2026-08-28', agoraHM: () => '10:00', diaLocal: d => d,

@@ -13090,7 +13090,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V296.0.0';
+var VERSAO='V297.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -35546,6 +35546,37 @@ function baixarEstoqueVenda(ped){
         });
       }
     }
+  });
+  /* ==========================================================
+     A BAIXA SAI NA UNIDADE DO ITEM — NUNCA EM GRAMA CONTRA UM SALDO EM QUILO
+
+     AQUI ESTAVA O SALDO DE ESTOQUE INDO PARA CENTENAS DE QUILOS NEGATIVOS.
+
+     31/08/2026, GELATO VENDA (Santa Fé): a ficha rende em GRAMA, então cada
+     venda gerava uma linha tipo `qtd:242, unidade:'g'`. O item, porém, é
+     guardado em QUILO. O caminho LOCAL (ajustaEstoque → convUnid) convertia
+     e descontava 0,242 kg, certo. Mas a venda também sobe pelo pacote
+     atômico (rpc/venda_registrar → estoque_aplicar), e ali o banco faz
+     `estoque = estoque + qtd` SEM converter: descontava 242 kg por bola de
+     sorvete. Mil vezes a mais.
+
+     Os dois lados brigavam pelo saldo da nuvem — o delta errado do banco e o
+     absoluto certo do aparelho — e o download adotava o mais recente. Bastava
+     um dia de venda para o saldo despencar (medido: −779 kg onde o certo eram
+     ~73 kg).
+
+     Correção na PORTA ÚNICA da venda: antes de virar movimento, cada linha é
+     normalizada para a unidade-base do próprio item. Assim o que o aparelho
+     guarda, o que sobe no pacote e o delta que o banco aplica são a MESMA
+     quantidade, na MESMA unidade. Unidade incompatível (sem base comum) é
+     mantida como está — melhor não converter do que converter errado. */
+  linhas=linhas.map(function(l){
+    var ins=itemEstoque(l.insumoId);
+    if(!ins||!ins.unidade||!l.unidade||l.unidade===ins.unidade)return l;
+    var q=convUnid(Number(l.qtd)||0,l.unidade,ins.unidade);
+    if(q===null)return l;                 /* sem base comum: não arrisca */
+    return Object.assign({},l,{qtd:+q.toFixed(4),unidade:ins.unidade,
+      custo:custoNaUnidade(ins,ins.unidade)});
   });
   if(!linhas.length){
     var semVinc=(ped.itens||[]).filter(function(it){
