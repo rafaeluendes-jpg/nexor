@@ -13,35 +13,29 @@ var TIPOS_PG=[
 ];
 var BANDEIRAS=['—','Visa','Mastercard','Elo','American Express','Hipercard','Alelo','Sodexo','Ticket','VR','Ifood','Outra'];
 /* ==========================================================
-   A SEMENTE DE FÁBRICA NUNCA REPÕE TAXA QUE A NUVEM JÁ CONHECE
+   A COMANDA SEMPRE TEM FORMA DE PAGAMENTO NA TELA
 
-   02/09/2026. A taxa de cartão de Santa Fé ficava voltando ao valor de
-   fábrica (débito 1,99% / crédito 3,49%) sozinha, mesmo depois de
-   corrigida — o aparelho reenviava o valor de fábrica por cima do que
-   estava na nuvem (0,73% / 2,73%). O `audit_log` mostrou o vaivém, sempre
-   em lote, sob a sessão da loja.
+   03/09/2026. Na V290 esta semente ganhou uma trava: só enchia a lista de
+   fábrica quando a nuvem NUNCA tinha visto as formas (sem uuid guardado).
+   A intenção era não repor 1,99%/3,49% por cima da taxa real. Mas ela
+   partiu de uma premissa falsa — a de que o download traz as formas de
+   volta. NÃO traz: as formas moram na nuvem com `loja_id` nulo (são da
+   rede) e o download filtra `loja_id=eq.<loja>`, então elas nunca descem.
+   A semente É a fonte da lista na tela.
 
-   A porta: se a lista de formas fica vazia por um instante (troca de
-   login que limpa o `DB`, um estado zerado), esta semente enchia com o
-   valor de FÁBRICA — e o envio seguinte levava isso para a nuvem, por
-   cima da taxa real. A regra 1 da engenharia é clara: valor de fábrica só
-   entra quando o registro NÃO EXISTE. E "existe" aqui é "a nuvem já
-   conhece" — o que se sabe pelo mapa de identificadores (`DB._uuid`), que
-   sobrevive no aparelho de uma sessão para outra.
+   Resultado da trava: bastava a lista ficar vazia um instante (uma sessão
+   nova, um estado zerado) e, como a nuvem "já conhecia" as formas, a
+   semente NÃO entrava e o download NÃO trazia — a seção Forma de pagamento
+   aparecia SEM NENHUMA opção. O caixa não conseguia cobrar. Um caixa sem
+   forma de pagamento é pior do que qualquer reversão de taxa.
 
-   Então: só semeia fábrica quando a nuvem NUNCA soube destas formas
-   (loja nova, sem uuid). Se já soube, deixa vazio e espera o download
-   trazer os valores REAIS — nunca repõe fábrica por cima. `baseFormas` é
-   chamada em dez telas; qualquer uma delas podia disparar a reposição.
-   ========================================================== */
+   Volta a regra original: lista vazia, enche de fábrica. A tela nunca
+   fica sem forma. A proteção da taxa contra reposição é problema separado
+   e se resolve sem cegar o caixa (a taxa real da loja é editada na tela de
+   Formas de Pagamento e fica no aparelho). */
 function baseFormas(){
-  var _jaNaNuvem=!!(DB._uuid&&DB._uuid.formasPag&&
-                    Object.keys(DB._uuid.formasPag).length);
   if(!DB.formasPag||!DB.formasPag.length){
-    /* vazia E a nuvem nunca soube: loja nova, pode semear. Vazia mas a
-       nuvem já conhece (uuid guardado): NÃO semeia — espera o download
-       trazer a taxa real, nunca repõe fábrica por cima. */
-    if(!_jaNaNuvem) DB.formasPag=[
+    DB.formasPag=[
       {id:'fp_dinheiro',nome:'Dinheiro',tipo:'dinheiro',bandeira:'',taxaPct:0,taxaFixa:0,dias:0,contaId:'ct_caixa',ativa:true,online:false,ordem:0},
       {id:'fp_debito',nome:'Cartão débito',tipo:'debito',bandeira:'Mastercard',taxaPct:1.99,taxaFixa:0,dias:1,contaId:'',ativa:true,online:false,ordem:1},
       {id:'fp_credito',nome:'Cartão crédito',tipo:'credito',bandeira:'Mastercard',taxaPct:3.49,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:2},
