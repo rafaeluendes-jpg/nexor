@@ -566,7 +566,20 @@ function addItem(pid){
 function lancar(p,opcoes,qtd,obs){
   var extra=opcoes.reduce(function(a,o){return a+(Number(o.preco)||0)},0);
   var unit=precoVigente(p)+extra;
-  PDV.comanda.push({produtoId:p.id,nome:p.nome,qtd:qtd,unit:unit,total:unit*qtd,opcoes:opcoes,obs:obs||''});
+  /* ==========================================================
+     O ITEM DA VENDA NASCE COM IDENTIFICADOR PRÓPRIO
+
+     Sem id, os dois caminhos que sobem a venda davam nomes DIFERENTES ao
+     mesmo item: o pacote atômico usava `pedido_i` (posição), a
+     sincronização comum usava `pedido_j_aleatório`. Chaves diferentes para
+     a mesma linha: reenviar duplicava, apagava e embaralhava os itens do
+     pedido DEPOIS de vendido — o cupom saía com um conjunto e a consulta
+     mostrava outro (pedido #849, 03/09/2026).
+
+     Com um id estável e único desde o lançamento, os dois caminhos e o
+     download usam a MESMA referência: reenviar é idempotente, o pedido
+     fica imutável e os itens não mudam mais depois da venda. */
+  PDV.comanda.push({id:uid('it'),produtoId:p.id,nome:p.nome,qtd:qtd,unit:unit,unitario:unit,total:unit*qtd,opcoes:opcoes,obs:obs||''});
   renderVenda();
 }
 /* mudarQt saiu junto com os botoes + e - da comanda (03/09/2026): a
@@ -1464,9 +1477,14 @@ async function enviarVendaAtomica(ped,mov){
          ========================================================== */
       caixa_ref:ped.caixaId||'',
       itens:(ped.itens||[]).map(function(it,i){
+        /* o preço unitário do carrinho é `unit` (não `preco`, que não existe
+           aqui); `unitario` cobre o item que voltou da nuvem. Ler `it.preco`
+           mandava 0 para o banco. */
         return {ref_local:(it.id||(ped.id+'_'+i)),nome:it.nome||'',
           produto_id:it.produtoId||'',           /* identificador local; o banco resolve */
-          quantidade:it.qtd||1,unitario:it.preco||0,total:it.total||0,
+          quantidade:it.qtd||1,
+          unitario:(it.unit!=null?it.unit:(it.unitario!=null?it.unitario:it.preco))||0,
+          total:it.total||0,
           opcoes:it.opcoes||[],observacao:it.obs||''};
       }),
       /* ==========================================================

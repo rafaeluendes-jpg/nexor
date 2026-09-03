@@ -1499,8 +1499,10 @@ var MAPA=[
     equipamento:x.equipamento||null,senha_totem:n(x.senha)}},
   filhos:[
    {lista:'itens',tab:'pedido_itens',pai:'pedido_id',
+    /* lê o preço de onde estiver: `unit` no carrinho, `unitario` no item que
+       voltou da nuvem — senão o reenvio depois de um download subia preço 0 */
     campos:function(o){return {produto_id:fk('produtos',o.produtoId),nome:o.nome,
-      quantidade:n(o.qtd),unitario:n(o.unit),total:n(o.total),
+      quantidade:n(o.qtd),unitario:n(o.unit!=null?o.unit:o.unitario),total:n(o.total),
       opcoes:o.opcoes||[],observacao:o.obs||null}}},
    {lista:'pagamentos',tab:'pedido_pagamentos',pai:'pedido_id',
     /* ==========================================================
@@ -2681,6 +2683,18 @@ async function sincronizar(){
                  Filho sem nome nao tem como ser comparado por nome: passa
                  direto. A trava continua valendo para as opcoes.
                  ========================================================== */
+              /* ==========================================================
+                 COLAPSAR POR NOME VALE SÓ PARA OPÇÃO DE CARDÁPIO
+
+                 Duas opções de mesmo nome e preço no mesmo grupo são a mesma
+                 opção — aí sim se descarta a repetida. Mas num PEDIDO a
+                 repetição é REAL: três "Cascão Chocolate Avulso", duas
+                 "Agua". Colapsar por nome apagava produtos de uma venda já
+                 fechada, e o pedido salvo passava a divergir do cupom
+                 impresso (pedido #849, 03/09/2026). O mesmo vale para
+                 pagamentos e itens de ficha. Fora das opções, cada filho tem
+                 identificador próprio e passa direto. */
+              if(F2.tab!=='opcoes'){ limpo.push(o); return; }
               if(!String(o.nome||'').trim()){ limpo.push(o); return; }
               var ch=String(o.nome).trim().toLowerCase()+'|'+(Number(o.preco)||0);
               if(visto[ch])return;

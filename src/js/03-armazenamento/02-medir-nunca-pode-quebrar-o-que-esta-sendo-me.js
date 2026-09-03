@@ -1405,9 +1405,12 @@ function volta(linhas,fn,atual,col){
        pagamentos, somando R$ 150 mil em relatorio de produto.
        A ficha tecnica ja lia `id:i2.ref_local` e por isso nunca duplicou.
        ========================================================== */
-    itens:(x.pedido_itens||[]).map(function(i3){return {id:i3.ref_local||i3.id,
+    /* o preço unitário volta nos DOIS nomes: o carrinho e o envio usam
+       `unit`, os relatórios leem `unitario`. Escrever só um zerava o outro
+       no próximo envio (a venda voltava com preço 0). */
+    itens:(x.pedido_itens||[]).map(function(i3){var _u=Number(i3.unitario)||0;return {id:i3.ref_local||i3.id,
       produtoId:mapaPr[i3.produto_id]||'',
-      nome:i3.nome,qtd:Number(i3.quantidade)||0,unitario:Number(i3.unitario)||0,
+      nome:i3.nome,qtd:Number(i3.quantidade)||0,unit:_u,unitario:_u,
       total:Number(i3.total)||0,obs:i3.observacao||'',opcoes:i3.opcoes||[]}}),
     /* ==========================================================
        O PAGAMENTO VOLTAVA COM O CAMPO TROCADO
