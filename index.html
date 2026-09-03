@@ -10349,8 +10349,41 @@ function volta(linhas,fn,atual,col){
       var _NV = (typeof NUVEM!=='undefined' && NUVEM) ? NUVEM : {};
       var _baixaVelha = !!(_NV._enviouEm && _NV._baixaIniciou &&
                            _NV._enviouEm > _NV._baixaIniciou);
+      /* ==========================================================
+         O SALDO DE ESTOQUE NAO PODE VIRAR GUERRA ENTRE APARELHOS
+
+         03/09/2026. `estoque_unidade` guarda um SALDO ABSOLUTO por
+         (loja,item). Dois aparelhos da mesma loja, com saldos diferentes,
+         ficavam gravando um por cima do outro — 100+ regravacoes em 48h, o
+         numero oscilando (-278 <-> -458 <-> -999) no audit_log. Cada um
+         preservava o SEU saldo como "ainda nao enviado" e reenviava para
+         sempre; e enquanto ha algo para subir, o aparelho pausa os
+         downloads. Era a fila que nao esvaziava e o "aparelho atrasado".
+
+         Dois saldos absolutos NAO se resolvem preservando os dois lados
+         (nao da para somar). Entao a regra deste cache passa a ser
+         DETERMINISTA: vence a escrita MAIS RECENTE (`atualizadoEm`). O
+         aparelho com o saldo mais novo mantem o seu e sobe; o outro adota
+         o da nuvem em vez de reenviar o antigo. Os dois convergem, a
+         guerra acaba, a fila esvazia. O razao (movimentacoes_estoque)
+         continua guardando cada baixa, entao o historico nao se perde.
+         ========================================================== */
+      var _ehEstoque = (col==='estoqueUn');
+      var _naNuvemEst = {};
+      if(_ehEstoque) r.forEach(function(y){ if(y&&y.id)_naNuvemEst[y.id]=y; });
+      function _maisNovoQue(a,b){
+        if(!a)return false;            /* sem carimbo local: nao vence */
+        if(!b)return true;             /* nuvem sem carimbo, local tem: local vence */
+        return String(a)>String(b);    /* ISO ordena por texto */
+      }
       atual.forEach(function(x,i){
         if(!x||!x.id)return;
+        if(_ehEstoque){
+          var nv=_naNuvemEst[x.id];
+          if(!nv){ meus[x.id]=x; return; }               /* so existe aqui: sobe */
+          if(_maisNovoQue(x.atualizadoEm,nv.atualizadoEm)) meus[x.id]=x; /* local mais novo vence */
+          return;                                        /* senao: adota a nuvem, sem guerra */
+        }
         if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; return; }
         if(_baixaVelha) meus[x.id]=x;
       });
@@ -13016,7 +13049,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V290.0.0';
+var VERSAO='V291.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
