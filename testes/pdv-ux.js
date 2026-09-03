@@ -167,7 +167,7 @@ grupo('Teste 4 · ENTER avança entre as formas do fechamento');
   t('a ordem segue as formas cadastradas',
     naTela.map(f => f.id).join(',') === 'fp_dinheiro,fp_debito,fp_pix');
   t('FORMAS já exclui inativa na origem',
-    /FORMAS=\(DB\.formasPag\|\|\[\]\)\.filter\(function\(f\)\{return f\.ativa!==false\}\)/.test(fonte));
+    /FORMAS=_base\.filter\(function\(f\)\{return f\.ativa!==false\}\)/.test(fonte));
 }
 
 /* ==========================================================

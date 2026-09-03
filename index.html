@@ -13107,7 +13107,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V298.0.0';
+var VERSAO='V299.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15501,16 +15501,38 @@ var BANDEIRAS=['—','Visa','Mastercard','Elo','American Express','Hipercard','A
    fica sem forma. A proteção da taxa contra reposição é problema separado
    e se resolve sem cegar o caixa (a taxa real da loja é editada na tela de
    Formas de Pagamento e fica no aparelho). */
+function _formasFabrica(){
+  return [
+    {id:'fp_dinheiro',nome:'Dinheiro',tipo:'dinheiro',bandeira:'',taxaPct:0,taxaFixa:0,dias:0,contaId:'ct_caixa',ativa:true,online:false,ordem:0},
+    {id:'fp_debito',nome:'Cartão débito',tipo:'debito',bandeira:'Mastercard',taxaPct:1.99,taxaFixa:0,dias:1,contaId:'',ativa:true,online:false,ordem:1},
+    {id:'fp_credito',nome:'Cartão crédito',tipo:'credito',bandeira:'Mastercard',taxaPct:3.49,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:2},
+    {id:'fp_pix',nome:'Pix',tipo:'pix',bandeira:'',taxaPct:0,taxaFixa:0,dias:0,contaId:'',ativa:true,online:true,ordem:3},
+    {id:'fp_voucher',nome:'Vale / Voucher',tipo:'voucher',bandeira:'',taxaPct:0,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:4}
+  ];
+}
+/* ==========================================================
+   FÁBRICA SÓ SEMEIA O QUE VAI SER GRAVADO QUANDO A LOJA É NOVA
+
+   03/09/2026. Regressão: os lançamentos de venda sumiram do Financeiro.
+   Causa raiz — a semente de fábrica repunha, POR CIMA da configuração real
+   da loja, formas com taxa de fábrica (1,99 / 3,49) e SEM conta de destino
+   (débito, crédito e Pix com conta vazia). O fechamento cria o lançamento
+   na conta da forma; conta vazia = lançamento sem conta = some do extrato
+   do Banco Itaú. O mesmo caminho já tinha derrubado a taxa antes (V290).
+
+   V290 travou a semente, mas cegou o caixa: sem forma nenhuma, não dava
+   para finalizar. V293 reabriu a semente e trouxe a regressão de volta.
+
+   A saída que atende os dois: a lista GRAVADA (`DB.formasPag`, que sobe
+   para a nuvem) só recebe fábrica quando a nuvem NUNCA soube das formas
+   (loja nova, sem uuid) — nunca por cima do que já existe. E o caixa nunca
+   fica vazio porque `syncFormas` tem uma lista de EXIBIÇÃO de fábrica, que
+   NÃO é gravada nem enviada, só preenche a tela enquanto o download real
+   não chega. Assim a taxa e a conta reais da loja não são mais repostas. */
 function baseFormas(){
-  if(!DB.formasPag||!DB.formasPag.length){
-    DB.formasPag=[
-      {id:'fp_dinheiro',nome:'Dinheiro',tipo:'dinheiro',bandeira:'',taxaPct:0,taxaFixa:0,dias:0,contaId:'ct_caixa',ativa:true,online:false,ordem:0},
-      {id:'fp_debito',nome:'Cartão débito',tipo:'debito',bandeira:'Mastercard',taxaPct:1.99,taxaFixa:0,dias:1,contaId:'',ativa:true,online:false,ordem:1},
-      {id:'fp_credito',nome:'Cartão crédito',tipo:'credito',bandeira:'Mastercard',taxaPct:3.49,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:2},
-      {id:'fp_pix',nome:'Pix',tipo:'pix',bandeira:'',taxaPct:0,taxaFixa:0,dias:0,contaId:'',ativa:true,online:true,ordem:3},
-      {id:'fp_voucher',nome:'Vale / Voucher',tipo:'voucher',bandeira:'',taxaPct:0,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:4}
-    ];
-  }
+  var _jaNaNuvem=!!(DB._uuid&&DB._uuid.formasPag&&
+                    Object.keys(DB._uuid.formasPag).length);
+  if((!DB.formasPag||!DB.formasPag.length)&&!_jaNaNuvem) DB.formasPag=_formasFabrica();
   syncFormas();
 }
 /* ==========================================================
@@ -15544,7 +15566,12 @@ function formaDaTroco(f){
   return t==='dinheiro'||t==='especie'||t==='cash';
 }
 function syncFormas(){
-  FORMAS=(DB.formasPag||[]).filter(function(f){return f.ativa!==false})
+  /* a lista REAL da loja manda. Se ela ainda não chegou (vazia, esperando
+     o download), o caixa mostra a de EXIBIÇÃO de fábrica só para não ficar
+     sem forma — essa lista não é gravada nem sobe para a nuvem, então não
+     repõe taxa nem conta por cima do que a loja configurou. */
+  var _base=(DB.formasPag&&DB.formasPag.length)?DB.formasPag:_formasFabrica();
+  FORMAS=_base.filter(function(f){return f.ativa!==false})
     .sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
     .map(function(f){return {id:f.id,n:f.nome,tipo:f.tipo,contaId:f.contaId,
       taxaPct:f.taxaPct,taxaFixa:f.taxaFixa,dias:f.dias,
