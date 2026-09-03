@@ -709,7 +709,7 @@ function telaZap(dentro){
     (podeTrocarUnidade()
       ? '<div class="bfCampo" style="min-width:230px"><label>Loja</label>'+
      '<select onchange="trocarLojaZap(this.value)">'+
-     sucAtivas().map(function(s){
+     sucursaisDoUsuario().map(function(s){
        return '<option value="'+s.id+'"'+(ZP.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'
       : '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
@@ -1593,7 +1593,7 @@ function modalRotina(id) {
     '<div class="hint" style="margin-bottom:8px">Sem marcar nenhuma, todas recebem.</div>' +
     /* uma loja por linha faria a janela passar da tela com 6 unidades */
     '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-     sucAtivas().map(function (s) {
+     sucursaisDoUsuario().map(function (s) {
        return '<label class="chkDia"><input type="checkbox" class="rtSuc" value="' + E(s.id) + '"' +
          (sucs.indexOf(s.id) >= 0 ? ' checked' : '') + '><span>' + E(s.nome) + '</span></label>';
      }).join('') +
@@ -2188,7 +2188,7 @@ function resumoDoCaixa(cx){
 var GE={suc:''};
 function telaGerente(){
   baseMov();baseSuc();baseGerente();
-  if(!GE.suc)GE.suc=(sucAtivas()[0]||{}).id||'';
+  if(!GE.suc)GE.suc=(sucursaisDoUsuario()[0]||{}).id||'';
   var g=DB.gerente[GE.suc]||{};
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
@@ -2206,7 +2206,7 @@ function telaGerente(){
         perdia o lugar a cada troca. O sistema ja guarda e devolve a rolagem
         pelo `_rolChave`; nao precisa de empurrao. */
      '<select onchange="GE.suc=this.value;telaGerente()">'+
-     sucAtivas().map(function(s){
+     sucursaisDoUsuario().map(function(s){
        return '<option value="'+s.id+'"'+(GE.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'+
     '<div class="bfCampo"><label>Situação</label>'+

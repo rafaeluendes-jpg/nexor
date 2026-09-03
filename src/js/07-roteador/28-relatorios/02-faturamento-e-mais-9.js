@@ -135,7 +135,7 @@ function telaFaturamento(){
     :('R$ '+money(tot.v)+' · '+porLoja.length+' loja(s)'));
 }
 function togFT(s){togFiltro(FTP.sucs,s);telaFaturamento();}
-function togTodosFT(){FTP.sucs=FTP.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaFaturamento();}
+function togTodosFT(){FTP.sucs=FTP.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaFaturamento();}
 function perFT(n){
   var d=new Date();
   if(n===0){FTP.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);FTP.ate=hojeISO();}
@@ -326,7 +326,7 @@ function telaVendaDataHora(){
   rodape('R$ '+money(total)+(temHora?' · pico às '+String(melhorH).padStart(2,'0')+'h':''));
 }
 function togVDH(s){togFiltro(VDH.sucs,s);telaVendaDataHora();}
-function togTodosVDH(){VDH.sucs=VDH.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaVendaDataHora();}
+function togTodosVDH(){VDH.sucs=VDH.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaVendaDataHora();}
 function perVDH(n){
   var d=new Date();
   if(n===0){VDH.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);VDH.ate=hojeISO();}
@@ -1759,7 +1759,7 @@ function cardAtual(){
 function telaCfgCardapio(dentro){
   baseMov();baseSuc();
   var c=cardAtual();
-  var sucs=sucAtivas();
+  var sucs=sucursaisDoUsuario();
   /* o atalho curto e o que se divulga; o endereco completo continua
      valendo, mas ninguem poe um /delivery/?loja= num cartao */
   var link=linkCardapio(CD.suc);

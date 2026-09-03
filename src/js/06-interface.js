@@ -85,11 +85,18 @@ for(var i=0;i<MOD.length;i++){var m=MOD[i];
 if(!podeVer(m.id))continue;
 h+='<button class="mIco" data-m="'+m.id+'" title="'+E(m.n)+'"><span class="tile">'+svMod(m.id,m.ic,25)+'</span>'+
 '<span class="lb">'+E(m.n)+'</span></button>';}
-h+='<div class="bandGrow"></div>'+'<button class="bandSuc" id="sucBtn"><i>Loja</i><span>'+E(nomeLojaAtual())+'</span>'+sv('dn',13)+'</button>';
+/* o seletor de loja no topo é só para quem tem visão multiunidade
+   (matriz/dono). O usuário de uma unidade vê o nome da própria loja, fixo,
+   sem seta e sem poder trocar — nem pelo menu nem pelo clique. */
+h+='<div class="bandGrow"></div>'+
+   (vejoVariasUnidades()
+    ?'<button class="bandSuc" id="sucBtn"><i>Loja</i><span>'+E(nomeLojaAtual())+'</span>'+sv('dn',13)+'</button>'
+    :'<div class="bandSuc bandSucFix"><i>Loja</i><span>'+E(nomeLojaAtual())+'</span></div>');
 $('bandRow').innerHTML=h;
 var b=$('bandRow').querySelectorAll('.mIco');
 for(var k=0;k<b.length;k++)b[k].onclick=function(e){e.stopPropagation();toggleDrop(this.getAttribute('data-m'));};
-$('sucBtn').onclick=function(e){e.stopPropagation();toggleSuc();};
+var _sucBtn=$('sucBtn');
+if(_sucBtn)_sucBtn.onclick=function(e){e.stopPropagation();toggleSuc();};
 }
 function ajustaAlturaDrop(){
   var d=document.getElementById('mnu'); if(!d)return;
@@ -362,7 +369,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V300.0.0';
+var VERSAO='V301.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

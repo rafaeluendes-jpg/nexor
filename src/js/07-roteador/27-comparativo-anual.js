@@ -270,7 +270,7 @@ function telaComparativo(){
   rodape('comparando '+tit1+' e '+tit2);
 }
 function togCA(s){togFiltro(CA.sucs,s);telaComparativo();}
-function togTodosCA(){CA.sucs=CA.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaComparativo();}
+function togTodosCA(){CA.sucs=CA.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaComparativo();}
 function explicaComparativo(){
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
   '<h3>De onde vem cada número</h3>'+

@@ -2734,6 +2734,19 @@ function sucursaisDoUsuario(){
   if(!u||u.mestre||u.tudo||!u.sucursais||!u.sucursais.length)return sucAtivas();
   return sucAtivas().filter(function(s){return u.sucursais.indexOf(s.id)>=0});
 }
+/* ==========================================================
+   QUEM PODE VER MAIS DE UMA UNIDADE
+
+   O usuário de UMA loja fica 100% preso à própria unidade: não vê seletor,
+   filtro nem dropdown de sucursal em lugar nenhum (era o vazamento da Ficha
+   Técnica em 03/09/2026). Só quem tem visão multiunidade — matriz/dono
+   (mestre/tudo) ou usuário com mais de uma sucursal atribuída — enxerga o
+   seletor. Uma função só, para todas as telas usarem a MESMA regra. */
+function vejoVariasUnidades(){
+  var u=usuarioLogado();
+  if(u&&(u.mestre||u.tudo))return true;
+  try{ return sucursaisDoUsuario().length>1; }catch(e){ return false; }
+}
 
 /* ---------- tela ---------- */
 var US={sel:null,busca:'',aba:'permissoes',abertas:{},verInativos:false};

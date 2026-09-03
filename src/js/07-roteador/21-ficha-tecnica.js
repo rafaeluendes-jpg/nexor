@@ -593,11 +593,16 @@ function modalFicha(id){
     '<div class="fld2" style="margin:0"><label>CST / CSOSN</label><input id="ftCs" value="'+E(f?f.cst:'')+'"></div>'+
     '<div class="fld2" style="margin:0"><label>Alíquota (%)</label><input id="ftAl" type="number" step="0.01" value="'+(f?(f.aliquota||0):0)+'"></div>'+
    '</div></div>'+
-   '<div class="blk" style="margin:0;max-width:none"><h3>Sucursais</h3>'+
-   '<div class="contaGrid">'+(DB.lojasFin||[]).map(function(l){
-     var marc=f?((f.lojas||[]).indexOf(l.id)>=0):true;
-     return '<label class="contaBox"><input type="checkbox" class="ftL" value="'+l.id+'"'+(marc?' checked':'')+'>'+
-     '<span><b>'+E(l.nome)+'</b></span></label>';}).join('')+'</div></div>'+
+   /* liberar a ficha para esta ou aquela unidade é decisão da matriz; o
+      usuário de uma loja não vê nem mexe na lista de sucursais (e o que já
+      estava liberado é preservado no salvar). */
+   (vejoVariasUnidades()
+    ?'<div class="blk" style="margin:0;max-width:none"><h3>Sucursais</h3>'+
+     '<div class="contaGrid">'+sucursaisDoUsuario().map(function(l){
+       var marc=f?((f.lojas||[]).indexOf(l.id)>=0):true;
+       return '<label class="contaBox"><input type="checkbox" class="ftL" value="'+l.id+'"'+(marc?' checked':'')+'>'+
+       '<span><b>'+E(l.nome)+'</b></span></label>';}).join('')+'</div></div>'
+    :'')+
   '</div>'+
   blocoUnidades(f,'ftUn')+
   '</div>';
@@ -607,7 +612,8 @@ function modalFicha(id){
     if(!$('ftG').value){toast('Selecione o grupo.');return false;}
     var ls=[];
     var cks=document.querySelectorAll('.ftL');
-    for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value);
+    if(cks.length){ for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value); }
+    else if(f){ ls=(f.lojas||[]).slice(); }   /* grid escondido (usuário de loja): preserva */
     var o={nome:nome,codigo:$('ftC').value.trim()||proxCodFicha(),unidade:$('ftU').value,
       categoriaId:$('ftG').value,
       /* subgrupo de outra pasta deixaria a ficha invisivel na arvore */
@@ -809,6 +815,13 @@ function desenhaComp(){
       '</tbody></table></div></div>';
   }
 
+  /* usuário de unidade: a ficha é sempre a da PRÓPRIA loja — nunca a de
+     outra. Sem seletor, o custo/estoque mostrado é o da unidade dele. */
+  if(!vejoVariasUnidades()){
+    var _minhas=sucursaisDoUsuario();
+    if(_minhas.length&&(!FT.loja||!_minhas.some(function(s){return s.id===FT.loja})))
+      FT.loja=_minhas[0].id;
+  }
   var html='<div class="fichaMod">'+
    '<div class="fmH"><b>Ficha Técnica</b><button onclick="fecharComp()">&times;</button></div>'+
    '<div class="fmBar">'+
@@ -819,9 +832,19 @@ function desenhaComp(){
     '<div class="tSep2"></div>'+
     '<button class="btnP2" onclick="fecharComp()">Cancelar</button>'+
     '<button class="btnP2 ok" onclick="salvarComposicao()">Salvar</button>'+
-    '<div class="fmSuc"><label>Sucursais</label><select onchange="FT.loja=this.value">'+
-     (DB.lojasFin||[]).map(function(l){return '<option value="'+l.id+'"'+(FT.loja===l.id?' selected':'')+'>'+E(l.nome)+'</option>'}).join('')+
-    '</select></div>'+
+    /* ==========================================================
+       O USUÁRIO DE UMA LOJA NÃO VÊ (NEM ESCOLHE) OUTRA SUCURSAL
+
+       03/09/2026. Logado em Santa Fé, a Ficha Técnica mostrava o seletor de
+       Sucursais e deixava abrir a de Alphaville. O seletor só existe para
+       quem tem visão multiunidade (matriz/dono); o usuário de unidade fica
+       preso à própria loja — e as opções, mesmo para a matriz, saem de
+       `sucursaisDoUsuario()`, nunca da lista de todas as lojas. */
+    (vejoVariasUnidades()
+     ?'<div class="fmSuc"><label>Sucursais</label><select onchange="FT.loja=this.value">'+
+       sucursaisDoUsuario().map(function(l){return '<option value="'+l.id+'"'+(FT.loja===l.id?' selected':'')+'>'+E(l.nome)+'</option>'}).join('')+
+      '</select></div>'
+     :'')+
     '<button class="btnP2" onclick="imprimirFicha(\''+f.id+'\')">Imprimir</button>'+
    '</div>'+
    '<div class="fmTopo">'+

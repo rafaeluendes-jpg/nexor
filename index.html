@@ -12830,11 +12830,18 @@ for(var i=0;i<MOD.length;i++){var m=MOD[i];
 if(!podeVer(m.id))continue;
 h+='<button class="mIco" data-m="'+m.id+'" title="'+E(m.n)+'"><span class="tile">'+svMod(m.id,m.ic,25)+'</span>'+
 '<span class="lb">'+E(m.n)+'</span></button>';}
-h+='<div class="bandGrow"></div>'+'<button class="bandSuc" id="sucBtn"><i>Loja</i><span>'+E(nomeLojaAtual())+'</span>'+sv('dn',13)+'</button>';
+/* o seletor de loja no topo é só para quem tem visão multiunidade
+   (matriz/dono). O usuário de uma unidade vê o nome da própria loja, fixo,
+   sem seta e sem poder trocar — nem pelo menu nem pelo clique. */
+h+='<div class="bandGrow"></div>'+
+   (vejoVariasUnidades()
+    ?'<button class="bandSuc" id="sucBtn"><i>Loja</i><span>'+E(nomeLojaAtual())+'</span>'+sv('dn',13)+'</button>'
+    :'<div class="bandSuc bandSucFix"><i>Loja</i><span>'+E(nomeLojaAtual())+'</span></div>');
 $('bandRow').innerHTML=h;
 var b=$('bandRow').querySelectorAll('.mIco');
 for(var k=0;k<b.length;k++)b[k].onclick=function(e){e.stopPropagation();toggleDrop(this.getAttribute('data-m'));};
-$('sucBtn').onclick=function(e){e.stopPropagation();toggleSuc();};
+var _sucBtn=$('sucBtn');
+if(_sucBtn)_sucBtn.onclick=function(e){e.stopPropagation();toggleSuc();};
 }
 function ajustaAlturaDrop(){
   var d=document.getElementById('mnu'); if(!d)return;
@@ -13107,7 +13114,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V300.0.0';
+var VERSAO='V301.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -31470,11 +31477,16 @@ function modalFicha(id){
     '<div class="fld2" style="margin:0"><label>CST / CSOSN</label><input id="ftCs" value="'+E(f?f.cst:'')+'"></div>'+
     '<div class="fld2" style="margin:0"><label>Alíquota (%)</label><input id="ftAl" type="number" step="0.01" value="'+(f?(f.aliquota||0):0)+'"></div>'+
    '</div></div>'+
-   '<div class="blk" style="margin:0;max-width:none"><h3>Sucursais</h3>'+
-   '<div class="contaGrid">'+(DB.lojasFin||[]).map(function(l){
-     var marc=f?((f.lojas||[]).indexOf(l.id)>=0):true;
-     return '<label class="contaBox"><input type="checkbox" class="ftL" value="'+l.id+'"'+(marc?' checked':'')+'>'+
-     '<span><b>'+E(l.nome)+'</b></span></label>';}).join('')+'</div></div>'+
+   /* liberar a ficha para esta ou aquela unidade é decisão da matriz; o
+      usuário de uma loja não vê nem mexe na lista de sucursais (e o que já
+      estava liberado é preservado no salvar). */
+   (vejoVariasUnidades()
+    ?'<div class="blk" style="margin:0;max-width:none"><h3>Sucursais</h3>'+
+     '<div class="contaGrid">'+sucursaisDoUsuario().map(function(l){
+       var marc=f?((f.lojas||[]).indexOf(l.id)>=0):true;
+       return '<label class="contaBox"><input type="checkbox" class="ftL" value="'+l.id+'"'+(marc?' checked':'')+'>'+
+       '<span><b>'+E(l.nome)+'</b></span></label>';}).join('')+'</div></div>'
+    :'')+
   '</div>'+
   blocoUnidades(f,'ftUn')+
   '</div>';
@@ -31484,7 +31496,8 @@ function modalFicha(id){
     if(!$('ftG').value){toast('Selecione o grupo.');return false;}
     var ls=[];
     var cks=document.querySelectorAll('.ftL');
-    for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value);
+    if(cks.length){ for(var i=0;i<cks.length;i++)if(cks[i].checked)ls.push(cks[i].value); }
+    else if(f){ ls=(f.lojas||[]).slice(); }   /* grid escondido (usuário de loja): preserva */
     var o={nome:nome,codigo:$('ftC').value.trim()||proxCodFicha(),unidade:$('ftU').value,
       categoriaId:$('ftG').value,
       /* subgrupo de outra pasta deixaria a ficha invisivel na arvore */
@@ -31686,6 +31699,13 @@ function desenhaComp(){
       '</tbody></table></div></div>';
   }
 
+  /* usuário de unidade: a ficha é sempre a da PRÓPRIA loja — nunca a de
+     outra. Sem seletor, o custo/estoque mostrado é o da unidade dele. */
+  if(!vejoVariasUnidades()){
+    var _minhas=sucursaisDoUsuario();
+    if(_minhas.length&&(!FT.loja||!_minhas.some(function(s){return s.id===FT.loja})))
+      FT.loja=_minhas[0].id;
+  }
   var html='<div class="fichaMod">'+
    '<div class="fmH"><b>Ficha Técnica</b><button onclick="fecharComp()">&times;</button></div>'+
    '<div class="fmBar">'+
@@ -31696,9 +31716,19 @@ function desenhaComp(){
     '<div class="tSep2"></div>'+
     '<button class="btnP2" onclick="fecharComp()">Cancelar</button>'+
     '<button class="btnP2 ok" onclick="salvarComposicao()">Salvar</button>'+
-    '<div class="fmSuc"><label>Sucursais</label><select onchange="FT.loja=this.value">'+
-     (DB.lojasFin||[]).map(function(l){return '<option value="'+l.id+'"'+(FT.loja===l.id?' selected':'')+'>'+E(l.nome)+'</option>'}).join('')+
-    '</select></div>'+
+    /* ==========================================================
+       O USUÁRIO DE UMA LOJA NÃO VÊ (NEM ESCOLHE) OUTRA SUCURSAL
+
+       03/09/2026. Logado em Santa Fé, a Ficha Técnica mostrava o seletor de
+       Sucursais e deixava abrir a de Alphaville. O seletor só existe para
+       quem tem visão multiunidade (matriz/dono); o usuário de unidade fica
+       preso à própria loja — e as opções, mesmo para a matriz, saem de
+       `sucursaisDoUsuario()`, nunca da lista de todas as lojas. */
+    (vejoVariasUnidades()
+     ?'<div class="fmSuc"><label>Sucursais</label><select onchange="FT.loja=this.value">'+
+       sucursaisDoUsuario().map(function(l){return '<option value="'+l.id+'"'+(FT.loja===l.id?' selected':'')+'>'+E(l.nome)+'</option>'}).join('')+
+      '</select></div>'
+     :'')+
     '<button class="btnP2" onclick="imprimirFicha(\''+f.id+'\')">Imprimir</button>'+
    '</div>'+
    '<div class="fmTopo">'+
@@ -38772,7 +38802,7 @@ function telaComparativo(){
   rodape('comparando '+tit1+' e '+tit2);
 }
 function togCA(s){togFiltro(CA.sucs,s);telaComparativo();}
-function togTodosCA(){CA.sucs=CA.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaComparativo();}
+function togTodosCA(){CA.sucs=CA.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaComparativo();}
 function explicaComparativo(){
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
   '<h3>De onde vem cada número</h3>'+
@@ -41216,8 +41246,11 @@ function seletorCanal(id,arr,onTog,onTodos){
     CANAIS_REL.map(function(c){return {id:c.id,nome:c.n}}),arr,onTog,onTodos);
 }
 function seletorSuc(id,arr,onTog,onTodos){
+  /* o filtro de Sucursais oferece só as unidades do usuário: o de uma loja
+     vê a própria; a matriz vê todas. Fonte única para todos os relatórios
+     que usam este seletor. */
   return selMulti(id,'Sucursais',
-    sucAtivas().map(function(s){return {id:s.id,nome:s.nome}}),arr,onTog,onTodos);
+    sucursaisDoUsuario().map(function(s){return {id:s.id,nome:s.nome}}),arr,onTog,onTodos);
 }
 function diasEntre(de,ate){
   var l=[],d=new Date(de+'T12:00:00'),f=new Date(ate+'T12:00:00');
@@ -41402,7 +41435,7 @@ function telaCanaisVenda(){
   rodape('R$ '+money(total)+' em '+peds.length+' pedidos');
 }
 function togCV(s){togFiltro(CV2.sucs,s);telaCanaisVenda();}
-function togTodosCV(){CV2.sucs=CV2.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaCanaisVenda();}
+function togTodosCV(){CV2.sucs=CV2.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaCanaisVenda();}
 function perCV(n){
   var d=new Date();
   if(n===0){CV2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);CV2.ate=hojeISO();}
@@ -41565,7 +41598,7 @@ function telaFaturamento(){
     :('R$ '+money(tot.v)+' · '+porLoja.length+' loja(s)'));
 }
 function togFT(s){togFiltro(FTP.sucs,s);telaFaturamento();}
-function togTodosFT(){FTP.sucs=FTP.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaFaturamento();}
+function togTodosFT(){FTP.sucs=FTP.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaFaturamento();}
 function perFT(n){
   var d=new Date();
   if(n===0){FTP.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);FTP.ate=hojeISO();}
@@ -41756,7 +41789,7 @@ function telaVendaDataHora(){
   rodape('R$ '+money(total)+(temHora?' · pico às '+String(melhorH).padStart(2,'0')+'h':''));
 }
 function togVDH(s){togFiltro(VDH.sucs,s);telaVendaDataHora();}
-function togTodosVDH(){VDH.sucs=VDH.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaVendaDataHora();}
+function togTodosVDH(){VDH.sucs=VDH.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaVendaDataHora();}
 function perVDH(n){
   var d=new Date();
   if(n===0){VDH.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);VDH.ate=hojeISO();}
@@ -43189,7 +43222,7 @@ function cardAtual(){
 function telaCfgCardapio(dentro){
   baseMov();baseSuc();
   var c=cardAtual();
-  var sucs=sucAtivas();
+  var sucs=sucursaisDoUsuario();
   /* o atalho curto e o que se divulga; o endereco completo continua
      valendo, mas ninguem poe um /delivery/?loja= num cartao */
   var link=linkCardapio(CD.suc);
@@ -44530,7 +44563,7 @@ function telaZap(dentro){
     (podeTrocarUnidade()
       ? '<div class="bfCampo" style="min-width:230px"><label>Loja</label>'+
      '<select onchange="trocarLojaZap(this.value)">'+
-     sucAtivas().map(function(s){
+     sucursaisDoUsuario().map(function(s){
        return '<option value="'+s.id+'"'+(ZP.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'
       : '<div class="bfCampo" style="min-width:220px"><label>Configurando a loja</label>'+
@@ -45414,7 +45447,7 @@ function modalRotina(id) {
     '<div class="hint" style="margin-bottom:8px">Sem marcar nenhuma, todas recebem.</div>' +
     /* uma loja por linha faria a janela passar da tela com 6 unidades */
     '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-     sucAtivas().map(function (s) {
+     sucursaisDoUsuario().map(function (s) {
        return '<label class="chkDia"><input type="checkbox" class="rtSuc" value="' + E(s.id) + '"' +
          (sucs.indexOf(s.id) >= 0 ? ' checked' : '') + '><span>' + E(s.nome) + '</span></label>';
      }).join('') +
@@ -46009,7 +46042,7 @@ function resumoDoCaixa(cx){
 var GE={suc:''};
 function telaGerente(){
   baseMov();baseSuc();baseGerente();
-  if(!GE.suc)GE.suc=(sucAtivas()[0]||{}).id||'';
+  if(!GE.suc)GE.suc=(sucursaisDoUsuario()[0]||{}).id||'';
   var g=DB.gerente[GE.suc]||{};
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
@@ -46027,7 +46060,7 @@ function telaGerente(){
         perdia o lugar a cada troca. O sistema ja guarda e devolve a rolagem
         pelo `_rolChave`; nao precisa de empurrao. */
      '<select onchange="GE.suc=this.value;telaGerente()">'+
-     sucAtivas().map(function(s){
+     sucursaisDoUsuario().map(function(s){
        return '<option value="'+s.id+'"'+(GE.suc===s.id?' selected':'')+'>'+E(s.nome)+'</option>';
      }).join('')+'</select></div>'+
     '<div class="bfCampo"><label>Situação</label>'+
@@ -49650,6 +49683,19 @@ function sucursaisDoUsuario(){
   baseSuc();
   if(!u||u.mestre||u.tudo||!u.sucursais||!u.sucursais.length)return sucAtivas();
   return sucAtivas().filter(function(s){return u.sucursais.indexOf(s.id)>=0});
+}
+/* ==========================================================
+   QUEM PODE VER MAIS DE UMA UNIDADE
+
+   O usuário de UMA loja fica 100% preso à própria unidade: não vê seletor,
+   filtro nem dropdown de sucursal em lugar nenhum (era o vazamento da Ficha
+   Técnica em 03/09/2026). Só quem tem visão multiunidade — matriz/dono
+   (mestre/tudo) ou usuário com mais de uma sucursal atribuída — enxerga o
+   seletor. Uma função só, para todas as telas usarem a MESMA regra. */
+function vejoVariasUnidades(){
+  var u=usuarioLogado();
+  if(u&&(u.mestre||u.tudo))return true;
+  try{ return sucursaisDoUsuario().length>1; }catch(e){ return false; }
 }
 
 /* ---------- tela ---------- */

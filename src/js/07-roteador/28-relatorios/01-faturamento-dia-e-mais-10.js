@@ -2389,8 +2389,11 @@ function seletorCanal(id,arr,onTog,onTodos){
     CANAIS_REL.map(function(c){return {id:c.id,nome:c.n}}),arr,onTog,onTodos);
 }
 function seletorSuc(id,arr,onTog,onTodos){
+  /* o filtro de Sucursais oferece só as unidades do usuário: o de uma loja
+     vê a própria; a matriz vê todas. Fonte única para todos os relatórios
+     que usam este seletor. */
   return selMulti(id,'Sucursais',
-    sucAtivas().map(function(s){return {id:s.id,nome:s.nome}}),arr,onTog,onTodos);
+    sucursaisDoUsuario().map(function(s){return {id:s.id,nome:s.nome}}),arr,onTog,onTodos);
 }
 function diasEntre(de,ate){
   var l=[],d=new Date(de+'T12:00:00'),f=new Date(ate+'T12:00:00');
@@ -2575,7 +2578,7 @@ function telaCanaisVenda(){
   rodape('R$ '+money(total)+' em '+peds.length+' pedidos');
 }
 function togCV(s){togFiltro(CV2.sucs,s);telaCanaisVenda();}
-function togTodosCV(){CV2.sucs=CV2.sucs.length?[]:sucAtivas().map(function(s){return s.id});telaCanaisVenda();}
+function togTodosCV(){CV2.sucs=CV2.sucs.length?[]:sucursaisDoUsuario().map(function(s){return s.id});telaCanaisVenda();}
 function perCV(n){
   var d=new Date();
   if(n===0){CV2.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);CV2.ate=hojeISO();}
