@@ -725,6 +725,33 @@ function volta(linhas,fn,atual,col){
   if(_fichaSalvas)
     logNuvem('vínculo com ficha técnica preservado do aparelho em '+_fichaSalvas+
       ' opção(ões) — a nuvem não soube traduzir'+(_mapaFichaOk?'':' (a consulta de fichas falhou)'),true);
+  /* ==========================================================
+     O VINCULO DE ESTOQUE DO PRODUTO NAO PODE SUMIR NUM DOWNLOAD
+
+     Mesma regra da opcao, logo acima: AUSENCIA DE DADO NAO E RESPOSTA.
+
+     03/09/2026. A nuvem estava com produtos.ficha_id e insumo_id em
+     branco para TODOS os produtos de Santa Fe. Como esta descida
+     recalcula p.fichaId a partir desse valor (mapaFi[x.ficha_id]), cada
+     download zerava o vinculo — e a venda parava de baixar estoque.
+
+     Foi o "varias vendas no PDV, uma baixa so": dois caixas no balcao,
+     um com o vinculo local ainda de pe (baixava), o outro que ja tinha
+     baixado a versao vazia da nuvem (nao baixava). O mesmo produto
+     baixava num pedido e no seguinte nao.
+
+     Agora, quando a nuvem nao traz o vinculo, mantem-se o que o aparelho
+     ja sabia — DESDE QUE a ficha (ou o insumo) ainda exista aqui. O envio
+     seguinte traduz esse vinculo local e re-popula a nuvem, que passa a
+     descer certo para todos os aparelhos. Desvincular pela tela continua
+     valendo: quem tira a ficha deixa o proprio fichaId vazio, e nada
+     aqui inventa vinculo — so preserva o que ja havia. */
+  var _vincAntes={};
+  (_ANT('produtos')||[]).forEach(function(p){
+    if(p&&p.id&&(p.fichaId||p.insumoId))
+      _vincAntes[p.id]={f:p.fichaId||'',i:p.insumoId||''};
+  });
+  var _vincSalvos=0;
   DB.produtos=volta(rp,function(x){
     var g=(rv||[]).filter(function(v){return v.produto_id===x.id}).map(function(v){return mapaGr[v.grupo_id]}).filter(Boolean);
     return {id:x.ref_local||x.id,nome:x.nome,preco:Number(x.preco)||0,codigo:x.codigo,
@@ -929,11 +956,25 @@ function volta(linhas,fn,atual,col){
 
   /* agora que fichas e insumos existem, liga cada produto ao seu vínculo de estoque */
   var mapaFi={};ft.forEach(function(x){mapaFi[x.id]=x.ref_local||x.id});
+  var _temFicha={};(DB.fichas||[]).forEach(function(f){if(f&&f.id)_temFicha[f.id]=true;});
+  var _temInsumo={};(DB.insumos||[]).forEach(function(i){if(i&&i.id)_temInsumo[i.id]=true;});
   (DB.produtos||[]).forEach(function(p){
     p.fichaId=mapaFi[p._fichaUid]||'';
     p.insumoId=mapaIns[p._insumoUid]||'';
+    /* nuvem sem vínculo: não zera — mantém o que o aparelho já sabia,
+       se a ficha/insumo apontado ainda existir aqui (ver bloco acima) */
+    if(!p.fichaId&&!p.insumoId){
+      var ant=_vincAntes[p.id];
+      if(ant){
+        if(ant.f&&_temFicha[ant.f]){p.fichaId=ant.f;_vincSalvos++;}
+        else if(ant.i&&_temInsumo[ant.i]){p.insumoId=ant.i;_vincSalvos++;}
+      }
+    }
     delete p._fichaUid;delete p._insumoUid;
   });
+  if(_vincSalvos)
+    logNuvem('vínculo de estoque preservado do aparelho em '+_vincSalvos+
+      ' produto(s) — a nuvem não trouxe a ficha; sobe de novo no próximo envio',true);
 
   var pbs=await _pbs;
   DB.pedidosBase=volta(pbs,function(x){return {id:x.ref_local||x.id,numero:x.numero,
