@@ -1217,7 +1217,9 @@ var MAPA=[
     consumidor_nome:x.consumidor||null,consumidor_doc:x.doc||null,
     pagamento:x.pagamento||null,valor_total:n(x.total),valor_desconto:n(x.desconto),
     valor_entrega:n(x.entrega),data_venda:x.data||null,hora_venda:x.hora||null,
-    nfe_agrupada_ref:x.nfeAgrupada||null,contingencia:!!x.contingencia}}},
+    nfe_agrupada_ref:x.nfeAgrupada||null,contingencia:!!x.contingencia,
+    /* o cupom sobe com a unidade da venda (isolamento por unidade) */
+    sucursal_id:x.sucursalId||lojaAtualId()||null}}},
 
  {col:'comandas', tab:'mesa_comandas',
   campos:function(x){return {mesa_ref:x.mesaId||null,mesa_numero:n(x.mesaNumero),
@@ -1650,7 +1652,16 @@ var MAPA=[
     juros:n(x.juros),multa:n(x.multa),valor_original:(x.valorOriginal!==undefined?n(x.valorOriginal):null),
     /* de onde este lançamento veio (a nota, o fechamento de caixa...).
        Sem isto, o vínculo se perdia em toda sincronização. */
-    origem:x.origem||null,origem_ref:x.ref||null,observacao:x.obs||null}}}
+    origem:x.origem||null,origem_ref:x.ref||null,observacao:x.obs||null,
+    /* ==========================================================
+       O LANÇAMENTO SOBE COM A UNIDADE — SENÃO O ISOLAMENTO NÃO VALE PARA O NOVO
+
+       03/09/2026. Com o RLS por unidade no Financeiro, um lançamento sem
+       unidade fica visível para a rede inteira. O aparelho de uma loja
+       sempre opera a própria unidade, então carimba lojaAtualId() (o
+       `suc_...` que o RLS compara). Um lançamento que já saiba a sua
+       unidade (fechamento de caixa) usa a dele. */
+    sucursal_id:x.sucursalRef||lojaAtualId()||null}}}
 ];
 
 function n(v){var x=Number(v);return isNaN(x)?0:x}
