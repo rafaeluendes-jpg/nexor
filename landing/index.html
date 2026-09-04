@@ -1,0 +1,596 @@
+<title>Jolô Gelato Franquias</title>
+<meta name="description" content="Seja um franqueado Jolô Gelato. Gelato artesanal autoral, feito na loja, com retorno entre 18 e 24 meses.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+  :root{
+    --bosco:#2F4A2A;      /* Bosco Nobile */
+    --oliva:#5B6A2B;      /* Oliva Toscana */
+    --latte:#F4EEE3;      /* Latte di Crema */
+    --notte:#12281A;      /* Notte Verde */
+    --caramello:#9B7A3C;  /* Caramello Antico */
+    --pietra:#D8CBB0;     /* Pietra Chiara */
+    --amarena:#C9231B;    /* Amarena Intensa (levemente fechada para tela) */
+    --rosa:#EEC5B3;       /* Rosa Cannoli */
+    --tinta:#1E2A1B;
+    --tinta-suave:#4C5646;
+    --linha:rgba(47,74,42,.18);
+    --serif:"Bodoni Moda","Didot","Bodoni 72",Georgia,serif;
+    --sans:"Jost","Futura","Avenir Next","Segoe UI",system-ui,sans-serif;
+    --largura:1180px;
+    --raio:6px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+  body{margin:0;background:var(--latte);color:var(--tinta);font-family:var(--sans);font-weight:300;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.05;margin:0;text-wrap:balance;letter-spacing:-.005em}
+  h1{font-size:clamp(44px,6.2vw,84px)}
+  h2{font-size:clamp(34px,4.2vw,56px)}
+  h3{font-size:clamp(22px,2vw,26px)}
+  p{margin:0}
+  a{color:inherit}
+  strong{font-weight:500}
+  .wrap{width:min(var(--largura),calc(100% - 48px));margin-inline:auto}
+  .eyebrow{font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--caramello)}
+  .escuro .eyebrow{color:var(--pietra)}
+  .lead{font-size:clamp(18px,1.4vw,21px);max-width:62ch}
+  .cta{display:inline-flex;align-items:center;gap:12px;background:var(--bosco);color:var(--latte);text-decoration:none;font-family:var(--sans);font-weight:500;font-size:15px;letter-spacing:.08em;text-transform:uppercase;padding:18px 30px;border-radius:999px;border:1px solid transparent;transition:background .2s,transform .2s,box-shadow .2s;white-space:nowrap}
+  .cta:hover{background:var(--notte);transform:translateY(-1px);box-shadow:0 12px 30px -12px rgba(18,40,26,.6)}
+  .cta:focus-visible{outline:3px solid var(--caramello);outline-offset:3px}
+  .cta svg{width:20px;height:20px;flex:none}
+  .cta.claro{background:var(--latte);color:var(--bosco)}
+  .cta.claro:hover{background:#fff}
+  .cta.contorno{background:transparent;color:var(--bosco);border-color:var(--bosco)}
+  .cta.contorno:hover{background:var(--bosco);color:var(--latte)}
+  .escuro{background:var(--bosco);color:var(--latte)}
+  .escuro h2,.escuro h3{color:var(--latte)}
+  .oliva{background:var(--oliva);color:var(--latte)}
+  .notte{background:var(--notte);color:var(--latte)}
+  .pietra{background:var(--pietra);color:var(--tinta)}
+  section{padding:clamp(72px,9vw,128px) 0}
+  .cabeca{display:grid;gap:14px;max-width:760px;margin-bottom:clamp(40px,5vw,64px)}
+  .cabeca.centro{margin-inline:auto;text-align:center;justify-items:center}
+
+  /* ---------- fotos: espaço reservado enquanto os arquivos não chegam ---------- */
+  .foto{position:relative;overflow:hidden;border-radius:var(--raio);background:
+      radial-gradient(120% 90% at 20% 10%,rgba(244,238,227,.22),transparent 55%),
+      linear-gradient(160deg,var(--oliva),var(--bosco) 55%,var(--notte));isolation:isolate}
+  .foto::before{content:"";position:absolute;inset:0;background:
+      repeating-linear-gradient(115deg,transparent 0 22px,rgba(244,238,227,.035) 22px 23px);z-index:0}
+  .foto .simbolo{position:absolute;inset:0;margin:auto;width:min(28%,150px);height:auto;opacity:.32;z-index:1}
+  .foto .legenda{position:absolute;left:16px;bottom:14px;z-index:2;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--pietra);font-weight:500}
+  .foto.clara{background:linear-gradient(160deg,#E9DEC8,var(--pietra) 60%,#C8B893)}
+  .foto.clara .simbolo{opacity:.35;filter:none}
+  .foto.clara .legenda{color:var(--bosco)}
+  .foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:3}
+
+  /* ---------- topo ---------- */
+  header.topo{position:sticky;top:0;z-index:50;background:rgba(244,238,227,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--linha)}
+  header.topo .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;height:78px}
+  .marca{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--bosco)}
+  .marca .oval{width:34px;height:52px}
+  .marca .nome{font-family:var(--serif);font-size:30px;font-weight:500;letter-spacing:.02em;line-height:1}
+  .marca .gelato{font-family:var(--sans);font-size:11px;letter-spacing:.42em;text-transform:uppercase;font-weight:500;margin-left:4px}
+  nav.menu{display:flex;gap:30px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;font-weight:400}
+  nav.menu a{text-decoration:none;color:var(--tinta-suave)}
+  nav.menu a:hover{color:var(--bosco)}
+  header .cta{padding:13px 22px;font-size:13px}
+  @media (max-width:900px){nav.menu{display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{background:var(--latte);padding:clamp(48px,6vw,88px) 0 0}
+  .hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,72px);align-items:end}
+  .hero .texto{display:grid;gap:26px;padding-bottom:clamp(40px,5vw,72px)}
+  .hero h1 em{font-style:italic;color:var(--oliva)}
+  .hero .acoes{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .hero .acoes small{font-size:13px;color:var(--tinta-suave);letter-spacing:.04em}
+  .hero .foto{aspect-ratio:4/5;border-radius:220px 220px var(--raio) var(--raio)}
+  .hero .tag{font-family:var(--serif);font-style:italic;font-size:clamp(22px,2.2vw,30px);color:var(--caramello)}
+  @media (max-width:900px){.hero .wrap{grid-template-columns:1fr}.hero .foto{aspect-ratio:4/3;border-radius:160px 160px var(--raio) var(--raio)}}
+
+  /* ---------- números ---------- */
+  .numeros{background:var(--bosco);color:var(--latte);padding:0}
+  .numeros .wrap{display:grid;grid-template-columns:repeat(5,1fr)}
+  .numeros .n{padding:36px 24px;border-left:1px solid rgba(244,238,227,.14);display:grid;gap:6px}
+  .numeros .n:first-child{border-left:0;padding-left:0}
+  .numeros b{font-family:var(--serif);font-weight:500;font-size:clamp(34px,3.4vw,50px);line-height:1;font-variant-numeric:tabular-nums}
+  .numeros span{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--pietra)}
+  @media (max-width:900px){.numeros .wrap{grid-template-columns:repeat(2,1fr)}.numeros .n{border-left:0;border-top:1px solid rgba(244,238,227,.14)}.numeros .n:nth-child(-n+2){border-top:0}}
+
+  /* ---------- história ---------- */
+  .historia .wrap{display:grid;grid-template-columns:1fr 1fr;gap:clamp(40px,6vw,96px);align-items:start}
+  .historia .texto{display:grid;gap:22px}
+  .historia .texto p{max-width:58ch}
+  .historia .foto{aspect-ratio:3/4;position:sticky;top:110px}
+  .historia .foto.segunda{position:static;aspect-ratio:4/3;margin-top:-140px;margin-left:44%;width:56%;box-shadow:0 30px 60px -30px rgba(18,40,26,.6)}
+  .pergunta{font-family:var(--serif);font-style:italic;font-size:clamp(26px,2.6vw,36px);color:var(--bosco);border-left:3px solid var(--caramello);padding-left:22px;margin:8px 0}
+  @media (max-width:900px){.historia .wrap{grid-template-columns:1fr}.historia .foto{position:static}.historia .foto.segunda{margin:16px 0 0;width:100%}}
+
+  /* ---------- trajetória ---------- */
+  .trajetoria{padding-top:0}
+  .linha{display:grid;grid-template-columns:repeat(8,1fr);gap:0;position:relative;margin-top:16px}
+  .linha::before{content:"";position:absolute;left:0;right:0;top:9px;height:1px;background:var(--linha)}
+  .marco{position:relative;padding:34px 18px 0 0;display:grid;gap:8px;align-content:start}
+  .marco::before{content:"";position:absolute;top:4px;left:0;width:11px;height:11px;border-radius:50%;background:var(--caramello);box-shadow:0 0 0 4px var(--latte)}
+  .marco.ativo::before{background:var(--amarena)}
+  .marco.futuro::before{background:var(--latte);border:2px solid var(--caramello);width:9px;height:9px}
+  .marco time{font-family:var(--serif);font-size:24px;color:var(--bosco);line-height:1}
+  .marco p{font-size:14px;line-height:1.45;color:var(--tinta-suave)}
+  .marco b{display:block;font-weight:500;color:var(--tinta)}
+  @media (max-width:1000px){.linha{grid-template-columns:repeat(4,1fr);row-gap:26px}.linha::before{display:none}.marco{border-top:1px solid var(--linha)}}
+  @media (max-width:600px){.linha{grid-template-columns:repeat(2,1fr)}}
+
+  /* ---------- produto ---------- */
+  .produto{padding-bottom:0}
+  .produto .grade{display:grid;grid-template-columns:1.2fr .8fr .8fr;grid-template-rows:auto auto;gap:14px}
+  .produto .foto{aspect-ratio:1/1}
+  .produto .foto.grande{grid-row:span 2;aspect-ratio:auto}
+  .produto .foto.larga{grid-column:span 2;aspect-ratio:2.05/1}
+  .produto .texto{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4vw,64px);padding:clamp(56px,7vw,96px) 0}
+  .produto .lista{display:grid;gap:18px;font-size:16px}
+  .produto .lista div{display:grid;grid-template-columns:22px 1fr;gap:14px;align-items:start}
+  .produto .lista i{width:10px;height:10px;margin-top:9px;border-radius:50%;background:var(--caramello);display:block}
+  .produto .lista b{display:block;font-weight:500;color:var(--latte)}
+  .premio{display:flex;gap:18px;align-items:center;border:1px solid rgba(244,238,227,.22);padding:20px 22px;border-radius:var(--raio);margin-top:8px}
+  .premio svg{width:44px;height:44px;flex:none}
+  .premio p{font-size:14px;line-height:1.45}
+  .premio b{display:block;font-family:var(--serif);font-size:19px;font-weight:500}
+  @media (max-width:900px){.produto .grade{grid-template-columns:1fr 1fr}.produto .foto.grande{grid-row:auto;grid-column:span 2;aspect-ratio:16/10}.produto .texto{grid-template-columns:1fr}}
+
+  /* ---------- por que ---------- */
+  .porque .itens{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--linha);border-left:1px solid var(--linha)}
+  .porque .item{padding:34px 30px 38px;border-right:1px solid var(--linha);border-bottom:1px solid var(--linha);display:grid;gap:12px;align-content:start}
+  .porque .item svg{width:34px;height:34px;color:var(--caramello)}
+  .porque .item h3{font-size:22px}
+  .porque .item p{font-size:15.5px;color:var(--tinta-suave)}
+  @media (max-width:900px){.porque .itens{grid-template-columns:1fr 1fr}}
+  @media (max-width:560px){.porque .itens{grid-template-columns:1fr}}
+
+  /* ---------- investimento ---------- */
+  .investimento .wrap{display:grid;grid-template-columns:1fr 1fr;gap:clamp(40px,6vw,96px);align-items:center}
+  .tabela{display:grid;border-top:1px solid rgba(244,238,227,.22)}
+  .tabela .l{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:18px 0;border-bottom:1px solid rgba(244,238,227,.22);font-size:17px}
+  .tabela .l b{font-family:var(--serif);font-size:24px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tabela .l.total{padding:26px 0;font-size:19px}
+  .tabela .l.total b{font-size:clamp(34px,3.4vw,46px);color:var(--pietra)}
+  .tabela small{display:block;font-size:13px;color:var(--pietra);margin-top:14px}
+  .retorno{display:grid;gap:26px}
+  .retorno .r{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start}
+  .retorno .r b{font-family:var(--serif);font-size:clamp(40px,4vw,58px);font-weight:500;line-height:1;color:var(--pietra);font-variant-numeric:tabular-nums;min-width:3.2ch}
+  .retorno .r span{display:block;font-weight:500;color:var(--latte);font-size:17px;margin-top:8px}
+  .retorno .r p{font-size:15px;color:rgba(244,238,227,.78);margin-top:2px}
+  @media (max-width:900px){.investimento .wrap{grid-template-columns:1fr}}
+
+  /* ---------- suporte + jornada ---------- */
+  .suporte .lista{display:grid;grid-template-columns:repeat(3,1fr);gap:36px 40px;margin-top:8px}
+  .suporte .s{display:grid;gap:8px;padding-top:18px;border-top:2px solid var(--caramello)}
+  .suporte .s h3{font-size:21px}
+  .suporte .s p{font-size:15.5px;color:var(--tinta-suave)}
+  .suporte .fecho{margin-top:clamp(40px,5vw,64px);font-family:var(--serif);font-style:italic;font-size:clamp(24px,2.4vw,34px);color:var(--bosco);max-width:30ch}
+  @media (max-width:900px){.suporte .lista{grid-template-columns:1fr 1fr}}
+  @media (max-width:560px){.suporte .lista{grid-template-columns:1fr}}
+
+  .jornada .passos{counter-reset:p;display:grid;grid-template-columns:repeat(6,1fr);gap:24px}
+  .jornada .p{counter-increment:p;display:grid;gap:10px;align-content:start;padding-top:16px;border-top:1px solid rgba(244,238,227,.25)}
+  .jornada .p::before{content:counter(p,decimal-leading-zero);font-family:var(--serif);font-size:38px;line-height:1;color:var(--pietra)}
+  .jornada .p p{font-size:15px;line-height:1.45}
+  .jornada .depois{margin-top:clamp(48px,6vw,80px);display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,72px);align-items:start}
+  .jornada .depois h3{font-size:clamp(26px,2.6vw,34px);margin-bottom:18px}
+  .jornada .etapas{display:grid;gap:14px}
+  .jornada .etapas div{display:grid;grid-template-columns:auto 1fr;gap:16px;font-size:15.5px}
+  .jornada .etapas b{font-family:var(--serif);font-weight:500;font-size:19px;color:var(--pietra);white-space:nowrap;min-width:9ch}
+  .jornada .semanas{display:grid;gap:18px}
+  .jornada .semanas div{display:grid;gap:4px;padding-left:18px;border-left:2px solid var(--caramello)}
+  .jornada .semanas b{font-weight:500}
+  .jornada .semanas p{font-size:15px;color:rgba(244,238,227,.8)}
+  @media (max-width:1000px){.jornada .passos{grid-template-columns:repeat(3,1fr)}}
+  @media (max-width:900px){.jornada .depois{grid-template-columns:1fr}}
+  @media (max-width:560px){.jornada .passos{grid-template-columns:1fr 1fr}}
+
+  /* ---------- perfil ---------- */
+  .perfil .wrap{display:grid;grid-template-columns:.9fr 1.1fr;gap:clamp(40px,6vw,96px);align-items:center}
+  .perfil .foto{aspect-ratio:4/5;border-radius:var(--raio) 220px var(--raio) 220px}
+  .perfil ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px}
+  .perfil li{padding:14px 0;border-bottom:1px solid var(--linha);font-size:15.5px;color:var(--tinta-suave)}
+  .perfil li b{display:block;font-weight:500;color:var(--tinta)}
+  @media (max-width:900px){.perfil .wrap{grid-template-columns:1fr}.perfil ul{grid-template-columns:1fr}}
+
+  /* ---------- depoimentos ---------- */
+  .depoimentos .cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px}
+  .depoimentos .d{display:grid;gap:18px;align-content:start}
+  .depoimentos .d .foto{aspect-ratio:4/3}
+  .depoimentos blockquote{margin:0;font-family:var(--serif);font-size:19px;line-height:1.45;color:var(--tinta)}
+  .depoimentos blockquote::before{content:"“";font-size:44px;line-height:0;vertical-align:-14px;color:var(--caramello);margin-right:4px}
+  .depoimentos cite{font-style:normal;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--caramello);font-weight:500}
+  @media (max-width:900px){.depoimentos .cards{grid-template-columns:1fr}}
+
+  /* ---------- faq ---------- */
+  .faq .wrap{display:grid;grid-template-columns:.8fr 1.2fr;gap:clamp(32px,5vw,80px);align-items:start}
+  .faq details{border-bottom:1px solid var(--linha)}
+  .faq summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:22px 0;font-family:var(--serif);font-size:22px;color:var(--bosco)}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+";font-family:var(--sans);font-weight:300;font-size:30px;color:var(--caramello);transition:transform .2s}
+  .faq details[open] summary::after{transform:rotate(45deg)}
+  .faq details p{padding:0 0 24px;max-width:62ch;color:var(--tinta-suave);font-size:16px}
+
+  /* ---------- fechamento ---------- */
+  .fim{position:relative;overflow:hidden;background:var(--notte);color:var(--latte);text-align:center}
+  .fim .wrap{display:grid;gap:26px;justify-items:center;position:relative;z-index:1}
+  .fim h2{font-size:clamp(40px,5.6vw,76px);max-width:16ch}
+  .fim h2 em{font-style:italic;color:var(--pietra)}
+  .fim .lead{color:rgba(244,238,227,.82)}
+  .fim .sim{position:absolute;right:-60px;bottom:-80px;width:420px;height:auto;opacity:.08}
+
+  footer{background:var(--notte);color:var(--pietra);padding:36px 0;border-top:1px solid rgba(244,238,227,.12);font-size:13.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center}
+  footer a{text-decoration:none}
+  footer .redes{display:flex;gap:22px;letter-spacing:.1em;text-transform:uppercase;font-size:12px}
+
+  /* ---------- botão flutuante ---------- */
+  .zap{position:fixed;right:22px;bottom:22px;z-index:60;display:flex;align-items:center;gap:12px;background:var(--bosco);color:var(--latte);text-decoration:none;padding:14px 20px 14px 16px;border-radius:999px;box-shadow:0 18px 40px -14px rgba(18,40,26,.7);font-size:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(244,238,227,.16)}
+  .zap:hover{background:var(--notte)}
+  .zap svg{width:24px;height:24px}
+  @media (max-width:560px){.zap span{display:none}.zap{padding:14px}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- símbolo: casquinha dentro do oval -->
+    <symbol id="simbolo" viewBox="0 0 120 190">
+      <ellipse cx="60" cy="95" rx="54" ry="88" fill="none" stroke="currentColor" stroke-width="4"/>
+      <path d="M40 78c-8-10-4-26 8-30 2-14 20-20 30-10 12-4 24 6 20 20 10 6 10 22-2 26-4 4-12 6-18 4-6 6-16 6-22 0-6 2-12 0-16-10z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M38 84h44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <path d="M40 90L60 158 80 90" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M46 104l22 26M44 96l30 36M54 100l16 20M50 92l30 36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="whats" viewBox="0 0 24 24">
+      <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M8.5 7.5c.3-.5.7-.5 1-.5l.8 1.8c.1.3 0 .5-.2.7l-.5.6c.6 1.3 1.6 2.3 2.9 2.9l.6-.5c.2-.2.4-.3.7-.2l1.8.8c0 .3 0 .7-.5 1-.7.7-1.7 1-2.7.6-2.2-.9-3.9-2.6-4.8-4.8-.4-1-.1-2 .6-2.7z" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="topo">
+  <div class="wrap">
+    <a class="marca" href="#" aria-label="Jolô Gelato">
+      <svg class="oval"><use href="#simbolo"/></svg>
+      <span><span class="nome">JOLÔ</span><span class="gelato">Gelato</span></span>
+    </a>
+    <nav class="menu" aria-label="Seções">
+      <a href="#historia">História</a>
+      <a href="#produto">Produto</a>
+      <a href="#porque">Por que Jolô</a>
+      <a href="#investimento">Investimento</a>
+      <a href="#jornada">Jornada</a>
+      <a href="#faq">Dúvidas</a>
+    </nav>
+    <a class="cta" data-zap href="#contato"><svg><use href="#whats"/></svg>Fale com o dono</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="texto">
+      <span class="eyebrow">Seja um franqueado · Jolô Gelato</span>
+      <h1>Gelato feito para <em>valer a pena.</em><br>Agora, um negócio feito para você.</h1>
+      <p class="lead">Receitas autorais, produção artesanal dentro da loja e um modelo de franquia testado no interior de São Paulo, no Rio de Janeiro e, em breve, na capital paulista.</p>
+      <div class="acoes">
+        <a class="cta" data-zap href="#contato"><svg><use href="#whats"/></svg>Fale com o dono</a>
+        <small>Resposta direta do fundador, pelo WhatsApp.</small>
+      </div>
+      <p class="tag">Três Fronteiras, 2020 → Brasil, hoje.</p>
+    </div>
+    <div class="foto" data-foto="fachada">
+      <svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg>
+      <span class="legenda">Foto · fachada nova</span>
+    </div>
+  </div>
+</section>
+
+<div class="numeros" aria-label="A Jolô em números">
+  <div class="wrap">
+    <div class="n"><b>2020</b><span>Nasceu em Três Fronteiras</span></div>
+    <div class="n"><b>7</b><span>Unidades abertas e em implantação</span></div>
+    <div class="n"><b>18–24</b><span>Meses para o retorno</span></div>
+    <div class="n"><b>+18%</b><span>Margem de lucro líquido</span></div>
+    <div class="n"><b>Top 6</b><span>Gelato Festival World Masters</span></div>
+  </div>
+</div>
+
+<section class="historia" id="historia">
+  <div class="wrap">
+    <div class="texto">
+      <span class="eyebrow">Nossa história</span>
+      <h2>Começou com uma tradição de família e a vontade de fazer algo único.</h2>
+      <p>Tudo começou em <strong>2020</strong>, na cidade de <strong>Três Fronteiras/SP</strong>, quando <strong>Rafael Ulian</strong>, inspirado pela tradição familiar na produção de sorvetes, decidiu criar algo único e especial.</p>
+      <p>Com paixão pela arte da gelateria italiana, ele se aprofundou nas melhores técnicas e ingredientes, elevando a qualidade dos gelatos artesanais. Assim nasceu a <strong>Jolô Gelato</strong>, conquistando paladares desde o primeiro dia.</p>
+      <p>O sucesso foi imediato e, em <strong>2021</strong>, ao lado de <strong>Raylan</strong>, inaugurou a segunda unidade, em <strong>Santa Fé do Sul/SP</strong>. O impacto foi tão grande que os clientes começaram a perguntar:</p>
+      <p class="pergunta">“A Jolô é franquia?”</p>
+      <p>A ideia começou a tomar forma e, em <strong>2022</strong>, <strong>Ricardo</strong>, especialista em gestão de negócios, entrou para estruturar o modelo de franquias. Com um modelo padronizado e sólido, a expansão começou.</p>
+      <p>Em julho de 2023 a marca foi oficialmente lançada, com quatro unidades em operação: Santa Fé do Sul, Fernandópolis, Jales e Sorocaba. Em 2026 a Jolô chegou ao Rio de Janeiro, em Petrópolis, e prepara a loja de São Paulo.</p>
+    </div>
+    <div>
+      <div class="foto" data-foto="socios">
+        <svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg>
+        <span class="legenda">Foto · os sócios (nova)</span>
+      </div>
+      <div class="foto segunda clara" data-foto="interior">
+        <svg class="simbolo" style="color:var(--bosco)"><use href="#simbolo"/></svg>
+        <span class="legenda">Foto · interior da loja</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="trajetoria">
+  <div class="wrap">
+    <span class="eyebrow">Nossa trajetória</span>
+    <div class="linha">
+      <div class="marco"><time>2020</time><p><b>Março</b>Inauguração da primeira Jolô Gelato, em Três Fronteiras/SP.</p></div>
+      <div class="marco"><time>2021</time><p><b>Junho</b>Expansão para Santa Fé do Sul/SP.</p></div>
+      <div class="marco"><time>2023</time><p><b>Julho</b>Lançamento oficial da Jolô Gelato Franquias.</p></div>
+      <div class="marco"><time>2024</time><p><b>Outubro</b>Abertura da unidade de Jales/SP.</p></div>
+      <div class="marco"><time>2024</time><p><b>Novembro</b>Abertura da unidade de Fernandópolis/SP.</p></div>
+      <div class="marco"><time>2024</time><p><b>Dezembro</b>Abertura da unidade de Sorocaba/SP.</p></div>
+      <div class="marco ativo"><time>2026</time><p><b>Abril</b>Petrópolis/RJ: a primeira Jolô do estado do Rio.</p></div>
+      <div class="marco futuro"><time>2026</time><p><b>Novembro</b>São Paulo/SP: unidade em implantação.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="produto escuro" id="produto">
+  <div class="wrap">
+    <div class="cabeca">
+      <span class="eyebrow">O produto</span>
+      <h2>Feito na loja, todos os dias, por quem entende de gelato.</h2>
+    </div>
+    <div class="grade">
+      <div class="foto grande clara" data-foto="producao">
+        <svg class="simbolo" style="color:var(--bosco)"><use href="#simbolo"/></svg>
+        <span class="legenda">Foto · gelato saindo da máquina</span>
+      </div>
+      <div class="foto" data-foto="casquinha"><svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg><span class="legenda">Foto · casquinha</span></div>
+      <div class="foto" data-foto="milkshakes"><svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg><span class="legenda">Foto · copos Jolô</span></div>
+      <div class="foto larga clara" data-foto="cuba-calda"><svg class="simbolo" style="color:var(--bosco)"><use href="#simbolo"/></svg><span class="legenda">Foto · cuba com calda de amora</span></div>
+    </div>
+    <div class="texto">
+      <p class="lead">Nossas receitas são autorais e autênticas, desenvolvidas por um mestre gelatiere. Da base do gelato às caldas, geleias e ao cascão, tudo é preparado dentro da unidade, com ingredientes escolhidos um a um.</p>
+      <div>
+        <div class="lista">
+          <div><i></i><p><b>Receitas autorais</b>Sabores que só existem na Jolô, como o Jolô da casa e o premiado Doce Memória.</p></div>
+          <div><i></i><p><b>Cascão feito na hora</b>Casquinhas e cestinhas assadas na loja, com opções de borda.</p></div>
+          <div><i></i><p><b>Produção em 3 passos</b>Base Mix Gelato fornecida pela franqueadora: padrão e pouco desperdício.</p></div>
+        </div>
+        <div class="premio">
+          <svg viewBox="0 0 48 48" fill="none" stroke="var(--pietra)" stroke-width="2"><path d="M14 6h20v10a10 10 0 0 1-20 0z"/><path d="M14 10H8a6 6 0 0 0 6 8M34 10h6a6 6 0 0 1-6 8"/><path d="M24 26v8M16 42h16M20 34h8v8h-8z"/></svg>
+          <p><b>Entre os 6 melhores maestros gelatieri de 2024</b>Gelato Festival World Masters, com o sabor Doce Memória.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="porque" id="porque">
+  <div class="wrap">
+    <div class="cabeca">
+      <span class="eyebrow">Por que ser Jolô</span>
+      <h2>Uma rede pequena o bastante para cuidar de cada loja. Estruturada o bastante para crescer.</h2>
+    </div>
+    <div class="itens">
+      <div class="item">
+        <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 4l3.5 7.5L28 12.5l-6 5.5 1.5 8L17 22l-6.5 4 1.5-8-6-5.5 7.5-1z"/></svg>
+        <h3>Produto exclusivo</h3>
+        <p>Gelatos artesanais com ingredientes selecionados e técnicas italianas autênticas.</p>
+      </div>
+      <div class="item">
+        <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="17" cy="17" r="12"/><path d="M11 17l4 4 8-8"/></svg>
+        <h3>Suporte completo</h3>
+        <p>Treinamento, consultoria, marketing estratégico e central de atendimento 24h.</p>
+      </div>
+      <div class="item">
+        <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 25h24M8 25V13l9-6 9 6v12M14 25v-7h6v7"/></svg>
+        <h3>Operação simples</h3>
+        <p>Produção em apenas 3 passos, com padronização e redução de desperdícios.</p>
+      </div>
+      <div class="item">
+        <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="7" width="24" height="16" rx="2"/><path d="M12 28h10M17 23v5M10 18l4-4 3 3 6-6"/></svg>
+        <h3>Gestão integrada</h3>
+        <p>Sistema de gestão que acompanha caixa, estoque e vendas de todas as unidades.</p>
+      </div>
+      <div class="item">
+        <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 27L14 12l6 9 4-5 4 11z"/><circle cx="24" cy="8" r="3"/></svg>
+        <h3>Modelo testado</h3>
+        <p>Validado em praças diferentes, do interior à capital, sem perder a essência.</p>
+      </div>
+      <div class="item">
+        <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 20l10-10 4 4 8-8"/><path d="M22 6h6v6"/><path d="M6 28h22"/></svg>
+        <h3>Marketing que vende</h3>
+        <p>Campanhas personalizadas para atrair clientes e aumentar o faturamento.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="investimento escuro" id="investimento">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Investimento</span>
+      <h2 style="margin:14px 0 30px">Quanto custa abrir a sua Jolô.</h2>
+      <div class="tabela">
+        <div class="l"><span>Taxa de franquia</span><b>R$ 30.000</b></div>
+        <div class="l"><span>Equipamentos*</span><b>R$ 120.000</b></div>
+        <div class="l"><span>Frente de loja e utensílios</span><b>R$ 70.000</b></div>
+        <div class="l"><span>Estoque inicial</span><b>R$ 15.000</b></div>
+        <div class="l"><span>Capital de giro</span><b>R$ 35.000</b></div>
+        <div class="l total"><span>Investimento total</span><b>R$ 260.000</b></div>
+      </div>
+      <small>* Considerando equipamentos seminovos.</small>
+    </div>
+    <div class="retorno">
+      <span class="eyebrow">Retorno</span>
+      <div class="r"><b>100</b><div><span>mil reais de faturamento por mês</span><p>Unidades bem geridas podem faturar acima de R$ 100.000/mês.</p></div></div>
+      <div class="r"><b>18</b><div><span>a 24 meses para recuperar o capital</span><p>Um dos menores prazos do setor de gelato artesanal.</p></div></div>
+      <div class="r"><b>18%</b><div><span>de margem de lucro líquido, ou mais</span><p>Um negócio financeiramente saudável desde o primeiro ano.</p></div></div>
+      <div><a class="cta claro" data-zap href="#contato"><svg><use href="#whats"/></svg>Fale com o dono</a></div>
+    </div>
+  </div>
+</section>
+
+<section class="suporte">
+  <div class="wrap">
+    <div class="cabeca">
+      <span class="eyebrow">Suporte total ao franqueado</span>
+      <h2>Você cuida da loja. A franqueadora cuida do resto.</h2>
+    </div>
+    <div class="lista">
+      <div class="s"><h3>Sistema de gestão</h3><p>Gestão online da unidade, com monitoramento total do negócio.</p></div>
+      <div class="s"><h3>Central de Atendimento 24h</h3><p>Suporte contínuo ao franqueado, a qualquer hora.</p></div>
+      <div class="s"><h3>Marketing estratégico</h3><p>Campanhas personalizadas para atrair clientes.</p></div>
+      <div class="s"><h3>Plano pré e pós-inauguração</h3><p>Estratégia para um crescimento sustentável.</p></div>
+      <div class="s"><h3>Treinamentos presenciais e online</h3><p>Para operação, gestão e liderança.</p></div>
+      <div class="s"><h3>Fornecimento da Base Mix Gelato</h3><p>Produção prática e padronizada em 3 passos.</p></div>
+    </div>
+    <p class="fecho">Tudo isso para que você foque no que realmente importa: faturar e expandir o seu negócio.</p>
+  </div>
+</section>
+
+<section class="jornada oliva" id="jornada">
+  <div class="wrap">
+    <div class="cabeca">
+      <span class="eyebrow">A jornada do franqueado</span>
+      <h2>Do primeiro contato à inauguração, passo a passo.</h2>
+    </div>
+    <div class="passos">
+      <div class="p"><p>Entender a apresentação e assistir ao vídeo final.</p></div>
+      <div class="p"><p>Preencher a ficha de qualificação.</p></div>
+      <div class="p"><p>Reunião estratégica com o diretor de expansão.</p></div>
+      <div class="p"><p>Visita a uma unidade para conhecer a operação.</p></div>
+      <div class="p"><p>Recebimento da COF e assinatura do contrato.</p></div>
+      <div class="p"><p>Pagamento da taxa de franquia e início do plano de inauguração.</p></div>
+    </div>
+    <div class="depois">
+      <div>
+        <h3>Preparação para o sucesso</h3>
+        <div class="etapas">
+          <div><b>Locação</b><span>Identificação do melhor ponto comercial, considerando fluxo de clientes e potencial de vendas.</span></div>
+          <div><b>Adequação</b><span>Reformas e adaptações necessárias para garantir o padrão Jolô.</span></div>
+          <div><b>Equipe</b><span>Seleção e treinamento dos colaboradores que farão parte do seu time.</span></div>
+          <div><b>Treinamento</b><span>Capacitação completa para operação, gestão e atendimento.</span></div>
+          <div><b>Inauguração</b><span>Estratégia de marketing e lançamento oficial da unidade.</span></div>
+        </div>
+      </div>
+      <div>
+        <h3>Como funciona o treinamento</h3>
+        <div class="semanas">
+          <div><b>Semana 1 · Imersão na sede da franqueadora</b><p>Conhecer a estrutura, os processos e o modelo de negócio Jolô, direto com os especialistas da marca.</p></div>
+          <div><b>Semana 2 · Treinamento na unidade, antes de abrir</b><p>Aplicar o conhecimento na prática e preparar a equipe para a operação.</p></div>
+          <div><b>Semana 3 · Acompanhamento pós-inauguração</b><p>Garantir que a operação esteja rodando perfeitamente e ajustar o que for preciso.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="perfil">
+  <div class="wrap">
+    <div class="foto" data-foto="vitrine">
+      <svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg>
+      <span class="legenda">Foto · vitrine da loja</span>
+    </div>
+    <div>
+      <span class="eyebrow">Perfil do franqueado</span>
+      <h2 style="margin:14px 0 18px">Queremos gente com o DNA Jolô.</h2>
+      <p class="lead" style="margin-bottom:26px">Empreendedores prontos para fazer parte dessa jornada. O que buscamos:</p>
+      <ul>
+        <li><b>Escolaridade</b>Superior completo, preferencialmente.</li>
+        <li><b>Idade mínima</b>21 anos.</li>
+        <li><b>Habilidade empreendedora</b>Proatividade, dinamismo e visão de negócio.</li>
+        <li><b>Gostar de pessoas</b>Atender e encantar clientes é essencial.</li>
+        <li><b>Perfil responsável e resiliente</b>Capacidade de gerenciar desafios.</li>
+        <li><b>Informática básica</b>Para operar o sistema de gestão.</li>
+        <li><b>Alinhamento com os valores Jolô</b>Paixão, Paciência e Perseverança.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="depoimentos pietra">
+  <div class="wrap">
+    <div class="cabeca">
+      <span class="eyebrow">O que dizem nossos franqueados</span>
+      <h2>Quem já abriu uma Jolô conta como foi.</h2>
+    </div>
+    <div class="cards">
+      <div class="d">
+        <div class="foto" data-foto="franqueados-1"><svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg><span class="legenda">Foto · franqueados</span></div>
+        <blockquote>A gelateria representa, além de um excelente investimento, um espaço para desfrutar de produtos incríveis, feitos com os melhores ingredientes frescos, proporcionando aos clientes momentos de alegria, conquistas e convivência em um ambiente familiar.</blockquote>
+        <cite>Franqueados Jolô</cite>
+      </div>
+      <div class="d">
+        <div class="foto" data-foto="franqueados-2"><svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg><span class="legenda">Foto · franqueada</span></div>
+        <blockquote>Ter uma gelateria nunca foi uma ideia que passou pela minha cabeça. Ver a loja tomando forma, e as pessoas provando o gelato pela primeira vez e saindo mais felizes do que chegaram, me enche de alegria e realização. Tomamos a decisão certa.</blockquote>
+        <cite>Franqueada Jolô</cite>
+      </div>
+      <div class="d">
+        <div class="foto" data-foto="franqueados-3"><svg class="simbolo" style="color:var(--pietra)"><use href="#simbolo"/></svg><span class="legenda">Foto · franqueados de Jales</span></div>
+        <blockquote>Estamos muito satisfeitos com o suporte do franqueador, especialmente na análise dos resultados da Jolô Jales, no apoio para definir estratégias de marketing e vendas, e em tudo o que foi necessário desde a implantação.</blockquote>
+        <cite>Jolô Jales</cite>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faq" id="faq">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Perguntas frequentes</span>
+      <h2 style="margin-top:14px">O que todo mundo pergunta antes de abrir uma Jolô.</h2>
+    </div>
+    <div>
+      <details open><summary>Por que ter uma franquia de gelato?</summary><p>O mercado de gelatos premium está em alta: o segmento de gelato artesanal cresce cerca de 15% ao ano, e as pessoas buscam cada vez mais experiências gastronômicas únicas. É um setor validado, com margens saudáveis e apelo o ano inteiro.</p></details>
+      <details><summary>Por que ter uma franquia da Jolô?</summary><p>Porque a Jolô junta produto autoral premiado, operação simples em 3 passos e uma franqueadora próxima, que acompanha cada loja de perto. O retorno estimado, entre 18 e 24 meses, é um dos menores do setor.</p></details>
+      <details><summary>O que diferencia a Jolô das outras gelaterias?</summary><p>Receitas próprias desenvolvidas por um mestre gelatiere, produção artesanal feita dentro da loja, cascão assado na hora e um ambiente pensado para a experiência completa do cliente.</p></details>
+      <details><summary>Por que escolher a Jolô dentre outras franquias de gelato?</summary><p>Investimento total de R$ 260 mil, bem abaixo das grandes redes, com faturamento potencial acima de R$ 100 mil por mês e margem líquida acima de 18%. E você fala direto com quem fundou a marca.</p></details>
+      <details><summary>Posso montar uma Jolô para ter uma renda extra?</summary><p>Pode. Várias unidades nasceram como uma segunda fonte de renda. O modelo padronizado e o suporte da franqueadora permitem operar com uma equipe treinada, sem o dono precisar estar no balcão o dia todo.</p></details>
+      <details><summary>Qual o perfil de franqueado que a Jolô busca?</summary><p>Gente que gosta de pessoas, tem espírito empreendedor, é responsável e resiliente, e compartilha os três P's da Jolô: Paixão, Paciência e Perseverança.</p></details>
+      <details><summary>Tenho o dinheiro para investir, o que faço agora?</summary><p>Clique em “Fale com o dono”. Você conversa direto pelo WhatsApp, recebe a apresentação completa e a ficha de qualificação, e marcamos a reunião com o diretor de expansão.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="fim" id="contato">
+  <svg class="sim" style="color:var(--pietra)"><use href="#simbolo"/></svg>
+  <div class="wrap">
+    <span class="eyebrow">Fale com o dono</span>
+    <h2>Quer levar a Jolô para a <em>sua cidade?</em></h2>
+    <p class="lead">Sem formulário, sem espera. Você fala direto com o fundador pelo WhatsApp e recebe a apresentação completa.</p>
+    <a class="cta claro" data-zap href="#contato"><svg><use href="#whats"/></svg>Fale com o dono</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>© <span data-ano></span> Jolô Gelato Franquias · Santa Fé do Sul, SP · Feito para valer a pena.</div>
+    <div class="redes">
+      <a href="https://www.instagram.com/jologelato/" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.facebook.com/jologelatogourmet/" target="_blank" rel="noopener">Facebook</a>
+      <a href="https://jologelato.com.br/" target="_blank" rel="noopener">jologelato.com.br</a>
+    </div>
+  </div>
+</footer>
+
+<a class="zap" data-zap href="#contato" aria-label="Fale com o dono pelo WhatsApp"><svg><use href="#whats"/></svg><span>Fale com o dono</span></a>
+
+<script>
+  // Número do WhatsApp oficial (só DDI+DDD+número, sem espaços). Vazio: os botões levam ao fim da página.
+  var NUMERO_WHATSAPP = '';
+  var MENSAGEM = 'Olá! Quero saber mais sobre a franquia Jolô Gelato.';
+  (function(){
+    if(NUMERO_WHATSAPP){
+      var url='https://wa.me/'+NUMERO_WHATSAPP+'?text='+encodeURIComponent(MENSAGEM);
+      document.querySelectorAll('[data-zap]').forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});
+    }
+    var ano=document.querySelector('[data-ano]'); if(ano) ano.textContent=new Date().getFullYear();
+  })();
+</script>
