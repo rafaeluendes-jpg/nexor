@@ -251,3 +251,70 @@ matérias e portais de franquia.
   competir em escala. A Jolô é a rede pequena, autoral, do interior, com
   mestre gelatiere premiado e retorno mais rápido (18 a 24 meses contra
   24 a 36). Essa é a diferença que a página nova precisa deixar clara.
+
+---
+
+## Apresentação "Seja um franqueado | Jolô Gelato" (prints do Rafael, 04/09/2026)
+
+Este é o texto oficial da história. Tem prioridade sobre o que veio de
+imprensa acima.
+
+### Nossa História.
+Tudo começou em **2020**, na cidade de **Três Fronteiras/SP**, quando
+**Rafael Ulian**, inspirado pela tradição familiar na produção de
+sorvetes, decidiu criar algo **único e especial**.
+
+Com paixão pela arte da gelateria italiana, ele se aprofundou nas
+**melhores técnicas e ingredientes**, elevando a qualidade dos gelatos
+artesanais. Assim, nasceu a **Jolô Gelato**, conquistando paladares desde
+o primeiro dia!
+
+O sucesso foi imediato e, em **2021**, ao lado de **Raylan**, inaugurou a
+**segunda unidade em Santa Fé do Sul/SP**. O impacto foi tão grande que os
+clientes começaram a perguntar: **"A Jolô é franquia?"**
+
+A ideia começou a tomar forma e em **2022, Ricardo**, especialista em
+gestão de negócios, entrou para estruturar o modelo de franquias da Jolô
+Gelato. Com um modelo **padronizado e sólido**, a expansão começou!
+
+Em julho de 2023, a marca foi oficialmente lançada, e quatro unidades
+entraram em operação: **Santa Fé do Sul, Fernandópolis, Jales e
+Sorocaba.**
+
+Hoje, a missão da Jolô é clara: **Levar a experiência do sabor Jolô para
+todo o Brasil através do modelo de franquias**, rentabilizando todos os
+stakeholders. Buscamos empreendedores que compartilhem nossos 3 P's:
+- **Paixão** – Pelo que faz e pelo crescimento contínuo.
+- **Paciência** – Para crescer com qualidade e consistência.
+- **Perseverança** – Para construir um negócio sólido e próspero.
+
+### Nossa Trajetória. (linha do tempo)
+| Quando | O quê |
+|---|---|
+| Março 2020 | Inauguração da primeira Jolô Gelato em Três Fronteiras/SP |
+| Junho 2021 | Expansão para Santa Fé do Sul/SP |
+| Julho 2023 | Lançamento oficial da Jolô Gelato Franquias |
+| Outubro 2024 | Abertura da unidade em Jales/SP |
+| Novembro 2024 | Abertura da unidade em Fernandópolis/SP |
+| Dezembro 2024 | Abertura da unidade em Sorocaba/SP |
+| Abril 2026 | Petrópolis/RJ, primeira do estado do Rio (imprensa; confirmar) |
+| — | Alphaville (aparece no Joia; confirmar data) |
+
+### Missão, Visão e Valores (versão da apresentação)
+- **Missão:** Levar a experiência do sabor Jolô gelato para todo o Brasil,
+  através do modelo de franquia, rentabilizando todos os stakeholders.
+- **Visão:** Ser reconhecida pela rede de franqueados como um negócio
+  próspero que transforma vidas.
+- **Valores:** Paixão: Para fazer o que gosta e gostar do que faz.
+  Paciência: Para manter uma ótima conduta enquanto espera, do verbo
+  esperançar. Perseverança: Com foco no Resultado.
+
+### Nossos Pilares: Produto | Serviço | Gestão
+Esses três pilares – produto, serviço e gestão – são a base que sustenta
+nossa missão: adoçar momentos e criar experiências inesquecíveis, sempre
+com excelência em cada etapa do processo.
+
+### Fotos vistas na apresentação (referência de clima)
+Fachada de vidro da loja com letreiro "JOLÔ Gelato Gourmet"; casquinha
+de pistache na mão; copinho de coco com cascão; cubas de gelato de
+chocolate vistas de cima. Fotos e copinhos serão trocados pelos novos.
