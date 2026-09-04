@@ -98,3 +98,156 @@ Tagline: "Feito para valer a pena".
 - carpigiani.com/pt-br/news/gelato-festival-world-masters-anuncia-os-6-selecionados-como-os-melhores-maestros-gelatiere-de-2024
 - econodata.com.br — Jolo Gelato Ltda, CNPJ 42.771.278/0001-02
 - jologelato.com.br e jologelato.com.br/lpfranquias-3/ (trechos indexados)
+
+---
+
+## Página atual (jologelato.com.br), transcrita dos prints do Rafael em 04/09/2026
+
+Ordem das seções, como estão hoje. Fotos dos sócios são antigas e serão
+trocadas pelas novas que o Rafael vai mandar.
+
+### 1. Topo (foto de copinho amarelo de gelato com cascão, fundo verde escuro)
+**A transformação do sabor Jolô em LUCRATIVIDADE!**
+Uma franquia estruturada, com suporte completo e alta rentabilidade!
+- Marca consolidada e em expansão
+- Produto artesanal de alto padrão
+- Modelo de franquia testado e validado
+[Acesse nosso plano de negócio]
+
+### 2. Vantagens do mercado de gelato (fundo oliva, foto de copinho em arco)
+- O mercado de gelatos premium está em alta e tem crescimento garantido!
+- Investir em um setor validado como o de gelatos artesanais é um passo
+  estratégico para o sucesso.
+- As pessoas sempre buscam experiências gastronômicas únicas – e o gelato
+  é uma paixão global!
+- O segmento de gelatos artesanais cresce 15% ao ano, sendo uma escolha
+  certeira para investir com segurança.
+[Acesse nosso plano de negócio]
+
+### 3. Porque ser Jolô? (fundo marrom escuro, 6 cartões)
+- **Produto Exclusivo e de Alta Qualidade:** Gelatos artesanais produzidos
+  com ingredientes selecionados e técnicas italianas autênticas.
+- **Suporte Completo ao Franqueado:** Treinamento, consultoria, marketing
+  estratégico e suporte 24h para garantir o sucesso da unidade.
+- **Operação Simples e Padronizada:** Produção dos gelatos em apenas 3
+  passos, garantindo padronização e redução de desperdícios.
+- **Tecnologia de Gestão Eficiente:** Sistema ERP integrado que otimiza a
+  gestão financeira, de estoque e de vendas.
+- **Modelo de Negócio Testado e Validado:** Testado em diferentes praças.
+  Resultado consistente, sem perder a essência.
+- **Marketing Estratégico para Vendas:** A Jolô Gelato oferece campanhas
+  personalizadas para atrair clientes e aumentar o faturamento.
+
+### 4. Missão, visão e valores (fundo creme, foto dos três sócios)
+**Missão:** Levar a experiência do sabor Jolô para todo o Brasil através do
+modelo de franquias, rentabilizando todos os stakeholders.
+**Visão:** Ser reconhecida pela rede de franqueados como um negócio próspero
+que transforma vidas.
+**Valores:**
+- **Paixão** – Pelo que faz e pelo crescimento contínuo.
+- **Paciência** – Para crescer com qualidade e consistência.
+- **Perseverança** – Para construir um negócio sólido e próspero.
+[Acesse nosso plano de negócio]
+
+### 5. Investimento (fundo creme, caixas marrons, foto de cliente com casquinha)
+| Item | Valor |
+|---|---|
+| Taxa de Franquia | R$ 30.000 |
+| Equipamentos | R$ 120.000* |
+| Frente de loja e utensílios | R$ 70.000 |
+| Estoque inicial | R$ 15.000 |
+| Capital de giro | R$ 35.000 |
+| **Investimento total** | **R$ 260.000** |
+\* Considerando equipamentos semi novos.
+[Acesse nosso plano de negócio]
+
+(Obs.: a soma dos itens dá R$ 270 mil e o total diz R$ 260 mil. A taxa de
+franquia aparece como R$ 20 mil em outra página do site. Conferir com o
+Rafael qual é o valor certo antes de publicar.)
+
+### 6. Retorno do investimento (fundo marrom, foto de sobremesa com morango, 3 ícones dourados)
+- **Faturamento Médio Elevado:** Unidades bem geridas podem faturar acima
+  de R$ 100.000/mês, impulsionando seus ganhos.
+- **Retorno Rápido do Investimento:** Recuperação do capital investido
+  entre 18 e 24 meses, um dos menores prazos do setor.
+- **Rentabilidade Atraente:** Margem de lucro líquido acima de 18%,
+  garantindo um negócio financeiramente saudável.
+
+### 7. O que dizem nossos franqueados (fundo oliva, 3 fotos)
+1. (foto de quatro franqueados de polo branca) "A Gelateria representa,
+   além de um excelente investimento, um espaço para desfrutar de produtos
+   incríveis, feitos com os melhores ingredientes frescos, proporcionando
+   aos clientes momentos de alegria, conquistas e convivência em um
+   ambiente familiar."
+2. (foto de franqueada na loja) "Para ser sincera, ter uma gelateria nunca
+   foi uma ideia que passou pela minha cabeça. Inicialmente, a intenção
+   era apenas garantir outra fonte de renda, mas, após conversarmos com os
+   franqueadores e iniciarmos essa parceria, as coisas começaram a mudar e
+   tomar outro rumo. Passar pelo processo de implantação, procurar um
+   ponto comercial, contratar pessoas, ver a loja tomando forma, e contar
+   com a presença de amigos e pessoas queridas no dia da inauguração foi
+   extremamente gratificante. Observar as pessoas entrando na gelateria,
+   provando o gelato pela primeira vez, elogiando o produto e saindo mais
+   felizes do que chegaram me enche de alegria e realização. Tudo isso,
+   aliado à dedicação e empenho que vejo no Gabriel desde o início deste
+   projeto, me faz acreditar que realmente tomamos a decisão certa."
+3. (foto de casal franqueado, Jolô Jales) "Estamos muito satisfeitos com o
+   suporte recebido do franqueador, especialmente na análise dos
+   resultados da Jolô Jales, no apoio para definir novas estratégias de
+   marketing e vendas com foco no aumento do faturamento, no
+   esclarecimento de dúvidas relacionadas à conciliação bancária e em tudo
+   mais que foi necessário desde a implantação."
+[Acesse nosso plano de negócio]
+
+### 8. Perguntas frequentes (fundo creme, sanfona)
+- Por que ter uma franquia de Gelato?
+- Por que ter uma franquia da Jolô?
+- O que diferencia a Jolô das outras gelaterias?
+- Por que escolher a franquia da Jolô dentre outras franquias de gelato?
+- Posso montar uma Jolô para ter uma renda extra?
+- Qual o perfil de franqueado que a Jolô busca?
+- Tenho o dinheiro para investir, o que faço agora?
+(As respostas não vieram nos prints. Pedir ao Rafael ou escrever a partir
+do material acima.)
+
+### Botão em todas as seções
+"Acesse nosso plano de negócio" (verde). Na página nova vira
+**"Fale com o dono"** → WhatsApp oficial (API), e depois alimenta o CRM.
+
+### Problemas da página atual (para não repetir)
+- Cores fora da identidade: verde-vivo do botão, marrom escuro, oliva
+  lavado. A nova usa Bosco Nobile, Latte di Crema, Oliva Toscana,
+  Caramello Antico como acento.
+- Fonte genérica (Montserrat). A nova segue a logo: serifa elegante nos
+  títulos, sem-serifa leve e espaçada nos apoios.
+- Fotos antigas dos sócios; copinho antigo (amarelo, bandeira da Itália).
+  Trocar pelas fotos novas e pelos copinhos novos.
+- Mesmo botão repetido sete vezes; nada de história da marca (2020, Três
+  Fronteiras, João + Eloise, o prêmio). A nova conta a história antes de
+  falar em dinheiro.
+
+## Referência pedida: Gelato Borelli (o que dá para ver daqui)
+
+Sites da Borelli também não abrem deste ambiente; o que segue é de
+matérias e portais de franquia.
+
+- Fundada em 2013 em Ribeirão Preto por Eduardo Borelli; franquia desde
+  2016, franqueadora formatada em 2019. Hoje mais de 290 unidades em 25
+  estados + DF; meta de 420 lojas em 2026; faturamento projetado de
+  R$ 500 milhões.
+- Discurso central: "vero gelato" italiano, feito todo dia na loja, sem
+  conservantes, fábrica própria de insumos (única da rede), casquinha
+  artesanal, cascata de chocolate, pistache como carro-chefe.
+- Números de franquia que eles exibem: investimento a partir de R$ 800
+  mil; faturamento médio R$ 180 a 195 mil/mês; lucratividade 20 a 25 %;
+  retorno 24 a 36 meses; lojas com mais de um ano crescem acima de 20 %
+  ao ano.
+- Estrutura da landing de franquias deles: herói com números grandes
+  (unidades, estados, faturamento), história do fundador, diferenciais,
+  suporte (ponto, implantação, operação, qualidade, treinamento,
+  marketing), investimento e retorno, depoimentos, formulário de
+  interesse, presença em feiras (ABF Expo).
+- Lição para a Jolô: contar história e mostrar números com orgulho, sem
+  competir em escala. A Jolô é a rede pequena, autoral, do interior, com
+  mestre gelatiere premiado e retorno mais rápido (18 a 24 meses contra
+  24 a 36). Essa é a diferença que a página nova precisa deixar clara.
