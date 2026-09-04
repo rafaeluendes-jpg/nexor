@@ -13125,7 +13125,7 @@ function trocarLoja(id){
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
 var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V305.0.0';
+var VERSAO='V306.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15582,6 +15582,23 @@ function formaDaTroco(f){
   if(f.troco===true||f.troco===false)return !!f.troco;   /* respeita quem definiu */
   var t=String(f.tipo||'').toLowerCase();
   return t==='dinheiro'||t==='especie'||t==='cash';
+}
+/* ==========================================================
+   TROCO SE PERGUNTA À LISTA QUE O PDV MOSTROU — 04/09/2026
+
+   O botão que o operador tocou vem de FORMAS (a lista ativa da frente de
+   caixa). A conferência de troco perguntava ao CADASTRO (DB.formasPag),
+   que é outra lista — e quando ela ainda não desceu da nuvem, `formaPag`
+   devolvia nulo, o dinheiro não era reconhecido como forma que dá troco, e
+   a venda de dinheiro com troco travava ("recebido a mais").
+
+   Aqui a pergunta passa a bater na MESMA lista dos botões: FORMAS já traz
+   `troco` calculado. Só cai no cadastro se a forma não estiver em FORMAS.
+   O tipo 'dinheiro' dá troco mesmo com as duas listas vazias. */
+function formaDaTrocoId(id){
+  var f=(typeof FORMAS!=='undefined'&&FORMAS||[]).find(function(x){return x.id===id});
+  if(f&&(f.troco===true||f.troco===false))return f.troco;
+  return formaDaTroco(formaPag(id));
 }
 function syncFormas(){
   /* a lista REAL da loja manda. Se ela ainda não chegou (vazia, esperando
@@ -21022,7 +21039,7 @@ function irPagamento(){
     }
     /* pergunta pela funcao, nao pelo campo: se a lista for montada em outro
        lugar amanha e esquecer `troco`, a venda em dinheiro nao trava de novo */
-    var _daTroco=_pagos.some(function(pg){return formaDaTroco(formaPag(pg.forma));});
+    var _daTroco=_pagos.some(function(pg){return formaDaTrocoId(pg.forma);});
     if(somaPg<final-0.01){
       toast('Faltam R$ '+money(final-somaPg)+' — os pagamentos somam R$ '+money(somaPg)+
             ' e o total é R$ '+money(final)+'.');
@@ -21056,8 +21073,7 @@ function irPagamento(){
     });
     if(_troco>0.009){
       for(var ti=_pagosVenda.length-1;ti>=0&&_troco>0.009;ti--){
-        var fT=formaPag(_pagosVenda[ti].forma);
-        if(!formaDaTroco(fT))continue;
+        if(!formaDaTrocoId(_pagosVenda[ti].forma))continue;
         var tira=Math.min(_pagosVenda[ti].valor,_troco);
         _pagosVenda[ti].valor=+(_pagosVenda[ti].valor-tira).toFixed(2);
         _troco=+(_troco-tira).toFixed(2);

@@ -97,6 +97,23 @@ function formaDaTroco(f){
   var t=String(f.tipo||'').toLowerCase();
   return t==='dinheiro'||t==='especie'||t==='cash';
 }
+/* ==========================================================
+   TROCO SE PERGUNTA À LISTA QUE O PDV MOSTROU — 04/09/2026
+
+   O botão que o operador tocou vem de FORMAS (a lista ativa da frente de
+   caixa). A conferência de troco perguntava ao CADASTRO (DB.formasPag),
+   que é outra lista — e quando ela ainda não desceu da nuvem, `formaPag`
+   devolvia nulo, o dinheiro não era reconhecido como forma que dá troco, e
+   a venda de dinheiro com troco travava ("recebido a mais").
+
+   Aqui a pergunta passa a bater na MESMA lista dos botões: FORMAS já traz
+   `troco` calculado. Só cai no cadastro se a forma não estiver em FORMAS.
+   O tipo 'dinheiro' dá troco mesmo com as duas listas vazias. */
+function formaDaTrocoId(id){
+  var f=(typeof FORMAS!=='undefined'&&FORMAS||[]).find(function(x){return x.id===id});
+  if(f&&(f.troco===true||f.troco===false))return f.troco;
+  return formaDaTroco(formaPag(id));
+}
 function syncFormas(){
   /* a lista REAL da loja manda. Se ela ainda não chegou (vazia, esperando
      o download), o caixa mostra a de EXIBIÇÃO de fábrica só para não ficar

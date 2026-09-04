@@ -1046,7 +1046,7 @@ function irPagamento(){
     }
     /* pergunta pela funcao, nao pelo campo: se a lista for montada em outro
        lugar amanha e esquecer `troco`, a venda em dinheiro nao trava de novo */
-    var _daTroco=_pagos.some(function(pg){return formaDaTroco(formaPag(pg.forma));});
+    var _daTroco=_pagos.some(function(pg){return formaDaTrocoId(pg.forma);});
     if(somaPg<final-0.01){
       toast('Faltam R$ '+money(final-somaPg)+' — os pagamentos somam R$ '+money(somaPg)+
             ' e o total é R$ '+money(final)+'.');
@@ -1080,8 +1080,7 @@ function irPagamento(){
     });
     if(_troco>0.009){
       for(var ti=_pagosVenda.length-1;ti>=0&&_troco>0.009;ti--){
-        var fT=formaPag(_pagosVenda[ti].forma);
-        if(!formaDaTroco(fT))continue;
+        if(!formaDaTrocoId(_pagosVenda[ti].forma))continue;
         var tira=Math.min(_pagosVenda[ti].valor,_troco);
         _pagosVenda[ti].valor=+(_pagosVenda[ti].valor-tira).toFixed(2);
         _troco=+(_troco-tira).toFixed(2);

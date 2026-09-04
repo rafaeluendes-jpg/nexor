@@ -212,6 +212,35 @@ const CENT = fecharVenda(18.90, [{ forma: 'fp_dinheiro', valor: 20 }], FORMAS_BA
 t('centavos: 18,90 recebe 20 dá troco 1,10', CENT.troco === 1.10, CENT.troco);
 
 /* ==========================================================
+   O DINHEIRO DÁ TROCO MESMO COM O CADASTRO AINDA VAZIO — 04/09/2026
+
+   Defeito real: a conferência de troco perguntava ao cadastro
+   (DB.formasPag). Quando ele ainda não tinha descido da nuvem, `formaPag`
+   devolvia nulo e o dinheiro não era reconhecido — a venda de R$ 20 com
+   R$ 100 na mão travava "recebido a mais", mesmo com o botão de dinheiro
+   ali na tela (esse vem de FORMAS, não do cadastro).
+
+   Agora a pergunta bate na MESMA lista dos botões (FORMAS). Este teste
+   roda a função REAL `formaDaTrocoId` com o cadastro VAZIO de propósito. */
+grupo('Troco reconhecido pela lista ativa (FORMAS), não pelo cadastro');
+const _antesFORMAS = global.FORMAS, _antesDB = global.DB;
+global.DB = { formasPag: [] };                       /* cadastro ainda não desceu */
+global.FORMAS = [{ id: 'fp_dinheiro', n: 'Dinheiro', tipo: 'dinheiro', troco: true },
+                 { id: 'fp_pix', n: 'Pix', tipo: 'pix', troco: false }];
+const TID = carregar(['formaPag', 'formaDaTroco', 'formaDaTrocoId']);
+t('dinheiro dá troco mesmo com DB.formasPag vazio',
+  TID.formaDaTrocoId('fp_dinheiro') === true);
+t('pix não dá troco (lista ativa)', TID.formaDaTrocoId('fp_pix') === false);
+t('forma que não existe em lugar nenhum não dá troco',
+  TID.formaDaTrocoId('fp_inexistente') === false);
+/* com o cadastro cheio, o troco do cadastro é respeitado */
+global.DB = { formasPag: [{ id: 'fp_dinheiro', nome: 'Dinheiro', tipo: 'dinheiro' }] };
+global.FORMAS = [];
+t('cai no cadastro quando a forma não está em FORMAS',
+  TID.formaDaTrocoId('fp_dinheiro') === true);
+global.FORMAS = _antesFORMAS; global.DB = _antesDB;
+
+/* ==========================================================
    CANCELAMENTO
    ========================================================== */
 grupo('Cancelamento');
