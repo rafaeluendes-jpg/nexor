@@ -318,3 +318,67 @@ com excelência em cada etapa do processo.
 Fachada de vidro da loja com letreiro "JOLÔ Gelato Gourmet"; casquinha
 de pistache na mão; copinho de coco com cascão; cubas de gelato de
 chocolate vistas de cima. Fotos e copinhos serão trocados pelos novos.
+
+### Suporte total ao franqueado
+- **ERP Cheff Solutions:** Sistema de gestão online para monitoramento
+  total do negócio. (Na página nova: o sistema de gestão é o **Joia**,
+  joiagest.com.br. Confirmar com o Rafael se troca o nome.)
+- **CAF – Central de Atendimento 24h:** Suporte contínuo ao franqueado.
+- **Marketing Estratégico:** Campanhas personalizadas para atrair clientes.
+- **Plano de Ação Pré e Pós-inauguração:** Estratégia para crescimento
+  sustentável.
+- **Treinamentos Presenciais e Online:** Para operação, gestão e liderança.
+- **Fornecimento da Base Mix Gelato:** Produção prática e padronizada em
+  3 passos.
+Tudo isso para que você foque no que realmente importa: faturar e expandir
+seu negócio!
+
+### A Jornada do Franqueado (passo a passo para se tornar um franqueado Jolô Gelato)
+1. Entender a apresentação e assistir ao vídeo final.
+2. Preencher a ficha de qualificação.
+3. Reunião estratégica com o diretor de expansão.
+4. Visita a uma unidade para conhecer a operação.
+5. Recebimento da COF e assinatura do contrato.
+6. Pagamento da taxa de franquia e início do plano de inauguração.
+
+### Preparação para o Sucesso
+Cada etapa é acompanhada de perto pela franqueadora, garantindo que tudo
+ocorra com máxima eficiência e qualidade!
+- **Locação do imóvel:** Identificação do melhor ponto comercial,
+  considerando fluxo de clientes e potencial de vendas.
+- **Adequação do imóvel:** Reformas e adaptações necessárias para garantir
+  o padrão Jolô.
+- **Contratação da equipe:** Seleção e treinamento dos colaboradores que
+  farão parte do seu time.
+- **Treinamento:** Capacitação completa para operação, gestão e
+  atendimento.
+- **Inauguração:** Estratégia de marketing e lançamento oficial da unidade.
+
+### Como funciona o treinamento?
+- **Semana 1 – Imersão na Sede da Franqueadora.** Objetivo: Conhecer a
+  estrutura, os processos e o modelo de negócio Jolô. Aqui, você aprende
+  diretamente com os especialistas da marca!
+- **Semana 2 – Treinamento na Unidade Franqueada (Pré-inauguração).**
+  Objetivo: Aplicar o conhecimento na prática e preparar a equipe para a
+  operação. Este é um momento crucial para garantir um início de alto
+  desempenho!
+- **Semana 3 – Acompanhamento Pós-inauguração.** Objetivo: Garantir que a
+  operação esteja rodando perfeitamente e realizar ajustes conforme
+  necessário. Com esse acompanhamento, você terá confiança e segurança
+  para operar sua unidade com sucesso!
+
+### Perfil do Franqueado Ideal
+Queremos empreendedores que tenham o DNA Jolô e estejam prontos para fazer
+parte dessa jornada de sucesso! Requisitos:
+- **Escolaridade:** Superior completo preferencialmente.
+- **Idade mínima:** 21 anos.
+- **Habilidade empreendedora:** Proatividade, dinamismo e visão de negócio.
+- **Gostar de pessoas:** Atender e encantar clientes é essencial.
+- **Perfil responsável e resiliente:** Capacidade de gerenciar desafios.
+- **Conhecimento básico de informática:** Para operação do sistema de
+  gestão.
+- **Alinhamento com os valores Jolô:** Paixão, Paciência e Perseverança.
+
+### Fotos a receber do Rafael
+Fotos novas dos sócios, das unidades novas (fachada) e dos copinhos novos.
+Substituem todas as fotos antigas.
