@@ -25,9 +25,34 @@ function corTipo(t){
   return t==='dinheiro'?'#0E8A46':t==='debito'?'#2C6FD1':t==='credito'?'#7B5FD4'
         :t==='pix'?'#00A08B':t==='voucher'?'#E08A2E':t==='fiado'?'#C94141':'#5C6B80';
 }
+/* ==========================================================
+   A TELA VAZIA QUE ASSUSTOU O DONO — 04/09/2026
+
+   O Rafael e o socio abriram Formas de Pagamento e viram "Nenhuma forma
+   cadastrada", zerado. As 5 formas — com as taxas reais da loja (debito
+   0,73%, credito 2,73%) — estavam INTEIRAS na nuvem o tempo todo; so nao
+   estavam na lista deste aparelho naquele instante.
+
+   A V299 parou de semear formas de fabrica quando a nuvem ja conhece as
+   formas (para nao repor taxa de fabrica por cima da real, que foi a
+   regressao dos lancamentos). O efeito colateral: se o download ainda nao
+   encheu DB.formasPag, a tela ficava CEGA em vez de esperar.
+
+   Aqui a tela se cura: lista vazia com a nuvem ligada = puxa as formas
+   reais da nuvem (onde elas estao salvas) e redesenha. Nunca repoe fabrica
+   por cima de taxa real, porque quem enche e o download, nao a semente. */
+var _fpAutoPuxou=false;
 function telaFormasPag(){
   baseCat();baseFormas();
   var lista=(DB.formasPag||[]).slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
+  if(lista.length){ _fpAutoPuxou=false; }
+  else if(typeof NUVEM!=='undefined'&&NUVEM.ligada&&!_fpAutoPuxou&&typeof baixarDaNuvem==='function'){
+    _fpAutoPuxou=true;
+    baixarDaNuvem(true).then(function(){
+      if(typeof mid!=='undefined'&&mid==='financeira'&&iid==='formas-pagamento')telaFormasPag();
+    }).catch(function(){});
+  }
+  var _puxando=!lista.length&&typeof NUVEM!=='undefined'&&NUVEM.ligada;
   var ativas=lista.filter(function(f){return f.ativa!==false}).length;
   $('content').innerHTML='<div class="finWrap">'+
   '<div class="finTop"><div><h1>Formas de Pagamento</h1>'+
@@ -67,7 +92,9 @@ function telaFormasPag(){
      '</div>'+
     '</div>';
   }).join('')
-  :'<div class="entVazio"><b>Nenhuma forma cadastrada</b><span>Cadastre Dinheiro, Pix e os cartões que você aceita.</span></div>')+
+  :(_puxando
+     ?'<div class="entVazio"><b>Carregando as formas da nuvem…</b><span>As suas formas e taxas estão salvas na nuvem. Aguarde um instante.</span></div>'
+     :'<div class="entVazio"><b>Nenhuma forma cadastrada</b><span>Cadastre Dinheiro, Pix e os cartões que você aceita.</span></div>'))+
   '</div>'+
   '<div class="avisoCfg">'+sv('help',16)+
   '<div>A <b>ordem</b> define como as formas aparecem na tela de pagamento do PDV. '+
