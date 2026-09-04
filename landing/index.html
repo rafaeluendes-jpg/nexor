@@ -51,16 +51,14 @@
   .cabeca{display:grid;gap:14px;max-width:760px;margin-bottom:clamp(40px,5vw,64px)}
 
   /* ---------- fotos ---------- */
-  .foto{position:relative;overflow:hidden;border-radius:var(--raio);background:
-      radial-gradient(120% 90% at 20% 10%,rgba(244,238,227,.22),transparent 55%),
-      linear-gradient(160deg,var(--oliva),var(--bosco) 55%,var(--notte));isolation:isolate}
-  .foto::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,transparent 0 22px,rgba(244,238,227,.035) 22px 23px);z-index:0}
-  .foto .simbolo{position:absolute;inset:0;margin:auto;width:min(22%,120px);height:auto;opacity:.35;z-index:1}
-  .foto .legenda{position:absolute;left:16px;bottom:14px;z-index:2;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--pietra);font-weight:500}
-  .foto.clara{background:linear-gradient(160deg,#E9DEC8,var(--pietra) 60%,#C8B893)}
-  .foto.clara .legenda{color:var(--bosco)}
-  .foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:3}
-  .foto img+.legenda{display:none}
+  .foto{position:relative;overflow:hidden;border-radius:var(--raio);background:var(--pietra);isolation:isolate}
+  .foto.vaga{background:transparent;border:1.5px dashed rgba(47,74,42,.45);display:grid;place-items:center;text-align:center;padding:24px}
+  .escuro .foto.vaga,.oliva .foto.vaga,.notte .foto.vaga{border-color:rgba(244,238,227,.5)}
+  .foto.vaga .simbolo{width:min(18%,72px);height:auto;opacity:.55;margin:0 auto 14px}
+  .foto.vaga .legenda{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--tinta-suave);font-weight:500;line-height:1.6}
+  .escuro .foto.vaga .legenda,.oliva .foto.vaga .legenda{color:var(--pietra)}
+  .foto.vaga .legenda small{display:block;letter-spacing:.04em;text-transform:none;font-size:13px;font-weight:300;opacity:.8}
+  .foto>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:3}
 
   /* ---------- topo ---------- */
   header.topo{position:sticky;top:0;z-index:50;background:rgba(244,238,227,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--linha)}
@@ -100,7 +98,7 @@
   .historia .texto{display:grid;gap:22px}
   .historia .texto p{max-width:58ch}
   .historia .foto{aspect-ratio:3/4;position:sticky;top:110px}
-  .historia .foto.segunda{position:static;aspect-ratio:4/3;margin-top:-140px;margin-left:44%;width:56%;box-shadow:0 30px 60px -30px rgba(18,40,26,.6)}
+  .historia .foto.segunda{position:relative;aspect-ratio:4/3;margin-top:-140px;margin-left:44%;width:56%;box-shadow:0 30px 60px -30px rgba(18,40,26,.6)}
   .pergunta{font-family:var(--serif);font-style:italic;font-size:clamp(26px,2.6vw,36px);color:var(--bosco);border-left:3px solid var(--caramello);padding-left:22px;margin:8px 0}
   @media (max-width:900px){.historia .wrap{grid-template-columns:1fr}.historia .foto{position:static}.historia .foto.segunda{margin:16px 0 0;width:100%}}
 
@@ -120,10 +118,10 @@
 
   /* ---------- produto ---------- */
   .produto{padding-bottom:0}
-  .produto .grade{display:grid;grid-template-columns:1.1fr .8fr .8fr;grid-template-rows:auto auto;gap:14px}
-  .produto .foto{aspect-ratio:1/1}
-  .produto .foto.grande{grid-row:span 2;aspect-ratio:auto}
-  .produto .foto.larga{grid-column:span 2;aspect-ratio:2.05/1}
+  .produto .grade{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .produto .foto{aspect-ratio:674/1200}
+  .produto .grade2{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  .produto .grade2 .foto{aspect-ratio:4/3}
   .produto .texto{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4vw,64px);padding:clamp(56px,7vw,96px) 0}
   .produto .lista{display:grid;gap:18px;font-size:16px}
   .produto .lista div{display:grid;grid-template-columns:22px 1fr;gap:14px;align-items:start}
@@ -133,7 +131,7 @@
   .premio svg{width:44px;height:44px;flex:none}
   .premio p{font-size:14px;line-height:1.45}
   .premio b{display:block;font-family:var(--serif);font-size:19px;font-weight:500}
-  @media (max-width:900px){.produto .grade{grid-template-columns:1fr 1fr}.produto .foto.grande{grid-row:auto;grid-column:span 2;aspect-ratio:16/10}.produto .texto{grid-template-columns:1fr}}
+  @media (max-width:900px){.produto .grade,.produto .grade2{grid-template-columns:1fr}.produto .texto{grid-template-columns:1fr}}
 
   /* ---------- por que ---------- */
   .porque .itens{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--linha);border-left:1px solid var(--linha)}
@@ -273,8 +271,8 @@
       </div>
       <p class="tag">Três Fronteiras, 2020 → Brasil, hoje.</p>
     </div>
-    <div class="foto">
-      <img src="fotos/fachada-letreiro.jpg" alt="Fachada da Jolô Gelato com o letreiro oval iluminado">
+    <div class="foto vaga">
+      <div><img class="simbolo" src="marca/simbolo-bosco.png" alt=""><p class="legenda">Aqui entra a sua foto<small>Fachada da loja (a que você mandou, com o letreiro oval e a cobertura de vidro)</small></p></div>
     </div>
   </div>
 </section>
@@ -282,10 +280,10 @@
 <div class="numeros" aria-label="A Jolô em números">
   <div class="wrap">
     <div class="n"><b>2020</b><span>Nasceu em Três Fronteiras</span></div>
-    <div class="n"><b>7</b><span>Unidades abertas e em implantação</span></div>
+    <div class="n"><b>5</b><span>Unidades em operação, +1 em implantação</span></div>
     <div class="n"><b>18–24</b><span>Meses para o retorno</span></div>
     <div class="n"><b>+18%</b><span>Margem de lucro líquido</span></div>
-    <div class="n"><b>Top 6</b><span>Gelato Festival World Masters</span></div>
+    <div class="n"><b>100 mil</b><span>Reais de faturamento por mês</span></div>
   </div>
 </div>
 
@@ -302,12 +300,11 @@
       <p>Em julho de 2023 a marca foi oficialmente lançada, com quatro unidades em operação: Santa Fé do Sul, Fernandópolis, Jales e Sorocaba. Em 2026 a Jolô chegou ao Rio de Janeiro, em Petrópolis, e prepara a loja de São Paulo.</p>
     </div>
     <div>
-      <div class="foto">
-        <img class="simbolo" src="marca/simbolo-latte.png" alt="">
-        <span class="legenda">Foto · os sócios (nova)</span>
+      <div class="foto vaga">
+        <div><img class="simbolo" src="marca/simbolo-bosco.png" alt=""><p class="legenda">Aqui entra a sua foto<small>Os sócios (foto nova)</small></p></div>
       </div>
-      <div class="foto segunda">
-        <img src="fotos/casquinha.jpg" alt="Casquinha de gelato de creme e chocolate">
+      <div class="foto vaga segunda">
+        <div><img class="simbolo" src="marca/simbolo-bosco.png" alt=""><p class="legenda">Sua foto<small>Casquinha com o letreiro ao fundo</small></p></div>
       </div>
     </div>
   </div>
@@ -336,25 +333,26 @@
       <h2>Feito na loja, todos os dias, por quem entende de gelato.</h2>
     </div>
     <div class="grade">
-      <div class="foto grande"><img src="fotos/coco.jpg" alt="Fatiatto de coco na cestinha de cascão"></div>
+      <div class="foto"><img src="fotos/coco.jpg" alt="Fatiatto de coco na cestinha de cascão"></div>
       <div class="foto"><img src="fotos/brownie.jpg" alt="Brownie com gelato e calda de chocolate"></div>
       <div class="foto"><img src="fotos/morango.jpg" alt="Petit gateau com gelato e morangos"></div>
-      <div class="foto larga clara">
-        <img class="simbolo" src="marca/simbolo-bosco.png" alt="">
-        <span class="legenda">Foto · copinho novo e gelato saindo da máquina</span>
-      </div>
+    </div>
+    <div class="grade2">
+      <div class="foto vaga"><div><img class="simbolo" src="marca/simbolo-latte.png" alt=""><p class="legenda">Sua foto<small>Copinho novo verde</small></p></div></div>
+      <div class="foto vaga"><div><img class="simbolo" src="marca/simbolo-latte.png" alt=""><p class="legenda">Sua foto<small>Gelato saindo da máquina</small></p></div></div>
+      <div class="foto vaga"><div><img class="simbolo" src="marca/simbolo-latte.png" alt=""><p class="legenda">Sua foto<small>Cuba com calda de amora</small></p></div></div>
     </div>
     <div class="texto">
-      <p class="lead">Receitas autorais, criadas pelo mestre gelatiere Rafael Ulian. Da base do gelato às caldas, geleias e ao cascão, tudo é preparado dentro da unidade, com ingredientes escolhidos um a um. E com uma diferença que poucas gelaterias conseguem: menos calorias mesmo nos sabores tradicionais, sem perder cremosidade.</p>
+      <p class="lead">Gelatos artesanais produzidos com ingredientes selecionados e técnicas italianas autênticas. Da base do gelato ao cascão, tudo é preparado dentro da unidade, em apenas 3 passos, com padrão e pouco desperdício.</p>
       <div>
         <div class="lista">
-          <div><i></i><p><b>Receitas autorais</b>Sabores que só existem na Jolô, como o Jolô da casa e o premiado Doce Memória.</p></div>
-          <div><i></i><p><b>Cascão feito na hora</b>Casquinhas e cestinhas assadas na loja, com opções de borda.</p></div>
+          <div><i></i><p><b>Produto exclusivo</b>Ingredientes selecionados e técnicas italianas autênticas, do jeito Jolô.</p></div>
+          <div><i></i><p><b>Feito na loja</b>Produção dentro da unidade, com padronização e redução de desperdícios.</p></div>
           <div><i></i><p><b>Produção em 3 passos</b>Base Mix Gelato fornecida pela franqueadora: padrão e pouco desperdício.</p></div>
         </div>
         <div class="premio">
-          <svg viewBox="0 0 48 48" fill="none" stroke="var(--pietra)" stroke-width="2"><path d="M14 6h20v10a10 10 0 0 1-20 0z"/><path d="M14 10H8a6 6 0 0 0 6 8M34 10h6a6 6 0 0 1-6 8"/><path d="M24 26v8M16 42h16M20 34h8v8h-8z"/></svg>
-          <p><b>Entre os 6 melhores maestros gelatieri de 2024</b>Gelato Festival World Masters, com o sabor Doce Memória.</p>
+          <svg viewBox="0 0 48 48" fill="none" stroke="var(--pietra)" stroke-width="2"><path d="M8 40V18l16-10 16 10v22"/><path d="M20 40V28h8v12"/><path d="M4 40h40"/></svg>
+          <p><b>Nossos pilares: Produto, Serviço e Gestão</b>A base que sustenta nossa missão: adoçar momentos e criar experiências inesquecíveis.</p>
         </div>
       </div>
     </div>
@@ -484,8 +482,8 @@
 
 <section class="perfil">
   <div class="wrap">
-    <div class="foto">
-      <img src="fotos/cliente-milkshake.jpg" alt="Cliente sorrindo com um milkshake Jolô">
+    <div class="foto vaga">
+      <div><img class="simbolo" src="marca/simbolo-bosco.png" alt=""><p class="legenda">Sua foto<small>Vitrine ou interior da loja nova</small></p></div>
     </div>
     <div>
       <span class="eyebrow">Perfil do franqueado</span>
@@ -512,17 +510,17 @@
     </div>
     <div class="cards">
       <div class="d">
-        <div class="foto"><img class="simbolo" src="marca/simbolo-latte.png" alt=""><span class="legenda">Foto · franqueados</span></div>
+        <div class="foto vaga"><div><img class="simbolo" src="marca/simbolo-bosco.png" alt=""><p class="legenda">Sua foto<small>Franqueados (foto nova)</small></p></div></div>
         <blockquote>A gelateria representa, além de um excelente investimento, um espaço para desfrutar de produtos incríveis, feitos com os melhores ingredientes frescos, proporcionando aos clientes momentos de alegria, conquistas e convivência em um ambiente familiar.</blockquote>
         <cite>Franqueados Jolô</cite>
       </div>
       <div class="d">
-        <div class="foto"><img class="simbolo" src="marca/simbolo-latte.png" alt=""><span class="legenda">Foto · franqueada</span></div>
+        <div class="foto vaga"><div><img class="simbolo" src="marca/simbolo-bosco.png" alt=""><p class="legenda">Sua foto<small>Franqueada (foto nova)</small></p></div></div>
         <blockquote>Ter uma gelateria nunca foi uma ideia que passou pela minha cabeça. Ver a loja tomando forma, e as pessoas provando o gelato pela primeira vez e saindo mais felizes do que chegaram, me enche de alegria e realização. Tomamos a decisão certa.</blockquote>
         <cite>Franqueada Jolô</cite>
       </div>
       <div class="d">
-        <div class="foto"><img class="simbolo" src="marca/simbolo-latte.png" alt=""><span class="legenda">Foto · franqueados de Jales</span></div>
+        <div class="foto vaga"><div><img class="simbolo" src="marca/simbolo-bosco.png" alt=""><p class="legenda">Sua foto<small>Franqueados de jales (foto nova)</small></p></div></div>
         <blockquote>Estamos muito satisfeitos com o suporte do franqueador, especialmente na análise dos resultados da Jolô Jales, no apoio para definir estratégias de marketing e vendas, e em tudo o que foi necessário desde a implantação.</blockquote>
         <cite>Jolô Jales</cite>
       </div>
@@ -538,8 +536,8 @@
     </div>
     <div>
       <details open><summary>Por que ter uma franquia de gelato?</summary><p>O mercado de gelatos premium está em alta: o segmento de gelato artesanal cresce cerca de 15% ao ano, e as pessoas buscam cada vez mais experiências gastronômicas únicas. É um setor validado, com margens saudáveis e apelo o ano inteiro.</p></details>
-      <details><summary>Por que ter uma franquia da Jolô?</summary><p>Porque a Jolô junta produto autoral premiado, operação simples em 3 passos e uma franqueadora próxima, que acompanha cada loja de perto. O retorno estimado, entre 18 e 24 meses, é um dos menores do setor.</p></details>
-      <details><summary>O que diferencia a Jolô das outras gelaterias?</summary><p>Receitas próprias criadas por um mestre gelatiere, produção artesanal feita dentro da loja, cascão assado na hora e gelatos com menos calorias mesmo nos sabores tradicionais. Prazer sem culpa, num ambiente pensado para a experiência completa do cliente.</p></details>
+      <details><summary>Por que ter uma franquia da Jolô?</summary><p>Porque a Jolô junta produto exclusivo de alta qualidade, operação simples em 3 passos e uma franqueadora que acompanha cada loja de perto. O retorno estimado, entre 18 e 24 meses, é um dos menores do setor.</p></details>
+      <details><summary>O que diferencia a Jolô das outras gelaterias?</summary><p>Gelatos artesanais com ingredientes selecionados e técnicas italianas autênticas, produção feita dentro da loja e um ambiente pensado para a experiência completa do cliente.</p></details>
       <details><summary>Por que escolher a Jolô dentre outras franquias de gelato?</summary><p>Investimento total de R$ 260 mil, bem abaixo das grandes redes, com faturamento potencial acima de R$ 100 mil por mês e margem líquida acima de 18%. E você fala direto com quem fundou a marca.</p></details>
       <details><summary>Posso montar uma Jolô para ter uma renda extra?</summary><p>Pode. Várias unidades nasceram como uma segunda fonte de renda. O modelo padronizado e o suporte da franqueadora permitem operar com uma equipe treinada, sem o dono precisar estar no balcão o dia todo.</p></details>
       <details><summary>Qual o perfil de franqueado que a Jolô busca?</summary><p>Gente que gosta de pessoas, tem espírito empreendedor, é responsável e resiliente, e compartilha os três P's da Jolô: Paixão, Paciência e Perseverança.</p></details>
