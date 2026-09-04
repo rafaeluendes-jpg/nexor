@@ -297,7 +297,8 @@ stakeholders. Buscamos empreendedores que compartilhem nossos 3 P's:
 | Outubro 2024 | Abertura da unidade em Jales/SP |
 | Novembro 2024 | Abertura da unidade em Fernandópolis/SP |
 | Dezembro 2024 | Abertura da unidade em Sorocaba/SP |
-| Abril 2026 | Petrópolis/RJ, primeira do estado do Rio (imprensa; confirmar) |
+| Abril 2026 | Abertura da unidade em Petrópolis/RJ, primeira do estado do Rio (confirmado pelo Rafael) |
+| Novembro 2026 | Implantação da unidade de São Paulo/SP em andamento (Rafael, 04/09/2026) |
 | — | Alphaville (aparece no Joia; confirmar data) |
 
 ### Missão, Visão e Valores (versão da apresentação)
@@ -382,3 +383,9 @@ parte dessa jornada de sucesso! Requisitos:
 ### Fotos a receber do Rafael
 Fotos novas dos sócios, das unidades novas (fachada) e dos copinhos novos.
 Substituem todas as fotos antigas.
+
+### Registros avulsos do Rafael (04/09/2026)
+- Abril de 2026: abrimos a loja de Petrópolis, Rio de Janeiro.
+- Novembro de 2026: já está em implantação a loja de São Paulo. Na página,
+  mostrar como "em implantação", não como aberta.
+- A página nova deve ser moderna.
