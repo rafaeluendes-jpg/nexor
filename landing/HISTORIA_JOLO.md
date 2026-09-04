@@ -412,3 +412,9 @@ entrar na pasta `landing/fotos/` (o Rafael manda ou eu peço o link).
    história e na trajetória.
 Clima geral das fotos: verde oliva, dourado quente, creme, madeira. Bate
 com Bosco Nobile + Caramello Antico + Latte di Crema.
+
+### Copinho novo (Rafael, 04/09/2026)
+Foto do copinho verde Bosco Nobile com "Feito para valer a pena" em
+manuscrita e o selo oval JOLÔ Gelato em Caramello. Usar na página (seção do
+produto). O arquivo no Drive (COPO_JOLO_80ML.png / 120ML, pasta COPOS
+GELATO) tem 11 MB e não desce por aqui; precisa de uma cópia menor.
