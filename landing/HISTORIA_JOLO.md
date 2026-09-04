@@ -389,3 +389,26 @@ Substituem todas as fotos antigas.
 - Novembro de 2026: já está em implantação a loja de São Paulo. Na página,
   mostrar como "em implantação", não como aberta.
 - A página nova deve ser moderna.
+
+### Fotos novas recebidas (04/09/2026), para usar na página
+As imagens chegaram pelo chat; os arquivos em alta resolução ainda precisam
+entrar na pasta `landing/fotos/` (o Rafael manda ou eu peço o link).
+1. **Produção:** cuba de gelato amarelo (maracujá / manga) sendo espatulado
+   na máquina, mão com espátula. Vertical. Boa para "feito na loja, todo
+   dia" e para o topo da história.
+2. **Produto:** cuba de gelato branco com calda escura de amora / frutas
+   vermelhas escorrendo, mesa de madeira, fundo verde. Horizontal. Boa para
+   o herói ou para "produto autoral".
+3. **Loja nova, interior:** balcão branco com arcos de azulejo verde,
+   letreiro oval "JOLÔ Gelato" iluminado, pendentes de vidro, máquinas de
+   cascão, teto verde. Vertical. É a cara da identidade nova; serve para
+   "a experiência Jolô" e para a seção de unidades.
+4. **Loja nova, vitrine:** vitrine curva de gelato com cubas e plaquinhas,
+   pendentes acesos, arco ao fundo. Vertical. Boa para "sabores" e para o
+   fundo escurecido de uma seção.
+5. **Fachada nova:** fachada verde com letreiro oval dourado, pilares de
+   pedra clara, vidro inteiro, piso xadrez preto e branco, cobertura de
+   vidro (galeria ou shopping). Vertical. Substitui a fachada antiga na
+   história e na trajetória.
+Clima geral das fotos: verde oliva, dourado quente, creme, madeira. Bate
+com Bosco Nobile + Caramello Antico + Latte di Crema.
