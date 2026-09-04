@@ -1331,28 +1331,46 @@ function confirmar(op){
         '<b class="'+(l[2]||'')+'">'+E(l[1])+'</b></div>';}).join('')+'</div>':'')+
      (op.aviso?'<div class="cfAviso">'+sv('help',14)+'<div>'+op.aviso+'</div></div>':'')+
      '<div class="cfBt">'+
-      '<button class="btnP2" onclick="_respConfirma(false)">'+E(op.cancelar||'Cancelar')+'</button>'+
-      '<button class="btnP2 '+(tipo==='perigo'?'rdB':'ok')+'" onclick="_respConfirma(true)">'+
+      '<button class="btnP2" data-cf="0">'+E(op.cancelar||'Cancelar')+'</button>'+
+      '<button class="btnP2 '+(tipo==='perigo'?'rdB':'ok')+'" data-cf="1">'+
        E(op.ok||'Confirmar')+'</button>'+
      '</div></div>';
     var ov=document.createElement('div');
     ov.className='mdOv cfOv';ov.id='cfOv';
     ov.innerHTML=h;
     document.body.appendChild(ov);
-    window._respConfirma=function(v){
-      var chk=document.getElementById('cfAjEst');
+    /* ==========================================================
+       CADA AVISO RESPONDE POR SI — SEM VARIÁVEL GLOBAL COMPARTILHADA
+
+       04/09/2026. Antes o botão chamava um único `window._respConfirma`.
+       Dois avisos abertos ao mesmo tempo (o de confirmar o cancelamento
+       por cima do formulário de cancelar a venda, um aviso de fundo
+       chegando no meio) atropelavam essa variável: o segundo a zerava, e
+       o clique do primeiro caía em "_respConfirma is not a function" — o
+       erro que a loja via ao confirmar um cancelamento.
+
+       Agora o handler mora no próprio botão DESTE aviso e fecha ESTE
+       overlay. Nada é compartilhado, então dois avisos não se atropelam. */
+    var fechado=false;
+    function fechar(v){
+      if(fechado)return; fechado=true;
+      var chk=ov.querySelector('#cfAjEst');
       window._cfAjEst=chk?chk.checked:undefined;
-      var o=document.getElementById('cfOv');if(o)o.remove();
-      window._respConfirma=null;
+      document.removeEventListener('keydown',esc);
+      if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
       resolve(v);
       if(v&&op.aoConfirmar)op.aoConfirmar();
-    };
-    var esc=function(e){
-      if(e.key==='Escape'){document.removeEventListener('keydown',esc);_respConfirma(false);}
-      if(e.key==='Enter'){document.removeEventListener('keydown',esc);_respConfirma(true);}
-    };
+    }
+    function esc(e){
+      if(e.key==='Escape')fechar(false);
+      else if(e.key==='Enter')fechar(true);
+    }
+    var _bts=ov.querySelectorAll('[data-cf]');
+    for(var _i=0;_i<_bts.length;_i++)(function(b){
+      b.addEventListener('click',function(){fechar(b.getAttribute('data-cf')==='1');});
+    })(_bts[_i]);
     document.addEventListener('keydown',esc);
-    ov.addEventListener('mousedown',function(e){ if(e.target===ov)_respConfirma(false); });
+    ov.addEventListener('mousedown',function(e){ if(e.target===ov)fechar(false); });
   });
 }
 function avisar(titulo,texto,tipo){

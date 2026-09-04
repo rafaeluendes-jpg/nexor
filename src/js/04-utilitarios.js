@@ -404,8 +404,21 @@ document.addEventListener('click',function(e){
 });
 
 
-/* rede de seguranca: qualquer falha inesperada avisa em vez de travar a tela */
+/* ==========================================================
+   ERRO DE TELA NÃO É RECADO PARA A LOJA — 04/09/2026
+
+   Ordem do Rafael: nada de texto técnico na tela. Antes, qualquer falha
+   inesperada virava um toast com a mensagem crua do JavaScript
+   ("Uncaught TypeError: _respConfirma is not a function") na frente do
+   caixa — assusta e não ajuda ninguém que não é programador (e ainda
+   fere a regra "zero texto técnico na tela" do padrão de entrega).
+
+   Agora a falha vai para o Diagnóstico, onde o técnico lê o detalhe, e a
+   tela fica quieta: o que a pessoa lançou já está salvo no aparelho, um
+   erro de tela não apaga dado. A rede de segurança continua — só que
+   silenciosa para quem está vendendo. */
 window.onerror=function(msg,arq,lin){
-  try{toast('Ocorreu um erro na tela ('+msg+'). Nada foi perdido — seus dados estão salvos.');}catch(e){_quieto(e,'fecharPops')}
+  try{ registrarFalha('tela','window.onerror',String(msg),{arquivo:arq,linha:lin}); }
+  catch(e){ try{ if(typeof console!=='undefined')console.error('erro de tela:',msg,arq,lin); }catch(_e){} }
   return false;
 };

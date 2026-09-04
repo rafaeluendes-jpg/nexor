@@ -659,6 +659,47 @@ grupo('V201 · sumir da lista NÃO é ser excluído');
   }
 
   /* ---------------------------------------------------------- */
+  grupo('Dois avisos abertos não se atropelam (o erro do cancelamento)');
+  /* ==========================================================
+     Reproduz o defeito real da tela de cancelar venda: um confirmar()
+     abre por cima de outro. Antes, o botão do primeiro chamava um
+     window._respConfirma que o segundo já tinha zerado — e o clique
+     estourava "_respConfirma is not a function" na frente do caixa.
+     Agora cada aviso responde pelo próprio botão. ========================================================== */
+  try {
+    const doc = win.document;
+    const antesErros = col.erros.length;
+    const pA = win.confirmar({ titulo: 'Aviso A', ok: 'OK A', cancelar: 'Não A' });
+    const pB = win.confirmar({ titulo: 'Aviso B', ok: 'OK B', cancelar: 'Não B' });
+    const overlays = doc.querySelectorAll('.cfOv');
+    t('os dois avisos abrem ao mesmo tempo', overlays.length === 2, overlays.length + ' overlay(s)');
+    /* fecha o de cima (B) e depois o de baixo (A): o de baixo tem de responder */
+    const btB = overlays[1].querySelector('[data-cf="1"]');
+    const btA = overlays[0].querySelector('[data-cf="0"]');
+    if (btB) btB.dispatchEvent(new win.Event('click', { bubbles: true }));
+    if (btA) btA.dispatchEvent(new win.Event('click', { bubbles: true }));
+    const rB = await pB, rA = await pA;
+    t('o aviso de cima confirma (true)', rB === true, 'rB=' + rB);
+    t('o aviso de baixo ainda responde depois — sem "não é função"', rA === false, 'rA=' + rA);
+    t('nenhum erro de runtime ao confirmar avisos sobrepostos',
+      col.erros.length === antesErros,
+      col.erros.slice(antesErros).map(e => e.tipo + ': ' + e.msg).join(' | '));
+    t('os dois overlays saíram da tela', doc.querySelectorAll('.cfOv').length === 0,
+      doc.querySelectorAll('.cfOv').length + ' sobrando');
+  } catch (e) {
+    t('o fluxo de avisos sobrepostos roda sem estourar', false, e.message);
+  }
+
+  /* ---------------------------------------------------------- */
+  grupo('Erro de tela não joga texto técnico na frente do caixa');
+  t('window.onerror não faz toast com a mensagem crua',
+    !/window\.onerror=function[^}]*toast\(/.test(fonteBruta.replace(/\s+/g, ' ')),
+    'ainda há toast dentro de window.onerror');
+  t('a falha de tela é registrada no Diagnóstico',
+    /window\.onerror=function[\s\S]*?registrarFalha\(/.test(fonteBruta),
+    'window.onerror não chama registrarFalha');
+
+  /* ---------------------------------------------------------- */
   grupo('Balanço final de erros de runtime');
 
   const porTipo = {};
