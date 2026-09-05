@@ -3,6 +3,94 @@
    ========================================================== */
 var OP={aba:'hist',de:'',ate:'',itens:[],resp:'',obs:'',data:'',busca:'',verReceita:null,todos:false};
 
+/* ==========================================================
+   O QUE ESTA SENDO PESADO NAO PODE MORRER NUM RELOAD (04/09/2026)
+
+   O incidente: a loja produzia varios sabores; alguem clicou em
+   "Atualizar agora", a pagina recarregou e a pesagem em andamento
+   sumiu. Tudo que a pessoa preenche aqui morava so em `OP`, na memoria
+   da tela — nunca no aparelho. Reload = `OP` volta ao vazio da linha de
+   cima, e a producao do dia se perde sem aviso e sem volta.
+
+   Mesma cura ja usada na contagem de estoque: cada mudanca vira um
+   RASCUNHO numa chave propria do navegador. Nao entra no `DB` e nao
+   sobe para a nuvem — producao pela metade nao e dado e nao pode virar
+   movimento de estoque em lugar nenhum. Ao produzir (ou descartar), o
+   rascunho some. E de UMA unidade: quem abre em Jales nao recebe a
+   folha que ficou pela metade em Santa Fe. O flush no `pagehide`
+   garante que nem o ultimo digito se perca no recarregamento.
+   ========================================================== */
+var _CHAVE_RASCUNHO_OP='nexor_producao_rascunho', _tRascunhoOP=null;
+function _opRascunhoVale(){ return !!(OP&&OP.aba==='nova'&&(OP.itens||[]).length); }
+function _gravarRascunhoOPAgora(){
+  try{
+    if(!_opRascunhoVale())return;
+    localStorage.setItem(_CHAVE_RASCUNHO_OP,JSON.stringify({
+      suc:(typeof lojaAtualId==='function'?lojaAtualId():''),
+      itens:OP.itens,resp:OP.resp||'',obs:OP.obs||'',data:OP.data||'',
+      quando:new Date().toISOString()}));
+  }catch(e){ _quieto(e,'gravarRascunhoOP'); }
+}
+function guardarRascunhoOP(){
+  clearTimeout(_tRascunhoOP);
+  _tRascunhoOP=setTimeout(_gravarRascunhoOPAgora,250);
+}
+function lerRascunhoOP(){
+  try{
+    var r=JSON.parse(localStorage.getItem(_CHAVE_RASCUNHO_OP)||'null');
+    if(!r||!(r.itens||[]).length)return null;
+    if(r.suc&&typeof lojaAtualId==='function'&&r.suc!==lojaAtualId())return null;
+    return r;
+  }catch(e){ return null; }
+}
+function limparRascunhoOP(){
+  clearTimeout(_tRascunhoOP);
+  try{ localStorage.removeItem(_CHAVE_RASCUNHO_OP); }catch(e){ _quieto(e,'limparRascunhoOP'); }
+}
+/* recarregar / atualizar / fechar a aba salva o ultimo estado na hora */
+if(typeof window!=='undefined'){
+  window.addEventListener('pagehide',function(){ if(_opRascunhoVale())_gravarRascunhoOPAgora(); });
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='hidden'&&_opRascunhoVale())_gravarRascunhoOPAgora(); });
+}
+/* a faixa que reaparece com a producao em andamento depois de um reload */
+function faixaProducaoEmAndamento(){
+  if(OP.aba==='nova')return '';
+  var r=lerRascunhoOP();
+  if(!r)return '';
+  var n=(r.itens||[]).length; if(!n)return '';
+  var q=new Date(r.quando);
+  var quando=isNaN(q)?'':' desde as '+q.toLocaleTimeString('pt-BR').slice(0,5);
+  return '<div class="cmdFaixa cmdAlerta" style="flex:none">'+sv('help',14)+
+   '<div><b>Você tem uma produção em andamento.</b> '+n+' sabor(es) já montado(s)'+quando+
+   (r.data?', para o dia '+dataBR(r.data):'')+
+   '. Ela fica guardada aqui até você produzir.</div>'+
+   '<button class="btnP2 ok" onclick="continuarOP()">Continuar a produção</button>'+
+   '<button class="btnP2" onclick="descartarRascunhoOP()">Descartar</button></div>';
+}
+function continuarOP(){
+  var r=lerRascunhoOP(); if(!r)return;
+  OP.aba='nova';
+  OP.itens=r.itens||[]; OP.resp=r.resp||''; OP.obs=r.obs||''; OP.data=r.data||hojeISO();
+  OP.busca=''; OP.todos=false; OP.verReceita=null;
+  telaProducao();
+}
+async function descartarRascunhoOP(){
+  var r=lerRascunhoOP();
+  var n=r?(r.itens||[]).length:0;
+  if(n){
+    var ok=await confirmar({
+      titulo:'Apagar a produção que está em andamento?',
+      texto:'Você já montou '+n+' sabor(es). Apagar aqui não registra nada: '+
+        'a produção some e o estoque NÃO é movimentado.',
+      aviso:'Não dá para desfazer. Se quiser guardar, clique em "Continuar a produção" e depois em "Produzir".',
+      ok:'Apagar', tipo:'perigo'});
+    if(!ok)return;
+  }
+  limparRascunhoOP();
+  telaProducao();
+}
+
 function baseProd(){
   baseMov();
   DB.ordensProd=DB.ordensProd||[];
@@ -70,6 +158,7 @@ function telaProducao(){
   var real=lista.reduce(function(a,o){return a+(Number(o.real)||0)},0);
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+   faixaProducaoEmAndamento()+
    '<div class="etTopo">'+
     '<div><h1>Produção</h1><p>Ordens de produção com conferência de peso e baixa automática.</p></div>'+
     '<div class="etTot">'+
@@ -145,7 +234,7 @@ function telaOPNova(){
    '</div>'+
    '<div class="etFiltros" style="flex:none">'+
     '<div class="f2" style="max-width:150px"><label>Data</label>'+
-     '<input type="date" id="opData" value="'+OP.data+'" onchange="OP.data=this.value"></div>'+
+     '<input type="date" id="opData" value="'+OP.data+'" onchange="OP.data=this.value;guardarRascunhoOP()"></div>'+
     '<div class="f2" style="max-width:200px"><label>Responsável</label>'+
      '<input id="opResp" value="'+E(OP.resp)+'" placeholder="quem produziu"></div>'+
     '<div class="f2 gw2"><label>Adicionar sabor</label>'+
@@ -257,14 +346,15 @@ function ligarOP(){
     b.oninput=function(){OP.busca=this.value;var p=this.selectionStart;telaProducao();
       var n=$('opBusca');if(n){n.focus();n.setSelectionRange(p,p);}};
   }
-  var r=$('opResp'); if(r)r.oninput=function(){OP.resp=this.value};
-  var o=$('opObs');  if(o)o.oninput=function(){OP.obs=this.value};
+  var r=$('opResp'); if(r)r.oninput=function(){OP.resp=this.value;guardarRascunhoOP()};
+  var o=$('opObs');  if(o)o.oninput=function(){OP.obs=this.value;guardarRascunhoOP()};
   var cs=document.querySelectorAll('.opCuba');
   for(var i=0;i<cs.length;i++){
     cs[i].oninput=function(){
       var k=this.getAttribute('data-k'),c=this.getAttribute('data-c');
       OP.itens[k].cubas[c]=this.value;
       atualizaLinhaOP(k);
+      guardarRascunhoOP();   /* cada peso digitado ja fica salvo no aparelho */
     };
     cs[i].onkeydown=function(e){
       if(e.key==='Enter'){
@@ -302,9 +392,10 @@ function addSaborOP(fid){
     destinoNome:p.destino?p.destino.nome:'',qtdReceita:Number(f.rendimento)||0,
     unReceita:f.rendUnidade||f.unidade,cubas:['','','']});
   OP.busca='';OP.todos=false;
+  guardarRascunhoOP();
   telaProducao();
 }
-function remSaborOP(k){OP.itens.splice(k,1);if(OP.verReceita===k)OP.verReceita=null;telaProducao();}
+function remSaborOP(k){OP.itens.splice(k,1);if(OP.verReceita===k)OP.verReceita=null;guardarRascunhoOP();telaProducao();}
 /* ==========================================================
    MODO DE PREPARO EM JANELA, NAO DENTRO DA TABELA
    A receita era uma linha expandida DENTRO da tabela de producao: fonte de
@@ -485,6 +576,7 @@ async function confirmarProducao(){
     })};
   DB.ordensProd.push(op);
   salvar();
+  limparRascunhoOP();          /* a ordem foi registrada: o rascunho acabou */
   OP.aba='hist';OP.itens=[];
   telaProducao();
   toast('Produção registrada — ordem '+op.numero+'.');
