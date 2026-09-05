@@ -200,3 +200,50 @@ REGRESSÃO:           nenhuma detectada / descrição precisa do que restou
 Nenhuma ferramenta garante zero bug. Não se diz "100% sem erro". O que
 este protocolo faz é reduzir drasticamente regressão e tornar a
 confiabilidade **verificável** — provada, não afirmada.
+
+---
+
+## A vistoria: uma ferramenta contra "conserta A, quebra B" (05/09/2026)
+
+Ordem do Rafael: parar de vez com a correção de uma coisa quebrar outra que
+não tinha nada a ver, no sistema INTEIRO — não numa pasta só.
+
+Boa parte desses defeitos é de um tipo só, e é o tipo que uma ferramenta
+pega ANTES de rodar: o código chama um nome que não existe (função
+renomeada, removida, digitada errada) ou repete uma chave de objeto
+(perdendo um campo). Foram assim o `ci is not defined` (V186), o
+`fundoSugerido` apagado (V179), o `_respConfirma is not a function`
+(04/09) e outros.
+
+`ferramentas/vistoriar.js` usa o **ESLint** — a ferramenta que os
+programadores usam — e lê os 39 arquivos como um só (que é como rodam na
+loja). Ela reprova a publicação quando um nome chamado não existe em
+arquivo NENHUM, ou quando uma chave de objeto se repete, entre outros
+erros que estouram em execução. Vale para qualquer pasta — PDV,
+financeiro, relatórios, estoque — e o mesmo comando serve para os outros
+repositórios (app, robô).
+
+**Trava de catraca.** Num sistema grande e antigo, exigir zero problema no
+primeiro dia travaria tudo e obrigaria a mexer, de uma vez, em dezenas de
+pontos que ninguém pediu — errado e arriscado. Então os problemas que já
+existiam ficam congelados em `ferramentas/vistoria-baseline.json`, e a
+vistoria só reprova quando aparece um problema NOVO — exatamente o que a
+correção de hoje pode ter introduzido. A lista antiga vai sendo zerada
+quando se encosta naquele arquivo. Regravar a lista (depois de corrigir,
+ou ao aceitar o estado atual de propósito):
+`node ferramentas/vistoriar.js --gravar`.
+
+A vistoria é a **primeira etapa do `portao.js`**, antes de qualquer teste:
+ela é a mais rápida e pega a pior classe de defeito sem sequer abrir a
+tela.
+
+## Toda correção nasce com um teste que a tranca
+
+O que impede um defeito de VOLTAR não é ter consertado uma vez — é o teste
+que falha se alguém quebrar de novo. Toda correção passa a entrar com um
+teste que reproduz o defeito (falha antes, passa depois) e fica para
+sempre na bateria. Exemplos recentes: o troco com o cadastro vazio, a
+forma de pagamento no comprovante, os dois avisos sobrepostos do
+cancelamento. O `testes/frente-de-caixa-guardiao.js` roda o fluxo do caixa
+no ESTADO RUIM (listas ainda não sincronizadas), que é onde os defeitos
+nascem — os testes antigos rodavam só no estado limpo.

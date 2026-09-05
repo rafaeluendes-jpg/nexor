@@ -49,7 +49,9 @@ function telaFormasPag(){
   else if(typeof NUVEM!=='undefined'&&NUVEM.ligada&&!_fpAutoPuxou&&typeof baixarDaNuvem==='function'){
     _fpAutoPuxou=true;
     baixarDaNuvem(true).then(function(){
-      if(typeof mid!=='undefined'&&mid==='financeira'&&iid==='formas-pagamento')telaFormasPag();
+      /* redesenha só se a pessoa ainda está nesta tela — a rota atual é
+         S.mod/S.it (mid/iid são parâmetros do roteador, não existem aqui) */
+      if(typeof S!=='undefined'&&S.mod==='financeira'&&S.it==='formas-pagamento')telaFormasPag();
     }).catch(function(){});
   }
   var _puxando=!lista.length&&typeof NUVEM!=='undefined'&&NUVEM.ligada;

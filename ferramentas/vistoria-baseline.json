@@ -1,0 +1,13 @@
+[
+  "no-dupe-keys | js/01-icones.js | Duplicate key 'copy'.",
+  "no-dupe-keys | js/03-armazenamento/02-medir-nunca-pode-quebrar-o-que-esta-sendo-me.js | Duplicate key 'endereco'.",
+  "no-dupe-keys | js/07-roteador/28-relatorios/03-zap-e-mais-3.js | Duplicate key 'loja_id'.",
+  "no-func-assign | js/07-roteador/15-conciliacao-bancaria.js | 'telaLancamentos' is a function.",
+  "no-func-assign | js/07-roteador/15-conciliacao-bancaria.js | 'telaLancamentos' is a function.",
+  "no-undef | js/07-roteador/20-base-do-estoque-unidades-grupos-insumos.js | 'lista' is not defined.",
+  "no-undef | js/07-roteador/20-base-do-estoque-unidades-grupos-insumos.js | 'tpSel' is not defined.",
+  "no-undef | js/07-roteador/23-estoque-total-e-contagem.js | 'abrirFicha' is not defined.",
+  "no-undef | js/07-roteador/28-relatorios/03-zap-e-mais-3.js | 'USUARIO' is not defined.",
+  "no-undef | js/07-roteador/28-relatorios/03-zap-e-mais-3.js | 'USUARIO' is not defined.",
+  "no-unreachable | js/03-armazenamento/01-inicio.js | Unreachable code."
+]
