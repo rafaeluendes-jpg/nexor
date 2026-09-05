@@ -1285,6 +1285,33 @@ function linhasItens(ped,cols,comPreco){
    Pedido antigo, gravado antes de `recebido` existir, cai no `valor` —
    e ai nao ha troco a mostrar, que e a verdade daquele pedido.
    ========================================================== */
+/* ==========================================================
+   O NOME DA FORMA DE PAGAMENTO SEMPRE SAI NO PAPEL — 05/09/2026
+
+   Ordem do Rafael: a forma de pagamento não pode faltar na impressão, e
+   travar para nunca mais faltar. Faltava porque a impressão dependia SÓ do
+   cadastro (DB.formasPag): quando ele ainda não tinha descido da nuvem, a
+   busca não achava a forma e o papel saía com o rótulo genérico
+   "Pagamento", sem o nome (Dinheiro, Pix...).
+
+   A trava tem dois pontos:
+   1) o nome é GRAVADO no próprio pagamento na hora da venda (formaNome),
+      então o papel não depende mais de lista nenhuma para reimprimir;
+   2) esta função resolve o nome por três caminhos, nesta ordem: o nome
+      gravado no pagamento; o cadastro; e a LISTA ATIVA do caixa (FORMAS),
+      que é de onde saiu o botão que o operador tocou. Só cai no rótulo
+      genérico se as três falharem — o que, com o nome gravado, não ocorre. */
+function nomeFormaPag(g){
+  if(g&&g.formaNome)return g.formaNome;
+  var id=g&&(g.forma||g.formaId);
+  var f=(DB.formasPag||[]).find(function(x){return x.id===id});
+  if(!f&&typeof FORMAS!=='undefined'&&FORMAS)f=FORMAS.find(function(x){return x.id===id});
+  if(f)return f.nome||f.n||'Pagamento';
+  var t=String((g&&g.tipo)||'').toLowerCase();
+  var mapa={dinheiro:'Dinheiro',especie:'Dinheiro',cash:'Dinheiro',pix:'Pix',
+    debito:'Cartão débito',credito:'Cartão crédito',voucher:'Vale / Voucher',fiado:'Fiado'};
+  return mapa[t]||'Pagamento';
+}
 function linhasPag(ped,cols){
   var r=[];
   var par=function(nm,v){
@@ -1295,8 +1322,7 @@ function linhasPag(ped,cols){
   };
   var troco=0;
   (ped.pagamentos||[]).forEach(function(g){
-    var f=(DB.formasPag||[]).find(function(x){return x.id===g.formaId||x.id===g.forma});
-    var nm=(f?f.nome:'Pagamento');
+    var nm=nomeFormaPag(g);
     var val=Number(g.valor)||0;
     var rec=(g.recebido===undefined||g.recebido===null)?val:(Number(g.recebido)||0);
     if(rec>val+0.009)troco+=(rec-val);

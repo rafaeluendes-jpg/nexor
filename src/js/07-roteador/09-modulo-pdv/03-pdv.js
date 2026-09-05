@@ -1330,6 +1330,10 @@ var _trocoVenda=0;
 var _nomeComanda='';
 function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado){
   var ag=new Date();
+  /* grava o NOME da forma no próprio pagamento: o papel (e a reimpressão)
+     não dependem mais do cadastro estar carregado para mostrar Dinheiro,
+     Pix, etc. — a forma de pagamento nunca mais falta na impressão. */
+  (pagos||[]).forEach(function(g){ if(g&&!g.formaNome)g.formaNome=nomeFormaPag(g); });
   /* venda na frente de caixa já sai concluída — só delivery passa pelo fluxo.
      A conta da mesa também: o cliente já consumiu, não há o que preparar. */
   var primeira=PDV.mesaPag?(statusDoPapel('finalizado')||statusInicial('loja'))

@@ -241,6 +241,38 @@ t('cai no cadastro quando a forma não está em FORMAS',
 global.FORMAS = _antesFORMAS; global.DB = _antesDB;
 
 /* ==========================================================
+   A FORMA DE PAGAMENTO SEMPRE SAI NO PAPEL — 05/09/2026
+
+   Defeito real: o pedido 910 imprimiu "Pagamento" sem o nome, porque a
+   impressão só olhava o cadastro (DB.formasPag) e ele ainda não tinha
+   descido da nuvem. `nomeFormaPag` resolve o nome por três caminhos: o
+   nome GRAVADO no pagamento, o cadastro, e a lista ativa do caixa. */
+grupo('A forma de pagamento sempre tem nome no papel');
+const _fF = global.FORMAS, _fD = global.DB;
+global.DB = { formasPag: [] };                       /* cadastro vazio de propósito */
+global.FORMAS = [{ id: 'fp_pix', n: 'Pix', tipo: 'pix' }];
+const NFP = carregar(['nomeFormaPag']).nomeFormaPag;
+t('usa o nome gravado no pagamento (independe de qualquer lista)',
+  NFP({ forma: 'fp_x', formaNome: 'Dinheiro' }) === 'Dinheiro');
+t('sem nome gravado, acha na lista ativa do caixa (FORMAS)',
+  NFP({ forma: 'fp_pix' }) === 'Pix', NFP({ forma: 'fp_pix' }));
+global.DB = { formasPag: [{ id: 'fp_dinheiro', nome: 'Dinheiro', tipo: 'dinheiro' }] };
+global.FORMAS = [];
+t('sem nome gravado e sem FORMAS, acha no cadastro',
+  NFP({ forma: 'fp_dinheiro' }) === 'Dinheiro');
+global.DB = { formasPag: [] };
+t('nada resolvível: deriva do tipo em vez de sair em branco',
+  NFP({ tipo: 'credito' }) === 'Cartão crédito', NFP({ tipo: 'credito' }));
+t('nunca imprime vazio — no pior caso, rótulo genérico',
+  NFP({}) === 'Pagamento');
+global.FORMAS = _fF; global.DB = _fD;
+/* a venda GRAVA o nome no pagamento, para a reimpressão não depender de lista */
+t('finalizarVenda grava formaNome em cada pagamento',
+  /g\.formaNome\s*=\s*nomeFormaPag\(g\)/.test(
+    require('fs').readFileSync(__dirname + '/../index.html', 'utf8')),
+  'o carimbo do nome na venda sumiu');
+
+/* ==========================================================
    CANCELAMENTO
    ========================================================== */
 grupo('Cancelamento');
