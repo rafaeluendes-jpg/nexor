@@ -27,7 +27,11 @@
      · no-dupe-keys  — a mesma chave duas vezes num objeto (campo perdido);
      · no-func-assign, no-const-assign, no-dupe-args, no-unreachable,
        no-obj-calls, use-isnan, valid-typeof — erros que estouram em
-       tempo de execução.
+       tempo de execução;
+     · nome-duplicado — duas funções de topo com o MESMO nome em arquivos
+       diferentes: no escopo único do sistema a segunda apaga a primeira,
+       calada, e quebra quem chamava a outra. É "conserta um, quebra
+       outro" nascendo — e nenhum teste pega antes de a tela usar.
 
    Não reprova por estilo (aspas, ponto e vírgula, indentação): isso não
    quebra a loja e só faria barulho.
@@ -50,9 +54,18 @@ ordem.forEach(it => {
    traduzir a linha do erro de volta para arquivo:linha */
 let codigo = '';
 const mapa = [];               /* {arquivo, linhaInicio} */
+const declara = {};            /* nome de função -> [{arquivo, linhaGlobal}] */
 arquivos.forEach(rel => {
   const txt = fs.readFileSync(path.join(SRC, rel), 'utf8');
-  mapa.push({ arquivo: rel, inicio: codigo.split('\n').length });
+  const inicio = codigo.split('\n').length;
+  mapa.push({ arquivo: rel, inicio: inicio });
+  /* funções declaradas no topo (coluna 0): no escopo único do sistema, duas
+     com o mesmo nome fazem a SEGUNDA apagar a primeira, calada, e quebrar
+     quem usava a outra. É "conserta um, quebra outro" nascendo. */
+  txt.split('\n').forEach((l, i) => {
+    const m = l.match(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/);
+    if (m) (declara[m[1]] = declara[m[1]] || []).push({ arquivo: rel, linhaGlobal: inicio + i });
+  });
   codigo += txt + '\n';
 });
 function ondeFica(linhaGlobal) {
@@ -92,6 +105,21 @@ const config = {
 const linter = new Linter();
 const msgs = linter.verify(codigo, config);
 const erros = msgs.filter(m => m.severity === 2);
+
+/* nomes de função declarados em mais de um lugar: a segunda declaração vence
+   em silêncio. Entram na mesma catraca do ESLint (só REPROVAM se forem NOVOS). */
+Object.keys(declara).forEach(nome => {
+  const locs = declara[nome];
+  if (locs.length < 2) return;
+  const primeiro = locs[0];
+  locs.slice(1).forEach(loc => {
+    erros.push({
+      ruleId: 'nome-duplicado', line: loc.linhaGlobal, severity: 2,
+      message: "a função '" + nome + "' já é declarada em " + primeiro.arquivo +
+        ' — no escopo único do sistema a segunda apaga a primeira e quebra quem chama a outra'
+    });
+  });
+});
 
 /* ==========================================================
    TRAVA DE CATRACA (baseline)
