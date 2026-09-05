@@ -803,6 +803,35 @@ function registrarFalha(area,onde,msg,extra){
 try{ DIAGNOSTICO=JSON.parse(localStorage.getItem('nexor_diag')||'[]'); }catch(e){ DIAGNOSTICO=[]; }
 
 /* ==========================================================
+   HISTÓRICO ANTIGO SOB DEMANDA — ETAPA 1 (05/09/2026)
+
+   Plano aprovado pelo Rafael: o aparelho guarda só o período recente, e os
+   relatórios de datas mais antigas buscam o resto na nuvem, sob demanda —
+   assim o aparelho fica leve e nenhum relatório se perde.
+
+   Esta é a peça de leitura dessa busca. Ela chama a função `relatorio_historico`
+   do banco (SÓ LEITURA, SECURITY INVOKER: respeita a trava de unidade —
+   cada loja só enxerga os pedidos dela) e devolve os pedidos do período JÁ
+   no formato dos relatórios, então nada precisa ser recalculado aqui.
+
+   IMPORTANTE: nesta etapa ela AINDA NÃO É CHAMADA por nenhum relatório. É
+   de propósito — a Etapa 1 só constrói e prova a busca, sem tocar em como
+   os relatórios funcionam hoje nem no que o aparelho guarda (continua 90
+   dias). A Etapa 2, separada e testada, é que liga isto nos relatórios e
+   reduz o período guardado. Enquanto isso, esta função não muda nada. */
+async function historicoNuvem(de,ate){
+  if(typeof NUVEM==='undefined'||!NUVEM.ligada)return [];
+  if(!de||!ate)return [];
+  try{
+    var d=await api('rpc/relatorio_historico','POST',{p_de:de,p_ate:ate});
+    return (d&&d.pedidos)||[];
+  }catch(e){
+    try{ registrarFalha('relatorio','historicoNuvem',String((e&&e.message)||e),{de:de,ate:ate}); }catch(_e){}
+    return [];
+  }
+}
+
+/* ==========================================================
    RETENTATIVA COM ESPERA CRESCENTE
    Falha temporaria (rede, timeout, servidor ocupado) tenta de novo sozinha,
    tres vezes, esperando cada vez mais. Nao e laco infinito, e as operacoes
