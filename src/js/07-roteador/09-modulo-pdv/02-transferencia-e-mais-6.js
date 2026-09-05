@@ -541,8 +541,8 @@ function telaSincronizacao(){
     '<div class="syC"><span>Último envio</span><b>'+E(ultimo)+'</b></div>'+
     '<div class="syC"><span>Vendas de hoje neste aparelho</span><b>'+vendasHoje+'</b></div>'+
     '<div class="syC"><span>Cópia local</span><b>'+
-      (localStorage.getItem('nexor_dados')?
-        Math.round(localStorage.getItem('nexor_dados').length/1024)+' KB':'—')+'</b></div>'+
+      (function(){ var _b=(typeof _baseCrua==='function'?_baseCrua():localStorage.getItem('nexor_dados'));
+        return _b?Math.round(_b.length/1024)+' KB':'—'; })()+'</b></div>'+
    '</div>'+
 
    (NET.caiuEm?'<div class="syHist">'+sv('clock',14)+

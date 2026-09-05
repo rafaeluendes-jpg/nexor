@@ -161,8 +161,15 @@ const PERIGOS = [
 ];
 /* Apagar dado NÃO é proibido — é proibido apagar SEM decisão. Vale quando
    está debaixo de uma pergunta à pessoa (`pergunta`/`confirmar`) ou da
-   conferência de que quem entrou é OUTRO dono (`_mesmoDono`). */
-const COMDECISAO = /await\s+(pergunta|confirmar)\s*\(|_mesmoDono|else\s*\{/;
+   conferência de que quem entrou é OUTRO dono (`_mesmoDono`).
+
+   Também vale, e NÃO é apagar dado, tirar a cópia velha do `localStorage`
+   quando a MESMA base está sendo gravada/apagada no IndexedDB ao lado — é a
+   virada de armazém (a base mudou de gaveta, não sumiu). Reconhecido pelo
+   par `idbGravar('nexor_dados'`/`idbApagar('nexor_dados'` logo antes OU logo
+   depois. Um `removeItem('nexor_dados')` solto, sem decisão e sem esse par,
+   continua sendo risco. */
+const COMDECISAO = /await\s+(pergunta|confirmar)\s*\(|_mesmoDono|else\s*\{|idb(Gravar|Apagar)\s*\(\s*['"]nexor_dados/;
 let achouPerigo = 0;
 FONTES.forEach(function (F) {
   PERIGOS.forEach(function (p) {
@@ -170,8 +177,9 @@ FONTES.forEach(function (F) {
     let m;
     while ((m = re.exec(F.limpo))) {
       const antes = F.limpo.slice(Math.max(0, m.index - 900), m.index);
-      if (COMDECISAO.test(antes)) { aviso(F.arq, linhaDe(F.limpo, m.index),
-        p[1] + ' — debaixo de decisão explícita, o que é o certo'); continue; }
+      const depois = F.limpo.slice(m.index, m.index + 300);   /* o par do IndexedDB pode vir logo depois */
+      if (COMDECISAO.test(antes) || COMDECISAO.test(depois)) { aviso(F.arq, linhaDe(F.limpo, m.index),
+        p[1] + ' — debaixo de decisão explícita (ou virada para o IndexedDB), o que é o certo'); continue; }
       achouPerigo++;
       risco(F.arq, linhaDe(F.limpo, m.index), p[1], p[2]);
     }

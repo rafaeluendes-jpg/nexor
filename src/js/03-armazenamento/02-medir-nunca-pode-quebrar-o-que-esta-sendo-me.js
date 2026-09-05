@@ -19,7 +19,7 @@ function _medir(nome,t0){
 function _relatorioLentidao(){
   var L=[];
   var kb=0, ok='?';
-  try{ var t=localStorage.getItem('nexor_dados')||''; kb=Math.round(t.length/1024); ok='sim'; }
+  try{ var t=(typeof _baseCrua==='function'?_baseCrua():localStorage.getItem('nexor_dados'))||''; kb=Math.round(t.length/1024); ok='sim'; }
   catch(e){ ok='NAO — o navegador recusou ler'; }
   L.push('--- medição ---');
   L.push('guardado no aparelho: '+kb+' KB (leitura: '+ok+')');

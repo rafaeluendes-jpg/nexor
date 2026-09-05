@@ -6373,6 +6373,84 @@ body.semRolagem{overflow:hidden}
 var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",e={};function t(r,o){if(!e[r]){e[r]={};for(var n=0;n<r.length;n++)e[r][r.charAt(n)]=n}return e[r][o]}var i={compressToBase64:function(r){if(null==r)return"";var n=i._compress(r,6,function(r){return o.charAt(r)});switch(n.length%4){default:case 0:return n;case 1:return n+"===";case 2:return n+"==";case 3:return n+"="}},decompressFromBase64:function(r){return null==r?"":""==r?null:i._decompress(r.length,32,function(n){return t(o,r.charAt(n))})},compressToUTF16:function(o){return null==o?"":i._compress(o,15,function(o){return r(o+32)})+" "},decompressFromUTF16:function(r){return null==r?"":""==r?null:i._decompress(r.length,16384,function(o){return r.charCodeAt(o)-32})},compressToUint8Array:function(r){for(var o=i.compress(r),n=new Uint8Array(2*o.length),e=0,t=o.length;e<t;e++){var s=o.charCodeAt(e);n[2*e]=s>>>8,n[2*e+1]=s%256}return n},decompressFromUint8Array:function(o){if(null==o)return i.decompress(o);for(var n=new Array(o.length/2),e=0,t=n.length;e<t;e++)n[e]=256*o[2*e]+o[2*e+1];var s=[];return n.forEach(function(o){s.push(r(o))}),i.decompress(s.join(""))},compressToEncodedURIComponent:function(r){return null==r?"":i._compress(r,6,function(r){return n.charAt(r)})},decompressFromEncodedURIComponent:function(r){return null==r?"":""==r?null:(r=r.replace(/ /g,"+"),i._decompress(r.length,32,function(o){return t(n,r.charAt(o))}))},compress:function(o){return i._compress(o,16,function(o){return r(o)})},_compress:function(r,o,n){if(null==r)return"";var e,t,i,s={},u={},a="",p="",c="",l=2,f=3,h=2,d=[],m=0,v=0;for(i=0;i<r.length;i+=1)if(a=r.charAt(i),Object.prototype.hasOwnProperty.call(s,a)||(s[a]=f++,u[a]=!0),p=c+a,Object.prototype.hasOwnProperty.call(s,p))c=p;else{if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++),s[p]=f++,c=String(a)}if(""!==c){if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++)}for(t=2,e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;for(;;){if(m<<=1,v==o-1){d.push(n(m));break}v++}return d.join("")},decompress:function(r){return null==r?"":""==r?null:i._decompress(r.length,32768,function(o){return r.charCodeAt(o)})},_decompress:function(o,n,e){var t,i,s,u,a,p,c,l=[],f=4,h=4,d=3,m="",v=[],g={val:e(0),position:n,index:1};for(t=0;t<3;t+=1)l[t]=t;for(s=0,a=Math.pow(2,2),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 2:return""}for(l[3]=c,i=c,v.push(c);;){if(g.index>o)return"";for(s=0,a=Math.pow(2,d),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(c=s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 2:return v.join("")}if(0==f&&(f=Math.pow(2,d),d++),l[c])m=l[c];else{if(c!==h)return null;m=i+i.charAt(0)}v.push(m),l[h++]=i+m.charAt(0),i=m,0==--f&&(f=Math.pow(2,d),d++)}}};return i}();"function"==typeof define&&define.amd?define(function(){return LZString}):"undefined"!=typeof module&&null!=module?module.exports=LZString:"undefined"!=typeof angular&&null!=angular&&angular.module("LZString",[]).factory("LZString",function(){return LZString});
 
 /* ==========================================================
+   ARMAZEM DO APARELHO — IndexedDB (com localStorage de reserva)
+
+   POR QUE ESTE ARQUIVO EXISTE
+
+   A base do aparelho morava no `localStorage`, que o navegador limita a
+   ~5 MB. Uma loja em 5 semanas quase encheu isso — foi o "memoria cheia".
+   Comprimir (V310) e guardar so 30 dias (V311) empurraram o problema; a
+   correcao de raiz e trocar o armazem por IndexedDB, que guarda centenas
+   de MB e some com o teto.
+
+   Esta peca e so o CANO: um par chave→valor sobre IndexedDB, com uma
+   unica "gaveta" (`kv`) e uma unica chave de verdade em uso
+   (`nexor_dados`). Nada de esquema, indices ou migracao de banco — quem
+   cuida da migracao dos DADOS e o `01-inicio.js`.
+
+   Regra de ouro: se o IndexedDB nao existir ou falhar, NADA para. Quem
+   chama trata a promessa que rejeita e cai de volta no `localStorage`.
+   Aparelho em aba anonima, navegador antigo, cota negada — todos
+   continuam vendendo, como antes.
+   ========================================================== */
+var _IDB = { db: null, nome: 'nexor', gaveta: 'kv', versao: 1 };
+
+/* o navegador tem IndexedDB utilizavel? (aba anonima do Safari expoe o
+   objeto mas estoura ao abrir — por isso quem chama sempre trata o erro) */
+function idbDisponivel(){
+  try{ return typeof indexedDB !== 'undefined' && !!indexedDB; }
+  catch(e){ return false; }
+}
+function _idbAbrir(){
+  if(_IDB.db) return Promise.resolve(_IDB.db);
+  return new Promise(function(resolve, reject){
+    if(!idbDisponivel()){ reject(new Error('sem indexedDB')); return; }
+    var req;
+    try{ req = indexedDB.open(_IDB.nome, _IDB.versao); }
+    catch(e){ reject(e); return; }
+    req.onupgradeneeded = function(){
+      try{
+        var db = req.result;
+        if(!db.objectStoreNames.contains(_IDB.gaveta)) db.createObjectStore(_IDB.gaveta);
+      }catch(e){ /* o onerror abaixo recolhe */ }
+    };
+    req.onsuccess = function(){ _IDB.db = req.result; resolve(req.result); };
+    req.onerror  = function(){ reject(req.error || new Error('indexedDB.open falhou')); };
+    req.onblocked= function(){ reject(new Error('indexedDB bloqueado')); };
+  });
+}
+function idbLer(chave){
+  return _idbAbrir().then(function(db){
+    return new Promise(function(resolve, reject){
+      var req = db.transaction(_IDB.gaveta, 'readonly').objectStore(_IDB.gaveta).get(chave);
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror   = function(){ reject(req.error); };
+    });
+  });
+}
+function idbGravar(chave, valor){
+  return _idbAbrir().then(function(db){
+    return new Promise(function(resolve, reject){
+      var tx = db.transaction(_IDB.gaveta, 'readwrite');
+      tx.objectStore(_IDB.gaveta).put(valor, chave);
+      tx.oncomplete = function(){ resolve(true); };
+      tx.onerror    = function(){ reject(tx.error); };
+      tx.onabort    = function(){ reject(tx.error || new Error('transação abortada')); };
+    });
+  });
+}
+function idbApagar(chave){
+  return _idbAbrir().then(function(db){
+    return new Promise(function(resolve, reject){
+      var tx = db.transaction(_IDB.gaveta, 'readwrite');
+      tx.objectStore(_IDB.gaveta).delete(chave);
+      tx.oncomplete = function(){ resolve(true); };
+      tx.onerror    = function(){ reject(tx.error); };
+    });
+  });
+}
+
+/* ==========================================================
    NEXOR
    BLOCO 1  icones
    BLOCO 2  estrutura de modulos
@@ -7021,9 +7099,76 @@ function _desempacota(raw){
   }
   return raw;                                 /* formato antigo, JSON puro */
 }
+/* ==========================================================
+   A LEITURA DO ARMAZEM ACONTECE UMA VEZ, NO COMECO
+
+   IndexedDB e assincrono; o resto do sistema le a base de forma sincrona
+   (`carregar()`), so DEPOIS do login. Entao a base e trazida do
+   IndexedDB para a memoria UMA vez, no arranque (`hidratarLocal`), antes
+   de a pessoa digitar a senha — quando `carregar()` roda, o dado ja esta
+   aqui e a leitura continua sincrona como sempre foi.
+
+   Na primeira vez neste aparelho o IndexedDB esta vazio e a base ainda
+   mora no `localStorage`: a hidratacao COPIA de la para ca e mantem a
+   copia velha ate a primeira gravacao confirmar. Nada se perde na virada.
+   Sem IndexedDB (aba anonima, navegador antigo, cota negada) tudo segue
+   no localStorage, exatamente como antes.
+
+   `_cacheLocal` e a base crua (comprimida) em memoria — a fonte da sessao.
+   Todo mundo que precisa do texto da base le daqui, nunca mais direto do
+   localStorage, senao apos a virada leria vazio e apagaria a loja.
+   ========================================================== */
+var _cacheLocal=null;   /* a base crua (comprimida) que veio do armazem */
+var _usaIDB=false;      /* este aparelho esta lendo/gravando no IndexedDB? */
+var _hidratado=false;   /* a leitura inicial ja terminou? */
+var _promHidratar=null;
+function hidratarLocal(){
+  if(_promHidratar)return _promHidratar;
+  _promHidratar=(function(){
+    var ls=null; try{ ls=localStorage.getItem('nexor_dados'); }catch(e){}
+    if(!(typeof idbDisponivel==='function'&&idbDisponivel())){
+      _usaIDB=false; _cacheLocal=null; _hidratado=true; return Promise.resolve();  /* só localStorage, como sempre */
+    }
+    if(ls!=null){
+      /* ==========================================================
+         O ESPELHO SINCRONO (localStorage) E SEMPRE O MAIS FRESCO
+
+         Toda gravacao escreve o localStorage de forma SINCRONA e o
+         IndexedDB de forma assincrona. Logo, quando a copia do
+         localStorage existe, ela nunca esta ATRAS do IndexedDB — no
+         maximo a frente (uma gravacao cujo IndexedDB nao chegou a
+         confirmar antes de um F5). Entao le-se dela, e garante-se que o
+         IndexedDB tambem fique com o mesmo conteudo (importa quando a
+         base crescer e deixar de caber no localStorage). */
+      _cacheLocal=ls; _usaIDB=true; _hidratado=true;
+      return idbGravar('nexor_dados',ls).catch(function(e){ _quieto(e,'hidratarLocal/sincIDB'); });
+    }
+    /* localStorage vazio: base grande que mora só no IndexedDB, ou aparelho novo */
+    return idbLer('nexor_dados').then(function(v){
+      _cacheLocal=(v!=null)?v:null; _usaIDB=true; _hidratado=true;
+    }).catch(function(e){
+      _quieto(e,'hidratarLocal'); _usaIDB=false; _hidratado=true;   /* IndexedDB falhou: localStorage */
+    });
+  })();
+  return _promHidratar;
+}
+/* aquece a leitura ja no carregamento do arquivo: quando o login terminar,
+   segundos depois, a base ja estara na memoria */
+try{ hidratarLocal(); }catch(e){}
+
+/* o texto cru da base, da fonte certa (memoria quando ha IndexedDB) */
+function _baseCrua(){
+  return _usaIDB ? _cacheLocal : localStorage.getItem('nexor_dados');
+}
+/* apagar a base do aparelho apaga nas DUAS fontes (troca de dono, reset) */
+function apagarBaseLocal(){
+  _cacheLocal=null;
+  try{ localStorage.removeItem('nexor_dados'); }catch(e){}
+  try{ if(typeof idbApagar==='function') idbApagar('nexor_dados').catch(function(){}); }catch(e){}
+}
 function carregar(){
   try{
-    var raw=_desempacota(localStorage.getItem('nexor_dados'));
+    var raw=_desempacota(_baseCrua());
     if(raw){DB=JSON.parse(raw);}
     else{semear();gravarLocal();}
   }catch(e){semear();}
@@ -7051,6 +7196,41 @@ function gravarLocal(){
   try{ txt=JSON.stringify(DB); }
   catch(e){ alertaGravacao('Não consegui preparar os dados para salvar.'); return false; }
   var guardar=_empacota(txt);                 /* comprimido, com a marca LZ1| */
+  _cacheLocal=guardar;                         /* a memoria e sempre a fonte da sessao */
+  _ultimoTamanho=guardar.length;
+  if(_usaIDB){
+    /* ==========================================================
+       INDEXEDDB E A FONTE; O LOCALSTORAGE VIRA ESPELHO SINCRONO
+
+       IndexedDB nao tem o teto de ~5 MB — e onde a base mora de verdade,
+       e some com o "memoria cheia". Mas ele grava de forma ASSINCRONA: um
+       F5 logo apos uma venda poderia cortar a transacao antes de ela
+       confirmar. Por isso o localStorage continua sendo escrito como
+       ESPELHO SINCRONO, de melhor esforco: quando a base cabe (o caso
+       comum), a gravacao ja esta durável no mesmo instante; quando NAO
+       cabe (base grande), o `setItem` falha em silencio — sem aviso, sem
+       travar — porque o IndexedDB ja carrega tudo. Na volta, a hidratacao
+       le o IndexedDB primeiro e, se ele nao tiver confirmado, cai no
+       espelho. Durabilidade imediata sem o teto de antes.
+       ========================================================== */
+    idbGravar('nexor_dados',guardar).then(function(){ limparAlertaGravacao(); })
+      .catch(function(e){ _quieto(e,'gravarLocal/idb'); _usaIDB=false; _gravarNoLocalStorage(guardar); });
+    try{
+      localStorage.setItem('nexor_dados',guardar);   /* espelho sincrono */
+    }catch(e){
+      /* base maior que o localStorage: tudo bem, o IndexedDB tem. Nao deixa
+         copia velha/parcial que a hidratacao pudesse ler por engano. */
+      try{ localStorage.removeItem('nexor_dados'); }catch(e2){}
+    }
+    /* sinal para as OUTRAS abas quando o espelho nao coube (IndexedDB nao
+       dispara evento de storage) — mantem o aviso "aberto em outra aba" */
+    try{ localStorage.setItem('nexor_dados_beacon',String(Date.now())); }catch(e){}
+    return true;
+  }
+  return _gravarNoLocalStorage(guardar);
+}
+/* o caminho antigo, tal e qual: usado sem IndexedDB e como rede se ele falhar */
+function _gravarNoLocalStorage(guardar){
   try{
     localStorage.setItem('nexor_dados',guardar);
     _ultimoTamanho=guardar.length;
@@ -7077,6 +7257,15 @@ function gravarLocal(){
     logNuvem('FALHA AO GRAVAR NO APARELHO — '+Math.round(guardar.length/1024)+' KB',true);
     return false;
   }
+}
+/* garante que a ultima gravacao chegou ao IndexedDB antes de um reload
+   proposital (atualizar versao) — IDB e assincrono e o reload poderia
+   cortar a transacao no meio */
+function esperarGravacao(){
+  if(!_usaIDB||typeof idbGravar!=='function')return Promise.resolve();
+  var guardar=_cacheLocal; if(guardar==null)return Promise.resolve();
+  return idbGravar('nexor_dados',guardar).catch(function(e){
+    _quieto(e,'esperarGravacao'); try{ _gravarNoLocalStorage(guardar); }catch(x){} });
 }
 /* uma barra so, no rodape, com todos os avisos empilhados */
 /* ==========================================================
@@ -7268,7 +7457,7 @@ function limparAlertaGravacao(){
 /* copia de seguranca do aparelho, guardada antes de qualquer download da nuvem */
 function respaldoLocal(motivo){
   try{
-    var raw=localStorage.getItem('nexor_dados');
+    var raw=_baseCrua();
     if(!raw||raw.length<200)return false;
     /* A copia so faz sentido se sobrar espaco para ela. Guardar uma segunda
        copia inteira e o que estourava o limite do navegador — e sem espaco
@@ -7306,7 +7495,13 @@ async function restaurarRespaldo(){
     'A nuvem não é tocada até você conferir e salvar.'))return;
   try{
     DB=JSON.parse(_desempacota(raw));         /* a cópia pode estar comprimida (LZ1|) */
-    localStorage.setItem('nexor_dados',raw);   /* copia como está: carregar() sabe ler */
+    _cacheLocal=raw;                           /* a memória vira a cópia restaurada */
+    if(_usaIDB){
+      try{ await idbGravar('nexor_dados',raw); }
+      catch(e0){ _quieto(e0,'restaurarRespaldo'); try{ localStorage.setItem('nexor_dados',raw); }catch(e1){} }
+    }else{
+      localStorage.setItem('nexor_dados',raw); /* copia como está: carregar() sabe ler */
+    }
     NUVEM.sujo=false;
     alert('Cópia restaurada. Confira os dados antes de sincronizar.');
     location.reload();
@@ -10122,7 +10317,7 @@ function _medir(nome,t0){
 function _relatorioLentidao(){
   var L=[];
   var kb=0, ok='?';
-  try{ var t=localStorage.getItem('nexor_dados')||''; kb=Math.round(t.length/1024); ok='sim'; }
+  try{ var t=(typeof _baseCrua==='function'?_baseCrua():localStorage.getItem('nexor_dados'))||''; kb=Math.round(t.length/1024); ok='sim'; }
   catch(e){ ok='NAO — o navegador recusou ler'; }
   L.push('--- medição ---');
   L.push('guardado no aparelho: '+kb+' KB (leitura: '+ok+')');
@@ -12322,7 +12517,9 @@ var _minhaAba=String(Date.now())+'-'+Math.random().toString(36).slice(2,7);
           'um por cima do outro, use apenas uma — feche esta ou recarregue depois '+
           'de fechar a outra.');
       }
-      if(e.key==='nexor_dados'&&!NUVEM.sincronizando){
+      /* `nexor_dados` (localStorage) ou o sinal `nexor_dados_beacon` (quando a
+         base mora no IndexedDB, que nao dispara evento de storage) */
+      if((e.key==='nexor_dados'||e.key==='nexor_dados_beacon')&&!NUVEM.sincronizando){
         /* outra aba gravou: avisa que o que esta na tela pode estar velho */
         marcaNovidade(true);
       }
@@ -12472,8 +12669,8 @@ async function entrarPeloAuth(lg,sn){
      ========================================================== */
   var _mesmoDono=false, _ant=null;
   try{
-    var _txt=(typeof _desempacota==='function')?_desempacota(localStorage.getItem('nexor_dados'))
-                                               :localStorage.getItem('nexor_dados');
+    var _bruto=(typeof _baseCrua==='function')?_baseCrua():localStorage.getItem('nexor_dados');
+    var _txt=(typeof _desempacota==='function')?_desempacota(_bruto):_bruto;
     if(_txt){
       _ant=JSON.parse(_txt);
       _mesmoDono = !!_ant
@@ -12514,7 +12711,8 @@ async function entrarPeloAuth(lg,sn){
     logNuvem('mesma pessoa, mesma unidade — o que estava no aparelho foi mantido');
   }else{
   try{
-    localStorage.removeItem('nexor_dados');
+    if(typeof apagarBaseLocal==='function')apagarBaseLocal();  /* apaga no IndexedDB e no localStorage */
+    else localStorage.removeItem('nexor_dados');
     localStorage.removeItem('nexor_respaldo');
     localStorage.removeItem('nexor_respaldo_info');
   }catch(eL){_quieto(eL,'entrarPeloAuth')}
@@ -12643,6 +12841,10 @@ async function conferirSenhaLocal(u, senhaDigitada){
   return false;
 }
 async function entrar(){
+  /* a base do aparelho vem do IndexedDB, que e assincrono: espera a leitura
+     inicial terminar ANTES de qualquer carregar()/comparacao de dono, senao
+     leria vazio e trataria a propria loja como cliente novo */
+  try{ if(typeof hidratarLocal==='function')await hidratarLocal(); }catch(e){_quieto(e,'entrar')}
   try{ if(!DB||!DB.usuarios)carregar(); }catch(e){_quieto(e,'entrar')}
   baseUsr();
   var lg=$('lgU').value.trim().toLowerCase();
@@ -13245,7 +13447,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V313.0.0';
+var VERSAO='V314.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -13268,8 +13470,11 @@ var VERSAO='V313.0.0';
    worker nao responder em 1,2 s, recarrega assim mesmo — melhor
    recarregar com cache do que nao recarregar.
    ========================================================== */
-function aplicarAtualizacao(){
+async function aplicarAtualizacao(){
   try{ gravarLocal(); }catch(e){_quieto(e,'aplicarAtualizacao')}
+  /* IndexedDB é assíncrono: espera a base chegar ao disco ANTES do reload,
+     senão a atualização poderia cortar a última gravação no meio */
+  try{ if(typeof esperarGravacao==='function')await esperarGravacao(); }catch(e){_quieto(e,'aplicarAtualizacao')}
   var recarregou=false;
   var vai=function(){ if(recarregou)return; recarregou=true; location.reload(); };
   try{
@@ -18461,8 +18666,8 @@ function telaSincronizacao(){
     '<div class="syC"><span>Último envio</span><b>'+E(ultimo)+'</b></div>'+
     '<div class="syC"><span>Vendas de hoje neste aparelho</span><b>'+vendasHoje+'</b></div>'+
     '<div class="syC"><span>Cópia local</span><b>'+
-      (localStorage.getItem('nexor_dados')?
-        Math.round(localStorage.getItem('nexor_dados').length/1024)+' KB':'—')+'</b></div>'+
+      (function(){ var _b=(typeof _baseCrua==='function'?_baseCrua():localStorage.getItem('nexor_dados'));
+        return _b?Math.round(_b.length/1024)+' KB':'—'; })()+'</b></div>'+
    '</div>'+
 
    (NET.caiuEm?'<div class="syHist">'+sv('clock',14)+
@@ -37363,6 +37568,8 @@ async function resetTotal(){
   if(!await pergunta('REINICIAR O SISTEMA?\n\nTudo será apagado: cardápio, fichas, estoque, financeiro, clientes e configurações.'))return;
   if(!await pergunta('Tem certeza absoluta?\n\nEsta ação não pode ser desfeita.'))return;
   try{localStorage.removeItem('nexor_dados');}catch(e){_quieto(e,'resetTotal')}
+  /* apaga tambem no IndexedDB, e espera confirmar antes do reload */
+  try{ if(typeof idbApagar==='function')await idbApagar('nexor_dados'); }catch(e){_quieto(e,'resetTotal')}
   location.reload();
 }
 

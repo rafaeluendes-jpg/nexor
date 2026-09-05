@@ -31,6 +31,7 @@
     "fecha": "</script>",
     "arquivos": [
       "js/00-lz-string.js",
+      "js/00-armazem-idb.js",
       "js/00-abertura.js",
       "js/01-icones.js",
       "js/02-modulos.js",

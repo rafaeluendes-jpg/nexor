@@ -295,9 +295,76 @@ function _desempacota(raw){
   }
   return raw;                                 /* formato antigo, JSON puro */
 }
+/* ==========================================================
+   A LEITURA DO ARMAZEM ACONTECE UMA VEZ, NO COMECO
+
+   IndexedDB e assincrono; o resto do sistema le a base de forma sincrona
+   (`carregar()`), so DEPOIS do login. Entao a base e trazida do
+   IndexedDB para a memoria UMA vez, no arranque (`hidratarLocal`), antes
+   de a pessoa digitar a senha — quando `carregar()` roda, o dado ja esta
+   aqui e a leitura continua sincrona como sempre foi.
+
+   Na primeira vez neste aparelho o IndexedDB esta vazio e a base ainda
+   mora no `localStorage`: a hidratacao COPIA de la para ca e mantem a
+   copia velha ate a primeira gravacao confirmar. Nada se perde na virada.
+   Sem IndexedDB (aba anonima, navegador antigo, cota negada) tudo segue
+   no localStorage, exatamente como antes.
+
+   `_cacheLocal` e a base crua (comprimida) em memoria — a fonte da sessao.
+   Todo mundo que precisa do texto da base le daqui, nunca mais direto do
+   localStorage, senao apos a virada leria vazio e apagaria a loja.
+   ========================================================== */
+var _cacheLocal=null;   /* a base crua (comprimida) que veio do armazem */
+var _usaIDB=false;      /* este aparelho esta lendo/gravando no IndexedDB? */
+var _hidratado=false;   /* a leitura inicial ja terminou? */
+var _promHidratar=null;
+function hidratarLocal(){
+  if(_promHidratar)return _promHidratar;
+  _promHidratar=(function(){
+    var ls=null; try{ ls=localStorage.getItem('nexor_dados'); }catch(e){}
+    if(!(typeof idbDisponivel==='function'&&idbDisponivel())){
+      _usaIDB=false; _cacheLocal=null; _hidratado=true; return Promise.resolve();  /* só localStorage, como sempre */
+    }
+    if(ls!=null){
+      /* ==========================================================
+         O ESPELHO SINCRONO (localStorage) E SEMPRE O MAIS FRESCO
+
+         Toda gravacao escreve o localStorage de forma SINCRONA e o
+         IndexedDB de forma assincrona. Logo, quando a copia do
+         localStorage existe, ela nunca esta ATRAS do IndexedDB — no
+         maximo a frente (uma gravacao cujo IndexedDB nao chegou a
+         confirmar antes de um F5). Entao le-se dela, e garante-se que o
+         IndexedDB tambem fique com o mesmo conteudo (importa quando a
+         base crescer e deixar de caber no localStorage). */
+      _cacheLocal=ls; _usaIDB=true; _hidratado=true;
+      return idbGravar('nexor_dados',ls).catch(function(e){ _quieto(e,'hidratarLocal/sincIDB'); });
+    }
+    /* localStorage vazio: base grande que mora só no IndexedDB, ou aparelho novo */
+    return idbLer('nexor_dados').then(function(v){
+      _cacheLocal=(v!=null)?v:null; _usaIDB=true; _hidratado=true;
+    }).catch(function(e){
+      _quieto(e,'hidratarLocal'); _usaIDB=false; _hidratado=true;   /* IndexedDB falhou: localStorage */
+    });
+  })();
+  return _promHidratar;
+}
+/* aquece a leitura ja no carregamento do arquivo: quando o login terminar,
+   segundos depois, a base ja estara na memoria */
+try{ hidratarLocal(); }catch(e){}
+
+/* o texto cru da base, da fonte certa (memoria quando ha IndexedDB) */
+function _baseCrua(){
+  return _usaIDB ? _cacheLocal : localStorage.getItem('nexor_dados');
+}
+/* apagar a base do aparelho apaga nas DUAS fontes (troca de dono, reset) */
+function apagarBaseLocal(){
+  _cacheLocal=null;
+  try{ localStorage.removeItem('nexor_dados'); }catch(e){}
+  try{ if(typeof idbApagar==='function') idbApagar('nexor_dados').catch(function(){}); }catch(e){}
+}
 function carregar(){
   try{
-    var raw=_desempacota(localStorage.getItem('nexor_dados'));
+    var raw=_desempacota(_baseCrua());
     if(raw){DB=JSON.parse(raw);}
     else{semear();gravarLocal();}
   }catch(e){semear();}
@@ -325,6 +392,41 @@ function gravarLocal(){
   try{ txt=JSON.stringify(DB); }
   catch(e){ alertaGravacao('Não consegui preparar os dados para salvar.'); return false; }
   var guardar=_empacota(txt);                 /* comprimido, com a marca LZ1| */
+  _cacheLocal=guardar;                         /* a memoria e sempre a fonte da sessao */
+  _ultimoTamanho=guardar.length;
+  if(_usaIDB){
+    /* ==========================================================
+       INDEXEDDB E A FONTE; O LOCALSTORAGE VIRA ESPELHO SINCRONO
+
+       IndexedDB nao tem o teto de ~5 MB — e onde a base mora de verdade,
+       e some com o "memoria cheia". Mas ele grava de forma ASSINCRONA: um
+       F5 logo apos uma venda poderia cortar a transacao antes de ela
+       confirmar. Por isso o localStorage continua sendo escrito como
+       ESPELHO SINCRONO, de melhor esforco: quando a base cabe (o caso
+       comum), a gravacao ja esta durável no mesmo instante; quando NAO
+       cabe (base grande), o `setItem` falha em silencio — sem aviso, sem
+       travar — porque o IndexedDB ja carrega tudo. Na volta, a hidratacao
+       le o IndexedDB primeiro e, se ele nao tiver confirmado, cai no
+       espelho. Durabilidade imediata sem o teto de antes.
+       ========================================================== */
+    idbGravar('nexor_dados',guardar).then(function(){ limparAlertaGravacao(); })
+      .catch(function(e){ _quieto(e,'gravarLocal/idb'); _usaIDB=false; _gravarNoLocalStorage(guardar); });
+    try{
+      localStorage.setItem('nexor_dados',guardar);   /* espelho sincrono */
+    }catch(e){
+      /* base maior que o localStorage: tudo bem, o IndexedDB tem. Nao deixa
+         copia velha/parcial que a hidratacao pudesse ler por engano. */
+      try{ localStorage.removeItem('nexor_dados'); }catch(e2){}
+    }
+    /* sinal para as OUTRAS abas quando o espelho nao coube (IndexedDB nao
+       dispara evento de storage) — mantem o aviso "aberto em outra aba" */
+    try{ localStorage.setItem('nexor_dados_beacon',String(Date.now())); }catch(e){}
+    return true;
+  }
+  return _gravarNoLocalStorage(guardar);
+}
+/* o caminho antigo, tal e qual: usado sem IndexedDB e como rede se ele falhar */
+function _gravarNoLocalStorage(guardar){
   try{
     localStorage.setItem('nexor_dados',guardar);
     _ultimoTamanho=guardar.length;
@@ -351,6 +453,15 @@ function gravarLocal(){
     logNuvem('FALHA AO GRAVAR NO APARELHO — '+Math.round(guardar.length/1024)+' KB',true);
     return false;
   }
+}
+/* garante que a ultima gravacao chegou ao IndexedDB antes de um reload
+   proposital (atualizar versao) — IDB e assincrono e o reload poderia
+   cortar a transacao no meio */
+function esperarGravacao(){
+  if(!_usaIDB||typeof idbGravar!=='function')return Promise.resolve();
+  var guardar=_cacheLocal; if(guardar==null)return Promise.resolve();
+  return idbGravar('nexor_dados',guardar).catch(function(e){
+    _quieto(e,'esperarGravacao'); try{ _gravarNoLocalStorage(guardar); }catch(x){} });
 }
 /* uma barra so, no rodape, com todos os avisos empilhados */
 /* ==========================================================
@@ -542,7 +653,7 @@ function limparAlertaGravacao(){
 /* copia de seguranca do aparelho, guardada antes de qualquer download da nuvem */
 function respaldoLocal(motivo){
   try{
-    var raw=localStorage.getItem('nexor_dados');
+    var raw=_baseCrua();
     if(!raw||raw.length<200)return false;
     /* A copia so faz sentido se sobrar espaco para ela. Guardar uma segunda
        copia inteira e o que estourava o limite do navegador — e sem espaco
@@ -580,7 +691,13 @@ async function restaurarRespaldo(){
     'A nuvem não é tocada até você conferir e salvar.'))return;
   try{
     DB=JSON.parse(_desempacota(raw));         /* a cópia pode estar comprimida (LZ1|) */
-    localStorage.setItem('nexor_dados',raw);   /* copia como está: carregar() sabe ler */
+    _cacheLocal=raw;                           /* a memória vira a cópia restaurada */
+    if(_usaIDB){
+      try{ await idbGravar('nexor_dados',raw); }
+      catch(e0){ _quieto(e0,'restaurarRespaldo'); try{ localStorage.setItem('nexor_dados',raw); }catch(e1){} }
+    }else{
+      localStorage.setItem('nexor_dados',raw); /* copia como está: carregar() sabe ler */
+    }
     NUVEM.sujo=false;
     alert('Cópia restaurada. Confira os dados antes de sincronizar.');
     location.reload();

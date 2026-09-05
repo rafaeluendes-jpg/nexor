@@ -372,7 +372,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V313.0.0';
+var VERSAO='V314.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -395,8 +395,11 @@ var VERSAO='V313.0.0';
    worker nao responder em 1,2 s, recarrega assim mesmo — melhor
    recarregar com cache do que nao recarregar.
    ========================================================== */
-function aplicarAtualizacao(){
+async function aplicarAtualizacao(){
   try{ gravarLocal(); }catch(e){_quieto(e,'aplicarAtualizacao')}
+  /* IndexedDB é assíncrono: espera a base chegar ao disco ANTES do reload,
+     senão a atualização poderia cortar a última gravação no meio */
+  try{ if(typeof esperarGravacao==='function')await esperarGravacao(); }catch(e){_quieto(e,'aplicarAtualizacao')}
   var recarregou=false;
   var vai=function(){ if(recarregou)return; recarregou=true; location.reload(); };
   try{

@@ -428,6 +428,8 @@ async function resetTotal(){
   if(!await pergunta('REINICIAR O SISTEMA?\n\nTudo será apagado: cardápio, fichas, estoque, financeiro, clientes e configurações.'))return;
   if(!await pergunta('Tem certeza absoluta?\n\nEsta ação não pode ser desfeita.'))return;
   try{localStorage.removeItem('nexor_dados');}catch(e){_quieto(e,'resetTotal')}
+  /* apaga tambem no IndexedDB, e espera confirmar antes do reload */
+  try{ if(typeof idbApagar==='function')await idbApagar('nexor_dados'); }catch(e){_quieto(e,'resetTotal')}
   location.reload();
 }
 

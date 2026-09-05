@@ -403,7 +403,9 @@ var _minhaAba=String(Date.now())+'-'+Math.random().toString(36).slice(2,7);
           'um por cima do outro, use apenas uma — feche esta ou recarregue depois '+
           'de fechar a outra.');
       }
-      if(e.key==='nexor_dados'&&!NUVEM.sincronizando){
+      /* `nexor_dados` (localStorage) ou o sinal `nexor_dados_beacon` (quando a
+         base mora no IndexedDB, que nao dispara evento de storage) */
+      if((e.key==='nexor_dados'||e.key==='nexor_dados_beacon')&&!NUVEM.sincronizando){
         /* outra aba gravou: avisa que o que esta na tela pode estar velho */
         marcaNovidade(true);
       }

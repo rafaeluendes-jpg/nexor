@@ -126,7 +126,7 @@ function servir() {
     return { caixas: (DB.caixas || []).length, pedidos: peds.length,
              produtos: (DB.produtos || []).length, insumos: (DB.insumos || []).length,
              aberto: (caixaAberto() || {}).id, venda: (peds[0] || {}).total,
-             guardado: (function(){ try{ var raw=localStorage.getItem('nexor_dados')||'{}';
+             guardado: (function(){ try{ var raw=(typeof _baseCrua==='function'?_baseCrua():localStorage.getItem('nexor_dados'))||'{}';
                if(typeof _desempacota==='function') raw=_desempacota(raw);
                var b=JSON.parse(raw);
                return { pedidos:(b.pedidos||[]).length, caixas:(b.caixas||[]).length,

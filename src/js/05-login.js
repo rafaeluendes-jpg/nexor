@@ -112,8 +112,8 @@ async function entrarPeloAuth(lg,sn){
      ========================================================== */
   var _mesmoDono=false, _ant=null;
   try{
-    var _txt=(typeof _desempacota==='function')?_desempacota(localStorage.getItem('nexor_dados'))
-                                               :localStorage.getItem('nexor_dados');
+    var _bruto=(typeof _baseCrua==='function')?_baseCrua():localStorage.getItem('nexor_dados');
+    var _txt=(typeof _desempacota==='function')?_desempacota(_bruto):_bruto;
     if(_txt){
       _ant=JSON.parse(_txt);
       _mesmoDono = !!_ant
@@ -154,7 +154,8 @@ async function entrarPeloAuth(lg,sn){
     logNuvem('mesma pessoa, mesma unidade — o que estava no aparelho foi mantido');
   }else{
   try{
-    localStorage.removeItem('nexor_dados');
+    if(typeof apagarBaseLocal==='function')apagarBaseLocal();  /* apaga no IndexedDB e no localStorage */
+    else localStorage.removeItem('nexor_dados');
     localStorage.removeItem('nexor_respaldo');
     localStorage.removeItem('nexor_respaldo_info');
   }catch(eL){_quieto(eL,'entrarPeloAuth')}
@@ -283,6 +284,10 @@ async function conferirSenhaLocal(u, senhaDigitada){
   return false;
 }
 async function entrar(){
+  /* a base do aparelho vem do IndexedDB, que e assincrono: espera a leitura
+     inicial terminar ANTES de qualquer carregar()/comparacao de dono, senao
+     leria vazio e trataria a propria loja como cliente novo */
+  try{ if(typeof hidratarLocal==='function')await hidratarLocal(); }catch(e){_quieto(e,'entrar')}
   try{ if(!DB||!DB.usuarios)carregar(); }catch(e){_quieto(e,'entrar')}
   baseUsr();
   var lg=$('lgU').value.trim().toLowerCase();
