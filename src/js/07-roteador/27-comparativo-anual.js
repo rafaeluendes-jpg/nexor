@@ -5,7 +5,7 @@ var CA={modo:'anual',a1:0,a2:0,metrica:'fat',m1:'',m2:'',sucs:[]};
 
 function anosComVenda(){
   var s={};
-  (DB.pedidos||[]).forEach(function(p){
+  fontePedidos().forEach(function(p){
     var d=String(p.data||'').slice(0,4);
     if(d&&d.length===4)s[d]=true;
   });
@@ -18,7 +18,7 @@ function dadosAno(ano){
   var m=[];
   for(var i=0;i<12;i++)m.push({fat:0,ped:0,loja:0,entrega:0,desc:0,taxa:0,
     cmv:0,clientes:{},itens:0});
-  (DB.pedidos||[]).forEach(function(p){
+  fontePedidos().forEach(function(p){
     if(ehCancelado(p))return;
     if(CA.sucs.length&&CA.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return;
     var d=String(p.data||'');
@@ -60,7 +60,7 @@ function dadosMes(ano,mes){
   var d=[];
   for(var i=0;i<dias;i++)d.push({fat:0,ped:0,loja:0,entrega:0,desc:0,taxa:0,cmv:0,clientes:{},itens:0});
   var pref=ano+'-'+String(mes).padStart(2,'0');
-  (DB.pedidos||[]).forEach(function(p){
+  fontePedidos().forEach(function(p){
     if(ehCancelado(p))return;
     if(CA.sucs.length&&CA.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return;
     var s2=String(p.data||'');
@@ -93,7 +93,7 @@ function dadosMes(ano,mes){
 }
 function mesesComVenda(){
   var s4={};
-  (DB.pedidos||[]).forEach(function(p){
+  fontePedidos().forEach(function(p){
     var m=String(p.data||'').slice(0,7);
     if(m.length===7)s4[m]=true;
   });
@@ -135,6 +135,15 @@ function telaComparativo(){
   if(!CA.m2)CA.m2=meses[0];
   if(!CA.m1)CA.m1=meses[1]||meses[0];
   var mensal=(CA.modo==='mensal');
+  /* o comparativo é o que mais precisa de meses/anos antigos: puxa da nuvem
+     o começo do período comparado, se for mais antigo que a janela local,
+     e se redesenha quando o histórico chega (carregarHistorico, Etapa 2) */
+  if(typeof carregarHistorico==='function'){
+    var _cmpDe=mensal
+      ? ((CA.m1<CA.m2?CA.m1:CA.m2)+'-01')
+      : (String(Math.min(Number(CA.a1),Number(CA.a2)))+'-01-01');
+    carregarHistorico(_cmpDe,hojeISO(),telaComparativo);
+  }
 
   var d1,d2,rot,tit1,tit2;
   if(mensal){

@@ -83,10 +83,11 @@ function api(DB, loja) {
     ehSucMatriz: id => id === 'suc_matriz',
     baseSuc: () => {}, baseMov: () => {},
     ehCancelado: p => String(p.fase || '') === 'cancelado',
+    _histExtra: [],   /* Etapa 2: fontePedidos junta locais + histórico da nuvem */
     DIAS_SEM: ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
   };
   const nomes = ['diaLocal', 'diaSemana', 'sucursalDoPedido', 'vendaDaUnidadeAberta',
-                 'canalDoPedido', 'pedsPeriodo', 'canaisVenda', 'pedidosFiltrados'];
+                 'canalDoPedido', 'fontePedidos', 'pedsPeriodo', 'canaisVenda', 'pedidosFiltrados'];
   const codigo = nomes.map(n => corpoDaFuncao(n, fonte)).join('\n') +
     '\n' + fonte.slice(fonte.indexOf('var CANAIS_REL=['),
                        fonte.indexOf('];', fonte.indexOf('var CANAIS_REL=[')) + 2);

@@ -368,8 +368,11 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
-var DIAS_JANELA=90;   /* dias de historico baixados no login */
-var VERSAO='V310.0.0';
+var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
+/* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
+   vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
+var DIAS_JANELA_PEDIDOS=30;
+var VERSAO='V311.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

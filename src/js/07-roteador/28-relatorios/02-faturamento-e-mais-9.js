@@ -16,6 +16,7 @@ function telaFaturamento(){
      atalhos; os numeros so aparecem depois da escolha.
      ========================================================== */
   var semPeriodo=!FTP.de&&!FTP.ate;
+  if(!semPeriodo)carregarHistorico(FTP.de,FTP.ate,telaFaturamento);
   var peds=semPeriodo?[]:pedsPeriodo(FTP);
   function tk(lista){
     var v=lista.reduce(function(a,p){return a+(Number(p.total)||0)},0);
@@ -166,6 +167,7 @@ var VDH={de:'',ate:'',sucs:[],canais:[],aba:'hora'};
 function telaVendaDataHora(){
   baseMov();baseSuc();
   periodoPadrao(VDH);
+  carregarHistorico(VDH.de,VDH.ate,telaVendaDataHora);
   var peds=pedsPeriodo(VDH);
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
 

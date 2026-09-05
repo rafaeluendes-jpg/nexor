@@ -217,8 +217,17 @@ async function _baixarDaNuvem(forcar){
      ========================================================== */
   var _dJanela=new Date(); _dJanela.setDate(_dJanela.getDate()-(DIAS_JANELA||90));
   var _desde=_dJanela.toISOString().slice(0,10);
-  var qJan=q+'&data_venda=gte.'+_desde;      /* pedidos */
-  var qJanD=q+'&data=gte.'+_desde;           /* movimentacoes, cupons */
+  /* ==========================================================
+     PEDIDOS GUARDAM UMA JANELA MAIS CURTA (Etapa 2, 05/09/2026)
+     O aparelho baixa poucos dias de pedidos; o histórico mais antigo o
+     relatório busca na nuvem sob demanda (garantirHistorico/fontePedidos).
+     Movimentações e cupons continuam na janela cheia, porque os relatórios
+     que os usam (Itens Consumidos, CMV) ainda leem só do aparelho. */
+  var _dJanelaPed=new Date();
+  _dJanelaPed.setDate(_dJanelaPed.getDate()-(typeof DIAS_JANELA_PEDIDOS!=='undefined'?DIAS_JANELA_PEDIDOS:(DIAS_JANELA||90)));
+  var _desdePed=_dJanelaPed.toISOString().slice(0,10);
+  var qJan=q+'&data_venda=gte.'+_desdePed;   /* pedidos (janela curta) */
+  var qJanD=q+'&data=gte.'+_desde;           /* movimentacoes, cupons (janela cheia) */
   var qs=q+'&select=*';            /* consultas simples */
   /* se a nuvem responder vazio mas houver dados aqui, mantém os daqui */
   /* o filho sobe como "idDoPai_idDoFilho"; na volta devolve o id original,

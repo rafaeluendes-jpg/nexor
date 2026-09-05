@@ -39,8 +39,55 @@ function canaisVenda(){
    O pedido cancelado NAO e cortado aqui de proposito: o Faturamento
    por Dia mostra uma coluna de cancelamentos e precisa dele.
    ========================================================== */
+/* ==========================================================
+   HISTÓRICO ANTIGO SOB DEMANDA NOS RELATÓRIOS — Etapa 2 (05/09/2026)
+
+   O aparelho guarda só os últimos DIAS_JANELA_PEDIDOS dias de vendas (30).
+   Quando um relatório pede um período mais antigo, buscamos na nuvem os
+   pedidos que faltam (historicoNuvem, da Etapa 1) e os juntamos aos locais
+   SÓ NA MEMÓRIA — `_histExtra` NUNCA é gravado no aparelho nem sobe para a
+   nuvem, para o peso não voltar.
+
+   `fontePedidos()` é a fonte única dos relatórios (locais + nuvem, sem
+   repetir por id). `carregarHistorico()` dispara a busca UMA vez por
+   intervalo e redesenha a tela quando os dados antigos chegam — o mesmo
+   padrão do self-heal das formas de pagamento (só redesenha se a pessoa
+   ainda estiver na tela; a rota é S.mod/S.it). */
+var _histExtra=[];          /* pedidos antigos vindos da nuvem — NÃO gravados */
+var _histCarregado={};      /* intervalos já buscados, para não repetir */
+function inicioJanelaLocal(){
+  var d=new Date();
+  d.setDate(d.getDate()-(typeof DIAS_JANELA_PEDIDOS!=='undefined'?DIAS_JANELA_PEDIDOS:(typeof DIAS_JANELA!=='undefined'?DIAS_JANELA:90)));
+  return d.toISOString().slice(0,10);
+}
+function fontePedidos(){
+  return _histExtra.length?(DB.pedidos||[]).concat(_histExtra):(DB.pedidos||[]);
+}
+function _mesclarHist(extra){
+  if(!extra||!extra.length)return 0;
+  var vistos={};
+  (DB.pedidos||[]).forEach(function(p){if(p&&p.id)vistos[p.id]=true;});
+  _histExtra.forEach(function(p){if(p&&p.id)vistos[p.id]=true;});
+  var novos=0;
+  extra.forEach(function(p){ if(p&&p.id&&!vistos[p.id]){ _histExtra.push(p); vistos[p.id]=true; novos++; } });
+  return novos;
+}
+function carregarHistorico(de,ate,redesenhar){
+  if(!de||typeof NUVEM==='undefined'||!NUVEM.ligada)return;
+  var corte=inicioJanelaLocal();
+  if(de>=corte)return;                        /* período recente: já está no aparelho */
+  var ateBusca=(ate&&ate<corte)?ate:corte;    /* busca só o intervalo que falta */
+  var chave=de+'|'+ateBusca;
+  if(_histCarregado[chave])return;            /* uma tentativa por intervalo */
+  _histCarregado[chave]=true;
+  var rota=(typeof S!=='undefined')?(S.mod+'/'+S.it):'';
+  historicoNuvem(de,ateBusca).then(function(extra){
+    var novos=_mesclarHist(extra);
+    if(novos&&typeof S!=='undefined'&&(S.mod+'/'+S.it)===rota&&typeof redesenhar==='function')redesenhar();
+  }).catch(function(){});
+}
 function pedidosFiltrados(f){
-  return (DB.pedidos||[]).filter(function(p){
+  return fontePedidos().filter(function(p){
     if(!vendaDaUnidadeAberta(p))return false;
     var d=diaLocal(p.data);
     if(f.de&&d<f.de)return false;
@@ -96,6 +143,7 @@ function telaFaturamentoDia(){
   if(!FD.de){var d=new Date();
     FD.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     FD.ate=hojeISO();}
+  carregarHistorico(FD.de,FD.ate,telaFaturamentoDia);
   var peds=pedidosFiltrados(FD);
   var porDia={};
   peds.forEach(function(p){
@@ -491,6 +539,7 @@ function telaItensVendidos(){
   if(!IV.de){var d=new Date();
     IV.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     IV.ate=hojeISO();}
+  carregarHistorico(IV.de,IV.ate,telaItensVendidos);
   var peds=pedidosFiltrados(IV).filter(function(p){return !ehCancelado(p)});
   var porCat={},adicionais={},totalFat=0,totalItens=0;
   peds.forEach(function(p){
@@ -679,6 +728,7 @@ function telaVendasArea(){
   if(!VA.de){var d=new Date();
     VA.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     VA.ate=hojeISO();}
+  carregarHistorico(VA.de,VA.ate,telaVendasArea);
   var peds=pedidosFiltrados(VA).filter(function(p){return !ehCancelado(p)});
   var totalFat=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var ents=peds.filter(function(p){return (p.tipo==='entrega')});
@@ -898,6 +948,7 @@ function telaVendasFormaPag(){
   if(!VP.de){var d=new Date();
     VP.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     VP.ate=hojeISO();}
+  carregarHistorico(VP.de,VP.ate,telaVendasFormaPag);
   var peds=pedidosFiltrados(VP).filter(function(p){return !ehCancelado(p)});
   var totalFat=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   var porForma={},semForma=0;
@@ -1387,6 +1438,7 @@ function telaVendasPeriodo(){
   if(!VPE.de){var d=new Date();
     VPE.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     VPE.ate=hojeISO();}
+  carregarHistorico(VPE.de,VPE.ate,telaVendasPeriodo);
   var todos=pedidosFiltrados(VPE);
   if(VPE.cupons.length)
     todos=todos.filter(function(p){return p.cupomCodigo&&VPE.cupons.indexOf(p.cupomCodigo)>=0});
@@ -2372,7 +2424,7 @@ var CANAIS_REL=[
    todas as telas de uma vez, em vez de cada uma ter a sua regra. */
 function pedsPeriodo(o){
   baseSuc();
-  return (DB.pedidos||[]).filter(function(p){
+  return fontePedidos().filter(function(p){
     if(ehCancelado(p))return false;
     if(!vendaDaUnidadeAberta(p))return false;   /* unidade nao ve a venda da outra */
     var d=diaLocal(p.data);
@@ -2514,6 +2566,7 @@ var CV2={de:'',ate:'',sucs:[],canais:[]};
 function telaCanaisVenda(){
   baseMov();baseSuc();
   periodoPadrao(CV2);
+  carregarHistorico(CV2.de,CV2.ate,telaCanaisVenda);
   var peds=pedsPeriodo(CV2);
   var total=peds.reduce(function(a,p){return a+(Number(p.total)||0)},0);
   /* ==========================================================
