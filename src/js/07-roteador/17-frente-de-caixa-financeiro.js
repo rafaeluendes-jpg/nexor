@@ -235,8 +235,21 @@ function dadosDoCaixa(c){
   var liquido=+(bruto-vCanc).toFixed(2);
 
   var fundo   = s?s.fundoAbertura : (Number(c.inicial)||0);
-  var supri   = s?s.suprimentos   : totalMov(c,'suprimento');
-  var sangria = s?s.sangrias      : totalMov(c,'sangria');
+  /* ==========================================================
+     SANGRIA/SUPRIMENTO SO CRESCEM — O SNAPSHOT NUNCA MOSTRA MENOS
+
+     O snapshot congela sangrias e suprimentos na hora de fechar. Se um
+     movimento subiu DEPOIS (segundo aparelho fechou o caixa antes de a
+     sangria daqui chegar na nuvem), o snapshot fica com R$ 0,00 para
+     sempre, mesmo com o movimento ja de volta em `c.movimentos`. Era o
+     "Sangrias - R$ 0,00" que aparecia no fechamento.
+
+     Sangria e suprimento so somam, nunca diminuem: entao vale sempre o
+     maior entre o congelado e o que os movimentos de verdade mostram.
+     Nada e inventado — o numero vem dos movimentos reais.
+     ========================================================== */
+  var supri   = s ? Math.max(Number(s.suprimentos)||0, totalMov(c,'suprimento')) : totalMov(c,'suprimento');
+  var sangria = s ? Math.max(Number(s.sangrias)||0,    totalMov(c,'sangria'))    : totalMov(c,'sangria');
   var vendDin = s?s.vendasDinheiro: (Number(mov.dinheiro)||0);
 
   /* recebimentos: sistema x fisico x diferenca */
@@ -262,11 +275,15 @@ function dadosDoCaixa(c){
   var din=formas.filter(function(x){return x.troco})[0]||
           {sistema:0,fisico:null,diferenca:null,nome:'Dinheiro'};
 
-  var movs=(s&&s.movimentos)?s.movimentos:(c.movimentos||[]).map(function(m){
+  var movsLive=(c.movimentos||[]).map(function(m){
     return {hora:m.hora||'',tipo:m.tipo,valor:Number(m.valor)||0,
       motivo:m.motivoNome||m.motivo||'',descricao:m.motivo||'',
       destino:m.destinoNome||'',responsavel:m.responsavel||'',lancRef:m.lancRef||''};
   });
+  /* mesma razao do Math.max acima: se os movimentos de verdade sao mais
+     do que o snapshot congelou, a lista detalhada tambem mostra os que
+     chegaram depois, em vez de esconder a sangria que subiu atrasada */
+  var movs=(s&&s.movimentos&&s.movimentos.length>=movsLive.length)?s.movimentos:movsLive;
 
   var cancels=(DB.cancelamentos||[]).filter(function(x){return x.caixaId===c.id});
   var descs=ok.filter(function(p){return (Number(p.desconto)||0)>0.001||p.cupom});

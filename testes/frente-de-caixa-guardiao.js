@@ -142,6 +142,75 @@ function linhaSemNome(txt) {
       erros.slice(antes).join(' | '));
   } catch (e) { t('o fluxo de avisos roda sem estourar', false, e.message); }
 
+  /* ==========================================================
+     SANGRIA que subiu DEPOIS do fechamento não vira R$ 0,00 (defeito 05/09)
+
+     Um segundo aparelho fecha o caixa e congela o snapshot antes de a
+     sangria daqui chegar na nuvem. Depois a sangria volta para
+     `c.movimentos`, mas o snapshot ficou com 0. No fechamento aparecia
+     "Sangrias - R$ 0,00", dinheiro fora da gaveta e o sistema esquecido.
+     Sangria e suprimento só somam: vale sempre o maior entre o congelado
+     e os movimentos reais. ====================================== */
+  grupo('Sangria atrasada não some do fechamento do caixa');
+  try {
+    win.DB.pedidos = [];
+    const cxFech = {
+      id: 'cx_sang', fechadoEm: '2026-09-01T20:00:00', inicial: 100,
+      conferencia: {},
+      snapshot: {
+        formas: [{ id: 'fp_dinheiro', nome: 'Dinheiro', troco: true, sistema: 0, fisico: 0, diferenca: 0 }],
+        fundoAbertura: 100, suprimentos: 0, sangrias: 0, vendasDinheiro: 0,
+        diferencaTotal: 0, movimentos: []
+      },
+      movimentos: [{ id: 'mv1', tipo: 'sangria', valor: 85, hora: '23:24', motivoNome: 'Retirada para o cofre' }]
+    };
+    const d = win.dadosDoCaixa(cxFech);
+    t('a sangria de R$ 85 que chegou depois aparece (não fica R$ 0,00)', d.sangrias === 85, 'sangrias=' + d.sangrias);
+    t('a lista detalhada mostra o movimento que chegou atrasado',
+      (d.movimentos || []).some(m => m.tipo === 'sangria' && m.valor === 85), JSON.stringify(d.movimentos));
+    /* e o snapshot continua mandando quando ele é o mais completo */
+    const cxOk = JSON.parse(JSON.stringify(cxFech));
+    cxOk.snapshot.sangrias = 85;
+    cxOk.snapshot.movimentos = [{ hora: '23:24', tipo: 'sangria', valor: 85, motivo: 'Retirada para o cofre' }];
+    const d2 = win.dadosDoCaixa(cxOk);
+    t('quando o snapshot já tem tudo, ele não é inflado', d2.sangrias === 85, 'sangrias=' + d2.sangrias);
+  } catch (e) { t('o fechamento do caixa roda sem estourar', false, e.message); }
+
+  /* ==========================================================
+     CAMPO DE DINHEIRO deixa DIGITAR vários dígitos (defeito 05/09)
+
+     O pagamento redesenha o campo a cada tecla e devolve o foco. Se esse
+     refoco reselecionasse tudo, a tecla seguinte apagaria o dígito
+     anterior — "fica selecionado e não deixa digitar", nunca passava de
+     um número. O "seleciona tudo" só pode valer no toque da pessoa, não
+     no refoco do sistema (marca `_moedaRefoco`). ================= */
+  grupo('Campo de dinheiro: refoco do sistema não reseleciona o que foi digitado');
+  try {
+    const doc = win.document;
+    const inp = doc.createElement('input');
+    inp.type = 'text'; inp.className = 'moeda'; inp.value = '12';
+    doc.body.appendChild(inp);
+
+    /* refoco do sistema: a marca ligada -> NÃO seleciona tudo */
+    inp.setSelectionRange(2, 2);
+    win._moedaRefoco = true;
+    inp.dispatchEvent(new win.Event('focusin', { bubbles: true }));
+    win._moedaRefoco = false;
+    await new Promise(r => setTimeout(r, 5));
+    t('refoco do sistema mantém o cursor (não seleciona tudo)',
+      inp.selectionStart === 2 && inp.selectionEnd === 2,
+      inp.selectionStart + '..' + inp.selectionEnd);
+
+    /* toque da pessoa: sem a marca -> seleciona tudo (trocar 12 por outro) */
+    inp.setSelectionRange(2, 2);
+    inp.dispatchEvent(new win.Event('focusin', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 5));
+    t('toque da pessoa seleciona tudo (troca o valor de uma vez)',
+      inp.selectionStart === 0 && inp.selectionEnd === 2,
+      inp.selectionStart + '..' + inp.selectionEnd);
+    inp.remove();
+  } catch (e) { t('o campo de dinheiro roda sem estourar', false, e.message); }
+
   /* ---------------------------------------------------------- */
   grupo('Balanço: zero erro de runtime durante o guardião');
   t('nenhum erro de runtime na sessão inteira', erros.length === 0, erros.slice(0, 8).join(' | '));

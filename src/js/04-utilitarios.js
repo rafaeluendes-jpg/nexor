@@ -35,8 +35,11 @@ var TECLADO={alvo:null,antes:null};
 function tecladoTouchPermitido(){
   try{
     if(cfg().tecladoTouch===false)return false;
-    /* aparelho sem toque nao precisa: teclado fisico ja resolve */
-    var toque=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+    /* dedo como apontador (`pointer:coarse`) tambem conta: pega tablet
+       que nao anuncia `ontouchstart` e ficava sem o teclado virtual. PC
+       com mouse (pointer fino) segue sem numpad na tela. */
+    var toque=('ontouchstart' in window)||navigator.maxTouchPoints>0||
+      (typeof window.matchMedia==='function'&&window.matchMedia('(pointer:coarse)').matches);
     if(!toque&&cfg().tecladoTouch!==true)return false;
     return (S.mod==='pdv')||!!document.getElementById('cfTot')||!!document.getElementById('fcFundo');
   }catch(e){ return false; }
@@ -241,11 +244,25 @@ function moedaSet(ref,valor,vazioSeZero){
    chamam telaX() depois de salvar). Ligar evento em cada campo criado
    significaria religar em cada redesenho e esquecer em algum.
    ========================================================== */
+/* ==========================================================
+   O "SELECIONA TUDO" E PARA O TOQUE DA PESSOA, NAO PARA O REDESENHO
+
+   Telas como o pagamento do PDV redesenham o campo de dinheiro a cada
+   tecla e devolvem o foco ao novo campo. Esse foco de volta e do
+   sistema, nao da pessoa: se ele tambem selecionasse tudo, a tecla
+   seguinte apagaria o que ja estava escrito e o valor nunca passava de
+   um digito — era o "fica selecionado e nao deixa digitar".
+
+   Quem faz esse refoco liga `_moedaRefoco` por um instante; aqui o
+   "seleciona tudo" so acontece quando a marca esta desligada — ou seja,
+   quando foi a pessoa que tocou no campo.
+   ========================================================== */
+var _moedaRefoco=false;
 document.addEventListener('focusin',function(e){
   var el=e.target;
   if(!el.classList||!el.classList.contains('moeda'))return;
   /* item 2: tocar seleciona tudo — trocar 125,90 por 80 e digitar 80 */
-  setTimeout(function(){ try{ el.select(); }catch(x){} },0);
+  if(!_moedaRefoco)setTimeout(function(){ try{ el.select(); }catch(x){} },0);
   if(typeof tecladoTouchAbrir==='function')tecladoTouchAbrir(el);
 });
 document.addEventListener('input',function(e){

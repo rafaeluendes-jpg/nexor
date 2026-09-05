@@ -11954,8 +11954,11 @@ var TECLADO={alvo:null,antes:null};
 function tecladoTouchPermitido(){
   try{
     if(cfg().tecladoTouch===false)return false;
-    /* aparelho sem toque nao precisa: teclado fisico ja resolve */
-    var toque=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+    /* dedo como apontador (`pointer:coarse`) tambem conta: pega tablet
+       que nao anuncia `ontouchstart` e ficava sem o teclado virtual. PC
+       com mouse (pointer fino) segue sem numpad na tela. */
+    var toque=('ontouchstart' in window)||navigator.maxTouchPoints>0||
+      (typeof window.matchMedia==='function'&&window.matchMedia('(pointer:coarse)').matches);
     if(!toque&&cfg().tecladoTouch!==true)return false;
     return (S.mod==='pdv')||!!document.getElementById('cfTot')||!!document.getElementById('fcFundo');
   }catch(e){ return false; }
@@ -12160,11 +12163,25 @@ function moedaSet(ref,valor,vazioSeZero){
    chamam telaX() depois de salvar). Ligar evento em cada campo criado
    significaria religar em cada redesenho e esquecer em algum.
    ========================================================== */
+/* ==========================================================
+   O "SELECIONA TUDO" E PARA O TOQUE DA PESSOA, NAO PARA O REDESENHO
+
+   Telas como o pagamento do PDV redesenham o campo de dinheiro a cada
+   tecla e devolvem o foco ao novo campo. Esse foco de volta e do
+   sistema, nao da pessoa: se ele tambem selecionasse tudo, a tecla
+   seguinte apagaria o que ja estava escrito e o valor nunca passava de
+   um digito — era o "fica selecionado e nao deixa digitar".
+
+   Quem faz esse refoco liga `_moedaRefoco` por um instante; aqui o
+   "seleciona tudo" so acontece quando a marca esta desligada — ou seja,
+   quando foi a pessoa que tocou no campo.
+   ========================================================== */
+var _moedaRefoco=false;
 document.addEventListener('focusin',function(e){
   var el=e.target;
   if(!el.classList||!el.classList.contains('moeda'))return;
   /* item 2: tocar seleciona tudo — trocar 125,90 por 80 e digitar 80 */
-  setTimeout(function(){ try{ el.select(); }catch(x){} },0);
+  if(!_moedaRefoco)setTimeout(function(){ try{ el.select(); }catch(x){} },0);
   if(typeof tecladoTouchAbrir==='function')tecladoTouchAbrir(el);
 });
 document.addEventListener('input',function(e){
@@ -13228,7 +13245,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V311.0.0';
+var VERSAO='V312.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21349,7 +21366,10 @@ function recalcPag(){
       var pos=this.selectionStart;
       recalcPag();
       var novo=document.querySelector('.pgV[data-i="'+idx+'"]');
-      if(novo){novo.focus(); try{novo.setSelectionRange(pos,pos);}catch(e){}}
+      /* foco de volta e do sistema: avisa o `focusin` para NAO reselecionar
+         tudo, senao a proxima tecla apagaria o que ja foi digitado */
+      if(novo){_moedaRefoco=true; novo.focus(); _moedaRefoco=false;
+        try{novo.setSelectionRange(pos,pos);}catch(e){}}
     };
     /* sair do campo devolve o texto formatado e encerra a edicao */
     vs[i].onblur=function(){
@@ -29171,8 +29191,21 @@ function dadosDoCaixa(c){
   var liquido=+(bruto-vCanc).toFixed(2);
 
   var fundo   = s?s.fundoAbertura : (Number(c.inicial)||0);
-  var supri   = s?s.suprimentos   : totalMov(c,'suprimento');
-  var sangria = s?s.sangrias      : totalMov(c,'sangria');
+  /* ==========================================================
+     SANGRIA/SUPRIMENTO SO CRESCEM — O SNAPSHOT NUNCA MOSTRA MENOS
+
+     O snapshot congela sangrias e suprimentos na hora de fechar. Se um
+     movimento subiu DEPOIS (segundo aparelho fechou o caixa antes de a
+     sangria daqui chegar na nuvem), o snapshot fica com R$ 0,00 para
+     sempre, mesmo com o movimento ja de volta em `c.movimentos`. Era o
+     "Sangrias - R$ 0,00" que aparecia no fechamento.
+
+     Sangria e suprimento so somam, nunca diminuem: entao vale sempre o
+     maior entre o congelado e o que os movimentos de verdade mostram.
+     Nada e inventado — o numero vem dos movimentos reais.
+     ========================================================== */
+  var supri   = s ? Math.max(Number(s.suprimentos)||0, totalMov(c,'suprimento')) : totalMov(c,'suprimento');
+  var sangria = s ? Math.max(Number(s.sangrias)||0,    totalMov(c,'sangria'))    : totalMov(c,'sangria');
   var vendDin = s?s.vendasDinheiro: (Number(mov.dinheiro)||0);
 
   /* recebimentos: sistema x fisico x diferenca */
@@ -29198,11 +29231,15 @@ function dadosDoCaixa(c){
   var din=formas.filter(function(x){return x.troco})[0]||
           {sistema:0,fisico:null,diferenca:null,nome:'Dinheiro'};
 
-  var movs=(s&&s.movimentos)?s.movimentos:(c.movimentos||[]).map(function(m){
+  var movsLive=(c.movimentos||[]).map(function(m){
     return {hora:m.hora||'',tipo:m.tipo,valor:Number(m.valor)||0,
       motivo:m.motivoNome||m.motivo||'',descricao:m.motivo||'',
       destino:m.destinoNome||'',responsavel:m.responsavel||'',lancRef:m.lancRef||''};
   });
+  /* mesma razao do Math.max acima: se os movimentos de verdade sao mais
+     do que o snapshot congelou, a lista detalhada tambem mostra os que
+     chegaram depois, em vez de esconder a sangria que subiu atrasada */
+  var movs=(s&&s.movimentos&&s.movimentos.length>=movsLive.length)?s.movimentos:movsLive;
 
   var cancels=(DB.cancelamentos||[]).filter(function(x){return x.caixaId===c.id});
   var descs=ok.filter(function(p){return (Number(p.desconto)||0)>0.001||p.cupom});

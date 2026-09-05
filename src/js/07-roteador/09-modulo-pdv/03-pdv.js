@@ -1253,7 +1253,10 @@ function recalcPag(){
       var pos=this.selectionStart;
       recalcPag();
       var novo=document.querySelector('.pgV[data-i="'+idx+'"]');
-      if(novo){novo.focus(); try{novo.setSelectionRange(pos,pos);}catch(e){}}
+      /* foco de volta e do sistema: avisa o `focusin` para NAO reselecionar
+         tudo, senao a proxima tecla apagaria o que ja foi digitado */
+      if(novo){_moedaRefoco=true; novo.focus(); _moedaRefoco=false;
+        try{novo.setSelectionRange(pos,pos);}catch(e){}}
     };
     /* sair do campo devolve o texto formatado e encerra a edicao */
     vs[i].onblur=function(){
