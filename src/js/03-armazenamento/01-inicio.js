@@ -391,7 +391,22 @@ function gravarLocal(){
   var txt;
   try{ txt=JSON.stringify(DB); }
   catch(e){ alertaGravacao('Não consegui preparar os dados para salvar.'); return false; }
-  var guardar=_empacota(txt);                 /* comprimido, com a marca LZ1| */
+  /* ==========================================================
+     COM INDEXEDDB, A BASE VAI CRUA — COMPRIMIR TRAVAVA A TELA (05/09/2026)
+
+     Comprimir a base INTEIRA a cada gravacao rodava no fio da tela. Na
+     loja de maior base (Santa Fe do Sul, ~3 MB de JSON) medimos ~900 ms
+     de compressao num servidor rapido — no tablet da loja, os 4-5
+     segundos de travada a cada clique que o operador sentia. E o
+     `JSON.stringify` da MESMA base custa ~18 ms: quem pesa e a compressao.
+
+     A compressao so existia por causa do teto de ~5 MB do localStorage.
+     O IndexedDB nao tem esse teto, entao ali a base vai crua: acaba a
+     travada e nada se perde (a leitura, `_desempacota`, ja aceita os dois
+     formatos, entao a base antiga comprimida continua sendo lida). Sem
+     IndexedDB (aba anonima, navegador antigo) ainda comprime, porque ali
+     ela PRECISA caber no localStorage. */
+  var guardar=_usaIDB ? txt : _empacota(txt);
   _cacheLocal=guardar;                         /* a memoria e sempre a fonte da sessao */
   _ultimoTamanho=guardar.length;
   if(_usaIDB){

@@ -103,6 +103,13 @@ async function carregar(idb, semear) {
   t('o localStorage mantém um espelho síncrono (durabilidade imediata no F5)',
     /Casquinha/.test(win._desempacota(win.localStorage.getItem('nexor_dados') || '')),
     String(win.localStorage.getItem('nexor_dados')).slice(0, 40));
+  /* ==========================================================
+     A base no IndexedDB vai CRUA — comprimir a cada gravação travava a
+     tela por segundos na loja de maior base (Santa Fe, 05/09/2026). O
+     IndexedDB não tem o teto de 5 MB, então não precisa comprimir. Esta
+     trava impede que a compressão volte ao caminho quente sem querer. */
+  t('no IndexedDB a base vai CRUA, sem compressão (senão trava o clique na loja grande)',
+    typeof noIdb2 === 'string' && noIdb2.slice(0, 4) !== 'LZ1|', String(noIdb2).slice(0, 12));
 
   grupo('Depois de um "reload", a base volta do IndexedDB (persistiu)');
   const win2 = await carregar(idbA, null);         /* mesma fábrica, localStorage vazio = reload */
