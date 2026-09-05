@@ -70,7 +70,10 @@ const ruido = m => /MIME type|Failed to fetch|net::ERR|ServiceWorker|favicon|Man
   }, fid);
   const guardado = (fid) => pg.evaluate((x) => {
     try {
-      var b = JSON.parse(localStorage.getItem('nexor_dados') || '{}');
+      /* a base é guardada COMPRIMIDA (LZ1|); lê do jeito que o app lê */
+      var raw = localStorage.getItem('nexor_dados') || '{}';
+      if (typeof _desempacota === 'function') raw = _desempacota(raw);
+      var b = JSON.parse(raw);
       var f = (b.formasPag || []).find(y => y.id === x) || {};
       return { taxaPct: f.taxaPct, dias: f.dias, contaId: f.contaId };
     } catch (e) { return { erro: String(e.message) }; }

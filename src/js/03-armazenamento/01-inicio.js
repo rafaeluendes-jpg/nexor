@@ -262,9 +262,42 @@ function contarRetidas(){
 function modo(){try{return localStorage.getItem('nexor_modo')||'local'}catch(e){return 'local'}}
 function setModo(m){try{localStorage.setItem('nexor_modo',m)}catch(e){_quieto(e,'setModo')}}
 
+/* ==========================================================
+   A BASE VAI COMPRIMIDA PARA O APARELHO — 05/09/2026
+
+   O navegador dá ~5 MB por site. A base em JSON (nomes de campo repetidos
+   em cada pedido, datas, fotos em base64) passava disso e o navegador
+   RECUSAVA gravar: "memória cheia (5109 KB)". Sem gravar, a venda feita
+   sem internet não sobrevivia a um F5. Era real, não aviso falso.
+
+   Agora a base é guardada COMPRIMIDA (lz-string, sem perda). A mesma base
+   ocupa uma fração — medido ~20x menor —, com folga de anos.
+
+   Marca de formato: a versão comprimida começa com `LZ1|`. Um JSON sempre
+   começa com `{`, nunca com `LZ1|`, então a leitura reconhece sozinha o
+   que é antigo (sem comprimir) e o que é novo. Aparelho que já tinha a
+   base descomprimida lê normal e, na primeira gravação, passa a comprimir.
+   Nada se perde na virada. */
+var _MARCA_LZ='LZ1|';
+function _empacota(txt){
+  try{
+    if(typeof LZString!=='undefined'&&LZString.compressToUTF16){
+      var c=LZString.compressToUTF16(txt);
+      if(c&&c.length<txt.length)return _MARCA_LZ+c;
+    }
+  }catch(e){_quieto(e,'_empacota')}
+  return txt;                                 /* sem lib ou sem ganho: guarda cru */
+}
+function _desempacota(raw){
+  if(raw==null)return raw;
+  if(raw.slice(0,_MARCA_LZ.length)===_MARCA_LZ){
+    return LZString.decompressFromUTF16(raw.slice(_MARCA_LZ.length));
+  }
+  return raw;                                 /* formato antigo, JSON puro */
+}
 function carregar(){
   try{
-    var raw=localStorage.getItem('nexor_dados');
+    var raw=_desempacota(localStorage.getItem('nexor_dados'));
     if(raw){DB=JSON.parse(raw);}
     else{semear();gravarLocal();}
   }catch(e){semear();}
@@ -291,9 +324,10 @@ function gravarLocal(){
   var txt;
   try{ txt=JSON.stringify(DB); }
   catch(e){ alertaGravacao('Não consegui preparar os dados para salvar.'); return false; }
+  var guardar=_empacota(txt);                 /* comprimido, com a marca LZ1| */
   try{
-    localStorage.setItem('nexor_dados',txt);
-    _ultimoTamanho=txt.length;
+    localStorage.setItem('nexor_dados',guardar);
+    _ultimoTamanho=guardar.length;
     limparAlertaGravacao();
     return true;
   }catch(e){
@@ -301,8 +335,8 @@ function gravarLocal(){
     var lib=liberarEspacoLocal();
     if(lib){
       try{
-        localStorage.setItem('nexor_dados',txt);
-        _ultimoTamanho=txt.length;
+        localStorage.setItem('nexor_dados',guardar);
+        _ultimoTamanho=guardar.length;
         limparAlertaGravacao();
         logNuvem('espaço apertado: descartei a cópia local ('+Math.round(lib/1024)+
           ' KB) para conseguir salvar');
@@ -312,9 +346,9 @@ function gravarLocal(){
     /* memoria do navegador cheia: a gravacao falha e o proximo F5 volta ao estado antigo.
        Isso NAO pode passar como um toast que some em tres segundos. */
     alertaGravacao('O navegador recusou a gravação — memória cheia ('+
-      Math.round(txt.length/1024)+' KB). Nada do que você lançar agora será guardado '+
+      Math.round(guardar.length/1024)+' KB). Nada do que você lançar agora será guardado '+
       'neste aparelho até resolver. Seus dados na nuvem estão a salvo.');
-    logNuvem('FALHA AO GRAVAR NO APARELHO — '+Math.round(txt.length/1024)+' KB',true);
+    logNuvem('FALHA AO GRAVAR NO APARELHO — '+Math.round(guardar.length/1024)+' KB',true);
     return false;
   }
 }
@@ -545,8 +579,8 @@ async function restaurarRespaldo(){
     'O que estiver na tela agora será substituído por essa cópia.\n'+
     'A nuvem não é tocada até você conferir e salvar.'))return;
   try{
-    DB=JSON.parse(raw);
-    localStorage.setItem('nexor_dados',raw);
+    DB=JSON.parse(_desempacota(raw));         /* a cópia pode estar comprimida (LZ1|) */
+    localStorage.setItem('nexor_dados',raw);   /* copia como está: carregar() sabe ler */
     NUVEM.sujo=false;
     alert('Cópia restaurada. Confira os dados antes de sincronizar.');
     location.reload();

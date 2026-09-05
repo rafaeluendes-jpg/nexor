@@ -112,7 +112,8 @@ async function entrarPeloAuth(lg,sn){
      ========================================================== */
   var _mesmoDono=false, _ant=null;
   try{
-    var _txt=localStorage.getItem('nexor_dados');
+    var _txt=(typeof _desempacota==='function')?_desempacota(localStorage.getItem('nexor_dados'))
+                                               :localStorage.getItem('nexor_dados');
     if(_txt){
       _ant=JSON.parse(_txt);
       _mesmoDono = !!_ant

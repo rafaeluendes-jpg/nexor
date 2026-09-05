@@ -66,7 +66,9 @@ function ondeFica(linhaGlobal) {
 const GLOBAIS_EXTERNOS = {
   supabase: 'readonly', Chart: 'readonly', JsBarcode: 'readonly',
   QRCode: 'readonly', XLSX: 'readonly', jspdf: 'readonly', html2canvas: 'readonly',
-  workbox: 'readonly', idbKeyval: 'readonly'
+  workbox: 'readonly', idbKeyval: 'readonly', LZString: 'readonly',
+  /* carregadores opcionais que as libs UMD checam com typeof (não são bugs) */
+  module: 'readonly', define: 'readonly', angular: 'readonly'
 };
 
 const config = {
