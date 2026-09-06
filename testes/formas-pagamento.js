@@ -373,8 +373,11 @@ console.log('\n── Ninguem mais GRAVA o nome trocado\n');
    viram venda de verdade. Qualquer outro lugar, nao. */
 const gravam = (fonte.match(/pagamentos:\[\{\s*formaId:/g) || []).length;
 t('nenhuma venda de verdade nasce com `formaId`', gravam <= 2, gravam + ' ocorrência(s)');
-t('o pedido do cardápio digital grava `forma`',
-  /pagamentos:\[\{forma:formaPorNome/.test(corpoDaFuncao('aceitarPedidoOnline', fonte)));
+t('o pedido do cardápio digital grava `forma` E o nome (pela porta pagamentoOnline)',
+  /formaPorNome\(/.test(corpoDaFuncao('pagamentoOnline', fonte)) &&
+  /\bforma:/.test(corpoDaFuncao('pagamentoOnline', fonte)) &&
+  /formaNome:/.test(corpoDaFuncao('pagamentoOnline', fonte)) &&
+  /pagamentos:\[pagamentoOnline\(p\)\]/.test(corpoDaFuncao('aceitarPedidoOnline', fonte)));
 
 console.log('\n── E quem LE passa pela porta\n');
 

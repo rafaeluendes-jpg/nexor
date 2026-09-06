@@ -1539,15 +1539,22 @@ function servir() {
     r.semForma === 100, r.semForma);
 
   r = await pg.evaluate(() => {
-    /* e a origem: o pedido aceito do cardápio nasce com o nome certo */
+    /* e a origem: o pedido aceito do cardápio nasce com o nome certo.
+       A montagem do pagamento mora agora na porta pagamentoOnline, que
+       resolve a forma E carimba o nome (a trava da V308 no online). */
     var f = String(window.aceitarPedidoOnline || '');
-    return { gravaForma: /pagamentos:\[\{forma:formaPorNome/.test(f),
+    var po = String(window.pagamentoOnline || '');
+    return { gravaForma: /pagamentos:\[pagamentoOnline\(p\)\]/.test(f) &&
+                          /formaPorNome\(/.test(po) && /\bforma:/.test(po),
+      carimbaNome: /formaNome:/.test(po),
       naoGravaFormaId: !/pagamentos:\[\{formaId:/.test(f),
       subida: /forma_id:fk\('formasPag',_f\)/.test(String(window.formaDoPagamento || '')) ||
               true };
   });
   t('A ORIGEM CORRIGIDA: o pedido do cardápio grava `forma`, como o PDV',
     r.gravaForma === true);
+  t('e carimba o NOME da forma no cupom (nunca sai "Pagamento" em branco)',
+    r.carimbaNome === true);
   t('e não grava mais o nome trocado', r.naoGravaFormaId === true);
   await pg.evaluate(() => {
     DB.pedidos = []; DB.caixas = []; salvar();

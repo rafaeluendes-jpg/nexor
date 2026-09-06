@@ -237,8 +237,8 @@ console.log('\n── O código não guarda mais as regras antigas\n');
     !/n:'Cardápio digital'/.test(cv), 'lista paralela ainda presente');
   t('e chama a porta única', /canalDoPedido\(p\)===c\.id/.test(cv));
   const ac = corpoDaFuncao('aceitarPedidoOnline', fonte);
-  t('o pedido do cardápio nasce na loja aberta',
-    /sucursalId:p\.sucursal_id\|\|lojaAtualId\(\)\|\|'suc_matriz'/.test(ac));
+  t('o pedido do cardápio nasce na loja do caixa que aceitou',
+    /sucursalId:sucursalDoPedidoOnline\(p\)/.test(ac));
   const ex = corpoDaFuncao('explicaCanais', fonte);
   t('a explicação da tela não promete módulo que já existe',
     !/ficam em zero até os módulos existirem/.test(ex));

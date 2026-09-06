@@ -395,7 +395,7 @@ async function aceitarPedidoOnline(id){
 
        A loja da venda e a loja que aceitou o pedido — a mesma do caixa.
        ========================================================== */
-    sucursalId:p.sucursal_id||lojaAtualId()||'suc_matriz',
+    sucursalId:sucursalDoPedidoOnline(p),
     total:Number(p.total)||0,taxa:Number(p.taxa)||0,desconto:0,
     /* ==========================================================
        ESTA LINHA ERA OS R$ 285 "SEM FORMA DE PAGAMENTO"
@@ -420,7 +420,7 @@ async function aceitarPedidoOnline(id){
        so na hora de gravar, e quem le aceita os dois — para o que ja
        esta gravado tambem sarar.
        ========================================================== */
-    pagamentos:[{forma:formaPorNome(p.forma_pagamento),valor:Number(p.total)||0}],
+    pagamentos:[pagamentoOnline(p)],
     obs:p.observacao||'',trocoPara:Number(p.troco_para)||0,
     entregadorId:(p.tipo==='entrega'&&entregadorPadrao()?entregadorPadrao().id:null),
     data:ag.toISOString(),hora:agoraHM(),caixaId:(caixaAberto()||{}).id,
@@ -559,6 +559,37 @@ function formaPorNome(nome){
     if(n.indexOf('dinheiro')>=0)return y.indexOf('dinheiro')>=0;
     return false;});
   return f?f.id:((DB.formasPag||[])[0]||{}).id;
+}
+/* ==========================================================
+   O PEDIDO DO CARDAPIO PRECISA NASCER "GORDO" COMO O DO PDV (05/09/2026)
+
+   Dois defeitos no cupom de um pedido de entrega (Santa Fe, pedido 924):
+   o topo saiu "Alphaville" (a matriz) e a forma de pagamento saiu so
+   "Pagamento", sem o nome. Os dois vinham do pedido online nascer magro:
+   sem a loja certa e sem o NOME da forma carimbado — dependia do cadastro
+   e da lista de unidades ja terem sincronizado, que e o estado ruim.
+
+   O PDV nao tem esses defeitos porque grava tudo na hora da venda. Estes
+   dois helpers dao ao pedido online a mesma blindagem.
+   ========================================================== */
+/* a loja da venda e a do CAIXA que aceitou (ele carimba a loja na abertura),
+   nao um `lojaAtualId()` que, nos primeiros segundos ou num aparelho que
+   circula, pode cair na matriz. O pedido ja se prende a este caixa (caixaId). */
+function sucursalDoPedidoOnline(p){
+  return (p&&p.sucursal_id)||(caixaAberto()||{}).sucursalId||lojaAtualId()||'suc_matriz';
+}
+/* carimba o NOME da forma no pagamento (a mesma trava da V308, que so
+   estava no PDV): o texto do cardapio ja diz a forma escolhida, entao o
+   cupom nunca mais depende do cadastro ter descido da nuvem. */
+function pagamentoOnline(p){
+  var fid=formaPorNome(p&&p.forma_pagamento);
+  var lista=(DB.formasPag||[]).concat(typeof FORMAS!=='undefined'&&FORMAS?FORMAS:[]);
+  var f=lista.find(function(x){return x&&x.id===fid;});
+  var nomeTxt=String((p&&p.forma_pagamento)||'').trim();
+  return {forma:fid,
+    formaNome:(f&&(f.nome||f.n))||nomeTxt||'Pagamento',
+    tipo:(f&&f.tipo)||'',
+    valor:Number(p&&p.total)||0};
 }
 async function aceitarPedidoMesa(p){
   baseMesas();baseComandas();
