@@ -80,7 +80,10 @@ const ruido = m => /Not implemented: |Could not parse CSS|localStorage|offline|s
       receber:true,total:1000,
       itens:[{insumoId:'in_leite',nome:'Leite',unidade:'l',qtd:100,total:700}]};
   `);
-  w.eval(`finalizarNota([{id:'lf_teste',valor:700,pago:false,contaId:'ct_caixa',
+  /* fluxo novo: confirmar a nota MATERIALIZA (estoque) e depois VINCULA o
+     financeiro. Aqui reproduzimos os dois passos que a confirmarNota faz. */
+  w.eval(`var _n=_nota; materializarNota(_n); _nota=null;
+    vincularLancsANota(_n,[{id:'lf_teste',valor:700,pago:false,contaId:'ct_caixa',
     metodoId:'',categoriaId:''}]);`);
   await esp(60);
   t('a nota entra no estoque', saldo('in_leite') - antesLeite === 100,
@@ -103,7 +106,7 @@ const ruido = m => /Not implemented: |Could not parse CSS|localStorage|offline|s
   w.eval(`
     _nota={numero:'0002',data:hojeISO(),fornecedorNome:'Y',receber:false,total:50,
       itens:[{insumoId:'in_leite',nome:'Leite',unidade:'l',qtd:10,total:70}]};
-    finalizarNota([]);
+    var _n2=_nota; materializarNota(_n2); _nota=null; vincularLancsANota(_n2,[]);
   `);
   await esp(40);
   t('nota não recebida NÃO mexe no estoque', saldo('in_leite') === antes2,

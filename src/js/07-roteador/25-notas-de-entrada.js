@@ -395,6 +395,20 @@ function fecharNota(){
   _nota=null;_itemSel=null;
   telaNotas();
 }
+/* ==========================================================
+   A MERCADORIA CHEGOU: O ESTOQUE NAO ESPERA O FINANCEIRO (05/09/2026)
+
+   Ordem do Rafael: ao clicar OK na nota (com todos os itens lançados), a
+   mercadoria JA chegou — grava a nota e abastece o estoque NA HORA. O
+   financeiro é o próximo passo: abre em seguida. Se a pessoa CANCELAR ali,
+   a nota fica em "Compras sem Vínculo" (com estoque já lançado) para o
+   financeiro ser feito depois.
+
+   Antes, tudo (nota + estoque + financeiro) só acontecia quando o
+   financeiro era salvo — então cancelar ali perdia a NOTA INTEIRA e não
+   deixava rastro em lugar nenhum. Agora a nota se materializa no OK e o
+   financeiro é um vínculo que vem depois (agora ou de "sem vínculo").
+   ========================================================== */
 function confirmarNota(){
   guardarCabNota();
   var n=_nota;
@@ -402,39 +416,20 @@ function confirmarNota(){
   if(!(n.itens||[]).length){toast('Lance ao menos um item.');return;}
   n.valorMercadorias=+(n.itens.reduce(function(a,i){return a+i.total},0)).toFixed(2);
   n.valorTotal=n.valorMercadorias;
-  abrirFinanceiroNota();
-}
-
-/* ---------- FINANCEIRO DA NOTA ---------- */
-function abrirFinanceiroNota(){
-  var n=_nota;
+  materializarNota(n);                 /* grava a nota e abastece o estoque */
+  marcarNotaSemVinculo(n);             /* nasce pendente de financeiro; sai da lista ao vincular */
+  _nota=null;_itemSel=null;
   var o=document.getElementById('mdOv');if(o)o.remove();
-  modalLanc(null,'despesa',{
-    titulo:'Lançamento da nota '+n.numero,
-    botao:'Confirmar e lançar',
-    descricao:'NF '+n.numero+' — '+n.fornecedorNome,
-    valor:n.valorTotal,
-    emissao:n.data,
-    vencimento:n.data,
-    documento:'NF '+n.numero,
-    soDespesa:true,
-    fornecedorId:n.fornecedorId,
-    contaId:(DB.contas&&DB.contas[0])?DB.contas[0].id:'',
-    apos:function(criados){finalizarNota(criados)}
-  });
+  telaNotas();
+  toast('Nota '+n.numero+' lançada — estoque '+(n.receber!==false?'atualizado':'não movimentado')+
+    '. Agora o financeiro.');
+  abrirFinanceiroNota(n);
 }
-function finalizarNota(lancs){
-  var n=_nota;
-  if(!n){telaNotas();return;}
-  n.id=uid('nf');n.hora=agoraHM();
+/* grava a nota e aplica o estoque — a parte que NAO depende do financeiro */
+function materializarNota(n){
+  if(!n)return;
+  n.id=n.id||uid('nf');n.hora=n.hora||agoraHM();
   n.receber=n.receber!==false;
-  n.lancIds=(lancs||[]).map(function(l){return l.id});
-  var prim=(lancs||[])[0]||{};
-  n.pagamento={tipo:(lancs&&lancs.length>1)?'Parcelado':(prim.pago?'À vista':'A prazo'),
-    parcelas:(lancs||[]).length,contaId:prim.contaId||'',
-    metodoId:prim.metodoId||'',categoriaId:prim.categoriaId||''};
-
-  /* entrada no estoque */
   if(n.receber){
     var linhas=n.itens.filter(function(it){
       var i2=insumo(it.insumoId);
@@ -459,20 +454,47 @@ function finalizarNota(lancs){
       i2.custoUltima=+(it.total/it.qtd).toFixed(6);
     });
   }
-  /* amarra os lançamentos à nota */
+  DB.notas.push(n);
+  salvar();
+  setTimeout(function(){try{vincularFornecedor(n)}catch(e){_quieto(e,'materializarNota')}},600);
+}
+
+/* ---------- FINANCEIRO DA NOTA ---------- */
+function abrirFinanceiroNota(n){
+  n=n||_nota;
+  if(!n)return;
+  var o=document.getElementById('mdOv');if(o)o.remove();
+  modalLanc(null,'despesa',{
+    titulo:'Lançamento da nota '+n.numero,
+    botao:'Confirmar e lançar',
+    descricao:'NF '+n.numero+' — '+n.fornecedorNome,
+    valor:n.valorTotal,
+    emissao:n.data,
+    vencimento:n.data,
+    documento:'NF '+n.numero,
+    soDespesa:true,
+    fornecedorId:n.fornecedorId,
+    contaId:(DB.contas&&DB.contas[0])?DB.contas[0].id:'',
+    apos:function(criados){vincularLancsANota(n,criados)}
+  });
+}
+/* liga o(s) lançamento(s) à nota e a tira de "Compras sem Vínculo" */
+function vincularLancsANota(n,lancs){
+  if(!n){telaNotas();return;}
+  n.lancIds=(lancs||[]).map(function(l){return l.id});
+  var prim=(lancs||[])[0]||{};
+  n.pagamento={tipo:(lancs&&lancs.length>1)?'Parcelado':(prim.pago?'À vista':'A prazo'),
+    parcelas:(lancs||[]).length,contaId:prim.contaId||'',
+    metodoId:prim.metodoId||'',categoriaId:prim.categoriaId||''};
   (lancs||[]).forEach(function(l){
     l.origem='nota-entrada';l.ref=n.id;
     l.fornecedor=n.fornecedorNome;l.fornecedorId=n.fornecedorId;
   });
-
-  DB.notas.push(n);
+  if(typeof desmarcarNotaSemVinculo==='function')desmarcarNotaSemVinculo(n);
   salvar();
   var o=document.getElementById('mdOv');if(o)o.remove();
-  _nota=null;_itemSel=null;
   telaNotas();
-  toast('Nota lançada — estoque '+(n.receber?'atualizado':'não movimentado')+
-    ' e '+(lancs||[]).length+' lançamento(s) no financeiro.');
-  setTimeout(function(){vincularFornecedor(n)},600);
+  toast((lancs||[]).length+' lançamento(s) no financeiro — nota '+n.numero+' vinculada.');
 }
 
 /* ao lancar a nota, os itens passam a pertencer aquele fornecedor */

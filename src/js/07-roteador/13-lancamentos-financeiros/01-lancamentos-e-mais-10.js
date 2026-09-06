@@ -560,6 +560,35 @@ function arquivarSemVinculo(l,nota){
     lanc:{tipo:l.tipo,contaId:l.contaId,metodoId:l.metodoId,categoriaId:l.categoriaId,
       pago:!!l.pago,emissao:l.emissao,pagamento:l.pagamento||null}});
 }
+/* ==========================================================
+   CENARIO 1: NOTA COM ESTOQUE, AINDA SEM FINANCEIRO
+
+   Quando a nota é confirmada mas o financeiro é cancelado, ela nasce aqui
+   (tipo 'pendente', sem molde de boleto). Sai da lista quando o financeiro
+   for vinculado. É o gêmeo do arquivarSemVinculo (cenário 2), que guarda o
+   boleto que foi EXCLUIDO. Os dois significam o mesmo: nota com estoque
+   lançado e sem a conta a pagar.
+   ========================================================== */
+function marcarNotaSemVinculo(n){
+  if(!n||!n.id)return;
+  DB.comprasSemVinc=DB.comprasSemVinc||[];
+  if(DB.comprasSemVinc.some(function(c){return c.notaId===n.id}))return;   /* já está lá */
+  var u=usuarioLogado();
+  DB.comprasSemVinc.push({id:uid('csv'),tipo:'pendente',
+    notaId:n.id,notaNumero:n.numero,
+    fornecedor:n.fornecedorNome||'',
+    descricao:'NF '+n.numero+' — '+(n.fornecedorNome||''),documento:'NF '+n.numero,
+    valor:Number(n.valorTotal)||0,vencimento:n.data||'',
+    itens:(n.itens||[]).map(function(it){
+      return {nome:it.nome,qtd:it.qtd,unidade:it.unidade,total:it.total}}),
+    excluidoPor:u?u.nome:'—',excluidoEm:new Date().toISOString(),
+    lanc:null});
+  salvar();
+}
+function desmarcarNotaSemVinculo(n){
+  if(!n||!n.id||!DB.comprasSemVinc)return;
+  DB.comprasSemVinc=DB.comprasSemVinc.filter(function(c){return c.notaId!==n.id});
+}
 
 /* ==========================================================
    COMPRAS SEM VINCULO
@@ -579,8 +608,9 @@ function telaSemVinculo(){
   $('content').innerHTML='<div class="mvWrap telaCheia">'+
    '<div class="mvTopo"><h1>Compras sem Vínculo</h1><div style="flex:1"></div></div>'+
    '<div class="mvCorpo">'+
-   '<p style="margin:0 0 12px;color:var(--ink-3);font-size:13px">Boletos de nota de entrada que foram excluídos do financeiro '+
-    '<b>sem excluir a nota</b>. A compra existe no estoque, mas ficou sem a conta a pagar.</p>'+
+   '<p style="margin:0 0 12px;color:var(--ink-3);font-size:13px">Notas de entrada com a mercadoria <b>já no estoque</b>, '+
+    'mas <b>sem a conta a pagar</b> — ou porque o financeiro foi cancelado no lançamento, ou porque o boleto foi '+
+    'excluído depois. Clique numa linha para fazer o financeiro (ou devolver o estoque).</p>'+
    '<div style="display:flex;gap:10px;align-items:flex-end;margin:0 0 12px;flex-wrap:wrap">'+
     '<div class="f2" style="max-width:150px"><label>De</label>'+
      '<input type="date" id="csvDe" value="'+CSV.de+'"></div>'+
@@ -594,7 +624,7 @@ function telaSemVinculo(){
    (lista.length
     ?'<div class="blk" style="max-width:none;padding:0;overflow:hidden">'+
      '<table class="fmTab"><thead><tr>'+
-      '<th style="width:130px">Excluído em</th><th style="width:150px">Por</th>'+
+      '<th style="width:150px">Sem financeiro desde</th><th style="width:140px">Por</th>'+
       '<th style="width:90px">Nota</th><th>Fornecedor</th><th>Descrição</th>'+
       '<th style="width:110px">Vencimento</th>'+
       '<th style="width:120px;text-align:right">Valor</th></tr></thead><tbody>'+
@@ -627,7 +657,7 @@ function verSemVinc(id){
      (c.documento?' · '+E(c.documento):'')+'</b></div>'+
     '<div class="cfL"><span>Valor</span><b>R$ '+money(c.valor)+'</b></div>'+
     '<div class="cfL"><span>Vencimento</span><b>'+(c.vencimento?dataBR(c.vencimento):'—')+'</b></div>'+
-    '<div class="cfL"><span>Excluído por</span><b class="vr">'+E(c.excluidoPor||'—')+' — '+
+    '<div class="cfL"><span>'+(c.tipo==='pendente'?'Registrado por':'Excluído por')+'</span><b class="vr">'+E(c.excluidoPor||'—')+' — '+
      (c.excluidoEm?dataBR(c.excluidoEm.slice(0,10))+' às '+c.excluidoEm.slice(11,16):'—')+'</b></div>'+
    '</div>'+
    '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">'+
@@ -641,33 +671,94 @@ function verSemVinc(id){
       '<td style="text-align:right">R$ '+money(it.total)+'</td></tr>';
     }).join(''):'<tr><td colspan="3" class="semIns">sem itens registrados</td></tr>')+
     '</tbody></table></div>'+
-   '<div class="hint" style="margin-top:10px">Para repor a conta a pagar, clique em '+
-    '<b>Relançar no financeiro</b> — o boleto volta como estava.</div>'+
+   '<div class="hint" style="margin-top:10px">A mercadoria já está no estoque. Clique em '+
+    '<b>Resolver</b> para fazer o financeiro (conta a pagar) ou devolver o estoque.</div>'+
   '</div>';
   var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
   o.innerHTML='<div class="mdBox xl"><div class="mdH"><b>Compra sem vínculo — nota '+E(c.notaNumero||'')+'</b>'+
    '<button class="mdX" onclick="fecharModal()">&times;</button></div>'+h+
    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
-   '<button class="btnP2 ok" onclick="relancarSemVinc(\''+c.id+'\')">Relançar no financeiro</button></div></div>';
+   '<button class="btnP2 ok" onclick="relancarSemVinc(\''+c.id+'\')">Resolver</button></div></div>';
   document.body.appendChild(o);
 }
-async function relancarSemVinc(id){
+/* ==========================================================
+   RESOLVER A COMPRA SEM VINCULO — MANTER OU DEVOLVER O ESTOQUE
+
+   O estoque desta nota JA está lançado (entrou quando a nota foi
+   confirmada). Ao resolver, a pergunta do Rafael: manter o estoque e fazer
+   o financeiro, OU devolver o estoque e cancelar a compra de vez.
+   ========================================================== */
+function relancarSemVinc(id){
   var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
   if(!c)return;
-  if(!await pergunta('Relançar o boleto de R$ '+money(c.valor)+' no financeiro?\n\n'+
-    'Ele volta como conta a pagar e sai desta lista.'))return;
-  var lc=c.lanc||{};
-  DB.lancFin=DB.lancFin||[];
-  DB.lancFin.push({id:uid('lf'),tipo:lc.tipo||'despesa',contaId:lc.contaId||'',
-    contaDestinoId:'',metodoId:lc.metodoId||'',categoriaId:lc.categoriaId||'',categoriaTxt:'',
-    fornecedorId:'',fornecedor:c.fornecedor||'',descricao:c.descricao||('NF '+c.notaNumero),
-    documento:c.documento||'',valor:Number(c.valor)||0,
-    emissao:lc.emissao||hojeISO(),vencimento:c.vencimento||hojeISO(),
-    pagamento:lc.pagamento||null,pago:!!lc.pago,conciliado:false,dataConc:null,
-    origem:'nota-entrada',ref:c.notaId,obs:'relançado de Compras sem Vínculo'});
+  var nota=(DB.notas||[]).find(function(n){return n.id===c.notaId});
+  var temEstoque=!!(nota&&nota.movId&&(DB.movEst||[]).some(function(m){return m.id===nota.movId}));
+  var h='<div class="mdB">'+
+   '<p style="margin:0 0 12px">O estoque desta nota <b>já está lançado</b>. O que você quer fazer '+
+    'com a compra <b>'+E(c.notaNumero||'—')+'</b> ('+E(c.fornecedor||'—')+' · R$ '+money(c.valor)+')?</p>'+
+   '<div class="hint"><b>Manter</b>: a mercadoria continua no estoque e você faz o financeiro (conta a pagar).<br>'+
+    (temEstoque?'<b>Devolver</b>: desfaz a entrada de estoque desta nota e cancela a compra — sem financeiro.'
+              :'A entrada de estoque desta nota não foi encontrada, então só dá para fazer o financeiro.')+'</div>'+
+   '</div>';
+  var o=document.createElement('div');o.className='mdOv';o.id='mdOvSV';
+  o.innerHTML='<div class="mdBox"><div class="mdH"><b>Resolver compra sem vínculo</b>'+
+   '<button onclick="fecharSV()">&times;</button></div>'+h+
+   '<div class="mdF">'+
+    (temEstoque?'<button class="btn rd" onclick="semVincDevolver(\''+c.id+'\')">Devolver o estoque</button>':'')+
+    '<button class="btn p" onclick="semVincManter(\''+c.id+'\')">Manter e fazer o financeiro</button>'+
+   '</div></div>';
+  document.body.appendChild(o);
+}
+function fecharSV(){var o=document.getElementById('mdOvSV');if(o)o.remove();}
+/* manter o estoque e fazer o financeiro. Cenário 2 (tem molde) recria o
+   boleto como estava; cenário 1 (pendente) abre o financeiro da nota. */
+function semVincManter(id){
+  fecharSV();
+  var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  var nota=(DB.notas||[]).find(function(n){return n.id===c.notaId});
+  if(c.lanc){
+    var lc=c.lanc;
+    DB.lancFin=DB.lancFin||[];
+    DB.lancFin.push({id:uid('lf'),tipo:lc.tipo||'despesa',contaId:lc.contaId||'',
+      contaDestinoId:'',metodoId:lc.metodoId||'',categoriaId:lc.categoriaId||'',categoriaTxt:'',
+      fornecedorId:(nota?nota.fornecedorId:'')||'',fornecedor:c.fornecedor||'',
+      descricao:c.descricao||('NF '+c.notaNumero),documento:c.documento||'',valor:Number(c.valor)||0,
+      emissao:lc.emissao||hojeISO(),vencimento:c.vencimento||hojeISO(),
+      pagamento:lc.pagamento||null,pago:!!lc.pago,conciliado:false,dataConc:null,
+      origem:'nota-entrada',ref:c.notaId,obs:'relançado de Compras sem Vínculo'});
+    DB.comprasSemVinc=DB.comprasSemVinc.filter(function(x){return x.id!==id});
+    salvar();fecharModal();telaSemVinculo();
+    toast('Boleto relançado no financeiro.');
+    return;
+  }
+  /* pendente (cenário 1): sem molde — abre o financeiro da nota para preencher.
+     A entrada só sai da lista quando o financeiro for salvo (vincularLancsANota);
+     se cancelar de novo, continua aqui. */
+  fecharModal();
+  if(nota&&typeof abrirFinanceiroNota==='function'){ abrirFinanceiroNota(nota); }
+  else{ toast('A nota desta compra não existe mais — não dá para fazer o financeiro.'); }
+}
+/* devolver o estoque: desfaz a entrada da nota e cancela a compra de vez */
+async function semVincDevolver(id){
+  fecharSV();
+  var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  var nota=(DB.notas||[]).find(function(n){return n.id===c.notaId});
+  if(!await pergunta('Devolver o estoque da nota '+(c.notaNumero||'')+' e cancelar esta compra?\n\n'+
+    'A entrada de estoque será desfeita e a nota removida. Não tem como refazer pela tela.'))return;
+  if(nota&&nota.movId){
+    var mov=(DB.movEst||[]).find(function(m){return m.id===nota.movId});
+    if(mov){ try{ aplicarMovimento(mov,true); }catch(e){ _quieto(e,'semVincDevolver'); }
+      DB.movEst=DB.movEst.filter(function(m){return m.id!==nota.movId}); }
+    (DB.insumos||[]).forEach(function(i2){
+      if(i2&&i2.compras)i2.compras=i2.compras.filter(function(cp){return cp.notaId!==nota.id});
+    });
+  }
+  if(nota)DB.notas=DB.notas.filter(function(n){return n.id!==nota.id});
   DB.comprasSemVinc=DB.comprasSemVinc.filter(function(x){return x.id!==id});
   salvar();fecharModal();telaSemVinculo();
-  toast('Boleto relançado no financeiro.');
+  toast('Estoque devolvido e compra '+(c.notaNumero||'')+' cancelada.');
 }
 
 
