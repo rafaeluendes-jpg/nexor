@@ -13462,7 +13462,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V316.0.0';
+var VERSAO='V317.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -49498,20 +49498,35 @@ function htmlPassosImpressao(){
 }
 /* mostrado uma vez por aparelho, na primeira impressao; o Chrome guarda
    o ajuste, entao repetir so atrapalharia quem ja arrumou */
+/* ==========================================================
+   O AVISO ERA "UMA VEZ", MAS SO SE CLICASSEM — E NINGUEM CLICAVA (05/09/2026)
+
+   A intencao sempre foi mostrar este aviso UMA VEZ por aparelho. Mas o
+   `nexor_impressao_ok` so era gravado quando a pessoa clicava "Ja
+   ajustei" — e Santa Fe do Sul nunca clicou. Resultado: o aviso reaparecia
+   ANTES de CADA impressao, empilhando um modal na frente do papel. Ao
+   fechar o caixa e mandar imprimir, o operador via esta janela em vez do
+   comprovante — "clico imprimir e nao imprime; repito e ai sai".
+
+   Agora, ao MOSTRAR, ja se lembra: aparece uma vez, e da impressao
+   seguinte em diante a janela de impressao abre limpa, sozinha. O aviso e
+   so uma dica cosmetica (o cabecalho/rodape do Chrome); imprimir de
+   verdade nunca pode depender dele.
+   ========================================================== */
 function avisoJanelaImpressao(){
   try{
     if(localStorage.getItem('nexor_impressao_ok'))return;
+    try{ localStorage.setItem('nexor_impressao_ok','1'); }catch(e){}   /* uma vez, de verdade */
     var o=document.createElement('div');o.className='mdOv';o.id='mdImpAviso';
-    o.innerHTML='<div class="mdBox"><div class="mdH"><b>Ajuste a janela de impressão</b>'+
-      '<button onclick="fecharAvisoImpressao(false)">&times;</button></div>'+
+    o.innerHTML='<div class="mdBox"><div class="mdH"><b>Ajuste a janela de impressão (uma vez)</b>'+
+      '<button onclick="fecharAvisoImpressao(true)">&times;</button></div>'+
       '<div class="mdB"><div class="hint" style="margin-bottom:10px">'+
       'A data em cima e o endereço do site embaixo <b>não são do Joia</b> — são do '+
-      'navegador. Na janela que vai abrir agora, ajuste uma vez:</div>'+
+      'navegador. Na janela de impressão, desmarque uma vez:</div>'+
       htmlPassosImpressao()+
-      '<div class="hint">O Chrome guarda essa escolha para as próximas impressões.</div>'+
+      '<div class="hint">O Chrome guarda essa escolha. Este aviso não aparece de novo.</div>'+
       '</div><div class="mdF">'+
-      '<button class="btnP2" onclick="fecharAvisoImpressao(false)">Mostrar de novo depois</button>'+
-      '<button class="btnP2 ok" onclick="fecharAvisoImpressao(true)">Já ajustei, não mostrar mais</button>'+
+      '<button class="btnP2 ok" onclick="fecharAvisoImpressao(true)">Entendi</button>'+
       '</div></div>';
     document.body.appendChild(o);
   }catch(e){ _quieto(e,'avisoJanelaImpressao'); }

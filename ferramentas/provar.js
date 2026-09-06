@@ -1432,15 +1432,15 @@ function servir() {
     /* o papel impresso NAO pode conter endereco de site nem paginacao */
     var pap = document.querySelector('#viaImp .papel');
     var corpo = pap ? pap.textContent : '';
-    /* clicando em "já ajustei", nunca mais aparece */
-    var bt = av ? [...av.querySelectorAll('button')]
-      .find(b => /já ajustei/i.test(b.textContent)) : null;
-    if (bt) bt.click();
+    /* mostrar UMA VEZ já se lembra (sem depender de clicar): o flag foi
+       gravado ao exibir, então a próxima impressão não traz o aviso de novo */
+    var lembrou = (function(){ try { return localStorage.getItem('nexor_impressao_ok') === '1'; } catch (e) { return false; } })();
+    if (av) av.remove();
     var v2 = document.getElementById('viaImp'); if (v2) v2.remove();
     document.getElementById('impCSS').remove();
     imprimirVia(ped);
     var voltou = !!document.getElementById('mdImpAviso');
-    return { apareceu: !!av, texto: texto, corpo: corpo, voltou: voltou };
+    return { apareceu: !!av, texto: texto, corpo: corpo, voltou: voltou, lembrou: lembrou };
   });
   t('na primeira impressão o sistema avisa como ajustar a janela',
     r.apareceu === true);
@@ -1450,7 +1450,8 @@ function servir() {
     /Cabeçalhos e rodapés: desmarcado/i.test(r.texto), r.texto.slice(0, 200));
   t('e pôr as Margens em Nenhuma', /Margens: Nenhuma/i.test(r.texto));
   t('diz onde fica: em Mais definições', /Mais definições/i.test(r.texto));
-  t('depois de "já ajustei" o aviso não volta a atrapalhar', r.voltou === false);
+  t('mostrar uma vez já se lembra sozinho (Santa Fé nunca clicava "já ajustei")', r.lembrou === true);
+  t('da segunda impressão em diante o aviso não volta a atrapalhar', r.voltou === false);
   t('O PAPEL DO JOIA NÃO TEM ENDEREÇO DE SITE',
     !/joiagest|http|index\.html/i.test(r.corpo), r.corpo.slice(0, 120));
   /* a data do cupom e 30/08/2026: a busca tem de ser pela paginacao
