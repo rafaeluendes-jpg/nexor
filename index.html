@@ -13462,7 +13462,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V317.0.0';
+var VERSAO='V318.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -28261,20 +28261,20 @@ function modalLanc(id,tipoNovo,pre){
   ((!l&&P.soDespesa)?'<div class="tipoFixo">'+sv('dn',12)+' Compra de mercadoria — lançada como <b>despesa</b></div>':'')+
   (P.deCB?'<div class="tipoFixo">'+sv('nike',12)+' Movimento do extrato — '+
     (tipo==='receita'?'<b>receita</b>':'<b>despesa</b>')+', o tipo não muda por aqui</div>':'')+
-  (mostraPg
-  ?'<div class="row2" style="margin-top:12px">'+
-   '<div class="fld2"><label>Banco / conta *</label><select id="lnC">'+
-    '<option value="">Selecione uma opção</option>'+
-    (DB.contas||[]).map(function(c){return '<option value="'+c.id+'"'+((l&&l.contaId===c.id)||(!l&&P.contaId===c.id)?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
-   '</select></div>'+
-   '<div class="fld2"><label>Forma de pagamento</label>'+
-   '<select id="lnM"><option value="">Selecione uma opção</option>'+
-    (DB.formasPag||[]).filter(function(f){return f.ativa!==false}).map(function(f){
-      return '<option value="'+f.id+'"'+(l&&l.metodoId===f.id?' selected':'')+'>'+E(f.nome)+'</option>'}).join('')+
-   '</select></div>'+
-  '</div>'
-  :'<div class="avisoPg">'+sv('help',12)+' <span>Banco e forma de pagamento são escolhidos '+
-   'na hora de dar baixa, no <b>joinha</b> da lista de lançamentos.</span></div>')+
+  /* ==========================================================
+     FORMA DE PAGAMENTO NO "JA ESTA PAGO" (05/09/2026)
+
+     Banco e forma pertencem ao PAGAMENTO, nao ao lancamento — por isso so
+     apareciam na hora de dar baixa (o joinha). Mas quando a conta ja
+     nasce PAGA, quem lanca ja sabe como pagou: precisa dizer ali, no
+     mesmo lugar, sem depender de um segundo modal. Entao Banco + Forma +
+     Data foram para dentro do bloco que abre com "Ja esta pago" (abaixo),
+     reusando os MESMOS campos que a baixa grava (`lnC`/`lnM` -> `contaId`/
+     `metodoId`). O aviso aqui em cima so lembra o caminho da baixa quando
+     a conta ainda nao esta paga. */
+  '<div class="avisoPg" id="avPgBaixa" style="'+(mostraPg?'display:none':'')+'">'+sv('help',12)+
+   ' <span>Banco e forma de pagamento são escolhidos na hora de dar baixa, no <b>joinha</b> da '+
+   'lista de lançamentos — ou marque <b>Já está pago</b> abaixo para informar agora.</span></div>'+
   '<div class="fld2"><label>Descrição *</label><input id="lnD" maxlength="225" value="'+E(l?l.descricao:(P.descricao||''))+'" placeholder="ex: Pagamento NF 123 — Fornecedor X"></div>'+
   '<div class="row3">'+
    '<div class="fld2"><label>Valor *</label><div class="cur"><span>R$</span>'+
@@ -28305,9 +28305,22 @@ function modalLanc(id,tipoNovo,pre){
     'WhatsApp — o gerente copia e paga sem procurar o papel.</div></div>'+
   '</div>'+
   '<label class="chkL" style="margin-top:4px"><input type="checkbox" id="lnP" '+(l&&l.pago?'checked':'')+'>'+
-  '<span>Já está pago<small style="display:block;color:var(--ink-3)">marque para informar o dia do pagamento</small></span></label>'+
-  '<div class="fld2" id="boxPg" style="'+(l&&l.pago?'':'display:none')+'"><label>Data do pagamento</label>'+
-   '<input id="lnPg" type="date" value="'+(l&&l.pagamento?l.pagamento:hojeISO())+'"></div>'+
+  '<span>Já está pago<small style="display:block;color:var(--ink-3)">marque para informar como e quando foi pago</small></span></label>'+
+  '<div id="boxPg" style="'+(l&&l.pago?'':'display:none')+'">'+
+   '<div class="row2" style="margin-top:12px">'+
+    '<div class="fld2"><label>Banco / conta *</label><select id="lnC">'+
+     '<option value="">Selecione uma opção</option>'+
+     (DB.contas||[]).map(function(c){return '<option value="'+c.id+'"'+((l&&l.contaId===c.id)||(!l&&P.contaId===c.id)?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
+    '</select></div>'+
+    '<div class="fld2"><label>Forma de pagamento *</label><select id="lnM">'+
+     '<option value="">Selecione uma opção</option>'+
+     (DB.formasPag||[]).filter(function(f){return f.ativa!==false}).map(function(f){
+       return '<option value="'+f.id+'"'+(l&&l.metodoId===f.id?' selected':'')+'>'+E(f.nome)+'</option>'}).join('')+
+    '</select></div>'+
+   '</div>'+
+   '<div class="fld2" style="margin-top:12px"><label>Data do pagamento</label>'+
+    '<input id="lnPg" type="date" value="'+(l&&l.pagamento?l.pagamento:hojeISO())+'"></div>'+
+  '</div>'+
   '</div>'+
   (l?'':
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
@@ -28369,7 +28382,12 @@ function modalLanc(id,tipoNovo,pre){
   modal((l?'Editar lançamento':(P.titulo||(tipo==='receita'?'Nova receita':'Nova despesa'))),h,(P.botao||'Salvar'),function(){
     var d=$('lnD').value.trim();
     if(!d){toast('Informe a descrição.');return false;}
-    if($('lnC')&&!$('lnC').value){toast('Selecione o banco / conta.');return false;}
+    /* banco e forma só são exigidos quando a conta já está paga: um
+       lançamento PENDENTE não escolhe isso (é na baixa). Os campos existem
+       sempre no DOM agora (escondidos), então a exigência checa o "já pago". */
+    var jaPago=$('lnP')&&$('lnP').checked;
+    if(jaPago&&$('lnC')&&!$('lnC').value){toast('Selecione o banco / conta.');return false;}
+    if(jaPago&&$('lnM')&&!$('lnM').value){toast('Selecione a forma de pagamento.');return false;}
     if(!$('lnCat').value){toast('Selecione a categoria.');return false;}
     var v=parseFloat($('lnV').value)||0;
     if(!v){toast('Informe o valor.');return false;}
@@ -28379,8 +28397,9 @@ function modalLanc(id,tipoNovo,pre){
     var fo=(DB.fornec||[]).find(function(x){return x.id===fid});
     var forn=fo?fo.empresa:'';
     var o={tipo:tp,
-      contaId:($('lnC')?$('lnC').value:(l?(l.contaId||''):(P.contaId||''))),
-      metodoId:($('lnM')?$('lnM').value:(l?(l.metodoId||''):(P.metodoId||''))),descricao:d,valor:v,
+      /* banco e forma só entram quando está pago (senão são da baixa) */
+      contaId:(jaPago&&$('lnC')?$('lnC').value:(l?(l.contaId||''):(P.contaId||''))),
+      metodoId:(jaPago&&$('lnM')?$('lnM').value:(l?(l.metodoId||''):(P.metodoId||''))),descricao:d,valor:v,
       emissao:$('lnE').value||hojeISO(),vencimento:$('lnVc').value||hojeISO(),
       pagamento:pago?($('lnPg').value||hojeISO()):'',pago:pago,
       categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),
@@ -28412,13 +28431,17 @@ function modalLanc(id,tipoNovo,pre){
     toast('Lançamento salvo.');
     return true;
   },'lg');
-  $('lnP').onchange=function(){$('boxPg').style.display=this.checked?'':'none';};
+  $('lnP').onchange=function(){
+    var pg=this.checked;
+    $('boxPg').style.display=pg?'':'none';
+    var a=$('avPgBaixa'); if(a)a.style.display=pg?'none':'';
+  };
   if(P.categoriaId){
     var hid=$('lnCat');if(hid)hid.value=P.categoriaId;
     var bt=document.querySelector('#lnCatB span');if(bt)bt.textContent=nomeCategoria(P.categoriaId);
   }
   _catLancAbertas={};
-  if(P.pago){var pg=$('lnP');if(pg){pg.checked=true;var bx=$('boxPg');if(bx)bx.style.display='';}}
+  if(P.pago){var pg=$('lnP');if(pg){pg.checked=true;var bx=$('boxPg');if(bx)bx.style.display='';var av=$('avPgBaixa');if(av)av.style.display='none';}}
   var pc=$('lnParc');
   if(pc){
     pc.onchange=function(){$('boxParc').style.display=this.checked?'':'none';_datasParc=[];previewParc();};
