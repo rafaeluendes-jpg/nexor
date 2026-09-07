@@ -18,6 +18,7 @@ const TELAS: { caminho: string; titulo: RegExp }[] = [
   { caminho: '/pipeline', titulo: /Funil/i },
   { caminho: '/leads', titulo: /Leads/i },
   { caminho: '/contatos', titulo: /Contatos/i },
+  { caminho: '/importar', titulo: /planilha/i },
   { caminho: '/agenda', titulo: /Agenda/i },
   { caminho: '/tarefas', titulo: /Tarefas/i },
   { caminho: '/cof', titulo: /COF/i },

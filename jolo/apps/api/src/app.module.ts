@@ -30,6 +30,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
+import { ImportacaoModule } from './modules/importacao/importacao.module.js';
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 
 @Module({
@@ -57,6 +58,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     ContactsModule,
     IntegrationsModule,
     RealtimeModule,
+    ImportacaoModule,
   ],
   providers: [
     PrismaService,

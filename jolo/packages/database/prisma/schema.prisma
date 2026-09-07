@@ -31,6 +31,7 @@ model Organization {
   conversations  Conversation[]
   campaigns      Campaign[]
   territories    Territory[]
+  imports        ImportBatch[]
   auditLogs      AuditLog[]
   excelExports   ExcelExport[]
   attributions   AttributionSession[]
@@ -125,6 +126,7 @@ model User {
   auditLogs         AuditLog[]
   handoffs          AiHandoff[]
   excelExports      ExcelExport[]
+  imports           ImportBatch[]
   documents         Document[]
   messagesSent      Message[]      @relation("MessageSender")
   territories       Territory[]    @relation("TerritoryOwner")
@@ -254,6 +256,9 @@ model Lead {
   documents     Document[]
   aiSessions    AiSession[]
   territories   Territory[]
+  /// Lote de importacao de onde este lead veio, quando veio de planilha.
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+  importBatchId String?      @db.Uuid
 
   @@index([organizationId, stageId])
   @@index([organizationId, ownerId])
@@ -945,6 +950,32 @@ model AuditLog {
   @@index([organizationId, createdAt])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+/// Um arquivo de leads antigos trazido para dentro do sistema.
+/// Guardamos o lote inteiro para saber de onde cada contato veio e
+/// poder desfazer o raciocinio depois ("estes 300 vieram da planilha X").
+model ImportBatch {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  importedById   String?  @db.Uuid
+  fileName       String
+  /// Rotulo que o operador deu ao lote. Vira a campanha de origem do lead.
+  label          String
+  status         String   @default("preview")
+  totalRows      Int      @default(0)
+  imported       Int      @default(0)
+  duplicated     Int      @default(0)
+  invalid        Int      @default(0)
+  createdAt      DateTime @default(now())
+  finishedAt     DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  importedBy   User?        @relation(fields: [importedById], references: [id])
+  leads        Lead[]
+
+  @@index([organizationId, createdAt])
+  @@map("import_batches")
 }
 
 model ExcelExport {

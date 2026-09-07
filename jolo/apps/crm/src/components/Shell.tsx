@@ -22,6 +22,7 @@ const MENU: { grupo: string; links: Link[] }[] = [
       { href: '/pipeline', label: 'Funil', icone: 'funil', permissao: 'crm.pipeline.view' },
       { href: '/leads', label: 'Leads', icone: 'leads', permissao: 'crm.leads.view' },
       { href: '/contatos', label: 'Contatos', icone: 'contatos', permissao: 'crm.leads.view' },
+      { href: '/importar', label: 'Trazer de planilha', icone: 'importar', permissao: 'crm.leads.create' },
     ],
   },
   {

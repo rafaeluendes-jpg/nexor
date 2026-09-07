@@ -69,6 +69,47 @@ continua sendo do Instagram, que foi quem realmente trouxe.
 Quem nao tem permissao nao consegue a acao nem por fora da tela: quem
 decide e o servidor.
 
+## Trazer leads de planilha
+
+Para colocar no sistema quem já demonstrou interesse antes e está numa
+planilha antiga.
+
+A planilha precisa ter **uma coluna de telefone** — pode se chamar
+telefone, celular, whatsapp ou fone. Nome, cidade, estado, e-mail e
+observação entram se existirem, com o nome de coluna que for.
+Aceita `.xlsx` e `.csv`, até 5.000 linhas por arquivo.
+
+São dois passos, sempre nesta ordem:
+
+1. **Conferir.** O sistema lê o arquivo e mostra, linha por linha, o que
+   vai acontecer. **Nada é gravado neste passo.**
+2. **Importar.** Só depois de você ver a conferência.
+
+O que o sistema recusa sozinho, sem você precisar limpar a planilha:
+
+| Situação | O que acontece |
+|---|---|
+| Telefone que já está no sistema | não entra; o lead que já existe fica como está |
+| Mesmo telefone duas vezes na planilha | entra uma vez só |
+| Linha sem telefone | não entra |
+| Telefone que não é telefone | não entra |
+| Linha em branco | ignorada, sem virar erro |
+
+O telefone é comparado pelo número de verdade, não pelo que está escrito:
+`(17) 99812-3344`, `17998123344` e `+55 17 99812 3344` são a mesma pessoa.
+Número escrito com o zero na frente do DDD também é reconhecido.
+
+**Onde os leads caem:** na etapa **Nutrição**, não em "Novo lead" — quem
+veio de planilha não está conversando com a gente agora. A origem fica
+como "base antiga", e o nome que você deu ao lote vira a campanha. Assim
+os relatórios separam quem veio da planilha de quem chegou pela página.
+
+A observação que estiver na planilha vira uma anotação no lead, para o
+time saber o histórico ao ligar.
+
+O histórico de todas as planilhas importadas fica no fim da tela: quem
+importou, quando, quantos entraram e quantos foram ignorados.
+
 ## Tarefas
 
 O que o time precisa fazer, com prazo e dono. Tarefa sem dono nao anda:
