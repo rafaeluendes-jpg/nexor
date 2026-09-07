@@ -1,0 +1,42 @@
+# Banco e fila para desenvolvimento e para o servidor proprio.
+# Em producao com Supabase, o Postgres daqui nao e usado: veja docs/DEPLOYMENT.md.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jolo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jolo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-jolo_franquias}
+      TZ: America/Sao_Paulo
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-dados:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-jolo} -d ${POSTGRES_DB:-jolo_franquias}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: jolo-redis
+    restart: unless-stopped
+    # appendonly: a fila sobrevive a um reinicio do servidor
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-dados:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-dados:
+  redis-dados:

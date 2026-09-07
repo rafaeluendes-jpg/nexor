@@ -1,0 +1,993 @@
+// ============================================================
+// JOLO FRANQUIAS - CRM DE EXPANSAO
+// Banco oficial: PostgreSQL. Excel e copia operacional, nunca fonte.
+// Regra: nada e apagado de verdade. Historico e auditoria sempre preservados.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------------
+// ORGANIZACAO, USUARIOS E PERMISSOES
+// ------------------------------------------------------------
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  timezone  String   @default("America/Sao_Paulo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  contacts       Contact[]
+  leads          Lead[]
+  pipelines      Pipeline[]
+  conversations  Conversation[]
+  campaigns      Campaign[]
+  territories    Territory[]
+  auditLogs      AuditLog[]
+  excelExports   ExcelExport[]
+  attributions   AttributionSession[]
+  integrationLog IntegrationLog[]
+
+  @@map("organizations")
+}
+
+/// Papel do usuario. RBAC real e checado no backend, nunca so no frontend.
+enum RoleName {
+  SUPER_ADMIN
+  ADMIN
+  EXPANSAO
+  ATENDENTE
+  MARKETING
+  VISUALIZACAO
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        RoleName @unique
+  description String
+  createdAt   DateTime @default(now())
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// Ex.: crm.leads.edit, crm.conversations.takeover
+  code        String   @unique
+  description String
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  INVITED
+  LOCKED
+}
+
+model User {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @db.Uuid
+  /// Id do usuario no provider de autenticacao (Supabase Auth em producao).
+  authProviderId String?    @unique
+  email          String     @unique
+  name           String
+  phone          String?
+  status         UserStatus @default(INVITED)
+  /// Hash gerado pelo provider LOCAL de desenvolvimento. Em producao fica nulo:
+  /// a senha vive exclusivamente no Supabase Auth.
+  devPasswordHash String?
+  mfaEnabled     Boolean    @default(false)
+  mfaRequired    Boolean    @default(false)
+  lastLoginAt    DateTime?
+  failedLogins   Int        @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  disabledAt     DateTime?
+
+  organization      Organization   @relation(fields: [organizationId], references: [id])
+  roles             UserRole[]
+  sessions          UserSession[]
+  ownedLeads        Lead[]         @relation("LeadOwner")
+  assignedConvs     Conversation[] @relation("ConversationOwner")
+  activities        Activity[]
+  tasks             Task[]         @relation("TaskOwner")
+  notes             Note[]
+  meetings          Meeting[]      @relation("MeetingOwner")
+  stageChanges      PipelineStageHistory[]
+  auditLogs         AuditLog[]
+  handoffs          AiHandoff[]
+  excelExports      ExcelExport[]
+  documents         Document[]
+  messagesSent      Message[]      @relation("MessageSender")
+
+  @@index([organizationId, status])
+  @@map("users")
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model UserSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  /// Hash do refresh/session token. O token puro nunca e guardado.
+  tokenHash    String    @unique
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  revokedBy    String?   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
+}
+
+// ------------------------------------------------------------
+// CONTATOS E LEADS
+// ------------------------------------------------------------
+
+model Contact {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String?
+  /// Telefone normalizado E.164 sem "+". Chave de deduplicacao.
+  phoneE164      String
+  phoneRaw       String?
+  /// wa_id devolvido pela Meta. Segunda chave de deduplicacao.
+  whatsappId     String?
+  email          String?
+  city           String?
+  state          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  leads         Lead[]
+  conversations Conversation[]
+
+  @@unique([organizationId, phoneE164])
+  @@unique([organizationId, whatsappId])
+  @@index([organizationId, createdAt])
+  @@map("contacts")
+}
+
+enum LeadTemperature {
+  QUENTE
+  MORNO
+  FRIO
+}
+
+enum LeadStatus {
+  ABERTO
+  GANHO
+  PERDIDO
+  NUTRICAO
+}
+
+model Lead {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @db.Uuid
+  contactId      String          @db.Uuid
+  ownerId        String?         @db.Uuid
+  pipelineId     String          @db.Uuid
+  stageId        String          @db.Uuid
+  status         LeadStatus      @default(ABERTO)
+  score          Int             @default(0)
+  temperature    LeadTemperature @default(FRIO)
+
+  // qualificacao
+  desiredCity      String?
+  desiredState     String?
+  capitalAvailable Decimal? @db.Decimal(12, 2)
+  capitalRange     String?
+  investmentHorizon String?
+  businessExperience String?
+  hasPartner       Boolean?
+  availability     String?
+  bestContactTime  String?
+
+  firstContactAt DateTime?
+  lastContactAt  DateTime?
+  nextActionAt   DateTime?
+  lostReason     String?
+  wonAt          DateTime?
+  lostAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  contact       Contact                @relation(fields: [contactId], references: [id])
+  owner         User?                  @relation("LeadOwner", fields: [ownerId], references: [id])
+  pipeline      Pipeline               @relation(fields: [pipelineId], references: [id])
+  stage         PipelineStage          @relation(fields: [stageId], references: [id])
+  attribution   AttributionSession?    @relation(fields: [attributionId], references: [id])
+  attributionId String?                @db.Uuid
+  stageHistory  PipelineStageHistory[]
+  activities    Activity[]
+  tasks         Task[]
+  notes         Note[]
+  meetings      Meeting[]
+  scores        LeadScore[]
+  answers       QualificationAnswer[]
+  conversations Conversation[]
+  cofProcesses  CofProcess[]
+  documents     Document[]
+  aiSessions    AiSession[]
+
+  @@index([organizationId, stageId])
+  @@index([organizationId, ownerId])
+  @@index([organizationId, createdAt])
+  @@map("leads")
+}
+
+// ------------------------------------------------------------
+// PIPELINE
+// ------------------------------------------------------------
+
+model Pipeline {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  stages       PipelineStage[]
+  leads        Lead[]
+
+  @@unique([organizationId, name])
+  @@map("pipelines")
+}
+
+model PipelineStage {
+  id         String   @id @default(uuid()) @db.Uuid
+  pipelineId String   @db.Uuid
+  /// Chave estavel usada em codigo: NOVO_LEAD, IA_QUALIFICANDO, ...
+  key        String
+  name       String
+  position   Int
+  color      String?
+  isWon      Boolean  @default(false)
+  isLost     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  pipeline Pipeline               @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  leads    Lead[]
+  fromHist PipelineStageHistory[] @relation("FromStage")
+  toHist   PipelineStageHistory[] @relation("ToStage")
+
+  @@unique([pipelineId, key])
+  @@unique([pipelineId, position])
+  @@map("pipeline_stages")
+}
+
+enum StageChangeSource {
+  MANUAL
+  AI
+  AUTOMATION
+  API
+}
+
+model PipelineStageHistory {
+  id          String            @id @default(uuid()) @db.Uuid
+  leadId      String            @db.Uuid
+  fromStageId String?           @db.Uuid
+  toStageId   String            @db.Uuid
+  changedById String?           @db.Uuid
+  source      StageChangeSource @default(MANUAL)
+  reason      String?
+  createdAt   DateTime          @default(now())
+
+  lead      Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromStage PipelineStage? @relation("FromStage", fields: [fromStageId], references: [id])
+  toStage   PipelineStage @relation("ToStage", fields: [toStageId], references: [id])
+  changedBy User?         @relation(fields: [changedById], references: [id])
+
+  @@index([leadId, createdAt])
+  @@map("pipeline_stage_history")
+}
+
+// ------------------------------------------------------------
+// CONVERSAS E MENSAGENS (WHATSAPP CLOUD API)
+// ------------------------------------------------------------
+
+enum Channel {
+  WHATSAPP
+  MANUAL
+}
+
+enum ConversationMode {
+  AI
+  HUMAN
+}
+
+model Conversation {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  contactId      String           @db.Uuid
+  leadId         String?          @db.Uuid
+  channel        Channel          @default(WHATSAPP)
+  mode           ConversationMode @default(AI)
+  ownerId        String?          @db.Uuid
+  /// Trava de posse: enquanto houver dono humano, a IA nao responde.
+  humanTakeoverAt DateTime?
+  aiPausedUntil   DateTime?
+  lastMessageAt   DateTime?
+  unreadCount     Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  contact      Contact       @relation(fields: [contactId], references: [id])
+  lead         Lead?         @relation(fields: [leadId], references: [id])
+  owner        User?         @relation("ConversationOwner", fields: [ownerId], references: [id])
+  messages     Message[]
+  aiSessions   AiSession[]
+  handoffs     AiHandoff[]
+  referral     WhatsappReferral?
+
+  @@index([organizationId, lastMessageAt])
+  @@map("conversations")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum MessageAuthor {
+  CONTACT
+  AI
+  HUMAN
+  SYSTEM
+}
+
+model Message {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  conversationId String           @db.Uuid
+  direction      MessageDirection
+  author         MessageAuthor
+  senderUserId   String?          @db.Uuid
+  /// wamid oficial da Meta. Garante idempotencia de webhook.
+  wamid          String?          @unique
+  type           String           @default("text")
+  body           String?
+  payload        Json?
+  status         MessageStatus    @default(QUEUED)
+  errorCode      String?
+  errorMessage   String?
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failedAt       DateTime?
+  createdAt      DateTime         @default(now())
+
+  conversation Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?                @relation("MessageSender", fields: [senderUserId], references: [id])
+  statusEvents MessageStatusEvent[]
+  attachments  Attachment[]
+
+  @@index([conversationId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("messages")
+}
+
+model MessageStatusEvent {
+  id         String        @id @default(uuid()) @db.Uuid
+  messageId  String        @db.Uuid
+  status     MessageStatus
+  occurredAt DateTime
+  raw        Json?
+  createdAt  DateTime      @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, status])
+  @@map("message_status_events")
+}
+
+model Attachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @db.Uuid
+  mediaId   String?
+  mimeType  String?
+  fileName  String?
+  sizeBytes Int?
+  storageKey String?
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+/// Evento cru do webhook. Gravado ANTES de qualquer processamento pesado,
+/// para que nenhuma mensagem se perca se a fila, o banco ou a IA falharem.
+model WebhookEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  provider    String    @default("meta_whatsapp")
+  /// Id do evento no provider, quando existir. Garante idempotencia.
+  externalId  String?
+  signature   String?
+  payload     Json
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+  status      String    @default("received")
+  error       String?
+  attempts    Int       @default(0)
+
+  @@unique([provider, externalId])
+  @@index([status, receivedAt])
+  @@map("webhook_events")
+}
+
+// ------------------------------------------------------------
+// ATRIBUICAO DE MARKETING
+// ------------------------------------------------------------
+
+model AttributionSession {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  /// Id gerado no navegador e repassado no clique do botao.
+  trackingId     String   @unique
+  sessionId      String?
+
+  firstTouchSource   String?
+  firstTouchMedium   String?
+  firstTouchCampaign String?
+  firstTouchContent  String?
+  firstTouchTerm     String?
+  lastTouchSource    String?
+  lastTouchMedium    String?
+  lastTouchCampaign  String?
+  lastTouchContent   String?
+  lastTouchTerm      String?
+
+  fbclid      String?
+  gclid       String?
+  ctwaClid    String?
+  referrer    String?
+  landingPage String?
+  userAgent   String?
+  ipHash      String?
+
+  campaignId String? @db.Uuid
+  creativeId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  campaign     Campaign?    @relation(fields: [campaignId], references: [id])
+  creative     AdCreative?  @relation(fields: [creativeId], references: [id])
+  leads        Lead[]
+
+  @@index([organizationId, createdAt])
+  @@index([ctwaClid])
+  @@map("attribution_sessions")
+}
+
+model AdSource {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// instagram, facebook, google, whatsapp, organico, indicacao, outros
+  key       String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  campaigns Campaign[]
+
+  @@map("ad_sources")
+}
+
+model Campaign {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  sourceId       String?  @db.Uuid
+  externalId     String?
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  source       AdSource?            @relation(fields: [sourceId], references: [id])
+  creatives    AdCreative[]
+  attributions AttributionSession[]
+
+  @@unique([organizationId, name])
+  @@map("campaigns")
+}
+
+model AdCreative {
+  id         String   @id @default(uuid()) @db.Uuid
+  campaignId String   @db.Uuid
+  externalId String?
+  name       String
+  headline   String?
+  body       String?
+  mediaType  String?
+  mediaUrl   String?
+  createdAt  DateTime @default(now())
+
+  campaign     Campaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  attributions AttributionSession[]
+  referrals    WhatsappReferral[]
+
+  @@map("ad_creatives")
+}
+
+/// Objeto "referral" que a Meta envia no click-to-WhatsApp.
+model WhatsappReferral {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @unique @db.Uuid
+  creativeId     String?  @db.Uuid
+  sourceId       String?
+  sourceUrl      String?
+  sourceType     String?
+  headline       String?
+  body           String?
+  mediaType      String?
+  imageUrl       String?
+  videoUrl       String?
+  thumbnailUrl   String?
+  ctwaClid       String?
+  raw            Json?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  creative     AdCreative?  @relation(fields: [creativeId], references: [id])
+
+  @@index([ctwaClid])
+  @@map("whatsapp_referrals")
+}
+
+// ------------------------------------------------------------
+// ATIVIDADES, TAREFAS, NOTAS, REUNIOES
+// ------------------------------------------------------------
+
+model Activity {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  leadId         String?  @db.Uuid
+  userId         String?  @db.Uuid
+  /// lead_created, message_received, stage_changed, ai_started, ...
+  type           String
+  title          String
+  description    String?
+  metadata       Json?
+  occurredAt     DateTime @default(now())
+
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([leadId, occurredAt])
+  @@map("activities")
+}
+
+enum TaskStatus {
+  ABERTA
+  CONCLUIDA
+  CANCELADA
+}
+
+model Task {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @db.Uuid
+  leadId         String?    @db.Uuid
+  ownerId        String?    @db.Uuid
+  title          String
+  description    String?
+  dueAt          DateTime?
+  status         TaskStatus @default(ABERTA)
+  completedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  lead  Lead? @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  owner User? @relation("TaskOwner", fields: [ownerId], references: [id])
+
+  @@index([organizationId, status, dueAt])
+  @@map("tasks")
+}
+
+model Note {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  leadId         String   @db.Uuid
+  authorId       String?  @db.Uuid
+  body           String
+  createdAt      DateTime @default(now())
+
+  lead   Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id])
+
+  @@index([leadId, createdAt])
+  @@map("notes")
+}
+
+enum MeetingStatus {
+  AGENDADA
+  REALIZADA
+  CANCELADA
+  NAO_COMPARECEU
+}
+
+model Meeting {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  leadId         String        @db.Uuid
+  ownerId        String?       @db.Uuid
+  title          String
+  scheduledAt    DateTime
+  durationMin    Int           @default(60)
+  location       String?
+  status         MeetingStatus @default(AGENDADA)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  owner User? @relation("MeetingOwner", fields: [ownerId], references: [id])
+
+  @@index([organizationId, scheduledAt])
+  @@map("meetings")
+}
+
+// ------------------------------------------------------------
+// QUALIFICACAO E SCORE
+// ------------------------------------------------------------
+
+model QualificationQuestion {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  label     String
+  helpText  String?
+  position  Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  answers QualificationAnswer[]
+
+  @@map("qualification_questions")
+}
+
+model QualificationAnswer {
+  id         String   @id @default(uuid()) @db.Uuid
+  leadId     String   @db.Uuid
+  questionId String   @db.Uuid
+  value      String
+  source     String   @default("AI")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  lead     Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  question QualificationQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([leadId, questionId])
+  @@map("qualification_answers")
+}
+
+model LeadScore {
+  id         String   @id @default(uuid()) @db.Uuid
+  leadId     String   @db.Uuid
+  total      Int
+  breakdown  Json
+  calculatedAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, calculatedAt])
+  @@map("lead_scores")
+}
+
+/// Regras de score configuraveis pelo administrador (item 25 e 52).
+model ScoreRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  label     String
+  points    Int
+  active    Boolean  @default(true)
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("score_rules")
+}
+
+// ------------------------------------------------------------
+// TERRITORIOS / PRACAS
+// ------------------------------------------------------------
+
+enum TerritoryStatus {
+  DISPONIVEL
+  EM_ANALISE
+  NEGOCIACAO
+  RESERVADA
+  VENDIDA
+}
+
+model Territory {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @db.Uuid
+  city           String
+  state          String
+  status         TerritoryStatus @default(DISPONIVEL)
+  priority       Int             @default(0)
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, city, state])
+  @@map("territories")
+}
+
+// ------------------------------------------------------------
+// COF E DOCUMENTOS
+// ------------------------------------------------------------
+
+enum CofStatus {
+  NAO_ENVIADA
+  ENVIADA
+  EM_PRAZO
+  PRAZO_CUMPRIDO
+  CONTRATO_LIBERADO
+  CANCELADA
+}
+
+model CofProcess {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  leadId         String    @db.Uuid
+  status         CofStatus @default(NAO_ENVIADA)
+  sentAt         DateTime?
+  receivedAt     DateTime?
+  /// Prazo legal em dias entre entrega da COF e assinatura do contrato.
+  waitingDays    Int       @default(10)
+  contractReleaseAt DateTime?
+  documentVersion   String?
+  responsibleId  String?   @db.Uuid
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  lead      Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([organizationId, status])
+  @@map("cof_processes")
+}
+
+model Document {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  leadId         String?  @db.Uuid
+  cofProcessId   String?  @db.Uuid
+  uploadedById   String?  @db.Uuid
+  kind           String
+  fileName       String
+  mimeType       String?
+  sizeBytes      Int?
+  storageKey     String
+  createdAt      DateTime @default(now())
+
+  lead       Lead?       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  cofProcess CofProcess? @relation(fields: [cofProcessId], references: [id])
+  uploadedBy User?       @relation(fields: [uploadedById], references: [id])
+
+  @@index([organizationId, kind])
+  @@map("documents")
+}
+
+// ------------------------------------------------------------
+// IA SDR
+// ------------------------------------------------------------
+
+enum AiSessionStatus {
+  ATIVA
+  PAUSADA
+  ENCERRADA
+}
+
+model AiSession {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @db.Uuid
+  conversationId String          @db.Uuid
+  leadId         String?         @db.Uuid
+  provider       String
+  model          String
+  status         AiSessionStatus @default(ATIVA)
+  startedAt      DateTime        @default(now())
+  endedAt        DateTime?
+  summary        String?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  lead         Lead?        @relation(fields: [leadId], references: [id])
+  messages     AiMessage[]
+  handoffs     AiHandoff[]
+
+  @@index([conversationId, startedAt])
+  @@map("ai_sessions")
+}
+
+model AiMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  sessionId   String   @db.Uuid
+  role        String
+  content     String
+  toolName    String?
+  toolPayload Json?
+  tokensIn    Int?
+  tokensOut   Int?
+  createdAt   DateTime @default(now())
+
+  session AiSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("ai_messages")
+}
+
+model AiHandoff {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @db.Uuid
+  sessionId      String?  @db.Uuid
+  toUserId       String?  @db.Uuid
+  direction      String
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  session      AiSession?   @relation(fields: [sessionId], references: [id])
+  toUser       User?        @relation(fields: [toUserId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@map("ai_handoffs")
+}
+
+// ------------------------------------------------------------
+// TEMPLATES DE WHATSAPP
+// ------------------------------------------------------------
+
+model WhatsappTemplate {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @unique
+  category   String
+  language   String   @default("pt_BR")
+  bodyText   String
+  variables  Json?
+  metaStatus String   @default("PENDING")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("whatsapp_templates")
+}
+
+// ------------------------------------------------------------
+// AUDITORIA, EXPORTACOES E INTEGRACOES
+// ------------------------------------------------------------
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  actorUserId    String?  @db.Uuid
+  actorType      String   @default("USER")
+  event          String
+  entity         String
+  entityId       String?
+  before         Json?
+  after          Json?
+  ip             String?
+  requestId      String?
+  correlationId  String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  actor        User?        @relation(fields: [actorUserId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+model ExcelExport {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  requestedById  String?  @db.Uuid
+  kind           String   @default("leads_master")
+  filters        Json?
+  storageKey     String?
+  rowCount       Int?
+  status         String   @default("queued")
+  error          String?
+  version        Int      @default(1)
+  createdAt      DateTime @default(now())
+  finishedAt     DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  requestedBy  User?        @relation(fields: [requestedById], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@map("excel_exports")
+}
+
+model IntegrationLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  integration    String
+  direction      String
+  endpoint       String?
+  statusCode     Int?
+  requestBody    Json?
+  responseBody   Json?
+  error          String?
+  durationMs     Int?
+  correlationId  String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, integration, createdAt])
+  @@map("integration_logs")
+}
+
+/// Configuracoes de negocio editaveis pelo administrador (item 52).
+model Setting {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  key            String
+  value          Json
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, key])
+  @@map("settings")
+}

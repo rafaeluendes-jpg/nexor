@@ -1,0 +1,30 @@
+/** Eventos de auditoria (item 43). Um nome so, usado em todo o sistema. */
+export const AUDIT_EVENTS = {
+  LEAD_CREATED: 'lead_created',
+  LEAD_UPDATED: 'lead_updated',
+  MESSAGE_RECEIVED: 'message_received',
+  MESSAGE_SENT: 'message_sent',
+  MESSAGE_DELIVERED: 'message_delivered',
+  MESSAGE_READ: 'message_read',
+  MESSAGE_FAILED: 'message_failed',
+  STAGE_CHANGED: 'stage_changed',
+  AI_STARTED: 'ai_started',
+  AI_PAUSED: 'ai_paused',
+  HUMAN_TAKEOVER: 'human_takeover',
+  HUMAN_RELEASED: 'human_released',
+  MEETING_CREATED: 'meeting_created',
+  COF_SENT: 'cof_sent',
+  DOCUMENT_UPLOADED: 'document_uploaded',
+  LEAD_WON: 'lead_won',
+  LEAD_LOST: 'lead_lost',
+  USER_CREATED: 'user_created',
+  USER_UPDATED: 'user_updated',
+  USER_DISABLED: 'user_disabled',
+  USER_LOGIN: 'user_login',
+  USER_LOGIN_FAILED: 'user_login_failed',
+  USER_LOGOUT: 'user_logout',
+  PERMISSION_CHANGED: 'permission_changed',
+  EXPORT_REQUESTED: 'export_requested',
+} as const;
+
+export type AuditEvent = (typeof AUDIT_EVENTS)[keyof typeof AUDIT_EVENTS];

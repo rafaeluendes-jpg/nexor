@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+.next/
+.next-teste/
+out/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+!.env.example
+/tests/artifacts/
+/tests/visual/current/
+/tests/visual/diff/
+# dados gerados em tempo de execucao: planilhas, copias, arquivos enviados
+/var/
+var/
+/infra/docker/backups/*
+!/infra/docker/backups/.gitignore
+*.log
+.DS_Store

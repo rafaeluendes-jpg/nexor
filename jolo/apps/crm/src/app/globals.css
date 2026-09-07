@@ -1,0 +1,64 @@
+/* CRM Jolo - interface interna. Mesma paleta da marca, densidade de ferramenta. */
+:root{
+  --bosco:#304A2A;--oliva:#6E7138;--latte:#F5EDDF;--notte:#17351f;--caramello:#A67B3F;
+  --pietra:#DCCFB8;--ink:#243126;--muted:#6b7069;--linha:#e4ded2;--fundo:#F7F4EE;
+  --quente:#C9231B;--morno:#A67B3F;--frio:#6b7069;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--ink);font:15px/1.5 Inter,Segoe UI,Arial,sans-serif}
+a{color:inherit}
+button{font:inherit;cursor:pointer}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--notte);color:#fff;padding:0 20px;height:56px;position:sticky;top:0;z-index:20}
+.topbar nav{display:flex;gap:18px;font-size:14px;font-weight:600}
+.topbar nav a{text-decoration:none;opacity:.82}
+.topbar nav a:hover,.topbar nav a[aria-current=page]{opacity:1}
+.topbar .quem{font-size:13px;opacity:.8}
+.topbar button{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px}
+.page{padding:24px;max-width:1400px;margin:auto}
+h1{font-size:24px;margin:0 0 4px}
+h2{font-size:17px;margin:0 0 12px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
+.card{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:16px}
+.card b{display:block;font-size:28px;line-height:1.1;color:var(--bosco)}
+.card span{font-size:13px;color:var(--muted)}
+.painel{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:18px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--linha)}
+td{padding:10px;border-bottom:1px solid var(--linha)}
+.tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--pietra);color:var(--notte)}
+.tag.QUENTE{background:#f6d7d4;color:var(--quente)}
+.tag.MORNO{background:#f0e2c9;color:var(--morno)}
+.tag.FRIO{background:#e6e7e3;color:var(--frio)}
+.inbox{display:grid;grid-template-columns:300px 1fr 320px;gap:14px;height:calc(100vh - 104px)}
+.coluna{background:#fff;border:1px solid var(--linha);border-radius:14px;overflow:auto}
+.coluna h2{padding:14px 16px 0;position:sticky;top:0;background:#fff}
+.conversa{display:block;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--linha);background:#fff}
+.conversa[aria-selected=true]{background:#f2efe7;border-left:3px solid var(--bosco)}
+.conversa b{display:block;font-size:14px}
+.conversa small{color:var(--muted);font-size:12px}
+.mensagens{padding:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:74%;padding:10px 14px;border-radius:14px;font-size:14px;white-space:pre-wrap}
+.msg.IN{align-self:flex-start;background:#efece4}
+.msg.OUT{align-self:flex-end;background:var(--bosco);color:#fff}
+.msg .meta{display:block;font-size:11px;opacity:.75;margin-top:6px}
+.responder{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--linha);position:sticky;bottom:0;background:#fff}
+.responder input{flex:1;padding:10px 12px;border:1px solid var(--linha);border-radius:10px}
+.btn{background:var(--bosco);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600}
+.btn.secundario{background:#fff;color:var(--bosco);border:1px solid var(--bosco)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.perfil dl{margin:0;display:grid;grid-template-columns:1fr;gap:10px;padding:16px}
+.perfil dt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.perfil dd{margin:2px 0 0;font-size:14px}
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px}
+.kanban .col{min-width:250px;background:#fff;border:1px solid var(--linha);border-radius:14px;padding:12px}
+.kanban .col h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kanban .cartao{border:1px solid var(--linha);border-radius:10px;padding:10px;margin-bottom:8px}
+.kanban .cartao b{font-size:14px}
+.kanban .cartao small{display:block;color:var(--muted);font-size:12px}
+.login{min-height:100vh;display:grid;place-items:center;background:var(--notte)}
+.login form{background:#fff;border-radius:18px;padding:32px;width:min(400px,92vw);display:grid;gap:14px}
+.login h1{font-size:22px;margin:0}
+.login input{padding:12px;border:1px solid var(--linha);border-radius:10px;font-size:15px}
+.login .erro{background:#fdeceb;color:#b3261e;padding:10px 12px;border-radius:10px;font-size:14px}
+.vazio{padding:40px;text-align:center;color:var(--muted)}

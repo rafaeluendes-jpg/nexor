@@ -1,0 +1,38 @@
+{
+  "name": "jolo-franquias",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @jolo/api dev",
+    "dev:landing": "pnpm --filter @jolo/landing dev",
+    "dev:crm": "pnpm --filter @jolo/crm dev",
+    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build && pnpm --filter @jolo/workers build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run --config tests/vitest.config.ts",
+    "test:e2e": "playwright test --config tests/playwright.config.ts",
+    "db:generate": "pnpm --filter @jolo/database generate",
+    "db:migrate": "pnpm --filter @jolo/database migrate",
+    "db:seed": "pnpm --filter @jolo/database seed",
+    "workers": "pnpm --filter @jolo/workers start",
+    "build:packages": "pnpm --filter \"./packages/*\" build"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.5.0",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "5.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "msgpackr-extract"
+    ]
+  }
+}

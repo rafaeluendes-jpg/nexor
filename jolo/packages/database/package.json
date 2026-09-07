@@ -1,0 +1,37 @@
+{
+  "name": "@jolo/database",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "seed": "tsx prisma/seed.ts",
+    "studio": "prisma studio",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@prisma/client": "7.10.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "pg": "8.23.0",
+    "@jolo/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "prisma": "7.10.0",
+    "tsx": "4.23.13",
+    "bcryptjs": "3.0.3",
+    "@types/pg": "8.23.1",
+    "@types/bcryptjs": "3.0.0",
+    "dotenv": "17.2.4",
+    "typescript": "5.9.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "files": [
+    "dist"
+  ]
+}
