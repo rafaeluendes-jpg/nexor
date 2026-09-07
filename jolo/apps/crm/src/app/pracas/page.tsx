@@ -43,10 +43,10 @@ export default function PracasPage() {
       await api('/territories', { method: 'POST', body: JSON.stringify({ cidade, uf: uf.toUpperCase() }) });
       setCidade('');
       setUf('');
-      setRecado({ texto: 'Praca cadastrada.', tipo: 'ok' });
+      setRecado({ texto: 'Praça cadastrada.', tipo: 'ok' });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para cadastrar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para cadastrar.', tipo: 'erro' });
     }
   };
 
@@ -55,14 +55,14 @@ export default function PracasPage() {
       await api(`/territories/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para atualizar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para atualizar.', tipo: 'erro' });
     }
   };
 
   return (
     <Shell>
-      <h1>Pracas</h1>
-      <p className="sub">Cidades da rede: onde ja tem loja, onde esta em negociacao e onde ainda da para abrir.</p>
+      <h1>Praças</h1>
+      <p className="sub">Cidades da rede: onde já tem loja, onde está em negociação e onde ainda da para abrir.</p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
 
@@ -78,7 +78,7 @@ export default function PracasPage() {
       ) : null}
 
       <form className="painel" onSubmit={(e) => void criar(e)} style={{ marginBottom: 18 }}>
-        <h2>Cadastrar praca</h2>
+        <h2>Cadastrar praça</h2>
         <div className="filtros" style={{ marginBottom: 0 }}>
           <div className="campo">
             <label htmlFor="cidade">Cidade</label>
@@ -94,7 +94,7 @@ export default function PracasPage() {
 
       <div className="filtros">
         <div className="campo">
-          <label htmlFor="f">Situacao</label>
+          <label htmlFor="f">Situação</label>
           <select id="f" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
             <option value="">Todas</option>
             {STATUS.map((s) => (
@@ -108,15 +108,15 @@ export default function PracasPage() {
         </div>
       </div>
 
-      {carregando ? <Carregando o="as pracas" /> : null}
+      {carregando ? <Carregando o="as praças" /> : null}
       {erro ? <Erro mensagem={erro} /> : null}
-      {dados && dados.itens.length === 0 ? <Vazio texto="Nenhuma praca cadastrada com esse filtro." /> : null}
+      {dados && dados.itens.length === 0 ? <Vazio texto="Nenhuma praça cadastrada com esse filtro." /> : null}
 
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
           <table>
             <thead>
-              <tr><th>Cidade</th><th>UF</th><th>Situacao</th><th>Responsavel</th><th>Candidato</th><th>Mudar para</th></tr>
+              <tr><th>Cidade</th><th>UF</th><th>Situação</th><th>Responsável</th><th>Candidato</th><th>Mudar para</th></tr>
             </thead>
             <tbody>
               {dados.itens.map((p) => (

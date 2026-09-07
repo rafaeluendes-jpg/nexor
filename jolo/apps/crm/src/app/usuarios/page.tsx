@@ -21,10 +21,10 @@ interface Usuario {
 const PAPEIS = [
   { chave: 'SUPER_ADMIN', nome: 'Super admin', o_que: 'Tudo, inclusive apagar lead' },
   { chave: 'ADMIN', nome: 'Admin', o_que: 'Tudo, menos apagar lead' },
-  { chave: 'EXPANSAO', nome: 'Expansao', o_que: 'Leads, conversas, funil, reunioes, documentos' },
+  { chave: 'EXPANSAO', nome: 'Expansão', o_que: 'Leads, conversas, funil, reuniões, documentos' },
   { chave: 'ATENDENTE', nome: 'Atendente', o_que: 'Conversas e leads' },
-  { chave: 'MARKETING', nome: 'Marketing', o_que: 'Campanhas, origem e relatorios' },
-  { chave: 'VISUALIZACAO', nome: 'Visualizacao', o_que: 'So olha' },
+  { chave: 'MARKETING', nome: 'Marketing', o_que: 'Campanhas, origem e relatórios' },
+  { chave: 'VISUALIZACAO', nome: 'Visualização', o_que: 'Só olha' },
 ];
 
 /** Senha provisoria forte, gerada aqui para ninguem inventar "123456". */
@@ -56,10 +56,10 @@ export default function UsuariosPage() {
       setEmail('');
       // mostrada uma vez, para o gestor entregar em maos; nao fica guardada em lugar nenhum
       setSenhaParaEntregar(senha);
-      setRecado({ texto: 'Usuario criado.', tipo: 'ok' });
+      setRecado({ texto: 'Usuário criado.', tipo: 'ok' });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para criar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para criar.', tipo: 'erro' });
     } finally {
       setSalvando(false);
     }
@@ -71,7 +71,7 @@ export default function UsuariosPage() {
       setRecado({ texto: 'Papel alterado.', tipo: 'ok' });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para alterar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para alterar.', tipo: 'erro' });
     }
   };
 
@@ -81,35 +81,35 @@ export default function UsuariosPage() {
       setRecado({ texto: ativo ? 'Acesso liberado.' : 'Acesso bloqueado.', tipo: 'ok' });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para alterar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para alterar.', tipo: 'erro' });
     }
   };
 
   const encerrarSessoes = async (id: string): Promise<void> => {
     try {
       await api(`/users/${id}/revoke-sessions`, { method: 'POST', body: JSON.stringify({}) });
-      setRecado({ texto: 'Sessoes encerradas. A pessoa precisa entrar de novo.', tipo: 'ok' });
+      setRecado({ texto: 'Sessões encerradas. A pessoa precisa entrar de novo.', tipo: 'ok' });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para encerrar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para encerrar.', tipo: 'erro' });
     }
   };
 
   return (
     <Shell>
-      <h1>Usuarios e acessos</h1>
-      <p className="sub">Quem entra no CRM e o que cada um pode fazer. Quem decide e o servidor, nao a tela.</p>
+      <h1>Usuários e acessos</h1>
+      <p className="sub">Quem entra no CRM e o que cada um pode fazer. Quem decide e o servidor, não a tela.</p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
       {senhaParaEntregar ? (
         <div className="aviso">
           <strong>Senha provisoria:</strong> <code>{senhaParaEntregar}</code>
-          <div>Entregue em maos e peca para trocar no primeiro acesso. Ela nao aparece de novo.</div>
+          <div>Entregue em maos e peca para trocar no primeiro acesso. Ela não aparece de novo.</div>
         </div>
       ) : null}
 
       <form className="painel" onSubmit={(e) => void criar(e)} style={{ marginBottom: 18 }}>
-        <h2>Novo usuario</h2>
+        <h2>Novo usuário</h2>
         <div className="filtros" style={{ marginBottom: 0 }}>
           <div className="campo">
             <label htmlFor="nome">Nome</label>
@@ -134,15 +134,15 @@ export default function UsuariosPage() {
         </p>
       </form>
 
-      {carregando ? <Carregando o="os usuarios" /> : null}
+      {carregando ? <Carregando o="os usuários" /> : null}
       {erro ? <Erro mensagem={erro} /> : null}
-      {dados && dados.length === 0 ? <Vazio texto="Nenhum usuario." /> : null}
+      {dados && dados.length === 0 ? <Vazio texto="Nenhum usuário." /> : null}
 
       {dados && dados.length > 0 ? (
         <div className="painel">
           <table>
             <thead>
-              <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Situacao</th><th>Ultimo acesso</th><th>Sessoes</th><th>Acoes</th></tr>
+              <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Situação</th><th>Último acesso</th><th>Sessões</th><th>Ações</th></tr>
             </thead>
             <tbody>
               {dados.map((u) => (
@@ -166,7 +166,7 @@ export default function UsuariosPage() {
                       {u.status === 'ACTIVE' ? 'Bloquear' : 'Liberar'}
                     </button>
                     {u.sessoesAtivas > 0 ? (
-                      <button type="button" onClick={() => void encerrarSessoes(u.id)}>Encerrar sessoes</button>
+                      <button type="button" onClick={() => void encerrarSessoes(u.id)}>Encerrar sessões</button>
                     ) : null}
                   </td>
                 </tr>

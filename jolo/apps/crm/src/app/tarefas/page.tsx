@@ -46,7 +46,7 @@ export default function TarefasPage() {
       setRecado({ texto: 'Tarefa criada.', tipo: 'ok' });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para criar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para criar.', tipo: 'erro' });
     } finally {
       setSalvando(false);
     }
@@ -57,7 +57,7 @@ export default function TarefasPage() {
       await api(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ concluida }) });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para atualizar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para atualizar.', tipo: 'erro' });
     }
   };
 
@@ -115,7 +115,7 @@ export default function TarefasPage() {
         <div className="painel">
           <table>
             <thead>
-              <tr><th>Tarefa</th><th>Lead</th><th>Responsavel</th><th>Prazo</th><th>Status</th><th /></tr>
+              <tr><th>Tarefa</th><th>Lead</th><th>Responsável</th><th>Prazo</th><th>Status</th><th /></tr>
             </thead>
             <tbody>
               {dados.itens.map((t) => (

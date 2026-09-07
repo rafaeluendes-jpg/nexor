@@ -92,7 +92,7 @@ export default function LeadsPage() {
           <input id="de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         </div>
         <div className="campo">
-          <label htmlFor="ate">Ate</label>
+          <label htmlFor="ate">Até</label>
           <input id="ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function LeadsPage() {
                   <th>Score</th>
                   <th>Temperatura</th>
                   <th>Origem</th>
-                  <th>Responsavel</th>
+                  <th>Responsável</th>
                   <th>Entrou em</th>
                 </tr>
               </thead>

@@ -58,7 +58,7 @@ export default function DocumentosPage() {
       if (arquivo.current) arquivo.current.value = '';
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para enviar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para enviar.', tipo: 'erro' });
     } finally {
       setEnviando(false);
     }
@@ -70,7 +70,7 @@ export default function DocumentosPage() {
       const res = await fetch(`${BASE}/documents/${doc.id}/arquivo`, {
         headers: { Authorization: `Bearer ${getToken() ?? ''}` },
       });
-      if (!res.ok) throw new Error('Nao foi possivel baixar.');
+      if (!res.ok) throw new Error('Não foi possível baixar.');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -86,7 +86,7 @@ export default function DocumentosPage() {
   return (
     <Shell>
       <h1>Documentos</h1>
-      <p className="sub">Guardados em area privada. So sai daqui para quem tem permissao, e toda abertura fica registrada.</p>
+      <p className="sub">Guardados em area privada. Só sai daqui para quem tem permissão, e toda abertura fica registrada.</p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
 

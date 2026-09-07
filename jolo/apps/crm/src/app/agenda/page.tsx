@@ -34,10 +34,10 @@ export default function AgendaPage() {
   const mudarStatus = async (id: string, novo: string): Promise<void> => {
     try {
       await api(`/meetings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: novo }) });
-      setRecado({ texto: 'Reuniao atualizada.', tipo: 'ok' });
+      setRecado({ texto: 'Reunião atualizada.', tipo: 'ok' });
       recarregar();
     } catch (e) {
-      setRecado({ texto: e instanceof Error ? e.message : 'Nao deu para atualizar.', tipo: 'erro' });
+      setRecado({ texto: e instanceof Error ? e.message : 'Não deu para atualizar.', tipo: 'erro' });
     }
   };
 
@@ -46,7 +46,7 @@ export default function AgendaPage() {
   return (
     <Shell>
       <h1>Agenda</h1>
-      <p className="sub">Reunioes e visitas marcadas com os candidatos.</p>
+      <p className="sub">Reuniões e visitas marcadas com os candidatos.</p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
       {status === 'AGENDADA' && proximas.length > 0 ? (
@@ -65,7 +65,7 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      <Aviso texto="Para marcar uma reuniao, abra o lead na tela de Leads: assim ela ja fica ligada a pessoa certa e move o funil sozinha." />
+      <Aviso texto="Para marcar uma reunião, abra o lead na tela de Leads: assim ela já fica ligada a pessoa certa e move o funil sozinha." />
 
       {carregando ? <Carregando o="a agenda" /> : null}
       {erro ? <Erro mensagem={erro} /> : null}
@@ -75,7 +75,7 @@ export default function AgendaPage() {
         <div className="painel">
           <table>
             <thead>
-              <tr><th>Quando</th><th>Assunto</th><th>Candidato</th><th>Local</th><th>Responsavel</th><th>Status</th><th /></tr>
+              <tr><th>Quando</th><th>Assunto</th><th>Candidato</th><th>Local</th><th>Responsável</th><th>Status</th><th /></tr>
             </thead>
             <tbody>
               {dados.itens.map((r) => (
@@ -93,7 +93,7 @@ export default function AgendaPage() {
                           Aconteceu
                         </button>
                         <button type="button" onClick={() => void mudarStatus(r.id, 'NAO_COMPARECEU')}>
-                          Nao veio
+                          Não veio
                         </button>
                         <button type="button" onClick={() => void mudarStatus(r.id, 'CANCELADA')}>
                           Cancelar

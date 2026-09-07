@@ -40,12 +40,12 @@ export default function AuditoriaPage() {
     <Shell>
       <h1>Auditoria</h1>
       <p className="sub">
-        Tudo que mudou dado no sistema, com quem fez e quando. Esta lista so se le: nao se edita nem se apaga.
+        Tudo que mudou dado no sistema, com quem fez e quando. Esta lista só se le: não se edita nem se apaga.
       </p>
 
       <div className="filtros">
         <div className="campo">
-          <label htmlFor="ev">Tipo de acao</label>
+          <label htmlFor="ev">Tipo de ação</label>
           <input id="ev" value={evento} onChange={(e) => setEvento(e.target.value)} placeholder="lead, cof, user…" />
         </div>
         <div className="campo">
@@ -53,7 +53,7 @@ export default function AuditoriaPage() {
           <input id="de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         </div>
         <div className="campo">
-          <label htmlFor="ate">Ate</label>
+          <label htmlFor="ate">Até</label>
           <input id="ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         </div>
       </div>
@@ -67,7 +67,7 @@ export default function AuditoriaPage() {
           <p className="sub" style={{ margin: '0 0 12px' }}>{numero(dados.total)} registro(s).</p>
           <table>
             <thead>
-              <tr><th>Quando</th><th>Quem</th><th>Acao</th><th>Sobre</th><th>Origem</th><th /></tr>
+              <tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Sobre</th><th>Origem</th><th /></tr>
             </thead>
             <tbody>
               {dados.itens.map((l) => (

@@ -38,7 +38,7 @@ const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 
 const MODOS = [
   { chave: 'RESPONSAVEL_FIXO', nome: 'Sempre a mesma pessoa' },
-  { chave: 'RODIZIO', nome: 'Rodizio entre o time' },
+  { chave: 'RODIZIO', nome: 'Rodízio entre o time' },
   { chave: 'POR_CIDADE', nome: 'Pela cidade do candidato' },
   { chave: 'POR_ESTADO', nome: 'Pelo estado do candidato' },
   { chave: 'POR_CAMPANHA', nome: 'Pela campanha que trouxe' },
@@ -69,7 +69,7 @@ export default function ConfiguracoesPage() {
       await api(`/settings/${chave}`, { method: 'PUT', body: JSON.stringify(valor) });
       setRecado({ texto, tipo: 'ok' });
     } catch (e) {
-      setRecado({ texto: e instanceof Error ? e.message : 'Nao deu para salvar.', tipo: 'erro' });
+      setRecado({ texto: e instanceof Error ? e.message : 'Não deu para salvar.', tipo: 'erro' });
     } finally {
       setSalvando(false);
     }
@@ -80,11 +80,11 @@ export default function ConfiguracoesPage() {
       await api(`/score-rules/${id}`, { method: 'PATCH', body: JSON.stringify({ pontos }) });
       regras.recarregar();
     } catch (e) {
-      setRecado({ texto: e instanceof Error ? e.message : 'Nao deu para alterar.', tipo: 'erro' });
+      setRecado({ texto: e instanceof Error ? e.message : 'Não deu para alterar.', tipo: 'erro' });
     }
   };
 
-  if (cfg.carregando) return <Shell><Carregando o="as configuracoes" /></Shell>;
+  if (cfg.carregando) return <Shell><Carregando o="as configurações" /></Shell>;
   if (cfg.erro) return <Shell><Erro mensagem={cfg.erro} /></Shell>;
   if (!horario || !rot) return <Shell><Carregando /></Shell>;
 
@@ -92,13 +92,13 @@ export default function ConfiguracoesPage() {
 
   return (
     <Shell>
-      <h1>Configuracoes</h1>
-      <p className="sub">As regras do negocio ficam aqui, nao no codigo. Mudou aqui, vale na hora.</p>
+      <h1>Configurações</h1>
+      <p className="sub">As regras do negocio ficam aqui, não no código. Mudou aqui, vale na hora.</p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
 
       <section className="painel" style={{ marginBottom: 16 }}>
-        <h2>Horario de atendimento</h2>
+        <h2>Horário de atendimento</h2>
         <p className="sub">Serve para a IA saber quando ha gente para atender.</p>
         <div className="filtros">
           {DIAS.map((d, i) => (
@@ -123,16 +123,16 @@ export default function ConfiguracoesPage() {
             <input id="ini" type="time" value={horario.horaInicio} onChange={(e) => setHorario({ ...horario, horaInicio: e.target.value })} />
           </div>
           <div className="campo">
-            <label htmlFor="fim">Ate</label>
+            <label htmlFor="fim">Até</label>
             <input id="fim" type="time" value={horario.horaFim} onChange={(e) => setHorario({ ...horario, horaFim: e.target.value })} />
           </div>
           <button
             className="btn"
             type="button"
             disabled={salvando}
-            onClick={() => void salvar('horario_atendimento', horario, 'Horario salvo.')}
+            onClick={() => void salvar('horario_atendimento', horario, 'Horário salvo.')}
           >
-            Salvar horario
+            Salvar horário
           </button>
         </div>
       </section>
@@ -149,7 +149,7 @@ export default function ConfiguracoesPage() {
             </select>
           </div>
           <div className="campo">
-            <label htmlFor="padrao">Responsavel padrao</label>
+            <label htmlFor="padrao">Responsável padrão</label>
             <select
               id="padrao"
               value={rot.responsavelPadraoId ?? ''}
@@ -172,7 +172,7 @@ export default function ConfiguracoesPage() {
         </div>
         {rot.modo === 'RODIZIO' ? (
           <div>
-            <p className="sub">No rodizio, cada lead novo vai para o proximo da lista. Marque quem participa:</p>
+            <p className="sub">No rodízio, cada lead novo vai para o próximo da lista. Marque quem participa:</p>
             <div className="filtros">
               {ativos.map((u) => (
                 <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -193,12 +193,12 @@ export default function ConfiguracoesPage() {
           </div>
         ) : null}
         {rot.modo === 'MANUAL' ? (
-          <Aviso texto="Nesse modo o lead entra sem dono e fica na fila geral. Ele nao some, mas alguem precisa pegar." />
+          <Aviso texto="Nesse modo o lead entra sem dono e fica na fila geral. Ele não some, mas alguem precisa pegar." />
         ) : null}
       </section>
 
       <section className="painel">
-        <h2>Pesos da pontuacao</h2>
+        <h2>Pesos da pontuação</h2>
         <p className="sub">
           O que faz um lead ser quente. Soma atual: <strong>{regras.dados?.somaDosPesos ?? 0}</strong> pontos
           {regras.dados && regras.dados.somaDosPesos !== 100 ? ' — fora de 100, o "score" perde a referencia.' : '.'}
@@ -206,7 +206,7 @@ export default function ConfiguracoesPage() {
         {regras.carregando ? <Carregando o="os pesos" /> : null}
         {regras.dados ? (
           <table>
-            <thead><tr><th>Criterio</th><th>Peso</th></tr></thead>
+            <thead><tr><th>Critério</th><th>Peso</th></tr></thead>
             <tbody>
               {regras.dados.regras.map((r) => (
                 <tr key={r.id}>

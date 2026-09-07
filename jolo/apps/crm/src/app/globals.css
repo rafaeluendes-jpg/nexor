@@ -36,7 +36,10 @@ td{padding:10px;border-bottom:1px solid var(--linha)}
 .conversa{display:block;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--linha);background:#fff}
 .conversa[aria-selected=true]{background:#f2efe7;border-left:3px solid var(--bosco)}
 .conversa b{display:block;font-size:14px}
-.conversa small{color:var(--muted);font-size:12px}
+.conversa small{display:block;color:var(--muted);font-size:12px}
+/* previa da ultima mensagem: uma linha so, com reticencias.
+   Sem isto a lista de conversas vira um paredao de texto. */
+.conversa small.previa{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .mensagens{padding:16px;display:flex;flex-direction:column;gap:10px}
 .msg{max-width:74%;padding:10px 14px;border-radius:14px;font-size:14px;white-space:pre-wrap}
 .msg.IN{align-self:flex-start;background:#efece4}

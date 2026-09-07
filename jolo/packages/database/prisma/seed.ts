@@ -21,19 +21,19 @@ const QUALIFICATION = [
   { key: 'nome', label: 'Nome' },
   { key: 'cidade_atual', label: 'Cidade e estado onde mora' },
   { key: 'cidade_desejada', label: 'Cidade onde deseja abrir' },
-  { key: 'capital', label: 'Capital disponivel ou faixa' },
+  { key: 'capital', label: 'Capital disponível ou faixa' },
   { key: 'prazo', label: 'Prazo para investir' },
-  { key: 'experiencia', label: 'Experiencia empresarial' },
+  { key: 'experiencia', label: 'Experiência empresarial' },
   { key: 'socio', label: 'Possui sociedade' },
-  { key: 'disponibilidade', label: 'Disponibilidade para atuar no negocio' },
-  { key: 'horario', label: 'Melhor horario para conversar' },
-  { key: 'reuniao', label: 'Interesse em reuniao' },
+  { key: 'disponibilidade', label: 'Disponibilidade para atuar no negócio' },
+  { key: 'horario', label: 'Melhor horário para conversar' },
+  { key: 'reuniao', label: 'Interesse em reunião' },
 ];
 
 const SCORE_RULES = [
-  { key: 'capital_compativel', label: 'Capital compativel com o investimento', points: 25 },
+  { key: 'capital_compativel', label: 'Capital compatível com o investimento', points: 25 },
   { key: 'prazo_curto', label: 'Prazo curto para investir', points: 20 },
-  { key: 'cidade_disponivel', label: 'Cidade disponivel para a rede', points: 20 },
+  { key: 'cidade_disponivel', label: 'Cidade disponível para a rede', points: 20 },
   { key: 'perfil_empreendedor', label: 'Perfil empreendedor', points: 15 },
   { key: 'disponibilidade_operacao', label: 'Disponibilidade para operar', points: 10 },
   { key: 'engajamento', label: 'Engajamento na conversa', points: 10 },
@@ -41,13 +41,13 @@ const SCORE_RULES = [
 
 /** Unidades ja existentes da rede, marcadas como vendidas/ocupadas. */
 const TERRITORIES = [
-  { city: 'Tres Fronteiras', state: 'SP', status: 'VENDIDA' as const },
-  { city: 'Santa Fe do Sul', state: 'SP', status: 'VENDIDA' as const },
+  { city: 'Três Fronteiras', state: 'SP', status: 'VENDIDA' as const },
+  { city: 'Santa Fé do Sul', state: 'SP', status: 'VENDIDA' as const },
   { city: 'Jales', state: 'SP', status: 'VENDIDA' as const },
-  { city: 'Fernandopolis', state: 'SP', status: 'VENDIDA' as const },
+  { city: 'Fernandópolis', state: 'SP', status: 'VENDIDA' as const },
   { city: 'Sorocaba', state: 'SP', status: 'VENDIDA' as const },
-  { city: 'Petropolis', state: 'RJ', status: 'VENDIDA' as const },
-  { city: 'Sao Paulo', state: 'SP', status: 'NEGOCIACAO' as const },
+  { city: 'Petrópolis', state: 'RJ', status: 'VENDIDA' as const },
+  { city: 'São Paulo', state: 'SP', status: 'NEGOCIACAO' as const },
 ];
 
 const SOURCES = [
@@ -56,8 +56,8 @@ const SOURCES = [
   { key: 'google', name: 'Google' },
   { key: 'whatsapp', name: 'WhatsApp direto' },
   { key: 'landing', name: 'Landing page' },
-  { key: 'organico', name: 'Organico' },
-  { key: 'indicacao', name: 'Indicacao' },
+  { key: 'organico', name: 'Orgânico' },
+  { key: 'indicacao', name: 'Indicação' },
   { key: 'outros', name: 'Outros' },
 ];
 
@@ -65,7 +65,7 @@ async function main(): Promise<void> {
   // ---------- organizacao ----------
   const org = await prisma.organization.upsert({
     where: { slug: 'jolo-gelato' },
-    create: { name: 'Jolo Gelato Franquias', slug: 'jolo-gelato' },
+    create: { name: 'Jolô Gelato Franquias', slug: 'jolo-gelato' },
     update: {},
   });
 
@@ -146,17 +146,17 @@ async function main(): Promise<void> {
     {
       name: 'primeiro_contato',
       category: 'MARKETING',
-      bodyText: 'Ola, {{1}}! Aqui e da Jolo Gelato Franquias. Recebemos seu interesse pela franquia. Posso te explicar como funciona?',
+      bodyText: 'Olá, {{1}}! Aqui é da Jolô Gelato Franquias. Recebemos seu interesse pela franquia. Posso te explicar como funciona?',
     },
     {
       name: 'follow_up_24h',
       category: 'UTILITY',
-      bodyText: 'Oi, {{1}}! Passando para saber se ficou alguma duvida sobre a franquia Jolo. Posso ajudar?',
+      bodyText: 'Oi, {{1}}! Passando para saber se ficou alguma dúvida sobre a franquia Jolô. Posso ajudar?',
     },
     {
       name: 'lembrete_reuniao',
       category: 'UTILITY',
-      bodyText: 'Oi, {{1}}! Lembrete da nossa reuniao sobre a franquia Jolo em {{2}}. Ate la!',
+      bodyText: 'Oi, {{1}}! Lembrete da nossa reunião sobre a franquia Jolô em {{2}}. Até lá!',
     },
   ];
   for (const t of templates) {
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
     create: {
       organizationId: org.id,
       email: emailAdmin,
-      name: 'Administrador Jolo',
+      name: 'Administrador Jolô',
       status: 'ACTIVE',
       // Hash local usado apenas em desenvolvimento. Em producao a senha vive no Supabase Auth.
       devPasswordHash: process.env.NODE_ENV === 'production' ? null : await hash(senhaAdmin, 12),

@@ -40,7 +40,7 @@ export default function CofPage() {
       recarregar();
     } catch (e) {
       // o erro do prazo legal e informacao util: mostramos como veio
-      setRecado({ texto: e instanceof Error ? e.message : 'Nao deu para registrar.', tipo: 'erro' });
+      setRecado({ texto: e instanceof Error ? e.message : 'Não deu para registrar.', tipo: 'erro' });
     } finally {
       setOcupado(false);
     }
@@ -52,7 +52,7 @@ export default function CofPage() {
     <Shell>
       <h1>COF</h1>
       <p className="sub">
-        Circular de Oferta de Franquia. O contrato so libera depois do prazo legal a partir da data de recebimento.
+        Circular de Oferta de Franquia. O contrato só libera depois do prazo legal a partir da data de recebimento.
       </p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
@@ -62,10 +62,10 @@ export default function CofPage() {
 
       <div className="filtros">
         <div className="campo">
-          <label htmlFor="status">Situacao</label>
+          <label htmlFor="status">Situação</label>
           <select id="status" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">Todas</option>
-            <option value="NAO_ENVIADA">Nao enviada</option>
+            <option value="NAO_ENVIADA">Não enviada</option>
             <option value="ENVIADA">Enviada</option>
             <option value="EM_PRAZO">No prazo legal</option>
             <option value="CONTRATO_LIBERADO">Contrato liberado</option>
@@ -85,8 +85,8 @@ export default function CofPage() {
           <table>
             <thead>
               <tr>
-                <th>Candidato</th><th>Situacao</th><th>Enviada</th><th>Recebida</th>
-                <th>Prazo termina</th><th>Faltam</th><th>Acoes</th>
+                <th>Candidato</th><th>Situação</th><th>Enviada</th><th>Recebida</th>
+                <th>Prazo termina</th><th>Faltam</th><th>Ações</th>
               </tr>
             </thead>
             <tbody>

@@ -41,7 +41,7 @@ export default function OrigemPage() {
             <h2>Por canal</h2>
             {dados.porOrigem.length === 0 ? <Vazio texto="Ainda sem leads." /> : (
               <table>
-                <thead><tr><th>Canal</th><th>Leads</th><th>Participacao</th><th>Ganhos</th><th>Conversao</th></tr></thead>
+                <thead><tr><th>Canal</th><th>Leads</th><th>Participacao</th><th>Ganhos</th><th>Conversão</th></tr></thead>
                 <tbody>
                   {dados.porOrigem.map((o) => (
                     <tr key={o.origem}>
@@ -61,7 +61,7 @@ export default function OrigemPage() {
             <h2>Por campanha</h2>
             {dados.porCampanha.length === 0 ? <Vazio texto="Nenhuma campanha identificada." /> : (
               <table>
-                <thead><tr><th>Campanha</th><th>Leads</th><th>Participacao</th><th>Ganhos</th><th>Conversao</th></tr></thead>
+                <thead><tr><th>Campanha</th><th>Leads</th><th>Participacao</th><th>Ganhos</th><th>Conversão</th></tr></thead>
                 <tbody>
                   {dados.porCampanha.map((c) => (
                     <tr key={c.campanha}>

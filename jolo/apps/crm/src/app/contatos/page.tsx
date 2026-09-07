@@ -24,7 +24,7 @@ export default function ContatosPage() {
   return (
     <Shell>
       <h1>Contatos</h1>
-      <p className="sub">Todo telefone que ja falou com a gente, sem repetir ninguem.</p>
+      <p className="sub">Todo telefone que já falou com a gente, sem repetir ninguem.</p>
 
       <div className="filtros">
         <div className="campo">

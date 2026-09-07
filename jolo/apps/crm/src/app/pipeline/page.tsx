@@ -56,11 +56,11 @@ export default function PipelinePage() {
     setRecado(null);
     try {
       await api(`/leads/${leadId}/stage`, { method: 'POST', body: JSON.stringify({ stageKey: etapa }) });
-      setRecado({ texto: 'Lead movido. A mudanca ficou registrada no historico dele.', tipo: 'ok' });
+      setRecado({ texto: 'Lead movido. A mudanca ficou registrada no histórico dele.', tipo: 'ok' });
       carregar();
     } catch (e) {
       // regra de negocio (prazo da COF, por exemplo) chega aqui como recado claro
-      setRecado({ texto: e instanceof Error ? e.message : 'Nao deu para mover.', tipo: 'erro' });
+      setRecado({ texto: e instanceof Error ? e.message : 'Não deu para mover.', tipo: 'erro' });
       carregar();
     }
   };
@@ -77,7 +77,7 @@ export default function PipelinePage() {
 
       {erro ? <Erro mensagem={erro} /> : null}
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
-      {!podeMover ? <Aviso texto="Seu acesso permite ver o funil, mas nao mover cartao." /> : null}
+      {!podeMover ? <Aviso texto="Seu acesso permite ver o funil, mas não mover cartão." /> : null}
       {!board && !erro ? <Carregando o="o funil" /> : null}
 
       <div className="kanban">

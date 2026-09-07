@@ -46,12 +46,12 @@ const ETAPAS = [
 const NOMES_DE_CAMPO: Record<string, string> = {
   cidadeInteresse: 'Cidade onde quer abrir',
   estadoInteresse: 'Estado',
-  faixaDeCapital: 'Capital disponivel',
+  faixaDeCapital: 'Capital disponível',
   prazoParaInvestir: 'Prazo para investir',
-  experiencia: 'Experiencia empresarial',
-  temSocio: 'Tem socio',
+  experiencia: 'Experiência empresarial',
+  temSocio: 'Tem sócio',
   disponibilidade: 'Disponibilidade',
-  melhorHorario: 'Melhor horario para falar',
+  melhorHorario: 'Melhor horário para falar',
 };
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -70,7 +70,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
       linha.recarregar();
       setRecado({ texto: 'Etapa alterada.', tipo: 'ok' });
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : 'Nao foi possivel mudar a etapa.';
+      const msg = e instanceof ApiError ? e.message : 'Não foi possível mudar a etapa.';
       setRecado({ texto: msg, tipo: 'erro' });
     } finally {
       setSalvando(false);
@@ -82,7 +82,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
     try {
       await api(`/leads/${id}/score`, { method: 'POST' });
       ficha.recarregar();
-      setRecado({ texto: 'Pontuacao recalculada.', tipo: 'ok' });
+      setRecado({ texto: 'Pontuação recalculada.', tipo: 'ok' });
     } catch (e) {
       setRecado({ texto: e instanceof Error ? e.message : 'Falhou.', tipo: 'erro' });
     } finally {
@@ -92,7 +92,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 
   if (ficha.carregando) return <Shell><Carregando o="a ficha do lead" /></Shell>;
   if (ficha.erro) return <Shell><Erro mensagem={ficha.erro} /></Shell>;
-  if (!ficha.dados) return <Shell><Vazio texto="Lead nao encontrado." /></Shell>;
+  if (!ficha.dados) return <Shell><Vazio texto="Lead não encontrado." /></Shell>;
 
   const l = ficha.dados;
 
@@ -116,7 +116,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
           </select>
         </div>
         <button type="button" className="btn secundario" disabled={salvando} onClick={() => void recalcular()}>
-          Recalcular pontuacao
+          Recalcular pontuação
         </button>
         {l.conversas[0] ? (
           <a className="btn secundario" href={`/inbox?conversa=${l.conversas[0].id}`}>
@@ -128,7 +128,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
       <div className="duas-colunas">
         <section className="painel">
           <h2>Linha do tempo</h2>
-          {linha.carregando ? <Carregando o="o historico" /> : null}
+          {linha.carregando ? <Carregando o="o histórico" /> : null}
           {linha.dados && linha.dados.eventos.length === 0 ? <Vazio texto="Ainda sem movimento." /> : null}
           <ul className="linha-do-tempo">
             {linha.dados?.eventos
@@ -146,7 +146,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 
         <aside style={{ display: 'grid', gap: 16 }}>
           <section className="painel">
-            <h2>Qualificacao</h2>
+            <h2>Qualificação</h2>
             <dl className="perfil" style={{ padding: 0 }}>
               {Object.entries(NOMES_DE_CAMPO).map(([chave, nome]) => {
                 const v = l.qualificacao[chave];
@@ -166,15 +166,15 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
             <dl className="perfil" style={{ padding: 0 }}>
               <div><dt>Veio de</dt><dd>{l.origem.origem}</dd></div>
               <div><dt>Campanha</dt><dd>{l.origem.campanha ?? '—'}</dd></div>
-              <div><dt>Anuncio</dt><dd>{l.origem.anuncio ?? '—'}</dd></div>
+              <div><dt>Anúncio</dt><dd>{l.origem.anuncio ?? '—'}</dd></div>
               <div><dt>Primeira visita</dt><dd>{data(l.origem.primeiraVisita)}</dd></div>
-              <div><dt>Responsavel</dt><dd>{l.responsavel?.name ?? 'sem responsavel'}</dd></div>
+              <div><dt>Responsável</dt><dd>{l.responsavel?.name ?? 'sem responsável'}</dd></div>
             </dl>
           </section>
 
           <section className="painel">
-            <h2>Reunioes</h2>
-            {l.reunioes.length === 0 ? <Vazio texto="Nenhuma reuniao." /> : (
+            <h2>Reuniões</h2>
+            {l.reunioes.length === 0 ? <Vazio texto="Nenhuma reunião." /> : (
               <ul className="linha-do-tempo">
                 {l.reunioes.map((r) => (
                   <li key={r.id}>
@@ -210,7 +210,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
                   <li key={c.id}>
                     <strong>COF · {rotulo(c.status)}</strong>
                     <small>
-                      {c.enviadaEm ? `enviada ${data(c.enviadaEm)}` : 'nao enviada'}
+                      {c.enviadaEm ? `enviada ${data(c.enviadaEm)}` : 'não enviada'}
                       {c.recebidaEm ? ` · recebida ${data(c.recebidaEm)}` : ''}
                     </small>
                   </li>

@@ -22,15 +22,15 @@ const TELAS: { caminho: string; titulo: RegExp }[] = [
   { caminho: '/tarefas', titulo: /Tarefas/i },
   { caminho: '/cof', titulo: /COF/i },
   { caminho: '/documentos', titulo: /Documentos/i },
-  { caminho: '/pracas', titulo: /Pracas/i },
-  { caminho: '/relatorios', titulo: /Relatorios/i },
+  { caminho: '/pracas', titulo: /Praças/i },
+  { caminho: '/relatorios', titulo: /Relatórios/i },
   { caminho: '/origem', titulo: /Origem/i },
-  { caminho: '/exportacoes', titulo: /Exportacoes/i },
-  { caminho: '/usuarios', titulo: /Usuarios/i },
+  { caminho: '/exportacoes', titulo: /Exportações/i },
+  { caminho: '/usuarios', titulo: /Usuários/i },
   { caminho: '/modelos', titulo: /Modelos/i },
   { caminho: '/ia', titulo: /IA de atendimento/i },
-  { caminho: '/integracao', titulo: /Integracao/i },
-  { caminho: '/configuracoes', titulo: /Configuracoes/i },
+  { caminho: '/integracao', titulo: /Integração/i },
+  { caminho: '/configuracoes', titulo: /Configurações/i },
   { caminho: '/auditoria', titulo: /Auditoria/i },
 ];
 
@@ -121,7 +121,7 @@ test.describe('telas do CRM', () => {
     await primeiro.click();
     await page.waitForURL(/\/leads\/[0-9a-f-]{36}/, { timeout: 15_000 });
 
-    await expect(page.getByRole('heading', { name: 'Qualificacao' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Qualificação' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Origem' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Linha do tempo' })).toBeVisible();
   });

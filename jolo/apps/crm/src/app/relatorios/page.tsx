@@ -46,11 +46,11 @@ function TabelaDeGrupo({ titulo, coluna, linhas }: {
     <section className="painel" style={{ marginBottom: 16 }}>
       <h2>{titulo}</h2>
       {linhas.length === 0 ? (
-        <Vazio texto="Ainda sem dados neste periodo." />
+        <Vazio texto="Ainda sem dados neste período." />
       ) : (
         <table>
           <thead>
-            <tr><th>{coluna}</th><th>Leads</th><th>Ganhos</th><th>Conversao</th></tr>
+            <tr><th>{coluna}</th><th>Leads</th><th>Ganhos</th><th>Conversão</th></tr>
           </thead>
           <tbody>
             {linhas.map((l) => (
@@ -83,8 +83,8 @@ export default function RelatoriosPage() {
 
   return (
     <Shell>
-      <h1>Relatorios</h1>
-      <p className="sub">Como o funil esta se comportando. Sem periodo escolhido, mostra os ultimos 90 dias.</p>
+      <h1>Relatórios</h1>
+      <p className="sub">Como o funil está se comportando. Sem período escolhido, mostra os ultimos 90 dias.</p>
 
       <div className="filtros">
         <div className="campo">
@@ -92,12 +92,12 @@ export default function RelatoriosPage() {
           <input id="de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         </div>
         <div className="campo">
-          <label htmlFor="ate">Ate</label>
+          <label htmlFor="ate">Até</label>
           <input id="ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         </div>
       </div>
 
-      {carregando ? <Carregando o="os numeros" /> : null}
+      {carregando ? <Carregando o="os números" /> : null}
       {erro ? <Erro mensagem={erro} /> : null}
 
       {dados ? (
@@ -105,21 +105,21 @@ export default function RelatoriosPage() {
           <div className="cards">
             <div className="card"><b>{numero(dados.totais.leads)}</b><span>Leads</span></div>
             <div className="card"><b>{numero(dados.totais.qualificados)}</b><span>Qualificados</span></div>
-            <div className="card"><b>{numero(dados.totais.reunioes)}</b><span>Reunioes</span></div>
+            <div className="card"><b>{numero(dados.totais.reunioes)}</b><span>Reuniões</span></div>
             <div className="card"><b>{numero(dados.totais.cofs)}</b><span>COFs</span></div>
             <div className="card"><b>{numero(dados.totais.contratos)}</b><span>Contratos</span></div>
             <div className="card"><b>{numero(dados.totais.ganhos)}</b><span>Ganhos</span></div>
             <div className="card"><b>{numero(dados.totais.perdidos)}</b><span>Perdidos</span></div>
-            <div className="card"><b>{numero(dados.totais.scoreMedio, 1)}</b><span>Score medio</span></div>
+            <div className="card"><b>{numero(dados.totais.scoreMedio, 1)}</b><span>Score médio</span></div>
           </div>
 
           <section className="painel" style={{ marginBottom: 16 }}>
-            <h2>Conversao entre etapas</h2>
+            <h2>Conversão entre etapas</h2>
             <table>
               <tbody>
                 <tr><td>Lead → qualificado</td><td><strong>{porcentagem(dados.conversao.leadParaQualificado)}</strong></td></tr>
-                <tr><td>Lead → reuniao</td><td><strong>{porcentagem(dados.conversao.leadParaReuniao)}</strong></td></tr>
-                <tr><td>Reuniao → COF</td><td><strong>{porcentagem(dados.conversao.reuniaoParaCof)}</strong></td></tr>
+                <tr><td>Lead → reunião</td><td><strong>{porcentagem(dados.conversao.leadParaReuniao)}</strong></td></tr>
+                <tr><td>Reunião → COF</td><td><strong>{porcentagem(dados.conversao.reuniaoParaCof)}</strong></td></tr>
                 <tr><td>COF → contrato</td><td><strong>{porcentagem(dados.conversao.cofParaContrato)}</strong></td></tr>
                 <tr><td>Lead → franqueado</td><td><strong>{porcentagem(dados.conversao.leadParaGanho)}</strong></td></tr>
               </tbody>
@@ -135,7 +135,7 @@ export default function RelatoriosPage() {
                   <td><strong>{dados.tempos.primeiraRespostaMin === null ? '—' : `${numero(dados.tempos.primeiraRespostaMin, 1)} min`}</strong></td>
                 </tr>
                 <tr>
-                  <td>Ate qualificar</td>
+                  <td>Até qualificar</td>
                   <td><strong>{dados.tempos.qualificacaoHoras === null ? '—' : `${numero(dados.tempos.qualificacaoHoras, 1)} h`}</strong></td>
                 </tr>
                 {dados.tempos.porEtapaDias.map((e) => (
@@ -151,7 +151,7 @@ export default function RelatoriosPage() {
           <TabelaDeGrupo titulo="Por campanha" coluna="Campanha" linhas={dados.porCampanha.map((x) => ({ ...x, chave: x.campanha }))} />
           <TabelaDeGrupo titulo="Por origem" coluna="Origem" linhas={dados.porOrigem.map((x) => ({ ...x, chave: x.origem }))} />
           <TabelaDeGrupo titulo="Por cidade" coluna="Cidade" linhas={dados.porCidade.map((x) => ({ ...x, chave: x.cidade }))} />
-          <TabelaDeGrupo titulo="Por responsavel" coluna="Responsavel" linhas={dados.porResponsavel.map((x) => ({ ...x, chave: x.responsavel }))} />
+          <TabelaDeGrupo titulo="Por responsável" coluna="Responsável" linhas={dados.porResponsavel.map((x) => ({ ...x, chave: x.responsavel }))} />
 
           <section className="painel" style={{ marginBottom: 16 }}>
             <h2>Leads parados</h2>

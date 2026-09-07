@@ -152,7 +152,7 @@ export default function InboxPage() {
                   {c.contact.phone} · {c.mode === 'AI' ? 'IA atendendo' : `com ${c.owner?.name ?? 'humano'}`}
                   {c.lastMessageAt ? ` · ${quandoFoi(c.lastMessageAt)}` : ''}
                 </small>
-                <small>{c.preview ?? 'sem mensagens'}</small>
+                <small className="previa">{c.preview ?? 'sem mensagens'}</small>
               </button>
             ))
           )}

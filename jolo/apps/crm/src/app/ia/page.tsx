@@ -20,16 +20,16 @@ interface Mensagens {
 }
 
 const FERRAMENTAS = [
-  ['Ler o lead', 'ver o que ja se sabe da pessoa'],
+  ['Ler o lead', 'ver o que já se sabe da pessoa'],
   ['Atualizar o lead', 'gravar cidade, capital e prazo'],
-  ['Guardar resposta', 'registrar cada resposta da qualificacao'],
+  ['Guardar resposta', 'registrar cada resposta da qualificação'],
   ['Mover etapa', 'andar com o lead no funil'],
   ['Criar tarefa', 'deixar trabalho para o time'],
-  ['Deixar observacao', 'anotar algo no lead'],
-  ['Marcar reuniao', 'registrar interesse e horario'],
+  ['Deixar observação', 'anotar algo no lead'],
+  ['Marcar reunião', 'registrar interesse e horário'],
   ['Passar para uma pessoa', 'chamar o time e se calar'],
-  ['Consultar duvidas comuns', 'responder com dado aprovado'],
-  ['Consultar cidades livres', 'dizer onde ainda da para abrir'],
+  ['Consultar dúvidas comuns', 'responder com dado aprovado'],
+  ['Consultar cidades livres', 'dizer onde ainda dá para abrir'],
 ];
 
 export default function IaPage() {
@@ -54,15 +54,15 @@ export default function IaPage() {
     try {
       await api('/settings/ia_sdr', { method: 'PUT', body: JSON.stringify(ia) });
       await api('/settings/mensagens', { method: 'PUT', body: JSON.stringify(msgs) });
-      setRecado({ texto: 'Configuracao salva.', tipo: 'ok' });
+      setRecado({ texto: 'Configuração salva.', tipo: 'ok' });
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para salvar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para salvar.', tipo: 'erro' });
     } finally {
       setSalvando(false);
     }
   };
 
-  if (config.carregando) return <Shell><Carregando o="a configuracao da IA" /></Shell>;
+  if (config.carregando) return <Shell><Carregando o="a configuração da IA" /></Shell>;
   if (config.erro) return <Shell><Erro mensagem={config.erro} /></Shell>;
   if (!ia || !msgs) return <Shell><Carregando /></Shell>;
 
@@ -118,7 +118,7 @@ export default function IaPage() {
             <textarea id="saud" value={msgs.saudacao} onChange={(e) => setMsgs({ ...msgs, saudacao: e.target.value })} />
           </div>
           <div className="campo">
-            <label htmlFor="fora">Fora do horario</label>
+            <label htmlFor="fora">Fora do horário</label>
             <textarea id="fora" value={msgs.foraDoHorario} onChange={(e) => setMsgs({ ...msgs, foraDoHorario: e.target.value })} />
           </div>
           <div className="campo">
@@ -135,7 +135,7 @@ export default function IaPage() {
       <section className="painel">
         <h2>O que a IA pode fazer</h2>
         <p className="sub">
-          Ela nao mexe no banco de dados. Faz apenas estas dez coisas, e cada uma confere o que recebe.
+          Ela não mexe no banco de dados. Faz apenas estas dez coisas, e cada uma confere o que recebe.
         </p>
         <table>
           <tbody>

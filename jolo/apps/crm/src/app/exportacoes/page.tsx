@@ -31,7 +31,7 @@ export default function ExportacoesPage() {
       setRecado({ texto: 'Exportacao pedida. Ela e gerada em segundo plano; atualize daqui a pouco.', tipo: 'ok' });
       recarregar();
     } catch (e) {
-      setRecado({ texto: e instanceof Error ? e.message : 'Nao deu para pedir.', tipo: 'erro' });
+      setRecado({ texto: e instanceof Error ? e.message : 'Não deu para pedir.', tipo: 'erro' });
     } finally {
       setPedindo(false);
     }
@@ -39,7 +39,7 @@ export default function ExportacoesPage() {
 
   return (
     <Shell>
-      <h1>Exportacoes</h1>
+      <h1>Exportações</h1>
       <p className="sub">Planilha com uma linha por lead, para acompanhar por fora do sistema.</p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
@@ -51,7 +51,7 @@ export default function ExportacoesPage() {
         <button className="btn secundario" type="button" onClick={recarregar}>Atualizar lista</button>
       </div>
 
-      {carregando ? <Carregando o="as exportacoes" /> : null}
+      {carregando ? <Carregando o="as exportações" /> : null}
       {erro ? <Erro mensagem={erro} /> : null}
       {dados && dados.length === 0 ? <Vazio texto="Nenhuma planilha gerada ainda." /> : null}
 
@@ -59,7 +59,7 @@ export default function ExportacoesPage() {
         <div className="painel">
           <table>
             <thead>
-              <tr><th>Pedido em</th><th>Situacao</th><th>Linhas</th><th>Versao</th><th>Pedido por</th><th>Concluido</th></tr>
+              <tr><th>Pedido em</th><th>Situação</th><th>Linhas</th><th>Versão</th><th>Pedido por</th><th>Concluido</th></tr>
             </thead>
             <tbody>
               {dados.map((e) => (
@@ -80,7 +80,7 @@ export default function ExportacoesPage() {
           </table>
           <p className="sub" style={{ marginTop: 12 }}>
             A planilha fica no armazenamento do servidor. Para receber por e-mail ou salvar na nuvem,
-            e preciso ligar essa integracao — depende de conta externa.
+            e preciso ligar essa integração — depende de conta externa.
           </p>
         </div>
       ) : null}

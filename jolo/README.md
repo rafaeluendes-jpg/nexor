@@ -36,6 +36,15 @@ pnpm build && pnpm db:migrate && pnpm db:seed
 | [docs/PHASE_1_REPORT.md](docs/PHASE_1_REPORT.md) | o que a Fase 1 entregou |
 | [docs/PHASE_2_REPORT.md](docs/PHASE_2_REPORT.md) | o que a Fase 2 entregou |
 
+## Ver as telas com conteúdo
+
+```bash
+npx tsx scripts/dados-demo.ts    # candidatos, reuniões, tarefas e COFs de exemplo
+```
+
+Só para desenvolvimento: apaga leads, contatos e conversas existentes e cria um
+conjunto de exemplo. Recusa rodar com `NODE_ENV=production`.
+
 ## Testes
 
 ```bash

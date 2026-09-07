@@ -21,12 +21,12 @@ interface Status {
 }
 
 const NOMES: Record<string, string> = {
-  appId: 'Identificacao do app (App ID)',
+  appId: 'Identificação do app (App ID)',
   appSecret: 'Segredo do app (App Secret)',
   token: 'Token de envio',
-  numeroId: 'Identificacao do numero',
+  numeroId: 'Identificacao do número',
   contaComercialId: 'Conta comercial (WABA)',
-  tokenDoWebhook: 'Token de verificacao do webhook',
+  tokenDoWebhook: 'Token de verificação do webhook',
 };
 
 function Sinal({ ligado }: { ligado: boolean }) {
@@ -38,13 +38,13 @@ export default function IntegracaoPage() {
 
   return (
     <Shell>
-      <h1>Integracao WhatsApp</h1>
+      <h1>Integração WhatsApp</h1>
       <p className="sub">
-        O sistema so fala pelo WhatsApp oficial da Meta. Esta tela mostra o que ja esta ligado —
+        O sistema só fala pelo WhatsApp oficial da Meta. Esta tela mostra o que já está ligado —
         nunca o valor das credenciais.
       </p>
 
-      {carregando ? <Carregando o="o estado da integracao" /> : null}
+      {carregando ? <Carregando o="o estado da integração" /> : null}
       {erro ? <Erro mensagem={erro} /> : null}
 
       {dados ? (
@@ -58,7 +58,7 @@ export default function IntegracaoPage() {
             </div>
             <div className="card"><b>{numero(dados.whatsapp.mensagens24h)}</b><span>Mensagens em 24h</span></div>
             <div className="card"><b>{numero(dados.whatsapp.eventosRecusados24h)}</b><span>Eventos recusados em 24h</span></div>
-            <div className="card"><b>{dados.whatsapp.versaoDaApi}</b><span>Versao da API da Meta</span></div>
+            <div className="card"><b>{dados.whatsapp.versaoDaApi}</b><span>Versão da API da Meta</span></div>
           </div>
 
           <section className="painel" style={{ marginBottom: 16 }}>
@@ -75,7 +75,7 @@ export default function IntegracaoPage() {
                   </tr>
                 ))}
                 <tr>
-                  <td>Ultimo evento recebido da Meta</td>
+                  <td>Último evento recebido da Meta</td>
                   <td>{dataHora(dados.whatsapp.ultimoEventoRecebido)}</td>
                 </tr>
               </tbody>
@@ -90,7 +90,7 @@ export default function IntegracaoPage() {
               <h2>IA de atendimento</h2>
               <table>
                 <tbody>
-                  <tr><td>Situacao</td><td><Sinal ligado={dados.ia.configurada} /></td></tr>
+                  <tr><td>Situação</td><td><Sinal ligado={dados.ia.configurada} /></td></tr>
                   <tr><td>Provedor</td><td>{dados.ia.provedor}</td></tr>
                   <tr><td>Modelo</td><td>{dados.ia.modelo}</td></tr>
                 </tbody>
@@ -115,7 +115,7 @@ export default function IntegracaoPage() {
             <h2>Como ligar</h2>
             <p className="sub">
               Todas essas credenciais saem do painel da Meta e do Supabase, e quem as cria e o dono da conta.
-              O passo a passo, com o lugar exato de cada valor, esta no arquivo <code>docs/WHATSAPP_SETUP.md</code>.
+              O passo a passo, com o lugar exato de cada valor, está no arquivo <code>docs/WHATSAPP_SETUP.md</code>.
             </p>
           </section>
         </>

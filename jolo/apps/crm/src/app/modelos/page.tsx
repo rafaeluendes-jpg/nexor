@@ -35,12 +35,12 @@ export default function ModelosPage() {
       setNome('');
       setTexto('');
       setRecado({
-        texto: 'Modelo guardado aqui. Agora cadastre o mesmo nome e texto no painel da Meta: e la que ele e aprovado.',
+        texto: 'Modelo guardado aqui. Agora cadastre o mesmo nome e texto no painel da Meta: e lá que ele e aprovado.',
         tipo: 'ok',
       });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para salvar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para salvar.', tipo: 'erro' });
     } finally {
       setSalvando(false);
     }
@@ -51,7 +51,7 @@ export default function ModelosPage() {
       await api(`/templates/${id}`, { method: 'PATCH', body: JSON.stringify({ ativo }) });
       recarregar();
     } catch (err) {
-      setRecado({ texto: err instanceof Error ? err.message : 'Nao deu para alterar.', tipo: 'erro' });
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para alterar.', tipo: 'erro' });
     }
   };
 
@@ -59,11 +59,11 @@ export default function ModelosPage() {
     <Shell>
       <h1>Modelos de mensagem</h1>
       <p className="sub">
-        Fora da janela de 24 horas, o WhatsApp so deixa enviar mensagem de modelo aprovado pela Meta.
+        Fora da janela de 24 horas, o WhatsApp só deixa enviar mensagem de modelo aprovado pela Meta.
       </p>
 
       {dados && !dados.integracaoConfigurada ? (
-        <Aviso texto="A integracao com a Meta ainda nao esta configurada, entao nenhum modelo envia de verdade. Veja a tela de Integracao WhatsApp." />
+        <Aviso texto="A integração com a Meta ainda não está configurada, então nenhum modelo envia de verdade. Veja a tela de Integração WhatsApp." />
       ) : null}
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
 
@@ -98,7 +98,7 @@ export default function ModelosPage() {
             minLength={10}
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            placeholder="Oi, {{1}}! Lembrete da sua visita a loja em {{2}}."
+            placeholder="Oi, {{1}}! Lembrete da sua visita à loja em {{2}}."
           />
         </div>
         <div className="linha-botoes">
@@ -114,7 +114,7 @@ export default function ModelosPage() {
         <div className="painel">
           <table>
             <thead>
-              <tr><th>Nome</th><th>Categoria</th><th>Texto</th><th>Variaveis</th><th>Na Meta</th><th>Uso</th></tr>
+              <tr><th>Nome</th><th>Categoria</th><th>Texto</th><th>Variáveis</th><th>Na Meta</th><th>Uso</th></tr>
             </thead>
             <tbody>
               {dados.itens.map((m) => (
