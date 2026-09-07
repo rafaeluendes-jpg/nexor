@@ -40,7 +40,7 @@ export default function ContatosPage() {
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
           <p className="sub" style={{ margin: '0 0 12px' }}>{numero(dados.total)} contato(s).</p>
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr>
                 <th>Nome</th><th>Telefone</th><th>Cidade</th><th>Etapa do lead</th><th>Score</th><th>Cadastrado</th>
@@ -62,7 +62,7 @@ export default function ContatosPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>

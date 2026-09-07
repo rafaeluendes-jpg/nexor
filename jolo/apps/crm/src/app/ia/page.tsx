@@ -137,13 +137,13 @@ export default function IaPage() {
         <p className="sub">
           Ela não mexe no banco de dados. Faz apenas estas dez coisas, e cada uma confere o que recebe.
         </p>
-        <table>
+        <div className="tabela-rolagem"><table>
           <tbody>
             {FERRAMENTAS.map(([nome, oque]) => (
               <tr key={nome}><td><strong>{nome}</strong></td><td>{oque}</td></tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
         <p className="sub" style={{ marginTop: 12 }}>
           Quando alguem do time assume a conversa, a IA para de responder ali na hora.
         </p>

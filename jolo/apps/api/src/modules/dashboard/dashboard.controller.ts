@@ -53,6 +53,29 @@ export class DashboardController {
       this.prisma.client.cofProcess.count({ where: { organizationId: org, status: 'EM_PRAZO' } }),
     ]);
 
+    // Serie dos ultimos 14 dias: quantos leads entraram por dia.
+    const inicioSerie = new Date(hoje.getTime() - 13 * 86_400_000);
+    const recentes = await this.prisma.client.lead.findMany({
+      where: { organizationId: org, createdAt: { gte: inicioSerie } },
+      select: { createdAt: true },
+    });
+    const porDia = new Map<string, number>();
+    for (let i = 0; i < 14; i += 1) {
+      const d = new Date(inicioSerie.getTime() + i * 86_400_000);
+      porDia.set(d.toISOString().slice(0, 10), 0);
+    }
+    for (const l of recentes) {
+      const chave = l.createdAt.toISOString().slice(0, 10);
+      if (porDia.has(chave)) porDia.set(chave, (porDia.get(chave) ?? 0) + 1);
+    }
+
+    // Quantos leads em cada etapa, na ordem do processo.
+    const etapas = await this.prisma.client.pipelineStage.findMany({
+      where: { pipeline: { organizationId: org } },
+      orderBy: { position: 'asc' },
+      select: { key: true, name: true, _count: { select: { leads: true } } },
+    });
+
     const total = await conta({});
     const conversao = total ? Number(((ganhos / total) * 100).toFixed(1)) : 0;
 
@@ -61,6 +84,8 @@ export class DashboardController {
       funil: { qualificados, reunioes, cofs, contratos, ganhos, perdidos },
       pendencias: { tarefasAbertas, proximasReunioes, cofsEmPrazo },
       taxaConversao: conversao,
+      serie: [...porDia.entries()].map(([dia, leads]) => ({ dia, leads })),
+      etapas: etapas.map((e) => ({ chave: e.key, nome: e.name, leads: e._count.leads })),
       origens: porOrigem.map((o) => ({
         origem: o.firstTouchSource ?? 'direto',
         leads: o._count._all,

@@ -57,7 +57,7 @@ export default function ExportacoesPage() {
 
       {dados && dados.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Pedido em</th><th>Situação</th><th>Linhas</th><th>Versão</th><th>Pedido por</th><th>Concluido</th></tr>
             </thead>
@@ -77,7 +77,7 @@ export default function ExportacoesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <p className="sub" style={{ marginTop: 12 }}>
             A planilha fica no armazenamento do servidor. Para receber por e-mail ou salvar na nuvem,
             e preciso ligar essa integração — depende de conta externa.

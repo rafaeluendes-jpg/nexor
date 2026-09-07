@@ -114,7 +114,7 @@ export default function PracasPage() {
 
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Cidade</th><th>UF</th><th>Situação</th><th>Responsável</th><th>Candidato</th><th>Mudar para</th></tr>
             </thead>
@@ -138,7 +138,7 @@ export default function PracasPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>

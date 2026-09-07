@@ -48,7 +48,7 @@ function TabelaDeGrupo({ titulo, coluna, linhas }: {
       {linhas.length === 0 ? (
         <Vazio texto="Ainda sem dados neste período." />
       ) : (
-        <table>
+        <div className="tabela-rolagem"><table>
           <thead>
             <tr><th>{coluna}</th><th>Leads</th><th>Ganhos</th><th>Conversão</th></tr>
           </thead>
@@ -62,7 +62,7 @@ function TabelaDeGrupo({ titulo, coluna, linhas }: {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );
@@ -115,7 +115,7 @@ export default function RelatoriosPage() {
 
           <section className="painel" style={{ marginBottom: 16 }}>
             <h2>Conversão entre etapas</h2>
-            <table>
+            <div className="tabela-rolagem"><table>
               <tbody>
                 <tr><td>Lead → qualificado</td><td><strong>{porcentagem(dados.conversao.leadParaQualificado)}</strong></td></tr>
                 <tr><td>Lead → reunião</td><td><strong>{porcentagem(dados.conversao.leadParaReuniao)}</strong></td></tr>
@@ -123,12 +123,12 @@ export default function RelatoriosPage() {
                 <tr><td>COF → contrato</td><td><strong>{porcentagem(dados.conversao.cofParaContrato)}</strong></td></tr>
                 <tr><td>Lead → franqueado</td><td><strong>{porcentagem(dados.conversao.leadParaGanho)}</strong></td></tr>
               </tbody>
-            </table>
+            </table></div>
           </section>
 
           <section className="painel" style={{ marginBottom: 16 }}>
             <h2>Tempo</h2>
-            <table>
+            <div className="tabela-rolagem"><table>
               <tbody>
                 <tr>
                   <td>Primeira resposta ao candidato</td>
@@ -145,7 +145,7 @@ export default function RelatoriosPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </section>
 
           <TabelaDeGrupo titulo="Por campanha" coluna="Campanha" linhas={dados.porCampanha.map((x) => ({ ...x, chave: x.campanha }))} />
@@ -158,7 +158,7 @@ export default function RelatoriosPage() {
             {dados.leadsParados.length === 0 ? (
               <Vazio texto="Nenhum lead esquecido. Bom sinal." />
             ) : (
-              <table>
+              <div className="tabela-rolagem"><table>
                 <thead><tr><th>Lead</th><th>Etapa</th><th>Parado ha</th></tr></thead>
                 <tbody>
                   {dados.leadsParados.map((l) => (
@@ -173,7 +173,7 @@ export default function RelatoriosPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
 
@@ -181,13 +181,13 @@ export default function RelatoriosPage() {
             <section className="painel">
               <h2>Motivos de perda</h2>
               {dados.motivosDePerda.length === 0 ? <Vazio texto="Nenhuma perda registrada." /> : (
-                <table>
+                <div className="tabela-rolagem"><table>
                   <tbody>
                     {dados.motivosDePerda.map((m) => (
                       <tr key={m.motivo}><td>{m.motivo}</td><td><strong>{m.quantidade}</strong></td></tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </section>
 
@@ -195,13 +195,13 @@ export default function RelatoriosPage() {
               <h2>IA passou para uma pessoa</h2>
               <p className="sub">{numero(dados.iaParaHumano.total)} vez(es) no periodo.</p>
               {dados.iaParaHumano.porMotivo.length === 0 ? <Vazio texto="Nenhuma passagem." /> : (
-                <table>
+                <div className="tabela-rolagem"><table>
                   <tbody>
                     {dados.iaParaHumano.porMotivo.map((m) => (
                       <tr key={m.motivo}><td>{m.motivo}</td><td><strong>{m.quantidade}</strong></td></tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </section>
           </div>

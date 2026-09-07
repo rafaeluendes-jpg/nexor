@@ -127,7 +127,7 @@ export default function DocumentosPage() {
 
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Arquivo</th><th>Categoria</th><th>Lead</th><th>Tamanho</th><th>Enviado por</th><th>Quando</th><th /></tr>
             </thead>
@@ -146,7 +146,7 @@ export default function DocumentosPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>

@@ -73,7 +73,7 @@ export default function AgendaPage() {
 
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Quando</th><th>Assunto</th><th>Candidato</th><th>Local</th><th>Responsável</th><th>Status</th><th /></tr>
             </thead>
@@ -104,7 +104,7 @@ export default function AgendaPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>

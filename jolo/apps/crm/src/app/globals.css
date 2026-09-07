@@ -1,117 +1,374 @@
-/* CRM Jolo - interface interna. Mesma paleta da marca, densidade de ferramenta. */
+/* =========================================================================
+   CRM Jolo — sistema visual
+   Ferramenta de trabalho: densidade de informacao com respiro, hierarquia
+   clara e a identidade da marca no enquadramento, nao no conteudo.
+   As fontes sao servidas pelo proprio servidor: o CRM e privado e nao
+   chama nada de fora (a politica de conteudo em next.config.ts so
+   permite 'self').
+   ========================================================================= */
+
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/fontes/plex-sans-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/fontes/plex-sans-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('/fontes/plex-sans-500-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('/fontes/plex-sans-500-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-display:swap;src:url('/fontes/plex-sans-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-display:swap;src:url('/fontes/plex-sans-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('/fontes/plex-sans-700-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('/fontes/plex-sans-700-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('/fontes/plex-mono-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('/fontes/plex-mono-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('/fontes/plex-mono-500-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('/fontes/plex-mono-500-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+
 :root{
-  --bosco:#304A2A;--oliva:#6E7138;--latte:#F5EDDF;--notte:#17351f;--caramello:#A67B3F;
-  --pietra:#DCCFB8;--ink:#243126;--muted:#6b7069;--linha:#e4ded2;--fundo:#F7F4EE;
-  --quente:#C9231B;--morno:#A67B3F;--frio:#6b7069;
+  /* ---------- identidade Jolo ---------- */
+  --notte:#17351F;      /* verde noite: enquadramento */
+  --bosco:#304A2A;      /* verde bosque: acao primaria */
+  --oliva:#6E7138;      /* oliva */
+  --latte:#F5EDDF;      /* creme */
+  --pietra:#DCCFB8;     /* pedra clara */
+  --caramello:#A67B3F;  /* caramelo: destaque, usado com parcimonia */
+
+  /* ---------- superficies e tinta ---------- */
+  /* neutros puxados para o verde-oliva da marca, nunca cinza puro */
+  --fundo:#F7F6F1;
+  --superficie:#FFFFFF;
+  --superficie-2:#FBFAF6;
+  --linha:#E5E2D6;
+  --linha-forte:#D3CFBE;
+  --tinta:#1E2A20;
+  --tinta-2:#4E5A4F;
+  --tinta-3:#7C857B;
+
+  /* ---------- estado (reservado: nunca vira cor de serie) ---------- */
+  --bom:#2F7D4F;      --bom-fundo:#E4F1E7;
+  --atencao:#9A6B18;  --atencao-fundo:#FAEFD9;
+  --grave:#A33A2E;    --grave-fundo:#FBE6E2;
+  --neutro-fundo:#EEECE3;
+
+  /* ---------- temperatura do lead ---------- */
+  --quente:#B3372C;   --quente-fundo:#FBE4E0;
+  --morno:#8A6420;    --morno-fundo:#F8EEDA;
+  --frio:#5A6B76;     --frio-fundo:#E9EDEF;
+
+  /* ---------- grafico: escala ordinal de um tom (validada) ---------- */
+  --g1:#AFBC93; --g2:#9BAB7C; --g3:#879A66; --g4:#738750;
+  --g5:#5E733C; --g6:#4A5E2F; --g7:#304A2A;
+  --grade:#EDEBE1;
+
+  /* ---------- forma ---------- */
+  --r-p:6px; --r-m:10px; --r-g:14px;
+  --sombra-1:0 1px 2px rgba(30,42,32,.06);
+  --sombra-2:0 1px 3px rgba(30,42,32,.07), 0 6px 16px rgba(30,42,32,.06);
+  --lateral:236px;
+
+  --ui:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
 }
+
 *{box-sizing:border-box}
-body{margin:0;background:var(--fundo);color:var(--ink);font:15px/1.5 Inter,Segoe UI,Arial,sans-serif}
-a{color:inherit}
-button{font:inherit;cursor:pointer}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--notte);color:#fff;padding:0 20px;height:56px;position:sticky;top:0;z-index:20}
-.topbar nav{display:flex;gap:18px;font-size:14px;font-weight:600}
-.topbar nav a{text-decoration:none;opacity:.82}
-.topbar nav a:hover,.topbar nav a[aria-current=page]{opacity:1}
-.topbar .quem{font-size:13px;opacity:.8}
-.topbar button{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px}
-.page{padding:24px;max-width:1400px;margin:auto}
-h1{font-size:24px;margin:0 0 4px}
-h2{font-size:17px;margin:0 0 12px}
-.sub{color:var(--muted);font-size:14px;margin:0 0 20px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
-.card{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:16px}
-.card b{display:block;font-size:28px;line-height:1.1;color:var(--bosco)}
-.card span{font-size:13px;color:var(--muted)}
-.painel{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:18px}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--linha)}
-td{padding:10px;border-bottom:1px solid var(--linha)}
-.tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--pietra);color:var(--notte)}
-.tag.QUENTE{background:#f6d7d4;color:var(--quente)}
-.tag.MORNO{background:#f0e2c9;color:var(--morno)}
-.tag.FRIO{background:#e6e7e3;color:var(--frio)}
-.inbox{display:grid;grid-template-columns:300px 1fr 320px;gap:14px;height:calc(100vh - 104px)}
-.coluna{background:#fff;border:1px solid var(--linha);border-radius:14px;overflow:auto}
-.coluna h2{padding:14px 16px 0;position:sticky;top:0;background:#fff}
-.conversa{display:block;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--linha);background:#fff}
-.conversa[aria-selected=true]{background:#f2efe7;border-left:3px solid var(--bosco)}
-.conversa b{display:block;font-size:14px}
-.conversa small{display:block;color:var(--muted);font-size:12px}
-/* previa da ultima mensagem: uma linha so, com reticencias.
-   Sem isto a lista de conversas vira um paredao de texto. */
-.conversa small.previa{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-.mensagens{padding:16px;display:flex;flex-direction:column;gap:10px}
-.msg{max-width:74%;padding:10px 14px;border-radius:14px;font-size:14px;white-space:pre-wrap}
-.msg.IN{align-self:flex-start;background:#efece4}
-.msg.OUT{align-self:flex-end;background:var(--bosco);color:#fff}
-.msg .meta{display:block;font-size:11px;opacity:.75;margin-top:6px}
-.responder{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--linha);position:sticky;bottom:0;background:#fff}
-.responder input{flex:1;padding:10px 12px;border:1px solid var(--linha);border-radius:10px}
-.btn{background:var(--bosco);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600}
-.btn.secundario{background:#fff;color:var(--bosco);border:1px solid var(--bosco)}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.perfil dl{margin:0;display:grid;grid-template-columns:1fr;gap:10px;padding:16px}
-.perfil dt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.perfil dd{margin:2px 0 0;font-size:14px}
-.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px}
-.kanban .col{min-width:250px;background:#fff;border:1px solid var(--linha);border-radius:14px;padding:12px}
-.kanban .col h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.kanban .cartao{border:1px solid var(--linha);border-radius:10px;padding:10px;margin-bottom:8px}
-.kanban .cartao b{font-size:14px}
-.kanban .cartao small{display:block;color:var(--muted);font-size:12px}
-.login{min-height:100vh;display:grid;place-items:center;background:var(--notte)}
-.login form{background:#fff;border-radius:18px;padding:32px;width:min(400px,92vw);display:grid;gap:14px}
-.login h1{font-size:22px;margin:0}
-.login input{padding:12px;border:1px solid var(--linha);border-radius:10px;font-size:15px}
-.login .erro{background:#fdeceb;color:#b3261e;padding:10px 12px;border-radius:10px;font-size:14px}
-.vazio{padding:40px;text-align:center;color:var(--muted)}
-
-/* ---------- casca com menu lateral (Fase 2) ---------- */
-.app{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 56px)}
-.lateral{background:#fff;border-right:1px solid var(--linha);padding:16px 0;overflow-y:auto}
-.lateral .grupo{padding:14px 18px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
-.lateral a{display:block;padding:8px 18px;font-size:14px;text-decoration:none;color:var(--ink);border-left:3px solid transparent}
-.lateral a:hover{background:#f7f4ee}
-.lateral a[aria-current=page]{background:#f2efe7;border-left-color:var(--bosco);font-weight:600;color:var(--bosco)}
-.conteudo{padding:24px;max-width:1400px;overflow-x:auto}
-@media(max-width:900px){
-  .app{grid-template-columns:1fr}
-  .lateral{display:flex;flex-wrap:wrap;gap:2px;border-right:0;border-bottom:1px solid var(--linha);padding:8px}
-  .lateral .grupo{width:100%;padding:6px 10px 2px}
-  .lateral a{border-left:0;border-radius:8px;padding:6px 12px}
-  .inbox{grid-template-columns:1fr;height:auto}
+html,body{height:100%}
+body{
+  margin:0;background:var(--fundo);color:var(--tinta);
+  font:400 14.5px/1.55 var(--ui);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
+a{color:var(--bosco);text-decoration-color:var(--linha-forte);text-underline-offset:2px}
+a:hover{text-decoration-color:currentColor}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--caramello);outline-offset:2px;border-radius:4px}
+::selection{background:var(--pietra)}
 
-/* ---------- filtros e formularios ---------- */
-.filtros{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:flex-end}
-.campo{display:flex;flex-direction:column;gap:4px}
-.campo label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
-.campo input,.campo select,.campo textarea{padding:9px 11px;border:1px solid var(--linha);border-radius:9px;font:inherit;background:#fff;min-width:150px}
-.campo textarea{min-height:80px;resize:vertical}
-.linha-botoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-form.painel{display:grid;gap:12px}
-fieldset{border:1px solid var(--linha);border-radius:12px;padding:14px;margin:0 0 14px}
-legend{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:0 6px}
+/* =======================  ESTRUTURA  ======================= */
+.app{display:grid;grid-template-columns:var(--lateral) minmax(0,1fr);min-height:100vh}
 
-/* ---------- estados e avisos ---------- */
-.aviso{background:#fdf6e6;border:1px solid #e8d9b0;color:#6b5417;padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:14px}
-.aviso.erro{background:#fdeceb;border-color:#f3c9c5;color:#8c221b}
-.aviso.ok{background:#eaf4ec;border-color:#c3e0ca;color:#1f5c31}
-.pilula{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.03em;background:var(--pietra);color:var(--notte)}
-.pilula.atencao{background:#f7e2c4;color:#7a4b12}
-.pilula.perigo{background:#f6d7d4;color:var(--quente)}
-.pilula.ok{background:#d9ecdd;color:#1f5c31}
-.barra{height:8px;border-radius:999px;background:var(--linha);overflow:hidden}
-.barra span{display:block;height:100%;background:var(--bosco)}
-.acoes{display:flex;gap:8px;flex-wrap:wrap}
-.acoes button{font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--linha);background:#fff}
+.lateral{
+  background:var(--notte);color:#D8DED2;
+  display:flex;flex-direction:column;gap:2px;
+  padding:0 0 20px;position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.marca{
+  display:flex;align-items:center;gap:10px;
+  padding:20px 18px 18px;margin-bottom:6px;
+  border-bottom:1px solid rgba(245,237,223,.10);
+}
+.marca .cone{
+  width:30px;height:30px;border-radius:9px;flex:none;
+  background:linear-gradient(150deg,var(--caramello),#7d5a2c);
+  display:grid;place-items:center;color:#FFF6E8;font-weight:700;font-size:14px;
+}
+.marca b{color:var(--latte);font-size:15px;font-weight:600;letter-spacing:.01em;line-height:1.2}
+.marca small{display:block;color:#93A38D;font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+
+.lateral .grupo{
+  padding:16px 18px 6px;font-size:10.5px;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:#7E8F79;
+}
+.lateral a{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 18px;font-size:14px;text-decoration:none;color:#CBD3C4;
+  border-left:3px solid transparent;
+}
+.lateral a svg{width:17px;height:17px;flex:none;opacity:.75}
+.lateral a:hover{background:rgba(245,237,223,.06);color:var(--latte)}
+.lateral a[aria-current=page]{
+  background:rgba(166,123,63,.16);border-left-color:var(--caramello);
+  color:#FFF3E2;font-weight:500;
+}
+.lateral a[aria-current=page] svg{opacity:1;color:var(--caramello)}
+
+.corpo{display:flex;flex-direction:column;min-width:0}
+.topo{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:0 26px;height:58px;background:var(--superficie);
+  border-bottom:1px solid var(--linha);position:sticky;top:0;z-index:20;
+}
+.topo .quem{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--tinta-2)}
+.topo .inicial{
+  width:28px;height:28px;border-radius:50%;background:var(--bosco);color:#fff;
+  display:grid;place-items:center;font-size:12px;font-weight:600;flex:none;
+}
+.topo .papel{font-size:11px;color:var(--tinta-3);letter-spacing:.04em;text-transform:uppercase}
+.sair{
+  background:transparent;border:1px solid var(--linha-forte);color:var(--tinta-2);
+  border-radius:var(--r-p);padding:5px 12px;font-size:13px;
+}
+.sair:hover{background:var(--fundo);color:var(--tinta)}
+.abrir-menu{display:none;background:transparent;border:1px solid var(--linha-forte);border-radius:var(--r-p);padding:6px 10px}
+
+.conteudo{padding:26px;max-width:1360px;width:100%}
+
+/* =======================  TEXTO  ======================= */
+h1{font-size:25px;font-weight:600;letter-spacing:-.015em;margin:0 0 3px}
+h2{font-size:15px;font-weight:600;letter-spacing:-.005em;margin:0 0 14px}
+h3{font-size:14px;font-weight:600;margin:0}
+.sub{color:var(--tinta-2);font-size:14px;margin:0 0 22px;max-width:76ch}
+.rotulo{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tinta-3)}
+
+/* =======================  PAINEIS  ======================= */
+.painel{
+  background:var(--superficie);border:1px solid var(--linha);
+  border-radius:var(--r-g);padding:18px 20px;box-shadow:var(--sombra-1);
+}
+.painel>h2{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.duas-colunas{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px;align-items:start}
+
+/* ---- numeros de destaque: so o que e realmente cabecalho da tela ---- */
+.destaques{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;
+  background:var(--superficie);border:1px solid var(--linha);border-radius:var(--r-g);
+  overflow:hidden;box-shadow:var(--sombra-1);margin-bottom:18px}
+.destaques .item{padding:15px 18px;border-right:1px solid var(--linha);display:grid;gap:2px}
+.destaques .item:last-child{border-right:0}
+.destaques b{font-size:26px;font-weight:600;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.destaques span{font-size:12.5px;color:var(--tinta-3)}
+.destaques a.item{text-decoration:none;color:inherit}
+.destaques a.item:hover{background:var(--superficie-2)}
+
+/* ---- lista de pendencias: linha, nao cartao ---- */
+.pendencias{display:grid;gap:0;margin-bottom:18px;
+  background:var(--superficie);border:1px solid var(--linha);border-radius:var(--r-g);overflow:hidden}
+.pendencias a{display:flex;align-items:center;gap:12px;padding:12px 18px;text-decoration:none;color:inherit;
+  border-bottom:1px solid var(--linha)}
+.pendencias a:last-child{border-bottom:0}
+.pendencias a:hover{background:var(--superficie-2)}
+.pendencias .n{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;min-width:34px}
+.pendencias .oque{flex:1;font-size:14px}
+.pendencias .seta{color:var(--tinta-3)}
+
+/* =======================  TABELA  ======================= */
+.tabela-rolagem{overflow-x:auto;margin:0 -20px;padding:0 20px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{
+  text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--tinta-3);padding:0 12px 9px;border-bottom:1px solid var(--linha-forte);white-space:nowrap;
+}
+td{padding:11px 12px;border-bottom:1px solid var(--linha);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--superficie-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.linha-forte{font-weight:600;color:var(--tinta)}
+.linha-fraca{color:var(--tinta-3);font-size:12.5px}
+
+/* =======================  MARCADORES  ======================= */
+.tag{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+  font-size:11.5px;font-weight:600;background:var(--neutro-fundo);color:var(--tinta-2);white-space:nowrap;
+}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.tag.QUENTE{background:var(--quente-fundo);color:var(--quente)}
+.tag.MORNO{background:var(--morno-fundo);color:var(--morno)}
+.tag.FRIO{background:var(--frio-fundo);color:var(--frio)}
+.pilula{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+  font-size:11.5px;font-weight:600;background:var(--neutro-fundo);color:var(--tinta-2);white-space:nowrap}
+.pilula.ok{background:var(--bom-fundo);color:var(--bom)}
+.pilula.atencao{background:var(--atencao-fundo);color:var(--atencao)}
+.pilula.perigo{background:var(--grave-fundo);color:var(--grave)}
+.inicial-lead{
+  width:28px;height:28px;border-radius:50%;background:var(--pietra);color:var(--notte);
+  display:grid;place-items:center;font-size:11.5px;font-weight:600;flex:none;
+}
+.nome-com-inicial{display:flex;align-items:center;gap:9px}
+
+/* =======================  BOTOES  ======================= */
+.btn{
+  background:var(--bosco);color:#fff;border:1px solid var(--bosco);
+  border-radius:var(--r-p);padding:8px 15px;font-size:13.5px;font-weight:500;
+}
+.btn:hover{background:var(--notte);border-color:var(--notte)}
+.btn.secundario{background:var(--superficie);color:var(--bosco);border-color:var(--linha-forte)}
+.btn.secundario:hover{background:var(--fundo);border-color:var(--bosco)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.acoes{display:flex;gap:6px;flex-wrap:wrap}
+.acoes button{
+  font-size:12.5px;padding:5px 10px;border-radius:var(--r-p);
+  border:1px solid var(--linha-forte);background:var(--superficie);color:var(--tinta-2);
+}
+.acoes button:hover{border-color:var(--bosco);color:var(--bosco)}
 .acoes button.primario{background:var(--bosco);color:#fff;border-color:var(--bosco)}
-.linha-do-tempo{list-style:none;margin:0;padding:0;display:grid;gap:2px}
-.linha-do-tempo li{padding:10px 0 10px 18px;border-left:2px solid var(--linha);position:relative}
-.linha-do-tempo li::before{content:"";position:absolute;left:-5px;top:15px;width:8px;height:8px;border-radius:50%;background:var(--caramello)}
-.linha-do-tempo small{color:var(--muted);display:block;font-size:12px}
-.duas-colunas{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
-@media(max-width:900px){.duas-colunas{grid-template-columns:1fr}}
-.tempo-real{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
-.tempo-real::before{content:"";width:8px;height:8px;border-radius:50%;background:#bbb}
-.tempo-real.ligado::before{background:#2f8f4e}
+.acoes button.primario:hover{background:var(--notte)}
+.linha-botoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+/* =======================  FORMULARIO  ======================= */
+.filtros{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px;align-items:flex-end}
+.campo{display:flex;flex-direction:column;gap:5px}
+.campo label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-3)}
+.campo input,.campo select,.campo textarea{
+  padding:8px 11px;border:1px solid var(--linha-forte);border-radius:var(--r-p);
+  background:var(--superficie);min-width:160px;font-size:13.5px;
+}
+.campo input:focus,.campo select:focus,.campo textarea:focus{border-color:var(--bosco);outline:none;box-shadow:0 0 0 3px rgba(48,74,42,.10)}
+.campo textarea{min-height:84px;resize:vertical}
+form.painel{display:grid;gap:14px}
+fieldset{border:1px solid var(--linha);border-radius:var(--r-m);padding:16px;margin:0 0 14px}
+legend{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-3);padding:0 6px}
+
+/* =======================  AVISOS E VAZIOS  ======================= */
+.aviso{
+  display:flex;gap:10px;align-items:flex-start;
+  background:var(--atencao-fundo);border:1px solid #EBD9AF;color:#6C4C11;
+  padding:11px 14px;border-radius:var(--r-m);margin-bottom:16px;font-size:13.5px;
+}
+.aviso.erro{background:var(--grave-fundo);border-color:#EFC8C1;color:#8A2B20}
+.aviso.ok{background:var(--bom-fundo);border-color:#C2E0CB;color:#1F5F3B}
+.aviso::before{content:"";width:4px;align-self:stretch;border-radius:2px;background:currentColor;opacity:.5;flex:none}
+.vazio{padding:34px 20px;text-align:center;color:var(--tinta-3);font-size:13.5px}
+.vazio strong{display:block;color:var(--tinta-2);font-weight:600;margin-bottom:3px;font-size:14px}
+
+/* =======================  GRAFICOS  ======================= */
+.grafico{display:grid;gap:12px}
+.barras{display:grid;gap:9px}
+.barra-linha{display:grid;grid-template-columns:minmax(90px,150px) 1fr auto;gap:12px;align-items:center;font-size:13px}
+.barra-trilho{display:block;background:var(--grade);border-radius:3px;height:9px;overflow:hidden}
+.barra-preenche{display:block;height:100%;border-radius:3px;background:var(--g5)}
+.barra-valor{display:block;font-variant-numeric:tabular-nums;color:var(--tinta-2);font-size:12.5px;min-width:48px;text-align:right}
+.serie{display:flex;align-items:flex-end;gap:3px;height:78px}
+.serie .col{flex:1;background:var(--g3);border-radius:3px 3px 0 0;min-height:2px}
+.serie .col.hoje{background:var(--g7)}
+.eixo{display:flex;justify-content:space-between;font-size:11px;color:var(--tinta-3);font-variant-numeric:tabular-nums}
+.legenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--tinta-2)}
+.legenda i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px}
+
+/* =======================  INBOX  ======================= */
+.inbox{display:grid;grid-template-columns:308px minmax(0,1fr) 320px;gap:14px;height:calc(100vh - 58px - 52px - 40px);min-height:520px}
+.coluna{background:var(--superficie);border:1px solid var(--linha);border-radius:var(--r-g);overflow:auto;box-shadow:var(--sombra-1)}
+.coluna>h2{padding:14px 16px 10px;margin:0;position:sticky;top:0;background:var(--superficie);border-bottom:1px solid var(--linha);z-index:2}
+.conversa{display:block;width:100%;text-align:left;padding:11px 16px;border:0;border-bottom:1px solid var(--linha);background:var(--superficie)}
+.conversa:hover{background:var(--superficie-2)}
+.conversa[aria-selected=true]{background:#F4F2EA;box-shadow:inset 3px 0 0 var(--bosco)}
+.conversa b{display:block;font-size:13.5px;font-weight:600;margin-bottom:1px}
+.conversa small{display:block;color:var(--tinta-3);font-size:11.5px}
+.conversa small.previa{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;color:var(--tinta-2)}
+.mensagens{padding:16px;display:flex;flex-direction:column;gap:9px}
+.msg{max-width:76%;padding:9px 13px;border-radius:12px;font-size:13.5px;white-space:pre-wrap;line-height:1.5}
+.msg.IN{align-self:flex-start;background:#F0EEE5;border:1px solid var(--linha)}
+.msg.OUT{align-self:flex-end;background:var(--bosco);color:#fff}
+.msg .meta{display:block;font-size:10.5px;opacity:.7;margin-top:5px;letter-spacing:.02em}
+.responder{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--linha);position:sticky;bottom:0;background:var(--superficie)}
+.responder input{flex:1;padding:9px 12px;border:1px solid var(--linha-forte);border-radius:var(--r-p)}
+.perfil dl{margin:0;display:grid;gap:13px;padding:16px}
+.perfil dt{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tinta-3)}
+.perfil dd{margin:3px 0 0;font-size:13.5px}
+
+/* =======================  FUNIL  ======================= */
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:14px}
+.kanban .col{min-width:262px;background:var(--superficie-2);border:1px solid var(--linha);border-radius:var(--r-g);padding:11px}
+.kanban .col h3{margin:0 0 10px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--tinta-2);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:7px;border-top:3px solid var(--g4)}
+.kanban .col h3 em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--tinta-3)}
+.kanban .cartao{background:var(--superficie);border:1px solid var(--linha);border-radius:var(--r-m);padding:11px;margin-bottom:8px;box-shadow:var(--sombra-1)}
+.kanban .cartao:hover{border-color:var(--linha-forte)}
+.kanban .cartao b{font-size:13.5px}
+.kanban .cartao b a{text-decoration:none}
+.kanban .cartao small{display:block;color:var(--tinta-3);font-size:11.5px;margin-top:2px}
+.kanban .cartao select{margin-top:8px;width:100%;font-size:12px;padding:5px 7px;border:1px solid var(--linha);border-radius:var(--r-p);background:var(--superficie-2)}
+
+/* =======================  LINHA DO TEMPO  ======================= */
+.linha-do-tempo{list-style:none;margin:0;padding:0}
+.linha-do-tempo li{position:relative;padding:0 0 18px 22px;border-left:1.5px solid var(--linha)}
+.linha-do-tempo li:last-child{border-left-color:transparent;padding-bottom:0}
+.linha-do-tempo li::before{content:"";position:absolute;left:-5px;top:5px;width:9px;height:9px;border-radius:50%;
+  background:var(--superficie);border:2px solid var(--caramello)}
+.linha-do-tempo strong{font-size:13.5px}
+.linha-do-tempo small{display:block;color:var(--tinta-3);font-size:11.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+
+/* =======================  ENTRADA NO SISTEMA  ======================= */
+.login{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:var(--notte)}
+.login .lado{
+  display:none;padding:52px;color:var(--latte);
+  background:
+    radial-gradient(120% 90% at 12% 8%, rgba(166,123,63,.30), transparent 62%),
+    linear-gradient(160deg,#1D3E23,#12291A);
+  flex-direction:column;justify-content:space-between;
+}
+.login .lado h2{font-size:29px;font-weight:600;line-height:1.22;letter-spacing:-.02em;color:var(--latte);max-width:19ch;margin:0}
+.login .lado p{color:#A9B7A2;font-size:14px;max-width:36ch;margin:14px 0 0}
+.login .lado .assinatura{font-size:12px;color:#8D9C88;letter-spacing:.05em}
+.login .entrada{display:grid;place-items:center;padding:28px;background:var(--fundo)}
+.login form{
+  background:var(--superficie);border:1px solid var(--linha);border-radius:16px;
+  padding:32px;width:min(392px,100%);display:grid;gap:14px;box-shadow:var(--sombra-2);
+}
+.login h1{font-size:21px;margin:0}
+.login .sub{margin:0 0 4px;font-size:13.5px}
+.login label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-3)}
+.login input{padding:10px 12px;border:1px solid var(--linha-forte);border-radius:var(--r-p);font-size:14.5px;width:100%}
+.login input:focus{border-color:var(--bosco);outline:none;box-shadow:0 0 0 3px rgba(48,74,42,.10)}
+.login .erro{background:var(--grave-fundo);color:#8A2B20;padding:9px 12px;border-radius:var(--r-p);font-size:13px;border:1px solid #EFC8C1}
+.login .btn{width:100%;padding:11px}
+.login .rodape{font-size:12px;color:var(--tinta-3);text-align:center;margin:2px 0 0}
+
+/* =======================  TEMPO REAL  ======================= */
+.tempo-real{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tinta-3)}
+.tempo-real::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--tinta-3)}
+.tempo-real.ligado::before{background:var(--bom);box-shadow:0 0 0 3px var(--bom-fundo)}
+
+/* =======================  TELAS ESTREITAS  ======================= */
+@media (max-width:1100px){
+  .duas-colunas{grid-template-columns:1fr}
+  .inbox{grid-template-columns:270px minmax(0,1fr);height:auto}
+  .inbox .perfil{grid-column:1/-1}
+}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .lateral{
+    position:fixed;inset:0 auto 0 0;width:270px;z-index:60;height:100dvh;
+    transform:translateX(-100%);transition:transform .18s ease;box-shadow:0 0 40px rgba(0,0,0,.35);
+  }
+  .app[data-menu="aberto"] .lateral{transform:none}
+  .veu{position:fixed;inset:0;background:rgba(18,33,15,.5);z-index:50;border:0}
+  .abrir-menu{display:inline-flex;align-items:center;gap:7px}
+  .conteudo{padding:18px 16px}
+  .topo{padding:0 16px}
+  .inbox{grid-template-columns:1fr}
+  .login{grid-template-columns:1fr}
+  .destaques{grid-template-columns:repeat(auto-fit,minmax(128px,1fr))}
+  .destaques .item:nth-child(even){border-right:0}
+}
+@media (min-width:861px){
+  .login .lado{display:flex}
+  .veu{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}

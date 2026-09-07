@@ -113,7 +113,7 @@ export default function TarefasPage() {
 
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Tarefa</th><th>Lead</th><th>Responsável</th><th>Prazo</th><th>Status</th><th /></tr>
             </thead>
@@ -136,7 +136,7 @@ export default function TarefasPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>

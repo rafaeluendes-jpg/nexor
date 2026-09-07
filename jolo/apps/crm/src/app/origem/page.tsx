@@ -40,7 +40,7 @@ export default function OrigemPage() {
           <section className="painel" style={{ marginBottom: 16 }}>
             <h2>Por canal</h2>
             {dados.porOrigem.length === 0 ? <Vazio texto="Ainda sem leads." /> : (
-              <table>
+              <div className="tabela-rolagem"><table>
                 <thead><tr><th>Canal</th><th>Leads</th><th>Participacao</th><th>Ganhos</th><th>Conversão</th></tr></thead>
                 <tbody>
                   {dados.porOrigem.map((o) => (
@@ -53,14 +53,14 @@ export default function OrigemPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
 
           <section className="painel">
             <h2>Por campanha</h2>
             {dados.porCampanha.length === 0 ? <Vazio texto="Nenhuma campanha identificada." /> : (
-              <table>
+              <div className="tabela-rolagem"><table>
                 <thead><tr><th>Campanha</th><th>Leads</th><th>Participacao</th><th>Ganhos</th><th>Conversão</th></tr></thead>
                 <tbody>
                   {dados.porCampanha.map((c) => (
@@ -73,7 +73,7 @@ export default function OrigemPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
         </>

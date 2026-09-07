@@ -205,7 +205,7 @@ export default function ConfiguracoesPage() {
         </p>
         {regras.carregando ? <Carregando o="os pesos" /> : null}
         {regras.dados ? (
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead><tr><th>Critério</th><th>Peso</th></tr></thead>
             <tbody>
               {regras.dados.regras.map((r) => (
@@ -227,7 +227,7 @@ export default function ConfiguracoesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : null}
       </section>
     </Shell>

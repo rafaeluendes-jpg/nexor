@@ -112,7 +112,7 @@ export default function ModelosPage() {
 
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Nome</th><th>Categoria</th><th>Texto</th><th>Variáveis</th><th>Na Meta</th><th>Uso</th></tr>
             </thead>
@@ -136,7 +136,7 @@ export default function ModelosPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>

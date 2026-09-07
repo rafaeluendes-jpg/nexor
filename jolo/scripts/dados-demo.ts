@@ -21,6 +21,8 @@ const prisma = new PrismaClient({
 });
 
 const dias = (n: number): Date => new Date(Date.now() - n * 86_400_000);
+/** Quantos dias atras este candidato chegou. Os mais avancados no funil chegaram antes. */
+const chegouHa = (i: number): number => [19, 18, 16, 15, 13, 12, 10, 9, 7, 6, 5, 4, 3, 2, 2, 1, 0][i] ?? 0;
 const daquiA = (n: number): Date => new Date(Date.now() + n * 86_400_000);
 
 const CANDIDATOS = [
@@ -105,7 +107,7 @@ async function main(): Promise<void> {
         firstTouchMedium: c.campanha ? 'cpc' : 'organic',
         firstTouchCampaign: c.campanha,
         landingPage: 'https://franquias.jologelato.com.br/',
-        createdAt: dias(30 - i),
+        createdAt: dias(chegouHa(i)),
       },
     });
 
@@ -117,7 +119,7 @@ async function main(): Promise<void> {
         whatsappId: c.tel,
         city: c.cidade,
         state: c.uf,
-        createdAt: dias(30 - i),
+        createdAt: dias(chegouHa(i)),
       },
     });
 
@@ -140,9 +142,9 @@ async function main(): Promise<void> {
         availability: c.score > 60 ? 'Dedicação integral' : null,
         bestContactTime: c.score > 60 ? 'Tarde' : null,
         lostReason: 'perda' in c ? (c as { perda: string }).perda : null,
-        firstContactAt: dias(30 - i),
-        lastContactAt: dias(Math.max(0, 10 - i)),
-        createdAt: dias(30 - i),
+        firstContactAt: dias(chegouHa(i)),
+        lastContactAt: dias(Math.max(0, chegouHa(i) - 1)),
+        createdAt: dias(chegouHa(i)),
       },
     });
 
@@ -180,7 +182,7 @@ async function main(): Promise<void> {
           changedById: k <= 1 ? null : admin.id,
           // cada etapa acontece DEPOIS da anterior; com o sinal trocado o
           // relatorio mostrava tempo negativo ate qualificar
-          createdAt: dias(Math.max(0, 30 - i - k * 2)),
+          createdAt: dias(Math.max(0, chegouHa(i) - k)),
         },
       });
       anterior = chave ?? null;
@@ -200,14 +202,14 @@ async function main(): Promise<void> {
         mode: i === 0 ? 'HUMAN' : 'AI',
         ownerId: i === 0 ? admin.id : null,
         humanTakeoverAt: i === 0 ? dias(2) : null,
-        lastMessageAt: dias(Math.max(0, 10 - i)),
-        createdAt: dias(30 - i),
+        lastMessageAt: dias(Math.max(0, chegouHa(i) - 1)),
+        createdAt: dias(chegouHa(i)),
       },
     });
 
     const roteiro = i === 0 ? CONVERSAS : CONVERSAS.slice(0, Math.min(4, 2 + (i % 4)));
     for (const [j, m] of roteiro.entries()) {
-      const quando = new Date(dias(Math.max(0, 10 - i)).getTime() + j * 240_000);
+      const quando = new Date(dias(Math.max(0, chegouHa(i) - 1)).getTime() + j * 240_000);
       await prisma.message.create({
         data: {
           organizationId: org.id,
@@ -233,7 +235,7 @@ async function main(): Promise<void> {
         type: 'message_received',
         title: 'Primeira mensagem no WhatsApp',
         description: roteiro[0]?.texto.slice(0, 120),
-        occurredAt: dias(30 - i),
+        occurredAt: dias(chegouHa(i)),
       },
     });
   }

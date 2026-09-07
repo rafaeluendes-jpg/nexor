@@ -66,7 +66,7 @@ export default function IntegracaoPage() {
             <p className="sub">
               O sistema mostra apenas se cada credencial existe. O valor fica no servidor e nunca aparece em tela.
             </p>
-            <table>
+            <div className="tabela-rolagem"><table>
               <tbody>
                 {Object.entries(dados.whatsapp.credenciais).map(([chave, ok]) => (
                   <tr key={chave}>
@@ -79,7 +79,7 @@ export default function IntegracaoPage() {
                   <td>{dataHora(dados.whatsapp.ultimoEventoRecebido)}</td>
                 </tr>
               </tbody>
-            </table>
+            </table></div>
             {dados.whatsapp.eventosRecusados24h > 0 ? (
               <Aviso texto="Ha eventos recusados por assinatura. Quase sempre e o segredo do app trocado no painel da Meta." />
             ) : null}
@@ -88,25 +88,25 @@ export default function IntegracaoPage() {
           <div className="duas-colunas">
             <section className="painel">
               <h2>IA de atendimento</h2>
-              <table>
+              <div className="tabela-rolagem"><table>
                 <tbody>
                   <tr><td>Situação</td><td><Sinal ligado={dados.ia.configurada} /></td></tr>
                   <tr><td>Provedor</td><td>{dados.ia.provedor}</td></tr>
                   <tr><td>Modelo</td><td>{dados.ia.modelo}</td></tr>
                 </tbody>
-              </table>
+              </table></div>
               {dados.ia.pendencia ? <Aviso texto={dados.ia.pendencia} /> : null}
             </section>
 
             <section className="painel">
               <h2>Entrada no sistema</h2>
-              <table>
+              <div className="tabela-rolagem"><table>
                 <tbody>
                   <tr><td>Provedor</td><td>{dados.autenticacao.provedor}</td></tr>
                   <tr><td>Supabase</td><td><Sinal ligado={dados.autenticacao.supabaseConfigurado} /></td></tr>
                   <tr><td>Armazenamento</td><td>{dados.armazenamento.provedor}</td></tr>
                 </tbody>
-              </table>
+              </table></div>
               {dados.autenticacao.pendencia ? <Aviso texto={dados.autenticacao.pendencia} /> : null}
             </section>
           </div>

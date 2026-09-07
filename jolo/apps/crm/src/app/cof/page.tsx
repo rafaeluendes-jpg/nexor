@@ -82,7 +82,7 @@ export default function CofPage() {
 
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr>
                 <th>Candidato</th><th>Situação</th><th>Enviada</th><th>Recebida</th>
@@ -136,7 +136,7 @@ export default function CofPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>

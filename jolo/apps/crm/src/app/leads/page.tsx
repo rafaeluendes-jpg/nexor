@@ -108,14 +108,14 @@ export default function LeadsPage() {
             <p className="sub" style={{ margin: '0 0 12px' }}>
               {numero(dados.total)} lead(s) encontrados.
             </p>
-            <table>
+            <div className="tabela-rolagem"><table>
               <thead>
                 <tr>
                   <th>Nome</th>
                   <th>Telefone</th>
                   <th>Cidade</th>
                   <th>Etapa</th>
-                  <th>Score</th>
+                  <th className="num">Score</th>
                   <th>Temperatura</th>
                   <th>Origem</th>
                   <th>Responsável</th>
@@ -126,14 +126,17 @@ export default function LeadsPage() {
                 {dados.leads.map((l) => (
                   <tr key={l.id}>
                     <td>
-                      <a href={`/leads/${l.id}`}>
+                      <a href={`/leads/${l.id}`} className="nome-com-inicial">
+                        <span className="inicial-lead" aria-hidden="true">
+                          {l.nome.slice(0, 1).toUpperCase()}
+                        </span>
                         <strong>{l.nome}</strong>
                       </a>
                     </td>
                     <td>{l.telefone}</td>
                     <td>{l.cidadeInteresse ?? '—'}</td>
                     <td>{l.etapa.name}</td>
-                    <td>{l.score}</td>
+                    <td className="num">{l.score}</td>
                     <td>
                       <span className={`tag ${l.temperatura}`}>{rotulo(l.temperatura)}</span>
                     </td>
@@ -143,7 +146,7 @@ export default function LeadsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         )
       ) : null}

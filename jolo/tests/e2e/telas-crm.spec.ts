@@ -72,7 +72,7 @@ test.describe('telas do CRM', () => {
       await abrir(page, `${URLS.crm}${tela.caminho}`);
 
       await expect(page.locator('h1'), `titulo de ${tela.caminho}`).toHaveText(tela.titulo);
-      await expect(page.locator('.lateral'), `menu em ${tela.caminho}`).toBeVisible();
+      await expect(page.locator('.lateral'), `menu em ${tela.caminho}`).toHaveCount(1);
 
       // nenhuma tela pode ficar so no "Carregando"
       await expect(page.locator('body'), `${tela.caminho} nao terminou de carregar`).not.toHaveText(/^Carregando/);
@@ -97,17 +97,31 @@ test.describe('telas do CRM', () => {
     }
   });
 
-  test('no celular o menu continua alcancavel', async ({ page }) => {
+  test('no celular o menu abre pelo botao e fecha ao escolher', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await entrar(page);
     await abrir(page, `${URLS.crm}/leads`);
 
-    await expect(page.locator('.lateral')).toBeVisible();
+    // fechado por padrao: no celular o conteudo vem primeiro, nao vinte itens de menu
+    const menu = page.locator('.lateral');
+    await expect(menu).not.toBeInViewport();
+
+    const botao = page.getByRole('button', { name: /menu/i });
+    await expect(botao).toBeVisible();
+    await botao.click();
+    await expect(menu, 'o menu tem de aparecer ao apertar o botao').toBeInViewport();
+
+    // escolher uma area fecha o menu sozinho
+    await menu.getByRole('link', { name: 'Tarefas' }).click();
+    await page.waitForURL(/\/tarefas/, { timeout: 15_000 });
+    await page.locator('h1').first().waitFor({ state: 'visible' });
+    await expect(menu).not.toBeInViewport();
+
     const { scroll, cliente } = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,
       cliente: document.documentElement.clientWidth,
     }));
-    expect(scroll, 'a tela de leads vaza no celular').toBeLessThanOrEqual(cliente + 1);
+    expect(scroll, 'a tela vaza no celular').toBeLessThanOrEqual(cliente + 1);
   });
 
   test('a tela de um lead mostra ficha, origem e historico', async ({ page }) => {

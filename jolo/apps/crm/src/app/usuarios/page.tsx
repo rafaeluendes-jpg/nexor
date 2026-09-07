@@ -140,7 +140,7 @@ export default function UsuariosPage() {
 
       {dados && dados.length > 0 ? (
         <div className="painel">
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Situação</th><th>Último acesso</th><th>Sessões</th><th>Ações</th></tr>
             </thead>
@@ -172,20 +172,20 @@ export default function UsuariosPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
 
       <section className="painel" style={{ marginTop: 16 }}>
         <h2>O que cada papel pode</h2>
-        <table>
+        <div className="tabela-rolagem"><table>
           <thead><tr><th>Papel</th><th>Alcance</th></tr></thead>
           <tbody>
             {PAPEIS.map((p) => (
               <tr key={p.chave}><td><strong>{p.nome}</strong></td><td>{p.o_que}</td></tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
     </Shell>
   );

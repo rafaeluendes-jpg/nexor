@@ -65,7 +65,7 @@ export default function AuditoriaPage() {
       {dados && dados.itens.length > 0 ? (
         <div className="painel">
           <p className="sub" style={{ margin: '0 0 12px' }}>{numero(dados.total)} registro(s).</p>
-          <table>
+          <div className="tabela-rolagem"><table>
             <thead>
               <tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Sobre</th><th>Origem</th><th /></tr>
             </thead>
@@ -92,7 +92,7 @@ export default function AuditoriaPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ) : null}
     </Shell>
