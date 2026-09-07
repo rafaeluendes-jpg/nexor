@@ -10,3 +10,7 @@ backup/
 
 # pasta do site publicado: gerada pelo enxugador na hora de publicar
 _site/
+
+# snapshot do Redis, escrito na pasta de onde o servidor sobe:
+# e estado de fila, descartavel, nunca conteudo do projeto
+dump.rdb
