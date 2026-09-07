@@ -19,6 +19,14 @@
   (`docs/BACKUP_RESTORE.md`). Copia que ninguem testou nao e copia.
 - Rever quem tem acesso ao CRM e tirar quem saiu.
 
+## Sinais que a Fase 2 acrescentou
+
+- **COF perto do prazo:** a tela de COF mostra alerta a dois dias do fim.
+- **Tarefa vencida:** aparece marcada na tela de Tarefas e no painel.
+- **Lead parado:** o relatorio lista quem esta ha 3 dias ou mais sem andar.
+- **Praca:** confira se as cidades vendidas estao marcadas como vendidas,
+  senao a IA continua oferecendo.
+
 ## Quando algo da errado
 
 ### O lead nao aparece no funil
@@ -51,6 +59,18 @@ compilada de novo: esse valor entra na hora da compilacao.
 
 Cinco tentativas erradas bloqueiam o IP por quinze minutos. Espere ou
 reinicie o Redis (isso zera os contadores).
+
+### A tela nao atualiza sozinha
+
+O canto da tela de Conversas mostra "atualizando sozinho" ou
+"reconectando…". Se ficar em "reconectando", o Redis provavelmente caiu:
+o canal de avisos vive nele. A tela continua funcionando — ela volta a
+atualizar de tempos em tempos — mas o aviso imediato para.
+
+### O contrato nao libera na tela de COF
+
+Isso e proposital. Faltam dias do prazo legal, e o proprio recado diz
+quantos. Nao existe caminho pela tela para liberar antes.
 
 ### A IA parou de responder
 

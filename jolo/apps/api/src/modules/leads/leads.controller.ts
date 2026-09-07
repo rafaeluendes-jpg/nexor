@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { PIPELINE_STAGES } from '@jolo/shared';
 import type { Lead } from '@jolo/database';
 import { CurrentUser, RequirePermission, type AuthenticatedUser } from '../../common/decorators/index.js';
 import { ZodValidationPipe } from '../../common/pipes/zod.pipe.js';
-import { LeadsService } from './leads.service.js';
+import { LeadsService, type LeadDetalhado } from './leads.service.js';
 
 const moveSchema = z.object({
   stageKey: z.enum(PIPELINE_STAGES.map((s) => s.key) as [string, ...string[]]),
@@ -36,12 +36,19 @@ export class LeadsController {
   }
 
   @RequirePermission('crm.leads.view')
+  @Get(':id')
+  detalhe(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<LeadDetalhado> {
+    return this.service.detalhe(user, id);
+  }
+
+  @RequirePermission('crm.leads.view')
   @Get(':id/timeline')
   timeline(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.timeline(user, id);
   }
 
   @RequirePermission('crm.pipeline.move')
+  @HttpCode(200)
   @Post(':id/stage')
   move(
     @CurrentUser() user: AuthenticatedUser,
@@ -52,6 +59,7 @@ export class LeadsController {
   }
 
   @RequirePermission('crm.leads.edit')
+  @HttpCode(200)
   @Post(':id/score')
   score(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.recalcScore(user, id);

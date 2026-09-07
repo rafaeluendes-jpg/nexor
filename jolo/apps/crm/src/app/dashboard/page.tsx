@@ -6,7 +6,8 @@ import { api } from '../../lib/api';
 
 interface Metrics {
   leads: { hoje: number; semana: number; mes: number; abertos: number; total: number };
-  funil: { qualificados: number; reunioes: number; cofs: number; ganhos: number; perdidos: number };
+  funil: { qualificados: number; reunioes: number; cofs: number; contratos: number; ganhos: number; perdidos: number };
+  pendencias: { tarefasAbertas: number; proximasReunioes: number; cofsEmPrazo: number };
   taxaConversao: number;
   origens: { origem: string; leads: number }[];
 }
@@ -58,9 +59,32 @@ export default function DashboardPage() {
               <span>COFs</span>
             </div>
             <div className="card">
+              <b>{dados.funil.contratos}</b>
+              <span>Contratos</span>
+            </div>
+            <div className="card">
+              <b>{dados.funil.ganhos}</b>
+              <span>Ganhos</span>
+            </div>
+            <div className="card">
               <b>{dados.taxaConversao}%</b>
               <span>Conversão</span>
             </div>
+          </div>
+
+          <div className="cards">
+            <a className="card" href="/tarefas" style={{ textDecoration: 'none' }}>
+              <b>{dados.pendencias.tarefasAbertas}</b>
+              <span>Tarefas abertas</span>
+            </a>
+            <a className="card" href="/agenda" style={{ textDecoration: 'none' }}>
+              <b>{dados.pendencias.proximasReunioes}</b>
+              <span>Reuniões marcadas</span>
+            </a>
+            <a className="card" href="/cof" style={{ textDecoration: 'none' }}>
+              <b>{dados.pendencias.cofsEmPrazo}</b>
+              <span>COFs no prazo legal</span>
+            </a>
           </div>
           <div className="painel">
             <h2>Origem dos leads</h2>

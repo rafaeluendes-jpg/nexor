@@ -42,12 +42,24 @@ export class DashboardController {
       _count: { _all: true },
     });
 
+    const [contratos, tarefasAbertas, proximasReunioes, cofsEmPrazo] = await Promise.all([
+      this.prisma.client.cofProcess.count({
+        where: { organizationId: org, status: 'CONTRATO_LIBERADO' },
+      }),
+      this.prisma.client.task.count({ where: { organizationId: org, status: 'ABERTA' } }),
+      this.prisma.client.meeting.count({
+        where: { organizationId: org, status: 'AGENDADA', scheduledAt: { gte: new Date() } },
+      }),
+      this.prisma.client.cofProcess.count({ where: { organizationId: org, status: 'EM_PRAZO' } }),
+    ]);
+
     const total = await conta({});
     const conversao = total ? Number(((ganhos / total) * 100).toFixed(1)) : 0;
 
     return {
       leads: { hoje: hojeQtd, semana: semanaQtd, mes: mesQtd, abertos, total },
-      funil: { qualificados, reunioes, cofs, ganhos, perdidos },
+      funil: { qualificados, reunioes, cofs, contratos, ganhos, perdidos },
+      pendencias: { tarefasAbertas, proximasReunioes, cofsEmPrazo },
       taxaConversao: conversao,
       origens: porOrigem.map((o) => ({
         origem: o.firstTouchSource ?? 'direto',

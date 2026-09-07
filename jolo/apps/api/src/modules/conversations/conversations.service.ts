@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { releaseToAi, takeOver } from '@jolo/crm-core';
+import { TIPOS_DE_AVISO } from '@jolo/shared';
 import { DomainError, NotFoundError } from '@jolo/shared';
 import { formatPhoneBR } from '@jolo/shared';
 import { PrismaService } from '../../common/prisma.service.js';
+import { AvisosService } from '../../common/avisos.service.js';
 import { QueueService } from '../queue/queue.service.js';
 import type { AuthenticatedUser } from '../../common/decorators/index.js';
 
@@ -11,6 +13,7 @@ export class ConversationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queue: QueueService,
+    private readonly avisos: AvisosService,
   ) {}
 
   /** Coluna esquerda do inbox: lista de conversas com previa da ultima mensagem. */
@@ -166,11 +169,26 @@ export class ConversationsService {
     return { id: mensagem.id, status: mensagem.status };
   }
 
-  takeOver(user: AuthenticatedUser, conversationId: string, reason?: string) {
-    return takeOver(this.prisma.client, { conversationId, userId: user.id, reason });
+  async takeOver(user: AuthenticatedUser, conversationId: string, reason?: string) {
+    const conversa = await takeOver(this.prisma.client, { conversationId, userId: user.id, reason });
+    // "quando humano assumir, todos veem" (item 44)
+    await this.avisos.publicar({
+      tipo: TIPOS_DE_AVISO.CONVERSA_ASSUMIDA,
+      organizationId: user.organizationId,
+      conversaId: conversationId,
+      dados: { por: user.name },
+    });
+    return conversa;
   }
 
-  release(user: AuthenticatedUser, conversationId: string, reason?: string) {
-    return releaseToAi(this.prisma.client, { conversationId, userId: user.id, reason });
+  async release(user: AuthenticatedUser, conversationId: string, reason?: string) {
+    const conversa = await releaseToAi(this.prisma.client, { conversationId, userId: user.id, reason });
+    await this.avisos.publicar({
+      tipo: TIPOS_DE_AVISO.CONVERSA_LIBERADA,
+      organizationId: user.organizationId,
+      conversaId: conversationId,
+      dados: { por: user.name },
+    });
+    return conversa;
   }
 }

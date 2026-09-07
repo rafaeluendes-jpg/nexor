@@ -69,6 +69,75 @@ continua sendo do Instagram, que foi quem realmente trouxe.
 Quem nao tem permissao nao consegue a acao nem por fora da tela: quem
 decide e o servidor.
 
+## Tarefas
+
+O que o time precisa fazer, com prazo e dono. Tarefa sem dono nao anda:
+quando voce cria sem escolher responsavel, ela fica com voce.
+
+O sistema tambem cria tarefa sozinho: lead que nao respondeu em 24 horas
+vira "Retomar contato", e a IA cria tarefa quando decide passar a conversa
+para uma pessoa.
+
+Tarefa com prazo vencido aparece marcada em vermelho.
+
+## Agenda
+
+Reunioes e visitas. Marque a reuniao pela ficha do lead: assim ela ja fica
+ligada a pessoa certa e **o lead anda no funil sozinho** para "Reuniao
+agendada". Quando a reuniao acontece, marque "Aconteceu" e o lead vai para
+"Apresentacao realizada".
+
+Nao da para marcar reuniao no passado.
+
+## COF
+
+A Circular de Oferta de Franquia tem prazo legal: entre o **recebimento**
+pelo candidato e a assinatura do contrato precisam passar 10 dias.
+
+O sistema faz isso funcionar assim:
+
+1. **Abrir o processo** pela ficha do lead.
+2. **Registrar o envio** — a data em que a COF foi entregue.
+3. **Registrar o recebimento** — e daqui que o prazo comeca a correr.
+4. **Liberar o contrato** — so aparece depois do prazo cumprido.
+
+Se alguem tentar liberar antes, o sistema recusa e diz quantos dias faltam.
+Nao e um aviso que da para ignorar: e uma trava.
+
+Dois dias antes do fim do prazo, o processo aparece com alerta.
+
+## Documentos
+
+COF, contrato, ficha de qualificacao, documentos do candidato. Aceita PDF,
+JPG, PNG, DOCX e XLSX, ate 20 MB.
+
+Ficam numa area privada do servidor: nao existe link publico. Cada abertura
+de arquivo fica registrada na auditoria, com quem abriu e quando.
+
+## Pracas
+
+As cidades da rede, com a situacao de cada uma: disponivel, em analise, em
+negociacao, reservada ou vendida. Praca marcada como vendida some da lista
+que a IA oferece aos candidatos.
+
+## Relatorios
+
+Conversao entre todas as etapas, tempo medio de primeira resposta, tempo
+parado em cada etapa, desempenho por campanha, origem, cidade e
+responsavel, leads esquecidos, motivos de perda e quantas vezes a IA
+precisou chamar uma pessoa.
+
+## Configuracoes
+
+Aqui ficam as regras do negocio, e nao dentro do codigo:
+
+- **Horario de atendimento** — quais dias e horas ha gente para atender.
+- **Quem atende o lead novo** — sempre a mesma pessoa, rodizio, por cidade,
+  por estado, por campanha, ou ninguem (fila geral).
+- **Pesos da pontuacao** — o que faz um lead ser quente.
+
+Mudou aqui, vale na proxima mensagem que chegar.
+
 ## Planilha
 
 A exportacao gera um Excel com uma linha por lead e vinte e uma colunas:

@@ -5,3 +5,4 @@ export * from './errors';
 export * from './ids';
 export * from './events';
 export * from './queues';
+export * from './realtime';

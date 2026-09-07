@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentUser, RequirePermission, type AuthenticatedUser } from '../../common/decorators/index.js';
 import { ZodValidationPipe } from '../../common/pipes/zod.pipe.js';
@@ -53,12 +53,14 @@ export class UsersController {
   }
 
   @RequirePermission('crm.users.edit')
+  @HttpCode(200)
   @Post(':id/revoke-sessions')
   revoke(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.revokeSessions(user, id);
   }
 
   @RequirePermission('crm.users.edit')
+  @HttpCode(200)
   @Post(':id/password-reset')
   reset(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.requestPasswordReset(user, id);

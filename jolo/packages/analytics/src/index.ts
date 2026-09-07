@@ -57,3 +57,4 @@ export async function funnelMetrics(prisma: PrismaClient, organizationId: string
     tempoMedioQualificacaoHoras: media(horas),
   };
 }
+export * from './relatorios';

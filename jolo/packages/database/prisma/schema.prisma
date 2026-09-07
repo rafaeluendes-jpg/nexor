@@ -127,6 +127,7 @@ model User {
   excelExports      ExcelExport[]
   documents         Document[]
   messagesSent      Message[]      @relation("MessageSender")
+  territories       Territory[]    @relation("TerritoryOwner")
 
   @@index([organizationId, status])
   @@map("users")
@@ -252,6 +253,7 @@ model Lead {
   cofProcesses  CofProcess[]
   documents     Document[]
   aiSessions    AiSession[]
+  territories   Territory[]
 
   @@index([organizationId, stageId])
   @@index([organizationId, ownerId])
@@ -762,10 +764,16 @@ model Territory {
   status         TerritoryStatus @default(DISPONIVEL)
   priority       Int             @default(0)
   notes          String?
+  /// Quem, no time de expansao, responde por esta praca.
+  ownerId        String?         @db.Uuid
+  /// Lead que esta com a praca em analise ou negociacao.
+  leadId         String?         @db.Uuid
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
+  owner        User?        @relation("TerritoryOwner", fields: [ownerId], references: [id])
+  lead         Lead?        @relation(fields: [leadId], references: [id])
 
   @@unique([organizationId, city, state])
   @@map("territories")

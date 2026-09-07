@@ -1,9 +1,35 @@
 import { Injectable } from '@nestjs/common';
 import { moveStage, refreshScore } from '@jolo/crm-core';
+import { TIPOS_DE_AVISO } from '@jolo/shared';
 import { NotFoundError, formatPhoneBR, type StageKey } from '@jolo/shared';
 import type { Lead } from '@jolo/database';
 import { PrismaService } from '../../common/prisma.service.js';
+import { AvisosService } from '../../common/avisos.service.js';
 import type { AuthenticatedUser } from '../../common/decorators/index.js';
+
+/** Ficha do lead como a tela recebe. Anotada porque o tipo do Prisma nao atravessa o workspace. */
+export interface LeadDetalhado {
+  id: string;
+  nome: string;
+  telefone: string;
+  email: string | null;
+  etapa: { key: string; name: string };
+  status: string;
+  score: number;
+  temperatura: string;
+  responsavel: { id: string; name: string } | null;
+  qualificacao: Record<string, string | boolean | null>;
+  respostas: { pergunta: string; resposta: string; em: Date }[];
+  origem: { origem: string; campanha: string | null; anuncio: string | null; primeiraVisita: Date | null };
+  tarefas: { id: string; titulo: string; prazo: Date | null; status: string }[];
+  reunioes: { id: string; titulo: string; quando: Date; status: string }[];
+  documentos: { id: string; nome: string; categoria: string; em: Date }[];
+  cof: { id: string; status: string; enviadaEm: Date | null; recebidaEm: Date | null; prazoDias: number }[];
+  conversas: { id: string; modo: string; ultimaMensagem: Date | null }[];
+  motivoDaPerda: string | null;
+  criadoEm: Date;
+  ultimoContato: Date | null;
+}
 
 export interface LeadFilters {
   search?: string;
@@ -20,7 +46,10 @@ export interface LeadFilters {
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly avisos: AvisosService,
+  ) {}
 
   private where(user: AuthenticatedUser, f: LeadFilters) {
     return {
@@ -89,6 +118,74 @@ export class LeadsService {
     };
   }
 
+  /** Ficha completa do lead: o que a tela de detalhe mostra na lateral (item 14). */
+  async detalhe(user: AuthenticatedUser, leadId: string): Promise<LeadDetalhado> {
+    const lead = await this.prisma.client.lead.findFirst({
+      where: { id: leadId, organizationId: user.organizationId },
+      include: {
+        contact: true,
+        stage: true,
+        owner: { select: { id: true, name: true } },
+        attribution: true,
+        answers: { include: { question: true }, orderBy: { question: { position: 'asc' } } },
+        tasks: { orderBy: { dueAt: 'asc' }, take: 20 },
+        meetings: { orderBy: { scheduledAt: 'desc' }, take: 10 },
+        documents: { orderBy: { createdAt: 'desc' }, take: 20 },
+        cofProcesses: { orderBy: { createdAt: 'desc' }, take: 5 },
+        conversations: { select: { id: true, mode: true, lastMessageAt: true } },
+        scores: { orderBy: { calculatedAt: 'desc' }, take: 1 },
+      },
+    });
+    if (!lead) throw new NotFoundError('Lead nao encontrado.');
+
+    return {
+      id: lead.id,
+      nome: lead.contact.name ?? 'Sem nome',
+      telefone: formatPhoneBR(lead.contact.phoneE164),
+      email: lead.contact.email,
+      etapa: { key: lead.stage.key, name: lead.stage.name },
+      status: lead.status,
+      score: lead.score,
+      temperatura: lead.temperature,
+      responsavel: lead.owner,
+      qualificacao: {
+        cidadeInteresse: lead.desiredCity,
+        estadoInteresse: lead.desiredState,
+        faixaDeCapital: lead.capitalRange,
+        prazoParaInvestir: lead.investmentHorizon,
+        experiencia: lead.businessExperience,
+        temSocio: lead.hasPartner,
+        disponibilidade: lead.availability,
+        melhorHorario: lead.bestContactTime,
+      },
+      respostas: lead.answers.map((a) => ({
+        pergunta: a.question.label,
+        resposta: a.value,
+        em: a.createdAt,
+      })),
+      origem: {
+        origem: lead.attribution?.firstTouchSource ?? 'direto',
+        campanha: lead.attribution?.firstTouchCampaign ?? null,
+        anuncio: lead.attribution?.firstTouchContent ?? null,
+        primeiraVisita: lead.attribution?.createdAt ?? null,
+      },
+      tarefas: lead.tasks.map((t) => ({ id: t.id, titulo: t.title, prazo: t.dueAt, status: t.status })),
+      reunioes: lead.meetings.map((m) => ({ id: m.id, titulo: m.title, quando: m.scheduledAt, status: m.status })),
+      documentos: lead.documents.map((d) => ({ id: d.id, nome: d.fileName, categoria: d.kind, em: d.createdAt })),
+      cof: lead.cofProcesses.map((c) => ({
+        id: c.id,
+        status: c.status,
+        enviadaEm: c.sentAt,
+        recebidaEm: c.receivedAt,
+        prazoDias: c.waitingDays,
+      })),
+      conversas: lead.conversations.map((c) => ({ id: c.id, modo: c.mode, ultimaMensagem: c.lastMessageAt })),
+      motivoDaPerda: lead.lostReason,
+      criadoEm: lead.createdAt,
+      ultimoContato: lead.lastContactAt,
+    };
+  }
+
   /** Timeline completa do lead (item 21), em ordem cronologica. */
   async timeline(user: AuthenticatedUser, leadId: string) {
     const lead = await this.prisma.client.lead.findFirst({
@@ -140,13 +237,21 @@ export class LeadsService {
       where: { id: leadId, organizationId: user.organizationId },
     });
     if (!lead) throw new NotFoundError('Lead nao encontrado.');
-    return moveStage(this.prisma.client, {
+    const movido = await moveStage(this.prisma.client, {
       leadId,
       toStageKey: stageKey,
       source: 'MANUAL',
       userId: user.id,
       reason,
     });
+    // "quando lead mudar etapa, usuarios autorizados atualizam" (item 44)
+    await this.avisos.publicar({
+      tipo: TIPOS_DE_AVISO.LEAD_MUDOU_ETAPA,
+      organizationId: user.organizationId,
+      leadId,
+      dados: { etapa: stageKey, por: user.name },
+    });
+    return movido;
   }
 
   async recalcScore(user: AuthenticatedUser, leadId: string) {

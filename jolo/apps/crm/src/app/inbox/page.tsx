@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Shell } from '../../components/Shell';
 import { api, can, getUser } from '../../lib/api';
+import { usarTempoReal } from '../../lib/tempoReal';
+import { quandoFoi, sinalDeEntrega } from '../../lib/formato';
 
 interface ConversaLista {
   id: string;
@@ -46,14 +48,6 @@ interface Detalhe {
   }[];
 }
 
-const SINAL: Record<string, string> = {
-  QUEUED: 'na fila',
-  SENT: '✓ enviada',
-  DELIVERED: '✓✓ entregue',
-  READ: '✓✓ lida',
-  FAILED: 'falhou',
-};
-
 export default function InboxPage() {
   const [lista, setLista] = useState<ConversaLista[]>([]);
   const [ativa, setAtiva] = useState<string | null>(null);
@@ -79,17 +73,31 @@ export default function InboxPage() {
 
   useEffect(() => {
     carregarLista();
-    // Atualizacao periodica enquanto o canal em tempo real da Fase 2 nao entra.
-    const t = setInterval(carregarLista, 10_000);
-    return () => clearInterval(t);
   }, [carregarLista]);
 
   useEffect(() => {
     if (!ativa) return;
     carregarDetalhe(ativa);
-    const t = setInterval(() => carregarDetalhe(ativa), 8_000);
-    return () => clearInterval(t);
   }, [ativa, carregarDetalhe]);
+
+  // Mensagem que chega, status que muda, conversa assumida: a tela reage sozinha.
+  const { ligado } = usarTempoReal(
+    ['mensagem_nova', 'mensagem_status', 'conversa_assumida', 'conversa_liberada', 'lead_novo'],
+    useCallback(() => {
+      carregarLista();
+      if (ativa) carregarDetalhe(ativa);
+    }, [ativa, carregarLista, carregarDetalhe]),
+  );
+
+  // Rede caiu ou o navegador cortou o fluxo: continuamos atualizando de tempos em tempos.
+  useEffect(() => {
+    if (ligado) return;
+    const t = setInterval(() => {
+      carregarLista();
+      if (ativa) carregarDetalhe(ativa);
+    }, 15_000);
+    return () => clearInterval(t);
+  }, [ligado, ativa, carregarLista, carregarDetalhe]);
 
   const assumir = () => {
     if (!ativa) return;
@@ -118,7 +126,12 @@ export default function InboxPage() {
   return (
     <Shell>
       <h1>Conversas</h1>
-      <p className="sub">WhatsApp oficial, com histórico completo de cada lead.</p>
+      <p className="sub">
+        WhatsApp oficial, com histórico completo de cada lead.{' '}
+        <span className={ligado ? 'tempo-real ligado' : 'tempo-real'}>
+          {ligado ? 'atualizando sozinho' : 'reconectando…'}
+        </span>
+      </p>
       {erro ? <div className="painel" style={{ marginBottom: 12 }}>{erro}</div> : null}
       <div className="inbox">
         <div className="coluna">
@@ -137,6 +150,7 @@ export default function InboxPage() {
                 <b>{c.contact.name}</b>
                 <small>
                   {c.contact.phone} · {c.mode === 'AI' ? 'IA atendendo' : `com ${c.owner?.name ?? 'humano'}`}
+                  {c.lastMessageAt ? ` · ${quandoFoi(c.lastMessageAt)}` : ''}
                 </small>
                 <small>{c.preview ?? 'sem mensagens'}</small>
               </button>
@@ -151,7 +165,11 @@ export default function InboxPage() {
               <div key={m.id} className={`msg ${m.direction === 'INBOUND' ? 'IN' : 'OUT'}`}>
                 {m.body}
                 <span className="meta">
-                  {m.direction === 'OUTBOUND' ? `${m.author === 'AI' ? 'IA' : 'Time'} · ${SINAL[m.status] ?? m.status}` : 'Cliente'}
+                  {m.direction === 'OUTBOUND'
+                    ? `${m.author === 'AI' ? 'IA' : 'Time'} · ${sinalDeEntrega(m.status).simbolo} ${sinalDeEntrega(m.status).texto}`
+                    : 'Cliente'}
+                  {' · '}
+                  {quandoFoi(m.createdAt)}
                 </span>
               </div>
             ))}
@@ -229,6 +247,12 @@ export default function InboxPage() {
               <div>
                 <dt>Responsável</dt>
                 <dd>{detalhe.lead.owner?.name ?? 'sem responsável'}</dd>
+              </div>
+              <div>
+                <dt>Ficha completa</dt>
+                <dd>
+                  <a href={`/leads/${detalhe.lead.id}`}>Abrir o lead</a>
+                </dd>
               </div>
             </dl>
           ) : (

@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import { corsOrigins, loadServerEnv } from '@jolo/config/server';
 import { AppModule } from './app.module.js';
 import { logger } from './common/logger.js';
@@ -23,6 +24,12 @@ async function bootstrap(): Promise<void> {
     origin: corsOrigins(env),
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  });
+  // Envio de documento (COF, contrato, ficha). O limite aqui e a ultima trava:
+  // o servico ainda confere tipo e tamanho antes de gravar.
+  await app.register(multipart, {
+    limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 10 },
+    attachFieldsToBody: false,
   });
 
   app.enableShutdownHooks();

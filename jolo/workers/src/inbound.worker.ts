@@ -1,7 +1,20 @@
 import { Worker } from 'bullmq';
 import { AUDIT_EVENTS, QUEUES, type InboundJob } from '@jolo/shared';
-import { ensureConversation, ensureLead, moveStage, upsertContact, writeActivity, writeAudit } from '@jolo/crm-core';
+import {
+  CHAVES_DE_CONFIGURACAO,
+  ensureConversation,
+  ensureLead,
+  escolherResponsavel,
+  lerConfiguracao,
+  moveStage,
+  upsertContact,
+  writeActivity,
+  writeAudit,
+  type Roteamento,
+} from '@jolo/crm-core';
 import { parseMetaWebhook } from '@jolo/whatsapp';
+import { TIPOS_DE_AVISO } from '@jolo/shared';
+import { publicarAviso } from './avisos.js';
 import type { WorkerContext } from './context.js';
 
 const TRACKING_RE = /\[ref:\s*(jl_[a-z0-9]+)\s*\]/i;
@@ -138,6 +151,41 @@ export function startInboundWorker(ctx: WorkerContext): Worker {
           occurredAt: msg.timestamp,
         });
 
+        // Lead novo ganha dono pela regra configurada (item 53).
+        // Sem regra, fica sem dono e aparece na fila geral: lead sem dono nunca some.
+        if (created && !lead.ownerId) {
+          const regra = await lerConfiguracao<Roteamento>(
+            prisma,
+            org.id,
+            CHAVES_DE_CONFIGURACAO.ROTEAMENTO,
+          );
+          const sequencia = await prisma.lead.count({ where: { organizationId: org.id } });
+          const responsavelId = escolherResponsavel(regra, {
+            cidade: lead.desiredCity ?? contact.city,
+            estado: lead.desiredState ?? contact.state,
+            campanha: attributionId
+              ? (await prisma.attributionSession.findUnique({ where: { id: attributionId } }))?.firstTouchCampaign
+              : null,
+            sequencia,
+          });
+          if (responsavelId) {
+            // so atribui a quem existe e esta ativo: regra velha nao pode mandar lead para conta desligada
+            const dono = await prisma.user.findFirst({
+              where: { id: responsavelId, organizationId: org.id, status: 'ACTIVE' },
+            });
+            if (dono) {
+              await prisma.lead.update({ where: { id: lead.id }, data: { ownerId: dono.id } });
+              await writeActivity(prisma, {
+                organizationId: org.id,
+                leadId: lead.id,
+                type: 'roteamento',
+                title: `Lead direcionado para ${dono.name}`,
+                description: `Regra: ${regra.modo}`,
+              });
+            }
+          }
+        }
+
         // Primeira mensagem: o lead entra na etapa de qualificacao pela IA.
         if (created) {
           await moveStage(prisma, {
@@ -149,11 +197,22 @@ export function startInboundWorker(ctx: WorkerContext): Worker {
           });
         }
 
-        await ctx.redis.lpush(
-          'jolo:events',
-          JSON.stringify({ tipo: 'mensagem_recebida', conversationId: conversation.id, at: new Date().toISOString() }),
-        );
-        await ctx.redis.ltrim('jolo:events', 0, 499);
+        // As telas abertas atualizam sozinhas: sem F5.
+        await publicarAviso(ctx.redis, {
+          tipo: TIPOS_DE_AVISO.MENSAGEM_NOVA,
+          organizationId: org.id,
+          conversaId: conversation.id,
+          leadId: lead.id,
+          dados: { de: contact.name ?? 'sem nome' },
+        });
+        if (created) {
+          await publicarAviso(ctx.redis, {
+            tipo: TIPOS_DE_AVISO.LEAD_NOVO,
+            organizationId: org.id,
+            leadId: lead.id,
+            conversaId: conversation.id,
+          });
+        }
 
         const { QueueBridge } = await import('./bridge.js');
         await QueueBridge.aiTurn(ctx, conversation.id, job.data.correlationId);
@@ -177,6 +236,13 @@ export function startInboundWorker(ctx: WorkerContext): Worker {
         const ordem = ['QUEUED', 'SENT', 'DELIVERED', 'READ'];
         const avancou = novo === 'FAILED' || ordem.indexOf(novo) > ordem.indexOf(mensagem.status);
         if (avancou) {
+          await publicarAviso(ctx.redis, {
+            tipo: TIPOS_DE_AVISO.MENSAGEM_STATUS,
+            organizationId: mensagem.organizationId,
+            conversaId: mensagem.conversationId,
+            alvoId: mensagem.id,
+            dados: { status: novo },
+          });
           await prisma.message.update({
             where: { id: mensagem.id },
             data: {

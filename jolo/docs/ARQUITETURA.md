@@ -65,6 +65,44 @@ IA para de responder ate ser liberada de novo.
 **Nada some sem registro.** Mudanca de etapa, atendimento assumido,
 usuario alterado: tudo vira linha de auditoria com autor, data e origem.
 
+## Tempo real
+
+Quando uma mensagem chega, quando um lead muda de etapa e quando alguem
+assume uma conversa, as telas abertas se atualizam **sem F5**.
+
+Como funciona: o worker (ou a API) publica um aviso curto num canal do
+Redis, um canal por empresa. A tela do CRM fica ouvindo esse canal e,
+ao receber o aviso, busca o dado atualizado pela API normal.
+
+Duas decisoes importantes:
+
+- **O aviso nao carrega dado.** Ele so diz "a conversa X mudou". Quem
+  busca o conteudo e a tela, com a permissao de quem esta olhando. Assim
+  ninguem recebe pelo canal algo que nao poderia ver na tela.
+- **O canal e da empresa, nunca do pedido.** A inscricao usa o
+  identificador de quem esta logado. Nao existe parametro na URL para
+  escutar o movimento de outra empresa.
+
+Se a conexao cair, a tela volta a atualizar de tempos em tempos e tenta
+reconectar com espera crescente.
+
+## As regras de negocio ficam no banco, nao no codigo
+
+Horario de atendimento, quem atende o lead novo, pesos da pontuacao e os
+textos padrao da IA sao configuracao, e mudam pela tela. O codigo traz
+apenas o valor de fabrica, usado enquanto a loja nao mexeu em nada.
+
+Cada configuracao tem um formato conferido na entrada: configuracao
+invalida nao entra, e o recado diz exatamente qual campo esta errado.
+
+## O prazo da COF e uma trava, nao um aviso
+
+A Lei de Franquias exige dez dias entre a entrega da Circular de Oferta de
+Franquia e a assinatura do contrato. O sistema conta esse prazo a partir da
+data de **recebimento** e **recusa** a liberacao do contrato antes do fim,
+dizendo quantos dias faltam. Nao ha caminho pela tela que passe por cima
+disso.
+
 ## Onde a resposta precisa ser rapida
 
 O webhook da Meta responde em milissegundos: ele so confere a assinatura,

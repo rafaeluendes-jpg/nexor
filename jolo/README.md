@@ -15,9 +15,9 @@ Passo a passo em **[docs/INSTALACAO.md](docs/INSTALACAO.md)**.
 
 ```bash
 pnpm install
-cd infra/docker && docker compose up -d && cd ../..
 cp .env.example .env      # preencher o que estiver marcado [OPERADOR]
 pnpm build && pnpm db:migrate && pnpm db:seed
+./scripts/dev-up.sh       # sobe banco, fila, API, workers e as telas
 ```
 
 ## Documentacao
@@ -34,6 +34,7 @@ pnpm build && pnpm db:migrate && pnpm db:seed
 | [docs/OPERACAO.md](docs/OPERACAO.md) | rotina e solucao de problemas |
 | [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) | copia e restauracao |
 | [docs/PHASE_1_REPORT.md](docs/PHASE_1_REPORT.md) | o que a Fase 1 entregou |
+| [docs/PHASE_2_REPORT.md](docs/PHASE_2_REPORT.md) | o que a Fase 2 entregou |
 
 ## Testes
 

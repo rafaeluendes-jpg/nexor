@@ -62,3 +62,53 @@ td{padding:10px;border-bottom:1px solid var(--linha)}
 .login input{padding:12px;border:1px solid var(--linha);border-radius:10px;font-size:15px}
 .login .erro{background:#fdeceb;color:#b3261e;padding:10px 12px;border-radius:10px;font-size:14px}
 .vazio{padding:40px;text-align:center;color:var(--muted)}
+
+/* ---------- casca com menu lateral (Fase 2) ---------- */
+.app{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 56px)}
+.lateral{background:#fff;border-right:1px solid var(--linha);padding:16px 0;overflow-y:auto}
+.lateral .grupo{padding:14px 18px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.lateral a{display:block;padding:8px 18px;font-size:14px;text-decoration:none;color:var(--ink);border-left:3px solid transparent}
+.lateral a:hover{background:#f7f4ee}
+.lateral a[aria-current=page]{background:#f2efe7;border-left-color:var(--bosco);font-weight:600;color:var(--bosco)}
+.conteudo{padding:24px;max-width:1400px;overflow-x:auto}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .lateral{display:flex;flex-wrap:wrap;gap:2px;border-right:0;border-bottom:1px solid var(--linha);padding:8px}
+  .lateral .grupo{width:100%;padding:6px 10px 2px}
+  .lateral a{border-left:0;border-radius:8px;padding:6px 12px}
+  .inbox{grid-template-columns:1fr;height:auto}
+}
+
+/* ---------- filtros e formularios ---------- */
+.filtros{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:flex-end}
+.campo{display:flex;flex-direction:column;gap:4px}
+.campo label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.campo input,.campo select,.campo textarea{padding:9px 11px;border:1px solid var(--linha);border-radius:9px;font:inherit;background:#fff;min-width:150px}
+.campo textarea{min-height:80px;resize:vertical}
+.linha-botoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+form.painel{display:grid;gap:12px}
+fieldset{border:1px solid var(--linha);border-radius:12px;padding:14px;margin:0 0 14px}
+legend{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:0 6px}
+
+/* ---------- estados e avisos ---------- */
+.aviso{background:#fdf6e6;border:1px solid #e8d9b0;color:#6b5417;padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:14px}
+.aviso.erro{background:#fdeceb;border-color:#f3c9c5;color:#8c221b}
+.aviso.ok{background:#eaf4ec;border-color:#c3e0ca;color:#1f5c31}
+.pilula{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.03em;background:var(--pietra);color:var(--notte)}
+.pilula.atencao{background:#f7e2c4;color:#7a4b12}
+.pilula.perigo{background:#f6d7d4;color:var(--quente)}
+.pilula.ok{background:#d9ecdd;color:#1f5c31}
+.barra{height:8px;border-radius:999px;background:var(--linha);overflow:hidden}
+.barra span{display:block;height:100%;background:var(--bosco)}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+.acoes button{font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--linha);background:#fff}
+.acoes button.primario{background:var(--bosco);color:#fff;border-color:var(--bosco)}
+.linha-do-tempo{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.linha-do-tempo li{padding:10px 0 10px 18px;border-left:2px solid var(--linha);position:relative}
+.linha-do-tempo li::before{content:"";position:absolute;left:-5px;top:15px;width:8px;height:8px;border-radius:50%;background:var(--caramello)}
+.linha-do-tempo small{color:var(--muted);display:block;font-size:12px}
+.duas-colunas{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.duas-colunas{grid-template-columns:1fr}}
+.tempo-real{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.tempo-real::before{content:"";width:8px;height:8px;border-radius:50%;background:#bbb}
+.tempo-real.ligado::before{background:#2f8f4e}

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentUser, RequirePermission, type AuthenticatedUser } from '../../common/decorators/index.js';
 import { ZodValidationPipe } from '../../common/pipes/zod.pipe.js';
@@ -34,6 +34,7 @@ export class ConversationsController {
   }
 
   @RequirePermission('crm.conversations.takeover')
+  @HttpCode(200)
   @Post(':id/takeover')
   takeOver(
     @CurrentUser() user: AuthenticatedUser,
@@ -44,6 +45,7 @@ export class ConversationsController {
   }
 
   @RequirePermission('crm.conversations.takeover')
+  @HttpCode(200)
   @Post(':id/release')
   release(
     @CurrentUser() user: AuthenticatedUser,
