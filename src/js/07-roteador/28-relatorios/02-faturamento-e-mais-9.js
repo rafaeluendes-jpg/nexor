@@ -796,6 +796,7 @@ function formMotivo(id,tipoPadrao,aoSalvar){
      }).join('')+'</div></div>'+
    '<label class="chkL"><input type="checkbox" id="mvAtivo" '+(!m||m.ativo!==false?'checked':'')+'>'+
     '<span>Motivo ativo — aparece na lista ao lançar movimentação</span></label>'+
+   blocoUnidades(m,'mvUn')+
   '</div>','Salvar',function(){
     var nome=$('mvNome').value.trim();
     if(!nome){toast('Informe o nome do motivo.');return false;}
@@ -807,6 +808,11 @@ function formMotivo(id,tipoPadrao,aoSalvar){
     if(m)Object.assign(m,o);
     else{gravado=Object.assign({id:uid('mt'),sistema:false,lojas:[]},o);
       DB.motivosMov.push(gravado);}
+    /* NASCE ENXERGANDO QUEM CRIOU (regra da V191). Sem isto, `sucursais`
+       fica vazio e o cadastro-rede filtra o motivo para fora da unidade na
+       primeira sincronização — cadastra e some. Era o "Consumo Balcão"
+       recadastrado cinco vezes. */
+    lerUnidades('mvUn',gravado);
     salvar();
     if(typeof aoSalvar==='function')aoSalvar(gravado);
     else telaCfgMovimentacao();
