@@ -87,8 +87,10 @@ async function carregar() {
   const faixa = win.faixaProducaoEmAndamento();
   t('a faixa aparece com o botão de continuar', /Continuar a produção/.test(faixa) && /1 sabor/.test(faixa), faixa.slice(0, 80));
   win.continuarOP();
-  t('continuar restaura o OP com a pesagem',
-    win.OP.aba === 'nova' && (win.OP.itens || []).length === 1 && win.OP.itens[0].cubas.join('|') === '2,4|2,3|',
+  t('continuar restaura o OP com a pesagem (rascunho antigo já sobe para 4 cubas)',
+    win.OP.aba === 'nova' && (win.OP.itens || []).length === 1 &&
+      win.OP.itens[0].cubas[0] === '2,4' && win.OP.itens[0].cubas[1] === '2,3' &&
+      win.OP.itens[0].cubas.length === 4,
     JSON.stringify(win.OP.itens));
 
   grupo('O rascunho é de UMA unidade só');

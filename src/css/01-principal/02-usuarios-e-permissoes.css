@@ -2070,6 +2070,9 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .opTab .opCuba{width:100%;height:28px;border:1px solid var(--line);border-radius:4px;padding:0 7px;
   text-align:right;outline:none;font-size:12px;background:#fff}
 .opTab .opCuba:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.opTab .opNrec{width:100%;height:28px;border:1px solid var(--line);border-radius:4px;padding:0 6px;
+  text-align:center;outline:none;font-size:12px;font-weight:600;background:#fff}
+.opTab .opNrec:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
 .opNome{background:none;border:none;padding:0;cursor:pointer;text-align:left;font-size:12.5px;
   font-weight:600;color:var(--ink);display:flex;flex-direction:column;gap:1px}
 .opNome:hover{color:var(--acc-d)}

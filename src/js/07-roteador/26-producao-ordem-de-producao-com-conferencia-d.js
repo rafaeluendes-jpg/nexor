@@ -73,6 +73,13 @@ function continuarOP(){
   OP.aba='nova';
   OP.itens=r.itens||[]; OP.resp=r.resp||''; OP.obs=r.obs||''; OP.data=r.data||hojeISO();
   OP.busca=''; OP.todos=false; OP.verReceita=null;
+  /* rascunho antigo pode nao ter nº de receitas nem a 4ª cuba: normaliza */
+  OP.itens.forEach(function(it){
+    if(it.receitas==null)it.receitas=1;
+    if(it.previstoRec==null)it.previstoRec=Number(it.previsto)||0;
+    if(!Array.isArray(it.cubas))it.cubas=['','','',''];
+    while(it.cubas.length<4)it.cubas.push('');
+  });
   telaProducao();
 }
 async function descartarRascunhoOP(){
@@ -267,13 +274,15 @@ function telaOPNova(){
    '<div class="etTabW">'+
    (OP.itens.length?'<table class="etTab opTab"><thead><tr>'+
     '<th style="width:34px"></th><th>Sabor</th>'+
-    '<th style="width:120px;text-align:right">Previsto</th>'+
-    '<th style="width:96px;text-align:right">Cuba 1</th>'+
-    '<th style="width:96px;text-align:right">Cuba 2</th>'+
-    '<th style="width:96px;text-align:right">Cuba 3</th>'+
-    '<th style="width:104px;text-align:right">Total real</th>'+
-    '<th style="width:118px;text-align:right">Perda / ganho</th>'+
-    '<th style="width:44px"></th></tr></thead><tbody>'+
+    '<th style="width:88px;text-align:center">Receitas</th>'+
+    '<th style="width:104px;text-align:right">Previsto</th>'+
+    '<th style="width:82px;text-align:right">Cuba 1</th>'+
+    '<th style="width:82px;text-align:right">Cuba 2</th>'+
+    '<th style="width:82px;text-align:right">Cuba 3</th>'+
+    '<th style="width:82px;text-align:right">Cuba 4</th>'+
+    '<th style="width:100px;text-align:right">Total real</th>'+
+    '<th style="width:112px;text-align:right">Perda / ganho</th>'+
+    '<th style="width:40px"></th></tr></thead><tbody>'+
     OP.itens.map(function(it,k){
       var f=(DB.fichas||[]).find(function(x){return x.id===it.fichaId})||{};
       var tot=somaCubas(it);
@@ -283,8 +292,10 @@ function telaOPNova(){
       '<td><button class="opNome" onclick="verReceitaOP('+k+')">'+E(it.nome)+
        '<span class="opVerRec">'+sv('book',11)+' modo de preparo'+
        (it.destinoNome?' · gera '+E(it.destinoNome):'')+'</span></button></td>'+
-      '<td style="text-align:right">'+fmtQt(it.previsto)+' '+un(it.unidade).ab+'</td>'+
-      [0,1,2].map(function(c){
+      '<td style="text-align:center"><input class="opNrec" data-k="'+k+'" type="number" min="1" step="1" '+
+       'value="'+recOP(it)+'"></td>'+
+      '<td style="text-align:right" class="opPrev">'+fmtQt(it.previsto)+' '+un(it.unidade).ab+'</td>'+
+      [0,1,2,3].map(function(c){
         return '<td><input class="opCuba" data-k="'+k+'" data-c="'+c+'" type="number" step="0.001" '+
         'value="'+(it.cubas[c]||'')+'" placeholder="—"></td>';}).join('')+
       '<td style="text-align:right" class="opTot"><b>'+(tot?fmtQt(tot)+' '+un(it.unidade).ab:'—')+'</b></td>'+
@@ -329,9 +340,9 @@ function htmlTotaisOP(t){
 function htmlRodapeOP(t){
   return Object.keys(t).map(function(u){
     var d=t[u].real-t[u].prev;
-    return '<tr><td colspan="2"><b>Total em '+un(u).n.toLowerCase()+'</b></td>'+
+    return '<tr><td colspan="3"><b>Total em '+un(u).n.toLowerCase()+'</b></td>'+
     '<td style="text-align:right"><b>'+fmtQt(t[u].prev)+' '+un(u).ab+'</b></td>'+
-    '<td colspan="3"></td>'+
+    '<td colspan="4"></td>'+
     '<td style="text-align:right"><b>'+fmtQt(t[u].real)+' '+un(u).ab+'</b></td>'+
     '<td style="text-align:right"><b class="'+(d>=0?'vg':'vr')+'">'+
      (d>0?'+':'')+fmtQt(d)+' '+un(u).ab+'</b></td><td></td></tr>';
@@ -339,6 +350,28 @@ function htmlRodapeOP(t){
 }
 function somaCubas(it){
   return (it.cubas||[]).reduce(function(a,c){return a+(parseFloat(c)||0)},0);
+}
+/* ==========================================================
+   QUANTAS RECEITAS
+
+   Escolher 2 receitas de um sabor de 4 kg faz o previsto virar 8 kg E
+   baixar o DOBRO dos ingredientes do estoque. O peso de UMA receita fica
+   guardado em `previstoRec` e a rende de uma receita em `qtdReceita`; o
+   nº de receitas multiplica os dois. Antes, quem fazia duas fornadas de
+   um sabor so dava baixa de ingrediente de uma.
+   ========================================================== */
+function recOP(it){ return Math.max(1,Math.round(Number(it&&it.receitas)||1)); }
+function qtdIngredienteOP(it){
+  var base=Number(it&&it.qtdReceita)||0;
+  return base?+(base*recOP(it)).toFixed(4):(Number(it&&it.previsto)||0);
+}
+function setReceitasOP(k,v){
+  var it=OP.itens[k]; if(!it)return;
+  it.receitas=Math.max(1,Math.round(Number(v)||1));
+  var base=Number(it.previstoRec);
+  if(!isFinite(base)||base<=0){ base=Number(it.previsto)||0; it.previstoRec=base; }
+  it.previsto=+(base*it.receitas).toFixed(4);
+  guardarRascunhoOP();
 }
 function ligarOP(){
   var b=$('opBusca');
@@ -362,6 +395,20 @@ function ligarOP(){
         var todos=document.querySelectorAll('.opCuba');
         for(var z=0;z<todos.length;z++)if(todos[z]===this&&todos[z+1]){todos[z+1].focus();todos[z+1].select();break;}
       }
+    };
+  }
+  /* nº de receitas: recalcula o previsto e a baixa, sem recarregar a tela */
+  var rs=document.querySelectorAll('.opNrec');
+  for(var j=0;j<rs.length;j++){
+    rs[j].onchange=function(){
+      var k=this.getAttribute('data-k');
+      setReceitasOP(k,this.value);
+      var it=OP.itens[k];
+      this.value=recOP(it);
+      var tr=document.getElementById('lop-'+k);
+      var pc=tr?tr.querySelector('.opPrev'):null;
+      if(pc)pc.innerHTML=fmtQt(it.previsto)+' '+un(it.unidade).ab;
+      atualizaLinhaOP(k);
     };
   }
 }
@@ -388,9 +435,10 @@ function addSaborOP(fid){
   var f=(DB.fichas||[]).find(function(x){return x.id===fid});
   if(!f)return;
   var p=previstoDestino(f);
-  OP.itens.push({fichaId:f.id,nome:f.nome,previsto:p.qtd,unidade:p.unidade,
+  OP.itens.push({fichaId:f.id,nome:f.nome,receitas:1,
+    previstoRec:p.qtd,previsto:p.qtd,unidade:p.unidade,
     destinoNome:p.destino?p.destino.nome:'',qtdReceita:Number(f.rendimento)||0,
-    unReceita:f.rendUnidade||f.unidade,cubas:['','','']});
+    unReceita:f.rendUnidade||f.unidade,cubas:['','','','']});
   OP.busca='';OP.todos=false;
   guardarRascunhoOP();
   telaProducao();
@@ -468,7 +516,7 @@ async function confirmarProducao(){
   /* antes de qualquer coisa: da para produzir tudo com o estoque que existe? */
   var _prevItens=OP.itens.map(function(it){
     return {tipo:'ficha',refId:it.fichaId,
-      qtd:Number(it.qtdReceita)||Number(it.previsto)||0,
+      qtd:qtdIngredienteOP(it),
       unidade:it.unReceita||it.unidade,custo:0};
   });
   var _falta=faltaEstoque(montarLinhas(_prevItens,'producao'));
@@ -526,7 +574,7 @@ async function confirmarProducao(){
   /* 1) a produção em si — baixa ingredientes e gera o destino, pelo previsto */
   var itensMov=OP.itens.map(function(it){
     return {tipo:'ficha',refId:it.fichaId,
-      qtd:Number(it.qtdReceita)||Number(it.previsto)||0,
+      qtd:qtdIngredienteOP(it),
       unidade:it.unReceita||it.unidade,custo:0};
   });
   var linhas=montarLinhas(itensMov,'producao');
@@ -570,7 +618,7 @@ async function confirmarProducao(){
     diferenca:dif,movId:mv?mv.id:'',
     itens:OP.itens.map(function(it){
       var tot=somaCubas(it);
-      return {fichaId:it.fichaId,nome:it.nome,previsto:Number(it.previsto)||0,
+      return {fichaId:it.fichaId,nome:it.nome,receitas:recOP(it),previsto:Number(it.previsto)||0,
         cubas:(it.cubas||[]).map(function(c){return parseFloat(c)||0}),
         real:+tot.toFixed(3),diferenca:tot?+(tot-(Number(it.previsto)||0)).toFixed(3):0};
     })};
