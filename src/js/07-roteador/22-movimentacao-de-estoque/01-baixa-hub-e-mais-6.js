@@ -2178,7 +2178,8 @@ function telaBaixaManual(){
         '<th style="width:78px">Data</th><th>Item</th>' +
         '<th style="width:96px;text-align:right">Qtd</th>' +
         '<th style="width:150px">Motivo</th><th style="width:130px">Quem</th>' +
-        '<th style="width:96px;text-align:right">Custo</th>' +
+        '<th style="width:92px;text-align:right">Custo unit.</th>' +
+        '<th style="width:96px;text-align:right">Total</th>' +
         '<th style="width:96px">Situação</th><th style="width:86px"></th>' +
         '</tr></thead><tbody>' +
         lista.map(function (b) {
@@ -2192,8 +2193,9 @@ function telaBaixaManual(){
            '<td style="text-align:right">' + fmtQt(b.qtd) + ' ' + E(un(b.unidade).ab) + '</td>' +
            '<td>' + E(b.motivoNome || '—') + '</td>' +
            '<td>' + E(b.quem || '—') + '</td>' +
-           '<td style="text-align:right">R$ ' +
-             money((Number(b.qtd) || 0) * (Number(b.custo) || 0)) + '</td>' +
+           '<td style="text-align:right">R$ ' + money(Number(b.custo) || 0) + '</td>' +
+           '<td style="text-align:right"><b>R$ ' +
+             money((Number(b.qtd) || 0) * (Number(b.custo) || 0)) + '</b></td>' +
            '<td><span class="pill ' + (lancada ? 'vd' : 'am') + '">' +
              (lancada ? 'lançada' : 'a lançar') + '</span></td>' +
            '<td>' + (lancada ? '' :
@@ -2323,6 +2325,9 @@ async function excluirBaixa(id){
   });
   if (!ok) return;
   DB.baixasPend = DB.baixasPend.filter(function (x) { return x.id !== id; });
+  /* sem declarar a exclusão, o espelhamento não apaga da nuvem e a baixa
+     VOLTA no próximo download — foi o "apaguei e voltou" relatado. */
+  declararExclusao('baixasPend', id);
   salvar();
   telaBaixaManual();
 }
