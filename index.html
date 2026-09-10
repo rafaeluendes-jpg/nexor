@@ -13465,7 +13465,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V324.0.0';
+var VERSAO='V325.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21879,7 +21879,13 @@ async function enviarVendaAtomica(ped,mov){
         motivo_id:mov.motivoId,identificacao:mov.identificacao,
         observacao:mov.obs||'',origem:'venda',linhas:mov.linhas||[],
         sucursal_id:suc}]:[],
-      sucursal_ref:suc
+      /* A UNIDADE DA VENDA E A DO PEDIDO, NAO A DO APARELHO (10/09/2026)
+         Ia `suc` = lojaAtualId(). Para o pedido do cardapio, aceito num
+         aparelho cuja unidade ainda nao estava resolvida, isso subia
+         `sucursal_ref` vazio — e o banco nao sabia de que loja era a venda.
+         O pedido ja carrega a sua unidade (`sucursalId`, gravada no aceite
+         e no PDV); ela manda. O aparelho e so o reserva. */
+      sucursal_ref:ped.sucursalId||suc
       /* O SALDO NAO E MAIS ENVIADO.
          Mandar o saldo absoluto calculado aqui era o defeito: dois caixas
          liam 10, um vendia 2 e o outro 3, e gravavam 8 e 7 — o ultimo
@@ -21889,6 +21895,28 @@ async function enviarVendaAtomica(ped,mov){
     };
     var r=await api('rpc/venda_registrar','POST',{p:pacote});
     var res=(r&&r.length)?r[0]:r;
+    /* ==========================================================
+       O NUMERO OFICIAL E O QUE O BANCO GRAVOU (10/09/2026)
+
+       venda_registrar passou a decidir o numero quando o que o app mandou
+       vinha ausente ou ja usado naquela unidade, e devolve `numero`,
+       `numero_gerado` e `sucursal_id`. O numero calculado aqui antes de
+       enviar deixa de ser definitivo: se o banco trocou, o pedido local
+       (o mesmo objeto de DB.pedidos), o comprovante, a impressao e o
+       kanban passam a usar o que ficou gravado de fato. Mandando numero
+       valido e inedito, o banco devolve o mesmo — o PDV nao muda.
+       ========================================================== */
+    if(res&&res.numero!=null&&String(res.numero)!==String(ped.numero)){
+      var _numAntes=ped.numero;
+      ped.numero=res.numero;
+      if(res.sucursal_id&&!ped.sucursalId)ped.sucursalId=res.sucursal_id;
+      salvar();
+      logNuvem('venda #'+_numAntes+' passou a ser #'+ped.numero+
+        (res.numero_gerado?' — o banco gerou: o anterior ja existia nesta unidade':''),true);
+      toast('Pedido registrado como #'+ped.numero+'.');
+      try{ if(typeof renderKanban==='function')renderKanban(); }
+      catch(e){_quieto(e,'enviarVendaAtomica/numero')}
+    }
     logNuvem('venda #'+ped.numero+' gravada inteira na nuvem — '+
       ((res&&res.pagamentos)||0)+' pagamento(s)'+
       ((res&&res.ja_existia)?' (já existia — não duplicou)':''));
@@ -45031,7 +45059,16 @@ async function aceitarPedidoOnline(id){
   });
   /* 3) o pedido no PDV — já na fase inicial do fluxo de entrega */
   var ag=new Date();
-  var ped={id:uid('ped'),numero:(DB.pedidos.length+1),
+    /* ==========================================================
+       O NUMERO DO CARDAPIO ERA A CONTAGEM DA LISTA (10/09/2026)
+       Esta linha era `DB.pedidos.length+1`. Com ~1.000 pedidos na janela
+       local, todo pedido aceito virava #1001 — sete vendas com o mesmo
+       numero, em dias diferentes — e apagar/janelar fazia o numero voltar.
+       E o mesmo defeito que o PDV ja corrigiu: agora e o maior numero DA
+       UNIDADE mais um, pela mesma `proxNumPedido()`. O banco (venda_registrar)
+       e rede de seguranca; a origem tem de acertar sozinha.
+       ========================================================== */
+  var ped={id:uid('ped'),numero:proxNumPedido(),
     tipo:(p.tipo==='entrega'?'entrega':'loja'),
     canal:'cardapio',
     fase:statusInicial(p.tipo==='entrega'?'entrega':'loja'),

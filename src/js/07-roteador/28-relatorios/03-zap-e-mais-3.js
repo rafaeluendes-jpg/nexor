@@ -343,7 +343,16 @@ async function aceitarPedidoOnline(id){
   });
   /* 3) o pedido no PDV — já na fase inicial do fluxo de entrega */
   var ag=new Date();
-  var ped={id:uid('ped'),numero:(DB.pedidos.length+1),
+    /* ==========================================================
+       O NUMERO DO CARDAPIO ERA A CONTAGEM DA LISTA (10/09/2026)
+       Esta linha era `DB.pedidos.length+1`. Com ~1.000 pedidos na janela
+       local, todo pedido aceito virava #1001 — sete vendas com o mesmo
+       numero, em dias diferentes — e apagar/janelar fazia o numero voltar.
+       E o mesmo defeito que o PDV ja corrigiu: agora e o maior numero DA
+       UNIDADE mais um, pela mesma `proxNumPedido()`. O banco (venda_registrar)
+       e rede de seguranca; a origem tem de acertar sozinha.
+       ========================================================== */
+  var ped={id:uid('ped'),numero:proxNumPedido(),
     tipo:(p.tipo==='entrega'?'entrega':'loja'),
     canal:'cardapio',
     fase:statusInicial(p.tipo==='entrega'?'entrega':'loja'),

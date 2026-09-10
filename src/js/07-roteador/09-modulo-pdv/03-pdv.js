@@ -1540,7 +1540,13 @@ async function enviarVendaAtomica(ped,mov){
         motivo_id:mov.motivoId,identificacao:mov.identificacao,
         observacao:mov.obs||'',origem:'venda',linhas:mov.linhas||[],
         sucursal_id:suc}]:[],
-      sucursal_ref:suc
+      /* A UNIDADE DA VENDA E A DO PEDIDO, NAO A DO APARELHO (10/09/2026)
+         Ia `suc` = lojaAtualId(). Para o pedido do cardapio, aceito num
+         aparelho cuja unidade ainda nao estava resolvida, isso subia
+         `sucursal_ref` vazio — e o banco nao sabia de que loja era a venda.
+         O pedido ja carrega a sua unidade (`sucursalId`, gravada no aceite
+         e no PDV); ela manda. O aparelho e so o reserva. */
+      sucursal_ref:ped.sucursalId||suc
       /* O SALDO NAO E MAIS ENVIADO.
          Mandar o saldo absoluto calculado aqui era o defeito: dois caixas
          liam 10, um vendia 2 e o outro 3, e gravavam 8 e 7 — o ultimo
@@ -1550,6 +1556,28 @@ async function enviarVendaAtomica(ped,mov){
     };
     var r=await api('rpc/venda_registrar','POST',{p:pacote});
     var res=(r&&r.length)?r[0]:r;
+    /* ==========================================================
+       O NUMERO OFICIAL E O QUE O BANCO GRAVOU (10/09/2026)
+
+       venda_registrar passou a decidir o numero quando o que o app mandou
+       vinha ausente ou ja usado naquela unidade, e devolve `numero`,
+       `numero_gerado` e `sucursal_id`. O numero calculado aqui antes de
+       enviar deixa de ser definitivo: se o banco trocou, o pedido local
+       (o mesmo objeto de DB.pedidos), o comprovante, a impressao e o
+       kanban passam a usar o que ficou gravado de fato. Mandando numero
+       valido e inedito, o banco devolve o mesmo — o PDV nao muda.
+       ========================================================== */
+    if(res&&res.numero!=null&&String(res.numero)!==String(ped.numero)){
+      var _numAntes=ped.numero;
+      ped.numero=res.numero;
+      if(res.sucursal_id&&!ped.sucursalId)ped.sucursalId=res.sucursal_id;
+      salvar();
+      logNuvem('venda #'+_numAntes+' passou a ser #'+ped.numero+
+        (res.numero_gerado?' — o banco gerou: o anterior ja existia nesta unidade':''),true);
+      toast('Pedido registrado como #'+ped.numero+'.');
+      try{ if(typeof renderKanban==='function')renderKanban(); }
+      catch(e){_quieto(e,'enviarVendaAtomica/numero')}
+    }
     logNuvem('venda #'+ped.numero+' gravada inteira na nuvem — '+
       ((res&&res.pagamentos)||0)+' pagamento(s)'+
       ((res&&res.ja_existia)?' (já existia — não duplicou)':''));
