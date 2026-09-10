@@ -173,8 +173,24 @@ function repararDestinos(){
   (DB.insumos||[]).forEach(function(i){porNome[String(i.nome||'').toLowerCase()]=i.id});
   (DB.fichas||[]).forEach(function(f){porNome[String(f.nome||'').toLowerCase()]=f.id});
   var consertados=0;
+  /* o item que o PDV vende: pela chave gelatoVenda, senao pelo nome */
+  var gvId=((DB.insumos||[]).find(function(i){return i.gelatoVenda})||{}).id||porNome['gelato venda']||'';
   function conserta(o){
     if(!o||!o.destinoId||o.destinoId==='__nenhum')return;
+    /* ==========================================================
+       SABOR DE GELATO SO ENTRA EM GELATO VENDA (10/09/2026)
+
+       A ficha DIZIA destino "GELATO VENDA" (destinoNome), mas o
+       destinoId apontava para o item do proprio sabor. A producao
+       engordava cada sabor e o GELATO VENDA — o que o PDV vende — so
+       descia: ficou negativo nas duas unidades. Corrigir na nuvem nao
+       segurou: o aparelho subiu o valor antigo por cima na sincronizacao
+       seguinte. A regra tem de morar AQUI, em todo aparelho: quem se
+       declara GELATO VENDA aponta para ele. Base nunca vira gelato venda
+       — e intermediaria, fica no proprio item.
+       ========================================================== */
+    if(gvId&&/gelato\s*venda/i.test(o.destinoNome||'')&&!/^\s*BASE\b/i.test(o.nome||'')
+       &&o.destinoId!==gvId){ o.destinoId=gvId;consertados++;return; }
     if(itemEstoque(o.destinoId))return;                 /* está válido */
     var alvo=porNome[String(o.destinoNome||'').toLowerCase()];
     if(!alvo&&/gelato/i.test(o.nome||''))alvo=porNome['gelato venda'];
