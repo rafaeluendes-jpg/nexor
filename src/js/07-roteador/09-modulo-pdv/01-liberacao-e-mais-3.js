@@ -40,7 +40,10 @@ function _formasFabrica(){
     {id:'fp_credito',nome:'Cartão crédito',tipo:'credito',bandeira:'Mastercard',taxaPct:3.49,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:2},
     {id:'fp_pix',nome:'Pix',tipo:'pix',bandeira:'',taxaPct:0,taxaFixa:0,dias:0,contaId:'',ativa:true,online:true,ordem:3},
     {id:'fp_voucher',nome:'Vale / Voucher',tipo:'voucher',bandeira:'',taxaPct:0,taxaFixa:0,dias:30,contaId:'',ativa:true,online:false,ordem:4}
-  ];
+  /* nascem liberadas para TODAS as unidades: sem `sucursais`, o filtro de
+     liberacao por unidade escondia as formas na loja e o seletor de forma
+     de pagamento (despesa, boleto, PDV) vinha vazio. */
+  ].map(function(f){f.sucursais=['*'];return f;});   /* '*' = TODAS_UN (todas as unidades) */
 }
 /* ==========================================================
    FÁBRICA SÓ SEMEIA O QUE VAI SER GRAVADO QUANDO A LOJA É NOVA
