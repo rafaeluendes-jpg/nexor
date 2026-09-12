@@ -6056,6 +6056,11 @@ body.semRolagem{overflow:hidden}/* =============================================
 .dreTab tbody tr.dreDet .dreV{font-weight:400}
 .dreTab tbody tr.dreTot .dreTg,.dreTab tbody tr.dreRes .dreTg{background:#fff}
 .dreTab tbody tr.dreFin .dreTg{color:var(--deep);background:#fff}
+/* coluna vazia que absorve a sobra de largura quando o DRE mostra um mes so */
+.dreTab .dreEnche{border-right:none;padding:0}
+.dreTab.compacta .dreV{width:120px}
+.dreTab.compacta .drePc{width:64px}
+.dreTab tbody tr.dreDet .dreN{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
 
 </style>
 <style>
@@ -13478,7 +13483,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V326.0.0';
+var VERSAO='V327.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41566,8 +41571,10 @@ function telaDRE(){
   var anos=[];
   var ah=new Date().getFullYear();
   for(var a=ah-4;a<=ah+1;a++)anos.push(a);
-
-  function pc(v,fat){ if(!fat)return '—'; return (v/fat*100).toFixed(1).replace('.',',')+'%'; }
+  /* um mes so: nome, valor e percentual ficam lado a lado, e a sobra da
+     largura vai para uma coluna vazia no fim — antes o valor ia parar no
+     meio da tela e o percentual na outra ponta */
+  var compacta=cols.length===1;
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
@@ -41605,13 +41612,22 @@ function telaDRE(){
      (cfgDRE().regime==='caixa'?'Caixa':'Competência')+'</b></div>'+
    '</div>'+
    '<div class="etTabW plano2" id="relArea">'+
-   '<table class="etTab dreTab"><thead><tr>'+
-    '<th style="width:56px">Rubrica</th><th style="width:230px">Elemento</th>'+
+   '<table class="etTab dreTab'+(compacta?' compacta':'')+'"><thead><tr>'+
+    '<th style="width:56px">Rubrica</th><th style="width:'+(compacta?320:230)+'px">Elemento</th>'+
     cols.map(function(k){return '<th style="text-align:right" colspan="2">'+MESES_DRE[k]+'</th>'}).join('')+
     (cols.length>1?'<th style="text-align:right" colspan="2" class="colAno">Acumulado</th>':'')+
-   '</tr></thead><tbody>'+
-   (function(){
-     var det=m.det||{}, out='';
+    (compacta?'<th class="dreEnche"></th>':'')+
+   '</tr></thead><tbody id="dreCorpo">'+corpoDRE(m,cols)+'</tbody></table></div></div></div>';
+  DRE._m=m;DRE._cols=cols;
+  rodape('DRE '+(DRE.mes?MESES_DRE[DRE.mes-1]+'/':'')+DRE.ano+' · regime de '+
+    (cfgDRE().regime==='caixa'?'caixa':'competência'));
+}
+/* so as linhas da tabela. Separado da tela para o "+"/"−" trocar SO o corpo:
+   antes, cada clique recalculava o ano inteiro e remontava a tela toda
+   (cabecalho, filtros, tabela) — a tela piscava e pulava a cada abrir/fechar. */
+function corpoDRE(m,cols){
+     function pc(v,fat){ if(!fat)return '—'; return (v/fat*100).toFixed(1).replace('.',',')+'%'; }
+     var det=m.det||{}, out='', compacta=cols.length===1;
      function celulas(getV,cem){
        var totAno=0,fatAno=0;
        cols.forEach(function(k){totAno+=getV(k)||0;fatAno+=m[k]['01']||0;});
@@ -41622,7 +41638,8 @@ function telaDRE(){
        }).join('')+
        (cols.length>1?
         '<td class="dreV colAno'+(totAno<0?' neg':'')+'"><b>'+(totAno?money(totAno):'—')+'</b></td>'+
-        '<td class="drePc colAno">'+(cem?'100%':pc(totAno,fatAno))+'</td>':'');
+        '<td class="drePc colAno">'+(cem?'100%':pc(totAno,fatAno))+'</td>':'')+
+       (compacta?'<td class="dreEnche"></td>':'');
      }
      function temFilhos(no){return !!(no&&no.ch&&Object.keys(no.ch).length)}
      /* o galho mais pesado primeiro: e o que a pessoa quer ver */
@@ -41637,7 +41654,7 @@ function telaDRE(){
      function galho(no,chave,nivel){
        var aberto=!!DRE.ab[chave], tem=temFilhos(no);
        out+='<tr class="dreDet n'+nivel+'"><td class="dreC"></td>'+
-        '<td class="dreN" style="padding-left:'+(24+nivel*16)+'px">'+
+        '<td class="dreN" style="padding-left:'+(24+nivel*16)+'px" title="'+E(no.n)+'">'+
         (tem?botao(chave,aberto):'<span class="dreTg vazio"></span>')+E(no.n)+'</td>'+
         celulas(function(k){return no.v[k]},false)+'</tr>';
        if(aberto&&tem)filhos(no).forEach(function(f){galho(f,chave+'|'+f.n,nivel+1)});
@@ -41656,16 +41673,15 @@ function telaDRE(){
        if(aberto&&temDet)filhos(d).forEach(function(f){galho(f,r.c+'|'+f.n,1)});
      });
      return out;
-   })()+
-   '</tbody></table></div></div></div>';
-  rodape('DRE '+(DRE.mes?MESES_DRE[DRE.mes-1]+'/':'')+DRE.ano+' · regime de '+
-    (cfgDRE().regime==='caixa'?'caixa':'competência'));
 }
-/* abre/fecha um galho do DRE mantendo a rolagem onde estava */
+/* abre/fecha um galho do DRE sem remontar a tela: troca so as linhas da
+   tabela, com os numeros ja calculados. Nada pisca, a rolagem nao se mexe. */
 function toggleDre(btn){
   var k=btn&&btn.getAttribute?btn.getAttribute('data-k'):String(btn||'');
   if(!k)return;
   DRE.ab=DRE.ab||{}; DRE.ab[k]=!DRE.ab[k];
+  var tb=$('dreCorpo');
+  if(tb&&DRE._m&&DRE._cols){ tb.innerHTML=corpoDRE(DRE._m,DRE._cols); return; }
   var sc=document.querySelector('.etScroll'); var y=sc?sc.scrollTop:0;
   telaDRE();
   var sc2=document.querySelector('.etScroll'); if(sc2)sc2.scrollTop=y;

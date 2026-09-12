@@ -939,3 +939,8 @@ body.semRolagem{overflow:hidden}/* =============================================
 .dreTab tbody tr.dreDet .dreV{font-weight:400}
 .dreTab tbody tr.dreTot .dreTg,.dreTab tbody tr.dreRes .dreTg{background:#fff}
 .dreTab tbody tr.dreFin .dreTg{color:var(--deep);background:#fff}
+/* coluna vazia que absorve a sobra de largura quando o DRE mostra um mes so */
+.dreTab .dreEnche{border-right:none;padding:0}
+.dreTab.compacta .dreV{width:120px}
+.dreTab.compacta .drePc{width:64px}
+.dreTab tbody tr.dreDet .dreN{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
