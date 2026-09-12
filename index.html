@@ -6043,7 +6043,20 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   #login .submit{height:clamp(47px,6.2vh,58px);font-size:clamp(15px,1.75vh,19px)}
   #login .security{font-size:clamp(12.5px,1.35vh,15.5px)}
 }
-body.semRolagem{overflow:hidden}
+body.semRolagem{overflow:hidden}/* ==========================================================
+   DRE EM CASCATA (12/09/2026) — o "+" abre o nivel de baixo
+   ========================================================== */
+.dreTab .dreTg{width:18px;height:18px;margin-right:6px;border:1px solid var(--line);border-radius:4px;
+  background:#fff;color:var(--acc-d);font-weight:700;font-size:12px;line-height:16px;text-align:center;
+  cursor:pointer;vertical-align:middle;padding:0;display:inline-block}
+.dreTab .dreTg:hover{border-color:var(--acc);background:var(--acc-soft)}
+.dreTab .dreTg.vazio{width:18px;border:none;background:none;cursor:default}
+.dreTab tbody tr.dreDet td{background:#FBFCFD;font-weight:400;color:var(--ink-2)}
+.dreTab tbody tr.dreDet.n1 .dreN{font-weight:500;color:var(--ink)}
+.dreTab tbody tr.dreDet .dreV{font-weight:400}
+.dreTab tbody tr.dreTot .dreTg,.dreTab tbody tr.dreRes .dreTg{background:#fff}
+.dreTab tbody tr.dreFin .dreTg{color:var(--deep);background:#fff}
+
 </style>
 <style>
 .ntMercBox{position:relative}
@@ -13465,7 +13478,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V325.0.0';
+var VERSAO='V326.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -41376,7 +41389,10 @@ function cfgDRE(){
   if(c.fundoPct===undefined)c.fundoPct=0;
   if(!c.mapa)c.mapa={};          /* categoriaId -> rubrica */
   if(!c.fora)c.fora=[];          /* categorias que não entram */
-  if(c.cpvPorCompra===undefined)c.cpvPorCompra=true;
+  /* CPV e o que foi CONSUMIDO pelas vendas — nunca nota de entrada. Nota e
+     compra de estoque, nao custo do que se vendeu. A chave fica so por
+     compatibilidade e e sempre desligada (12/09/2026, ordem do Rafael). */
+  c.cpvPorCompra=false;
   return c;
 }
 /* todas as categorias e subcategorias financeiras, achatadas */
@@ -41389,6 +41405,25 @@ function catsFin(){
   return l;
 }
 /* ---------- cálculo ---------- */
+/* ==========================================================
+   O DRE ABRE EM CASCATA (12/09/2026)
+
+   O Rafael: "dou o mais no Faturamento Total, ele abre Vendas Diretas;
+   mais um, abre quanto foi de gelato, de cascao... O CPV abre por grupo
+   ate chegar no produto. Royalties abre por unidade. Pessoal abre
+   salario, e dentro o nome da pessoa."
+
+   Antes o calculo devolvia so o total de cada rubrica por mes. Agora,
+   alem do total, guarda DE ONDE veio cada centavo, numa arvore por
+   rubrica (m.det): venda -> grupo do cardapio -> produto; CPV -> grupo
+   -> produto -> ingrediente; lancamento -> categoria -> subcategoria ->
+   unidade -> lancamento; DFV -> forma de pagamento. A tela so abre e
+   fecha os galhos: a conta e uma so, e a soma dos galhos E o total da
+   rubrica — nunca dois numeros para a mesma coisa.
+
+   CPV e o que foi CONSUMIDO pelas vendas, ao custo medio da baixa. Nota
+   de entrada e compra de estoque, nao custo do que se vendeu.
+   ========================================================== */
 function calcularDRE(ano){
   var c=cfgDRE();
   var m=[];
@@ -41397,67 +41432,107 @@ function calcularDRE(ano){
     RUBRICAS.forEach(function(r){o[r.c]=0});
     m.push(o);
   }
+  /* arvore de detalhe: det[rubrica] = no; no = {n, v[12 meses], ch{rotulo:no}} */
+  var det={};
+  function zero(){return [0,0,0,0,0,0,0,0,0,0,0,0]}
+  function noDe(pai,rot){
+    pai.ch=pai.ch||{};
+    if(!pai.ch[rot])pai.ch[rot]={n:rot,v:zero(),ch:null};
+    return pai.ch[rot];
+  }
+  function add(rub,caminho,k,val){
+    val=Number(val)||0; if(!val)return;
+    det[rub]=det[rub]||{n:rub,v:zero(),ch:null};
+    var no=det[rub]; no.v[k]+=val;
+    (caminho||[]).forEach(function(rot){ no=noDe(no,String(rot||'—')); no.v[k]+=val; });
+  }
   function mesDe(dt){
     var s=String(dt||'');
     if(s.slice(0,4)!==String(ano))return -1;
     var k=parseInt(s.slice(5,7),10)-1;
     return (k>=0&&k<12)?k:-1;
   }
-  /* 01.01 — vendas do PDV */
+  var catNome=function(id){var x=(DB.categorias||[]).find(function(y){return y.id===id});return x?x.nome:'Sem grupo'};
+  var prodPorId={};(DB.produtos||[]).forEach(function(p){prodPorId[p.id]=p});
+  /* produto dono de cada ficha: e por ele que o CPV chega ao grupo do cardapio */
+  var prodPorFicha={};(DB.produtos||[]).forEach(function(p){if(p.fichaId&&!prodPorFicha[p.fichaId])prodPorFicha[p.fichaId]=p});
+  var fichaPorNome={};(DB.fichas||[]).forEach(function(f){var n=String(f.nome||'').toLowerCase().trim();if(n&&!fichaPorNome[n])fichaPorNome[n]=f});
+  var multiUn=false; try{multiUn=(typeof sucAtivas==='function'&&sucAtivas().length>1)}catch(e){multiUn=false}
+  var unDe=function(x){var s=(x&&(x.sucursalId||x._suc))||'';if(!s)return 'Sem unidade';
+    try{return (typeof sucNome==='function')?sucNome(s):s}catch(e){return s}};
+
+  /* 01.01 — vendas do PDV: grupo do cardapio -> produto (+ taxas e ajustes) */
   (DB.pedidos||[]).forEach(function(p){
     if(ehCancelado(p))return;
-    var k=mesDe(p.data);
-    if(k<0)return;
-    m[k]['01.01']+=Number(p.total)||0;
+    var k=mesDe(p.data); if(k<0)return;
+    var tot=Number(p.total)||0, soma=0;
+    (p.itens||[]).forEach(function(it){
+      var v=Number(it.total)||0; soma+=v;
+      var pr=prodPorId[it.produtoId];
+      add('01.01',[pr?catNome(pr.categoriaId):'Sem grupo', it.nome||(pr&&pr.nome)||'Item'],k,v);
+    });
+    var resto=+(tot-soma).toFixed(2);
+    if(Math.abs(resto)>=0.005)add('01.01',['Taxas, acréscimos e descontos', resto>0?'Taxa de entrega / acréscimo':'Desconto'],k,resto);
+    m[k]['01.01']+=tot;
   });
-  /* 05 — taxas de cartão calculadas pelas formas de pagamento */
+  /* 05 — taxas de cartao: por forma de pagamento */
   (DB.pedidos||[]).forEach(function(p){
     if(ehCancelado(p))return;
-    var k=mesDe(p.data);
-    if(k<0)return;
+    var k=mesDe(p.data); if(k<0)return;
     (p.pagamentos||[]).forEach(function(g){
       var f=(DB.formasPag||[]).find(function(x){return x.id===(g.formaId||g.forma)});
       if(!f)return;
-      m[k]['05']+=((Number(g.valor)||0)*(Number(f.taxaPct)||0)/100)+(Number(f.taxaFixa)||0);
+      var v=((Number(g.valor)||0)*(Number(f.taxaPct)||0)/100)+(Number(f.taxaFixa)||0);
+      m[k]['05']+=v; add('05',[f.nome||'Forma de pagamento'],k,v);
     });
   });
-  /* 02 — CPV: tudo que foi comprado no mês (notas de entrada) */
-  if(c.cpvPorCompra){
-    (DB.notas||[]).forEach(function(n){
-      var k=mesDe(n.data);
-      if(k<0)return;
-      m[k]['02']+=Number(n.valorTotal)||0;
+  /* 02 — CPV: o que saiu do estoque por venda, ao custo medio da baixa.
+     grupo do cardapio -> produto (ficha) -> ingrediente */
+  (DB.movEst||[]).forEach(function(mv){
+    var k=mesDe(mv.data); if(k<0)return;
+    (mv.linhas||[]).forEach(function(l){
+      if(l.direcao!=='saida'||String(l.origem||'')!=='venda')return;
+      var v=(Number(l.qtd)||0)*(Number(l.custo)||0);
+      var fnome=l.fichaNome||'';
+      var f=fnome?fichaPorNome[fnome.toLowerCase().trim()]:null;
+      var pr=f?prodPorFicha[f.id]:null;
+      var grupo=pr?catNome(pr.categoriaId):(f?((typeof nomeSubProd==='function')?nomeSubProd(f):'Produzido'):'Sem grupo');
+      var produto=fnome||l.nome||'Item';
+      var cam=[grupo,produto]; if(fnome)cam.push(l.nome||'Ingrediente');
+      m[k]['02']+=v; add('02',cam,k,v);
     });
-  }else{
-    (DB.movEst||[]).forEach(function(mv){
-      var k=mesDe(mv.data);
-      if(k<0)return;
-      (mv.linhas||[]).forEach(function(l){
-        if(l.direcao!=='saida'||String(l.origem||'')!=='venda')return;
-        m[k]['02']+=(Number(l.qtd)||0)*(Number(l.custo)||0);
-      });
-    });
-  }
-  /* lançamentos financeiros, pela rubrica configurada */
+  });
+  /* lancamentos financeiros, pela rubrica configurada:
+     categoria -> subcategoria -> unidade (quando ha mais de uma) -> lancamento */
   (DB.lancFin||[]).forEach(function(l){
     var dt=(c.regime==='caixa')?(l.pagamento||l.vencimento):(l.emissao||l.vencimento);
     if(c.regime==='caixa'&&!l.pago)return;
-    var k=mesDe(dt);
-    if(k<0)return;
+    var k=mesDe(dt); if(k<0)return;
     var cat=l.categoriaId||'';
     if(c.fora.indexOf(cat)>=0)return;
     var rub=c.mapa[cat];
     if(!rub)return;                                   /* sem rubrica: fica de fora */
-    if(c.cpvPorCompra&&rub==='02'&&l.origem==='nota')return;  /* evita contar a nota duas vezes */
-    m[k][rub]=(m[k][rub]||0)+(Number(l.valor)||0);
+    if(rub==='02'&&l.origem==='nota')return;          /* compra nao e custo do vendido */
+    var v=Number(l.valor)||0;
+    m[k][rub]=(m[k][rub]||0)+v;
+    var nomeCat=(typeof nomeCategoria==='function')?nomeCategoria(cat):'—';
+    var partes=String(nomeCat||'').split(' › ');
+    var cam=[(partes[0]&&partes[0]!=='—')?partes[0]:(l.categoriaTxt||'Sem categoria')];
+    if(partes[1])cam.push(partes[1]);
+    if(multiUn)cam.push(unDe(l));
+    cam.push((l.descricao||'Lançamento')+(l.fornecedor?' · '+l.fornecedor:'')+(dt?' · '+dataBR(dt):''));
+    add(rub,cam,k,v);
   });
-  /* percentuais automáticos sobre o faturamento */
+  /* percentuais automaticos sobre o faturamento */
   for(var k2=0;k2<12;k2++){
     var fat=m[k2]['01.01']+m[k2]['01.02'];
     m[k2]['01']=fat;
-    if(Number(c.aliqImposto)>0&&!m[k2]['03'])m[k2]['03']=fat*Number(c.aliqImposto)/100;
-    if(Number(c.royaltiesPct)>0&&!m[k2]['04.01'])m[k2]['04.01']=fat*Number(c.royaltiesPct)/100;
-    if(Number(c.fundoPct)>0&&!m[k2]['04.02'])m[k2]['04.02']=fat*Number(c.fundoPct)/100;
+    if(Number(c.aliqImposto)>0&&!m[k2]['03']){m[k2]['03']=fat*Number(c.aliqImposto)/100;
+      add('03',['Alíquota de '+c.aliqImposto+'% sobre o faturamento'],k2,m[k2]['03']);}
+    if(Number(c.royaltiesPct)>0&&!m[k2]['04.01']){m[k2]['04.01']=fat*Number(c.royaltiesPct)/100;
+      add('04.01',['Royalties de '+c.royaltiesPct+'% sobre o faturamento'],k2,m[k2]['04.01']);}
+    if(Number(c.fundoPct)>0&&!m[k2]['04.02']){m[k2]['04.02']=fat*Number(c.fundoPct)/100;
+      add('04.02',['Fundo de '+c.fundoPct+'% sobre o faturamento'],k2,m[k2]['04.02']);}
     m[k2]['04']=m[k2]['04.01']+m[k2]['04.02'];
     m[k2]['11']=m[k2]['12']+m[k2]['13'];
     m[k2]['14']=m[k2]['15']+m[k2]['16']+m[k2]['17'];
@@ -41465,14 +41540,21 @@ function calcularDRE(ano){
     m[k2]['10']=m[k2]['07']-m[k2]['08']-m[k2]['09'];
     m[k2]['18']=m[k2]['10']-m[k2]['11']+m[k2]['14'];
   }
+  m.det=det;
   return m;
 }
 
 /* ---------- TELA DO DRE ---------- */
-var DRE={ano:0,tri:0,mes:0};
+/* rubricas-pai e seus filhos: o "+" do pai mostra ou esconde os filhos */
+var FILHOS_RUB={'01':['01.01','01.02'],'04':['04.01','04.02'],'11':['12','13'],'14':['15','16','17']};
+var PAI_RUB={};Object.keys(FILHOS_RUB).forEach(function(p){FILHOS_RUB[p].forEach(function(f){PAI_RUB[f]=p})});
+var DRE={ano:0,tri:0,mes:0,ab:null};
 function telaDRE(){
   baseMov();baseFormas();
   if(!DRE.ano)DRE.ano=new Date().getFullYear();
+  /* de inicio as rubricas-pai ficam abertas (o DRE aparece inteiro, como sempre);
+     o detalhe de cada rubrica so abre no "+" */
+  if(!DRE.ab){DRE.ab={};Object.keys(FILHOS_RUB).forEach(function(p){DRE.ab[p]=true})}
   var m=calcularDRE(DRE.ano);
   var cols=[];
   if(DRE.mes){ cols=[DRE.mes-1]; }
@@ -41528,28 +41610,65 @@ function telaDRE(){
     cols.map(function(k){return '<th style="text-align:right" colspan="2">'+MESES_DRE[k]+'</th>'}).join('')+
     (cols.length>1?'<th style="text-align:right" colspan="2" class="colAno">Acumulado</th>':'')+
    '</tr></thead><tbody>'+
-   RUBRICAS.map(function(r){
-     var cls=r.t==='sub'?'dreSub':(r.t==='res'?'dreRes':(r.t==='fin'?'dreFin':
-       (r.t==='tot'?'dreTot':'dreLin')));
-     var totAno=0,fatAno=0;
-     cols.forEach(function(k){totAno+=m[k][r.c]||0;fatAno+=m[k]['01']||0;});
-     return '<tr class="'+cls+'">'+
-      '<td class="dreC">'+r.c+'</td>'+
-      '<td class="dreN">'+E(r.n)+
-       (r.d?'<button class="piI" onclick="dicaRub(event,\''+r.c+'\')">i</button>':'')+'</td>'+
-      cols.map(function(k){
-        var v=m[k][r.c]||0, fat=m[k]['01']||0;
-        return '<td class="dreV'+(v<0?' neg':'')+'">'+(v?money(v):'—')+'</td>'+
-               '<td class="drePc">'+(r.c==='01'?'100%':pc(v,fat))+'</td>';
-      }).join('')+
-      (cols.length>1?
-       '<td class="dreV colAno'+(totAno<0?' neg':'')+'"><b>'+(totAno?money(totAno):'—')+'</b></td>'+
-       '<td class="drePc colAno">'+(r.c==='01'?'100%':pc(totAno,fatAno))+'</td>':'')+
-     '</tr>';
-   }).join('')+
+   (function(){
+     var det=m.det||{}, out='';
+     function celulas(getV,cem){
+       var totAno=0,fatAno=0;
+       cols.forEach(function(k){totAno+=getV(k)||0;fatAno+=m[k]['01']||0;});
+       return cols.map(function(k){
+         var v=getV(k)||0, fat=m[k]['01']||0;
+         return '<td class="dreV'+(v<0?' neg':'')+'">'+(v?money(v):'—')+'</td>'+
+                '<td class="drePc">'+(cem?'100%':pc(v,fat))+'</td>';
+       }).join('')+
+       (cols.length>1?
+        '<td class="dreV colAno'+(totAno<0?' neg':'')+'"><b>'+(totAno?money(totAno):'—')+'</b></td>'+
+        '<td class="drePc colAno">'+(cem?'100%':pc(totAno,fatAno))+'</td>':'');
+     }
+     function temFilhos(no){return !!(no&&no.ch&&Object.keys(no.ch).length)}
+     /* o galho mais pesado primeiro: e o que a pessoa quer ver */
+     function filhos(no){
+       return Object.keys(no.ch).map(function(x){return no.ch[x]}).sort(function(a,b){
+         var sa=0,sb=0; cols.forEach(function(k){sa+=a.v[k]||0;sb+=b.v[k]||0}); return Math.abs(sb)-Math.abs(sa);});
+     }
+     function botao(chave,aberto){
+       return '<button class="dreTg" data-k="'+E(chave)+'" onclick="toggleDre(this)" '+
+        'title="'+(aberto?'Recolher':'Abrir o nível de baixo')+'">'+(aberto?'−':'+')+'</button>';
+     }
+     function galho(no,chave,nivel){
+       var aberto=!!DRE.ab[chave], tem=temFilhos(no);
+       out+='<tr class="dreDet n'+nivel+'"><td class="dreC"></td>'+
+        '<td class="dreN" style="padding-left:'+(24+nivel*16)+'px">'+
+        (tem?botao(chave,aberto):'<span class="dreTg vazio"></span>')+E(no.n)+'</td>'+
+        celulas(function(k){return no.v[k]},false)+'</tr>';
+       if(aberto&&tem)filhos(no).forEach(function(f){galho(f,chave+'|'+f.n,nivel+1)});
+     }
+     RUBRICAS.forEach(function(r){
+       if(PAI_RUB[r.c]&&!DRE.ab[PAI_RUB[r.c]])return;      /* pai fechado esconde os filhos */
+       var cls=r.t==='sub'?'dreSub':(r.t==='res'?'dreRes':(r.t==='fin'?'dreFin':
+         (r.t==='tot'?'dreTot':'dreLin')));
+       var d=det[r.c], temDet=temFilhos(d), ehPai=!!FILHOS_RUB[r.c];
+       var aberto=!!DRE.ab[r.c];
+       out+='<tr class="'+cls+'">'+
+        '<td class="dreC">'+r.c+'</td>'+
+        '<td class="dreN">'+((ehPai||temDet)?botao(r.c,aberto):'')+E(r.n)+
+         (r.d?'<button class="piI" onclick="dicaRub(event,\''+r.c+'\')">i</button>':'')+'</td>'+
+        celulas(function(k){return m[k][r.c]},r.c==='01')+'</tr>';
+       if(aberto&&temDet)filhos(d).forEach(function(f){galho(f,r.c+'|'+f.n,1)});
+     });
+     return out;
+   })()+
    '</tbody></table></div></div></div>';
   rodape('DRE '+(DRE.mes?MESES_DRE[DRE.mes-1]+'/':'')+DRE.ano+' · regime de '+
     (cfgDRE().regime==='caixa'?'caixa':'competência'));
+}
+/* abre/fecha um galho do DRE mantendo a rolagem onde estava */
+function toggleDre(btn){
+  var k=btn&&btn.getAttribute?btn.getAttribute('data-k'):String(btn||'');
+  if(!k)return;
+  DRE.ab=DRE.ab||{}; DRE.ab[k]=!DRE.ab[k];
+  var sc=document.querySelector('.etScroll'); var y=sc?sc.scrollTop:0;
+  telaDRE();
+  var sc2=document.querySelector('.etScroll'); if(sc2)sc2.scrollTop=y;
 }
 function dicaRub(ev,c){
   ev.stopPropagation();fecharPops();
@@ -41561,9 +41680,10 @@ function explicaDRE(){
   var c=cfgDRE();
   explicaRel('DRE — como é feito',[
    ['01.01 Vendas Diretas','soma dos pedidos do PDV no mês, sem os cancelados'],
-   ['02 CPV',c.cpvPorCompra
-     ?'tudo que foi comprado no mês — soma das notas de entrada pela data da nota'
-     :'custo das mercadorias que saíram por venda, pelo custo médio no momento da baixa'],
+   ['02 CPV','custo das mercadorias que saíram por venda, pelo custo médio no momento da baixa '+
+     '— nota de entrada é compra de estoque e não entra aqui'],
+   ['O botão +','cada rubrica abre em cascata: venda → grupo → produto; CPV → grupo → produto → ingrediente; '+
+     'despesa → categoria → subcategoria → unidade → lançamento; DFV → forma de pagamento'],
    ['03 Impostos','calculado sobre o faturamento pela alíquota configurada, ou lançado manualmente'],
    ['04 Franqueador','royalties e fundo de promoção, por percentual configurado ou lançamento'],
    ['05 DFV','taxas de cartão calculadas pelo cadastro de cada forma de pagamento'],
@@ -41629,11 +41749,6 @@ function telaCfgDRE(){
       '<option value="competencia"'+(c.regime==='competencia'?' selected':'')+'>Competência — data de emissão</option>'+
       '<option value="caixa"'+(c.regime==='caixa'?' selected':'')+'>Caixa — data de pagamento</option>'+
      '</select></div>'+
-    '<div class="cfgF"><label>Cálculo do CPV</label>'+
-     '<select id="drCpv">'+
-      '<option value="1"'+(c.cpvPorCompra?' selected':'')+'>Compras do mês (notas de entrada)</option>'+
-      '<option value="0"'+(!c.cpvPorCompra?' selected':'')+'>Custo do que foi vendido</option>'+
-     '</select></div>'+
     '<div class="cfgF peq"><label>Impostos %</label>'+
      '<input id="drImp" type="number" step="0.01" value="'+(c.aliqImposto||0)+'"></div>'+
     '<div class="cfgF peq"><label>Royalties %</label>'+
@@ -41675,7 +41790,7 @@ function telaCfgDRE(){
       RUBRICAS.filter(function(r){return r.t!=='sub'||r.c==='01.01'}).map(function(r){
         var itens=porRub[r.c]||[];
         var auto=(r.c==='01.01'?'vendas do PDV':
-          r.c==='02'?(c.cpvPorCompra?'notas de entrada':'custo das vendas'):
+          r.c==='02'?'custo do que foi vendido':
           r.c==='05'?'taxas das formas de pagamento':
           (r.c==='03'&&c.aliqImposto)?c.aliqImposto+'% do faturamento':
           (r.c==='04'&&(c.royaltiesPct||c.fundoPct))?'% do faturamento':'');
@@ -41709,7 +41824,6 @@ function setForaDre(id,v){
 function guardarCamposDRE(){
   var c=cfgDRE();
   if($('drRegime'))c.regime=$('drRegime').value;
-  if($('drCpv'))c.cpvPorCompra=$('drCpv').value==='1';
   if($('drImp'))c.aliqImposto=parseFloat($('drImp').value)||0;
   if($('drRoy'))c.royaltiesPct=parseFloat($('drRoy').value)||0;
   if($('drFun'))c.fundoPct=parseFloat($('drFun').value)||0;

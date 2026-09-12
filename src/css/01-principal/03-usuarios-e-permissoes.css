@@ -926,4 +926,16 @@ code.lg2{background:var(--alt);border-radius:4px;padding:2px 7px;font-size:11.5p
   #login .submit{height:clamp(47px,6.2vh,58px);font-size:clamp(15px,1.75vh,19px)}
   #login .security{font-size:clamp(12.5px,1.35vh,15.5px)}
 }
-body.semRolagem{overflow:hidden}
+body.semRolagem{overflow:hidden}/* ==========================================================
+   DRE EM CASCATA (12/09/2026) — o "+" abre o nivel de baixo
+   ========================================================== */
+.dreTab .dreTg{width:18px;height:18px;margin-right:6px;border:1px solid var(--line);border-radius:4px;
+  background:#fff;color:var(--acc-d);font-weight:700;font-size:12px;line-height:16px;text-align:center;
+  cursor:pointer;vertical-align:middle;padding:0;display:inline-block}
+.dreTab .dreTg:hover{border-color:var(--acc);background:var(--acc-soft)}
+.dreTab .dreTg.vazio{width:18px;border:none;background:none;cursor:default}
+.dreTab tbody tr.dreDet td{background:#FBFCFD;font-weight:400;color:var(--ink-2)}
+.dreTab tbody tr.dreDet.n1 .dreN{font-weight:500;color:var(--ink)}
+.dreTab tbody tr.dreDet .dreV{font-weight:400}
+.dreTab tbody tr.dreTot .dreTg,.dreTab tbody tr.dreRes .dreTg{background:#fff}
+.dreTab tbody tr.dreFin .dreTg{color:var(--deep);background:#fff}
