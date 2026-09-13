@@ -1656,7 +1656,7 @@ function renderKanban(){
       return '<div class="ped" draggable="true" data-id="'+p.id+'" '+
       'ondblclick="verPedido(\''+p.id+'\')" title="clique duplo para ver o pedido">'+
       '<div class="t1"><b>#'+p.numero+'</b><span class="tp'+(p.tipo==='entrega'?' dv':'')+'">'+
-      (p.tipo==='entrega'?'Entrega':'Loja')+'</span></div>'+
+      (p.tipo==='entrega'?'Entrega':p.tipo==='retirada'?'Retirada':'Loja')+'</span></div>'+
       '<div class="cli2">'+E(p.clienteNome)+'</div>'+(p.entregadorId?'<div class="cli2" style="color:var(--acc-d);font-weight:600">'+sv('moto',12)+' '+E((ent(p.entregadorId)||{}).nome||'')+'</div>':'')+'<div class="vl2">R$ '+money(p.total)+'</div>'+
       '<div class="hr">'+
        (diaLocal(p.data)!==hojeISO()
@@ -1730,7 +1730,7 @@ function verPedido(id){
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
   '<h3>Pedido #'+p.numero+' <small>'+new Date(p.data).toLocaleString('pt-BR')+'</small></h3>'+
   '<div class="linha"><span>Cliente</span><b>'+E(p.clienteNome)+'</b></div>'+
-  '<div class="linha"><span>Tipo</span><b>'+(p.tipo==='entrega'?'Entrega':'Pedido na loja')+'</b></div>'+
+  '<div class="linha"><span>Tipo</span><b>'+(p.tipo==='entrega'?'Entrega':p.tipo==='retirada'?'Retirada':'Pedido na loja')+'</b></div>'+
   (p.tipo==='entrega'?'<div class="linha"><span>Cidade / área</span><b>'+E(cidadePedido(p)||'não informada')+'</b></div>'+
    '<div class="linha"><span>Entregador</span><b>'+E((ent(p.entregadorId)||{}).nome||'não definido')+'</b></div>':'')+
   '<div style="margin:12px 0;border-top:1px solid var(--line-2);padding-top:10px">'+

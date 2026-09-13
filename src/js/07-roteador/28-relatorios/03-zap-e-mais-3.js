@@ -352,10 +352,20 @@ async function aceitarPedidoOnline(id){
        UNIDADE mais um, pela mesma `proxNumPedido()`. O banco (venda_registrar)
        e rede de seguranca; a origem tem de acertar sozinha.
        ========================================================== */
+  /* ==========================================================
+     RETIRADA NAO E VENDA DE BALCAO (13/09/2026)
+     O cardapio manda tipo 'retirada' (o cliente pede e vem buscar). Esta
+     linha virava tudo que nao era entrega em 'loja': o pedido 1519 de
+     Santa Fe nasceu como venda de balcao — FICHA no papel e direto para
+     a coluna de concluido no Kanban, sem ninguem preparar. Agora ele e
+     'retirada': entra no comeco da fila, como a entrega, e o cupom diz
+     RETIRADA. Nos relatorios continua contando como balcao.
+     ========================================================== */
+  var tipoPed=(p.tipo==='entrega'?'entrega':(p.tipo==='retirada'?'retirada':'loja'));
   var ped={id:uid('ped'),numero:proxNumPedido(),
-    tipo:(p.tipo==='entrega'?'entrega':'loja'),
+    tipo:tipoPed,
     canal:'cardapio',
-    fase:statusInicial(p.tipo==='entrega'?'entrega':'loja'),
+    fase:statusInicial(tipoPed),
     itens:itens,clienteId:cli.id,clienteNome:cli.nome,
     /* ==========================================================
        O ENDERECO CHEGAVA E O PEDIDO NAO LEVAVA
@@ -585,7 +595,36 @@ function formaPorNome(nome){
    nao um `lojaAtualId()` que, nos primeiros segundos ou num aparelho que
    circula, pode cair na matriz. O pedido ja se prende a este caixa (caixaId). */
 function sucursalDoPedidoOnline(p){
-  return (p&&p.sucursal_id)||(caixaAberto()||{}).sucursalId||lojaAtualId()||'suc_matriz';
+  /* ==========================================================
+     A LOJA DO CARDAPIO CHEGA COM O ID DA NUVEM (13/09/2026)
+     O cardapio passou a mandar `sucursal_id` — o uuid da nuvem. O pedido
+     local guardava esse uuid, mas o aparelho conhece a unidade pelo id
+     local (`suc_...`): ninguem encontrava a loja, e o cupom caia na
+     primeira da lista. Foi assim que a ficha 1519 de Santa Fe saiu com
+     "Alphaville" escrito em cima. Aqui o uuid vira o id local; se nao
+     der para traduzir, vale o caixa que aceitou — nunca a primeira.
+     ========================================================== */
+  return sucLocalDaNuvem(p&&p.sucursal_id)||(caixaAberto()||{}).sucursalId||lojaAtualId()||'suc_matriz';
+}
+/* uuid da nuvem (ou id local) -> id local da unidade; '' quando nao conhece */
+function sucLocalDaNuvem(id){
+  id=String(id||'');
+  if(!id)return '';
+  if((DB.sucursais||[]).some(function(s){return s&&s.id===id}))return id;
+  var mp=(DB._uuid&&DB._uuid.sucursais)||{};
+  for(var ref in mp)if(mp[ref]===id)return ref;
+  return '';
+}
+/* pedido que ficou com o uuid da nuvem no lugar da loja: traduz no
+   arranque, para o cupom, o Kanban e os relatorios verem a loja certa */
+function repararLojaDosPedidos(){
+  var n=0;
+  (DB.pedidos||[]).forEach(function(p){
+    if(!p||!p.sucursalId)return;
+    var loc=sucLocalDaNuvem(p.sucursalId);
+    if(loc&&loc!==p.sucursalId){p.sucursalId=loc;n++;}
+  });
+  return n;
 }
 /* carimba o NOME da forma no pagamento (a mesma trava da V308, que so
    estava no PDV): o texto do cardapio ja diz a forma escolhida, entao o

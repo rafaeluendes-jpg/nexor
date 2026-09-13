@@ -86,7 +86,18 @@ async function carregar() {
   win.caixaAberto = () => ({ id: 'cx_1', sucursalId: 'suc_santafe' });
   t('herda a loja do caixa aberto (Santa Fé), não a matriz',
     win.sucursalDoPedidoOnline({}) === 'suc_santafe', win.sucursalDoPedidoOnline({}));
-  t('o cardápio manda a loja? ela vence', win.sucursalDoPedidoOnline({ sucursal_id: 'suc_z' }) === 'suc_z');
+  /* 13/09/2026: o cardápio manda o uuid da NUVEM. Conhecido, vira o id
+     local; desconhecido, não vence — cai no caixa (era isso que punha
+     "Alphaville" na ficha 1519 de Santa Fé) */
+  win.DB.sucursais = [{ id: 'suc_santafe', nome: 'Santa Fé' }, { id: 'suc_z', nome: 'Z' }];
+  win.DB._uuid = { sucursais: { suc_z: 'f0de0748-0000-0000-0000-000000000001' } };
+  t('o cardápio manda um id local conhecido? ele vence',
+    win.sucursalDoPedidoOnline({ sucursal_id: 'suc_z' }) === 'suc_z');
+  t('o cardápio manda o uuid da nuvem? vira o id local',
+    win.sucursalDoPedidoOnline({ sucursal_id: 'f0de0748-0000-0000-0000-000000000001' }) === 'suc_z',
+    win.sucursalDoPedidoOnline({ sucursal_id: 'f0de0748-0000-0000-0000-000000000001' }));
+  t('id desconhecido não vence: fica o caixa que aceitou',
+    win.sucursalDoPedidoOnline({ sucursal_id: 'uuid-de-ninguem' }) === 'suc_santafe');
   win.caixaAberto = () => null;
   t('sem caixa aberto, cai no lojaAtualId (não estoura)',
     win.sucursalDoPedidoOnline({}) === 'suc_matriz', win.sucursalDoPedidoOnline({}));

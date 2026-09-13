@@ -1977,8 +1977,9 @@ function statusDoPapel(papel){
   return l.length?l[0].id:null;
 }
 function statusInicial(tipo){
-  /* venda de balcao nasce concluida; entrega comeca no inicio da fila */
-  if(tipo!=='entrega'){
+  /* venda de balcao nasce concluida; entrega e retirada (pedido do
+     cardapio que alguem vai preparar) comecam no inicio da fila */
+  if(tipo!=='entrega'&&tipo!=='retirada'){
     return statusDoPapel('finalizado')||statusDoPapel('pronto')||(statusAtivos()[0]||{}).id||'entregue';
   }
   var l=statusAtivos().filter(function(x){return x.papel!=='cancelado'});

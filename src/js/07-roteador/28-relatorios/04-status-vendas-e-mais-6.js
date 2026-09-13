@@ -753,7 +753,10 @@ function blocosParaModelo(bs){
         if(b.endereco!==false)L.push('{?endereco}{c}{endereco}');
         if(b.telefone)L.push('{?telefone}{c}Tel: {telefone}');
         break;
-      case 'titulo':   L.push('{c}{g}'+(b.texto||'FICHA')+'{/g}'); break;
+      /* o titulo de fabrica acompanha o pedido: FICHA no balcao, RETIRADA
+         no pedido do cardapio que o cliente vem buscar. Texto escrito pela
+         loja continua saindo como ela escreveu. */
+      case 'titulo':   L.push('{c}{g}'+((b.texto||'FICHA')==='FICHA'?'{titulo}':b.texto)+'{/g}'); break;
       case 'datahora': L.push('{d}{data} - {hora}'); break;
       case 'senha':    L.push('Senha: {n}{g}{senha}{/g}{/n}'); break;
       case 'numero':   L.push('Pedido: {n}{numero}{/n}'); break;
@@ -929,7 +932,10 @@ function dadosImp(ped){
   /* o pedido sabe onde foi feito; so quando ele nao sabe e que vale a
      unidade em que a pessoa esta agora. Assim uma segunda via tirada
      em outra loja sai com o nome da loja que vendeu */
+  /* o pedido pode guardar o uuid da nuvem (cardapio digital): traduz
+     para o id local antes de procurar, senao cai na primeira da lista */
   var _id=(ped&&ped.sucursalId)||'';
+  if(_id&&typeof sucLocalDaNuvem==='function')_id=sucLocalDaNuvem(_id)||_id;
   if(!_id){ try{ _id=lojaAtualId()||''; }catch(e){} }
   var s=_suc.find(function(x){return x&&x.id===_id})||_suc[0]||{};
   var cx=caixaAberto()||{};
@@ -937,6 +943,7 @@ function dadosImp(ped){
   var end=[s.endereco,s.cidade,s.uf].filter(Boolean).join(', ');
   return {
     loja:s.apelido||s.nome||'Loja',
+    titulo:(ped&&ped.tipo==='retirada')?'RETIRADA':'FICHA',
     cnpj:s.cnpj?('CNPJ: '+s.cnpj):'',
     endereco:end,
     telefone:s.telefone||'',
@@ -1155,7 +1162,28 @@ function gruposDasOpcoes(item){
 }
 function linhasItens(ped,cols,comPreco){
   var r=[];
-  (ped.itens||[]).forEach(function(i,k){
+  /* ==========================================================
+     DOIS CASCOES COM BORDA SAEM UM EMBAIXO DO OUTRO (13/09/2026)
+     "2 Cascao 1 Bola / 1x Borda Nutella": quem monta nao sabe se a borda
+     e de um cascao ou dos dois — e o valor dizia dos dois. Item com
+     quantidade maior que 1 E adicional sai desdobrado, uma linha por
+     unidade, cada uma com os seus adicionais e o valor de uma unidade.
+     Item sem adicional continua "2 Casquinha", que nao tem ambiguidade.
+     Os centavos fecham: a ultima unidade leva a diferenca do arredondo.
+     ========================================================== */
+  var lista=[];
+  (ped.itens||[]).forEach(function(i){
+    var q=Math.round(Number(i.qtd)||1);
+    if(q>1&&(i.opcoes||[]).length){
+      var tot=Number(i.total)||0, un=Math.round(tot/q*100)/100, acum=0;
+      for(var n=0;n<q;n++){
+        var v=(n===q-1)?Math.round((tot-acum)*100)/100:un; acum+=v;
+        var c={}; for(var ch in i)c[ch]=i[ch];
+        c.qtd=1; c.total=v; lista.push(c);
+      }
+    } else lista.push(i);
+  });
+  lista.forEach(function(i,k){
     var q=String(i.qtd||1);
     var val=comPreco?money(i.total):'';
     var largNome=cols-q.length-2-(val?val.length+1:0);
@@ -1262,7 +1290,7 @@ function linhasItens(ped,cols,comPreco){
     if(i.obs)recuado('obs: '+i.obs,'   ');
     /* uma linha de respiro ENTRE os itens — nunca depois do ultimo, que
        so esticaria o papel */
-    if(k<(ped.itens||[]).length-1)r.push({tipo:'txt',txt:'',al:'e'});
+    if(k<lista.length-1)r.push({tipo:'txt',txt:'',al:'e'});
   });
   if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
   return r;
@@ -1647,6 +1675,7 @@ var IMP_CAMPOS=[
  ['{loja}','nome da loja'],['{cnpj}','CNPJ'],['{endereco}','endereco da loja'],
  ['{telefone}','telefone da loja'],
  ['{data}','data do pedido'],['{hora}','hora do pedido'],
+ ['{titulo}','FICHA, ou RETIRADA no pedido do cardapio'],
  ['{numero}','numero do pedido'],['{senha}','senha de retirada'],
  ['{cliente}','nome do cliente'],['{fone_cliente}','telefone do cliente'],
  ['{end_entrega}','endereco da entrega'],['{bairro}','bairro ou zona'],

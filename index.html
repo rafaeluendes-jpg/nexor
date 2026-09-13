@@ -13120,6 +13120,7 @@ function boot(){
   baseCanc();baseTurnos();baseImp();baseStatus();
   DB.estoqueUn=DB.estoqueUn||[];
   lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
+  try{ repararLojaDosPedidos(); }catch(e){}  /* pedido com uuid da nuvem no lugar da loja */
   migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
   /* ==========================================================
      NAO SE FILTRA ANTES DE FALAR COM A NUVEM (V192)
@@ -13483,7 +13484,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V327.0.0';
+var VERSAO='V328.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20141,8 +20142,9 @@ function statusDoPapel(papel){
   return l.length?l[0].id:null;
 }
 function statusInicial(tipo){
-  /* venda de balcao nasce concluida; entrega comeca no inicio da fila */
-  if(tipo!=='entrega'){
+  /* venda de balcao nasce concluida; entrega e retirada (pedido do
+     cardapio que alguem vai preparar) comecam no inicio da fila */
+  if(tipo!=='entrega'&&tipo!=='retirada'){
     return statusDoPapel('finalizado')||statusDoPapel('pronto')||(statusAtivos()[0]||{}).id||'entregue';
   }
   var l=statusAtivos().filter(function(x){return x.papel!=='cancelado'});
@@ -22013,7 +22015,7 @@ function renderKanban(){
       return '<div class="ped" draggable="true" data-id="'+p.id+'" '+
       'ondblclick="verPedido(\''+p.id+'\')" title="clique duplo para ver o pedido">'+
       '<div class="t1"><b>#'+p.numero+'</b><span class="tp'+(p.tipo==='entrega'?' dv':'')+'">'+
-      (p.tipo==='entrega'?'Entrega':'Loja')+'</span></div>'+
+      (p.tipo==='entrega'?'Entrega':p.tipo==='retirada'?'Retirada':'Loja')+'</span></div>'+
       '<div class="cli2">'+E(p.clienteNome)+'</div>'+(p.entregadorId?'<div class="cli2" style="color:var(--acc-d);font-weight:600">'+sv('moto',12)+' '+E((ent(p.entregadorId)||{}).nome||'')+'</div>':'')+'<div class="vl2">R$ '+money(p.total)+'</div>'+
       '<div class="hr">'+
        (diaLocal(p.data)!==hojeISO()
@@ -22087,7 +22089,7 @@ function verPedido(id){
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
   '<h3>Pedido #'+p.numero+' <small>'+new Date(p.data).toLocaleString('pt-BR')+'</small></h3>'+
   '<div class="linha"><span>Cliente</span><b>'+E(p.clienteNome)+'</b></div>'+
-  '<div class="linha"><span>Tipo</span><b>'+(p.tipo==='entrega'?'Entrega':'Pedido na loja')+'</b></div>'+
+  '<div class="linha"><span>Tipo</span><b>'+(p.tipo==='entrega'?'Entrega':p.tipo==='retirada'?'Retirada':'Pedido na loja')+'</b></div>'+
   (p.tipo==='entrega'?'<div class="linha"><span>Cidade / área</span><b>'+E(cidadePedido(p)||'não informada')+'</b></div>'+
    '<div class="linha"><span>Entregador</span><b>'+E((ent(p.entregadorId)||{}).nome||'não definido')+'</b></div>':'')+
   '<div style="margin:12px 0;border-top:1px solid var(--line-2);padding-top:10px">'+
@@ -45198,10 +45200,20 @@ async function aceitarPedidoOnline(id){
        UNIDADE mais um, pela mesma `proxNumPedido()`. O banco (venda_registrar)
        e rede de seguranca; a origem tem de acertar sozinha.
        ========================================================== */
+  /* ==========================================================
+     RETIRADA NAO E VENDA DE BALCAO (13/09/2026)
+     O cardapio manda tipo 'retirada' (o cliente pede e vem buscar). Esta
+     linha virava tudo que nao era entrega em 'loja': o pedido 1519 de
+     Santa Fe nasceu como venda de balcao — FICHA no papel e direto para
+     a coluna de concluido no Kanban, sem ninguem preparar. Agora ele e
+     'retirada': entra no comeco da fila, como a entrega, e o cupom diz
+     RETIRADA. Nos relatorios continua contando como balcao.
+     ========================================================== */
+  var tipoPed=(p.tipo==='entrega'?'entrega':(p.tipo==='retirada'?'retirada':'loja'));
   var ped={id:uid('ped'),numero:proxNumPedido(),
-    tipo:(p.tipo==='entrega'?'entrega':'loja'),
+    tipo:tipoPed,
     canal:'cardapio',
-    fase:statusInicial(p.tipo==='entrega'?'entrega':'loja'),
+    fase:statusInicial(tipoPed),
     itens:itens,clienteId:cli.id,clienteNome:cli.nome,
     /* ==========================================================
        O ENDERECO CHEGAVA E O PEDIDO NAO LEVAVA
@@ -45431,7 +45443,36 @@ function formaPorNome(nome){
    nao um `lojaAtualId()` que, nos primeiros segundos ou num aparelho que
    circula, pode cair na matriz. O pedido ja se prende a este caixa (caixaId). */
 function sucursalDoPedidoOnline(p){
-  return (p&&p.sucursal_id)||(caixaAberto()||{}).sucursalId||lojaAtualId()||'suc_matriz';
+  /* ==========================================================
+     A LOJA DO CARDAPIO CHEGA COM O ID DA NUVEM (13/09/2026)
+     O cardapio passou a mandar `sucursal_id` — o uuid da nuvem. O pedido
+     local guardava esse uuid, mas o aparelho conhece a unidade pelo id
+     local (`suc_...`): ninguem encontrava a loja, e o cupom caia na
+     primeira da lista. Foi assim que a ficha 1519 de Santa Fe saiu com
+     "Alphaville" escrito em cima. Aqui o uuid vira o id local; se nao
+     der para traduzir, vale o caixa que aceitou — nunca a primeira.
+     ========================================================== */
+  return sucLocalDaNuvem(p&&p.sucursal_id)||(caixaAberto()||{}).sucursalId||lojaAtualId()||'suc_matriz';
+}
+/* uuid da nuvem (ou id local) -> id local da unidade; '' quando nao conhece */
+function sucLocalDaNuvem(id){
+  id=String(id||'');
+  if(!id)return '';
+  if((DB.sucursais||[]).some(function(s){return s&&s.id===id}))return id;
+  var mp=(DB._uuid&&DB._uuid.sucursais)||{};
+  for(var ref in mp)if(mp[ref]===id)return ref;
+  return '';
+}
+/* pedido que ficou com o uuid da nuvem no lugar da loja: traduz no
+   arranque, para o cupom, o Kanban e os relatorios verem a loja certa */
+function repararLojaDosPedidos(){
+  var n=0;
+  (DB.pedidos||[]).forEach(function(p){
+    if(!p||!p.sucursalId)return;
+    var loc=sucLocalDaNuvem(p.sucursalId);
+    if(loc&&loc!==p.sucursalId){p.sucursalId=loc;n++;}
+  });
+  return n;
 }
 /* carimba o NOME da forma no pagamento (a mesma trava da V308, que so
    estava no PDV): o texto do cardapio ja diz a forma escolhida, entao o
@@ -48735,7 +48776,10 @@ function blocosParaModelo(bs){
         if(b.endereco!==false)L.push('{?endereco}{c}{endereco}');
         if(b.telefone)L.push('{?telefone}{c}Tel: {telefone}');
         break;
-      case 'titulo':   L.push('{c}{g}'+(b.texto||'FICHA')+'{/g}'); break;
+      /* o titulo de fabrica acompanha o pedido: FICHA no balcao, RETIRADA
+         no pedido do cardapio que o cliente vem buscar. Texto escrito pela
+         loja continua saindo como ela escreveu. */
+      case 'titulo':   L.push('{c}{g}'+((b.texto||'FICHA')==='FICHA'?'{titulo}':b.texto)+'{/g}'); break;
       case 'datahora': L.push('{d}{data} - {hora}'); break;
       case 'senha':    L.push('Senha: {n}{g}{senha}{/g}{/n}'); break;
       case 'numero':   L.push('Pedido: {n}{numero}{/n}'); break;
@@ -48911,7 +48955,10 @@ function dadosImp(ped){
   /* o pedido sabe onde foi feito; so quando ele nao sabe e que vale a
      unidade em que a pessoa esta agora. Assim uma segunda via tirada
      em outra loja sai com o nome da loja que vendeu */
+  /* o pedido pode guardar o uuid da nuvem (cardapio digital): traduz
+     para o id local antes de procurar, senao cai na primeira da lista */
   var _id=(ped&&ped.sucursalId)||'';
+  if(_id&&typeof sucLocalDaNuvem==='function')_id=sucLocalDaNuvem(_id)||_id;
   if(!_id){ try{ _id=lojaAtualId()||''; }catch(e){} }
   var s=_suc.find(function(x){return x&&x.id===_id})||_suc[0]||{};
   var cx=caixaAberto()||{};
@@ -48919,6 +48966,7 @@ function dadosImp(ped){
   var end=[s.endereco,s.cidade,s.uf].filter(Boolean).join(', ');
   return {
     loja:s.apelido||s.nome||'Loja',
+    titulo:(ped&&ped.tipo==='retirada')?'RETIRADA':'FICHA',
     cnpj:s.cnpj?('CNPJ: '+s.cnpj):'',
     endereco:end,
     telefone:s.telefone||'',
@@ -49137,7 +49185,28 @@ function gruposDasOpcoes(item){
 }
 function linhasItens(ped,cols,comPreco){
   var r=[];
-  (ped.itens||[]).forEach(function(i,k){
+  /* ==========================================================
+     DOIS CASCOES COM BORDA SAEM UM EMBAIXO DO OUTRO (13/09/2026)
+     "2 Cascao 1 Bola / 1x Borda Nutella": quem monta nao sabe se a borda
+     e de um cascao ou dos dois — e o valor dizia dos dois. Item com
+     quantidade maior que 1 E adicional sai desdobrado, uma linha por
+     unidade, cada uma com os seus adicionais e o valor de uma unidade.
+     Item sem adicional continua "2 Casquinha", que nao tem ambiguidade.
+     Os centavos fecham: a ultima unidade leva a diferenca do arredondo.
+     ========================================================== */
+  var lista=[];
+  (ped.itens||[]).forEach(function(i){
+    var q=Math.round(Number(i.qtd)||1);
+    if(q>1&&(i.opcoes||[]).length){
+      var tot=Number(i.total)||0, un=Math.round(tot/q*100)/100, acum=0;
+      for(var n=0;n<q;n++){
+        var v=(n===q-1)?Math.round((tot-acum)*100)/100:un; acum+=v;
+        var c={}; for(var ch in i)c[ch]=i[ch];
+        c.qtd=1; c.total=v; lista.push(c);
+      }
+    } else lista.push(i);
+  });
+  lista.forEach(function(i,k){
     var q=String(i.qtd||1);
     var val=comPreco?money(i.total):'';
     var largNome=cols-q.length-2-(val?val.length+1:0);
@@ -49244,7 +49313,7 @@ function linhasItens(ped,cols,comPreco){
     if(i.obs)recuado('obs: '+i.obs,'   ');
     /* uma linha de respiro ENTRE os itens — nunca depois do ultimo, que
        so esticaria o papel */
-    if(k<(ped.itens||[]).length-1)r.push({tipo:'txt',txt:'',al:'e'});
+    if(k<lista.length-1)r.push({tipo:'txt',txt:'',al:'e'});
   });
   if(!r.length)r.push({tipo:'txt',txt:'(sem itens)',al:'e'});
   return r;
@@ -49629,6 +49698,7 @@ var IMP_CAMPOS=[
  ['{loja}','nome da loja'],['{cnpj}','CNPJ'],['{endereco}','endereco da loja'],
  ['{telefone}','telefone da loja'],
  ['{data}','data do pedido'],['{hora}','hora do pedido'],
+ ['{titulo}','FICHA, ou RETIRADA no pedido do cardapio'],
  ['{numero}','numero do pedido'],['{senha}','senha de retirada'],
  ['{cliente}','nome do cliente'],['{fone_cliente}','telefone do cliente'],
  ['{end_entrega}','endereco da entrega'],['{bairro}','bairro ou zona'],
