@@ -332,6 +332,9 @@ async function definirLojaLigada(ligada,suc){
   if(cd){cd.ativo=!!ligada;delete cd._padrao;}
   if(DB.zap&&DB.zap[suc])DB.zap[suc].ativo=!!ligada;
   cfg().lojaAberta=!!ligada;          /* espelho da unidade aberta, para o resto do sistema */
+  /* ate o robo na nuvem confirmar, fica marcado: a sincronizacao e a
+     religada da nuvem reenviam (acertarRoboNaNuvem) */
+  if(DB.zap&&DB.zap[suc])DB.zap[suc].roboPendente=true;
   salvar();
   if(!NUVEM.ligada)return {ok:false,motivo:'sem nuvem'};
   var falhou=[];
@@ -345,7 +348,8 @@ async function definirLojaLigada(ligada,suc){
     if(Array.isArray(r)&&!r.length)falhou.push('cardápio digital (não achei a configuração desta unidade)');
   }catch(e){falhou.push('cardápio digital');_quieto(e,'definirLojaLigada/cardapio')}
   try{
-    if(!(await gravarCfgZap(suc,{robo_ativo:!!ligada})))falhou.push('robô do WhatsApp');
+    if(await gravarCfgZap(suc,{robo_ativo:!!ligada})){ if(DB.zap&&DB.zap[suc])delete DB.zap[suc].roboPendente; salvar(); }
+    else falhou.push('robô do WhatsApp');
   }catch(e){falhou.push('robô do WhatsApp');_quieto(e,'definirLojaLigada/zap')}
   return falhou.length?{ok:false,motivo:falhou.join(' e ')}:{ok:true};
 }

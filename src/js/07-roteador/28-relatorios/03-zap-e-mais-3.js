@@ -2526,6 +2526,40 @@ async function salvarAssPlat(){
    sem apagar linha nenhuma, que e o que nao se faz em banco de producao
    sem ordem.
    ========================================================== */
+/* ==========================================================
+   O ROBO SEGUE O INTERRUPTOR MESMO QUANDO A NUVEM FALTOU NA HORA
+   (Santa Fe, 14/09/2026)
+
+   O interruptor da loja grava duas coisas na nuvem: `cardapio_config.ativo`
+   e `whatsapp_config.robo_ativo`. O primeiro tambem sobe na sincronizacao
+   normal, entao se o clique acontece sem nuvem ele se acerta sozinho
+   minutos depois. O segundo so era gravado NO CLIQUE. A loja fechou as
+   22:46 (os dois foram a false), religou de manha num instante sem nuvem:
+   o cardapio voltou ao ar pela sincronizacao e a Carla ficou muda o dia
+   inteiro — oito clientes sem resposta e sem o link do cardapio.
+
+   Agora a regra e: o robo na nuvem tem de estar igual ao interruptor
+   deste aparelho. Conferido a cada religada da nuvem e sempre que um
+   clique ficou pendente. Uma leitura, e so grava se estiver diferente.
+   ========================================================== */
+async function acertarRoboNaNuvem(suc){
+  suc=suc||lojaAtualId();
+  if(!NUVEM.ligada||!NUVEM.loja||!suc||NUVEM.plataforma)return null;
+  var quer=lojaLigada(suc);
+  var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+suc)+'&select=robo_ativo');
+  if(!Array.isArray(r)||!r.length)return null;       /* unidade sem robo: nada a acertar */
+  var diferente=r.some(function(x){return (x.robo_ativo!==false)!==quer});
+  if(!diferente){ if(DB.zap&&DB.zap[suc])delete DB.zap[suc].roboPendente; return false; }
+  var ok=await gravarCfgZap(suc,{robo_ativo:quer});
+  if(ok){ if(DB.zap&&DB.zap[suc]){delete DB.zap[suc].roboPendente;} salvar();
+    logNuvem('robô do WhatsApp acertado com o interruptor: '+(quer?'atendendo':'parado')); }
+  return ok;
+}
+/* algum clique no interruptor ficou sem chegar ao robo? */
+function roboPendente(){
+  var z=DB.zap||{};
+  return Object.keys(z).some(function(s){return !!(z[s]&&z[s].roboPendente)});
+}
 async function gravarCfgZap(sucursalId, campos){
   if(!NUVEM.ligada||!NUVEM.loja||!sucursalId)return false;
   var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+sucursalId),

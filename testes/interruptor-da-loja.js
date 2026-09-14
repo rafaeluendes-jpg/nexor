@@ -99,7 +99,12 @@ console.log('\n── Desligar a loja desliga o cardápio e o robô\n');
     t('e gravou robo_ativo=false na unidade certa',
       m.chamadas.zap.length === 1 && m.chamadas.zap[0].suc === 'suc_santafe' &&
       m.chamadas.zap[0].campos.robo_ativo === false, JSON.stringify(m.chamadas.zap));
-    t('e salvou no aparelho', m.chamadas.salvou === 1);
+    /* 14/09/2026: salva duas vezes de propósito — antes de avisar a nuvem
+       (com o clique marcado como pendente) e depois que o robô confirmou
+       (marca limpa). Se a nuvem faltar entre as duas, a marca fica e a
+       sincronização reenvia. */
+    t('e salvou no aparelho', m.chamadas.salvou >= 1, m.chamadas.salvou);
+    t('robô confirmou: nada fica pendente', !m.DB.zap.suc_santafe.roboPendente);
     seguir();
   });
 }
@@ -118,10 +123,13 @@ function seguir() {
       t('avisa que não deu', r3.ok === false, JSON.stringify(r3));
       t('e diz que foi a nuvem', r3.motivo === 'sem nuvem', r3.motivo);
       t('mas guarda a escolha no aparelho', m3.DB.cardapio.suc_santafe.ativo === false);
+      t('e deixa o robô marcado como pendente, para a sincronização reenviar',
+        m3.DB.zap.suc_santafe.roboPendente === true);
 
       const m4 = montar({ falhaZap: true });
       return m4.f.definirLojaLigada(false).then(r4 => {
         t('robô que não respondeu é reportado', r4.ok === false && /robô/.test(r4.motivo), r4.motivo);
+        t('robô que não respondeu fica pendente', m4.DB.zap.suc_santafe.roboPendente === true);
         const m5 = montar({ falhaCardapio: true });
         return m5.f.definirLojaLigada(false).then(r5 => {
           t('cardápio que não respondeu é reportado',

@@ -1181,6 +1181,8 @@ async function religarNuvem(){
         await baixarDaNuvem();
         estadoNuvem('online');
         if(S.mod&&S.it)abrir(S.mod,S.it);
+        /* o robo do WhatsApp tem de estar como o interruptor desta loja */
+        try{ if(typeof acertarRoboNaNuvem==='function')await acertarRoboNaNuvem(); }catch(e){_quieto(e,'religarNuvem/robo')}
         try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){_quieto(e,'religarNuvem')}
       }catch(e){ estadoNuvem('erro',(e&&e.message)||''); }
     },700);
@@ -3447,6 +3449,8 @@ async function sincronizar(){
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
+    /* clique no interruptor que nao chegou ao robo: tenta agora */
+    try{ if(typeof roboPendente==='function'&&roboPendente())acertarRoboNaNuvem(); }catch(e){_quieto(e,'sincronizar/robo')}
     try{MEDIDA.envio=Date.now()-(_tEnvio||Date.now());}catch(e){}
     _ultimoEnvio=Date.now();     /* marca para o tempo real ignorar meu eco */
     /* rabicho: os avisos das minhas gravacoes ainda estao a caminho */

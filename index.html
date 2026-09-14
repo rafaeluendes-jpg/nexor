@@ -8006,6 +8006,8 @@ async function religarNuvem(){
         await baixarDaNuvem();
         estadoNuvem('online');
         if(S.mod&&S.it)abrir(S.mod,S.it);
+        /* o robo do WhatsApp tem de estar como o interruptor desta loja */
+        try{ if(typeof acertarRoboNaNuvem==='function')await acertarRoboNaNuvem(); }catch(e){_quieto(e,'religarNuvem/robo')}
         try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){_quieto(e,'religarNuvem')}
       }catch(e){ estadoNuvem('erro',(e&&e.message)||''); }
     },700);
@@ -10272,6 +10274,8 @@ async function sincronizar(){
     toast('Não consegui enviar ('+etapa+'): '+((e&&e.message)||'falha')); 
   }finally{
     NUVEM.sincronizando=false;
+    /* clique no interruptor que nao chegou ao robo: tenta agora */
+    try{ if(typeof roboPendente==='function'&&roboPendente())acertarRoboNaNuvem(); }catch(e){_quieto(e,'sincronizar/robo')}
     try{MEDIDA.envio=Date.now()-(_tEnvio||Date.now());}catch(e){}
     _ultimoEnvio=Date.now();     /* marca para o tempo real ignorar meu eco */
     /* rabicho: os avisos das minhas gravacoes ainda estao a caminho */
@@ -13484,7 +13488,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V328.0.0';
+var VERSAO='V329.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -20691,6 +20695,9 @@ async function definirLojaLigada(ligada,suc){
   if(cd){cd.ativo=!!ligada;delete cd._padrao;}
   if(DB.zap&&DB.zap[suc])DB.zap[suc].ativo=!!ligada;
   cfg().lojaAberta=!!ligada;          /* espelho da unidade aberta, para o resto do sistema */
+  /* ate o robo na nuvem confirmar, fica marcado: a sincronizacao e a
+     religada da nuvem reenviam (acertarRoboNaNuvem) */
+  if(DB.zap&&DB.zap[suc])DB.zap[suc].roboPendente=true;
   salvar();
   if(!NUVEM.ligada)return {ok:false,motivo:'sem nuvem'};
   var falhou=[];
@@ -20704,7 +20711,8 @@ async function definirLojaLigada(ligada,suc){
     if(Array.isArray(r)&&!r.length)falhou.push('cardápio digital (não achei a configuração desta unidade)');
   }catch(e){falhou.push('cardápio digital');_quieto(e,'definirLojaLigada/cardapio')}
   try{
-    if(!(await gravarCfgZap(suc,{robo_ativo:!!ligada})))falhou.push('robô do WhatsApp');
+    if(await gravarCfgZap(suc,{robo_ativo:!!ligada})){ if(DB.zap&&DB.zap[suc])delete DB.zap[suc].roboPendente; salvar(); }
+    else falhou.push('robô do WhatsApp');
   }catch(e){falhou.push('robô do WhatsApp');_quieto(e,'definirLojaLigada/zap')}
   return falhou.length?{ok:false,motivo:falhou.join(' e ')}:{ok:true};
 }
@@ -47374,6 +47382,40 @@ async function salvarAssPlat(){
    sem apagar linha nenhuma, que e o que nao se faz em banco de producao
    sem ordem.
    ========================================================== */
+/* ==========================================================
+   O ROBO SEGUE O INTERRUPTOR MESMO QUANDO A NUVEM FALTOU NA HORA
+   (Santa Fe, 14/09/2026)
+
+   O interruptor da loja grava duas coisas na nuvem: `cardapio_config.ativo`
+   e `whatsapp_config.robo_ativo`. O primeiro tambem sobe na sincronizacao
+   normal, entao se o clique acontece sem nuvem ele se acerta sozinho
+   minutos depois. O segundo so era gravado NO CLIQUE. A loja fechou as
+   22:46 (os dois foram a false), religou de manha num instante sem nuvem:
+   o cardapio voltou ao ar pela sincronizacao e a Carla ficou muda o dia
+   inteiro — oito clientes sem resposta e sem o link do cardapio.
+
+   Agora a regra e: o robo na nuvem tem de estar igual ao interruptor
+   deste aparelho. Conferido a cada religada da nuvem e sempre que um
+   clique ficou pendente. Uma leitura, e so grava se estiver diferente.
+   ========================================================== */
+async function acertarRoboNaNuvem(suc){
+  suc=suc||lojaAtualId();
+  if(!NUVEM.ligada||!NUVEM.loja||!suc||NUVEM.plataforma)return null;
+  var quer=lojaLigada(suc);
+  var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+suc)+'&select=robo_ativo');
+  if(!Array.isArray(r)||!r.length)return null;       /* unidade sem robo: nada a acertar */
+  var diferente=r.some(function(x){return (x.robo_ativo!==false)!==quer});
+  if(!diferente){ if(DB.zap&&DB.zap[suc])delete DB.zap[suc].roboPendente; return false; }
+  var ok=await gravarCfgZap(suc,{robo_ativo:quer});
+  if(ok){ if(DB.zap&&DB.zap[suc]){delete DB.zap[suc].roboPendente;} salvar();
+    logNuvem('robô do WhatsApp acertado com o interruptor: '+(quer?'atendendo':'parado')); }
+  return ok;
+}
+/* algum clique no interruptor ficou sem chegar ao robo? */
+function roboPendente(){
+  var z=DB.zap||{};
+  return Object.keys(z).some(function(s){return !!(z[s]&&z[s].roboPendente)});
+}
 async function gravarCfgZap(sucursalId, campos){
   if(!NUVEM.ligada||!NUVEM.loja||!sucursalId)return false;
   var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+sucursalId),
