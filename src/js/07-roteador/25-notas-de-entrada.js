@@ -118,6 +118,77 @@ function novaNota(){
     data:hojeISO(),hora:agoraHM(),itens:[],obs:''};
   desenhaNota();
 }
+/* ==========================================================
+   ENTRADA A PARTIR DO PEDIDO DE BASE (Rafael, 16/09/2026)
+
+   Na tela de pedidos de base da unidade, ao lado do olho, um botao abre
+   ESTA nota ja preenchida: cada base com quantidade e preco do pedido,
+   ligada ao item do estoque (a ficha tecnica da base, ou o insumo de
+   mesmo nome), e o fornecedor e o Franqueador. A pessoa confere — o
+   total da nota tem de bater com o pedido — e clica Confirmar: o estoque
+   entra na hora e o financeiro abre em seguida com a conta a pagar para
+   o Franqueador. Se ela parar ali, a nota fica em "Compras sem Vinculo",
+   como qualquer outra. Nada de novo por baixo: e a nota de entrada de
+   sempre, nascendo cheia em vez de vazia.
+   ========================================================== */
+function fornecedorFranqueador(){
+  if(typeof baseForn==='function')baseForn();
+  DB.fornec=DB.fornec||[];
+  var f=DB.fornec.find(function(x){return x&&/franqueador/i.test(String(x.empresa||''))});
+  if(f)return f;
+  f={id:uid('fo'),empresa:'Franqueador',cnpj:'',nome:'',email:'',tel:'',whats:'',
+     sucursais:['*'],criadoEm:new Date().toISOString()};
+  DB.fornec.push(f);
+  salvar();
+  return f;
+}
+/* item do estoque com exatamente este nome: insumo primeiro, depois ficha estocavel */
+function itemEstoquePorNome(nome){
+  var k=String(nome||'').trim().toLowerCase();
+  if(!k)return null;
+  var i=(DB.insumos||[]).find(function(x){return x&&String(x.nome||'').trim().toLowerCase()===k});
+  if(i)return i;
+  return (DB.fichas||[]).find(function(x){return x&&x.estocavel!==false&&String(x.nome||'').trim().toLowerCase()===k})||null;
+}
+function abrirNotaDoPedidoBase(id){
+  var lista=(typeof basePedidos==='function')?basePedidos():(DB.pedidosBase||[]);
+  var p=lista.find(function(x){return x&&x.id===id});
+  if(!p){toast('Pedido não encontrado.');return;}
+  if(p.entradaEstoque){toast('Este pedido já entrou no estoque.');return;}
+  if(p.sucursalRef!==lojaAtualId()){toast('Este pedido é de outra unidade.');return;}
+  if(!(p.itens||[]).length){toast('A lista de bases deste pedido ainda não chegou aqui.');return;}
+  baseNotas();
+  var forn=fornecedorFranqueador();
+  var semItem=[];
+  var itens=(p.itens||[]).map(function(it){
+    var alvo=(DB.fichas||[]).find(function(x){return x&&x.id===it.fichaRef})||
+             itemEstoquePorNome(it.baseNome||it.nome);
+    var q=Number(unidadesDoItem(it))||0;
+    var tot=+(Number(it.total)||0).toFixed(2);
+    var vu=q>0?+(tot/q).toFixed(6):(Number(precoUnitDoItem(it))||0);
+    if(!alvo)semItem.push(it.baseNome||it.nome||'?');
+    return {insumoId:alvo?alvo.id:'',nome:(alvo&&alvo.nome)||it.baseNome||it.nome||'',
+      unidade:(alvo&&alvo.unidade)||'un',qtd:q,valorUn:vu,desconto:0,total:tot,ncm:''};
+  });
+  _itemSel=null;
+  _nota={id:null,numero:proxNumNota(),fornecedorId:forn.id,fornecedorNome:forn.empresa,
+    data:hojeISO(),hora:agoraHM(),itens:itens,
+    obs:'Pedido de base #'+String(p.numero||0).padStart(4,'0'),
+    pedidoBaseRef:p.id,pedidoBaseNumero:p.numero,
+    valorEsperado:+(Number(p.total)||0).toFixed(2)};
+  desenhaNota();
+  if(semItem.length)toast(semItem.length+' item(ns) sem cadastro no estoque ('+semItem.slice(0,3).join(', ')+
+    '): ficam na nota, mas não entram no estoque.');
+}
+/* depois de confirmar a nota, o pedido de base fica "no estoque" */
+function marcarEntradaDoPedidoBase(n){
+  if(!n||!n.pedidoBaseRef)return;
+  var p=(DB.pedidosBase||[]).find(function(x){return x&&x.id===n.pedidoBaseRef});
+  if(!p)return;
+  p.entradaEstoque=true;
+  p.movEntradaRef=n.movId||'';
+  p.notaRef=n.id;
+}
 function desenhaNota(){
   var n=_nota;
   var merc=(n.itens||[]).reduce(function(a,i){return a+(Number(i.total)||0)},0);
@@ -198,6 +269,10 @@ function desenhaNota(){
     '<div style="flex:1"></div>'+
     '<div class="ntTot"><span>Valor mercadorias</span><b>R$ '+money(merc)+'</b></div>'+
     '<div class="ntTot dest6"><span>Valor total da nota</span><b>R$ '+money(merc)+'</b></div>'+
+    /* nota nascida de um pedido de base: o total tem de bater com o pedido */
+    (n.valorEsperado?'<div class="ntTot'+(Math.abs(merc-n.valorEsperado)>0.009?' ntBate nao':' ntBate')+'">'+
+      '<span>Pedido de base #'+E(String(n.pedidoBaseNumero||0).padStart(4,'0'))+'</span>'+
+      '<b>R$ '+money(n.valorEsperado)+(Math.abs(merc-n.valorEsperado)>0.009?' · não bate':' · confere')+'</b></div>':'')+
    '</div>'+
    '<div class="ntF"><button class="btnP2" onclick="fecharNota()">Cancelar</button>'+
     '<button class="btnP2 ok" onclick="confirmarNota()">Confirmar</button></div>'+
@@ -416,8 +491,16 @@ function confirmarNota(){
   if(!(n.itens||[]).length){toast('Lance ao menos um item.');return;}
   n.valorMercadorias=+(n.itens.reduce(function(a,i){return a+i.total},0)).toFixed(2);
   n.valorTotal=n.valorMercadorias;
+  /* nota que veio de um pedido de base: o total da nota tem de bater com o
+     pedido (Rafael, 16/09/2026) — a pessoa confere e corrige antes de entrar */
+  if(n.valorEsperado&&Math.abs(n.valorTotal-n.valorEsperado)>0.009){
+    toast('O total da nota (R$ '+money(n.valorTotal)+') não bate com o pedido de base (R$ '+
+      money(n.valorEsperado)+'). Confira os itens antes de dar entrada.');
+    return;
+  }
   materializarNota(n);                 /* grava a nota e abastece o estoque */
   marcarNotaSemVinculo(n);             /* nasce pendente de financeiro; sai da lista ao vincular */
+  marcarEntradaDoPedidoBase(n);        /* o pedido de base fica "no estoque" */
   _nota=null;_itemSel=null;
   var o=document.getElementById('mdOv');if(o)o.remove();
   telaNotas();
@@ -432,7 +515,9 @@ function materializarNota(n){
   n.receber=n.receber!==false;
   if(n.receber){
     var linhas=n.itens.filter(function(it){
-      var i2=insumo(it.insumoId);
+      /* insumo ou ficha tecnica estocavel (as bases do franqueador sao fichas):
+         itemEstoque e a mesma porta que o movimento de estoque usa */
+      var i2=insumo(it.insumoId)||(typeof itemEstoque==='function'?itemEstoque(it.insumoId):null);
       return i2&&i2.controlaEstoque!==false;      /* respeita o cadastro do ingrediente */
     }).map(function(it){
       return {insumoId:it.insumoId,nome:it.nome,unidade:it.unidade,qtd:it.qtd,
@@ -490,6 +575,10 @@ function vincularLancsANota(n,lancs){
     l.origem='nota-entrada';l.ref=n.id;
     l.fornecedor=n.fornecedorNome;l.fornecedorId=n.fornecedorId;
   });
+  if(n.pedidoBaseRef){
+    var pb=(DB.pedidosBase||[]).find(function(x){return x&&x.id===n.pedidoBaseRef});
+    if(pb&&(lancs||[]).length)pb.finPagarRef=lancs[0].id;
+  }
   if(typeof desmarcarNotaSemVinculo==='function')desmarcarNotaSemVinculo(n);
   salvar();
   var o=document.getElementById('mdOv');if(o)o.remove();

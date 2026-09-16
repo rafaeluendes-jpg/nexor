@@ -1059,11 +1059,23 @@ function modalLanc(id,tipoNovo,pre){
     if(l){Object.assign(l,o);salvar();telaLancamentos();toast('Lançamento salvo.');return true;}
     var parc=$('lnParc')&&$('lnParc').checked;
     if(parc){
-      var ds=datasParcelas(),vp=valorParcela();
+      var ds=datasParcelas(),vs=valoresParcelas();
+      /* ==========================================================
+         AS PARCELAS TEM DE FECHAR COM O TOTAL (Rafael, 16/09/2026)
+         Cada parcela pode ser ajustada a mao (a maquininha nem sempre
+         divide igual). Mas a soma e a nota: se nao bater, nao lanca.
+         No modo "repetir" cada parcela e o valor cheio, de proposito.
+         ========================================================== */
+      var difP=diferencaParcelas();
+      if(difP!==0){
+        toast('Os valores das parcelas não batem com o total — '+
+          (difP>0?'faltam R$ '+money(difP):'sobram R$ '+money(-difP))+'. Corrija as parcelas.');
+        return false;
+      }
       var criados=[];
       ds.forEach(function(dt,i){
         var c2=JSON.parse(JSON.stringify(o));
-        c2.id=uid('lf');c2.valor=vp;c2.vencimento=dt;
+        c2.id=uid('lf');c2.valor=vs[i];c2.vencimento=dt;
         c2.descricao=o.descricao+' ('+(i+1)+'/'+ds.length+')';
         c2.pago=false;c2.pagamento='';
         DB.lancFin.push(c2);criados.push(c2);
@@ -1096,10 +1108,14 @@ function modalLanc(id,tipoNovo,pre){
   if(P.pago){var pg=$('lnP');if(pg){pg.checked=true;var bx=$('boxPg');if(bx)bx.style.display='';var av=$('avPgBaixa');if(av)av.style.display='none';}}
   var pc=$('lnParc');
   if(pc){
-    pc.onchange=function(){$('boxParc').style.display=this.checked?'':'none';_datasParc=[];previewParc();};
+    _datasParc=[];_valoresParc=[];   /* ajuste de um lancamento nao vaza para o proximo */
+    pc.onchange=function(){$('boxParc').style.display=this.checked?'':'none';_datasParc=[];_valoresParc=[];previewParc();};
     ['lnPer','lnQtd','lnPri','lnModo','lnV','lnDias'].forEach(function(k){
-      var el=$(k);if(el)el.addEventListener('input',previewParc);
-      if(el)el.addEventListener('change',previewParc);
+      var el=$(k);if(!el)return;
+      /* total, quantidade ou modo novo: o ajuste a mao das parcelas nao vale mais */
+      var limpa=(k==='lnQtd'||k==='lnModo'||k==='lnV')?function(){_valoresParc=[];previewParc();}:previewParc;
+      el.addEventListener('input',limpa);
+      el.addEventListener('change',limpa);
     });
     previewParc();
   }
@@ -1199,6 +1215,8 @@ function escolheCatForm(id){
   fecharPops();
 }
 var _datasParc=[];
+var _valoresParc=[];   /* valor que a pessoa ajustou a mao, por parcela */
+var _valoresParcQ=0;   /* para quantas parcelas o ajuste foi feito */
 function trocaPerParc(){
   var bd=$('boxDias');
   if(bd)bd.style.display=($('lnPer').value==='dias')?'':'none';
@@ -1237,18 +1255,61 @@ function valorParcela(){
   var q=parseInt($('lnQtd').value)||2;
   return $('lnModo').value==='dividir'?+(total/q).toFixed(2):total;
 }
+/* ==========================================================
+   O VALOR DE CADA PARCELA (16/09/2026)
+   Antes era um valor so para todas: total/q arredondado. R$ 100 em 3x
+   dava 33,33 x 3 = 99,99 — um centavo sumia, e ninguem podia corrigir.
+   Agora: no modo "dividir", a divisao e feita em centavos e a ULTIMA
+   parcela leva a sobra, entao a soma fecha sozinha. E qualquer parcela
+   pode ser ajustada a mao (o cartao raramente divide igual); o ajuste
+   vale ate a pessoa trocar a quantidade ou o modo.
+   ========================================================== */
+function valoresParcelas(){
+  var total=Math.round((parseFloat($('lnV').value)||0)*100);
+  var q=Math.max(1,parseInt($('lnQtd').value)||2);
+  var repetir=$('lnModo').value==='repetir';
+  var out=[];
+  if(repetir){ for(var i=0;i<q;i++)out.push(total/100); }
+  else{
+    var base=Math.floor(total/q), acum=0;
+    for(var j=0;j<q;j++){ var c=(j===q-1)?(total-acum):base; acum+=c; out.push(c/100); }
+  }
+  return out.map(function(v,k){
+    var m=_valoresParc[k];
+    return (typeof m==='number'&&isFinite(m))?m:v;
+  });
+}
+/* quanto falta (positivo) ou sobra (negativo) para as parcelas fecharem
+   com o total; 0 quando batem. No modo "repetir" e sempre 0. */
+function diferencaParcelas(){
+  if($('lnModo').value==='repetir')return 0;
+  var total=Math.round((parseFloat($('lnV').value)||0)*100);
+  var soma=valoresParcelas().reduce(function(a,v){return a+Math.round(v*100)},0);
+  return (total-soma)/100;
+}
+function mudaValorParc(i,v){
+  var n=parseFloat(String(v).replace(',','.'));
+  if(!isFinite(n)||n<0){delete _valoresParc[i];}
+  else _valoresParc[i]=Math.round(n*100)/100;
+  _valoresParcQ=Math.max(1,parseInt($('lnQtd').value)||2);
+  previewParc();
+}
 function previewParc(){
   var box=$('prevParc');if(!box)return;
   if(!$('lnParc').checked){box.innerHTML='';return;}
-  var ds=datasParcelas(),v=valorParcela();
+  var ds=datasParcelas(),v=valorParcela(),vs=valoresParcelas();
+  /* quantidade ou modo mudou: os ajustes a mao deixam de valer */
+  if(_valoresParc.length&&_valoresParcQ!==ds.length){_valoresParc=[];vs=valoresParcelas();}
   $('lnVp').value=v.toFixed(2);
-  box.innerHTML='<div class="prevTit">Parcelas que serão lançadas <b>'+ds.length+'</b> · total R$ '+money(v*ds.length)+
-   ' <span class="hint" style="font-weight:400">· altere a data de qualquer parcela abaixo</span></div>'+
+  var soma=vs.reduce(function(a,x){return a+x},0), dif=diferencaParcelas();
+  box.innerHTML='<div class="prevTit">Parcelas que serão lançadas <b>'+ds.length+'</b> · total R$ '+money(soma)+
+   (dif!==0?' <b class="prevAviso">— os valores não estão batendo: '+(dif>0?'faltam':'sobram')+' R$ '+money(Math.abs(dif))+'</b>':'')+
+   ' <span class="hint" style="font-weight:400">· altere a data ou o valor de qualquer parcela abaixo</span></div>'+
   '<div class="prevLista">'+ds.map(function(d,i){
     return '<div class="prevIt"><span class="prevN">'+(i+1)+'</span>'+
     '<span class="prevD">'+dataBR(d)+'</span>'+
     '<input type="date" class="prevData" value="'+d+'" onchange="mudaDataParc('+i+',this.value)">'+
-    '<span class="prevV">R$ '+money(v)+'</span></div>';}).join('')+'</div>';
+    '<span class="prevV">R$ <input type="number" step="0.01" min="0" class="prevValor" value="'+vs[i].toFixed(2)+'" onchange="mudaValorParc('+i+',this.value)"></span></div>';}).join('')+'</div>';
 }
 
 /* ---------- TRANSFERÊNCIA ---------- */

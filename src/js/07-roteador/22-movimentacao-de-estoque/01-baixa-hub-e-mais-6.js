@@ -1452,7 +1452,7 @@ function telaPedidoBase(){
        '<th style="width:80px">Nº</th><th style="width:100px">Data</th>' +
        '<th style="width:80px;text-align:right">Itens</th>' +
        '<th style="width:120px;text-align:right">Total</th>' +
-       '<th>Situação</th><th style="width:52px"></th></tr></thead><tbody>' +
+       '<th>Situação</th><th style="width:44px"></th><th style="width:52px"></th></tr></thead><tbody>' +
        meus.map(function (p) {
          return '<tr><td><b>#' + String(p.numero || 0).padStart(4, '0') + '</b></td>' +
           '<td>' + E(dataBR(p.data)) + '</td>' +
@@ -1465,6 +1465,13 @@ function telaPedidoBase(){
              : (p.entradaEstoque
                 ? ' <span class="prFeito">' + sv('check', 11) + ' no estoque</span>'
                 : '')) + '</td>' +
+          /* dar entrada no estoque e no financeiro pela nota de entrada, ja
+             preenchida com as bases do pedido (Rafael, 16/09/2026) */
+          '<td style="text-align:right">' +
+           (!p.entradaEstoque && ['rascunho', 'rejeitado'].indexOf(p.situacao) < 0
+             ? '<button class="rBtn" title="Dar entrada no estoque e no financeiro" ' +
+               'onclick="abrirNotaDoPedidoBase(\'' + p.id + '\')">' + sv('box', 12) + '</button>'
+             : '') + '</td>' +
           '<td style="text-align:right">' +
            '<button class="rBtn" title="Ver o pedido" onclick="verPedidoBase(\'' + p.id +
             '\')">' + sv('eye', 12) + '</button></td></tr>';
