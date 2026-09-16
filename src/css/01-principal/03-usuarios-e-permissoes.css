@@ -90,6 +90,17 @@
 .etTabW.plano2 .etTab th{padding:7px 10px;font-size:10.5px}
 .etTabW.plano2 .etTab td small{font-size:9.5px}
 .etTabW.plano2{margin:0 16px 14px;border:1px solid var(--line);border-radius:8px;overflow:auto}
+/* ==========================================================
+   O CABECALHO DA TABELA FICA CONGELADO NO TOPO (Rafael, 16/09/2026)
+   `overflow:auto` na moldura faz dela a "janela" de referencia do
+   cabecalho fixo — e quem rola e a pagina (.etScroll), nao a moldura.
+   Resultado: o cabecalho do Estoque Total subia junto com a lista e
+   sumia. Na pagina que rola, a moldura fica sem rolagem propria e o
+   cabecalho gruda no topo da pagina. No celular a moldura volta a
+   rolar de lado, porque a tabela nao cabe na largura.
+   ========================================================== */
+.etScroll>.etTabW.plano2{overflow:visible}
+@media(max-width:820px){.etScroll>.etTabW.plano2{overflow:auto}}
 
 /* ---------- painel de indicadores compacto ---------- */
 .painelInd{margin:12px 16px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
