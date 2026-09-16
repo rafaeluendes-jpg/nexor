@@ -761,8 +761,76 @@ async function zapApi(caminho,metodo,corpo){
   var t=await r.text();
   try{ return JSON.parse(t); }catch(e){ return {erro:t}; }
 }
+/* ==========================================================
+   A TELA DO ROBO LE A NUVEM ANTES DE MOSTRAR (E ANTES DE SALVAR)
+   (Santa Fe, 15/09/2026 21:50 — registro de alteracoes)
+
+   A configuracao do robo (nome, saudacao, regras, respostas) vivia so na
+   nuvem: o aparelho nunca a baixava. Abrir a tela num aparelho que nao a
+   tinha mostrava a copia local — vazia, com o nome de fabrica "Nina" — e
+   a simples troca de aba SALVAVA essa copia por cima da nuvem. Foi assim
+   que a Carla virou Nina, sem saudacao e sem regras, e o cliente recebeu
+   "Aqui e a Nina". Agora a tela so aparece depois de trazer a nuvem para
+   o aparelho, e o salvar so sobe o que passou por essa leitura.
+   ========================================================== */
+function cfgZapDaNuvem(x){
+  if(!x)return null;
+  var temMsg=!!(x.msg_aceito||x.msg_preparo||x.msg_saiu||x.msg_entregue);
+  var c={ativo:x.robo_ativo!==false,
+    saudacao:x.saudacao||'',textoHorario:x.texto_horario||'',textoEntrega:x.texto_entrega||'',
+    textoPagamento:x.texto_pagamento||'',textoEndereco:x.texto_endereco||'',
+    respostas:Array.isArray(x.respostas)?x.respostas:[],
+    pedeAvaliacao:x.pede_avaliacao!==false,
+    avisosAtivos:temMsg||x.pede_avaliacao===true,
+    iaAtiva:x.ia_ativa!==false,iaNome:x.ia_nome||'Nina',iaTom:x.ia_tom||'acolhedor',
+    iaRegras:x.ia_regras||'',iaApresenta:x.ia_apresenta!==false};
+  if(temMsg){ c.msgAceito=x.msg_aceito||'';c.msgPreparo=x.msg_preparo||'';
+    c.msgSaiu=x.msg_saiu||'';c.msgEntregue=x.msg_entregue||''; }
+  return c;
+}
+/* traz a configuracao do robo desta unidade para o aparelho. Devolve
+   true quando achou linha na nuvem; false quando nao ha (ou sem nuvem). */
+async function baixarCfgZap(suc){
+  suc=suc||lojaAtualId();
+  if(!NUVEM.ligada||!NUVEM.loja||!suc)return false;
+  baseZap();
+  var lista=[];
+  try{
+    var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+suc)+'&select=*');
+    lista=Array.isArray(r)?r:[];
+    if(!lista.length){
+      var uu=(typeof sucursalNaNuvem==='function')?sucursalNaNuvem(suc):null;
+      if(uu&&uu!==suc){
+        r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(uu)+'&select=*');
+        lista=Array.isArray(r)?r:[];
+      }
+    }
+  }catch(e){_quieto(e,'baixarCfgZap');return false;}
+  if(!lista.length)return false;
+  /* havendo linha repetida (uuid e referencia), vale a mais completa */
+  lista.sort(function(a,b){return (String(b.ia_regras||'').length+String(b.saudacao||'').length)-
+                                  (String(a.ia_regras||'').length+String(a.saudacao||'').length)});
+  var c=cfgZapDaNuvem(lista[0]);
+  DB.zap[suc]=DB.zap[suc]||{};
+  for(var k in c)DB.zap[suc][k]=c[k];
+  DB.zap[suc]._nuvemEm=Date.now();
+  salvar();
+  return true;
+}
 function telaZap(dentro){
   baseMov();baseSuc();baseZap();
+  /* com nuvem, a tela so aparece depois de ler a configuracao de la */
+  zapAtual();
+  ZP._baixou=ZP._baixou||{};
+  if(NUVEM.ligada&&ZP.suc&&!ZP._baixou[ZP.suc]){
+    ZP._baixou[ZP.suc]='indo';
+    $('content').innerHTML='<div class="etWrap"><div class="etScroll"><div class="etTopo">'+
+      '<div><h1>Robô do WhatsApp</h1><p>Trazendo a configuração da nuvem…</p></div></div></div></div>';
+    baixarCfgZap(ZP.suc).then(function(){ ZP._baixou[ZP.suc]=true; telaZap(dentro); })
+      .catch(function(e){ _quieto(e,'telaZap'); ZP._baixou[ZP.suc]=true; telaZap(dentro); });
+    return;
+  }
+  if(ZP._baixou[ZP.suc]==='indo')return;
   /* ==========================================================
      O CAMINHO DE VOLTA NAO PODE SUMIR
 
@@ -1153,6 +1221,11 @@ async function trocarLojaZap(id){
 }
 async function salvarZap(silencioso){
   var c=zapAtual();
+  /* nunca subir uma copia que nao passou pela leitura da nuvem */
+  if(NUVEM.ligada&&!(ZP._baixou&&ZP._baixou[ZP.suc]===true)){
+    if(!silencioso)toast('Ainda trazendo a configuração da nuvem — tente de novo em instantes.');
+    return;
+  }
   if($('zpAtivo'))c.ativo=$('zpAtivo').checked;
   if($('zpAvisos'))c.avisosAtivos=$('zpAvisos').checked;
   if($('zpAval'))c.pedeAvaliacao=$('zpAval').checked;

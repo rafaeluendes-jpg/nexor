@@ -1182,6 +1182,7 @@ async function religarNuvem(){
         estadoNuvem('online');
         if(S.mod&&S.it)abrir(S.mod,S.it);
         /* o robo do WhatsApp tem de estar como o interruptor desta loja */
+        try{ if(typeof baixarCfgZap==='function')await baixarCfgZap(lojaAtualId()); }catch(e){_quieto(e,'religarNuvem/cfgzap')}
         try{ if(typeof acertarRoboNaNuvem==='function')await acertarRoboNaNuvem(); }catch(e){_quieto(e,'religarNuvem/robo')}
         try{ await rodarCaixaAssistente(true); ligarCaixaAssistente(); }catch(e){_quieto(e,'religarNuvem')}
       }catch(e){ estadoNuvem('erro',(e&&e.message)||''); }
