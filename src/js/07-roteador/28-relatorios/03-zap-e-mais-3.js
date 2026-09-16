@@ -2638,13 +2638,22 @@ async function gravarCfgZap(sucursalId, campos){
   var r=await api('whatsapp_config?ref_local=eq.'+encodeURIComponent('wz_'+sucursalId),
                   'PATCH',campos,{'Prefer':'return=representation'});
   if(Array.isArray(r)&&r.length)return true;
-  /* linha antiga, gravada antes de o ref_local existir: tenta pela unidade */
-  r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(sucursalId),
+  /* ==========================================================
+     NUNCA CRIAR UMA SEGUNDA LINHA PARA A MESMA UNIDADE (16/09/2026)
+     A linha antiga podia estar gravada pelo uuid da unidade (sem
+     ref_local). Antes, quando o PATCH pela referencia nao achava nada,
+     este codigo criava OUTRA linha, com a referencia local no lugar do
+     uuid — e Santa Fe ficou com duas configuracoes: uma "Carla" completa
+     e uma "Nina" vazia. O robo ora lia uma, ora outra. Agora a procura
+     e feita tambem pelo uuid e a criacao usa o uuid.
+     ========================================================== */
+  var uu=(typeof sucursalNaNuvem==='function')?(sucursalNaNuvem(sucursalId)||''):'';
+  r=await api('whatsapp_config?sucursal_id=eq.'+encodeURIComponent(uu||sucursalId),
               'PATCH',campos,{'Prefer':'return=representation'});
   if(Array.isArray(r)&&r.length)return true;
   /* linha inexistente: cria com as colunas desta tela + as chaves */
   var novo={}; for(var k in campos)novo[k]=campos[k];
-  novo.loja_id=NUVEM.loja; novo.sucursal_id=sucursalId;
+  novo.loja_id=NUVEM.loja; novo.sucursal_id=uu||sucursalId;
   novo.ref_local='wz_'+sucursalId;
   await api('whatsapp_config?on_conflict=sucursal_id','POST',[novo],
             {'Prefer':'resolution=merge-duplicates'});

@@ -163,8 +163,12 @@ console.log('\n── O endereço da unidade na nuvem é um UUID\n');
   const gz = corpoDaFuncao('gravarCfgZap', fonte);
   t('o robô é gravado pela chave que as duas linhas da unidade têm igual',
     /whatsapp_config\?ref_local=eq\.'\+encodeURIComponent\('wz_'\+sucursalId\)/.test(gz));
-  t('com volta pela unidade, para linha antiga sem ref_local',
-    /whatsapp_config\?sucursal_id=eq\.'\+encodeURIComponent\(sucursalId\)/.test(gz));
+  /* 16/09/2026: a volta pela unidade usa o UUID da nuvem (uu), nunca a
+     referência local — foi isso que criou a segunda linha "Nina" em Santa Fé */
+  t('com volta pela unidade, para linha antiga sem ref_local (pelo uuid)',
+    /whatsapp_config\?sucursal_id=eq\.'\+encodeURIComponent\(uu\|\|sucursalId\)/.test(gz));
+  t('e a criação usa o uuid da unidade, não a referência local',
+    /novo\.sucursal_id=uu\|\|sucursalId/.test(gz));
 }
 
 console.log('\n── O erro do item recusado não aparece como "undefined"\n');

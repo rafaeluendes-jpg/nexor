@@ -68,6 +68,7 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   const gets = [];
   win.api = async (caminho, metodo) => { if (!metodo || metodo === 'GET') { gets.push(caminho); return naNuvem; } return [{}]; };
   const gravados = [];
+  const gravarCfgZapReal = win.gravarCfgZap;   /* a de verdade, antes do dublê */
   win.gravarCfgZap = async (suc, campos) => { gravados.push({ suc, campos }); return true; };
   win.lojaConectada = async () => null; win.linkCardapio = () => 'https://joiagest.com.br/santafedosul';
 
@@ -102,6 +103,17 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   t('robô desligado, nome Bia, avisos desligados', c2.ativo === false && c2.iaNome === 'Bia' && c2.avisosAtivos === false);
   t('sem linha na nuvem: baixarCfgZap devolve false e não inventa', (async () => { naNuvem = []; const r = await win.baixarCfgZap('suc_sf'); naNuvem = [nina, carla]; return r === false; })() instanceof Promise);
   naNuvem = []; t('…confirmado', (await win.baixarCfgZap('suc_sf')) === false); naNuvem = [nina, carla];
+
+  grupo('gravarCfgZap nunca cria uma segunda linha para a mesma unidade');
+  const chamadas = [];
+  win.api = async (caminho, metodo, corpo) => { chamadas.push({ caminho, metodo, corpo }); return (metodo === 'PATCH') ? [] : [{}]; };
+  win.sucursalNaNuvem = () => 'f0de0748-0000-0000-0000-000000000001';
+  await gravarCfgZapReal('suc_sf', { robo_ativo: true });
+  const patches = chamadas.filter(c => c.metodo === 'PATCH').map(c => c.caminho);
+  const posts = chamadas.filter(c => c.metodo === 'POST');
+  t('procura pela referência e depois pelo uuid, nunca pela referência como sucursal_id',
+    patches.some(p => /ref_local=eq\.wz_suc_sf/.test(p)) && patches.some(p => /sucursal_id=eq\.f0de0748-0000/.test(p)) && !patches.some(p => /sucursal_id=eq\.suc_sf/.test(p)), patches.join(' | '));
+  t('cria a linha com o uuid da unidade e a referência wz_', posts.length === 1 && posts[0].corpo[0].sucursal_id === 'f0de0748-0000-0000-0000-000000000001' && posts[0].corpo[0].ref_local === 'wz_suc_sf', JSON.stringify(posts[0] && posts[0].corpo));
 
   grupo('A religada da nuvem também traz a configuração (mensagens de fase usam a cópia local)');
   const html = fs.readFileSync(ARQ, 'utf8');
