@@ -96,6 +96,24 @@ async function carregar() {
   t('o lançamento virou de nota-entrada, apontando a nota', lanc.origem === 'nota-entrada' && lanc.ref === n1.id);
   t('a nota guardou os lançamentos', (n1.lancIds || []).indexOf('lf1') >= 0);
   t('saiu de Compras sem Vínculo', !win.DB.comprasSemVinc.some(c => c.notaId === n1.id));
+  const csv1 = (win.DB._apagados && win.DB._apagados.comprasSemVinc) || {};
+  t('e a saída foi DECLARADA para a nuvem apagar (16/09/2026)', Object.keys(csv1).length >= 1, JSON.stringify(csv1));
+
+  grupo('Fantasma: a nuvem trouxe a compra de volta com o boleto já lançado');
+  win.DB.comprasSemVinc.push({ id: 'csv_fantasma', tipo: 'pendente', notaId: n1.id, notaNumero: '001', valor: 77.88 });
+  const tirou = win.repararComprasSemVinculo();
+  t('repararComprasSemVinculo tira 1', tirou === 1, tirou);
+  t('a compra fantasma sumiu da lista', !win.DB.comprasSemVinc.some(c => c.id === 'csv_fantasma'));
+  t('e a exclusão foi declarada', !!(win.DB._apagados.comprasSemVinc || {})['csv_fantasma']);
+  t('rodar de novo não tira nada', win.repararComprasSemVinculo() === 0);
+  t('compra pendente de verdade (sem boleto) fica', (function () {
+    win.DB.comprasSemVinc.push({ id: 'csv_legit', tipo: 'pendente', notaId: 'nf_sem_boleto', notaNumero: '009', valor: 10 });
+    const r = win.repararComprasSemVinculo() === 0 && win.DB.comprasSemVinc.some(c => c.id === 'csv_legit');
+    win.DB.comprasSemVinc = win.DB.comprasSemVinc.filter(c => c.id !== 'csv_legit');
+    return r; })());
+  const html = fs.readFileSync(ARQ, 'utf8');
+  t('a limpeza roda no arranque e depois do download', /repararComprasSemVinculo\(\)/.test(html.slice(html.indexOf('function boot('), html.indexOf('function boot(') + 3000)) &&
+    /repararComprasSemVinculo\(\)/.test(html.slice(html.indexOf('async function baixarDaNuvem('), html.indexOf('async function baixarDaNuvem(') + 200000)));
 
   grupo('Cenário 2 — devolver o estoque desfaz a compra');
   const n2 = novaNota('002'); win.materializarNota(n2); win.marcarNotaSemVinculo(n2);
@@ -107,6 +125,7 @@ async function carregar() {
   t('a nota foi removida', !win.DB.notas.some(x => x.id === n2.id));
   t('a compra do insumo foi limpa', !(win.DB.insumos[0].compras || []).some(c => c.notaId === n2.id));
   t('saiu de Compras sem Vínculo', !win.DB.comprasSemVinc.some(c => c.id === csv2.id));
+  t('devolver declara a exclusão da compra e da nota', !!(win.DB._apagados.comprasSemVinc || {})[csv2.id] && !!(win.DB._apagados.notas || {})[n2.id]);
 
   grupo('Cenário 2 — manter e refazer o boleto (molde do financeiro excluído)');
   const n3 = novaNota('003'); win.materializarNota(n3);
@@ -122,6 +141,7 @@ async function carregar() {
   t('manter recriou o boleto no financeiro', win.DB.lancFin.length === antesLanc + 1);
   t('o boleto recriado aponta a nota (origem/ref)', recriado.origem === 'nota-entrada' && recriado.ref === n3.id);
   t('e saiu de Compras sem Vínculo', !win.DB.comprasSemVinc.some(c => c.id === csv3.id));
+  t('manter declara a exclusão da compra', !!(win.DB._apagados.comprasSemVinc || {})[csv3.id]);
   t('o estoque NÃO foi mexido ao manter (nenhum desfazer)', !movs.some(m => m.desfazer === true && m.id === n3.movId));
 
   console.log('\n' + '═'.repeat(52));

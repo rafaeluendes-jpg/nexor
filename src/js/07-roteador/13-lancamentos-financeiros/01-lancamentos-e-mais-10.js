@@ -585,9 +585,42 @@ function marcarNotaSemVinculo(n){
     lanc:null});
   salvar();
 }
+/* ==========================================================
+   SAIR DA LISTA TEM DE SAIR DA NUVEM TAMBEM (Santa Fe, 16/09/2026)
+
+   A compra sem vinculo e espelhada na nuvem. Tirar da lista local sem
+   DECLARAR a exclusao deixava a linha viva la — e o download seguinte
+   (a cada 45 s) trazia a compra de volta. Em Santa Fe, 5 das 6 compras
+   "sem vinculo" ja tinham o boleto lancado: eram fantasmas. Agora toda
+   saida passa por `tirarSemVinculo`, que declara a exclusao, e
+   `repararComprasSemVinculo` limpa o que voltou do tumulo.
+   ========================================================== */
+function tirarSemVinculo(ids){
+  DB.comprasSemVinc=DB.comprasSemVinc||[];
+  var set={};(ids||[]).forEach(function(i){if(i)set[i]=true});
+  DB.comprasSemVinc=DB.comprasSemVinc.filter(function(c){
+    if(!c||!set[c.id])return true;
+    try{declararExclusao('comprasSemVinc',c.id);}catch(e){_quieto(e,'tirarSemVinculo')}
+    return false;
+  });
+}
 function desmarcarNotaSemVinculo(n){
   if(!n||!n.id||!DB.comprasSemVinc)return;
-  DB.comprasSemVinc=DB.comprasSemVinc.filter(function(c){return c.notaId!==n.id});
+  tirarSemVinculo(DB.comprasSemVinc.filter(function(c){return c&&c.notaId===n.id}).map(function(c){return c.id}));
+}
+/* compra "sem vinculo" cuja nota JA tem boleto vivo no financeiro e um
+   fantasma (voltou da nuvem depois de resolvida): sai, e a exclusao vai
+   declarada para a nuvem apagar de vez. Devolve quantas tirou. */
+function repararComprasSemVinculo(){
+  var lista=DB.comprasSemVinc||[];
+  if(!lista.length)return 0;
+  var vivos={};
+  (DB.lancFin||[]).forEach(function(l){
+    if(l&&l.origem==='nota-entrada'&&l.ref&&!l.cancelado)vivos[l.ref]=true;
+  });
+  var fantasmas=lista.filter(function(c){return c&&c.notaId&&vivos[c.notaId]}).map(function(c){return c.id});
+  if(fantasmas.length){tirarSemVinculo(fantasmas);salvar();}
+  return fantasmas.length;
 }
 
 /* ==========================================================
@@ -597,6 +630,7 @@ function desmarcarNotaSemVinculo(n){
 var CSV={de:'',ate:''};
 function telaSemVinculo(){
   DB.comprasSemVinc=DB.comprasSemVinc||[];
+  try{repararComprasSemVinculo();}catch(e){_quieto(e,'telaSemVinculo')}
   if(!CSV.de){CSV.de=diasAtrasISO(90);CSV.ate=hojeISO();}
   var lista=(DB.comprasSemVinc||[]).filter(function(c){
     var d=(c.excluidoEm||'').slice(0,10);
@@ -727,7 +761,7 @@ function semVincManter(id){
       emissao:lc.emissao||hojeISO(),vencimento:c.vencimento||hojeISO(),
       pagamento:lc.pagamento||null,pago:!!lc.pago,conciliado:false,dataConc:null,
       origem:'nota-entrada',ref:c.notaId,obs:'relançado de Compras sem Vínculo'});
-    DB.comprasSemVinc=DB.comprasSemVinc.filter(function(x){return x.id!==id});
+    tirarSemVinculo([id]);
     salvar();fecharModal();telaSemVinculo();
     toast('Boleto relançado no financeiro.');
     return;
@@ -755,8 +789,8 @@ async function semVincDevolver(id){
       if(i2&&i2.compras)i2.compras=i2.compras.filter(function(cp){return cp.notaId!==nota.id});
     });
   }
-  if(nota)DB.notas=DB.notas.filter(function(n){return n.id!==nota.id});
-  DB.comprasSemVinc=DB.comprasSemVinc.filter(function(x){return x.id!==id});
+  if(nota){DB.notas=DB.notas.filter(function(n){return n.id!==nota.id});try{declararExclusao('notas',nota.id);}catch(e){_quieto(e,'semVincDevolver')}}
+  tirarSemVinculo([id]);
   salvar();fecharModal();telaSemVinculo();
   toast('Estoque devolvido e compra '+(c.notaNumero||'')+' cancelada.');
 }

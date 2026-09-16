@@ -1262,6 +1262,8 @@ function volta(linhas,fn,atual,col){
     data:x.data,hora:x.hora,valorMercadorias:Number(x.valor_mercadorias)||0,
     valorTotal:Number(x.valor_total)||0,receber:x.recebida!==false,
     pagamento:x.pagamento||{},itens:x.itens||[]}},null,'notas');
+  /* compra sem vinculo que a nuvem trouxe de volta com o boleto ja lancado */
+  try{ if(typeof repararComprasSemVinculo==='function')repararComprasSemVinculo(); }catch(e){_quieto(e,'baixarDaNuvem/semVinculo')}
 
   /* ---------- OPERAÇÃO ---------- */
   var cx=await _p42;
