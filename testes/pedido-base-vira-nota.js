@@ -66,23 +66,31 @@ async function carregar() {
   win.DB.lojaAtual = 'suc_sf'; win.lojaAtualId = () => 'suc_sf';
   win.DB.fornec = []; win.DB.notas = []; win.DB.lancFin = []; win.DB.movEst = []; win.DB.comprasSemVinc = [];
   win.DB.fichaCats = []; win.DB.estoqueUn = [];
-  win.DB.insumos = [{ id: 'ins_ac', nome: 'Açúcar', unidade: 'kg', controlaEstoque: true, estoqueAtual: 0 }];
-  win.DB.fichas = [{ id: 'f_bm', nome: 'BASE MORANGO', unidade: 'kg', estocavel: true, itens: [], rendimento: 1, estoqueAtual: 0 }];
+  /* como em Santa Fé: a ficha "BASE NINHO" é a receita da matriz (não estocável)
+     e o INSUMO "BASE NINHO" é o que a unidade estoca e as receitas consomem */
+  win.DB.insumos = [{ id: 'ins_ac', nome: 'Açúcar', unidade: 'kg', controlaEstoque: true, estoqueAtual: 0 },
+                    { id: 'ins_bn', nome: 'BASE NINHO', unidade: 'un', controlaEstoque: true, estoqueAtual: 0, sucursais: ['suc_sf'] }];
+  win.DB.fichas = [{ id: 'f_bm', nome: 'BASE MORANGO', unidade: 'kg', estocavel: true, itens: [], rendimento: 1, estoqueAtual: 0 },
+                   { id: 'f_bn', nome: 'BASE NINHO', unidade: 'un', estocavel: false, itens: [], rendimento: 1 }];
   win.DB.pedidosBase = [{ id: 'pb1', numero: 7, sucursalRef: 'suc_sf', sucursalNome: 'Santa Fé', data: '2026-09-15',
-    situacao: 'entregue', total: 120, entradaEstoque: false,
+    situacao: 'entregue', total: 470, entradaEstoque: false,
     itens: [{ id: 'i1', baseRef: 'b1', baseNome: 'BASE MORANGO', fichaRef: 'f_bm', qtd: 2, porCaixa: 5, precoUnit: 10, valorUnit: 50, total: 100 },
-            { id: 'i2', baseRef: 'b2', baseNome: 'Açúcar', fichaRef: '', qtd: 1, porCaixa: 1, precoUnit: 20, valorUnit: 20, total: 20 }] }];
+            { id: 'i2', baseRef: 'b2', baseNome: 'Açúcar', fichaRef: '', qtd: 1, porCaixa: 1, precoUnit: 20, valorUnit: 20, total: 20 },
+            { id: 'i3', baseRef: 'b3', baseNome: 'Base Ninho', fichaRef: 'f_bn', qtd: 5, porCaixa: 1, precoUnit: 70, valorUnit: 70, total: 350 }] }];
 
   grupo('O botão abre a nota já preenchida com as bases do pedido');
   win.abrirNotaDoPedidoBase('pb1');
   const n = win._nota;
-  t('a nota nasceu', !!n && (n.itens || []).length === 2, n && n.itens && n.itens.length);
+  t('a nota nasceu com as 3 bases', !!n && (n.itens || []).length === 3, n && n.itens && n.itens.length);
   t('fornecedor é o Franqueador (criado sozinho)', n.fornecedorNome === 'Franqueador' && win.DB.fornec.some(f => /franqueador/i.test(f.empresa)));
   t('o Franqueador nasce visível em todas as unidades', (win.DB.fornec.find(f => /franqueador/i.test(f.empresa)) || {}).sucursais.indexOf('*') >= 0);
   const i0 = n.itens[0], i1 = n.itens[1];
   t('base ligada à ficha, em unidades (2 caixas × 5 = 10) a R$ 10', i0.insumoId === 'f_bm' && i0.qtd === 10 && i0.valorUn === 10 && i0.total === 100, JSON.stringify(i0));
   t('item sem ficha ligado ao insumo de mesmo nome', i1.insumoId === 'ins_ac' && i1.total === 20, JSON.stringify(i1));
-  t('a nota lembra o pedido e o total esperado (R$ 120)', n.pedidoBaseRef === 'pb1' && n.valorEsperado === 120);
+  const i2 = n.itens[2];
+  t('BASE NINHO vai para o INSUMO de mesmo nome, não para a ficha da matriz (5 un a R$ 70)',
+    i2.insumoId === 'ins_bn' && i2.qtd === 5 && i2.valorUn === 70 && i2.total === 350, JSON.stringify(i2));
+  t('a nota lembra o pedido e o total esperado (R$ 470)', n.pedidoBaseRef === 'pb1' && n.valorEsperado === 470);
   t('a tela mostra "Pedido de base #0007" e "confere"', /Pedido de base #0007/.test(doc.body.innerHTML) && /confere/.test(doc.body.innerHTML));
 
   grupo('Total que não bate: avisa e não dá entrada');
@@ -96,9 +104,12 @@ async function carregar() {
   win._nota.itens[0].total = 100; win.desenhaNota();
   toasts.length = 0; win.confirmarNota();
   const nota = win.DB.notas[0];
-  t('a nota foi gravada', !!nota && nota.valorTotal === 120, nota && nota.valorTotal);
+  t('a nota foi gravada', !!nota && nota.valorTotal === 470, nota && nota.valorTotal);
   const mov = win.DB.movEst[0];
-  t('o movimento de entrada existe (NF)', !!mov && mov.origem === 'nota' && mov.linhas.length === 2, mov && JSON.stringify(mov.linhas));
+  t('o movimento de entrada existe (NF) com as 3 linhas', !!mov && mov.origem === 'nota' && mov.linhas.length === 3, mov && JSON.stringify(mov.linhas));
+  t('BASE NINHO entrou no insumo com 5 un', mov && mov.linhas.some(l => l.insumoId === 'ins_bn' && l.qtd === 5 && l.direcao === 'entrada'));
+  const saldoNinho = typeof win.saldoUn === 'function' ? win.saldoUn('ins_bn', 'suc_sf') : win.DB.insumos[1].estoqueAtual;
+  t('o estoque de BASE NINHO na unidade é 5', Math.abs(saldoNinho - 5) < 0.0001, saldoNinho);
   t('a base (ficha) entrou com 10 kg', mov && mov.linhas.some(l => l.insumoId === 'f_bm' && l.qtd === 10 && l.direcao === 'entrada'));
   t('o insumo entrou com 1 kg', mov && mov.linhas.some(l => l.insumoId === 'ins_ac' && l.qtd === 1));
   const saldoBase = typeof win.saldoUn === 'function' ? win.saldoUn('f_bm', 'suc_sf') : win.DB.fichas[0].estoqueAtual;
@@ -109,12 +120,24 @@ async function carregar() {
   t('enquanto o financeiro não é feito, a nota está em Compras sem Vínculo', win.DB.comprasSemVinc.some(c => c.notaId === nota.id && c.tipo === 'pendente'));
 
   grupo('Financeiro feito: a conta a pagar fica no pedido e a nota sai de "sem vínculo"');
-  const lanc = { id: 'lf_1', tipo: 'despesa', valor: 120, pago: false };
+  const lanc = { id: 'lf_1', tipo: 'despesa', valor: 470, pago: false };
   win.DB.lancFin.push(lanc);
   win.vincularLancsANota(nota, [lanc]);
   t('o lançamento é do Franqueador', lanc.fornecedor === 'Franqueador' && lanc.origem === 'nota-entrada');
   t('o pedido de base aponta para a conta a pagar', p.finPagarRef === 'lf_1', p.finPagarRef);
   t('saiu de Compras sem Vínculo', !win.DB.comprasSemVinc.some(c => c.notaId === nota.id));
+
+  grupo('"Recebi as bases" usa a mesma porta: BASE NINHO cai no insumo');
+  win.DB.pedidosBase.push({ id: 'pb2', numero: 8, sucursalRef: 'suc_sf', sucursalNome: 'Santa Fé', data: '2026-09-16',
+    situacao: 'entregue', total: 140, entradaEstoque: false,
+    itens: [{ id: 'j1', baseRef: 'b3', baseNome: 'BASE NINHO', fichaRef: 'f_bn', qtd: 2, porCaixa: 1, precoUnit: 70, valorUnit: 70, total: 140 }] });
+  win.confirmar = async () => true;
+  await win.receberPedidoBase('pb2');
+  const movR = win.DB.movEst[win.DB.movEst.length - 1];
+  t('o movimento do recebimento aponta para o insumo BASE NINHO', movR && movR.linhas.some(l => l.insumoId === 'ins_bn' && l.qtd === 2 && l.tipo === 'insumo'), movR && JSON.stringify(movR.linhas));
+  const saldoNinho2 = typeof win.saldoUn === 'function' ? win.saldoUn('ins_bn', 'suc_sf') : win.DB.insumos[1].estoqueAtual;
+  t('o estoque de BASE NINHO passou a 7', Math.abs(saldoNinho2 - 7) < 0.0001, saldoNinho2);
+  t('o pedido #0008 ficou "no estoque"', win.DB.pedidosBase[1].entradaEstoque === true);
 
   grupo('Não entra duas vezes');
   toasts.length = 0; win.abrirNotaDoPedidoBase('pb1');

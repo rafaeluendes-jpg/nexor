@@ -144,11 +144,12 @@ function fornecedorFranqueador(){
 }
 /* item do estoque com exatamente este nome: insumo primeiro, depois ficha estocavel */
 function itemEstoquePorNome(nome){
-  var k=String(nome||'').trim().toLowerCase();
+  var norm=function(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim()};
+  var k=norm(nome);
   if(!k)return null;
-  var i=(DB.insumos||[]).find(function(x){return x&&String(x.nome||'').trim().toLowerCase()===k});
+  var i=(DB.insumos||[]).find(function(x){return x&&norm(x.nome)===k});
   if(i)return i;
-  return (DB.fichas||[]).find(function(x){return x&&x.estocavel!==false&&String(x.nome||'').trim().toLowerCase()===k})||null;
+  return (DB.fichas||[]).find(function(x){return x&&x.estocavel!==false&&norm(x.nome)===k})||null;
 }
 function abrirNotaDoPedidoBase(id){
   var lista=(typeof basePedidos==='function')?basePedidos():(DB.pedidosBase||[]);
@@ -161,7 +162,9 @@ function abrirNotaDoPedidoBase(id){
   var forn=fornecedorFranqueador();
   var semItem=[];
   var itens=(p.itens||[]).map(function(it){
-    var alvo=(DB.fichas||[]).find(function(x){return x&&x.id===it.fichaRef})||
+    /* o mesmo resolvedor de "Recebi as bases": insumo de mesmo nome primeiro,
+       ficha so se for estocavel (a ficha da base e a receita da matriz) */
+    var alvo=(typeof itemDaBaseNoEstoque==='function'?itemDaBaseNoEstoque(it):null)||
              itemEstoquePorNome(it.baseNome||it.nome);
     var q=Number(unidadesDoItem(it))||0;
     var tot=+(Number(it.total)||0).toFixed(2);

@@ -691,6 +691,33 @@ function saidaBasesMatriz(p){
 }
 
 /* ---------- 3. FILIAL: dar entrada no estoque ---------- */
+/* ==========================================================
+   QUAL ITEM DO ESTOQUE RECEBE A BASE (Rafael, 16/09/2026)
+
+   Na unidade, a base e um INSUMO de mesmo nome ("BASE NINHO", em un):
+   e ele que as receitas de sabor consomem. A ficha tecnica "BASE NINHO"
+   e a receita da matriz e nao e estocavel — dar entrada nela e dar
+   entrada em lugar nenhum. Entao a ordem e: insumo de mesmo nome;
+   senao, a ficha ligada ao pedido (se estocavel); senao, ficha
+   estocavel de mesmo nome. Nomes comparados sem acento, caixa ou
+   espaco sobrando. Uma porta so, para a nota e para "Recebi as bases".
+   ========================================================== */
+function chaveNomeBase(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+function itemDaBaseNoEstoque(it){
+  if(!it)return null;
+  var k=chaveNomeBase(it.baseNome||it.nome);
+  var ins=k?(DB.insumos||[]).find(function(x){return x&&chaveNomeBase(x.nome)===k}):null;
+  if(ins)return ins;
+  var f=(DB.fichas||[]).find(function(x){return x&&x.id===it.fichaRef});
+  if(f&&f.estocavel!==false)return f;
+  if(k){
+    f=(DB.fichas||[]).find(function(x){return x&&x.estocavel!==false&&chaveNomeBase(x.nome)===k});
+    if(f)return f;
+  }
+  return null;
+}
 async function receberPedidoBase(id){
   var p = basePedidos().find(function (x) { return x.id === id; });
   if (!p) return;
@@ -705,8 +732,10 @@ async function receberPedidoBase(id){
      produto acabado na filial. Sem ficha ligada, entra pelo próprio nome. */
   var itens = [], semItem = [];
   (p.itens || []).forEach(function (it) {
-    var f = (DB.fichas || []).find(function (x) { return x.id === it.fichaRef; });
-    if (f) itens.push({ tipo: 'ficha', refId: f.id, unidade: f.unidade || 'un',
+    /* o insumo de mesmo nome da unidade; a ficha so se for estocavel */
+    var f = itemDaBaseNoEstoque(it);
+    if (f) itens.push({ tipo: (f.itens !== undefined && f.rendimento !== undefined) ? 'ficha' : 'insumo',
+                        refId: f.id, unidade: f.unidade || 'un',
                         qtd: unidadesDoItem(it),
                         custo: precoUnitDoItem(it), obs: it.baseNome });
     else semItem.push(it);
@@ -735,10 +764,10 @@ async function receberPedidoBase(id){
   if (!ok) return;
 
   var linhas = itens.map(function (i) {
-    var f = (DB.fichas || []).find(function (x) { return x.id === i.refId; });
+    var f = itemEstoque(i.refId);
     return { insumoId: i.refId, nome: (f || {}).nome || i.obs, unidade: i.unidade,
              qtd: Number(i.qtd) || 0, custo: Number(i.custo) || 0,
-             direcao: 'entrada', tipo: 'ficha' };
+             direcao: 'entrada', tipo: i.tipo || 'ficha' };
   });
   var mov = {
     id: uid('mv'), data: hojeISO(), hora: agoraHM(),
