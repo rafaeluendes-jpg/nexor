@@ -13606,7 +13606,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V336.0.0';
+var VERSAO='V337.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -36184,9 +36184,17 @@ function telaMovimentacao(){
       '<td class="obsC">'+(l.sistema!==undefined
         ?'sistema '+fmtQt(l.sistema)+' · contado '+fmtQt(l.conferido)
         :E(l.obs||m.obs||''))+'</td>'+
+      /* ==========================================================
+         MOVIMENTACAO DE ESTOQUE NAO SE APAGA (Rafael, 17/09/2026)
+
+         Esta tela e o RAZAO do estoque: cada entrada, cada baixa, cada
+         contagem. Apagar uma linha daqui some com a historia e deixa o
+         saldo sem explicacao — e nada avisa que faltou. Quem desfaz uma
+         compra e a nota de entrada; quem desfaz uma contagem e outra
+         contagem. Aqui so se consulta.
+         ========================================================== */
       '<td><div class="rowAct">'+
        '<button class="rBtn" onclick="verMovimento(\''+m.id+'\')" title="Ver o lançamento">'+sv('eye',11)+'</button>'+
-       (m.origem!=='venda'?'<button class="rBtn rd" onclick="excluirMov(\''+m.id+'\')" title="Excluir lançamento">'+sv('trash',11)+'</button>':'')+
       '</div></td></tr>';
     }).join('')+'</tbody>'+
     /* ==========================================================
@@ -36350,23 +36358,9 @@ function verMovimento(id){
   var ov=document.createElement('div');ov.className='mdOv';ov.id='mdOv';
   ov.innerHTML='<div class="mdBox xl"><div class="mdH"><b>Lançamento de estoque</b>'+
    '<button onclick="fecharModal()">&times;</button></div>'+h+
-   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
-   (m.origem!=='venda'?'<button class="btnP2 rdB" onclick="excluirMov(\''+m.id+'\')">'+
-     sv('trash',13)+' Excluir lançamento</button>':'')+'</div></div>';
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
   document.body.appendChild(ov);
   fecharSoForaDeVerdade(ov);
-}
-async function excluirMov(id){
-  var m=(DB.movEst||[]).find(function(x){return x.id===id});
-  if(!m)return;
-  var ok=await confirmar({titulo:'Excluir lançamento de estoque',
-    texto:'As quantidades voltam para o estoque como estavam antes.',
-    ok:'Excluir',tipo:'perigo'});
-  if(!ok)return;
-  aplicarMovimento(m,true);
-  DB.movEst=DB.movEst.filter(function(x){return x.id!==id});
-  salvar();fecharModal();telaMovimentacao();
-  toast('Lançamento excluído e estoque desfeito.');
 }
 function buscarMov(){MV.de=$('mvDe').value;MV.ate=$('mvAte').value;telaMovimentacao();}
 function exportarMov(){
