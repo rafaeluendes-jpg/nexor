@@ -191,6 +191,23 @@ function repararDestinos(){
        ========================================================== */
     if(gvId&&/gelato\s*venda/i.test(o.destinoNome||'')&&!/^\s*BASE\b/i.test(o.nome||'')
        &&o.destinoId!==gvId){ o.destinoId=gvId;consertados++;return; }
+    /* ==========================================================
+       O NOME GUARDADO MANDA SOBRE O GEMEO (Santa Fe, 17/09/2026)
+       A ficha MASSA CASCAO TRADICIONAL dizia destino "CASCAO TRADICIONAL"
+       (o cascao pronto, em unidades), mas o destinoId apontava para o
+       insumo gemeo "MASSA CASCAO TRADICIONAL" (em kg). A producao passava
+       a dizer "gera 40 kg" quando gera 40 cascoes. Regra: se o nome
+       guardado e um item que existe e o vinculo aponta para um item com
+       o MESMO nome da ficha (o gemeo), religa pelo nome. Base fica fora:
+       ela e intermediaria e mora no proprio item.
+       ========================================================== */
+    var peloNome=porNome[String(o.destinoNome||'').toLowerCase()];
+    if(peloNome&&peloNome!==o.destinoId&&!/^\s*BASE\b/i.test(o.nome||'')){
+      var atual=itemEstoque(o.destinoId);
+      if(atual&&String(atual.nome||'').toLowerCase().trim()===String(o.nome||'').toLowerCase().trim()){
+        o.destinoId=peloNome;consertados++;return;
+      }
+    }
     if(itemEstoque(o.destinoId))return;                 /* está válido */
     var alvo=porNome[String(o.destinoNome||'').toLowerCase()];
     if(!alvo&&/gelato/i.test(o.nome||''))alvo=porNome['gelato venda'];

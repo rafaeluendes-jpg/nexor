@@ -32973,6 +32973,23 @@ function repararDestinos(){
        ========================================================== */
     if(gvId&&/gelato\s*venda/i.test(o.destinoNome||'')&&!/^\s*BASE\b/i.test(o.nome||'')
        &&o.destinoId!==gvId){ o.destinoId=gvId;consertados++;return; }
+    /* ==========================================================
+       O NOME GUARDADO MANDA SOBRE O GEMEO (Santa Fe, 17/09/2026)
+       A ficha MASSA CASCAO TRADICIONAL dizia destino "CASCAO TRADICIONAL"
+       (o cascao pronto, em unidades), mas o destinoId apontava para o
+       insumo gemeo "MASSA CASCAO TRADICIONAL" (em kg). A producao passava
+       a dizer "gera 40 kg" quando gera 40 cascoes. Regra: se o nome
+       guardado e um item que existe e o vinculo aponta para um item com
+       o MESMO nome da ficha (o gemeo), religa pelo nome. Base fica fora:
+       ela e intermediaria e mora no proprio item.
+       ========================================================== */
+    var peloNome=porNome[String(o.destinoNome||'').toLowerCase()];
+    if(peloNome&&peloNome!==o.destinoId&&!/^\s*BASE\b/i.test(o.nome||'')){
+      var atual=itemEstoque(o.destinoId);
+      if(atual&&String(atual.nome||'').toLowerCase().trim()===String(o.nome||'').toLowerCase().trim()){
+        o.destinoId=peloNome;consertados++;return;
+      }
+    }
     if(itemEstoque(o.destinoId))return;                 /* está válido */
     var alvo=porNome[String(o.destinoNome||'').toLowerCase()];
     if(!alvo&&/gelato/i.test(o.nome||''))alvo=porNome['gelato venda'];
@@ -39006,8 +39023,13 @@ function telaProducao(){
   var lista=(DB.ordensProd||[]).filter(function(o){
     return (!OP.de||o.data>=OP.de)&&(!OP.ate||o.data<=OP.ate);
   }).sort(function(a,b){return (b.data+b.hora).localeCompare(a.data+a.hora)});
-  var prev=lista.reduce(function(a,o){return a+(Number(o.previsto)||0)},0);
-  var real=lista.reduce(function(a,o){return a+(Number(o.real)||0)},0);
+  /* totais por unidade: cascao e em unidades, gelato e em kg — somar os
+     dois como "kg" era o erro da tela (Rafael, 17/09/2026) */
+  var porU={};
+  lista.forEach(function(o){
+    var t=totaisPorUnidadeOP(o);
+    Object.keys(t).forEach(function(u){porU[u]=porU[u]||{prev:0,real:0};porU[u].prev+=t[u].prev;porU[u].real+=t[u].real;});
+  });
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
    faixaProducaoEmAndamento()+
@@ -39015,10 +39037,7 @@ function telaProducao(){
     '<div><h1>Produção</h1><p>Ordens de produção com conferência de peso e baixa automática.</p></div>'+
     '<div class="etTot">'+
      '<div class="etT"><span>Ordens</span><b>'+lista.length+'</b></div>'+
-     '<div class="etT"><span>Previsto</span><b>'+fmtQt(prev)+' kg</b></div>'+
-     '<div class="etT"><span>Produzido</span><b>'+fmtQt(real)+' kg</b></div>'+
-     '<div class="etT dest"><span>Diferença</span><b class="'+((real-prev)>=0?'vg':'vr')+'">'+
-      ((real-prev)>=0?'+':'')+fmtQt(real-prev)+' kg</b></div>'+
+     (Object.keys(porU).length?htmlTotaisOP(porU):'<div class="etT"><span>Previsto</span><b>—</b></div>')+
     '</div>'+
     '<button class="btnP2 ok" onclick="novaOP()">'+sv('plus',14)+' Nova ordem de produção</button>'+
    '</div>'+
@@ -39044,10 +39063,10 @@ function telaProducao(){
       '<td>'+dataBR(o.data)+'<small>'+E(o.hora||'')+'</small></td>'+
       '<td style="text-align:center">'+(o.itens||[]).length+'</td>'+
       '<td>'+E(o.resp||'—')+'</td>'+
-      '<td style="text-align:right">'+fmtQt(o.previsto)+' kg</td>'+
-      '<td style="text-align:right"><b>'+fmtQt(o.real)+' kg</b></td>'+
+      '<td style="text-align:right">'+textoQtdOP(totaisPorUnidadeOP(o),'prev')+'</td>'+
+      '<td style="text-align:right"><b>'+textoQtdOP(totaisPorUnidadeOP(o),'real')+'</b></td>'+
       '<td style="text-align:right"><b class="'+(dif>=0?'vg':'vr')+'">'+
-       (dif>0?'+':'')+fmtQt(dif)+' kg</b></td>'+
+       textoQtdOP(totaisPorUnidadeOP(o),'dif')+'</b></td>'+
       '<td onclick="event.stopPropagation()"><div class="rowAct">'+
        '<button class="rBtn" onclick="verOP(\''+o.id+'\')" title="Ver">'+sv('eye',12)+'</button>'+
        '<button class="rBtn" onclick="imprimirOP(\''+o.id+'\')" title="Imprimir">'+sv('print2',12)+'</button>'+
@@ -39159,6 +39178,35 @@ function telaOPNova(){
      '<input id="opObs" value="'+E(OP.obs)+'" placeholder="observação da produção"></div>'+
    '</div></div>';
   ligarOP();
+}
+/* a unidade de um item de ordem: gravada na ordem; ordem antiga, sem ela,
+   pergunta a ficha (o destino manda: cascao em un, gelato em kg) */
+function unidadeItemOP(it){
+  if(it&&it.unidade)return it.unidade;
+  var f=(DB.fichas||[]).find(function(x){return x.id===(it&&it.fichaId)});
+  if(!f)return 'kg';
+  try{ return previstoDestino(f).unidade||f.unidade||'kg'; }catch(e){ return f.unidade||'kg'; }
+}
+/* previsto/produzido de uma ordem gravada, separados por unidade */
+function totaisPorUnidadeOP(o){
+  var por={};
+  ((o&&o.itens)||[]).forEach(function(it){
+    var u=unidadeItemOP(it)||'kg';
+    por[u]=por[u]||{prev:0,real:0};
+    por[u].prev+=Number(it.previsto)||0;
+    por[u].real+=Number(it.real)||0;
+  });
+  if(!Object.keys(por).length&&o)por.kg={prev:Number(o.previsto)||0,real:Number(o.real)||0};
+  return por;
+}
+/* "300 un" · "55,07 kg · 40 un" — campo: prev, real ou dif */
+function textoQtdOP(por,campo){
+  var ks=Object.keys(por||{});
+  if(!ks.length)return '—';
+  return ks.map(function(u){
+    var v=campo==='dif'?(por[u].real-por[u].prev):por[u][campo];
+    return (campo==='dif'&&v>0?'+':'')+fmtQt(v)+' '+un(u).ab;
+  }).join(' · ');
 }
 /* soma separada por unidade: kg com kg, unidade com unidade */
 function totaisOP(){
@@ -39464,6 +39512,7 @@ async function confirmarProducao(){
     itens:OP.itens.map(function(it){
       var tot=somaCubas(it);
       return {fichaId:it.fichaId,nome:it.nome,receitas:recOP(it),previsto:Number(it.previsto)||0,
+        unidade:it.unidade||'kg',destinoNome:it.destinoNome||'',
         cubas:(it.cubas||[]).map(function(c){return parseFloat(c)||0}),
         real:+tot.toFixed(3),diferenca:tot?+(tot-(Number(it.previsto)||0)).toFixed(3):0};
     })};
@@ -39489,10 +39538,10 @@ function verOP(id){
   var h='<div class="mdB">'+
   '<div class="acKpis">'+
    '<div class="acK"><span>Sabores</span><b>'+(o.itens||[]).length+'</b></div>'+
-   '<div class="acK"><span>Previsto</span><b>'+fmtQt(o.previsto)+' kg</b></div>'+
-   '<div class="acK"><span>Produzido</span><b>'+fmtQt(o.real)+' kg</b></div>'+
+   '<div class="acK"><span>Previsto</span><b>'+textoQtdOP(totaisPorUnidadeOP(o),'prev')+'</b></div>'+
+   '<div class="acK"><span>Produzido</span><b>'+textoQtdOP(totaisPorUnidadeOP(o),'real')+'</b></div>'+
    '<div class="acK dest3"><span>Diferença</span><b class="'+((o.diferenca||0)>=0?'vg':'vr')+'">'+
-    ((o.diferenca||0)>0?'+':'')+fmtQt(o.diferenca)+' kg</b></div>'+
+    textoQtdOP(totaisPorUnidadeOP(o),'dif')+'</b></div>'+
   '</div>'+
   '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">'+
    '<div class="acTit">Ordem '+E(o.numero)+' · '+dataBR(o.data)+' '+E(o.hora||'')+
@@ -39504,12 +39553,12 @@ function verOP(id){
     '<th style="width:110px;text-align:right">Diferença</th></tr></thead><tbody>'+
     (o.itens||[]).map(function(it){
       return '<tr><td><b>'+E(it.nome)+'</b></td>'+
-      '<td style="text-align:right">'+fmtQt(it.previsto)+' kg</td>'+
+      '<td style="text-align:right">'+fmtQt(it.previsto)+' '+un(unidadeItemOP(it)).ab+'</td>'+
       '<td style="text-align:right;color:var(--ink-3)">'+
        (it.cubas||[]).filter(function(c){return c}).map(function(c){return fmtQt(c)}).join(' + ')+'</td>'+
-      '<td style="text-align:right"><b>'+fmtQt(it.real)+' kg</b></td>'+
+      '<td style="text-align:right"><b>'+fmtQt(it.real)+' '+un(unidadeItemOP(it)).ab+'</b></td>'+
       '<td style="text-align:right"><b class="'+((it.diferenca||0)>=0?'vg':'vr')+'">'+
-       ((it.diferenca||0)>0?'+':'')+fmtQt(it.diferenca)+' kg</b></td></tr>';
+       ((it.diferenca||0)>0?'+':'')+fmtQt(it.diferenca)+' '+un(unidadeItemOP(it)).ab+'</b></td></tr>';
     }).join('')+'</tbody></table></div></div>'+
    (o.obs?'<div class="hint" style="margin-top:10px">Obs.: '+E(o.obs)+'</div>':'')+
   '</div>';
@@ -39546,7 +39595,7 @@ async function excluirOP(id){
   var ok=await confirmar({
     titulo:'Excluir a ordem '+o.numero+'?',
     texto:'O estoque volta ao que era antes desta produção.',
-    linhas:[['Produzido',fmtQt(o.real)+' kg',''],
+    linhas:[['Produzido',textoQtdOP(totaisPorUnidadeOP(o),'real'),''],
             ['Movimentos a desfazer',String(movs.length),''],
             ['Depois disso','não tem como refazer pela tela','']],
     aviso:'Os ingredientes consumidos <b>voltam ao estoque</b> e o que foi '+
@@ -39580,14 +39629,14 @@ function imprimirOP(id){
    '<th align="right">Real</th><th align="right">Dif.</th></tr>'+
    (o.itens||[]).map(function(it){
      return '<tr><td>'+E(it.nome)+'</td>'+
-     '<td align="right">'+fmtQt(it.previsto)+' kg</td>'+
+     '<td align="right">'+fmtQt(it.previsto)+' '+un(unidadeItemOP(it)).ab+'</td>'+
      '<td align="right">'+(it.cubas||[]).filter(function(c){return c}).map(function(c){return fmtQt(c)}).join(' + ')+'</td>'+
-     '<td align="right">'+fmtQt(it.real)+' kg</td>'+
+     '<td align="right">'+fmtQt(it.real)+' '+un(unidadeItemOP(it)).ab+'</td>'+
      '<td align="right">'+((it.diferenca||0)>0?'+':'')+fmtQt(it.diferenca)+'</td></tr>';
    }).join('')+
    '<tr style="border-top:1px solid #000"><td><b>TOTAL</b></td>'+
-   '<td align="right"><b>'+fmtQt(o.previsto)+' kg</b></td><td></td>'+
-   '<td align="right"><b>'+fmtQt(o.real)+' kg</b></td>'+
+   '<td align="right"><b>'+textoQtdOP(totaisPorUnidadeOP(o),'prev')+'</b></td><td></td>'+
+   '<td align="right"><b>'+textoQtdOP(totaisPorUnidadeOP(o),'real')+'</b></td>'+
    '<td align="right"><b>'+((o.diferenca||0)>0?'+':'')+fmtQt(o.diferenca)+'</b></td></tr>'+
   '</table>'+
   (o.obs?'<div style="font-size:11px;margin-top:8px"><b>Obs.:</b> '+E(o.obs)+'</div>':'')+

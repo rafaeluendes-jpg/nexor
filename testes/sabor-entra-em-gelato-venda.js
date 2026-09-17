@@ -95,6 +95,31 @@ async function carregar() {
     f('f_base').destinoId === 'tw_base', f('f_base').destinoId);
   t('ficha já certa fica como está', f('f_ok').destinoId === 'gv1');
 
+  grupo('Cascão: o nome guardado manda sobre o gêmeo (17/09/2026)');
+  /* Santa Fé: a ficha MASSA CASCAO TRADICIONAL dizia destino "CASCAO TRADICIONAL"
+     (cascão pronto, un) mas apontava para o insumo gêmeo "MASSA CASCAO TRADICIONAL" (kg) */
+  win.DB.insumos.push({ id: 'ins_massa_trad', nome: 'MASSA CASCAO TRADICIONAL', unidade: 'kg', controlaEstoque: true });
+  win.DB.insumos.push({ id: 'ins_cascao_trad', nome: 'CASCAO TRADICIONAL', unidade: 'un', controlaEstoque: true });
+  win.DB.fichas.push({ id: 'f_massa_trad', nome: 'MASSA CASCAO TRADICIONAL', destinoId: 'ins_massa_trad', destinoNome: 'CASCAO TRADICIONAL',
+    destinoModo: 'receita', destinoFator: 40, rendimento: 2.46, unidade: 'kg', rendUnidade: 'kg', itens: [{ insumoId: 'tw_base', qtd: 1 }] });
+  const n3 = win.repararDestinos();
+  t('religou a massa para o CASCAO TRADICIONAL (un)', f('f_massa_trad').destinoId === 'ins_cascao_trad', f('f_massa_trad').destinoId);
+  t('religou exatamente 1', n3 === 1, n3);
+  const pd = win.previstoDestino(f('f_massa_trad'));
+  t('a produção passa a dizer "gera 40 un de CASCAO TRADICIONAL", não "40 kg"', pd.qtd === 40 && pd.unidade === 'un' && pd.destino && pd.destino.nome === 'CASCAO TRADICIONAL', JSON.stringify(pd));
+  t('BASE ABACAXI continua no próprio item mesmo com essa regra', f('f_base').destinoId === 'tw_base');
+
+  grupo('A lista de ordens mostra a unidade certa, nunca "kg" fixo');
+  ['unidadeItemOP', 'totaisPorUnidadeOP', 'textoQtdOP'].forEach(fn => t('existe ' + fn + '()', typeof win[fn] === 'function'));
+  const opCascao = { previsto: 320, real: 320, itens: [{ fichaId: 'f_massa_trad', nome: 'MASSA CASCAO TRADICIONAL', previsto: 40, real: 40 }, { fichaId: 'f_massa_trad', nome: 'MASSA CASCAO TRADICIONAL', previsto: 40, real: 40 }] };
+  t('ordem antiga de cascão (sem unidade gravada) aparece em un', win.textoQtdOP(win.totaisPorUnidadeOP(opCascao), 'prev') === '80 un', win.textoQtdOP(win.totaisPorUnidadeOP(opCascao), 'prev'));
+  const opMista = { itens: [{ fichaId: 'f_ok', nome: 'PISTACHE GELATO', unidade: 'kg', previsto: 4.8, real: 5 }, { fichaId: 'f_massa_trad', nome: 'MASSA CASCAO TRADICIONAL', unidade: 'un', previsto: 40, real: 40 }] };
+  t('ordem mista separa kg e un', win.textoQtdOP(win.totaisPorUnidadeOP(opMista), 'real') === '5 kg · 40 un', win.textoQtdOP(win.totaisPorUnidadeOP(opMista), 'real'));
+  t('a diferença vem com sinal por unidade', win.textoQtdOP(win.totaisPorUnidadeOP(opMista), 'dif') === '+0,2 kg · 0 un', win.textoQtdOP(win.totaisPorUnidadeOP(opMista), 'dif'));
+  const html = fs.readFileSync(ARQ, 'utf8');
+  const tela = html.slice(html.indexOf('function telaProducao('), html.indexOf('function telaProducao(') + 6000);
+  t('a lista de ordens não escreve mais " kg" fixo', !/\+' kg/.test(tela) && /textoQtdOP\(/.test(tela));
+
   grupo('Rodar de novo não mexe em nada (idempotente)');
   const n2 = win.repararDestinos();
   t('segunda passada religa 0', n2 === 0, n2);
