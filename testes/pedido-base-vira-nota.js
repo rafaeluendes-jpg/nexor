@@ -93,15 +93,20 @@ async function carregar() {
   t('a nota lembra o pedido e o total esperado (R$ 470)', n.pedidoBaseRef === 'pb1' && n.valorEsperado === 470);
   t('a tela mostra "Pedido de base #0007" e "confere"', /Pedido de base #0007/.test(doc.body.innerHTML) && /confere/.test(doc.body.innerHTML));
 
+  t('o número da nota nasce vazio: quem digita é a pessoa (17/09/2026)', n.numero === '' && doc.getElementById('ntNum').value === '');
+  toasts.length = 0; win.confirmarNota();
+  t('sem número, não dá entrada e pede o número', toasts.some(x => /Informe o número da nota/.test(x)) && win.DB.notas.length === 0, toasts.join(' | '));
+  doc.getElementById('ntNum').value = 'FRQ-0007';   /* a pessoa digitou o número da nota do Franqueador */
+
   grupo('Total que não bate: avisa e não dá entrada');
-  n.itens[0].total = 90; win.desenhaNota();
+  n.itens[0].total = 90; win.desenhaNota(); doc.getElementById('ntNum').value = 'FRQ-0007';
   t('a tela avisa "não bate"', /não bate/.test(doc.body.innerHTML));
   toasts.length = 0; win.confirmarNota();
   t('recusou com "não bate com o pedido de base"', toasts.some(x => /não bate com o pedido de base/.test(x)), toasts.join(' | '));
   t('nada entrou: sem nota, sem movimento, pedido não marcado', win.DB.notas.length === 0 && win.DB.movEst.length === 0 && !win.DB.pedidosBase[0].entradaEstoque);
 
   grupo('Total certo: estoque entra na hora e o financeiro abre');
-  win._nota.itens[0].total = 100; win.desenhaNota();
+  win._nota.itens[0].total = 100; win.desenhaNota(); doc.getElementById('ntNum').value = 'FRQ-0007';
   toasts.length = 0; win.confirmarNota();
   const nota = win.DB.notas[0];
   t('a nota foi gravada', !!nota && nota.valorTotal === 470, nota && nota.valorTotal);

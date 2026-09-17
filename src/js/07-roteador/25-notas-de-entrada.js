@@ -114,7 +114,9 @@ function perNota(n){
 /* ---------- JANELA DE LANÇAMENTO ---------- */
 function novaNota(){
   baseNotas();
-  _nota={id:null,numero:proxNumNota(),fornecedorId:'',fornecedorNome:'',
+  /* o numero da nota e o da NOTA DO FORNECEDOR: quem digita e a pessoa.
+     Nasce vazio (Rafael, 17/09/2026) — antes vinha um numero inventado. */
+  _nota={id:null,numero:'',fornecedorId:'',fornecedorNome:'',
     data:hojeISO(),hora:agoraHM(),itens:[],obs:''};
   desenhaNota();
 }
@@ -174,7 +176,7 @@ function abrirNotaDoPedidoBase(id){
       unidade:(alvo&&alvo.unidade)||'un',qtd:q,valorUn:vu,desconto:0,total:tot,ncm:''};
   });
   _itemSel=null;
-  _nota={id:null,numero:proxNumNota(),fornecedorId:forn.id,fornecedorNome:forn.empresa,
+  _nota={id:null,numero:'',fornecedorId:forn.id,fornecedorNome:forn.empresa,
     data:hojeISO(),hora:agoraHM(),itens:itens,
     obs:'Pedido de base #'+String(p.numero||0).padStart(4,'0'),
     pedidoBaseRef:p.id,pedidoBaseNumero:p.numero,
@@ -491,6 +493,7 @@ function confirmarNota(){
   guardarCabNota();
   var n=_nota;
   if(!n.fornecedorId){toast('Selecione o fornecedor.');return;}
+  if(!String(n.numero||'').trim()){toast('Informe o número da nota.');return;}
   if(!(n.itens||[]).length){toast('Lance ao menos um item.');return;}
   n.valorMercadorias=+(n.itens.reduce(function(a,i){return a+i.total},0)).toFixed(2);
   n.valorTotal=n.valorMercadorias;
@@ -558,7 +561,10 @@ function abrirFinanceiroNota(n){
     descricao:'NF '+n.numero+' — '+n.fornecedorNome,
     valor:n.valorTotal,
     emissao:n.data,
-    vencimento:n.data,
+    /* o vencimento e escolhido embaixo, no bloco de parcelas (1 parcela =
+       vencimento unico). Nao ha mais a data de cima (Rafael, 17/09/2026). */
+    vencimento:hojeISO(),
+    semVencimentoNoTopo:true,
     documento:'NF '+n.numero,
     soDespesa:true,
     fornecedorId:n.fornecedorId,

@@ -28486,7 +28486,9 @@ function modalLanc(id,tipoNovo,pre){
    '<div class="fld2"><label>Valor *</label><div class="cur"><span>R$</span>'+
     '<input id="lnV" type="number" step="0.01" value="'+(l?l.valor:(P.valor||''))+'"></div></div>'+
    '<div class="fld2"><label>Emissão</label><input id="lnE" type="date" value="'+(l?l.emissao:(P.emissao||hojeISO()))+'"></div>'+
-   '<div class="fld2"><label>Vencimento</label><input id="lnVc" type="date" value="'+(l?l.vencimento:(P.vencimento||hojeISO()))+'"></div>'+
+   /* na nota de entrada o vencimento mora no bloco de baixo: a data de cima
+      confundia (vinha com a data da nota) e foi tirada da tela */
+   '<div class="fld2"'+(P.semVencimentoNoTopo?' style="display:none"':'')+'><label>Vencimento</label><input id="lnVc" type="date" value="'+(l?l.vencimento:(P.vencimento||hojeISO()))+'"></div>'+
   '</div>'+
   '<div class="row3">'+
    '<div class="fld2"><label>Categoria *</label>'+
@@ -28530,9 +28532,13 @@ function modalLanc(id,tipoNovo,pre){
   '</div>'+
   (l?'':
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
-  '<label class="chkL"><input type="checkbox" id="lnParc">'+
-  '<span>Conta parcelada<small style="display:block;color:var(--ink-3)">gera um lançamento para cada parcela, nas datas certas</small></span></label>'+
-  '<div id="boxParc" style="display:none">'+
+  (P.semVencimentoNoTopo
+    /* nota: o bloco fica sempre aberto; 1 parcela = um vencimento so */
+    ? '<label class="chkL" style="cursor:default"><input type="checkbox" id="lnParc" checked style="display:none">'+
+      '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">1 parcela = um vencimento só; mais de 1 gera um lançamento por parcela</small></span></label>'
+    : '<label class="chkL"><input type="checkbox" id="lnParc">'+
+      '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">parcelar: gera um lançamento para cada parcela, nas datas certas</small></span></label>')+
+  '<div id="boxParc" style="display:'+(P.semVencimentoNoTopo?'':'none')+'">'+
    '<div class="row3" style="margin-top:12px">'+
     '<div class="fld2"><label>Periodicidade</label><select id="lnPer" onchange="trocaPerParc()">'+
      '<option value="semanal">Semanal (7 dias)</option>'+
@@ -28541,8 +28547,8 @@ function modalLanc(id,tipoNovo,pre){
      '<option value="bimestral">A cada 2 meses</option>'+
      '<option value="dias">Personalizado (dias)</option>'+
     '</select></div>'+
-    '<div class="fld2"><label>Nº de parcelas</label><input id="lnQtd" type="number" min="2" value="2"></div>'+
-    '<div class="fld2"><label>1º vencimento</label><input id="lnPri" type="date" value="'+hojeISO()+'"></div>'+
+    '<div class="fld2"><label>Nº de parcelas</label><input id="lnQtd" type="number" min="'+(P.semVencimentoNoTopo?1:2)+'" value="'+(P.semVencimentoNoTopo?1:2)+'"></div>'+
+    '<div class="fld2"><label id="lnPriRot">'+(P.semVencimentoNoTopo?'Vencimento':'1º vencimento')+'</label><input id="lnPri" type="date" value="'+hojeISO()+'"></div>'+
     '<div class="fld2" id="boxDias" style="display:none"><label>Intervalo em dias</label>'+
      '<input id="lnDias" type="number" min="1" value="10"></div>'+
    '</div>'+
@@ -28625,6 +28631,15 @@ function modalLanc(id,tipoNovo,pre){
         toast('Os valores das parcelas não batem com o total — '+
           (difP>0?'faltam R$ '+money(difP):'sobram R$ '+money(-difP))+'. Corrija as parcelas.');
         return false;
+      }
+      /* uma parcela so (nota de entrada): e um lancamento unico, com o
+         vencimento escolhido embaixo — sem "(1/1)" no nome */
+      if(ds.length===1){
+        o.vencimento=ds[0];o.valor=vs[0];
+        o.id=uid('lf');DB.lancFin.push(o);
+        salvar();
+        if(_preLanc&&_preLanc.apos){var cb1=_preLanc.apos;_preLanc=null;cb1([o]);return true;}
+        telaLancamentos();toast('Lançamento salvo.');return true;
       }
       var criados=[];
       ds.forEach(function(dt,i){
@@ -28778,7 +28793,7 @@ function trocaPerParc(){
   previewParc();
 }
 function datasCalculadas(){
-  var q=parseInt($('lnQtd').value)||2;
+  var q=Math.max(1,parseInt($('lnQtd').value)||2);
   var per=$('lnPer').value;
   var d0=$('lnPri').value||hojeISO();
   var dias=parseInt(($('lnDias')||{}).value)||10;
@@ -28806,7 +28821,7 @@ function mudaDataParc(i,v){
 }
 function valorParcela(){
   var total=parseFloat($('lnV').value)||0;
-  var q=parseInt($('lnQtd').value)||2;
+  var q=Math.max(1,parseInt($('lnQtd').value)||2);
   return $('lnModo').value==='dividir'?+(total/q).toFixed(2):total;
 }
 /* ==========================================================
@@ -28856,7 +28871,8 @@ function previewParc(){
   if(_valoresParc.length&&_valoresParcQ!==ds.length){_valoresParc=[];vs=valoresParcelas();}
   $('lnVp').value=v.toFixed(2);
   var soma=vs.reduce(function(a,x){return a+x},0), dif=diferencaParcelas();
-  box.innerHTML='<div class="prevTit">Parcelas que serão lançadas <b>'+ds.length+'</b> · total R$ '+money(soma)+
+  var rot=$('lnPriRot'); if(rot)rot.textContent=(ds.length===1?'Vencimento':'1º vencimento');
+  box.innerHTML='<div class="prevTit">'+(ds.length===1?'Vencimento único':'Parcelas que serão lançadas <b>'+ds.length+'</b>')+' · total R$ '+money(soma)+
    (dif!==0?' <b class="prevAviso">— os valores não estão batendo: '+(dif>0?'faltam':'sobram')+' R$ '+money(Math.abs(dif))+'</b>':'')+
    ' <span class="hint" style="font-weight:400">· altere a data ou o valor de qualquer parcela abaixo</span></div>'+
   '<div class="prevLista">'+ds.map(function(d,i){
@@ -38229,7 +38245,9 @@ function perNota(n){
 /* ---------- JANELA DE LANÇAMENTO ---------- */
 function novaNota(){
   baseNotas();
-  _nota={id:null,numero:proxNumNota(),fornecedorId:'',fornecedorNome:'',
+  /* o numero da nota e o da NOTA DO FORNECEDOR: quem digita e a pessoa.
+     Nasce vazio (Rafael, 17/09/2026) — antes vinha um numero inventado. */
+  _nota={id:null,numero:'',fornecedorId:'',fornecedorNome:'',
     data:hojeISO(),hora:agoraHM(),itens:[],obs:''};
   desenhaNota();
 }
@@ -38289,7 +38307,7 @@ function abrirNotaDoPedidoBase(id){
       unidade:(alvo&&alvo.unidade)||'un',qtd:q,valorUn:vu,desconto:0,total:tot,ncm:''};
   });
   _itemSel=null;
-  _nota={id:null,numero:proxNumNota(),fornecedorId:forn.id,fornecedorNome:forn.empresa,
+  _nota={id:null,numero:'',fornecedorId:forn.id,fornecedorNome:forn.empresa,
     data:hojeISO(),hora:agoraHM(),itens:itens,
     obs:'Pedido de base #'+String(p.numero||0).padStart(4,'0'),
     pedidoBaseRef:p.id,pedidoBaseNumero:p.numero,
@@ -38606,6 +38624,7 @@ function confirmarNota(){
   guardarCabNota();
   var n=_nota;
   if(!n.fornecedorId){toast('Selecione o fornecedor.');return;}
+  if(!String(n.numero||'').trim()){toast('Informe o número da nota.');return;}
   if(!(n.itens||[]).length){toast('Lance ao menos um item.');return;}
   n.valorMercadorias=+(n.itens.reduce(function(a,i){return a+i.total},0)).toFixed(2);
   n.valorTotal=n.valorMercadorias;
@@ -38673,7 +38692,10 @@ function abrirFinanceiroNota(n){
     descricao:'NF '+n.numero+' — '+n.fornecedorNome,
     valor:n.valorTotal,
     emissao:n.data,
-    vencimento:n.data,
+    /* o vencimento e escolhido embaixo, no bloco de parcelas (1 parcela =
+       vencimento unico). Nao ha mais a data de cima (Rafael, 17/09/2026). */
+    vencimento:hojeISO(),
+    semVencimentoNoTopo:true,
     documento:'NF '+n.numero,
     soDespesa:true,
     fornecedorId:n.fornecedorId,
