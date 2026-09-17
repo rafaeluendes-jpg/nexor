@@ -144,6 +144,51 @@ async function carregar() {
   t('manter declara a exclusão da compra', !!(win.DB._apagados.comprasSemVinc || {})[csv3.id]);
   t('o estoque NÃO foi mexido ao manter (nenhum desfazer)', !movs.some(m => m.desfazer === true && m.id === n3.movId));
 
+  grupo('A compra sem vínculo NÃO some segundos depois (Rafael, 17/09/2026)');
+  /* nota parcelada em 3: apagar UMA parcela deixa duas vivas */
+  const n4 = novaNota('004'); n4.valorTotal = 300;
+  win.materializarNota(n4);
+  win.DB.lancFin.push(
+    { id: 'lf4a', tipo: 'despesa', descricao: 'NF 004 (1/3)', valor: 100, origem: 'nota-entrada', ref: n4.id },
+    { id: 'lf4b', tipo: 'despesa', descricao: 'NF 004 (2/3)', valor: 100, origem: 'nota-entrada', ref: n4.id },
+    { id: 'lf4c', tipo: 'despesa', descricao: 'NF 004 (3/3)', valor: 100, origem: 'nota-entrada', ref: n4.id });
+  /* a pessoa apaga a parcela 1 pelo botão da lixeira */
+  const apagadosNaNuvem = [];
+  win.NUVEM.ligada = true; win.NUVEM.loja = 'loja1';
+  win.api = async (rota, metodo) => { apagadosNaNuvem.push(metodo + ' ' + rota); return []; };
+  win.telaLancamentos = () => {};
+  await win.excluirLanc('lf4a');
+  t('a exclusão do boleto vai para a NUVEM (era só local: voltava no download)',
+    apagadosNaNuvem.some(x => /^DELETE lancamentos_financeiros\?/.test(x) && /lf4a/.test(x)), apagadosNaNuvem.join(' | '));
+  t('a exclusão fica declarada', !!(win.DB._apagados.lancFin || {})['lf4a']);
+  t('o boleto saiu do financeiro', !win.DB.lancFin.some(l => l.id === 'lf4a'));
+  const csv4 = win.DB.comprasSemVinc.find(c => c.notaId === n4.id);
+  t('a parcela apagada virou compra sem vínculo', !!csv4);
+  /* a faxina de fantasmas roda — e não pode levar esta embora */
+  win.repararComprasSemVinculo();
+  t('com 2 de 3 parcelas vivas, a compra CONTINUA na lista', win.DB.comprasSemVinc.some(c => c.id === csv4.id));
+  /* nem mesmo depois de passar a carência de 10 minutos */
+  csv4.excluidoEm = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  win.repararComprasSemVinculo();
+  t('uma hora depois também continua: falta parcela, falta financeiro', win.DB.comprasSemVinc.some(c => c.id === csv4.id));
+  /* recém-criado nunca é varrido, mesmo com o financeiro inteiro de volta */
+  win.DB.lancFin.push({ id: 'lf4d', tipo: 'despesa', descricao: 'NF 004 (1/3) refeita', valor: 100,
+    origem: 'nota-entrada', ref: n4.id });
+  csv4.excluidoEm = new Date().toISOString();
+  win.repararComprasSemVinculo();
+  t('registro recém-criado não é varrido pela faxina', win.DB.comprasSemVinc.some(c => c.id === csv4.id));
+  /* com o financeiro cobrindo a nota inteira e o registro velho: aí sim é fantasma */
+  csv4.excluidoEm = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const levou = win.repararComprasSemVinculo();
+  t('financeiro completo de novo: aí sim a faxina limpa', levou === 1 && !win.DB.comprasSemVinc.some(c => c.id === csv4.id), levou);
+
+  grupo('A nuvem recusando a exclusão não apaga nada aqui');
+  win.DB.lancFin.push({ id: 'lf5', tipo: 'despesa', descricao: 'Aluguel', valor: 50 });
+  win.api = async () => { throw new Error('rede caiu'); };
+  win.painelErro = () => {};
+  await win.excluirLanc('lf5');
+  t('o lançamento continua aqui quando a nuvem recusa', win.DB.lancFin.some(l => l.id === 'lf5'));
+
   console.log('\n' + '═'.repeat(52));
   console.log('Joia · Compra sem Vínculo (nota, estoque e financeiro)');
   console.log(R.ok + ' de ' + R.total + ' testes passaram' + (R.falhou ? ' · ' + R.falhou + ' FALHA(S)' : ''));

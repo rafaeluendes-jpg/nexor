@@ -25447,6 +25447,40 @@ function modalPagamento(ids){
   });
   setTimeout(recalcPagamento,60);
 }
+/* ==========================================================
+   EXCLUIR LANCAMENTO TEM DE CHEGAR NA NUVEM (Rafael, 17/09/2026)
+
+   `lancamentos_financeiros` nao espelha exclusao — de proposito, para um
+   aparelho com lista curta nao apagar o financeiro da rede. So que nao
+   havia NENHUM outro caminho: o boleto saia daqui e continuava vivo na
+   nuvem. Uns segundos depois o download o trazia de volta.
+
+   E o estrago nao parava nisso. Com o boleto ressuscitado, a nota voltava
+   a "ter financeiro" — e a faxina de fantasmas apagava a Compra sem
+   Vinculo que tinha acabado de nascer, na tela, na frente do Rafael, e
+   ainda declarava a exclusao dela para a nuvem. Sumia dos dois lados.
+
+   Agora a exclusao vai na linha daquele lancamento. Se a nuvem recusar, o
+   boleto NAO some daqui: mentir que apagou e pior do que avisar que nao
+   deu.
+   ========================================================== */
+async function apagarLancNaNuvem(id){
+  if(!(NUVEM.ligada&&NUVEM.loja))return true;
+  try{
+    await api('lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
+              '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+    return true;
+  }catch(e){
+    painelErro('Não consegui excluir na nuvem.',detalheErro(e));
+    return false;
+  }
+}
+function esquecerLanc(id){
+  DB.lancFin=DB.lancFin.filter(function(x){return x.id!==id});
+  try{declararExclusao('lancFin',id);}catch(e){_quieto(e,'esquecerLanc')}
+  try{ if(DB._uuid&&DB._uuid.lancFin)delete DB._uuid.lancFin[id]; }
+  catch(e2){ _quieto(e2,'esquecerLanc'); }
+}
 async function excluirLanc(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(l.conciliado){toast('Movimento conciliado — não pode ser excluído. Desconcilie primeiro.');return;}
@@ -25459,14 +25493,16 @@ async function excluirLanc(id){
       'Ele será REMOVIDO do financeiro e registrado em\n'+
       'Gestão Financeira › Compras sem Vínculo — com data, hora e usuário.\n\n'+
       'Para excluir a compra inteira, exclua a NOTA em Notas de Entrada.\n\nContinuar?'))return;
+    if(!await apagarLancNaNuvem(id))return;   /* a nuvem recusou: nada muda aqui */
     arquivarSemVinculo(l,nota);
-    DB.lancFin=DB.lancFin.filter(function(x){return x.id!==id});
+    esquecerLanc(id);
     salvar();telaLancamentos();
     toast('Boleto movido para Compras sem Vínculo.');
     return;
   }
   if(!await pergunta('Excluir "'+(l.descricao||'lançamento')+'"?'))return;
-  DB.lancFin=DB.lancFin.filter(function(x){return x.id!==id});
+  if(!await apagarLancNaNuvem(id))return;
+  esquecerLanc(id);
   salvar();telaLancamentos();toast('Lançamento excluído.');
 }
 function arquivarSemVinculo(l,nota){
@@ -25534,14 +25570,38 @@ function desmarcarNotaSemVinculo(n){
 /* compra "sem vinculo" cuja nota JA tem boleto vivo no financeiro e um
    fantasma (voltou da nuvem depois de resolvida): sai, e a exclusao vai
    declarada para a nuvem apagar de vez. Devolve quantas tirou. */
+/* ==========================================================
+   FANTASMA E A NOTA QUE VOLTOU A TER O FINANCEIRO INTEIRO
+
+   A regra antiga era "existe QUALQUER boleto vivo desta nota? entao a
+   compra sem vinculo e fantasma". Com nota parcelada isso e falso: quem
+   apaga a parcela 1 de 3 tem duas parcelas vivas — e a compra sem
+   vinculo, que e exatamente o registro da parcela que falta, era apagada
+   como se fosse lixo.
+
+   Agora fantasma e a nota cujo financeiro voltou a cobrir o valor dela.
+   E, por seguranca, registro recem-criado nunca e varrido: se a lista
+   ainda esta se acertando com a nuvem, espera-se o proximo ciclo.
+   ========================================================== */
 function repararComprasSemVinculo(){
   var lista=DB.comprasSemVinc||[];
   if(!lista.length)return 0;
-  var vivos={};
+  var vivo={};
   (DB.lancFin||[]).forEach(function(l){
-    if(l&&l.origem==='nota-entrada'&&l.ref&&!l.cancelado)vivos[l.ref]=true;
+    if(!l||l.origem!=='nota-entrada'||!l.ref||l.cancelado)return;
+    vivo[l.ref]=(vivo[l.ref]||0)+(Number(l.valor)||0);
   });
-  var fantasmas=lista.filter(function(c){return c&&c.notaId&&vivos[c.notaId]}).map(function(c){return c.id});
+  var agora=Date.now();
+  var fantasmas=lista.filter(function(c){
+    if(!c||!c.notaId||vivo[c.notaId]===undefined)return false;
+    /* nasceu agora: deixa a nuvem e a tela se acertarem primeiro */
+    var t=Date.parse(c.excluidoEm||'');
+    if(isFinite(t)&&(agora-t)<10*60*1000)return false;
+    var nota=(DB.notas||[]).find(function(n){return n.id===c.notaId});
+    if(!nota)return true;                      /* nota nem existe mais: nada a cobrar */
+    var total=Number(nota.valorTotal)||Number(c.valor)||0;
+    return vivo[c.notaId]>=total-0.01;         /* financeiro cobre a nota inteira */
+  }).map(function(c){return c.id});
   if(fantasmas.length){tirarSemVinculo(fantasmas);salvar();}
   return fantasmas.length;
 }
