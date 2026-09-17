@@ -2490,13 +2490,19 @@ function servir() {
     alvo.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
     return { escolhido: MV.insumoId,
       campo: document.getElementById('mvBusca').value,
-      linhas: document.querySelectorAll('.mvTab tbody tr').length,
+      dias: document.querySelectorAll('.mvTab tbody tr.mvDia').length,
+      linhas: (function(){
+        /* a lista abre por dia: o detalhe do item mora atrás do "+" */
+        (_movDias || []).forEach(function (g) { toggleDiaMov(g.data); });
+        return document.querySelectorAll('.mvTab tbody tr.mvIt').length;
+      })(),
       consumo: (document.querySelectorAll('.mvTab tfoot td')[2] || {}).textContent
         .replace(/\s+/g, ' ').trim() };
   });
   t('CLICAR NA SUGESTÃO escolhe o item', rMV3.escolhido === 'in_gv', rMV3.escolhido);
   t('o nome fica escrito no campo', rMV3.campo === 'GELATO VENDA', rMV3.campo);
-  t('e a tabela passa a mostrar só ele', rMV3.linhas === 3, rMV3.linhas);
+  t('a lista abre por dia, um dia por linha', rMV3.dias === 1, rMV3.dias);
+  t('e abrindo o dia aparecem só os lançamentos dele', rMV3.linhas === 3, rMV3.linhas);
   t('com o rodapé somando os 700 g', /^700 g/.test(rMV3.consumo), rMV3.consumo);
 
   console.log('\n── 10t. Sabor de gelato não desconta a base de novo na venda\n');

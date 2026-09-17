@@ -488,6 +488,10 @@ function semear(w) {
 
   w.MV.de = ''; w.MV.ate = '';
   w.telaMovimentacao(); await esp(80);
+  t('a Movimentação de Estoque abre por dia', /mvDia/.test(w.document.getElementById('content').innerHTML));
+  /* o detalhe do dia mora atrás do "+": abre o(s) dia(s) da lista */
+  (w._movDias || []).forEach(g => w.toggleDiaMov(g.data));
+  await esp(40);
   t('a Movimentação de Estoque mostra a venda', /Venda PDV/.test(txt()));
   t('identificando o pedido', /#1|#2/.test(txt()));
 

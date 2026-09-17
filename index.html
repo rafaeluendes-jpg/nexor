@@ -6089,6 +6089,18 @@ input.svIn:focus{border-color:var(--acc);outline:none}
 .svRod{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:10px 12px;
   border-top:1px solid var(--line);background:var(--alt);flex-wrap:wrap}
 
+/* movimentação de estoque: um dia por linha, o "+" abre o detalhe */
+.mvTab tr.mvDia>td{background:var(--alt);cursor:pointer;border-top:1px solid var(--line)}
+.mvTab tr.mvDia:hover>td{background:#F2EFE4}
+.mvTab tr.mvDia.ab>td{background:#F2EFE4}
+.mvTg{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  margin-right:9px;border:1px solid var(--line);border-radius:5px;background:#fff;
+  color:var(--acc);font-weight:700;font-size:13px;line-height:1;vertical-align:middle}
+.mvDiaN{font-size:13.5px;vertical-align:middle}
+.mvDiaS{margin-left:8px;color:var(--ink-3);font-size:11.5px;font-weight:400;vertical-align:middle}
+.mvTab tr.mvIt>td.mvHora{color:var(--ink-3);font-variant-numeric:tabular-nums}
+.mvTab tr.mvIt>td.mvIng{padding-left:30px}
+
 </style>
 <style>
 .ntMercBox{position:relative}
@@ -33546,7 +33558,7 @@ function montarLinhas(itens,tipo){
 }
 
 /* ---------- RELATÓRIO DE MOVIMENTAÇÃO ---------- */
-var MV={de:'',ate:'',insumoId:'',grupo:'',motivoId:'',busca:''};
+var MV={de:'',ate:'',insumoId:'',grupo:'',motivoId:'',busca:'',dias:{}};
 var _mvBuscaT=null;
 /* filtro de texto do relatorio: nome, codigo, identificacao ou observacao da linha */
 function casaBuscaMov(l,m,ins){
@@ -36044,8 +36056,120 @@ function mmAbrir(i){
   }
 }
 
+/* ==========================================================
+   A LISTA ABRE POR DIA, NAO ITEM A ITEM (Rafael, 17/09/2026)
+
+   Filtrando dois dias de Gelato Venda a tela ja vinha com centenas de
+   linhas abertas — os dez copos P, um por um, antes de qualquer pergunta.
+   Para achar "quanto saiu no dia 16" era preciso rolar a tela inteira.
+
+   Agora a lista responde primeiro a pergunta do dono: QUANTO saiu em cada
+   dia. Uma linha por dia, com o que entrou, o que saiu e o custo. O "+"
+   abre o detalhe daquele dia — e so daquele. Mesmo desenho da arvore do
+   DRE: o toggle troca so o corpo da tabela, sem redesenhar a tela (e sem
+   tirar o foco do campo de busca).
+   ========================================================== */
+var _movDias=[];                 /* [{data, itens:[{m,l,ins}], tot}] */
+function agrupaMovPorDia(linhas){
+  var mapa={},ordem=[];
+  (linhas||[]).forEach(function(x){
+    var d=x.m.data||'';
+    if(!mapa[d]){mapa[d]={data:d,itens:[]};ordem.push(d);}
+    mapa[d].itens.push(x);
+  });
+  return ordem.map(function(d){
+    var g=mapa[d];
+    g.tot=totaisDiaMov(g.itens);
+    return g;
+  });
+}
+function totaisDiaMov(itens){
+  var ent={},sai={},custo=0;
+  (itens||[]).forEach(function(x){
+    var u=x.l.unidade||'un', q=Number(x.l.qtd)||0;
+    custo+=q*(Number(x.l.custo)||0);
+    if(x.l.direcao==='entrada')ent[u]=(ent[u]||0)+q; else sai[u]=(sai[u]||0)+q;
+  });
+  return {ent:ent,sai:sai,custo:custo};
+}
+/* "2.796,898 kg · 40 un" — somar g com kg seria mentira, entao cada
+   unidade aparece com o nome dela */
+function textoQtdMov(por){
+  var ks=Object.keys(por||{});
+  if(!ks.length)return '—';
+  return ks.map(function(u){return fmtQt(por[u])+' '+un(u).ab}).join(' · ');
+}
+var _DIA_SEMANA=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+function diaDaSemana(iso){
+  var p=String(iso||'').split('-');
+  if(p.length!==3)return '';
+  var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));
+  return isNaN(d.getTime())?'':_DIA_SEMANA[d.getDay()];
+}
+function linhaMovHTML(x){
+      var l=x.l,m=x.m,ins=x.ins;
+      var g=ins?grupoIng(ins.grupoId):null;
+      var tot=(Number(l.qtd)||0)*(Number(l.custo)||0);
+      /* dentro do dia a data se repetiria em toda linha: aqui basta a hora */
+      return '<tr class="mvIt '+(l.direcao==='entrada'?'ent destaqueEnt':'sai')+'">'+
+      '<td class="mvHora">'+E(m.hora||'')+'</td>'+
+      '<td class="mvIng"><b>'+E(l.nome)+'</b>'+
+       (l.direcao==='entrada'?'<span class="tagGerou">gerado</span>':'')+
+       (l.fichaNome?'<small>'+(l.direcao==='entrada'?'produzido a partir de ':'usado em ')+E(l.fichaNome)+'</small>':'')+'</td>'+
+      '<td>'+E(g?g.nome:'—')+'</td>'+
+      '<td>'+E(nomeMotivo(m.motivoId))+'</td>'+
+      '<td>'+E(m.identificacao||'—')+'</td>'+
+      '<td style="text-align:right">'+(l.direcao==='entrada'
+        ?'<b class="vg">'+fmtQt(l.qtd)+' '+un(l.unidade).ab+'</b>':'—')+'</td>'+
+      '<td style="text-align:right">'+(l.direcao==='saida'
+        ?'<b class="vr">'+fmtQt(l.qtd)+' '+un(l.unidade).ab+'</b>':'—')+'</td>'+
+      '<td style="text-align:right">'+money(l.custo)+'<small>/ '+un(l.unidade).ab+'</small></td>'+
+      '<td style="text-align:right"><b>'+money(tot)+'</b></td>'+
+      '<td class="obsC">'+(l.sistema!==undefined
+        ?'sistema '+fmtQt(l.sistema)+' · contado '+fmtQt(l.conferido)
+        :E(l.obs||m.obs||''))+'</td>'+
+      /* ==========================================================
+         MOVIMENTACAO DE ESTOQUE NAO SE APAGA (Rafael, 17/09/2026)
+
+         Esta tela e o RAZAO do estoque: cada entrada, cada baixa, cada
+         contagem. Apagar uma linha daqui some com a historia e deixa o
+         saldo sem explicacao — e nada avisa que faltou. Quem desfaz uma
+         compra e a nota de entrada; quem desfaz uma contagem e outra
+         contagem. Aqui so se consulta.
+         ========================================================== */
+      '<td><div class="rowAct">'+
+       '<button class="rBtn" onclick="verMovimento(\''+m.id+'\')" title="Ver o lançamento">'+sv('eye',11)+'</button>'+
+      '</div></td></tr>';
+}
+function corpoMovPorDia(){
+  return (_movDias||[]).map(function(g){
+    var ab=!!(MV.dias||{})[g.data];
+    var n=g.itens.length;
+    return '<tr class="mvDia'+(ab?' ab':'')+'" onclick="toggleDiaMov(\''+g.data+'\')">'+
+     '<td colspan="5"><span class="mvTg">'+(ab?'−':'+')+'</span>'+
+      '<b class="mvDiaN">'+dataBR(g.data)+'</b>'+
+      '<span class="mvDiaS">'+E(diaDaSemana(g.data))+' · '+n+
+       (n===1?' movimentação':' movimentações')+'</span></td>'+
+     '<td style="text-align:right"><b class="vg">'+textoQtdMov(g.tot.ent)+'</b></td>'+
+     '<td style="text-align:right"><b class="vr">'+textoQtdMov(g.tot.sai)+'</b></td>'+
+     '<td style="text-align:right">—</td>'+
+     '<td style="text-align:right"><b>R$ '+money(g.tot.custo)+'</b></td>'+
+     '<td colspan="2"></td></tr>'+
+     (ab?g.itens.map(linhaMovHTML).join(''):'');
+  }).join('');
+}
+function toggleDiaMov(data){
+  MV.dias=MV.dias||{};
+  MV.dias[data]=!MV.dias[data];
+  var tb=document.getElementById('mvCorpo');
+  if(tb)tb.innerHTML=corpoMovPorDia();
+  else telaMovimentacao();
+}
 function telaMovimentacao(){
   baseMov();
+  /* a lista pode ser redesenhada com um MV novo (o botão Limpar troca o
+     objeto inteiro): sem isto, o primeiro desenho quebrava */
+  if(!MV.dias)MV.dias={};
   if(!MV.de){MV.de=diasAtrasISO(30);MV.ate=hojeISO();}
   var linhas=[];
   (DB.movEst||[]).forEach(function(m){
@@ -36088,8 +36212,6 @@ function telaMovimentacao(){
      ========================================================== */
   var ent=linhas.filter(function(x){return x.l.direcao==='entrada'});
   var sai=linhas.filter(function(x){return x.l.direcao!=='entrada'});
-  var somaEnt=ent.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
-  var somaSai=sai.reduce(function(a,x){return a+(Number(x.l.qtd)||0)},0);
   /* ==========================================================
      CUSTO MEDIO OLHA A ENTRADA, NAO O CONSUMO
      Custo medio responde "quanto me custa o quilo deste item". Quem
@@ -36111,6 +36233,8 @@ function telaMovimentacao(){
     return ks.length===1?ks[0]:'';     /* unidades misturadas: nao rotula */
   })();
 
+  _movDias=agrupaMovPorDia(linhas);
+  var totPeriodo=totaisDiaMov(linhas);
   $('content').innerHTML='<div class="mvWrap">'+
    '<div class="mvTopo">'+
     '<button class="btnMais" title="Nova baixa manual" onclick="modalMovimento()">'+sv('plus',20)+'</button>'+
@@ -36151,7 +36275,7 @@ function telaMovimentacao(){
      (DB.motivosMov||[]).map(function(m){return '<option value="'+m.id+'"'+(MV.motivoId===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
     '</select></div>'+
     '<button class="btnP2 ok" onclick="buscarMov()">'+sv('search',13)+' Buscar</button>'+
-    '<button class="btnP2" onclick="MV={de:diasAtrasISO(30),ate:hojeISO(),insumoId:\'\',grupo:\'\',motivoId:\'\',busca:\'\'};telaMovimentacao()">Limpar</button>'+
+    '<button class="btnP2" onclick="MV={de:diasAtrasISO(30),ate:hojeISO(),insumoId:\'\',grupo:\'\',motivoId:\'\',busca:\'\',dias:{}};telaMovimentacao()">Limpar</button>'+
    '</div>'+
    '<div class="mvTabW">'+
    (linhas.length?'<table class="mvTab"><thead><tr>'+
@@ -36162,41 +36286,8 @@ function telaMovimentacao(){
     '<th style="width:120px;text-align:right">Qtd / un. consumo</th>'+
     '<th style="width:100px;text-align:right">Custo</th>'+
     '<th style="width:110px;text-align:right">Custo total</th>'+
-    '<th style="width:130px">Obs.</th><th style="width:40px"></th></tr></thead><tbody>'+
-    linhas.map(function(x){
-      var l=x.l,m=x.m,ins=x.ins;
-      var g=ins?grupoIng(ins.grupoId):null;
-      var tot=(Number(l.qtd)||0)*(Number(l.custo)||0);
-      return '<tr class="'+(l.direcao==='entrada'?'ent destaqueEnt':'sai')+'">'+
-      '<td>'+dataBR(m.data)+'<small>'+E(m.hora||'')+'</small></td>'+
-      '<td><b>'+E(l.nome)+'</b>'+
-       (l.direcao==='entrada'?'<span class="tagGerou">gerado</span>':'')+
-       (l.fichaNome?'<small>'+(l.direcao==='entrada'?'produzido a partir de ':'usado em ')+E(l.fichaNome)+'</small>':'')+'</td>'+
-      '<td>'+E(g?g.nome:'—')+'</td>'+
-      '<td>'+E(nomeMotivo(m.motivoId))+'</td>'+
-      '<td>'+E(m.identificacao||'—')+'</td>'+
-      '<td style="text-align:right">'+(l.direcao==='entrada'
-        ?'<b class="vg">'+fmtQt(l.qtd)+' '+un(l.unidade).ab+'</b>':'—')+'</td>'+
-      '<td style="text-align:right">'+(l.direcao==='saida'
-        ?'<b class="vr">'+fmtQt(l.qtd)+' '+un(l.unidade).ab+'</b>':'—')+'</td>'+
-      '<td style="text-align:right">'+money(l.custo)+'<small>/ '+un(l.unidade).ab+'</small></td>'+
-      '<td style="text-align:right"><b>'+money(tot)+'</b></td>'+
-      '<td class="obsC">'+(l.sistema!==undefined
-        ?'sistema '+fmtQt(l.sistema)+' · contado '+fmtQt(l.conferido)
-        :E(l.obs||m.obs||''))+'</td>'+
-      /* ==========================================================
-         MOVIMENTACAO DE ESTOQUE NAO SE APAGA (Rafael, 17/09/2026)
-
-         Esta tela e o RAZAO do estoque: cada entrada, cada baixa, cada
-         contagem. Apagar uma linha daqui some com a historia e deixa o
-         saldo sem explicacao — e nada avisa que faltou. Quem desfaz uma
-         compra e a nota de entrada; quem desfaz uma contagem e outra
-         contagem. Aqui so se consulta.
-         ========================================================== */
-      '<td><div class="rowAct">'+
-       '<button class="rBtn" onclick="verMovimento(\''+m.id+'\')" title="Ver o lançamento">'+sv('eye',11)+'</button>'+
-      '</div></td></tr>';
-    }).join('')+'</tbody>'+
+    '<th style="width:130px">Obs.</th><th style="width:40px"></th></tr></thead><tbody id="mvCorpo">'+
+    corpoMovPorDia()+'</tbody>'+
     /* ==========================================================
        UM RODAPE SO, CADA NUMERO NA SUA COLUNA
        Antes eram tres linhas: o subtotal, o custo medio jogado a esquerda e
@@ -36206,13 +36297,14 @@ function telaMovimentacao(){
        o nome em letra miuda embaixo do valor.
        ========================================================== */
     '<tfoot><tr>'+
-     '<td colspan="5"><b>Subtotal — '+linhas.length+' movimentações</b></td>'+
-     '<td style="text-align:right"><b>'+fmtQt(somaEnt)+(unMedia?' '+E(unMedia):'')+'</b>'+
-      '<small>total de '+ent.length+' entrada'+(ent.length===1?'':'s')+
-       (unMedia||!ent.length?'':' · unidades misturadas')+'</small></td>'+
-     '<td style="text-align:right"><b>'+fmtQt(somaSai)+(unMedia?' '+E(unMedia):'')+'</b>'+
-      '<small>total de '+sai.length+' consumo'+(sai.length===1?'':'s')+
-       (unMedia||!sai.length?'':' · unidades misturadas')+'</small></td>'+
+     '<td colspan="5"><b>Total do período — '+_movDias.length+' dia'+(_movDias.length===1?'':'s')+
+       ' · '+linhas.length+' movimentações</b></td>'+
+     /* cada unidade com o nome dela: somar g com kg seria mentira, e o
+        rodape passa a falar a mesma lingua das linhas do dia */
+     '<td style="text-align:right"><b class="vg">'+textoQtdMov(totPeriodo.ent)+'</b>'+
+      '<small>total de '+ent.length+' entrada'+(ent.length===1?'':'s')+'</small></td>'+
+     '<td style="text-align:right"><b class="vr">'+textoQtdMov(totPeriodo.sai)+'</b>'+
+      '<small>total de '+sai.length+' consumo'+(sai.length===1?'':'s')+'</small></td>'+
      '<td style="text-align:right"><b>R$ '+money(custoMedio)+'</b>'+
       '<small>custo médio'+(unMedia?' / '+E(unMedia):'')+
        (ent.length?'':' (consumo)')+'</small></td>'+

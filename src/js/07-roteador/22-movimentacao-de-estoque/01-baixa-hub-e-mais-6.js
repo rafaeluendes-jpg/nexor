@@ -420,7 +420,7 @@ function montarLinhas(itens,tipo){
 }
 
 /* ---------- RELATÓRIO DE MOVIMENTAÇÃO ---------- */
-var MV={de:'',ate:'',insumoId:'',grupo:'',motivoId:'',busca:''};
+var MV={de:'',ate:'',insumoId:'',grupo:'',motivoId:'',busca:'',dias:{}};
 var _mvBuscaT=null;
 /* filtro de texto do relatorio: nome, codigo, identificacao ou observacao da linha */
 function casaBuscaMov(l,m,ins){
