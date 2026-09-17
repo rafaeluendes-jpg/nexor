@@ -590,7 +590,6 @@ function abrirFinanceiroNota(n){
     /* o vencimento e escolhido embaixo, no bloco de parcelas (1 parcela =
        vencimento unico). Nao ha mais a data de cima (Rafael, 17/09/2026). */
     vencimento:hojeISO(),
-    semVencimentoNoTopo:true,
     documento:'NF '+n.numero,
     soDespesa:true,
     fornecedorId:n.fornecedorId,

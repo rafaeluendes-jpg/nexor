@@ -654,13 +654,44 @@ function volta(linhas,fn,atual,col){
   var lf=await _p06;
   var mapaSub={};(cf||[]).forEach(function(c2){(c2.subcategorias_financeiras||[]).forEach(function(s){
     mapaSub[s.id]=s.ref_local||s.id})});
+  /* ==========================================================
+     CATEGORIA QUE NAO SE SABE TRADUZIR NAO E CATEGORIA VAZIA
+     (Rafael, 17/09/2026)
+
+     `mapaSub` sai das categorias que ESTE download trouxe. Quando a
+     subcategoria do lancamento nao esta nele — download cortado, a
+     consulta das categorias falhou, a categoria e de outra unidade — o
+     codigo escrevia `categoriaId:''`. E o envio seguinte mandava
+     `subcategoria_id: null`: a categoria era apagada da nuvem tambem.
+     O SIMPLES NACIONAL ficou assim, com `subcategoria_id` nulo, e a tela
+     de editar abria em "Selecione uma opcao".
+
+     E o mesmo erro que este arquivo ja registrou no vinculo da ficha:
+     ausencia de traducao nao e resposta. Agora o que nao se sabe
+     traduzir fica como esta no aparelho.
+     ========================================================== */
+  var _antLF={};
+  try{ (_ANT('lancFin')||[]).forEach(function(x){ if(x&&x.id)_antLF[x.id]=x; }); }
+  catch(e){ _quieto(e,'antLancFin'); }
+  function _catDoLanc(x){
+    var ref=x.ref_local||x.id;
+    if(!x.subcategoria_id){
+      /* a nuvem diz "sem categoria": so aceita se aqui tambem nao havia */
+      var a0=_antLF[ref];
+      return (a0&&a0.categoriaId)?a0.categoriaId:'';
+    }
+    var v=mapaSub[x.subcategoria_id];
+    if(v)return v;
+    var a=_antLF[ref];
+    return (a&&a.categoriaId)||'';
+  }
   var mapaFP={};fp.forEach(function(x){mapaFP[x.id]=x.ref_local||x.id});
   var mapaFo={};fo.forEach(function(x){mapaFo[x.id]=x.ref_local||x.id});
   DB.lancFin=volta(lf,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,
     juros:Number(x.juros)||0,multa:Number(x.multa)||0,
     valorOriginal:(x.valor_original===null||x.valor_original===undefined?undefined:Number(x.valor_original)),
     contaId:mapaConta[x.conta_id]||'',contaDestinoId:mapaConta[x.conta_destino_id]||'',
-    metodoId:mapaFP[x.forma_id]||'',categoriaId:mapaSub[x.subcategoria_id]||'',
+    metodoId:mapaFP[x.forma_id]||'',categoriaId:_catDoLanc(x),
     categoriaTxt:x.categoria_texto||'',fornecedorId:mapaFo[x.fornecedor_id]||'',
     fornecedor:x.fornecedor_nome||'',descricao:x.descricao,documento:x.documento,
     codigoBarras:x.codigo_barras||'',
@@ -1264,6 +1295,7 @@ function volta(linhas,fn,atual,col){
     pagamento:x.pagamento||{},itens:x.itens||[]}},null,'notas');
   /* compra sem vinculo que a nuvem trouxe de volta com o boleto ja lancado */
   try{ if(typeof repararComprasSemVinculo==='function')repararComprasSemVinculo(); }catch(e){_quieto(e,'baixarDaNuvem/semVinculo')}
+  try{ if(typeof soltarNotasDeLancErrado==='function')soltarNotasDeLancErrado(); }catch(e){_quieto(e,'baixarDaNuvem/lancErrado')}
 
   /* ---------- OPERAÇÃO ---------- */
   var cx=await _p42;

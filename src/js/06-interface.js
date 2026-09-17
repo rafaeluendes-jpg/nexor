@@ -11,6 +11,7 @@ function boot(){
   lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
   try{ repararLojaDosPedidos(); }catch(e){}  /* pedido com uuid da nuvem no lugar da loja */
   try{ repararComprasSemVinculo(); }catch(e){}  /* compra sem vinculo cuja nota ja tem boleto */
+  try{ soltarNotasDeLancErrado(); }catch(e){}   /* imposto ligado a nota por causa do numero */
   migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
   /* ==========================================================
      NAO SE FILTRA ANTES DE FALAR COM A NUVEM (V192)

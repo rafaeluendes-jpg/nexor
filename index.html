@@ -11074,13 +11074,44 @@ function volta(linhas,fn,atual,col){
   var lf=await _p06;
   var mapaSub={};(cf||[]).forEach(function(c2){(c2.subcategorias_financeiras||[]).forEach(function(s){
     mapaSub[s.id]=s.ref_local||s.id})});
+  /* ==========================================================
+     CATEGORIA QUE NAO SE SABE TRADUZIR NAO E CATEGORIA VAZIA
+     (Rafael, 17/09/2026)
+
+     `mapaSub` sai das categorias que ESTE download trouxe. Quando a
+     subcategoria do lancamento nao esta nele — download cortado, a
+     consulta das categorias falhou, a categoria e de outra unidade — o
+     codigo escrevia `categoriaId:''`. E o envio seguinte mandava
+     `subcategoria_id: null`: a categoria era apagada da nuvem tambem.
+     O SIMPLES NACIONAL ficou assim, com `subcategoria_id` nulo, e a tela
+     de editar abria em "Selecione uma opcao".
+
+     E o mesmo erro que este arquivo ja registrou no vinculo da ficha:
+     ausencia de traducao nao e resposta. Agora o que nao se sabe
+     traduzir fica como esta no aparelho.
+     ========================================================== */
+  var _antLF={};
+  try{ (_ANT('lancFin')||[]).forEach(function(x){ if(x&&x.id)_antLF[x.id]=x; }); }
+  catch(e){ _quieto(e,'antLancFin'); }
+  function _catDoLanc(x){
+    var ref=x.ref_local||x.id;
+    if(!x.subcategoria_id){
+      /* a nuvem diz "sem categoria": so aceita se aqui tambem nao havia */
+      var a0=_antLF[ref];
+      return (a0&&a0.categoriaId)?a0.categoriaId:'';
+    }
+    var v=mapaSub[x.subcategoria_id];
+    if(v)return v;
+    var a=_antLF[ref];
+    return (a&&a.categoriaId)||'';
+  }
   var mapaFP={};fp.forEach(function(x){mapaFP[x.id]=x.ref_local||x.id});
   var mapaFo={};fo.forEach(function(x){mapaFo[x.id]=x.ref_local||x.id});
   DB.lancFin=volta(lf,function(x){return {id:x.ref_local||x.id,tipo:x.tipo,
     juros:Number(x.juros)||0,multa:Number(x.multa)||0,
     valorOriginal:(x.valor_original===null||x.valor_original===undefined?undefined:Number(x.valor_original)),
     contaId:mapaConta[x.conta_id]||'',contaDestinoId:mapaConta[x.conta_destino_id]||'',
-    metodoId:mapaFP[x.forma_id]||'',categoriaId:mapaSub[x.subcategoria_id]||'',
+    metodoId:mapaFP[x.forma_id]||'',categoriaId:_catDoLanc(x),
     categoriaTxt:x.categoria_texto||'',fornecedorId:mapaFo[x.fornecedor_id]||'',
     fornecedor:x.fornecedor_nome||'',descricao:x.descricao,documento:x.documento,
     codigoBarras:x.codigo_barras||'',
@@ -11684,6 +11715,7 @@ function volta(linhas,fn,atual,col){
     pagamento:x.pagamento||{},itens:x.itens||[]}},null,'notas');
   /* compra sem vinculo que a nuvem trouxe de volta com o boleto ja lancado */
   try{ if(typeof repararComprasSemVinculo==='function')repararComprasSemVinculo(); }catch(e){_quieto(e,'baixarDaNuvem/semVinculo')}
+  try{ if(typeof soltarNotasDeLancErrado==='function')soltarNotasDeLancErrado(); }catch(e){_quieto(e,'baixarDaNuvem/lancErrado')}
 
   /* ---------- OPERAÇÃO ---------- */
   var cx=await _p42;
@@ -13210,6 +13242,7 @@ function boot(){
   lojaAtual();                  /* fixa a unidade ativa antes de qualquer conta */
   try{ repararLojaDosPedidos(); }catch(e){}  /* pedido com uuid da nuvem no lugar da loja */
   try{ repararComprasSemVinculo(); }catch(e){}  /* compra sem vinculo cuja nota ja tem boleto */
+  try{ soltarNotasDeLancErrado(); }catch(e){}   /* imposto ligado a nota por causa do numero */
   migrarEstoqueParaUnidade();   /* uma vez: o saldo antigo vai para a matriz */
   /* ==========================================================
      NAO SE FILTRA ANTES DE FALAR COM A NUVEM (V192)
@@ -28651,6 +28684,21 @@ function modalLanc(id,tipoNovo,pre){
   var P=_preLanc||{};
   if(l&&l.conciliado){toast('Movimento conciliado — desconcilie na Conciliação Bancária para editar.');return;}
   var tipo=l?l.tipo:(tipoNovo||'despesa');
+  /* ==========================================================
+     UM VENCIMENTO SO, NUM LUGAR SO (Rafael, 17/09/2026)
+
+     Havia DOIS campos de vencimento na mesma janela: o de cima, ao lado
+     da emissao, e o "1o vencimento" do bloco de parcelas. Quem digitava
+     em cima e depois usava o bloco perdia a data: quem manda no que e
+     gravado e o bloco. Foi o que aconteceu com o SIMPLES NACIONAL —
+     lancado para o dia 21 e guardado com o dia 16.
+
+     Agora o vencimento de um lancamento NOVO mora so no bloco "Contas a
+     pagar": uma parcela e um vencimento so; mais de uma gera um
+     lancamento por parcela. Na EDICAO, onde nao existe bloco nenhum, o
+     campo de cima continua sendo o vencimento.
+     ========================================================== */
+  var semTopo=!l;
   /* na conciliacao nao se troca receita/despesa: o movimento ja existe no banco */
   var escondeTipo=(!l&&P.soDespesa)||!!P.deCB;
   /* banco e forma de pagamento pertencem ao pagamento, nao ao lancamento:
@@ -28693,7 +28741,7 @@ function modalLanc(id,tipoNovo,pre){
    '<div class="fld2"><label>Emissão</label><input id="lnE" type="date" value="'+(l?l.emissao:(P.emissao||hojeISO()))+'"></div>'+
    /* na nota de entrada o vencimento mora no bloco de baixo: a data de cima
       confundia (vinha com a data da nota) e foi tirada da tela */
-   '<div class="fld2"'+(P.semVencimentoNoTopo?' style="display:none"':'')+'><label>Vencimento</label><input id="lnVc" type="date" value="'+(l?l.vencimento:(P.vencimento||hojeISO()))+'"></div>'+
+   '<div class="fld2"'+(semTopo?' style="display:none"':'')+'><label>Vencimento</label><input id="lnVc" type="date" value="'+(l?l.vencimento:(P.vencimento||hojeISO()))+'"></div>'+
   '</div>'+
   '<div class="row3">'+
    '<div class="fld2"><label>Categoria *</label>'+
@@ -28737,13 +28785,9 @@ function modalLanc(id,tipoNovo,pre){
   '</div>'+
   (l?'':
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
-  (P.semVencimentoNoTopo
-    /* nota: o bloco fica sempre aberto; 1 parcela = um vencimento so */
-    ? '<label class="chkL" style="cursor:default"><input type="checkbox" id="lnParc" checked style="display:none">'+
-      '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">1 parcela = um vencimento só; mais de 1 gera um lançamento por parcela</small></span></label>'
-    : '<label class="chkL"><input type="checkbox" id="lnParc">'+
-      '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">parcelar: gera um lançamento para cada parcela, nas datas certas</small></span></label>')+
-  '<div id="boxParc" style="display:'+(P.semVencimentoNoTopo?'':'none')+'">'+
+  '<label class="chkL" style="cursor:default"><input type="checkbox" id="lnParc" checked style="display:none">'+
+   '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">1 parcela = um vencimento só; mais de 1 gera um lançamento por parcela</small></span></label>'+
+  '<div id="boxParc">'+
    '<div class="row3" style="margin-top:12px">'+
     '<div class="fld2"><label>Periodicidade</label><select id="lnPer" onchange="trocaPerParc()">'+
      '<option value="semanal">Semanal (7 dias)</option>'+
@@ -28752,8 +28796,9 @@ function modalLanc(id,tipoNovo,pre){
      '<option value="bimestral">A cada 2 meses</option>'+
      '<option value="dias">Personalizado (dias)</option>'+
     '</select></div>'+
-    '<div class="fld2"><label>Nº de parcelas</label><input id="lnQtd" type="number" min="'+(P.semVencimentoNoTopo?1:2)+'" value="'+(P.semVencimentoNoTopo?1:2)+'"></div>'+
-    '<div class="fld2"><label id="lnPriRot">'+(P.semVencimentoNoTopo?'Vencimento':'1º vencimento')+'</label><input id="lnPri" type="date" value="'+hojeISO()+'"></div>'+
+    '<div class="fld2"><label>Nº de parcelas</label><input id="lnQtd" type="number" min="1" value="1"></div>'+
+    '<div class="fld2"><label id="lnPriRot">Vencimento</label>'+
+     '<input id="lnPri" type="date" value="'+(P.vencimento||hojeISO())+'"></div>'+
     '<div class="fld2" id="boxDias" style="display:none"><label>Intervalo em dias</label>'+
      '<input id="lnDias" type="number" min="1" value="10"></div>'+
    '</div>'+
@@ -29489,20 +29534,61 @@ function copiarBoleto(id){
     toast('Código de barras copiado.'); }
   catch(e){ toast(l.codigoBarras); }
 }
+/* ==========================================================
+   IMPOSTO NAO E NOTA DE ENTRADA (Rafael, 17/09/2026)
+
+   O "religa pelo numero do documento" comparava SO os digitos e aceitava
+   "sem fornecedor" como coringa. O SIMPLES NACIONAL, documento
+   SIMPLES2609, virou irmao da nota "NF PIX2609" — digitos 2609, sem
+   fornecedor — e a tela de editar passou a mostrar leite, Veja e Bis
+   dentro do lancamento do imposto. Pior: o vinculo era GRAVADO no
+   registro e subia para a nuvem.
+
+   O socorro pelo documento existe para o lancamento que NASCEU de uma
+   nota e perdeu a ligacao na sincronizacao. Entao ele so vale para quem
+   diz que veio de nota, e o fornecedor tem de bater de verdade —
+   "sem fornecedor" nao e coringa, e a falta de um.
+   ========================================================== */
+function ehLancDeNota(l){
+  return !!(l&&(l.origem==='nota-entrada'||/^nf_/.test(String(l.ref||''))));
+}
 function notaDoLanc(l){
   if(!l)return null;
   var ns=DB.notas||[];
   var n=null;
   if(l.ref)n=ns.find(function(x){return x.id===l.ref})||null;
   if(!n)n=ns.find(function(x){return (x.lancIds||[]).indexOf(l.id)>=0})||null;
-  if(!n&&l.documento){
+  if(!n&&l.documento&&ehLancDeNota(l)){
     var num=String(l.documento).replace(/[^0-9]/g,'');
+    var nomeL=String(l.fornecedor||'').trim().toLowerCase();
     if(num)n=ns.find(function(x){
-      return String(x.numero||'').replace(/[^0-9]/g,'')===num&&
-        (!l.fornecedorId||x.fornecedorId===l.fornecedorId);
+      if(String(x.numero||'').replace(/[^0-9]/g,'')!==num)return false;
+      if(l.fornecedorId)return x.fornecedorId===l.fornecedorId;
+      if(nomeL)return String(x.fornecedorNome||'').trim().toLowerCase()===nomeL;
+      return false;                       /* sem fornecedor não vincula nada */
     })||null;
   }
   if(n&&!l.ref){l.ref=n.id;l.origem=l.origem||'nota-entrada';}   /* religa e não perde de novo */
+  return n;
+}
+/* ==========================================================
+   LIMPA O VINCULO ERRADO QUE JA FOI GRAVADO
+
+   Os que a regra velha ligou continuam com `ref` de nota e sem `origem`
+   de nota. Roda no arranque e devolve quantos soltou.
+   ========================================================== */
+function soltarNotasDeLancErrado(){
+  var n=0;
+  (DB.lancFin||[]).forEach(function(l){
+    if(!l||!l.ref||l.origem==='nota-entrada')return;
+    if(!/^nf_/.test(String(l.ref)))return;
+    var nota=(DB.notas||[]).find(function(x){return x.id===l.ref});
+    if(!nota)return;
+    /* veio mesmo da nota? então tem o fornecedor dela */
+    if(l.fornecedorId&&l.fornecedorId===nota.fornecedorId)return;
+    delete l.ref;n++;
+  });
+  if(n)salvar();
   return n;
 }
 function abrirNotaDoLanc(id){
@@ -39012,7 +39098,6 @@ function abrirFinanceiroNota(n){
     /* o vencimento e escolhido embaixo, no bloco de parcelas (1 parcela =
        vencimento unico). Nao ha mais a data de cima (Rafael, 17/09/2026). */
     vencimento:hojeISO(),
-    semVencimentoNoTopo:true,
     documento:'NF '+n.numero,
     soDespesa:true,
     fornecedorId:n.fornecedorId,

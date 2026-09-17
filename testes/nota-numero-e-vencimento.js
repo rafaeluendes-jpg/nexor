@@ -103,11 +103,28 @@ async function carregar() {
   await doc.getElementById('mdOk').onclick();
   t('2 lançamentos, 94,50 cada', win.DB.lancFin.length === 2 && win.DB.lancFin.every(l => l.valor === 94.5), JSON.stringify(win.DB.lancFin.map(l => l.valor)));
 
-  grupo('4. Nova despesa comum: bloco "Contas a pagar", vencimento de cima continua');
+  grupo('4. Nova despesa comum: um vencimento só, no bloco "Contas a pagar" (17/09/2026)');
   try { win.fecharModal(); } catch (e) {}
   modalLancReal(null, 'despesa', {});
-  t('o vencimento de cima aparece', doc.getElementById('lnVc').parentElement.style.display !== 'none');
-  t('o bloco chama-se "Contas a pagar" e começa fechado', /Contas a pagar/.test(doc.body.innerHTML) && !doc.getElementById('lnParc').checked);
+  t('não existe mais o vencimento de cima: dois campos perdiam a data digitada',
+    doc.getElementById('lnVc').parentElement.style.display === 'none');
+  t('o bloco chama-se "Contas a pagar" e já vem aberto com 1 parcela',
+    /Contas a pagar/.test(doc.body.innerHTML) && doc.getElementById('lnParc').checked &&
+    doc.getElementById('lnQtd').value === '1', doc.getElementById('lnQtd').value);
+  t('e o rótulo é "Vencimento", não "1º vencimento"',
+    doc.getElementById('lnPriRot').textContent === 'Vencimento', doc.getElementById('lnPriRot').textContent);
+  /* a data digitada no bloco é a que fica gravada */
+  doc.getElementById('lnD').value = 'SIMPLES NACIONAL';
+  doc.getElementById('lnV').value = '6299.33';
+  doc.getElementById('lnCat').value = 'sc1';
+  doc.getElementById('lnPri').value = '2026-09-21';
+  win.DB.lancFin = [];
+  await doc.getElementById('mdOk').onclick();
+  t('um lançamento só, sem "(1/1)" no nome', win.DB.lancFin.length === 1 &&
+    win.DB.lancFin[0].descricao === 'SIMPLES NACIONAL', JSON.stringify(win.DB.lancFin.map(l => l.descricao)));
+  t('guardou o vencimento que foi digitado (21/09), não a data de hoje',
+    win.DB.lancFin[0].vencimento === '2026-09-21', win.DB.lancFin[0].vencimento);
+  t('e guardou a categoria escolhida', win.DB.lancFin[0].categoriaId === 'sc1', win.DB.lancFin[0].categoriaId);
 
   grupo('Balanço: zero erro de runtime durante o guardião');
   t('nenhum erro de runtime na sessão inteira', erros.length === 0, erros.slice(0, 8).join(' | '));

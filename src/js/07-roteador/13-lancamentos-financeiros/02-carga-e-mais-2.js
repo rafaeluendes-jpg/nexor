@@ -892,6 +892,21 @@ function modalLanc(id,tipoNovo,pre){
   var P=_preLanc||{};
   if(l&&l.conciliado){toast('Movimento conciliado — desconcilie na Conciliação Bancária para editar.');return;}
   var tipo=l?l.tipo:(tipoNovo||'despesa');
+  /* ==========================================================
+     UM VENCIMENTO SO, NUM LUGAR SO (Rafael, 17/09/2026)
+
+     Havia DOIS campos de vencimento na mesma janela: o de cima, ao lado
+     da emissao, e o "1o vencimento" do bloco de parcelas. Quem digitava
+     em cima e depois usava o bloco perdia a data: quem manda no que e
+     gravado e o bloco. Foi o que aconteceu com o SIMPLES NACIONAL —
+     lancado para o dia 21 e guardado com o dia 16.
+
+     Agora o vencimento de um lancamento NOVO mora so no bloco "Contas a
+     pagar": uma parcela e um vencimento so; mais de uma gera um
+     lancamento por parcela. Na EDICAO, onde nao existe bloco nenhum, o
+     campo de cima continua sendo o vencimento.
+     ========================================================== */
+  var semTopo=!l;
   /* na conciliacao nao se troca receita/despesa: o movimento ja existe no banco */
   var escondeTipo=(!l&&P.soDespesa)||!!P.deCB;
   /* banco e forma de pagamento pertencem ao pagamento, nao ao lancamento:
@@ -934,7 +949,7 @@ function modalLanc(id,tipoNovo,pre){
    '<div class="fld2"><label>Emissão</label><input id="lnE" type="date" value="'+(l?l.emissao:(P.emissao||hojeISO()))+'"></div>'+
    /* na nota de entrada o vencimento mora no bloco de baixo: a data de cima
       confundia (vinha com a data da nota) e foi tirada da tela */
-   '<div class="fld2"'+(P.semVencimentoNoTopo?' style="display:none"':'')+'><label>Vencimento</label><input id="lnVc" type="date" value="'+(l?l.vencimento:(P.vencimento||hojeISO()))+'"></div>'+
+   '<div class="fld2"'+(semTopo?' style="display:none"':'')+'><label>Vencimento</label><input id="lnVc" type="date" value="'+(l?l.vencimento:(P.vencimento||hojeISO()))+'"></div>'+
   '</div>'+
   '<div class="row3">'+
    '<div class="fld2"><label>Categoria *</label>'+
@@ -978,13 +993,9 @@ function modalLanc(id,tipoNovo,pre){
   '</div>'+
   (l?'':
   '<div class="blk" style="margin:0 0 11px;max-width:none">'+
-  (P.semVencimentoNoTopo
-    /* nota: o bloco fica sempre aberto; 1 parcela = um vencimento so */
-    ? '<label class="chkL" style="cursor:default"><input type="checkbox" id="lnParc" checked style="display:none">'+
-      '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">1 parcela = um vencimento só; mais de 1 gera um lançamento por parcela</small></span></label>'
-    : '<label class="chkL"><input type="checkbox" id="lnParc">'+
-      '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">parcelar: gera um lançamento para cada parcela, nas datas certas</small></span></label>')+
-  '<div id="boxParc" style="display:'+(P.semVencimentoNoTopo?'':'none')+'">'+
+  '<label class="chkL" style="cursor:default"><input type="checkbox" id="lnParc" checked style="display:none">'+
+   '<span>Contas a pagar<small style="display:block;color:var(--ink-3)">1 parcela = um vencimento só; mais de 1 gera um lançamento por parcela</small></span></label>'+
+  '<div id="boxParc">'+
    '<div class="row3" style="margin-top:12px">'+
     '<div class="fld2"><label>Periodicidade</label><select id="lnPer" onchange="trocaPerParc()">'+
      '<option value="semanal">Semanal (7 dias)</option>'+
@@ -993,8 +1004,9 @@ function modalLanc(id,tipoNovo,pre){
      '<option value="bimestral">A cada 2 meses</option>'+
      '<option value="dias">Personalizado (dias)</option>'+
     '</select></div>'+
-    '<div class="fld2"><label>Nº de parcelas</label><input id="lnQtd" type="number" min="'+(P.semVencimentoNoTopo?1:2)+'" value="'+(P.semVencimentoNoTopo?1:2)+'"></div>'+
-    '<div class="fld2"><label id="lnPriRot">'+(P.semVencimentoNoTopo?'Vencimento':'1º vencimento')+'</label><input id="lnPri" type="date" value="'+hojeISO()+'"></div>'+
+    '<div class="fld2"><label>Nº de parcelas</label><input id="lnQtd" type="number" min="1" value="1"></div>'+
+    '<div class="fld2"><label id="lnPriRot">Vencimento</label>'+
+     '<input id="lnPri" type="date" value="'+(P.vencimento||hojeISO())+'"></div>'+
     '<div class="fld2" id="boxDias" style="display:none"><label>Intervalo em dias</label>'+
      '<input id="lnDias" type="number" min="1" value="10"></div>'+
    '</div>'+

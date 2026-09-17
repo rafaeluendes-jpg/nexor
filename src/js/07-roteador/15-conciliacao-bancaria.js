@@ -176,20 +176,61 @@ function copiarBoleto(id){
     toast('Código de barras copiado.'); }
   catch(e){ toast(l.codigoBarras); }
 }
+/* ==========================================================
+   IMPOSTO NAO E NOTA DE ENTRADA (Rafael, 17/09/2026)
+
+   O "religa pelo numero do documento" comparava SO os digitos e aceitava
+   "sem fornecedor" como coringa. O SIMPLES NACIONAL, documento
+   SIMPLES2609, virou irmao da nota "NF PIX2609" — digitos 2609, sem
+   fornecedor — e a tela de editar passou a mostrar leite, Veja e Bis
+   dentro do lancamento do imposto. Pior: o vinculo era GRAVADO no
+   registro e subia para a nuvem.
+
+   O socorro pelo documento existe para o lancamento que NASCEU de uma
+   nota e perdeu a ligacao na sincronizacao. Entao ele so vale para quem
+   diz que veio de nota, e o fornecedor tem de bater de verdade —
+   "sem fornecedor" nao e coringa, e a falta de um.
+   ========================================================== */
+function ehLancDeNota(l){
+  return !!(l&&(l.origem==='nota-entrada'||/^nf_/.test(String(l.ref||''))));
+}
 function notaDoLanc(l){
   if(!l)return null;
   var ns=DB.notas||[];
   var n=null;
   if(l.ref)n=ns.find(function(x){return x.id===l.ref})||null;
   if(!n)n=ns.find(function(x){return (x.lancIds||[]).indexOf(l.id)>=0})||null;
-  if(!n&&l.documento){
+  if(!n&&l.documento&&ehLancDeNota(l)){
     var num=String(l.documento).replace(/[^0-9]/g,'');
+    var nomeL=String(l.fornecedor||'').trim().toLowerCase();
     if(num)n=ns.find(function(x){
-      return String(x.numero||'').replace(/[^0-9]/g,'')===num&&
-        (!l.fornecedorId||x.fornecedorId===l.fornecedorId);
+      if(String(x.numero||'').replace(/[^0-9]/g,'')!==num)return false;
+      if(l.fornecedorId)return x.fornecedorId===l.fornecedorId;
+      if(nomeL)return String(x.fornecedorNome||'').trim().toLowerCase()===nomeL;
+      return false;                       /* sem fornecedor não vincula nada */
     })||null;
   }
   if(n&&!l.ref){l.ref=n.id;l.origem=l.origem||'nota-entrada';}   /* religa e não perde de novo */
+  return n;
+}
+/* ==========================================================
+   LIMPA O VINCULO ERRADO QUE JA FOI GRAVADO
+
+   Os que a regra velha ligou continuam com `ref` de nota e sem `origem`
+   de nota. Roda no arranque e devolve quantos soltou.
+   ========================================================== */
+function soltarNotasDeLancErrado(){
+  var n=0;
+  (DB.lancFin||[]).forEach(function(l){
+    if(!l||!l.ref||l.origem==='nota-entrada')return;
+    if(!/^nf_/.test(String(l.ref)))return;
+    var nota=(DB.notas||[]).find(function(x){return x.id===l.ref});
+    if(!nota)return;
+    /* veio mesmo da nota? então tem o fornecedor dela */
+    if(l.fornecedorId&&l.fornecedorId===nota.fornecedorId)return;
+    delete l.ref;n++;
+  });
+  if(n)salvar();
   return n;
 }
 function abrirNotaDoLanc(id){
