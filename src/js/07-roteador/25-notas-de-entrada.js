@@ -517,36 +517,60 @@ function confirmarNota(){
   abrirFinanceiroNota(n);
 }
 /* grava a nota e aplica o estoque — a parte que NAO depende do financeiro */
+/* ==========================================================
+   A ENTRADA DE ESTOQUE DA NOTA, NUMA PORTA SO
+
+   Confirmar a nota, corrigir os itens depois e devolver a compra usam o
+   MESMO caminho — senao cada tela inventa a sua conta e o saldo diverge.
+   `lancarEstoqueDaNota` entra, `desfazerEstoqueDaNota` sai, e corrigir e
+   simplesmente sair e entrar de novo.
+   ========================================================== */
+function lancarEstoqueDaNota(n){
+  if(!n||n.receber===false)return;
+  var linhas=(n.itens||[]).filter(function(it){
+    /* insumo ou ficha tecnica estocavel (as bases do franqueador sao fichas):
+       itemEstoque e a mesma porta que o movimento de estoque usa */
+    var i2=insumo(it.insumoId)||(typeof itemEstoque==='function'?itemEstoque(it.insumoId):null);
+    return i2&&i2.controlaEstoque!==false;      /* respeita o cadastro do ingrediente */
+  }).map(function(it){
+    return {insumoId:it.insumoId,nome:it.nome,unidade:it.unidade,qtd:it.qtd,
+      custo:+(it.total/it.qtd).toFixed(6),direcao:'entrada',origem:'nota'};
+  });
+  if(linhas.length){
+    var mov={id:uid('mv'),data:n.data,hora:n.hora||agoraHM(),motivoId:'mv_nota',
+      identificacao:'NF '+n.numero,obs:n.fornecedorNome,linhas:linhas,
+      origem:'nota',notaId:n.id};
+    DB.movEst.push(mov);
+    aplicarMovimento(mov);
+    n.movId=mov.id;
+  }
+  (n.itens||[]).forEach(function(it){
+    var i2=insumo(it.insumoId);
+    if(!i2)return;
+    i2.compras=i2.compras||[];
+    i2.compras.push({data:n.data,qtd:it.qtd,valor:+(it.total/it.qtd).toFixed(6),notaId:n.id});
+    i2.custoUltima=+(it.total/it.qtd).toFixed(6);
+  });
+}
+function desfazerEstoqueDaNota(n){
+  if(!n)return false;
+  var mov=n.movId?(DB.movEst||[]).find(function(m){return m.id===n.movId}):null;
+  if(mov){
+    try{ aplicarMovimento(mov,true); }catch(e){ _quieto(e,'desfazerEstoqueDaNota'); }
+    DB.movEst=(DB.movEst||[]).filter(function(m){return m.id!==n.movId});
+    try{declararExclusao('movEst',n.movId);}catch(e){_quieto(e,'desfazerEstoqueDaNota')}
+  }
+  (DB.insumos||[]).forEach(function(i2){
+    if(i2&&i2.compras)i2.compras=i2.compras.filter(function(c){return c.notaId!==n.id});
+  });
+  n.movId='';
+  return !!mov;
+}
 function materializarNota(n){
   if(!n)return;
   n.id=n.id||uid('nf');n.hora=n.hora||agoraHM();
   n.receber=n.receber!==false;
-  if(n.receber){
-    var linhas=n.itens.filter(function(it){
-      /* insumo ou ficha tecnica estocavel (as bases do franqueador sao fichas):
-         itemEstoque e a mesma porta que o movimento de estoque usa */
-      var i2=insumo(it.insumoId)||(typeof itemEstoque==='function'?itemEstoque(it.insumoId):null);
-      return i2&&i2.controlaEstoque!==false;      /* respeita o cadastro do ingrediente */
-    }).map(function(it){
-      return {insumoId:it.insumoId,nome:it.nome,unidade:it.unidade,qtd:it.qtd,
-        custo:+(it.total/it.qtd).toFixed(6),direcao:'entrada',origem:'nota'};
-    });
-    if(linhas.length){
-      var mov={id:uid('mv'),data:n.data,hora:n.hora,motivoId:'mv_nota',
-        identificacao:'NF '+n.numero,obs:n.fornecedorNome,linhas:linhas,
-        origem:'nota',notaId:n.id};
-      DB.movEst.push(mov);
-      aplicarMovimento(mov);
-      n.movId=mov.id;
-    }
-    n.itens.forEach(function(it){
-      var i2=insumo(it.insumoId);
-      if(!i2)return;
-      i2.compras=i2.compras||[];
-      i2.compras.push({data:n.data,qtd:it.qtd,valor:+(it.total/it.qtd).toFixed(6),notaId:n.id});
-      i2.custoUltima=+(it.total/it.qtd).toFixed(6);
-    });
-  }
+  lancarEstoqueDaNota(n);
   DB.notas.push(n);
   salvar();
   setTimeout(function(){try{vincularFornecedor(n)}catch(e){_quieto(e,'materializarNota')}},600);
@@ -682,14 +706,29 @@ async function excluirNota(id){
   var ajusta=window._cfAjEst!==false;
   if(ajusta){
     var mov=(DB.movEst||[]).find(function(m){return m.id===n.movId});
-    if(mov){aplicarMovimento(mov,true);DB.movEst=DB.movEst.filter(function(m){return m.id!==n.movId});}
+    if(mov){aplicarMovimento(mov,true);DB.movEst=DB.movEst.filter(function(m){return m.id!==n.movId});
+      try{declararExclusao('movEst',n.movId);}catch(e){_quieto(e,'excluirNota')}}
     (n.itens||[]).forEach(function(it){
       var i2=insumo(it.insumoId);
       if(i2&&i2.compras)i2.compras=i2.compras.filter(function(c){return c.notaId!==n.id});
     });
   }
+  /* ==========================================================
+     EXCLUIR A NOTA TEM DE CHEGAR NA NUVEM (Rafael, 17/09/2026)
+
+     A nota saia daqui e continuava viva la; o download seguinte a
+     trazia de volta — com o movimento de estoque junto. Foi assim que
+     a FRANQ260907 apareceu duas vezes na lista. Agora cada peca que sai
+     com a nota e DECLARADA, e a declaracao vale tambem nas tabelas que
+     nao espelham ausencia.
+     ========================================================== */
+  (DB.lancFin||[]).forEach(function(l){
+    if(l&&l.ref===n.id&&l.origem==='nota-entrada'){
+      try{declararExclusao('lancFin',l.id);}catch(e){_quieto(e,'excluirNota')}}
+  });
   DB.lancFin=(DB.lancFin||[]).filter(function(l){return !(l.ref===n.id&&l.origem==='nota-entrada')});
   DB.notas=DB.notas.filter(function(x){return x.id!==id});
+  try{declararExclusao('notas',id);}catch(e){_quieto(e,'excluirNota')}
   salvar();fecharModal();telaNotas();
   toast('Nota excluída'+(ajusta?', estoque ajustado':', estoque mantido')+' e financeiro limpo.');
 }

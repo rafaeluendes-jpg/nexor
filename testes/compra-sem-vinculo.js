@@ -189,6 +189,55 @@ async function carregar() {
   await win.excluirLanc('lf5');
   t('o lançamento continua aqui quando a nuvem recusa', win.DB.lancFin.some(l => l.id === 'lf5'));
 
+  grupo('Corrigir os itens da nota pela própria tela (Rafael, 17/09/2026)');
+  ['verSemVinc', 'salvarNotaSemVinc', 'mudaItemSemVinc', 'remItemSemVinc',
+   'lancarEstoqueDaNota', 'desfazerEstoqueDaNota'].forEach(fn =>
+    t('existe ' + fn + '()', typeof win[fn] === 'function', typeof win[fn]));
+  const n6 = novaNota('006'); win.materializarNota(n6); win.marcarNotaSemVinculo(n6);
+  const csv6 = win.DB.comprasSemVinc.find(c => c.notaId === n6.id);
+  win.telaSemVinculo = () => {};
+  win.verSemVinc(csv6.id);
+  const doc6 = win.document;
+  t('a janela abre com o item editável', !!doc6.querySelector('#mdOv input.svIn'));
+  t('tem o botão de excluir a nota devolvendo o estoque', /semVincDevolver/.test(doc6.getElementById('mdOv').innerHTML));
+  t('tem o botão de salvar a nota corrigida', /salvarNotaSemVinc/.test(doc6.getElementById('mdOv').innerHTML));
+  t('tem o botão de fazer o financeiro', /semVincManter/.test(doc6.getElementById('mdOv').innerHTML));
+  /* a pessoa corrige: 10 kg viram 4 kg, a R$ 5,00 */
+  win.mudaItemSemVinc(0, 'qtd', '4');
+  win.mudaItemSemVinc(0, 'valorUn', '5');
+  t('o total do item recalcula na hora (4 × 5 = 20)',
+    doc6.getElementById('svTot0').textContent.indexOf('20,00') >= 0, doc6.getElementById('svTot0').textContent);
+  t('o total da nota acompanha', doc6.getElementById('svTotNota').textContent.indexOf('20,00') >= 0);
+  const movAntes = n6.movId;
+  movs.length = 0;
+  win.salvarNotaSemVinc(csv6.id);
+  t('o estoque antigo foi DESFEITO', movs.some(m => m.id === movAntes && m.desfazer === true), JSON.stringify(movs));
+  t('e o estoque novo foi lançado', movs.some(m => m.desfazer === false && m.id !== movAntes));
+  t('a nota ficou com o novo total', Math.abs(n6.valorTotal - 20) < 0.001, n6.valorTotal);
+  t('o item ficou com 4 de quantidade', n6.itens[0].qtd === 4 && n6.itens[0].valorUn === 5, JSON.stringify(n6.itens[0]));
+  t('a exclusão do movimento antigo ficou declarada', !!(win.DB._apagados.movEst || {})[movAntes]);
+  t('a compra continua na lista (o financeiro ainda falta)', win.DB.comprasSemVinc.some(c => c.id === csv6.id));
+  t('a compra pendente acompanha o novo valor', Math.abs(csv6.valor - 20) < 0.001, csv6.valor);
+
+  grupo('Nota excluída não volta do túmulo (Rafael, 17/09/2026)');
+  const n7 = novaNota('007'); win.materializarNota(n7);
+  win.DB.lancFin.push({ id: 'lf7', tipo: 'despesa', descricao: 'NF 007', valor: 77.88,
+    origem: 'nota-entrada', ref: n7.id });
+  const mov7 = n7.movId;
+  win.confirmar = async () => true; win.telaNotas = () => {};
+  win._cfAjEst = true;
+  await win.excluirNota(n7.id);
+  t('a nota saiu daqui', !win.DB.notas.some(x => x.id === n7.id));
+  t('a exclusão da NOTA ficou declarada (era só local: voltava no download)',
+    !!(win.DB._apagados.notas || {})[n7.id]);
+  t('a exclusão do movimento de estoque ficou declarada', !!(win.DB._apagados.movEst || {})[mov7]);
+  t('a exclusão do boleto da nota ficou declarada', !!(win.DB._apagados.lancFin || {})['lf7']);
+
+  grupo('A ordem de apagar vale também nas tabelas sem espelho');
+  const html2 = fs.readFileSync(ARQ, 'utf8');
+  t('a sincronização manda a exclusão declarada em toda tabela',
+    /apagarRemovidos\(E2\.tab,E2\.col,lista\.map\(function\(x\)\{return x\.id\}\),!E2\.espelha\)/.test(html2));
+
   console.log('\n' + '═'.repeat(52));
   console.log('Joia · Compra sem Vínculo (nota, estoque e financeiro)');
   console.log(R.ok + ' de ' + R.total + ' testes passaram' + (R.falhou ? ' · ' + R.falhou + ' FALHA(S)' : ''));

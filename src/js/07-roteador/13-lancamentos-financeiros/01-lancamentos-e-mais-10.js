@@ -738,71 +738,149 @@ function telaSemVinculo(){
   rodape(lista.length+' registro(s)');
 }
 function filtraSemVinc(){CSV.de=$('csvDe').value;CSV.ate=$('csvAte').value;telaSemVinculo();}
-function verSemVinc(id){
+/* ==========================================================
+   RESOLVER A COMPRA SEM VINCULO NUMA TELA SO (Rafael, 17/09/2026)
+
+   Antes esta janela so mostrava. Para corrigir uma quantidade digitada
+   errada era preciso sair, achar a nota, excluir, lancar de novo — e no
+   meio do caminho o estoque ficava torto.
+
+   Agora, aqui mesmo: corrige quantidade e valor de cada item (o estoque
+   e refeito ao salvar), exclui a nota devolvendo o estoque, ou faz o
+   financeiro que falta. As tres saidas no mesmo lugar.
+   ========================================================== */
+var _svEdit=null;                 /* {csvId, notaId, itens:[{nome,qtd,valorUn,...}]} */
+function itensSemVincEditaveis(){
+  return (_svEdit&&_svEdit.itens)||[];
+}
+function totalSemVincEdit(){
+  return itensSemVincEditaveis().reduce(function(a,it){return a+(Number(it.total)||0)},0);
+}
+function mudaItemSemVinc(k,campo,valor){
+  var it=itensSemVincEditaveis()[k]; if(!it)return;
+  var v=parseFloat(String(valor).replace(',','.'))||0;
+  if(v<0)v=0;
+  it[campo]=v;
+  it.total=+((Number(it.qtd)||0)*(Number(it.valorUn)||0)).toFixed(2);
+  var l=document.getElementById('svTot'+k); if(l)l.innerHTML='R$ '+money(it.total);
+  var t=document.getElementById('svTotNota'); if(t)t.innerHTML='R$ '+money(totalSemVincEdit());
+}
+function remItemSemVinc(k){
+  var l=itensSemVincEditaveis(); if(!l[k])return;
+  l.splice(k,1);
+  verSemVinc(_svEdit.csvId,true);
+}
+function verSemVinc(id,manter){
   var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
   if(!c)return;
-  var notaExiste=(DB.notas||[]).some(function(n){return n.id===c.notaId});
+  var nota=(DB.notas||[]).find(function(n){return n.id===c.notaId});
+  if(!manter||!_svEdit||_svEdit.csvId!==id){
+    _svEdit={csvId:id,notaId:c.notaId,
+      itens:((nota?nota.itens:c.itens)||[]).map(function(it){
+        var q=Number(it.qtd)||0,tt=Number(it.total)||0;
+        return {insumoId:it.insumoId||'',nome:it.nome,unidade:it.unidade,
+          ncm:it.ncm||'',desconto:Number(it.desconto)||0,
+          qtd:q,valorUn:(it.valorUn!==undefined?Number(it.valorUn):(q?+(tt/q).toFixed(6):0)),
+          total:tt};
+      })};
+  }
+  var itens=itensSemVincEditaveis();
+  var podeEditar=!!nota;
+  var temEstoque=!!(nota&&nota.movId&&(DB.movEst||[]).some(function(m){return m.id===nota.movId}));
   var h='<div class="mdB">'+
    '<div class="cfLinhas" style="margin-bottom:10px">'+
     '<div class="cfL"><span>Nota de entrada</span><b>'+E(c.notaNumero||'—')+
-     (notaExiste?'':' <span class="vr">(a nota também foi excluída depois)</span>')+'</b></div>'+
+     (nota?'':' <span class="vr">(a nota também foi excluída depois)</span>')+'</b></div>'+
     '<div class="cfL"><span>Fornecedor</span><b>'+E(c.fornecedor||'—')+'</b></div>'+
-    '<div class="cfL"><span>Boleto</span><b>'+E(c.descricao||'—')+
+    '<div class="cfL"><span>Boleto que falta</span><b>'+E(c.descricao||'—')+
      (c.documento?' · '+E(c.documento):'')+'</b></div>'+
     '<div class="cfL"><span>Valor</span><b>R$ '+money(c.valor)+'</b></div>'+
     '<div class="cfL"><span>Vencimento</span><b>'+(c.vencimento?dataBR(c.vencimento):'—')+'</b></div>'+
-    '<div class="cfL"><span>'+(c.tipo==='pendente'?'Registrado por':'Excluído por')+'</span><b class="vr">'+E(c.excluidoPor||'—')+' — '+
+    '<div class="cfL"><span>'+(c.tipo==='pendente'?'Registrado por':'Excluído por')+'</span><b class="vr">'+
+     E(c.excluidoPor||'—')+' — '+
      (c.excluidoEm?dataBR(c.excluidoEm.slice(0,10))+' às '+c.excluidoEm.slice(11,16):'—')+'</b></div>'+
    '</div>'+
    '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">'+
-    '<div class="acTit">Itens da nota de origem</div>'+
+    '<div class="acTit">Itens da nota'+(podeEditar?' — dá para corrigir aqui':'')+'</div>'+
     '<table class="acTab"><thead><tr><th>Mercadoria</th>'+
-     '<th style="width:110px;text-align:right">Qtd</th>'+
-     '<th style="width:120px;text-align:right">Total</th></tr></thead><tbody>'+
-    ((c.itens||[]).length?c.itens.map(function(it){
+     '<th style="width:120px;text-align:right">Qtd</th>'+
+     '<th style="width:130px;text-align:right">Valor unit.</th>'+
+     '<th style="width:130px;text-align:right">Total</th>'+
+     (podeEditar?'<th style="width:44px"></th>':'')+'</tr></thead><tbody>'+
+    (itens.length?itens.map(function(it,k){
       return '<tr><td>'+E(it.nome)+'</td>'+
-      '<td style="text-align:right">'+fmtQt(it.qtd)+' '+un(it.unidade).ab+'</td>'+
-      '<td style="text-align:right">R$ '+money(it.total)+'</td></tr>';
-    }).join(''):'<tr><td colspan="3" class="semIns">sem itens registrados</td></tr>')+
-    '</tbody></table></div>'+
-   '<div class="hint" style="margin-top:10px">A mercadoria já está no estoque. Clique em '+
-    '<b>Resolver</b> para fazer o financeiro (conta a pagar) ou devolver o estoque.</div>'+
+      (podeEditar
+       ?'<td class="svCel"><input class="svIn" type="number" step="0.001" value="'+(Number(it.qtd)||0)+'" '+
+          'oninput="mudaItemSemVinc('+k+',\'qtd\',this.value)"></td>'+
+        '<td class="svCel"><input class="svIn" type="number" step="0.0001" value="'+(Number(it.valorUn)||0)+'" '+
+          'oninput="mudaItemSemVinc('+k+',\'valorUn\',this.value)"></td>'
+       :'<td style="text-align:right">'+fmtQt(it.qtd)+' '+un(it.unidade).ab+'</td>'+
+        '<td style="text-align:right">R$ '+money(it.valorUn)+'</td>')+
+      '<td style="text-align:right"><b id="svTot'+k+'">R$ '+money(it.total)+'</b></td>'+
+      (podeEditar?'<td><button class="xDel" onclick="remItemSemVinc('+k+')" title="Tirar da nota">'+
+        sv('x2',10)+'</button></td>':'')+'</tr>';
+    }).join(''):'<tr><td colspan="'+(podeEditar?5:4)+'" class="semIns">sem itens registrados</td></tr>')+
+    '</tbody></table>'+
+    '<div class="svRod">'+
+     '<span class="hint" style="margin:0">'+(podeEditar
+       ?'Mudou a quantidade ou o valor? O estoque é acertado ao salvar.'
+       :'A nota não existe mais — só dá para consultar.')+'</span>'+
+     '<div class="ntTot dest6"><span>Total da nota</span>'+
+      '<b id="svTotNota">R$ '+money(totalSemVincEdit())+'</b></div>'+
+    '</div>'+
+   '</div>'+
+   '<div class="hint" style="margin-top:10px">A mercadoria desta nota <b>já está no estoque</b>. '+
+    'Corrija os itens e <b>salve</b>, ou <b>exclua a nota</b> (o estoque volta), ou '+
+    '<b>faça o financeiro</b> que falta.</div>'+
   '</div>';
+  var o0=document.getElementById('mdOv');if(o0)o0.remove();
   var o=document.createElement('div');o.className='mdOv';o.id='mdOv';
   o.innerHTML='<div class="mdBox xl"><div class="mdH"><b>Compra sem vínculo — nota '+E(c.notaNumero||'')+'</b>'+
    '<button class="mdX" onclick="fecharModal()">&times;</button></div>'+h+
    '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
-   '<button class="btnP2 ok" onclick="relancarSemVinc(\''+c.id+'\')">Resolver</button></div></div>';
-  document.body.appendChild(o);
-}
-/* ==========================================================
-   RESOLVER A COMPRA SEM VINCULO — MANTER OU DEVOLVER O ESTOQUE
-
-   O estoque desta nota JA está lançado (entrou quando a nota foi
-   confirmada). Ao resolver, a pergunta do Rafael: manter o estoque e fazer
-   o financeiro, OU devolver o estoque e cancelar a compra de vez.
-   ========================================================== */
-function relancarSemVinc(id){
-  var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
-  if(!c)return;
-  var nota=(DB.notas||[]).find(function(n){return n.id===c.notaId});
-  var temEstoque=!!(nota&&nota.movId&&(DB.movEst||[]).some(function(m){return m.id===nota.movId}));
-  var h='<div class="mdB">'+
-   '<p style="margin:0 0 12px">O estoque desta nota <b>já está lançado</b>. O que você quer fazer '+
-    'com a compra <b>'+E(c.notaNumero||'—')+'</b> ('+E(c.fornecedor||'—')+' · R$ '+money(c.valor)+')?</p>'+
-   '<div class="hint"><b>Manter</b>: a mercadoria continua no estoque e você faz o financeiro (conta a pagar).<br>'+
-    (temEstoque?'<b>Devolver</b>: desfaz a entrada de estoque desta nota e cancela a compra — sem financeiro.'
-              :'A entrada de estoque desta nota não foi encontrada, então só dá para fazer o financeiro.')+'</div>'+
-   '</div>';
-  var o=document.createElement('div');o.className='mdOv';o.id='mdOvSV';
-  o.innerHTML='<div class="mdBox"><div class="mdH"><b>Resolver compra sem vínculo</b>'+
-   '<button onclick="fecharSV()">&times;</button></div>'+h+
-   '<div class="mdF">'+
-    (temEstoque?'<button class="btn rd" onclick="semVincDevolver(\''+c.id+'\')">Devolver o estoque</button>':'')+
-    '<button class="btn p" onclick="semVincManter(\''+c.id+'\')">Manter e fazer o financeiro</button>'+
+   '<div style="flex:1"></div>'+
+   (temEstoque?'<button class="btnP2 rdB" onclick="semVincDevolver(\''+c.id+'\')">'+
+     'Excluir a nota e devolver o estoque</button>':'')+
+   (podeEditar?'<button class="btnP2" onclick="salvarNotaSemVinc(\''+c.id+'\')">'+
+     'Salvar a nota corrigida</button>':'')+
+   '<button class="btnP2 ok" onclick="semVincManter(\''+c.id+'\')">Fazer o financeiro</button>'+
    '</div></div>';
   document.body.appendChild(o);
 }
+/* salva os itens corrigidos: o estoque da nota e desfeito e refeito pela
+   mesma porta da nota de entrada, entao o saldo nunca fica pela metade */
+function salvarNotaSemVinc(id){
+  var c=(DB.comprasSemVinc||[]).find(function(x){return x.id===id});
+  if(!c||!_svEdit||_svEdit.csvId!==id)return;
+  var nota=(DB.notas||[]).find(function(n){return n.id===c.notaId});
+  if(!nota){toast('A nota desta compra não existe mais.');return;}
+  var itens=itensSemVincEditaveis().filter(function(it){return (Number(it.qtd)||0)>0});
+  if(!itens.length){toast('A nota ficaria sem nenhum item. Use "Excluir a nota".');return;}
+  desfazerEstoqueDaNota(nota);
+  nota.itens=itens.map(function(it){
+    return {insumoId:it.insumoId,nome:it.nome,unidade:it.unidade,ncm:it.ncm||'',
+      qtd:Number(it.qtd)||0,valorUn:Number(it.valorUn)||0,
+      desconto:Number(it.desconto)||0,total:Number(it.total)||0};
+  });
+  nota.valorMercadorias=nota.itens.reduce(function(a,it){return a+(Number(it.total)||0)},0);
+  nota.valorTotal=nota.valorMercadorias;
+  lancarEstoqueDaNota(nota);
+  /* a compra pendente e a propria nota: acompanha o novo total */
+  c.itens=nota.itens.map(function(it){
+    return {nome:it.nome,qtd:it.qtd,unidade:it.unidade,total:it.total}});
+  if(c.tipo==='pendente')c.valor=nota.valorTotal;
+  salvar();fecharModal();telaSemVinculo();
+  toast('Nota '+(nota.numero||'')+' corrigida — estoque refeito. Total R$ '+money(nota.valorTotal)+'.');
+}
+/* ==========================================================
+   AS DUAS SAIDAS DA COMPRA SEM VINCULO
+
+   O estoque desta nota JA esta lancado (entrou quando a nota foi
+   confirmada). Manter o estoque e fazer o financeiro, ou devolver o
+   estoque e cancelar a compra de vez. Desde 17/09/2026 as duas saidas
+   sao botoes da propria janela (verSemVinc) — a janelinha do meio, que
+   so repetia a pergunta, saiu.
+   ========================================================== */
 function fecharSV(){var o=document.getElementById('mdOvSV');if(o)o.remove();}
 /* manter o estoque e fazer o financeiro. Cenário 2 (tem molde) recria o
    boleto como estava; cenário 1 (pendente) abre o financeiro da nota. */
@@ -844,7 +922,8 @@ async function semVincDevolver(id){
   if(nota&&nota.movId){
     var mov=(DB.movEst||[]).find(function(m){return m.id===nota.movId});
     if(mov){ try{ aplicarMovimento(mov,true); }catch(e){ _quieto(e,'semVincDevolver'); }
-      DB.movEst=DB.movEst.filter(function(m){return m.id!==nota.movId}); }
+      DB.movEst=DB.movEst.filter(function(m){return m.id!==nota.movId});
+      try{declararExclusao('movEst',nota.movId);}catch(e){_quieto(e,'semVincDevolver')} }
     (DB.insumos||[]).forEach(function(i2){
       if(i2&&i2.compras)i2.compras=i2.compras.filter(function(cp){return cp.notaId!==nota.id});
     });

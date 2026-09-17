@@ -2405,7 +2405,7 @@ function declararExclusao(col,id){
   DB._apagados[col]=DB._apagados[col]||{};
   DB._apagados[col][id]=true;
 }
-async function apagarRemovidos(tab,chave,idsAgora){
+async function apagarRemovidos(tab,chave,idsAgora,soOrdem){
   try{
     /* A unidade so BAIXA o cadastro que foi liberado para ela — entao a lista
        dela e menor de proposito. Se ela pudesse espelhar exclusoes, apagaria
@@ -2429,13 +2429,30 @@ async function apagarRemovidos(tab,chave,idsAgora){
        a ordem — que era o que fazia o produto voltar do tumulo depois
        de apagado duas vezes.
        ========================================================== */
-    var _soOrdem=false;
+    /* ==========================================================
+       A ORDEM DE APAGAR VALE EM TODA TABELA (Rafael, 17/09/2026)
+
+       Espelhar AUSENCIA e privilegio de poucas tabelas — a lista deste
+       aparelho e menor de proposito, e "sumiu daqui" nao pode apagar da
+       rede. Mas a ORDEM declarada nao vem de lista nenhuma: vem do
+       clique da pessoa, naquele item, naquela tela.
+
+       Nas tabelas sem espelho — nota de entrada, movimentacao de
+       estoque, lancamento financeiro — nao havia caminho nenhum: o
+       registro saia daqui e continuava vivo na nuvem; o download
+       seguinte o trazia de volta. Foi assim que a nota FRANQ260907
+       reapareceu duplicada depois de excluida.
+
+       Agora essas tabelas entram por aqui em modo `soOrdem`: cumprem a
+       exclusao declarada e NAO olham o que sumiu da lista.
+       ========================================================== */
+    var _soOrdem=!!soOrdem;
     if(_CORTADAS&&_CORTADAS[tab]){
-      logNuvem('ausências de '+tab+' não espelhadas: o download veio cortado pelo limite');
+      if(!_soOrdem)logNuvem('ausências de '+tab+' não espelhadas: o download veio cortado pelo limite');
       _soOrdem=true;
     }
     if(!NUVEM.baixou){
-      logNuvem('ausências de '+tab+' não espelhadas: este aparelho ainda não baixou da nuvem');
+      if(!_soOrdem)logNuvem('ausências de '+tab+' não espelhadas: este aparelho ainda não baixou da nuvem');
       _soOrdem=true;
     }
     DB._apagados=DB._apagados||{};
@@ -3056,7 +3073,7 @@ async function sincronizar(){
           .filter(function(id){return !!DB._uuid[E2.col][id]});
       }
       /* roda mesmo com a lista vazia — senão apagar o último item nunca chega na nuvem */
-      if(E2.espelha)await apagarRemovidos(E2.tab,E2.col,lista.map(function(x){return x.id}));
+      await apagarRemovidos(E2.tab,E2.col,lista.map(function(x){return x.id}),!E2.espelha);
       if(!lista.length){DB._enviados=DB._enviados||{};DB._enviados[E2.col]=[];continue;}
 
       /* filhos (opções, itens, parcelas...) */
