@@ -37350,6 +37350,27 @@ function dataDaContagem(){
   return (d>hojeISO())?hojeISO():d;      /* contagem do futuro nao existe */
 }
 function contagemRetroativa(){ return dataDaContagem()!==hojeISO(); }
+/* ==========================================================
+   ATE ONDE DA PARA VOLTAR NO TEMPO (Rafael, 17/09/2026)
+
+   `saldoNaData` acha o saldo de um dia DESFAZENDO, um a um, os
+   movimentos que vieram depois dele. Isso so funciona enquanto este
+   aparelho TEM esses movimentos: o download traz uma janela de
+   `DIAS_JANELA` dias. Pedir um dia anterior a essa janela devolve um
+   numero incompleto — e, calado, ele viraria a "diferenca" de uma
+   contagem, com ajuste de estoque e tudo.
+
+   Numero que pode estar errado precisa dizer que pode estar errado. A
+   tela avisa, e a finalizacao pergunta de novo antes de gravar.
+   ========================================================== */
+function limiteContagemRetroativa(){
+  var dias=(typeof DIAS_JANELA!=='undefined'&&DIAS_JANELA)?DIAS_JANELA:90;
+  try{ return diasAtrasISO(dias); }catch(e){ return ''; }
+}
+function contagemForaDaJanela(){
+  var lim=limiteContagemRetroativa();
+  return !!(lim&&dataDaContagem()<lim);
+}
 function sistemaNaContagem(i){
   if(!i)return 0;
   if(!contagemRetroativa())return Number(i.estoqueAtual)||0;
@@ -37707,6 +37728,13 @@ function telaContagemNova(){
       ' — os números que você já tinha digitado estão aqui.</div>'+
       '<button class="btnP2" onclick="descartarRascunhoContagem()">Começar do zero</button></div>'
      :'')+
+   (contagemForaDaJanela()
+     ?'<div class="cmdFaixa cmdAlerta" style="flex:none">'+sv('help',14)+
+      '<div>Este aparelho guarda as movimentações dos últimos '+
+      ((typeof DIAS_JANELA!=='undefined'&&DIAS_JANELA)?DIAS_JANELA:90)+' dias (desde '+
+      dataBR(limiteContagemRetroativa())+'). Para um dia anterior a esse, a '+
+      '<b>quantidade do sistema pode estar incompleta</b> — confira antes de finalizar.</div></div>'
+     :'')+
    '<div class="etFiltros" style="flex:none">'+
     '<div class="f2" style="max-width:172px"><label>Data da contagem</label>'+
      '<input type="date" id="ctData" max="'+hojeISO()+'" value="'+dataDaContagem()+'" '+
@@ -37884,6 +37912,11 @@ async function fecharContagem(){
     (_retro
       ?'A diferença foi achada contra o estoque de '+dataBR(_dt)+' e será aplicada ao '+
        'estoque de hoje — o que a loja vendeu depois daquele dia continua valendo.\n\n'
+      :'')+
+    (contagemForaDaJanela()
+      ?'ATENÇÃO: este aparelho só tem as movimentações desde '+
+       dataBR(limiteContagemRetroativa())+'. A quantidade do sistema nesse dia pode '+
+       'estar incompleta.\n\n'
       :'')+
     'O estoque será ajustado e o lançamento vai para a movimentação.'+avisoPreco))return;
   /* grava o custo antes do ajuste, para a movimentacao ja usar o valor novo */

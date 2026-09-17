@@ -200,6 +200,25 @@ t('e a data é limpa depois de finalizar',
 t('e o rascunho da folha é apagado ao finalizar',
   /limparRascunhoContagem\(\)/.test(nu));
 
+console.log('\n── Voltar no tempo além do que o aparelho tem: avisa\n');
+
+/* saldoNaData desfaz os movimentos POSTERIORES ao dia pedido. Só funciona
+   enquanto o aparelho TEM esses movimentos — o download traz uma janela de
+   DIAS_JANELA dias. Um dia anterior a isso devolve número incompleto, e
+   número que pode estar errado precisa dizer que pode estar errado. */
+t('existe o limite de até onde dá para voltar',
+  /function limiteContagemRetroativa\(\)\{/.test(nu.replace(/\s+/g, '')) ||
+  /function limiteContagemRetroativa\(\)\s*\{/.test(nu));
+t('e a pergunta "esta data está fora da janela?"',
+  /function contagemForaDaJanela\(\)/.test(nu));
+t('o limite sai da janela que o download realmente baixa (DIAS_JANELA)',
+  /DIAS_JANELA/.test(nu.slice(nu.indexOf('function limiteContagemRetroativa'),
+                              nu.indexOf('function limiteContagemRetroativa') + 320)));
+t('a tela avisa quando a data está fora da janela',
+  /contagemForaDaJanela\(\)/.test(nu) && /quantidade do sistema pode estar incompleta/.test(fonte));
+t('e a pergunta de finalizar avisa de novo, antes de gravar',
+  /ATENÇÃO: este aparelho só tem as movimentações desde/.test(fonte));
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam'
                            : '✓ ' + testes + ' testes passaram') + '\n');
 process.exit(falhas ? 1 : 0);
