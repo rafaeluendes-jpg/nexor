@@ -6077,6 +6077,10 @@ body.semRolagem{overflow:hidden}/* =============================================
 .dreTab.compacta .drePc{width:64px}
 .dreTab tbody tr.dreDet .dreN{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
 
+/* cadastro da rede aberto por uma unidade: dá para ler, não para digitar */
+input.soLeit,select.soLeit,textarea.soLeit{background:var(--alt);color:var(--ink-2);cursor:default}
+input.soLeit:focus,select.soLeit:focus,textarea.soLeit:focus{box-shadow:none;border-color:var(--line)}
+
 </style>
 <style>
 .ntMercBox{position:relative}
@@ -6836,6 +6840,43 @@ function ehFranqueadora(u){
       return !!(sc&&sc.matriz);
     });
   }catch(e){ return false; }
+}
+/* ==========================================================
+   CADASTRO DA REDE: A UNIDADE VÊ, SÓ A MATRIZ EDITA
+   (Rafael, 17/09/2026)
+
+   Santa Fé abriu "BASE FIOR DI LATTE" pelo olhinho do Estoque Total e
+   o cadastro veio editável — descrição, unidade, grupo, tudo. Um nome
+   trocado na unidade quebra a ligação da base, da ficha e do estoque
+   da REDE inteira, e foi assim que nasceu uma base que não existe.
+
+   Ingrediente e ficha técnica são cadastro da rede (a mesma lista de
+   `TABS_CADASTRO_REDE` que já impede a unidade de apagar na nuvem).
+   Daqui em diante a unidade CONSULTA: abre, lê, imprime — e não grava.
+   Quem edita é a matriz.
+
+   Duas portas, sempre as duas juntas:
+     - `barraCadastro()` na função que grava (é ela que vale de verdade);
+     - `podeEditarCadastro()` na tela, para o botão nem aparecer.
+   ========================================================== */
+function podeEditarCadastro(u){ return ehFranqueadora(u); }
+function barraCadastro(){
+  if(podeEditarCadastro())return false;
+  try{ toast('Este cadastro é da matriz. Aqui você só consulta.'); }catch(e){}
+  return true;
+}
+/* trava os campos de uma janela aberta: consulta, nunca digitação */
+function travarCamposSoLeitura(raiz){
+  if(!raiz||podeEditarCadastro())return false;
+  var campos=raiz.querySelectorAll('input,select,textarea,button.xDel,button.arvB');
+  for(var i=0;i<campos.length;i++){
+    var c=campos[i];
+    if(c.tagName==='BUTTON'){ c.remove(); continue; }
+    if(c.tagName==='SELECT'||c.type==='checkbox'||c.type==='radio'||c.type==='file')c.disabled=true;
+    else c.readOnly=true;
+    c.classList.add('soLeit');
+  }
+  return true;
 }
 
 /* ===== BLOCO 3 — ARMAZENAMENTO ===== */
@@ -13507,7 +13548,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V335.0.0';
+var VERSAO='V336.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -31132,7 +31173,9 @@ function telaInsumos(){
   '<div class="finActs">'+
    '<button class="btnP2" onclick="modalUnidades()">'+sv('gear2',13)+' Unidades</button>'+
    '<button class="btnP2" onclick="exportarInsumos()">'+sv('down2',13)+' Exportar</button>'+
-   '<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button></div></div>'+
+   (podeEditarCadastro()
+    ?'<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button>'
+    :'')+'</div></div>'+
 
   /* ==========================================================
      O FILTRO CONTINUA SENDO filtroCard
@@ -31191,8 +31234,10 @@ function telaInsumos(){
       (i.controlaEstoque?'<span class="miniTag ok2" title="controla estoque">EST</span>':'')+
       (i.compoeCMV?'<span class="miniTag cm" title="compõe CMV">CMV</span>':'')+'</td>'+
      '<td><div class="rowAct">'+
-      '<button class="rBtn" onclick="modalInsumo(\''+i.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
-      '<button class="rBtn rd" onclick="excluirInsumo(\''+i.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
+      (podeEditarCadastro()
+       ?'<button class="rBtn" onclick="modalInsumo(\''+i.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
+        '<button class="rBtn rd" onclick="excluirInsumo(\''+i.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'
+       :'<button class="rBtn" onclick="modalInsumo(\''+i.id+'\')" title="Ver">'+sv('eye',12)+'</button>')+
      '</div></td></tr>';
    }).join('')+'</tbody></table>'
   :'<div class="entVazio"><b>Nenhum ingrediente cadastrado</b>'+
@@ -31230,7 +31275,9 @@ function modalInsumo(id,copia){
    '<div class="fld2"><label>Unidade de consumo *</label>'+
     '<div class="pickRow"><select id="isU">'+
      unidades().map(function(u){return '<option value="'+u.id+'"'+(i&&i.unidade===u.id?' selected':'')+'>'+u.n+' ('+u.ab+')</option>'}).join('')+
-    '</select><button class="btnP2" onclick="modalUnidades()" title="Cadastrar unidade">'+sv('plus',12)+'</button></div></div>'+
+    '</select>'+(podeEditarCadastro()
+      ?'<button class="btnP2" onclick="modalUnidades()" title="Cadastrar unidade">'+sv('plus',12)+'</button>'
+      :'')+'</div></div>'+
    '<div class="fld2"><label>Grupo *</label><select id="isG">'+
     '<option value="">Selecione</option>'+
     (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(i&&i.grupoId===g.id?' selected':'')+'>'+E(g.nome)+
@@ -31238,7 +31285,8 @@ function modalInsumo(id,copia){
    '</select></div>'+
   '</div>'+
   '<div class="fld2" style="margin:0"><label>Categoria financeira</label>'+
-   '<button class="selArv" id="isCfB" type="button" onclick="abreCatIns()">'+
+   '<button class="selArv" id="isCfB" type="button"'+
+   (podeEditarCadastro()?' onclick="abreCatIns()"':' disabled')+'>'+
    '<span>'+E(i&&i.catFinId?nomeCatFin(i.catFinId):'Não vincular')+'</span>'+sv('dn',12)+'</button>'+
    '<input type="hidden" id="isCf" value="'+E(i?i.catFinId:'')+'">'+
    '<div class="arvIn" id="isCfArv" style="display:none"></div>'+
@@ -31313,15 +31361,23 @@ function modalInsumo(id,copia){
   blocoUnidades(copia?null:i,'insUn')+
   '</div>';
 
-  var titulo=i?(copia?'Novo ingrediente (cópia)':'Editar ingrediente'):'Novo ingrediente';
+  var _soVer=!podeEditarCadastro();
+  var titulo=_soVer?'Ingrediente (consulta)'
+    :(i?(copia?'Novo ingrediente (cópia)':'Editar ingrediente'):'Novo ingrediente');
   var o2=document.getElementById('mdOv');if(o2)o2.remove();
   var ov=document.createElement('div');ov.className='mdOv';ov.id='mdOv';
   ov.innerHTML='<div class="mdBox lg"><div class="mdH"><b>'+titulo+'</b>'+
    '<button onclick="fecharModal()">&times;</button></div>'+h+
-   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Cancelar</button>'+
-   '<button class="btnP2" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',1)">Salvar e criar cópia</button>'+
-   '<button class="btnP2 ok" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',0)">Salvar</button></div></div>';
+   '<div class="mdF">'+
+   (_soVer
+    ?'<div class="hint" style="flex:1">Cadastro da matriz — aqui é só consulta.</div>'+
+     '<button class="btnP2 ok" onclick="fecharModal()">Fechar</button>'
+    :'<button class="btnP2" onclick="fecharModal()">Cancelar</button>'+
+     '<button class="btnP2" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',1)">Salvar e criar cópia</button>'+
+     '<button class="btnP2 ok" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',0)">Salvar</button>')+
+   '</div></div>';
   document.body.appendChild(ov);
+  travarCamposSoLeitura(ov);
   fecharSoForaDeVerdade(ov);
 }
 function nomeCatFin(subId){
@@ -31384,6 +31440,7 @@ function mudaModoCusto(){
 }
 var _insEditando=null;
 function salvarInsumo(id,copia){
+  if(barraCadastro())return;
   baseEstoque();
   var alvoPrev=id?insumo(id):null;
   var alvoUlt=alvoPrev?alvoPrev.custoUltima:undefined;
@@ -31419,6 +31476,7 @@ function salvarInsumo(id,copia){
   toast('Ingrediente salvo.');
 }
 async function excluirInsumo(id){
+  if(barraCadastro())return;
   var usos=(DB.fichas||[]).filter(function(f){
     return (f.itens||[]).some(function(it){return it.insumoId===id})});
   if(usos.length){toast('Este item está em '+usos.length+' ficha(s): '+usos.map(function(f){return f.nome}).slice(0,3).join(', ')+'.');return;}
@@ -31487,6 +31545,7 @@ function modalUnidades(){
   modal('Unidades de consumo',h,'Fechar',function(){return true},'lg');
 }
 function addUnidade(){
+  if(barraCadastro())return;
   var n2=$('uN').value.trim(),a=$('uA').value.trim();
   if(!n2||!a){toast('Informe nome e sigla.');return;}
   DB.unidExtra=DB.unidExtra||[];
@@ -31495,6 +31554,7 @@ function addUnidade(){
   salvar();fecharModal();modalUnidades();toast('Unidade criada.');
 }
 function remUnidade(k){
+  if(barraCadastro())return;
   var u=DB.unidExtra[k];
   var uso=(DB.insumos||[]).filter(function(i){return i.unidade===u.id}).length;
   if(uso){toast('Esta unidade está em uso em '+uso+' item(ns).');return;}
@@ -31564,6 +31624,7 @@ function modalGrupoIng(id){
   blocoUnidades(g,'gi')+
   '</div>';
   modal(g?'Editar grupo':'Novo grupo de ingredientes',h,'Salvar',function(){
+    if(barraCadastro())return;
     var nome=$('giN').value.trim();
     if(!nome){toast('Informe a descrição.');return false;}
     /* ==========================================================
@@ -31600,6 +31661,7 @@ function modalGrupoIng(id){
   },'sm2');
 }
 async function excluirGrupoIng(id){
+  if(barraCadastro())return;
   var q=(DB.insumos||[]).filter(function(i){return i.grupoId===id}).length;
   if(q){toast('Este grupo tem '+q+' ingrediente(s). Mova-os antes de excluir.');return;}
   var g=grupoIng(id);
@@ -31769,12 +31831,16 @@ function telaFichaTecnica(){
    '<div class="ftBar">'+
     '<span class="ftTit">Produto</span>'+
     '<div class="tSep2"></div>'+
-    '<button class="btnP2 ok" onclick="modalFicha()">Novo</button>'+
-    '<button class="btnP2" onclick="editarSel()">Editar</button>'+
-    '<button class="btnP2 rdB" onclick="excluirSel()">Excluir</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2 ok" onclick="modalFicha()">Novo</button>'+
+      '<button class="btnP2" onclick="editarSel()">Editar</button>'+
+      '<button class="btnP2 rdB" onclick="excluirSel()">Excluir</button>'
+     :'')+
     '<button class="btnP2" onclick="abrirComposicao()">Ficha Técnica</button>'+
-    '<button class="btnP2" onclick="modalUnidades()">Converter Unids.</button>'+
-    '<button class="btnP2 ok" onclick="corrigirVinculos()">'+sv('ref',13)+' Corrigir vínculos</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2" onclick="modalUnidades()">Converter Unids.</button>'+
+      '<button class="btnP2 ok" onclick="corrigirVinculos()">'+sv('ref',13)+' Corrigir vínculos</button>'
+     :'<span class="hint">Cadastro da matriz — aqui é só consulta.</span>')+
    '</div>'+
    '<div class="ftBody">'+
     '<aside class="ftPane">'+
@@ -31805,34 +31871,42 @@ function telaFichaTecnica(){
             ((_sgs.length||_soltas.length)?sv('tri',9):'')+'</span>'+
            '<span class="ftNoNm" onclick="filtroFT(\''+c.id+'\',\'\')">'+sv(ab?'folderOpen':'folder',13)+' '+E(c.nome)+'</span>'+
            (_tot?'<span class="ftQt">'+_tot+'</span>':'')+
-           '<span class="ftEd">'+
-            '<button class="arvB" onclick="event.stopPropagation();modalCatFicha(\''+c.id+'\')">'+sv('edit',10)+'</button>'+
-            '<button class="arvB rd" onclick="event.stopPropagation();excluirCatFicha(\''+c.id+'\')">'+sv('trash',10)+'</button>'+
-           '</span></div>'+
+           (podeEditarCadastro()
+            ?'<span class="ftEd">'+
+             '<button class="arvB" onclick="event.stopPropagation();modalCatFicha(\''+c.id+'\')">'+sv('edit',10)+'</button>'+
+             '<button class="arvB rd" onclick="event.stopPropagation();excluirCatFicha(\''+c.id+'\')">'+sv('trash',10)+'</button>'+
+            '</span>'
+            :'')+'</div>'+
            (ab?'<div class="ftSubs">'+
              _sgs.map(function(sg){
                var _qs=(DB.fichas||[]).filter(function(f){return f.subgrupoId===sg.id}).length;
                return '<div class="ftNo sub'+(FT.sub===sg.id?' on':'')+'" onclick="filtroFT(\''+c.id+'\',\''+sg.id+'\')">'+
                sv('file2',12)+' '+E(sg.nome)+
                (_qs?'<span class="ftQt">'+_qs+'</span>':'')+
-               '<span class="ftEd">'+
-                '<button class="arvB" onclick="event.stopPropagation();renSubFicha(\''+sg.id+'\')">'+sv('edit',10)+'</button>'+
-                '<button class="arvB rd" onclick="event.stopPropagation();delSubFicha(\''+sg.id+'\')">'+sv('trash',10)+'</button>'+
-               '</span></div>';
+               (podeEditarCadastro()
+                ?'<span class="ftEd">'+
+                 '<button class="arvB" onclick="event.stopPropagation();renSubFicha(\''+sg.id+'\')">'+sv('edit',10)+'</button>'+
+                 '<button class="arvB rd" onclick="event.stopPropagation();delSubFicha(\''+sg.id+'\')">'+sv('trash',10)+'</button>'+
+                '</span>'
+                :'')+'</div>';
              }).join('')+
              _soltas.slice()
                .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
                .map(function(f){
                  return '<div class="ftNo prod'+(FT.sel===f.id?' on':'')+'" onclick="selecionaFicha(\''+f.id+'\')">'+
                  sv('file2',12)+' '+E(f.nome)+'</div>';}).join('')+
-             '<div class="ftAddSub"><input id="fsg-'+c.id+'" placeholder="novo subgrupo"'+
-              ' onkeydown="if(event.key===\'Enter\')addSubFicha(\''+c.id+'\')">'+
-              '<button class="arvB" onclick="addSubFicha(\''+c.id+'\')">'+sv('plus',11)+'</button></div>'+
+             (podeEditarCadastro()
+              ?'<div class="ftAddSub"><input id="fsg-'+c.id+'" placeholder="novo subgrupo"'+
+               ' onkeydown="if(event.key===\'Enter\')addSubFicha(\''+c.id+'\')">'+
+               '<button class="arvB" onclick="addSubFicha(\''+c.id+'\')">'+sv('plus',11)+'</button></div>'
+              :'')+
             '</div>':'');
         }).join('')+
        '</div>'+
-       '<button class="btnP2" style="width:100%;justify-content:center;margin-top:6px" onclick="modalCatFicha()">'+
-        sv('plus',12)+' Novo grupo</button>'+
+       (podeEditarCadastro()
+        ?'<button class="btnP2" style="width:100%;justify-content:center;margin-top:6px" onclick="modalCatFicha()">'+
+         sv('plus',12)+' Novo grupo</button>'
+        :'')+
       '</div>'+
      '</div>'+
      '<button class="btnPesq" onclick="pesquisarFT()">Pesquisar</button>'+
@@ -31889,6 +31963,7 @@ function marcaLinhaFT(){
 /* Mostra o que o sistema está enxergando e conserta os vínculos de produção.
    Serve como diagnóstico: se algo estiver errado, aparece aqui na tela. */
 function corrigirVinculos(){
+  if(barraCadastro())return;
   baseMov();
   var itens=itensEstoque();
   var gv=(DB.insumos||[]).find(function(i){
@@ -31931,6 +32006,7 @@ function corrigirVinculos(){
 }
 /* liga todas as fichas ao destino padrão do grupo delas */
 function vincularTudo(){
+  if(barraCadastro())return;
   baseMov();
   var gv=(DB.insumos||[]).find(function(i){
     return i.gelatoVenda||String(i.nome||'').toLowerCase()==='gelato venda';});
@@ -31971,8 +32047,10 @@ async function baixarEVincular(){
   fecharModal();
   corrigirVinculos();
 }
-function editarSel(){if(!FT.sel){toast('Selecione um produto.');return;}modalFicha(FT.sel);}
+function editarSel(){if(barraCadastro())return;
+  if(!FT.sel){toast('Selecione um produto.');return;}modalFicha(FT.sel);}
 async function excluirSel(){
+  if(barraCadastro())return;
   if(!FT.sel){toast('Selecione um produto.');return;}
   var f=DB.fichas.find(function(x){return x.id===FT.sel});
   var uso=(DB.produtos||[]).filter(function(p){return p.fichaId===f.id}).length;
@@ -32019,6 +32097,7 @@ function abrirComposicao(){
 }
 /* grupos e subgrupos */
 function modalCatFicha(id){
+  if(barraCadastro())return;
   baseFicha();
   var c=id?catFicha(id):null;
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
@@ -32050,6 +32129,7 @@ function modalCatFicha(id){
   },'sm2');
 }
 async function excluirCatFicha(id){
+  if(barraCadastro())return;
   var q=(DB.fichas||[]).filter(function(f){return f.categoriaId===id}).length;
   if(q){toast('Este grupo tem '+q+' produto(s).');return;}
   var qs=subsDoGrupo(id).length;
@@ -32058,6 +32138,7 @@ async function excluirCatFicha(id){
   await excluirLinhaGrupoFicha(id);
 }
 function addSubFicha(cid){
+  if(barraCadastro())return;
   var inp=$('fsg-'+cid);var nome=(inp.value||'').trim();
   if(!nome){inp.focus();return;}
   if(subsDoGrupo(cid).some(function(x){return (x.nome||'').toLowerCase()===nome.toLowerCase()})){
@@ -32068,12 +32149,14 @@ function addSubFicha(cid){
   var n2=$('fsg-'+cid);if(n2)n2.focus();
 }
 function renSubFicha(sid){
+  if(barraCadastro())return;
   var sg=catFicha(sid); if(!sg)return;
   var novo=prompt('Renomear subgrupo:',sg.nome);
   if(novo===null)return;novo=novo.trim();if(!novo)return;
   sg.nome=novo;normalizaGruposFicha();salvar();telaFichaTecnica();
 }
 async function delSubFicha(sid){
+  if(barraCadastro())return;
   var sg=catFicha(sid); if(!sg)return;
   var q=(DB.fichas||[]).filter(function(f){return f.subgrupoId===sid}).length;
   if(q){toast('Este subgrupo tem '+q+' produto(s).');return;}
@@ -32107,6 +32190,7 @@ async function excluirLinhaGrupoFicha(id){
 
 /* ---------- CADASTRO ---------- */
 function modalFicha(id){
+  if(barraCadastro())return;
   baseFicha();
   var f=id?DB.fichas.find(function(x){return x.id===id}):null;
   var subs=[];
@@ -32440,8 +32524,11 @@ function desenhaComp(){
     '<button class="fmAba'+(_abaComp==='composicao'?' on':'')+'" onclick="trocarAbaComp(\'composicao\')">'+
      sv('box',15)+' Composição</button>'+
     '<div class="tSep2"></div>'+
-    '<button class="btnP2" onclick="fecharComp()">Cancelar</button>'+
-    '<button class="btnP2 ok" onclick="salvarComposicao()">Salvar</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2" onclick="fecharComp()">Cancelar</button>'+
+      '<button class="btnP2 ok" onclick="salvarComposicao()">Salvar</button>'
+     :'<button class="btnP2" onclick="fecharComp()">Fechar</button>'+
+      '<span class="hint">Consulta — quem altera a ficha é a matriz.</span>')+
     /* ==========================================================
        O USUÁRIO DE UMA LOJA NÃO VÊ (NEM ESCOLHE) OUTRA SUCURSAL
 
@@ -32491,6 +32578,7 @@ function desenhaComp(){
   var ov=document.createElement('div');ov.className='mdOv fichaOv';ov.id='mdOv';
   ov.innerHTML=html;
   document.body.appendChild(ov);
+  travarCamposSoLeitura(ov);
   if($('insB')){
     $('insB').oninput=function(){_buscaIns=this.value;var p=this.selectionStart;desenhaComp();
       var n2=$('insB');if(n2){n2.focus();n2.setSelectionRange(p,p);}};
@@ -32533,6 +32621,7 @@ function ligarArrasteFicha(){
   }
 }
 function addItemFicha(insumoId){
+  if(barraCadastro())return;
   var ins=itemComp(insumoId);
   if(!ins)return;
   var base=un(ins.unidade).base;
@@ -32581,6 +32670,7 @@ function _rastroFicha(oque, f, antes){
   }catch(e){ _quieto(e,'rastroFicha'); }
 }
 function confirmarQtd(insumoId){
+  if(barraCadastro())return;
   var q=parseFloat($('qiQ').value)||0;
   if(q<=0){toast('Informe a quantidade.');return;}
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
@@ -32625,10 +32715,12 @@ function confirmarQtd(insumoId){
   salvar();fecharQtd();desenhaComp();
 }
 function remItemFicha(k){
+  if(barraCadastro())return;
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   f.itens.splice(k,1);salvar();desenhaComp();
 }
 function trocarFotoFicha(){
+  if(barraCadastro())return;
   var inp=document.createElement('input');
   inp.type='file';inp.accept='image/*';
   inp.onchange=function(){
@@ -32652,6 +32744,7 @@ function trocarFotoFicha(){
   inp.click();
 }
 function removerFotoFicha(){
+  if(barraCadastro())return;
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   f.foto='';salvar();desenhaComp();
 }
@@ -32716,6 +32809,7 @@ async function gravarItensFichaAgora(f){
   return {ok:true,n:linhas.length};
 }
 async function salvarComposicao(){
+  if(barraCadastro())return;
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   if(!f)return;
   /* colhe o que esta na tela AGORA e junta ao que foi digitado nas outras
@@ -33496,10 +33590,18 @@ function saidaBasesMatriz(p){
    Na unidade, a base e um INSUMO de mesmo nome ("BASE NINHO", em un):
    e ele que as receitas de sabor consomem. A ficha tecnica "BASE NINHO"
    e a receita da matriz e nao e estocavel — dar entrada nela e dar
-   entrada em lugar nenhum. Entao a ordem e: insumo de mesmo nome;
-   senao, a ficha ligada ao pedido (se estocavel); senao, ficha
-   estocavel de mesmo nome. Nomes comparados sem acento, caixa ou
-   espaco sobrando. Uma porta so, para a nota e para "Recebi as bases".
+   entrada em lugar nenhum.
+
+   O NOME NAO PODE MANDAR MAIS QUE O VINCULO (Rafael, 17/09/2026)
+
+   Santa Fe recebeu "BASE FIOR DI LATTE" e o saldo entrou num item
+   com esse nome — sendo que a base do catalogo aponta, pelo vinculo,
+   para a ficha BASE FIOR DI LATTE DUBAI. O catalogo tinha o nome
+   antigo; a busca pelo nome achou um homonimo e ganhou do vinculo.
+   Agora a ordem comeca pelo VINCULO: a ficha do pedido, e o item de
+   estoque que ELA gera (o destino da producao). So depois vem o nome.
+   Nomes comparados sem acento, caixa ou espaco sobrando. Uma porta
+   so, para a nota e para "Recebi as bases".
    ========================================================== */
 function chaveNomeBase(s){
   return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -33507,10 +33609,18 @@ function chaveNomeBase(s){
 function itemDaBaseNoEstoque(it){
   if(!it)return null;
   var k=chaveNomeBase(it.baseNome||it.nome);
+  /* 1) o vinculo: a ficha ligada ao pedido manda mais que o nome */
+  var f=it.fichaRef?(DB.fichas||[]).find(function(x){return x&&x.id===it.fichaRef}):null;
+  if(f){
+    if(f.estocavel!==false)return f;
+    var d=null;
+    try{ d=destinoDaFicha(f); }catch(e){ d=null; }
+    if(d)return d;
+  }
+  /* 2) insumo de mesmo nome */
   var ins=k?(DB.insumos||[]).find(function(x){return x&&chaveNomeBase(x.nome)===k}):null;
   if(ins)return ins;
-  var f=(DB.fichas||[]).find(function(x){return x&&x.id===it.fichaRef});
-  if(f&&f.estocavel!==false)return f;
+  /* 3) ficha estocavel de mesmo nome */
   if(k){
     f=(DB.fichas||[]).find(function(x){return x&&x.estocavel!==false&&chaveNomeBase(x.nome)===k});
     if(f)return f;
@@ -38540,7 +38650,9 @@ function desenhaSelMerc(){
     '<div class="f2" style="flex:1"><label>Localizar</label>'+
      '<input id="smB" value="'+E(_selBusca)+'" placeholder="nome ou código"></div>'+
     '<span class="smQt">'+lista.length+' resultado(s)</span>'+
-    '<button class="btnP2" onclick="modalInsumo()">'+sv('plus',12)+' Novo</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2" onclick="modalInsumo()">'+sv('plus',12)+' Novo</button>'
+     :'')+
    '</div>'+
    '<div class="smLista"><table class="smTab"><thead><tr>'+
     '<th style="width:80px">Código</th><th>Nome</th>'+

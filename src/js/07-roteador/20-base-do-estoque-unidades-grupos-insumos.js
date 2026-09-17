@@ -259,7 +259,9 @@ function telaInsumos(){
   '<div class="finActs">'+
    '<button class="btnP2" onclick="modalUnidades()">'+sv('gear2',13)+' Unidades</button>'+
    '<button class="btnP2" onclick="exportarInsumos()">'+sv('down2',13)+' Exportar</button>'+
-   '<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button></div></div>'+
+   (podeEditarCadastro()
+    ?'<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button>'
+    :'')+'</div></div>'+
 
   /* ==========================================================
      O FILTRO CONTINUA SENDO filtroCard
@@ -318,8 +320,10 @@ function telaInsumos(){
       (i.controlaEstoque?'<span class="miniTag ok2" title="controla estoque">EST</span>':'')+
       (i.compoeCMV?'<span class="miniTag cm" title="compõe CMV">CMV</span>':'')+'</td>'+
      '<td><div class="rowAct">'+
-      '<button class="rBtn" onclick="modalInsumo(\''+i.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
-      '<button class="rBtn rd" onclick="excluirInsumo(\''+i.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
+      (podeEditarCadastro()
+       ?'<button class="rBtn" onclick="modalInsumo(\''+i.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
+        '<button class="rBtn rd" onclick="excluirInsumo(\''+i.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'
+       :'<button class="rBtn" onclick="modalInsumo(\''+i.id+'\')" title="Ver">'+sv('eye',12)+'</button>')+
      '</div></td></tr>';
    }).join('')+'</tbody></table>'
   :'<div class="entVazio"><b>Nenhum ingrediente cadastrado</b>'+
@@ -357,7 +361,9 @@ function modalInsumo(id,copia){
    '<div class="fld2"><label>Unidade de consumo *</label>'+
     '<div class="pickRow"><select id="isU">'+
      unidades().map(function(u){return '<option value="'+u.id+'"'+(i&&i.unidade===u.id?' selected':'')+'>'+u.n+' ('+u.ab+')</option>'}).join('')+
-    '</select><button class="btnP2" onclick="modalUnidades()" title="Cadastrar unidade">'+sv('plus',12)+'</button></div></div>'+
+    '</select>'+(podeEditarCadastro()
+      ?'<button class="btnP2" onclick="modalUnidades()" title="Cadastrar unidade">'+sv('plus',12)+'</button>'
+      :'')+'</div></div>'+
    '<div class="fld2"><label>Grupo *</label><select id="isG">'+
     '<option value="">Selecione</option>'+
     (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(i&&i.grupoId===g.id?' selected':'')+'>'+E(g.nome)+
@@ -365,7 +371,8 @@ function modalInsumo(id,copia){
    '</select></div>'+
   '</div>'+
   '<div class="fld2" style="margin:0"><label>Categoria financeira</label>'+
-   '<button class="selArv" id="isCfB" type="button" onclick="abreCatIns()">'+
+   '<button class="selArv" id="isCfB" type="button"'+
+   (podeEditarCadastro()?' onclick="abreCatIns()"':' disabled')+'>'+
    '<span>'+E(i&&i.catFinId?nomeCatFin(i.catFinId):'Não vincular')+'</span>'+sv('dn',12)+'</button>'+
    '<input type="hidden" id="isCf" value="'+E(i?i.catFinId:'')+'">'+
    '<div class="arvIn" id="isCfArv" style="display:none"></div>'+
@@ -440,15 +447,23 @@ function modalInsumo(id,copia){
   blocoUnidades(copia?null:i,'insUn')+
   '</div>';
 
-  var titulo=i?(copia?'Novo ingrediente (cópia)':'Editar ingrediente'):'Novo ingrediente';
+  var _soVer=!podeEditarCadastro();
+  var titulo=_soVer?'Ingrediente (consulta)'
+    :(i?(copia?'Novo ingrediente (cópia)':'Editar ingrediente'):'Novo ingrediente');
   var o2=document.getElementById('mdOv');if(o2)o2.remove();
   var ov=document.createElement('div');ov.className='mdOv';ov.id='mdOv';
   ov.innerHTML='<div class="mdBox lg"><div class="mdH"><b>'+titulo+'</b>'+
    '<button onclick="fecharModal()">&times;</button></div>'+h+
-   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Cancelar</button>'+
-   '<button class="btnP2" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',1)">Salvar e criar cópia</button>'+
-   '<button class="btnP2 ok" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',0)">Salvar</button></div></div>';
+   '<div class="mdF">'+
+   (_soVer
+    ?'<div class="hint" style="flex:1">Cadastro da matriz — aqui é só consulta.</div>'+
+     '<button class="btnP2 ok" onclick="fecharModal()">Fechar</button>'
+    :'<button class="btnP2" onclick="fecharModal()">Cancelar</button>'+
+     '<button class="btnP2" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',1)">Salvar e criar cópia</button>'+
+     '<button class="btnP2 ok" onclick="salvarInsumo(\''+(i&&!copia?i.id:'')+'\',0)">Salvar</button>')+
+   '</div></div>';
   document.body.appendChild(ov);
+  travarCamposSoLeitura(ov);
   fecharSoForaDeVerdade(ov);
 }
 function nomeCatFin(subId){
@@ -511,6 +526,7 @@ function mudaModoCusto(){
 }
 var _insEditando=null;
 function salvarInsumo(id,copia){
+  if(barraCadastro())return;
   baseEstoque();
   var alvoPrev=id?insumo(id):null;
   var alvoUlt=alvoPrev?alvoPrev.custoUltima:undefined;
@@ -546,6 +562,7 @@ function salvarInsumo(id,copia){
   toast('Ingrediente salvo.');
 }
 async function excluirInsumo(id){
+  if(barraCadastro())return;
   var usos=(DB.fichas||[]).filter(function(f){
     return (f.itens||[]).some(function(it){return it.insumoId===id})});
   if(usos.length){toast('Este item está em '+usos.length+' ficha(s): '+usos.map(function(f){return f.nome}).slice(0,3).join(', ')+'.');return;}
@@ -614,6 +631,7 @@ function modalUnidades(){
   modal('Unidades de consumo',h,'Fechar',function(){return true},'lg');
 }
 function addUnidade(){
+  if(barraCadastro())return;
   var n2=$('uN').value.trim(),a=$('uA').value.trim();
   if(!n2||!a){toast('Informe nome e sigla.');return;}
   DB.unidExtra=DB.unidExtra||[];
@@ -622,6 +640,7 @@ function addUnidade(){
   salvar();fecharModal();modalUnidades();toast('Unidade criada.');
 }
 function remUnidade(k){
+  if(barraCadastro())return;
   var u=DB.unidExtra[k];
   var uso=(DB.insumos||[]).filter(function(i){return i.unidade===u.id}).length;
   if(uso){toast('Esta unidade está em uso em '+uso+' item(ns).');return;}
@@ -691,6 +710,7 @@ function modalGrupoIng(id){
   blocoUnidades(g,'gi')+
   '</div>';
   modal(g?'Editar grupo':'Novo grupo de ingredientes',h,'Salvar',function(){
+    if(barraCadastro())return;
     var nome=$('giN').value.trim();
     if(!nome){toast('Informe a descrição.');return false;}
     /* ==========================================================
@@ -727,6 +747,7 @@ function modalGrupoIng(id){
   },'sm2');
 }
 async function excluirGrupoIng(id){
+  if(barraCadastro())return;
   var q=(DB.insumos||[]).filter(function(i){return i.grupoId===id}).length;
   if(q){toast('Este grupo tem '+q+' ingrediente(s). Mova-os antes de excluir.');return;}
   var g=grupoIng(id);

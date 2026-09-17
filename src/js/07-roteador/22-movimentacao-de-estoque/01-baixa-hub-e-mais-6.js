@@ -714,10 +714,18 @@ function saidaBasesMatriz(p){
    Na unidade, a base e um INSUMO de mesmo nome ("BASE NINHO", em un):
    e ele que as receitas de sabor consomem. A ficha tecnica "BASE NINHO"
    e a receita da matriz e nao e estocavel — dar entrada nela e dar
-   entrada em lugar nenhum. Entao a ordem e: insumo de mesmo nome;
-   senao, a ficha ligada ao pedido (se estocavel); senao, ficha
-   estocavel de mesmo nome. Nomes comparados sem acento, caixa ou
-   espaco sobrando. Uma porta so, para a nota e para "Recebi as bases".
+   entrada em lugar nenhum.
+
+   O NOME NAO PODE MANDAR MAIS QUE O VINCULO (Rafael, 17/09/2026)
+
+   Santa Fe recebeu "BASE FIOR DI LATTE" e o saldo entrou num item
+   com esse nome — sendo que a base do catalogo aponta, pelo vinculo,
+   para a ficha BASE FIOR DI LATTE DUBAI. O catalogo tinha o nome
+   antigo; a busca pelo nome achou um homonimo e ganhou do vinculo.
+   Agora a ordem comeca pelo VINCULO: a ficha do pedido, e o item de
+   estoque que ELA gera (o destino da producao). So depois vem o nome.
+   Nomes comparados sem acento, caixa ou espaco sobrando. Uma porta
+   so, para a nota e para "Recebi as bases".
    ========================================================== */
 function chaveNomeBase(s){
   return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -725,10 +733,18 @@ function chaveNomeBase(s){
 function itemDaBaseNoEstoque(it){
   if(!it)return null;
   var k=chaveNomeBase(it.baseNome||it.nome);
+  /* 1) o vinculo: a ficha ligada ao pedido manda mais que o nome */
+  var f=it.fichaRef?(DB.fichas||[]).find(function(x){return x&&x.id===it.fichaRef}):null;
+  if(f){
+    if(f.estocavel!==false)return f;
+    var d=null;
+    try{ d=destinoDaFicha(f); }catch(e){ d=null; }
+    if(d)return d;
+  }
+  /* 2) insumo de mesmo nome */
   var ins=k?(DB.insumos||[]).find(function(x){return x&&chaveNomeBase(x.nome)===k}):null;
   if(ins)return ins;
-  var f=(DB.fichas||[]).find(function(x){return x&&x.id===it.fichaRef});
-  if(f&&f.estocavel!==false)return f;
+  /* 3) ficha estocavel de mesmo nome */
   if(k){
     f=(DB.fichas||[]).find(function(x){return x&&x.estocavel!==false&&chaveNomeBase(x.nome)===k});
     if(f)return f;

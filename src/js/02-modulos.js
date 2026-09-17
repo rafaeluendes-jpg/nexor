@@ -198,3 +198,40 @@ function ehFranqueadora(u){
     });
   }catch(e){ return false; }
 }
+/* ==========================================================
+   CADASTRO DA REDE: A UNIDADE VÊ, SÓ A MATRIZ EDITA
+   (Rafael, 17/09/2026)
+
+   Santa Fé abriu "BASE FIOR DI LATTE" pelo olhinho do Estoque Total e
+   o cadastro veio editável — descrição, unidade, grupo, tudo. Um nome
+   trocado na unidade quebra a ligação da base, da ficha e do estoque
+   da REDE inteira, e foi assim que nasceu uma base que não existe.
+
+   Ingrediente e ficha técnica são cadastro da rede (a mesma lista de
+   `TABS_CADASTRO_REDE` que já impede a unidade de apagar na nuvem).
+   Daqui em diante a unidade CONSULTA: abre, lê, imprime — e não grava.
+   Quem edita é a matriz.
+
+   Duas portas, sempre as duas juntas:
+     - `barraCadastro()` na função que grava (é ela que vale de verdade);
+     - `podeEditarCadastro()` na tela, para o botão nem aparecer.
+   ========================================================== */
+function podeEditarCadastro(u){ return ehFranqueadora(u); }
+function barraCadastro(){
+  if(podeEditarCadastro())return false;
+  try{ toast('Este cadastro é da matriz. Aqui você só consulta.'); }catch(e){}
+  return true;
+}
+/* trava os campos de uma janela aberta: consulta, nunca digitação */
+function travarCamposSoLeitura(raiz){
+  if(!raiz||podeEditarCadastro())return false;
+  var campos=raiz.querySelectorAll('input,select,textarea,button.xDel,button.arvB');
+  for(var i=0;i<campos.length;i++){
+    var c=campos[i];
+    if(c.tagName==='BUTTON'){ c.remove(); continue; }
+    if(c.tagName==='SELECT'||c.type==='checkbox'||c.type==='radio'||c.type==='file')c.disabled=true;
+    else c.readOnly=true;
+    c.classList.add('soLeit');
+  }
+  return true;
+}

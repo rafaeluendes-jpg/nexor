@@ -159,12 +159,16 @@ function telaFichaTecnica(){
    '<div class="ftBar">'+
     '<span class="ftTit">Produto</span>'+
     '<div class="tSep2"></div>'+
-    '<button class="btnP2 ok" onclick="modalFicha()">Novo</button>'+
-    '<button class="btnP2" onclick="editarSel()">Editar</button>'+
-    '<button class="btnP2 rdB" onclick="excluirSel()">Excluir</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2 ok" onclick="modalFicha()">Novo</button>'+
+      '<button class="btnP2" onclick="editarSel()">Editar</button>'+
+      '<button class="btnP2 rdB" onclick="excluirSel()">Excluir</button>'
+     :'')+
     '<button class="btnP2" onclick="abrirComposicao()">Ficha Técnica</button>'+
-    '<button class="btnP2" onclick="modalUnidades()">Converter Unids.</button>'+
-    '<button class="btnP2 ok" onclick="corrigirVinculos()">'+sv('ref',13)+' Corrigir vínculos</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2" onclick="modalUnidades()">Converter Unids.</button>'+
+      '<button class="btnP2 ok" onclick="corrigirVinculos()">'+sv('ref',13)+' Corrigir vínculos</button>'
+     :'<span class="hint">Cadastro da matriz — aqui é só consulta.</span>')+
    '</div>'+
    '<div class="ftBody">'+
     '<aside class="ftPane">'+
@@ -195,34 +199,42 @@ function telaFichaTecnica(){
             ((_sgs.length||_soltas.length)?sv('tri',9):'')+'</span>'+
            '<span class="ftNoNm" onclick="filtroFT(\''+c.id+'\',\'\')">'+sv(ab?'folderOpen':'folder',13)+' '+E(c.nome)+'</span>'+
            (_tot?'<span class="ftQt">'+_tot+'</span>':'')+
-           '<span class="ftEd">'+
-            '<button class="arvB" onclick="event.stopPropagation();modalCatFicha(\''+c.id+'\')">'+sv('edit',10)+'</button>'+
-            '<button class="arvB rd" onclick="event.stopPropagation();excluirCatFicha(\''+c.id+'\')">'+sv('trash',10)+'</button>'+
-           '</span></div>'+
+           (podeEditarCadastro()
+            ?'<span class="ftEd">'+
+             '<button class="arvB" onclick="event.stopPropagation();modalCatFicha(\''+c.id+'\')">'+sv('edit',10)+'</button>'+
+             '<button class="arvB rd" onclick="event.stopPropagation();excluirCatFicha(\''+c.id+'\')">'+sv('trash',10)+'</button>'+
+            '</span>'
+            :'')+'</div>'+
            (ab?'<div class="ftSubs">'+
              _sgs.map(function(sg){
                var _qs=(DB.fichas||[]).filter(function(f){return f.subgrupoId===sg.id}).length;
                return '<div class="ftNo sub'+(FT.sub===sg.id?' on':'')+'" onclick="filtroFT(\''+c.id+'\',\''+sg.id+'\')">'+
                sv('file2',12)+' '+E(sg.nome)+
                (_qs?'<span class="ftQt">'+_qs+'</span>':'')+
-               '<span class="ftEd">'+
-                '<button class="arvB" onclick="event.stopPropagation();renSubFicha(\''+sg.id+'\')">'+sv('edit',10)+'</button>'+
-                '<button class="arvB rd" onclick="event.stopPropagation();delSubFicha(\''+sg.id+'\')">'+sv('trash',10)+'</button>'+
-               '</span></div>';
+               (podeEditarCadastro()
+                ?'<span class="ftEd">'+
+                 '<button class="arvB" onclick="event.stopPropagation();renSubFicha(\''+sg.id+'\')">'+sv('edit',10)+'</button>'+
+                 '<button class="arvB rd" onclick="event.stopPropagation();delSubFicha(\''+sg.id+'\')">'+sv('trash',10)+'</button>'+
+                '</span>'
+                :'')+'</div>';
              }).join('')+
              _soltas.slice()
                .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
                .map(function(f){
                  return '<div class="ftNo prod'+(FT.sel===f.id?' on':'')+'" onclick="selecionaFicha(\''+f.id+'\')">'+
                  sv('file2',12)+' '+E(f.nome)+'</div>';}).join('')+
-             '<div class="ftAddSub"><input id="fsg-'+c.id+'" placeholder="novo subgrupo"'+
-              ' onkeydown="if(event.key===\'Enter\')addSubFicha(\''+c.id+'\')">'+
-              '<button class="arvB" onclick="addSubFicha(\''+c.id+'\')">'+sv('plus',11)+'</button></div>'+
+             (podeEditarCadastro()
+              ?'<div class="ftAddSub"><input id="fsg-'+c.id+'" placeholder="novo subgrupo"'+
+               ' onkeydown="if(event.key===\'Enter\')addSubFicha(\''+c.id+'\')">'+
+               '<button class="arvB" onclick="addSubFicha(\''+c.id+'\')">'+sv('plus',11)+'</button></div>'
+              :'')+
             '</div>':'');
         }).join('')+
        '</div>'+
-       '<button class="btnP2" style="width:100%;justify-content:center;margin-top:6px" onclick="modalCatFicha()">'+
-        sv('plus',12)+' Novo grupo</button>'+
+       (podeEditarCadastro()
+        ?'<button class="btnP2" style="width:100%;justify-content:center;margin-top:6px" onclick="modalCatFicha()">'+
+         sv('plus',12)+' Novo grupo</button>'
+        :'')+
       '</div>'+
      '</div>'+
      '<button class="btnPesq" onclick="pesquisarFT()">Pesquisar</button>'+
@@ -279,6 +291,7 @@ function marcaLinhaFT(){
 /* Mostra o que o sistema está enxergando e conserta os vínculos de produção.
    Serve como diagnóstico: se algo estiver errado, aparece aqui na tela. */
 function corrigirVinculos(){
+  if(barraCadastro())return;
   baseMov();
   var itens=itensEstoque();
   var gv=(DB.insumos||[]).find(function(i){
@@ -321,6 +334,7 @@ function corrigirVinculos(){
 }
 /* liga todas as fichas ao destino padrão do grupo delas */
 function vincularTudo(){
+  if(barraCadastro())return;
   baseMov();
   var gv=(DB.insumos||[]).find(function(i){
     return i.gelatoVenda||String(i.nome||'').toLowerCase()==='gelato venda';});
@@ -361,8 +375,10 @@ async function baixarEVincular(){
   fecharModal();
   corrigirVinculos();
 }
-function editarSel(){if(!FT.sel){toast('Selecione um produto.');return;}modalFicha(FT.sel);}
+function editarSel(){if(barraCadastro())return;
+  if(!FT.sel){toast('Selecione um produto.');return;}modalFicha(FT.sel);}
 async function excluirSel(){
+  if(barraCadastro())return;
   if(!FT.sel){toast('Selecione um produto.');return;}
   var f=DB.fichas.find(function(x){return x.id===FT.sel});
   var uso=(DB.produtos||[]).filter(function(p){return p.fichaId===f.id}).length;
@@ -409,6 +425,7 @@ function abrirComposicao(){
 }
 /* grupos e subgrupos */
 function modalCatFicha(id){
+  if(barraCadastro())return;
   baseFicha();
   var c=id?catFicha(id):null;
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
@@ -440,6 +457,7 @@ function modalCatFicha(id){
   },'sm2');
 }
 async function excluirCatFicha(id){
+  if(barraCadastro())return;
   var q=(DB.fichas||[]).filter(function(f){return f.categoriaId===id}).length;
   if(q){toast('Este grupo tem '+q+' produto(s).');return;}
   var qs=subsDoGrupo(id).length;
@@ -448,6 +466,7 @@ async function excluirCatFicha(id){
   await excluirLinhaGrupoFicha(id);
 }
 function addSubFicha(cid){
+  if(barraCadastro())return;
   var inp=$('fsg-'+cid);var nome=(inp.value||'').trim();
   if(!nome){inp.focus();return;}
   if(subsDoGrupo(cid).some(function(x){return (x.nome||'').toLowerCase()===nome.toLowerCase()})){
@@ -458,12 +477,14 @@ function addSubFicha(cid){
   var n2=$('fsg-'+cid);if(n2)n2.focus();
 }
 function renSubFicha(sid){
+  if(barraCadastro())return;
   var sg=catFicha(sid); if(!sg)return;
   var novo=prompt('Renomear subgrupo:',sg.nome);
   if(novo===null)return;novo=novo.trim();if(!novo)return;
   sg.nome=novo;normalizaGruposFicha();salvar();telaFichaTecnica();
 }
 async function delSubFicha(sid){
+  if(barraCadastro())return;
   var sg=catFicha(sid); if(!sg)return;
   var q=(DB.fichas||[]).filter(function(f){return f.subgrupoId===sid}).length;
   if(q){toast('Este subgrupo tem '+q+' produto(s).');return;}
@@ -497,6 +518,7 @@ async function excluirLinhaGrupoFicha(id){
 
 /* ---------- CADASTRO ---------- */
 function modalFicha(id){
+  if(barraCadastro())return;
   baseFicha();
   var f=id?DB.fichas.find(function(x){return x.id===id}):null;
   var subs=[];
@@ -830,8 +852,11 @@ function desenhaComp(){
     '<button class="fmAba'+(_abaComp==='composicao'?' on':'')+'" onclick="trocarAbaComp(\'composicao\')">'+
      sv('box',15)+' Composição</button>'+
     '<div class="tSep2"></div>'+
-    '<button class="btnP2" onclick="fecharComp()">Cancelar</button>'+
-    '<button class="btnP2 ok" onclick="salvarComposicao()">Salvar</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2" onclick="fecharComp()">Cancelar</button>'+
+      '<button class="btnP2 ok" onclick="salvarComposicao()">Salvar</button>'
+     :'<button class="btnP2" onclick="fecharComp()">Fechar</button>'+
+      '<span class="hint">Consulta — quem altera a ficha é a matriz.</span>')+
     /* ==========================================================
        O USUÁRIO DE UMA LOJA NÃO VÊ (NEM ESCOLHE) OUTRA SUCURSAL
 
@@ -881,6 +906,7 @@ function desenhaComp(){
   var ov=document.createElement('div');ov.className='mdOv fichaOv';ov.id='mdOv';
   ov.innerHTML=html;
   document.body.appendChild(ov);
+  travarCamposSoLeitura(ov);
   if($('insB')){
     $('insB').oninput=function(){_buscaIns=this.value;var p=this.selectionStart;desenhaComp();
       var n2=$('insB');if(n2){n2.focus();n2.setSelectionRange(p,p);}};
@@ -923,6 +949,7 @@ function ligarArrasteFicha(){
   }
 }
 function addItemFicha(insumoId){
+  if(barraCadastro())return;
   var ins=itemComp(insumoId);
   if(!ins)return;
   var base=un(ins.unidade).base;
@@ -971,6 +998,7 @@ function _rastroFicha(oque, f, antes){
   }catch(e){ _quieto(e,'rastroFicha'); }
 }
 function confirmarQtd(insumoId){
+  if(barraCadastro())return;
   var q=parseFloat($('qiQ').value)||0;
   if(q<=0){toast('Informe a quantidade.');return;}
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
@@ -1015,10 +1043,12 @@ function confirmarQtd(insumoId){
   salvar();fecharQtd();desenhaComp();
 }
 function remItemFicha(k){
+  if(barraCadastro())return;
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   f.itens.splice(k,1);salvar();desenhaComp();
 }
 function trocarFotoFicha(){
+  if(barraCadastro())return;
   var inp=document.createElement('input');
   inp.type='file';inp.accept='image/*';
   inp.onchange=function(){
@@ -1042,6 +1072,7 @@ function trocarFotoFicha(){
   inp.click();
 }
 function removerFotoFicha(){
+  if(barraCadastro())return;
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   f.foto='';salvar();desenhaComp();
 }
@@ -1106,6 +1137,7 @@ async function gravarItensFichaAgora(f){
   return {ok:true,n:linhas.length};
 }
 async function salvarComposicao(){
+  if(barraCadastro())return;
   var f=DB.fichas.find(function(x){return x.id===_fichaAberta});
   if(!f)return;
   /* colhe o que esta na tela AGORA e junta ao que foi digitado nas outras

@@ -392,7 +392,9 @@ function desenhaSelMerc(){
     '<div class="f2" style="flex:1"><label>Localizar</label>'+
      '<input id="smB" value="'+E(_selBusca)+'" placeholder="nome ou código"></div>'+
     '<span class="smQt">'+lista.length+' resultado(s)</span>'+
-    '<button class="btnP2" onclick="modalInsumo()">'+sv('plus',12)+' Novo</button>'+
+    (podeEditarCadastro()
+     ?'<button class="btnP2" onclick="modalInsumo()">'+sv('plus',12)+' Novo</button>'
+     :'')+
    '</div>'+
    '<div class="smLista"><table class="smTab"><thead><tr>'+
     '<th style="width:80px">Código</th><th>Nome</th>'+

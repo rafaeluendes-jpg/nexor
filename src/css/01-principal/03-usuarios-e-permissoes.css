@@ -955,3 +955,7 @@ body.semRolagem{overflow:hidden}/* =============================================
 .dreTab.compacta .dreV{width:120px}
 .dreTab.compacta .drePc{width:64px}
 .dreTab tbody tr.dreDet .dreN{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
+
+/* cadastro da rede aberto por uma unidade: dá para ler, não para digitar */
+input.soLeit,select.soLeit,textarea.soLeit{background:var(--alt);color:var(--ink-2);cursor:default}
+input.soLeit:focus,select.soLeit:focus,textarea.soLeit:focus{box-shadow:none;border-color:var(--line)}
