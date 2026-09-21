@@ -2182,6 +2182,64 @@ function caixasEsquecidos(){
     return isoHoraDoCaixa(a.aberto).localeCompare(isoHoraDoCaixa(b.aberto));
   });
 }
+/* ==========================================================
+   O GEMEO VAZIO DO CAIXA (Santa Fe do Sul, 20/09/2026)
+
+   Um duplo clique no "Abrir caixa" criou dois caixas da mesma unidade
+   com 367 milissegundos de diferenca. As vendas do dia foram todas para
+   o primeiro; o segundo nasceu vazio e ficou aberto para sempre. Fechar
+   "o caixa" no fim da noite fechava o que tinha as vendas — o gemeo
+   continuava la, e na manha seguinte era ele que aparecia aberto.
+
+   A porta ja foi fechada na abertura (a trava agora vem antes de
+   qualquer espera). Esta funcao e a faxina do que ja aconteceu, e do que
+   dois APARELHOS ainda podem criar ao abrir no mesmo segundo.
+
+   O que ela apaga e so o que nao tem nada dentro: sem venda ligada a
+   ele, sem movimento de gaveta, e com outro caixa da mesma unidade
+   aberto no mesmo minuto. Caixa com dinheiro NUNCA e apagado — se os
+   dois tiverem movimento, os dois ficam, e a Frente de Caixa cobra o
+   fechamento de cada um, como sempre fez.
+   ========================================================== */
+function repararCaixasDuplicados(){
+  var lista=(DB.caixas||[]).filter(function(c){return c&&!c.fechadoEm});
+  if(lista.length<2)return 0;
+  var temVenda={};
+  (DB.pedidos||[]).forEach(function(p){ if(p&&p.caixaId)temVenda[p.caixaId]=true; });
+  var porSuc={};
+  lista.forEach(function(c){
+    var s=c.sucursalId||'__sem';
+    (porSuc[s]=porSuc[s]||[]).push(c);
+  });
+  var mortos=[];
+  Object.keys(porSuc).forEach(function(s){
+    var g=porSuc[s];
+    if(g.length<2)return;
+    g.sort(function(a,b){
+      return isoHoraDoCaixa(a.aberto).localeCompare(isoHoraDoCaixa(b.aberto));
+    });
+    g.forEach(function(c,i){
+      if(i===0)return;                                  /* o primeiro sempre fica */
+      if(temVenda[c.id])return;                         /* tem venda: nao se toca */
+      if((c.movimentos||[]).length)return;              /* tem sangria/suprimento */
+      /* gemeo e o que nasceu no MESMO minuto de outro caixa da unidade */
+      if(isoHoraDoCaixa(c.aberto)!==isoHoraDoCaixa(g[i-1].aberto))return;
+      mortos.push(c.id);
+    });
+  });
+  if(!mortos.length)return 0;
+  DB.caixas=(DB.caixas||[]).filter(function(c){
+    if(!c||mortos.indexOf(c.id)<0)return true;
+    try{declararExclusao('caixas',c.id);}catch(e){_quieto(e,'repararCaixasDuplicados')}
+    try{ if(DB._uuid&&DB._uuid.caixas)delete DB._uuid.caixas[c.id]; }
+    catch(e2){ _quieto(e2,'repararCaixasDuplicados'); }
+    return false;
+  });
+  try{ salvar(); }catch(e){ _quieto(e,'repararCaixasDuplicados'); }
+  try{ logNuvem(mortos.length+' caixa(s) gêmeo(s) vazio(s) removido(s) — '+
+    'abertura repetida no mesmo minuto'); }catch(e){}
+  return mortos.length;
+}
 /* o caixa aberto e de hoje? gelato fecha as 22:30 — caixa de outro dia e
    esquecimento, nao turno que atravessa a noite */
 function caixaDeOutroDia(cx){

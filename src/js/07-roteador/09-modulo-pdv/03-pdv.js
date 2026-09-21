@@ -2352,6 +2352,8 @@ function falhouNaTela(nome,e){
     toast('Não consegui abrir "'+nome+'". Avise o suporte com esta frase: '+det);
   }catch(x){ alert('Falha em '+nome+': '+det); }
 }
+/* uma abertura de cada vez: a marca e posta antes de qualquer espera */
+var _abrindoCaixa=false;
 async function _abrirCaixa(){
   if(caixaAberto()){toast('Já existe um caixa aberto. Feche-o antes de abrir outro.');return;}
   baseOper();baseTurnos();
@@ -2421,6 +2423,35 @@ async function _abrirCaixa(){
   /* a conferencia agora vai ao banco: a funcao do modal precisa ser async,
      senao o `if(!op)` roda antes da resposta e libera sem conferir */
   modal('Abrir frente de caixa',h,'Abrir caixa',async function(){
+    /* ==========================================================
+       A TRAVA DOS DOIS CLIQUES TINHA DE VIR ANTES DO PRIMEIRO `await`
+       (Santa Fe do Sul, 20/09/2026)
+
+       A loja fechou o caixa as 22:52, com comprovante. Na manha seguinte
+       o caixa estava aberto de novo. No banco estavam DOIS caixas da
+       mesma unidade, abertos as 12:44 — e os identificadores dizem a
+       hora exata: `cx_mu9zm2r5adqy` as 12:44:52,337 e `cx_mu9zm31c5pyv`
+       as 12:44:52,704. TREZENTOS E SESSENTA E SETE MILISSEGUNDOS entre
+       um e outro. Foi um duplo clique.
+
+       A trava contra isso existia e estava LOGO DEPOIS de dois `await`
+       (a autorizacao do operador e a pergunta a nuvem). Nesse intervalo
+       o segundo clique ja tinha entrado, olhado a mesma lista sem
+       ninguem e seguido em frente: os dois gravaram.
+
+       As vendas do dia foram todas para o primeiro; o segundo nasceu
+       vazio e ficou aberto para sempre. Fechar "o caixa" fechava o que
+       tinha as vendas — o gemeo vazio continuava la, e no dia seguinte
+       era ele que aparecia aberto.
+
+       Agora a trava e a PRIMEIRA linha, antes de qualquer espera, e ela
+       e sincrona: o segundo clique nao passa daqui. A conferencia da
+       lista continua existindo logo antes de gravar, para o caso de o
+       caixa ter nascido em outro aparelho enquanto esta janela esperava.
+       ========================================================== */
+    if(_abrindoCaixa)return false;          /* ja tem uma abertura em curso */
+    _abrindoCaixa=true;
+    try{
     var opId=$('cxOp').value;
     var op=await autorizar('abrir',opId,($('cxSenha')||{}).value||'');
     if(!op)return false;
@@ -2430,8 +2461,8 @@ async function _abrirCaixa(){
     if(rt.length&&!turnoId){toast('Escolha o turno.');return false;}
     DB.caixas=DB.caixas||[];
     var ag=new Date();
-    /* dois cliques no botao, ou duas abas abertas, nao podem abrir dois
-       caixas na mesma unidade */
+    /* duas abas, ou o caixa que chegou pelo download enquanto esta janela
+       esperava a autorizacao */
     if(caixaAberto()){
       toast('Já existe um caixa aberto nesta unidade.');
       telaPDV(); return true;
@@ -2450,6 +2481,11 @@ async function _abrirCaixa(){
       try{ await baixarDaNuvem(true); }catch(e){ _quieto(e,'abrirCaixa'); }
       telaPDV(); return true;
     }
+    /* ultima conferencia, ja sem nenhum `await` pela frente */
+    if(caixaAberto()){
+      toast('Já existe um caixa aberto nesta unidade.');
+      telaPDV(); return true;
+    }
     var novoCx={id:uid('cx'),inicial:moedaValor('cxIni'),
       operador:op.nome,operadorId:op.id,funcao:op.funcao,
       turnoId:turnoId,turno:nomeTurno(turnoId),
@@ -2465,6 +2501,7 @@ async function _abrirCaixa(){
        intervalo que o fechamento usa para nao empilhar dois overlays */
     setTimeout(function(){ perguntaImprimirAbertura(novoCx); },120);
     return true;
+    }finally{ _abrindoCaixa=false; }
   });
   setTimeout(function(){pedeSenhaCaixa('cx')},80);
 }

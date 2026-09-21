@@ -1296,6 +1296,8 @@ function volta(linhas,fn,atual,col){
   /* compra sem vinculo que a nuvem trouxe de volta com o boleto ja lancado */
   try{ if(typeof repararComprasSemVinculo==='function')repararComprasSemVinculo(); }catch(e){_quieto(e,'baixarDaNuvem/semVinculo')}
   try{ if(typeof soltarNotasDeLancErrado==='function')soltarNotasDeLancErrado(); }catch(e){_quieto(e,'baixarDaNuvem/lancErrado')}
+  /* dois aparelhos que abrem o caixa no mesmo minuto so se enxergam aqui */
+  try{ if(typeof repararCaixasDuplicados==='function')repararCaixasDuplicados(); }catch(e){_quieto(e,'baixarDaNuvem/caixaGemeo')}
 
   /* ---------- OPERAÇÃO ---------- */
   var cx=await _p42;
