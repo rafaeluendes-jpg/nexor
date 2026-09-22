@@ -1,3 +1,23 @@
+# ⚠️ Correção de 22/09/2026 — a VPS paga é da HETZNER
+
+Conferido nos e-mails do Rafael, no mesmo dia:
+
+- **HostGator**: a VPS foi comprada em fevereiro e **cancelada com
+  reembolso** em 28/02/2026. Não existe mais.
+- **Hostinger**: só e-mail de propaganda. **Não há VPS** nessa conta — a
+  tela que pedia plano era de compra, não de configuração. Não pagar.
+- **Hetzner**: fatura de 22/09/2026, **US$ 5,97**, paga com o crédito da
+  conta. **É esta a máquina que ele paga** — e é para ela que foram a
+  central, o Rafaellos e o gestão de obras.
+
+Consequência: **não trocar o sistema da máquina da Hetzner** — ela já
+roda os outros sistemas, e trocar o sistema apaga tudo. O Claude Code
+entra **ao lado** do que já existe, com um comando só, sem apagar nada.
+
+O texto abaixo, sobre o template da Hostinger, fica só como registro.
+
+---
+
 # Trabalhar dentro da VPS — Hostinger
 
 Pesquisa de 22/09/2026, a pedido do Rafael. (Primeiro falamos em
