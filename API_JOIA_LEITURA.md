@@ -5,7 +5,13 @@ planilha, painel, o que for. Ela **só lê**. Não existe nenhum caminho de
 escrita aqui — nada que se chame por esta porta altera o sistema.
 
 Criada em 18/09/2026, a pedido do Rafael, para o Codex trazer resumos e
-fazer análise.
+fazer análise. Em 22/09/2026 ganhou a **camada analítica (v2.0)**, para a
+auditoria gerencial da RDS: os registros que formaram cada total, um a um.
+
+- Dicionário completo de campos, fórmulas e erros: `API_JOIA_AUDITORIA.md`
+- Contrato OpenAPI 3.1: `api-joia.openapi.yaml`
+- O que o Joia ainda não grava, e o que depende de decisão:
+  `DIAGNOSTICO_API_AUDITORIA_RDS.md`
 
 ## Endereço
 
@@ -55,6 +61,27 @@ O dia é o dia **da loja** (fuso de São Paulo): venda das 23h é do dia dela.
 | `GET /contagens` | contagens de estoque: sobra, perda e resultado |
 | `GET /resumo` | **tudo isso junto** — é o caminho certo para análise |
 
+### Analíticos (v2.0) — registro a registro
+
+Todos paginados (`pagina`, `por_pagina`: padrão 200, máximo 1000), com
+ordem determinada e um envelope que diz a versão, a hora da geração, o
+período, a unidade e o total de registros. Quando o Joia não grava algo
+que o caminho tocaria, a resposta traz `avisos` dizendo isso.
+
+| caminho | o que devolve |
+|---|---|
+| `GET /pedidos` | venda a venda, com cancelamento, motivo e operador |
+| `GET /itens` | item a item das vendas, com adicionais |
+| `GET /pagamentos-analitico` | pagamento a pagamento, com taxa e data prevista |
+| `GET /movimentacoes` | o razão do estoque, linha a linha, classificado |
+| `GET /inventarios` | contagem item a item: sistema × contado × diferença |
+| `GET /producao-analitico` | produção item a item: previsto × realizado |
+| `GET /titulos` | título a título (`data=emissao\|vencimento\|pagamento`) |
+| `GET /extrato` | o que entrou e saiu de caixa e banco |
+| `GET /plano-de-contas` | categorias e subcategorias de hoje |
+| `GET /fichas` | ficha técnica com ingredientes (`ficha=fi_...`) |
+| `GET /reconciliacao/estoque` | saldo inicial + entradas − saídas = saldo final |
+
 ## Respostas de erro
 
 | código | quando |
@@ -102,3 +129,7 @@ se perder, cancela e cria outra.
 - Provado ponta a ponta em 18/09/2026: sem chave → 401; chave errada →
   401; POST → 405; caminho inexistente → 404; data torta → 400; e os nove
   caminhos de leitura respondendo com os números conferidos contra o banco.
+- E de novo em 22/09/2026, na v2.0: os onze caminhos analíticos
+  respondendo com dado real; data inventada → 400; chave presa a uma
+  unidade pedindo outra → responde a dela, com zero registro; e chave de
+  outra rede → nenhum dado desta.

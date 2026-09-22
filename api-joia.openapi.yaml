@@ -1,0 +1,998 @@
+openapi: 3.1.0
+
+# =====================================================================
+# Joia — API de leitura e auditoria gerencial
+# Contrato formal dos caminhos expostos pela função de borda `joia-api`.
+# O dicionário de campos em português, com fórmulas e ressalvas, está em
+# API_JOIA_AUDITORIA.md. Esta API SÓ LÊ: só GET, nada aqui escreve.
+# =====================================================================
+
+info:
+  title: Joia — API de leitura e auditoria
+  version: "2.0"
+  summary: Porta oficial, somente leitura, para resumos, análise e auditoria gerencial.
+  description: |
+    Autenticação por chave própria (`Authorization: Bearer <chave>` ou `x-api-key`).
+    A chave carrega a rede e, opcionalmente, a unidade; quando carrega unidade,
+    o parâmetro `loja` é ignorado.
+
+    Fuso: a data de venda é o dia da loja (America/Sao_Paulo); estoque,
+    produção, contagem e financeiro já são gravados como dia local.
+    `gerado_em` e `criado_em` viajam em UTC.
+
+    Dinheiro sai com 2 casas; quantidade de estoque com 4; custo unitário
+    com 4 a 6. Toda soma é feita antes de arredondar.
+
+    Onde o Joia não grava o dado, o campo não existe e a resposta traz
+    `avisos` declarando a lacuna. Ver DIAGNOSTICO_API_AUDITORIA_RDS.md.
+  contact:
+    name: Joia Gestão Inteligente
+    url: https://joiagest.com.br
+
+servers:
+  - url: https://cevghkndzpzvnzwifhnm.supabase.co/functions/v1/joia-api
+    description: produção (ambiente único — não há homologação separada)
+
+security:
+  - chaveJoia: []
+
+tags:
+  - name: consolidado
+    description: Totais prontos (v1). Formato inalterado desde 18/09/2026.
+  - name: analitico
+    description: Os registros que formaram cada total (v2), paginados e com ordem determinada.
+  - name: cadastro
+    description: Como o cadastro está HOJE. Não tem vigência.
+
+paths:
+
+  /:
+    get:
+      tags: [consolidado]
+      summary: Ajuda da própria API, em JSON
+      operationId: ajuda
+      responses:
+        "200": { description: lista de caminhos e parâmetros }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /lojas:
+    get:
+      tags: [consolidado]
+      summary: As unidades da rede
+      operationId: lojas
+      responses:
+        "200":
+          description: unidades visíveis para a chave
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lojas:
+                    type: array
+                    items: { $ref: "#/components/schemas/Loja" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /faturamento:
+    get:
+      tags: [consolidado]
+      summary: Venda por dia (cancelado fora)
+      operationId: faturamento
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: totais do período e a quebra por dia
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periodo: { $ref: "#/components/schemas/Periodo" }
+                  loja: { type: string }
+                  total: { type: number, description: "R$, 2 casas" }
+                  pedidos: { type: integer }
+                  ticket_medio: { type: number, description: "total ÷ pedidos" }
+                  dias:
+                    type: array
+                    items: { $ref: "#/components/schemas/DiaFaturamento" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /produtos:
+    get:
+      tags: [consolidado]
+      summary: O que mais vendeu
+      operationId: produtos
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - name: limite
+          in: query
+          schema: { type: integer, default: 50, minimum: 1, maximum: 500 }
+      responses:
+        "200":
+          description: ranking de produtos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periodo: { $ref: "#/components/schemas/Periodo" }
+                  loja: { type: string }
+                  produtos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        produto: { type: string }
+                        quantidade: { type: integer }
+                        total: { type: number }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /pagamentos:
+    get:
+      tags: [consolidado]
+      summary: Venda por forma de pagamento (cancelado fora)
+      operationId: pagamentos
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: total por forma
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periodo: { $ref: "#/components/schemas/Periodo" }
+                  loja: { type: string }
+                  formas:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        forma: { type: string }
+                        quantidade: { type: integer }
+                        total: { type: number }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /estoque:
+    get:
+      tags: [consolidado]
+      summary: Saldo de agora, custo médio e quem está abaixo do mínimo
+      description: Fotografia do momento — ignora `de` e `ate`.
+      operationId: estoque
+      parameters:
+        - $ref: "#/components/parameters/loja"
+        - name: abaixo
+          in: query
+          description: "`1` devolve só os itens abaixo do mínimo; os totais do topo continuam sendo do conjunto inteiro."
+          schema: { type: string, enum: ["1"] }
+      responses:
+        "200":
+          description: saldo por item
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loja: { type: string }
+                  itens: { type: integer }
+                  valor_total_em_estoque: { type: number }
+                  abaixo_do_minimo: { type: integer }
+                  filtro: { type: string }
+                  estoque:
+                    type: array
+                    items: { $ref: "#/components/schemas/ItemEstoque" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /financeiro:
+    get:
+      tags: [consolidado]
+      summary: A pagar e a receber por categoria (filtra por vencimento)
+      operationId: financeiro
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: totais e a quebra por categoria
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periodo: { $ref: "#/components/schemas/Periodo" }
+                  loja: { type: string }
+                  a_pagar:
+                    type: object
+                    properties:
+                      em_aberto: { type: number }
+                      pago: { type: number }
+                  a_receber:
+                    type: object
+                    properties:
+                      em_aberto: { type: number }
+                      recebido: { type: number }
+                  lancamentos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tipo: { type: string }
+                        categoria: { type: string }
+                        situacao: { type: string, enum: [pago, em aberto] }
+                        quantidade: { type: integer }
+                        total: { type: number }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /producao:
+    get:
+      tags: [consolidado]
+      summary: Ordens de produção do período
+      operationId: producao
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: ordens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periodo: { $ref: "#/components/schemas/Periodo" }
+                  loja: { type: string }
+                  ordens:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        dia: { type: string, format: date }
+                        numero: { type: string }
+                        situacao: { type: string }
+                        previsto: { type: number }
+                        produzido: { type: number }
+                        diferenca: { type: number }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /contagens:
+    get:
+      tags: [consolidado]
+      summary: Contagens de estoque — sobra, perda e resultado
+      operationId: contagens
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: uma linha por contagem
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periodo: { $ref: "#/components/schemas/Periodo" }
+                  loja: { type: string }
+                  contagens:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        dia: { type: string, format: date }
+                        retroativa: { type: boolean }
+                        itens_conferidos: { type: integer }
+                        sobra: { type: number, description: "R$ de ajuste positivo" }
+                        perda: { type: number, description: "R$ de ajuste negativo, em valor absoluto" }
+                        resultado: { type: number, description: "sobra − perda" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /resumo:
+    get:
+      tags: [consolidado]
+      summary: Venda, estoque, financeiro, produção e contagens numa resposta só
+      operationId: resumo
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200": { description: tudo junto, para leitura rápida ou análise }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /pedidos:
+    get:
+      tags: [analitico]
+      summary: Venda a venda, com cancelamento, motivo e operador
+      description: Inclui os cancelados, marcados. Ordem — data_venda, numero, pedido_ref.
+      operationId: pedidosAnalitico
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página de pedidos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      pedidos:
+                        type: array
+                        items: { $ref: "#/components/schemas/Pedido" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /itens:
+    get:
+      tags: [analitico]
+      summary: Item a item das vendas, com adicionais
+      description: Ordem — data_venda, numero, item_ref.
+      operationId: itensAnalitico
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página de itens
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      itens:
+                        type: array
+                        items: { $ref: "#/components/schemas/ItemVendido" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /pagamentos-analitico:
+    get:
+      tags: [analitico]
+      summary: Pagamento a pagamento, com taxa e data prevista
+      description: Ordem — data_venda, numero, pagamento_ref.
+      operationId: pagamentosAnalitico
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página de pagamentos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      pagamentos:
+                        type: array
+                        items: { $ref: "#/components/schemas/Pagamento" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /movimentacoes:
+    get:
+      tags: [analitico]
+      summary: O razão do estoque, linha a linha, classificado
+      description: Ordem — data, hora, movimento_ref, linha.
+      operationId: movimentacoes
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página do razão
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      movimentacoes:
+                        type: array
+                        items: { $ref: "#/components/schemas/Movimentacao" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /inventarios:
+    get:
+      tags: [analitico]
+      summary: "Contagem item a item: sistema × contado × diferença"
+      description: Ordem — data, contagem_ref, item.
+      operationId: inventarios
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página de contagens
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      inventarios:
+                        type: array
+                        items: { $ref: "#/components/schemas/Inventario" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /producao-analitico:
+    get:
+      tags: [analitico]
+      summary: "Produção item a item: previsto × realizado"
+      description: Ordem — data, numero, produto.
+      operationId: producaoAnalitico
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página de produção
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      producao:
+                        type: array
+                        items: { $ref: "#/components/schemas/ProducaoItem" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /titulos:
+    get:
+      tags: [analitico]
+      summary: Título a título — contas a pagar e a receber
+      description: Ordem — vencimento, titulo_ref (qualquer que seja o `data` escolhido).
+      operationId: titulos
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+        - name: data
+          in: query
+          description: qual data o período filtra
+          schema:
+            type: string
+            enum: [emissao, vencimento, pagamento]
+            default: vencimento
+      responses:
+        "200":
+          description: página de títulos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      titulos:
+                        type: array
+                        items: { $ref: "#/components/schemas/Titulo" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /extrato:
+    get:
+      tags: [analitico]
+      summary: O que entrou e saiu de caixa e banco
+      description: Junta títulos pagos e movimentos de caixa. Ordem — data, hora, ref.
+      operationId: extrato
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página do extrato
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      extrato:
+                        type: array
+                        items: { $ref: "#/components/schemas/LinhaExtrato" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /plano-de-contas:
+    get:
+      tags: [cadastro]
+      summary: As categorias e subcategorias como estão hoje
+      description: Sem paginação. Dois níveis.
+      operationId: planoDeContas
+      parameters:
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: plano de contas inteiro
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      plano_de_contas:
+                        type: array
+                        items: { $ref: "#/components/schemas/ContaPlano" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /fichas:
+    get:
+      tags: [cadastro]
+      summary: Ficha técnica com ingredientes
+      description: |
+        Sem paginação; uma linha por ingrediente. A ficha NÃO tem vigência —
+        o que sai aqui é a receita de hoje.
+      operationId: fichas
+      parameters:
+        - name: ficha
+          in: query
+          description: traz só uma ficha (`fi_...`)
+          schema: { type: string }
+      responses:
+        "200":
+          description: fichas e ingredientes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      fichas:
+                        type: array
+                        items: { $ref: "#/components/schemas/LinhaFicha" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /reconciliacao/estoque:
+    get:
+      tags: [analitico]
+      summary: saldo_inicial + entradas − saidas = saldo_final
+      description: |
+        Sem paginação. A equação fecha por construção — o razão é a fonte do
+        saldo. A divergência contra o físico está em /inventarios.
+      operationId: reconciliacaoEstoque
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: movimento do período aberto por natureza
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      regra: { type: string }
+                      itens:
+                        type: array
+                        items: { $ref: "#/components/schemas/ReconciliacaoItem" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+components:
+
+  securitySchemes:
+    chaveJoia:
+      type: http
+      scheme: bearer
+      description: |
+        Chave do Joia. O banco guarda só o sha-256 dela. Também aceita o
+        cabeçalho `x-api-key` com o mesmo valor.
+
+  parameters:
+    de:
+      name: de
+      in: query
+      description: data inicial, inclusive. Padrão — 30 dias atrás.
+      schema: { type: string, format: date, pattern: '^\d{4}-\d{2}-\d{2}$' }
+    ate:
+      name: ate
+      in: query
+      description: data final, inclusive. Padrão — hoje.
+      schema: { type: string, format: date, pattern: '^\d{4}-\d{2}-\d{2}$' }
+    loja:
+      name: loja
+      in: query
+      description: referência da unidade. Ignorado quando a chave já tem unidade.
+      schema: { type: string, examples: ["suc_mt1npcg7b3m3"] }
+    pagina:
+      name: pagina
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    porPagina:
+      name: por_pagina
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 200 }
+
+  responses:
+    NaoAutorizado:
+      description: sem chave, chave inválida ou desativada
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+    PedidoInvalido:
+      description: data fora do formato, início depois do fim, ou parâmetro inválido
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+
+  schemas:
+
+    Erro:
+      type: object
+      required: [erro, api_versao, gerado_em]
+      properties:
+        erro: { type: string, description: a mensagem, em português }
+        api_versao: { type: string }
+        gerado_em: { type: string, format: date-time }
+        detalhe: { type: string, description: só nos erros 500 }
+
+    Periodo:
+      type: object
+      properties:
+        de: { type: string, format: date }
+        ate: { type: string, format: date }
+
+    Pagina:
+      type: object
+      properties:
+        pagina: { type: integer }
+        por_pagina: { type: integer }
+        nesta_pagina: { type: integer }
+        total_registros:
+          type: integer
+          description: total do filtro, não da página. Volta 0 numa página além do fim.
+        total_paginas: { type: integer }
+
+    Envelope:
+      type: object
+      required: [api_versao, gerado_em, periodo, loja]
+      properties:
+        api_versao: { type: string, examples: ["2.0"] }
+        gerado_em: { type: string, format: date-time, description: UTC }
+        periodo: { $ref: "#/components/schemas/Periodo" }
+        loja: { type: string, description: a unidade aplicada, ou "rede toda" }
+        pagina: { $ref: "#/components/schemas/Pagina" }
+        avisos:
+          type: array
+          description: ressalvas do que o Joia não grava. Só aparece quando há o que ressalvar.
+          items: { type: string }
+
+    Loja:
+      type: object
+      properties:
+        ref_local: { type: string, description: use isto no parâmetro `loja` }
+        nome: { type: string }
+        cidade: { type: [string, "null"] }
+        uf: { type: [string, "null"] }
+        matriz: { type: [boolean, "null"] }
+        ativa: { type: [boolean, "null"] }
+
+    DiaFaturamento:
+      type: object
+      properties:
+        dia: { type: string, format: date }
+        pedidos: { type: integer }
+        total: { type: number }
+        ticket: { type: number }
+        desconto: { type: number }
+        taxa_entrega: { type: number }
+
+    ItemEstoque:
+      type: object
+      properties:
+        unidade_loja: { type: string }
+        item: { type: string }
+        unidade: { type: string }
+        saldo: { type: number, description: "3 casas" }
+        custo_medio: { type: number, description: "R$, 4 casas" }
+        valor: { type: number, description: "saldo × custo_medio" }
+        minimo: { type: number }
+        abaixo_do_minimo: { type: boolean }
+
+    Pedido:
+      type: object
+      properties:
+        pedido_ref: { type: string }
+        unidade: { type: [string, "null"] }
+        unidade_nome: { type: [string, "null"] }
+        numero: { type: [integer, "null"] }
+        data_venda: { type: string, format: date, description: dia da loja }
+        hora: { type: [string, "null"] }
+        criado_em: { type: [string, "null"], format: date-time }
+        tipo: { type: [string, "null"] }
+        canal: { type: [string, "null"] }
+        origem_venda: { type: [string, "null"] }
+        fase: { type: [string, "null"] }
+        cliente: { type: [string, "null"] }
+        caixa_ref: { type: [string, "null"] }
+        operador: { type: [string, "null"], description: operador do caixa }
+        mesa: { type: [integer, "null"] }
+        comanda: { type: [string, "null"] }
+        valor_bruto:
+          type: number
+          description: total + desconto + cupom − taxa_entrega − taxa_servico
+        desconto: { type: number }
+        cupom: { type: number }
+        taxa_entrega: { type: number }
+        taxa_servico: { type: number }
+        valor_liquido: { type: number, description: o que o cliente pagou }
+        cancelado: { type: boolean }
+        cancelado_em: { type: [string, "null"] }
+        cancelado_motivo: { type: [string, "null"] }
+        cancelado_por: { type: [string, "null"] }
+        estoque_voltou: { type: [boolean, "null"] }
+
+    ItemVendido:
+      type: object
+      properties:
+        item_ref: { type: string }
+        pedido_ref: { type: string }
+        unidade: { type: [string, "null"] }
+        numero: { type: [integer, "null"] }
+        data_venda: { type: string, format: date }
+        produto: { type: [string, "null"] }
+        quantidade: { type: [number, "null"] }
+        preco_unitario: { type: number, description: "R$, 4 casas" }
+        valor_total: { type: number }
+        adicionais:
+          type: array
+          description: adicionais da linha, como gravados (nome, preço e ficha)
+          items: { type: object, additionalProperties: true }
+        observacao: { type: [string, "null"] }
+        pedido_cancelado: { type: boolean }
+
+    Pagamento:
+      type: object
+      properties:
+        pagamento_ref: { type: string }
+        pedido_ref: { type: string }
+        unidade: { type: [string, "null"] }
+        numero: { type: [integer, "null"] }
+        data_venda: { type: string, format: date }
+        forma: { type: string }
+        forma_tipo: { type: [string, "null"] }
+        bandeira: { type: [string, "null"], description: do CADASTRO da forma }
+        valor: { type: number }
+        taxa_pct: { type: number }
+        taxa_fixa: { type: number }
+        taxa_calculada: { type: number, description: valor × taxa_pct ÷ 100 + taxa_fixa }
+        valor_liquido_previsto: { type: number, description: valor − taxa_calculada }
+        dias_recebimento: { type: integer, description: dias corridos, do cadastro }
+        data_prevista: { type: string, format: date, description: data_venda + dias_recebimento }
+        equipamento: { type: [string, "null"] }
+        pedido_cancelado: { type: boolean }
+
+    Movimentacao:
+      type: object
+      properties:
+        movimento_ref: { type: string }
+        linha: { type: integer, description: posição do item dentro do movimento }
+        unidade: { type: [string, "null"] }
+        data: { type: string, format: date }
+        hora: { type: [string, "null"] }
+        criado_em: { type: [string, "null"], format: date-time }
+        item_ref: { type: [string, "null"] }
+        item: { type: [string, "null"] }
+        unidade_medida: { type: string }
+        direcao: { type: string, enum: [entrada, saida] }
+        quantidade: { type: number, description: sempre positiva; o sinal é `direcao` }
+        custo_unitario: { type: number, description: "R$, 6 casas" }
+        valor_total: { type: number, description: quantidade × custo_unitario }
+        origem: { type: string, description: a origem crua, para conferência }
+        motivo: { type: string }
+        classe:
+          type: string
+          description: derivada de origem + direção
+          enum:
+            - compra/entrada
+            - consumo por venda
+            - produção
+            - consumo por produção
+            - ajuste positivo
+            - ajuste negativo
+            - transferência recebida
+            - transferência enviada
+            - entrada avulsa
+            - baixa identificada
+        documento: { type: [string, "null"] }
+        observacao: { type: [string, "null"] }
+        contagem_sistema: { type: [number, "null"] }
+        contagem_conferido: { type: [number, "null"] }
+
+    Inventario:
+      type: object
+      properties:
+        contagem_ref: { type: string }
+        unidade: { type: [string, "null"] }
+        data: { type: string, format: date, description: o dia contado }
+        hora: { type: [string, "null"] }
+        retroativa: { type: boolean }
+        lancada_em: { type: [string, "null"], format: date }
+        movimento_ref: { type: [string, "null"] }
+        item_ref: { type: [string, "null"] }
+        item: { type: [string, "null"] }
+        unidade_medida: { type: string }
+        saldo_sistema: { type: number }
+        quantidade_contada: { type: number }
+        diferenca: { type: number, description: contado − sistema }
+        custo: { type: number, description: "R$, 6 casas" }
+        valor_ajuste: { type: number, description: diferenca × custo }
+        sentido: { type: string, enum: [ajuste positivo, ajuste negativo, sem diferença] }
+
+    ProducaoItem:
+      type: object
+      properties:
+        ordem_ref: { type: string }
+        numero: { type: [string, "null"] }
+        unidade: { type: [string, "null"] }
+        data: { type: string, format: date }
+        hora: { type: [string, "null"] }
+        situacao: { type: [string, "null"] }
+        responsavel: { type: [string, "null"] }
+        movimento_ref: { type: [string, "null"] }
+        ficha_ref: { type: [string, "null"] }
+        produto: { type: [string, "null"] }
+        destino: { type: [string, "null"] }
+        unidade_medida: { type: string }
+        previsto: { type: number }
+        produzido: { type: number }
+        diferenca: { type: number, description: produzido − previsto }
+        receitas: { type: number }
+
+    Titulo:
+      type: object
+      properties:
+        titulo_ref: { type: string }
+        unidade: { type: [string, "null"] }
+        tipo: { type: [string, "null"], description: receita, despesa ou transferencia }
+        descricao: { type: [string, "null"] }
+        documento: { type: [string, "null"] }
+        fornecedor: { type: [string, "null"] }
+        categoria: { type: [string, "null"] }
+        subcategoria: { type: [string, "null"] }
+        emissao: { type: [string, "null"], format: date, description: a data mais próxima de competência }
+        vencimento: { type: [string, "null"], format: date }
+        pagamento: { type: [string, "null"], format: date, description: nulo enquanto em aberto }
+        valor_original: { type: number }
+        juros: { type: number }
+        multa: { type: number }
+        valor: { type: number }
+        pago: { type: boolean }
+        cancelado: { type: boolean }
+        conciliado: { type: boolean }
+        data_conciliacao: { type: [string, "null"], format: date }
+        conta: { type: [string, "null"] }
+        forma_pagamento: { type: [string, "null"] }
+        origem: { type: [string, "null"] }
+        origem_ref: { type: [string, "null"] }
+        criado_em: { type: [string, "null"], format: date-time }
+
+    LinhaExtrato:
+      type: object
+      properties:
+        lancamento_ref: { type: string }
+        unidade: { type: [string, "null"] }
+        data: { type: string, format: date }
+        hora: { type: [string, "null"] }
+        conta: { type: [string, "null"] }
+        classe:
+          type: string
+          description: |
+            recebimento, pagamento e "transferência entre contas" vêm dos títulos;
+            sangria e suprimento vêm do caixa. Um movimento de caixa com tipo fora
+            desses sai com o próprio tipo, então a lista não é fechada.
+        sentido: { type: string, enum: [entrada, saida] }
+        valor: { type: number, description: sempre positivo; o sinal é `sentido` }
+        descricao: { type: [string, "null"] }
+        categoria: { type: [string, "null"] }
+        titulo_ref: { type: [string, "null"] }
+        conciliado: { type: boolean }
+        responsavel: { type: [string, "null"] }
+
+    ContaPlano:
+      type: object
+      properties:
+        nivel: { type: integer, enum: [1, 2] }
+        categoria_ref: { type: string }
+        categoria: { type: string }
+        tipo: { type: [string, "null"], enum: [receita, despesa, null] }
+        subcategoria_ref: { type: [string, "null"] }
+        subcategoria: { type: [string, "null"] }
+        ordem: { type: [integer, "null"] }
+
+    LinhaFicha:
+      type: object
+      properties:
+        ficha_ref: { type: string }
+        ficha: { type: string }
+        codigo: { type: [string, "null"] }
+        unidade: { type: [string, "null"] }
+        rendimento: { type: [number, "null"] }
+        rendimento_unidade: { type: [string, "null"] }
+        unidades_venda: { type: [number, "null"] }
+        preco: { type: [number, "null"] }
+        estocavel: { type: [boolean, "null"] }
+        destino: { type: [string, "null"] }
+        ingrediente_ref: { type: [string, "null"] }
+        ingrediente: { type: [string, "null"] }
+        quantidade: { type: [number, "null"] }
+        unidade_ingrediente: { type: [string, "null"] }
+        perda: { type: [number, "null"], description: "%" }
+        subficha_ref: { type: [string, "null"], description: preenchido quando o ingrediente é outra ficha }
+        custo_unitario: { type: [number, "null"], description: custo de HOJE }
+
+    ReconciliacaoItem:
+      type: object
+      properties:
+        unidade: { type: [string, "null"] }
+        item_ref: { type: string }
+        item: { type: string }
+        unidade_medida: { type: string }
+        saldo_inicial: { type: number, description: saldo na véspera de `de` }
+        entradas: { type: number }
+        saidas: { type: number }
+        saldo_final: { type: number, description: saldo no fim de `ate` }
+        consumo_venda: { type: number }
+        consumo_producao: { type: number }
+        compras: { type: number }
+        transferencias_recebidas: { type: number }
+        transferencias_enviadas: { type: number }
+        ajuste_positivo: { type: number }
+        ajuste_negativo: { type: number }
+        baixas_identificadas: { type: number }
+        producao_entrada: { type: number }
