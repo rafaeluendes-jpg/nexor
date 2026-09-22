@@ -105,3 +105,51 @@ caminho seria este, em ordem, e leva alguns dias:
 
 Eu não enxergo sua conta da HostGator daqui; o que está escrito acima vale
 para VPS em geral, e a seção 4 começa justamente conferindo o plano real.
+
+---
+
+## 6. "E se o Supabase for o grátis, e o Claude ficar dentro da VPS?"
+
+Pergunta do Rafael, ainda em 22/09/2026, depois de ler o de cima.
+
+### O Supabase grátis na VPS
+O programa é grátis mesmo — quem se paga hoje é o **serviço**: o plano Pro
+custa cerca de US$ 25 por mês (uns R$ 140). Então a economia existe e é
+essa: **R$ 140 por mês**. É honesto dizer isso, e é pouco perto do que se
+perde junto:
+
+- backup automático e a possibilidade de voltar o banco a um ponto no
+  tempo (hoje isso vem no plano);
+- atualização de segurança sem ninguém precisar lembrar;
+- alguém do outro lado quando o servidor cai de madrugada.
+
+Na VPS, cada um desses itens passa a ser tarefa. É possível fazer bem
+feito — só não é grátis em trabalho, e o preço de errar é a rede inteira
+sem histórico até o conserto.
+
+### O Claude dentro da VPS
+Dá para rodar, sim. Mas é importante saber o que isso **não** muda: o que
+você imagina — "eu falo e ele resolve" — já é o que acontece hoje. Nesta
+sessão eu já enxergo o código inteiro, o banco de produção e o histórico,
+e publico quando você manda. Pôr o assistente numa máquina sua não
+acrescenta poder nenhum; acrescenta uma máquina para cuidar.
+
+Duas coisas, aí sim, mudariam para melhor — e essas valem a VPS:
+
+1. **Falar comigo pelo WhatsApp**, em vez de abrir o aplicativo. O robô do
+   WhatsApp já é um projeto seu, e a VPS é a casa certa para ele: você
+   manda o áudio, ele me aciona, e eu respondo por lá.
+2. **Uma rotina que roda sozinha**, sem ninguém pedir: conferir de
+   madrugada se todas as lojas sincronizaram, se algum caixa ficou aberto,
+   se alguma configuração se perdeu — e te avisar de manhã, antes de a
+   loja abrir.
+
+O que nenhum dos dois muda: **publicar continua sendo decisão sua**, e
+toda alteração continua passando pelo portão de testes. Isso não é
+limitação de máquina, é a regra que impede um erro meu de parar a venda de
+uma loja.
+
+### Resumo
+Migrar o banco para economizar R$ 140 e perder a rede de proteção: eu não
+faria. Usar a VPS para o WhatsApp falar comigo e para a vigia noturna das
+lojas: eu faria **essa semana**, se você me passar o acesso.
