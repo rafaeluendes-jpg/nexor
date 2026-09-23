@@ -1168,16 +1168,47 @@ function abaRespostas(c){
      '<div style="flex:1"></div>'+
      '<button class="btnMini" onclick="addRespZap()">'+sv('plus',11)+' nova</button></div>'+
     '<div class="colB" style="padding:14px">'+
+    /* ==========================================================
+       SALVA, FECHA O BLOCO (23/09/2026)
+
+       Depois do Salvar a resposta continuava aberta, com os campos de
+       edição — parecia que ainda não tinha salvado, e não ficava claro
+       onde criar a próxima. Agora a resposta salva vira um bloco fechado,
+       só de leitura, com lápis para editar. Aberta fica só a que está
+       sendo criada ou editada.
+
+       Os campos continuam no bloco fechado, escondidos: o Salvar lê a
+       lista pela tela (zpRc/zpRr), e resposta fechada que sumisse da tela
+       sumiria também do robô.
+       ========================================================== */
     ((c.respostas||[]).length?c.respostas.map(function(r,k){
-      return '<div class="respZ">'+
-       '<div class="respZn">'+(k+1)+'</div>'+
-       '<button class="rBtn rd" onclick="remResp('+k+')">'+sv('trash',11)+'</button>'+
+      var aberta=!!(ZP.respAberta||{})[k]||(!r.chaves&&!r.resposta);
+      var campos=
        '<label>Quando o cliente falar em</label>'+
        '<input id="zpRc'+k+'" value="'+E(r.chaves||'')+'" placeholder="franquia, abrir uma loja, ser franqueado" '+
         'onchange="setResp('+k+',\'chaves\',this.value)">'+
        '<label>Responder</label>'+
        '<textarea id="zpRr'+k+'" rows="4" placeholder="o que a atendente deve dizer" '+
-        'onchange="setResp('+k+',\'resposta\',this.value)">'+E(r.resposta||'')+'</textarea>'+
+        'onchange="setResp('+k+',\'resposta\',this.value)">'+E(r.resposta||'')+'</textarea>';
+      if(aberta){
+        return '<div class="respZ">'+
+         '<div class="respZn">'+(k+1)+'</div>'+
+         '<button class="rBtn rd" title="Excluir" onclick="remResp('+k+')">'+sv('trash',11)+'</button>'+
+         campos+
+        '</div>';
+      }
+      return '<div class="respZ respZok">'+
+       '<div class="respZn">'+(k+1)+'</div>'+
+       '<div class="respZacoes">'+
+        '<button class="rBtn" title="Editar" onclick="abrirResp('+k+')">'+sv('edit',11)+'</button>'+
+        '<button class="rBtn rd" title="Excluir" onclick="remResp('+k+')">'+sv('trash',11)+'</button>'+
+       '</div>'+
+       '<div class="respZtag">'+sv('check',10)+' salva</div>'+
+       '<label>Quando o cliente falar em</label>'+
+       '<div class="respZtxt">'+E(r.chaves||'—')+'</div>'+
+       '<label>Responde</label>'+
+       '<div class="respZtxt respZresp">'+E(r.resposta||'—').replace(/\n/g,'<br>')+'</div>'+
+       '<div style="display:none">'+campos+'</div>'+
       '</div>';
     }).join('')
      :'<div class="hint">Nenhuma ainda. Clique em <b>nova</b>. Exemplo: '+
@@ -1189,7 +1220,19 @@ function addRespZap(){
   var c=zapAtual();
   c.respostas=c.respostas||[];
   c.respostas.push({chaves:'',resposta:''});
+  ZP.respAberta=ZP.respAberta||{};
+  ZP.respAberta[c.respostas.length-1]=true;
   salvar();telaZap();
+  /* a nova nasce com o cursor dentro, sem precisar procurar */
+  try{ var nv=$('zpRc'+(c.respostas.length-1)); if(nv){ nv.focus(); nv.scrollIntoView({block:'center'}); } }
+  catch(e){ _quieto(e,'addRespZap'); }
+}
+/* reabre uma resposta salva para editar (o bloco fechado vira formulário) */
+function abrirResp(k){
+  ZP.respAberta=ZP.respAberta||{};
+  ZP.respAberta[k]=true;
+  telaZap();
+  try{ var el=$('zpRc'+k); if(el)el.focus(); }catch(e){ _quieto(e,'abrirResp'); }
 }
 function setResp(k,campo,v){
   var c=zapAtual();
@@ -1199,7 +1242,13 @@ function setResp(k,campo,v){
 function remResp(k){
   var c=zapAtual();
   c.respostas.splice(k,1);
+  ZP.respAberta={};          /* os números mudaram: nenhuma fica aberta pela posição errada */
   salvar();telaZap();
+}
+/* depois de salvar de verdade, as respostas voltam a ser blocos fechados */
+function fecharRespostasSalvas(){
+  ZP.respAberta={};
+  if(ZP.aba==='respostas'){ try{ telaZap(); }catch(e){ _quieto(e,'fecharRespostasSalvas'); } }
 }
 /* a chave mestra mostra o efeito na hora, antes de salvar */
 function telaZapSalvaAba(){
@@ -1312,14 +1361,14 @@ async function salvarZap(silencioso){
         ia_tom:c.iaTom||'acolhedor',ia_regras:c.iaRegras||null,
         ia_apresenta:c.iaApresenta!==false
       });
-      if(!silencioso)toast('Configuração salva — o robô já está usando.');
+      if(!silencioso){ toast('Configuração salva — o robô já está usando.'); fecharRespostasSalvas(); }
       return;
     }catch(e){
       toast('Salvo aqui, mas não subiu para o robô: '+String(e.message||'').slice(0,50));
       return;
     }
   }
-  if(!silencioso)toast('Configuração salva neste aparelho. Ligue a nuvem para o robô usar.');
+  if(!silencioso){ toast('Configuração salva neste aparelho. Ligue a nuvem para o robô usar.'); fecharRespostasSalvas(); }
 }
 /* ---------- envio automático quando o pedido muda de fase ---------- */
 /* acha a configuração da loja; se o código não bater, usa a primeira */

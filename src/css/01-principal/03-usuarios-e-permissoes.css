@@ -634,6 +634,16 @@
   background:var(--acc);color:#fff;font-size:11px;font-weight:800;
   display:flex;align-items:center;justify-content:center}
 .respZ .rBtn{position:absolute;right:8px;top:8px}
+/* resposta salva: bloco fechado, só leitura */
+.respZok{padding:12px 12px 10px 16px;background:var(--bg)}
+.respZacoes{position:absolute;right:8px;top:8px;display:flex;gap:6px}
+.respZok .respZacoes .rBtn{position:static}
+.respZtag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--ok);margin:0 0 8px}
+.respZtxt{font-size:12.5px;line-height:1.5;color:var(--ink);margin:0 0 10px;padding-right:64px;
+  word-break:break-word}
+.respZresp{padding:8px 10px;background:var(--panel);border:1px solid var(--line-2);border-radius:6px;
+  margin-right:0;padding-right:10px}
 
 .zapPt{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:6px;background:#C6D4E0}
 .zapPt.on{background:#3ECF8E;box-shadow:0 0 0 3px rgba(62,207,142,.2)}
