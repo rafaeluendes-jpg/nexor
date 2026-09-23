@@ -9,7 +9,7 @@ openapi: 3.1.0
 
 info:
   title: Joia — API de leitura e auditoria
-  version: "2.0"
+  version: "2.1"
   summary: Porta oficial, somente leitura, para resumos, análise e auditoria gerencial.
   description: |
     Autenticação por chave própria (`Authorization: Bearer <chave>` ou `x-api-key`).
@@ -620,6 +620,143 @@ paths:
                       itens:
                         type: array
                         items: { $ref: "#/components/schemas/ReconciliacaoItem" }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /cadastros:
+    get:
+      tags: [cadastro]
+      summary: A lista dos cadastros que dá para extrair
+      operationId: cadastros
+      responses:
+        "200": { description: tipos de cadastro disponíveis }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /cadastros/{tipo}:
+    get:
+      tags: [cadastro]
+      summary: Um cadastro inteiro (sem paginação)
+      operationId: cadastro
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [unidades, usuarios, itens, unidades-medida, motivos, formas-pagamento, contas, fornecedores]
+      responses:
+        "200":
+          description: o cadastro
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      cadastro: { type: string }
+                      registros: { type: integer }
+                      dados: { type: array, items: { type: object, additionalProperties: true } }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+        "404": { description: tipo de cadastro inexistente }
+
+  /saude-sincronizacao:
+    get:
+      tags: [analitico]
+      summary: Saúde da sincronização por unidade e por aparelho
+      operationId: saudeSincronizacao
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: unidades e aparelhos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      unidades: { type: array, items: { type: object, additionalProperties: true } }
+                      aparelhos: { type: array, items: { type: object, additionalProperties: true } }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /alteracoes:
+    get:
+      tags: [analitico]
+      summary: O que foi criado ou alterado desde um instante
+      operationId: alteracoes
+      parameters:
+        - name: desde
+          in: query
+          description: instante ISO-8601; padrão, últimas 24 horas
+          schema: { type: string, format: date-time }
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+      responses:
+        "200":
+          description: página de alterações
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      desde: { type: string, format: date-time }
+                      alteracoes:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            tabela: { type: string }
+                            ref: { type: string }
+                            unidade: { type: [string, "null"] }
+                            alterado_em: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/PedidoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /historico:
+    get:
+      tags: [analitico]
+      summary: Quem mudou o quê, com antes e depois dos campos alterados
+      operationId: historico
+      parameters:
+        - $ref: "#/components/parameters/de"
+        - $ref: "#/components/parameters/ate"
+        - $ref: "#/components/parameters/loja"
+        - $ref: "#/components/parameters/pagina"
+        - $ref: "#/components/parameters/porPagina"
+        - name: tabela
+          in: query
+          schema: { type: string, examples: ["fichas_tecnicas"] }
+      responses:
+        "200":
+          description: página do histórico
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      historico:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            quando: { type: string, format: date-time }
+                            usuario: { type: [string, "null"], description: conta logada — uma por unidade }
+                            tabela: { type: string }
+                            operacao: { type: string, enum: [INSERT, UPDATE, DELETE] }
+                            ref: { type: [string, "null"] }
+                            unidade: { type: [string, "null"] }
+                            campos_alterados: { type: array, items: { type: string } }
+                            antes: { type: [object, "null"], additionalProperties: true }
+                            depois: { type: [object, "null"], additionalProperties: true }
         "400": { $ref: "#/components/responses/PedidoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutorizado" }
 

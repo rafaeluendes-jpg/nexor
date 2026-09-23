@@ -555,3 +555,80 @@ Repetido aqui de propósito, para não haver surpresa na homologação:
 O contrato formal está em `api-joia.openapi.yaml`. O que falta, por que
 falta e o que precisa da decisão de vocês está em
 `DIAGNOSTICO_API_AUDITORIA_RDS.md`.
+
+---
+
+## 6. Etapa 2 — versão 2.1 (23/09/2026)
+
+Tudo abaixo é leitura, com a mesma chave, o mesmo envelope e os mesmos
+erros das seções anteriores. A chave presa a uma unidade continua presa:
+provado em 23/09/2026 que a chave de Alphaville, pedindo Santa Fé, recebe
+só Alphaville também nos caminhos novos.
+
+### 6.1 `GET /cadastros` e `GET /cadastros/{tipo}`
+
+A extração dos cadastros que a RDS pediu, inteiros, sem paginação.
+Resposta: `{ cadastro, registros, avisos, dados: [...] }`.
+
+| tipo | o que traz |
+|---|---|
+| `unidades` | código, nome, razão social, CNPJ, cidade, UF, fuso (declarado: São Paulo, fixo do sistema), matriz, ativa, caixas cadastrados e abertos, aparelhos, último sinal, última venda recebida |
+| `usuarios` | login, nome, cargo, ativo, acesso total, unidades autorizadas, telas liberadas e `pode.{vender, baixar_estoque, ajustar_estoque, contar_estoque, produzir, fechar_caixa, lancar_financeiro, editar_ficha}` — **derivado das telas**, porque o Joia controla por tela. Senha nunca sai |
+| `itens` | insumos, embalagens, fichas, subfichas, produtos acabados e produtos vendidos: id, código, nome, `tipo`, unidade de estoque, fator, custo atual, controla estoque, vínculo produto→ficha/insumo, ativo |
+| `unidades-medida` | o que houver cadastrado — hoje vazio: as conversões kg/g e L/mL estão no código |
+| `motivos` | nome, tipo, do sistema, ativo, **quantas vezes foi usado** e último uso; `classe` vem nula até a classificação |
+| `formas-pagamento` | nome, tipo, bandeira, taxa %, taxa fixa, prazo, conta de destino, ativa, unidades |
+| `contas` | nome, tipo, banco, agência, número, saldo inicial, unidades |
+| `fornecedores` | nome, CNPJ, contato, unidades, quantos lançamentos tem e `possivel_duplicado_de` (mesmo CNPJ ou mesmo nome sem acento e pontuação) |
+
+### 6.2 `GET /saude-sincronizacao`
+
+Parâmetros `de` e `ate` (o período das contagens de venda). Traz:
+
+**`unidades[]`** — uma linha por unidade:
+
+| campo | o que é |
+|---|---|
+| `vendas_no_periodo` | vendas não canceladas |
+| `vendas_sem_pagamento` | venda com total > 0 sem nenhum pagamento |
+| `vendas_com_pagamento_diferente_do_total` | soma dos pagamentos ≠ total (tolerância R$ 0,01) |
+| `vendas_sem_caixa` | venda sem caixa vinculado |
+| `vendas_sem_baixa_de_estoque` | venda sem movimento de estoque de venda (inclui produto sem ficha, que de fato não baixa) |
+| `ultima_venda_recebida_em` · `ultimo_movimento_de_estoque_recebido_em` · `ultimo_lancamento_financeiro_recebido_em` | quando a nuvem recebeu o último de cada, UTC |
+| `caixas_abertos` · `caixa_aberto_mais_antigo` | caixa esquecido aparece aqui |
+| `aparelhos` · `aparelhos_com_sinal_nas_ultimas_24h` · `aparelhos_com_envio_pendente` | do sinal de aparelho |
+
+**`aparelhos[]`** — um por aparelho: identificador, unidade, usuário,
+versão do Joia, navegador, primeiro e último sinal, último envio e último
+download bem-sucedidos, último erro e se ficou envio pendente.
+
+O sinal de aparelho sai do Joia a cada envio ou download que termina bem
+(no máximo um a cada 2 minutos) e a cada erro de envio. **Ele começa a
+chegar quando as lojas atualizarem para a versão que o envia.**
+
+### 6.3 `GET /alteracoes?desde=AAAA-MM-DDTHH:MM:SSZ`
+
+Paginado. O que foi **criado ou alterado** desde o instante pedido, em 28
+tabelas: `tabela`, `ref`, `unidade`, `alterado_em`. Serve para
+sincronização incremental e para detectar alteração retroativa.
+
+- O carimbo `alterado_em` é gerido **só pelo banco**, em toda gravação.
+- Regravação sem mudança real **não** mexe no carimbo.
+- Começou em 23/09/2026: linha antiga que nunca mais foi mexida tem o
+  carimbo nulo e não aparece aqui.
+
+### 6.4 `GET /historico?de=&ate=&tabela=`
+
+Paginado. **Quem mudou o quê**, com o antes e o depois **só dos campos
+alterados**: `quando`, `usuario`, `tabela`, `operacao` (INSERT, UPDATE,
+DELETE), `ref`, `unidade`, `campos_alterados`, `antes`, `depois`.
+
+- Vem do registro de auditoria do banco, que já cobria 30 tabelas de
+  operação e passou a cobrir **ficha técnica, ingredientes, insumos e
+  produtos** em 23/09/2026.
+- Só tabelas de negócio; senhas e chaves nunca entram no registro.
+- `usuario` é a conta logada no aparelho. **As lojas usam uma conta por
+  unidade**, então ele identifica a unidade, não a pessoa.
+- Exemplo real que este caminho já mostra: as taxas de cartão de Santa Fé
+  voltando ao valor de fábrica em 09/09 às 16:19 (ver
+  `CADASTROS_DIAGNOSTICO.md`, seção 0).

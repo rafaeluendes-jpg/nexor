@@ -40,17 +40,54 @@ Hoje isso não trava a loja porque o Joia vende offline e sincroniza por
 trás. Mas com mais meses de dados e as outras unidades entrando, é aqui
 que a sincronização vai começar a demorar e a falhar.
 
-## A correção (depende de autorização)
+## A correção — FEITA em 23/09/2026, às 6h30 (lojas fechadas)
 
-É conhecida e segura: fazer o banco calcular **uma vez por consulta**
-quem é o usuário e quais lojas ele enxerga, em vez de uma vez por linha.
-A regra de quem vê o quê **não muda** — muda só quantas vezes ela é
-calculada. Mexe nas regras de acesso do banco de produção, então:
+Autorizada pelo Rafael ("pode seguir direto"). A regra de quem vê o quê
+**não mudou**; mudou só quantas vezes ela é calculada: agora uma vez por
+leitura, em vez de uma vez por linha.
 
-1. copiar as regras atuais (backup) antes de tocar;
-2. trocar tabela por tabela, começando pelas mais lidas;
-3. provar, para cada perfil (dono, gerente de unidade, outra rede), que
-   vê **exatamente** as mesmas linhas de antes — e medir o tempo de novo;
-4. desfazer na hora se qualquer contagem divergir.
+### O que foi feito
+1. As 130 regras de acesso foram copiadas antes, intactas, para
+   `arquivo.bkp_rls_politicas_20260923` — dá para voltar qualquer uma.
+2. Três funções novas, com a mesma lógica das antigas, devolvendo a
+   resposta de uma vez: `minha_rede_plena()`, `minhas_lojas()` e
+   `lojas_com_cardapio()`.
+3. As 130 regras foram reescritas numa transação só: ou trocava tudo, ou
+   nada. (A primeira tentativa foi recusada por um detalhe de tipo e não
+   alterou nada; a segunda passou.)
 
-Pela regra 2 do projeto, isso só roda com ordem do Rafael.
+### A prova — o mesmo que antes, linha por linha
+Nove perfis reais — dono da rede, admin de Alphaville, gerente de Santa Fé,
+gerente de Jales, plataforma, Raylan, um admin inativo, visitante do
+cardápio e um usuário estranho — contando cada uma das 82 tabelas
+protegidas, **antes e depois**:
+
+| perfil | tabelas | diferenças | tempo antes | tempo depois |
+|---|---|---|---|---|
+| gerente Santa Fé | 82 | **0** | 28,2 s | 0,2 s |
+| gerente Jales | 82 | **0** | 25,0 s | 0,1 s |
+| dono da rede | 82 | **0** | 25,9 s | 0,1 s |
+| admin Alphaville | 82 | **0** | 26,4 s | 0,2 s |
+| Raylan | 82 | **0** | 22,6 s | 0,1 s |
+| admin inativo | 82 | **0** | 21,2 s | 0,1 s |
+| plataforma | 82 | **0** | 5,2 s | 0,1 s |
+| visitante do cardápio | 82 | **0** | 4,1 s | 0,0 s |
+| usuário estranho | 82 | **0** | 22,7 s | 0,1 s |
+
+Gravação conferida, com teste desfeito no fim: o gerente de Santa Fé grava
+movimento e atualiza os mesmos pedidos, lançamentos e movimentos que já
+enxergava; o usuário estranho continua barrado ("sessão sem empresa").
+Nenhum resto de teste ficou no banco.
+
+A leitura das 1.810 movimentações como o gerente de Santa Fé caiu de
+**2.972 ms para 9 ms**.
+
+A contagem completa (perfil, tabela, linhas e tempo, antes e depois)
+ficou guardada em `arquivo.rls_prova_20260923`.
+
+### Regra para toda regra de acesso nova
+Função de identidade dentro de regra de acesso vai **sempre** entre
+parênteses com SELECT — `(SELECT minha_loja())`, nunca `minha_loja()` solto
+— e o teste de rede usa `(SELECT minha_rede_plena()) OR loja_id = ANY
+((SELECT minhas_lojas())::uuid[])`. Solto, o banco recalcula a cada linha,
+e a lentidão volta.

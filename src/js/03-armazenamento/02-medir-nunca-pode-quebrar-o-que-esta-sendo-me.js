@@ -1659,6 +1659,7 @@ function volta(linhas,fn,atual,col){
   try{ conferirFilhosRepetidos(); }catch(e){ _quieto(e,'conferirFilhosRepetidos'); }
   /* alguem tentou enviar durante o download e foi segurado: agora pode ir */
   if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
+  try{ sinalDoAparelho('download'); }catch(e){ _quieto(e,'sinalDoAparelho'); }
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   /* o que veio da nuvem pertence a loja de onde veio: carimba antes de
      qualquer gravacao, senao viraria "sem origem" no proximo envio */

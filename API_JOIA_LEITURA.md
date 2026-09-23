@@ -82,6 +82,15 @@ que o caminho tocaria, a resposta traz `avisos` dizendo isso.
 | `GET /fichas` | ficha técnica com ingredientes (`ficha=fi_...`) |
 | `GET /reconciliacao/estoque` | saldo inicial + entradas − saídas = saldo final |
 
+### Etapa 2 (v2.1, 23/09/2026)
+
+| caminho | o que devolve |
+|---|---|
+| `GET /cadastros/{tipo}` | um cadastro inteiro: unidades, usuarios, itens, unidades-medida, motivos, formas-pagamento, contas, fornecedores |
+| `GET /saude-sincronizacao` | por unidade e por aparelho: vendas sem pagamento, sem caixa, sem baixa, último registro recebido, caixas abertos, último sinal |
+| `GET /alteracoes?desde=` | o que foi criado ou alterado desde um instante |
+| `GET /historico` | quem mudou o quê, com o antes e o depois |
+
 ## Respostas de erro
 
 | código | quando |

@@ -9513,6 +9513,60 @@ async function apagar(tab,campo,valor){
 
 /* ---- sincronização completa ---- */
 var RETIDOS={},ORFAOS={},RECUSADAS={};
+/* ==========================================================
+   SINAL DE VIDA DO APARELHO (Etapa 2 da RDS, 23/09/2026)
+
+   A nuvem sabia o que cada LOJA mandou, mas nao sabia QUAL aparelho
+   mandou, nem se algum aparelho parou de sincronizar. Um tablet
+   esquecido sem internet guardava vendas por dias e ninguem via — so
+   aparecia quando o caixa nao batia.
+
+   Agora, a cada envio ou download que termina bem (e a cada erro de
+   envio), o aparelho avisa a nuvem: quem e ele, de que unidade, em que
+   versao, se ficou coisa pendente. A API mostra isso em
+   /saude-sincronizacao.
+
+   Regras deste aviso, porque ele NUNCA pode atrapalhar a venda:
+   - no maximo um por tipo a cada 2 minutos;
+   - vai direto, sem repetir e sem tentar reconectar (nao usa `api()`,
+     que renova sessao e religa a nuvem quando recebe recusa);
+   - qualquer falha e engolida em silencio: o aviso e dispensavel, a
+     venda nao.
+   ========================================================== */
+var _SINAL={ultimo:{},intervalo:120000};
+function idDoAparelho(){
+  try{
+    var id=localStorage.getItem('joia_aparelho_id');
+    if(!id){
+      id='ap_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+      localStorage.setItem('joia_aparelho_id',id);
+    }
+    return id;
+  }catch(e){ return ''; }
+}
+function sinalDoAparelho(evento,erroTxt){
+  try{
+    if(!NUVEM.ligada||NUVEM.plataforma||!NUVEM.url||!NUVEM.token)return false;
+    var agora=Date.now();
+    if(agora-(_SINAL.ultimo[evento]||0)<_SINAL.intervalo)return false;
+    var id=idDoAparelho();
+    if(!id)return false;
+    _SINAL.ultimo[evento]=agora;
+    var suc='';try{suc=lojaAtualId()||'';}catch(e){suc='';}
+    var p={aparelho_id:id,evento:evento,sucursal_ref:suc,
+      usuario:(typeof SESSAO!=='undefined'&&SESSAO&&SESSAO.login)||'',
+      versao:(typeof VERSAO!=='undefined'?String(VERSAO):''),
+      navegador:String((typeof navigator!=='undefined'&&navigator.userAgent)||'').slice(0,200),
+      pendente:!!(NUVEM.sujo||DB._sujo)};
+    if(erroTxt)p.erro=String(erroTxt).slice(0,300);
+    fetch(NUVEM.url+'/rest/v1/rpc/aparelho_sinal',{method:'POST',keepalive:true,
+      headers:{'apikey':NUVEM.chave,'Content-Type':'application/json',
+               'Authorization':'Bearer '+NUVEM.token},
+      body:JSON.stringify({p:p})}).catch(function(){});
+    return true;
+  }catch(e){ return false; }
+}
+
 async function sincronizar(){
   RETIDOS={};ORFAOS={};RECUSADAS={};
   /* ==========================================================
@@ -10356,8 +10410,10 @@ async function sincronizar(){
        relogio de 6 s ver um contador "novo" que fui EU mesmo que criei. */
     await marcarVersaoAtual();
     backupDoDia();                 /* uma cópia por dia, sem travar nada */
+    sinalDoAparelho('envio');      /* avisa a nuvem que este aparelho está em dia */
   }catch(e){
     console.error('[JOIA sync]',etapa,e);
+    sinalDoAparelho('erro',etapa+': '+((e&&e.message)||'falha'));
     statusNuvem('erro',etapa+': '+((e&&e.message)||'falha'));
     console.error('SINCRONIZACAO falhou em',etapa,e);
     logNuvem('ERRO em '+etapa+': '+((e&&e.message)||'falha'),true);
@@ -12091,6 +12147,7 @@ function volta(linhas,fn,atual,col){
   try{ conferirFilhosRepetidos(); }catch(e){ _quieto(e,'conferirFilhosRepetidos'); }
   /* alguem tentou enviar durante o download e foi segurado: agora pode ir */
   if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
+  try{ sinalDoAparelho('download'); }catch(e){ _quieto(e,'sinalDoAparelho'); }
   var depoisCat=(DB.catfin||[]).reduce(function(a,p){return a+((p.itens||[]).length)},0);
   /* o que veio da nuvem pertence a loja de onde veio: carimba antes de
      qualquer gravacao, senao viraria "sem origem" no proximo envio */
