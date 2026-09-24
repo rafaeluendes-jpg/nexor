@@ -1,5 +1,5 @@
 {
- "gerado": "2026-09-23",
+ "gerado": "2026-09-24",
  "projeto": "cevghkndzpzvnzwifhnm",
  "tabelas": {
   "acertos": {
@@ -46,7 +46,16 @@
     "criada_em": "timestamp with time zone",
     "ultimo_uso": "timestamp with time zone",
     "usos": "bigint",
-    "observacao": "text"
+    "observacao": "text",
+    "finalidade": "text",
+    "limite_por_minuto": "integer",
+    "mascarar_pessoais": "boolean",
+    "janela_inicio": "timestamp with time zone",
+    "janela_usos": "integer",
+    "recusas_por_limite": "bigint",
+    "revogada_em": "timestamp with time zone",
+    "revogada_motivo": "text",
+    "rotacionada_de": "uuid"
    },
    "unicos": [
     [

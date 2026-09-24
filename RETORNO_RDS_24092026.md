@@ -5,28 +5,41 @@
 Tudo aqui foi conferido no código-fonte do Joia e no banco de produção.
 Nenhuma trava nova foi publicada: como a RDS pediu, PDV, estoque e
 financeiro só mudam depois deste retorno e do de acordo de RDS, Rafael e
-Raylan. A única exceção pronta para subir é a **correção de defeito** do
-item 5.2, que impede as taxas de voltarem ao valor de fábrica. Ela também
-espera o de acordo.
+Raylan. O que está pronto para subir são **três correções de defeito** (V340):
+
+- a das taxas que voltavam ao valor de fábrica (5.2);
+- a da categoria de lançamento que se perdia no caminho para a nuvem (2.1);
+- a do CPV contado em dobro no DRE (item 9).
+
+Elas também esperam o de acordo.
 
 **Situação de cada item:**
 
 | # | pedido | situação |
 |---|---|---|
-| 1 | relação nominal das pendências | **código pronto e testado** (`/pendencias` na API + foto do "antes"); falta aplicar no banco |
+| 1 | relação nominal das pendências | **feito**: `/pendencias` no ar, foto do "antes" gravada, planilha `Joia-pendencias-24-09-2026.xlsx` |
 | 2 | trava de lançamento sem categoria | **desenho abaixo**; aguarda o de acordo |
 | 3 | trava de insumo sem custo | **desenho abaixo**; aguarda o de acordo |
 | 4 | produto ativo sem ficha ou insumo | **desenho abaixo**; aguarda o de acordo |
 | 5 | taxas congeladas na venda + causa da reversão | **causa encontrada e corrigida** (V340, testada, não publicada); congelamento desenhado |
-| 6 | incidente das 12 cópias | **relatório abaixo**; falta a consulta dos registros de acesso |
+| 6 | incidente das 12 cópias | **relatório concluído**: registros de acesso conferidos, nenhuma leitura |
 | 7 | limpeza cadastral | **lista de controle abaixo** |
-| 8 | chave "RDS Inteligência Gerencial" | **código pronto e testado** (limite, máscara, contagem); falta criar no banco |
+| 8 | chave "RDS Inteligência Gerencial" | **criada e testada em produção**; entregue ao Rafael por mensagem, fora deste documento |
 | 9 | retorno esperado | este documento |
 
-**O que falta para concluir 1, 6 e 8:** aplicar no banco a alteração
-`supabase/migrations/20260924_rds_pendencias_e_chave_gerencial.sql`, publicar
-a API 2.2, gerar a chave e extrair as listas. É um passo só, e ele depende
-de o Rafael liberar uma vez o conector do banco nesta sessão.
+**Aplicado no banco em 24/09/2026:**
+
+- a alteração `supabase/migrations/20260924_rds_pendencias_e_chave_gerencial.sql`;
+- a API 2.2, publicada como versão 6 da função;
+- a chave nova;
+- a proteção contra tabela exposta.
+
+**Teste de ponta a ponta em produção,** com uma chave temporária que foi
+apagada em seguida:
+
+- `/pendencias` respondeu;
+- o limite de chamadas (3 por minuto na chave de teste) recusou as 2 chamadas excedentes, com "429";
+- o nome de cliente saiu mascarado ("C.").
 
 ---
 
@@ -44,6 +57,15 @@ de o Rafael liberar uma vez o conector do banco nesta sessão.
 
 Todos aceitam `loja=` para uma unidade só.
 
+**Números de hoje (foto de 24/09, 09h20):**
+
+| pendência | 23/09 | 24/09 | por que mudou |
+|---|---|---|---|
+| lançamentos sem categoria | 72 | **74** | 3 lançados desde 23/09; 1 dos antigos foi classificado |
+| insumos sem custo | 56 | **68** | 12 bases tiveram o custo **zerado** em 23/09, às 13h51, quando o estoque delas ficou zero ou negativo (item 3.1) |
+| produtos sem ficha nem insumo | 2 | **2** | — |
+| motivos sem classe | 13 | **13** | — |
+
 **Critérios, os mesmos do relatório de 23/09:**
 
 - **Lançamento sem categoria:** sem subcategoria e sem nome de categoria,
@@ -55,17 +77,20 @@ Todos aceitam `loja=` para uma unidade só.
 - **Produto sem vínculo:** ativo, sem ficha técnica e sem insumo direto.
 - **Motivo sem classe:** todos os 13. O campo classe ainda não existe.
 
-**Foto do "antes".** Ao aplicar a alteração no banco, as quatro listas
-completas ficam gravadas com data e hora, fora do alcance da API e do
-navegador (`arquivo.pendencias_foto`). É o registro de antes da limpeza.
+**Foto do "antes".** As quatro listas completas estão gravadas com data e
+hora (24/09, 09h20), fora do alcance da API e do navegador
+(`arquivo.pendencias_foto`). É o registro de antes da limpeza.
 Toda correção feita depois fica no registro de auditoria, com antes,
 depois, quem e quando.
 
 **Nada é classificado ou corrigido automaticamente.** A API só lê. A
 limpeza é manual, pela tela, depois da validação de Raylan e RDS.
 
-**Planilha.** A mesma extração vai em planilha para o Raylan trabalhar
-(uma aba por pendência), gerada logo depois da aplicação no banco.
+**Planilha.** A mesma extração está em `Joia-pendencias-24-09-2026.xlsx`:
+
+- uma aba por pendência, mais o resumo;
+- colunas em branco para o Raylan registrar a decisão, o responsável e a
+  data.
 
 ---
 
@@ -88,8 +113,35 @@ limpeza é manual, pela tela, depois da validação de Raylan e RDS.
 | **nota lançada pelo assistente do WhatsApp** | **vazia** |
 | transferência entre contas | "Transferência" (texto) |
 
-- A nota lançada pelo assistente do WhatsApp é a **origem mais provável**
-  dos 72 sem categoria. A relação nominal (campo `origem`) confirma.
+**A relação nominal mostrou de onde vêm os 74:**
+
+| origem | qtd | valor | o que é |
+|---|---|---|---|
+| estorno de venda cancelada | 32 | R$ 1.359,00 | criado **pelo banco** quando uma venda é cancelada, sem categoria nem conta |
+| nota de entrada | 32 | R$ 20.241,37 | a tela **exige** categoria, mas ela não chegou à nuvem |
+| manual | 10 | R$ 10.725,54 | idem |
+
+**O defeito que explica 42 dos 74.** A categoria escolhida na tela fica no
+aparelho, mas o envio para a nuvem precisa traduzir a subcategoria para o
+identificador do banco. O mapa que faz essa tradução só conhecia a
+categoria-pai, nunca as subcategorias recebidas pelo download.
+
+- Num aparelho de loja o lançamento subia **sem subcategoria**.
+- A loja via o lançamento classificado; a nuvem, a API e o DRE da rede
+  viam "sem categoria".
+- Por isso só 10 dos 202 lançamentos tinham subcategoria na nuvem.
+
+**Corrigido na V340**, com o guardião `testes/categoria-do-lancamento-sobe.js`.
+Ele roda o download de verdade e confere o envio: são 9 verificações, que
+**falham no código antigo** (3 falhas).
+
+Quando a V340 for publicada, o aparelho de Santa Fé reenvia os lançamentos
+com a categoria que a loja escolheu. Isso **não é classificação
+automática**: é a decisão da loja chegando aonde deveria.
+
+- Os **32 estornos** precisam de uma regra da RDS. Sugestão: *dedução de
+  receita — cancelamentos e devoluções*.
+- O que sobrar sem categoria depois da V340 fica para o Raylan.
 - **Não existe rascunho** nem fechamento de período no financeiro.
 - **O DRE descarta em silêncio** o lançamento sem categoria: ele não entra
   em rubrica nenhuma e não aparece como pendência.
@@ -149,7 +201,18 @@ caixa continua fechando normalmente; só o financeiro fica pendente.
   O custo nasce da entrada por nota (média ponderada por unidade, ou
   "última compra", conforme o insumo), da contagem (que pode fixar o custo
   à mão) ou da produção.
-- Estoque zerado zera o custo.
+- **Estoque zerado zera o custo.** Aconteceu em **23/09, às 13h51**:
+  12 bases (Chocolate, Morango, Ninho, Belga, Pistache...) chegaram a zero
+  ou negativo na Matriz e perderam o custo, embora a última compra
+  (NF franq260921, de 21/09) esteja registrada.
+  - **O risco:** toda venda que baixar essas bases com custo zero entra no
+    CPV com custo zero.
+  - **A proposta:** com estoque zero ou negativo, manter o último custo
+    conhecido, em vez de zerar. A próxima entrada já recalcula a média
+    corretamente sem precisar do zero.
+  - **Situação:** altera o custo do estoque, então espera o de acordo.
+  - **Nos 68 insumos da relação nominal:** 35 têm custo da última compra
+    e podem ser repostos por ele; 33 nunca tiveram custo.
 - **O insumo não tem situação ativo/inativo.**
 - A ficha técnica mostra R$ 0,00 para ingrediente sem custo, **sem
   alerta**.
@@ -387,15 +450,20 @@ equipe técnica.
 3. **Na verificação:** o alerta de segurança do banco passa a ser
    conferido depois de toda correção de dados.
 
-### 6.7 Registros de acesso
+### 6.7 Registros de acesso — conferidos
 
-- **Pendente.** Ainda não foi possível consultar no banco quem leu as
-  tabelas `bkp_` entre 16 e 23/09: a consulta depende do mesmo acesso ao
-  conector do banco. Ela é feita no mesmo passo e anexada a este relatório.
-- **Limitação:** o plano do banco guarda os registros de requisição por
-  poucos dias. O começo do período pode não estar mais disponível. Se não
-  houver registro, o relatório dirá isso, sem presumir que não houve
-  acesso.
+- **Janela conferida:** 16/09/2026 00h00 a 24/09/2026 12h00 (UTC), o
+  período inteiro da exposição e mais um dia. Os registros do banco
+  estavam disponíveis desde 16/09, 00h00.
+- **Onde:** todo o tráfego de entrada da API do banco (`edge_logs`), em
+  janelas de 12 a 24 horas. Cerca de 45 a 60 mil requisições por dia.
+- **Resultado: nenhuma requisição a qualquer tabela `bkp_`.** Ninguém leu,
+  listou ou baixou as cópias pela API.
+- **Prova de que a busca funciona:** a mesma consulta, aplicada a uma
+  tabela usada todo dia (`whatsapp_config`), encontrou 378 requisições em
+  12 horas.
+- **Consulta à raiz da API** (que lista os nomes das tabelas): nenhuma na
+  amostra conferida.
 
 ### 6.8 Rotação de chaves
 
@@ -410,17 +478,19 @@ equipe técnica.
   gestores e da assistente, e nome de operador de caixa.
 - Não havia dado sensível (art. 5º, II), dado de cliente nem dado
   financeiro de pessoa física.
-- Não há, até aqui, evidência de acesso.
+- **Não houve acesso**, conforme os registros (6.7).
 
-**Avaliação preliminar:** risco baixo aos titulares. Pela Resolução
+**Avaliação:** risco baixo aos titulares. Pela Resolução
 CD/ANPD nº 15/2024, comunicação à ANPD e aos titulares é exigida quando o
 incidente pode causar **risco ou dano relevante**. Com dado não sensível,
 de poucos titulares, sem indício de acesso e já contido, a tendência é
 **registro interno, sem comunicação**.
 
-- **A conclusão final depende dos registros de acesso (6.7)** e da
-  decisão do controlador (Jolô Gelato). Recomenda-se avisar as pessoas
-  cujo WhatsApp estava na cópia.
+- **Conclusão técnica:** exposição potencial, sem acesso, contida em
+  23/09.
+- **Recomendação:** registro interno do incidente, sem comunicação à ANPD.
+  A decisão final é do controlador (Jolô Gelato). Por transparência,
+  recomenda-se avisar as pessoas cujo WhatsApp estava na cópia.
 - Este registro deve ser guardado por no mínimo 5 anos (art. 10 da mesma
   resolução).
 
@@ -474,6 +544,20 @@ O "antes" completo é a foto do item 1.
 | dados pessoais | **máscara ligada**: nome de cliente vira iniciais, telefone e CPF só os últimos dígitos, endereço omitido; operador e conta da unidade continuam inteiros, porque são o "quem fez" da auditoria |
 | entrega por canal separado | a chave é gerada uma vez, só o resumo criptográfico fica no banco e ela não aparece em documento nem código; vai para o Rafael, que a entrega à RDS por mensagem direta |
 
+**Situação:** criada em 24/09/2026.
+
+| campo | valor |
+|---|---|
+| nome | RDS Inteligência Gerencial |
+| prefixo | `joia_rds_-b82` |
+| alcance | rede toda |
+| limite | 120 chamadas por minuto |
+| máscara | ligada |
+| usos | 0 |
+
+A chave completa foi entregue ao Rafael por mensagem, para ele repassar à
+RDS por canal direto.
+
 **Testes** (simulação da API sem rede, 10 verificações, todas certas):
 
 - lista de pendências e relação nominal;
@@ -485,7 +569,8 @@ O "antes" completo é a foto do item 1.
 - chave inválida;
 - ajuda.
 
-As 17 rotas da versão anterior continuam respondendo igual.
+As 17 rotas da versão anterior continuam respondendo igual. Depois, o
+**teste em produção** (seção de situação, no início).
 
 ### 8.2 A chave "RDS Auditoria" de 23/09
 
@@ -501,6 +586,7 @@ Continua funcionando até a RDS confirmar que passou a usar a nova. Depois
 | `/pendencias`, chave nova, limite, máscara (itens 1 e 8) | **não**: é só API e banco |
 | proteção contra tabela nova sem RLS (item 6) | **não**: só banco |
 | correção da reversão das taxas (5.2) | **sim**: V340, pronta e testada, aguardando o de acordo |
+| categoria do lançamento chegando à nuvem (2.1) | **sim**: vai junto na V340 |
 | correção do DRE (abaixo) | **sim**: vai junto na V340 |
 | travas de lançamento, insumo e produto (2, 3, 4) | **sim**: depois do de acordo neste desenho |
 | congelamento das condições de pagamento (5.3) | **sim**: aparelho e banco |
@@ -523,6 +609,8 @@ Continua funcionando até a RDS confirmar que passou a usar a nova. Depois
 ## Evidências de teste
 
 - `testes/formas-esperam-download.js`: 10/10. Falha no código antigo.
+- `testes/categoria-do-lancamento-sobe.js`: 9/9. Falha no código antigo
+  (3 falhas).
 - `testes/dre-arvore.js`: novo caso de CPV. Falha no código antigo.
 - Os testes anteriores de formas, login e aparelho atrasado seguem
   verdes.

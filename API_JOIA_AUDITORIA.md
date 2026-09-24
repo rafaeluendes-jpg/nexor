@@ -632,3 +632,39 @@ DELETE), `ref`, `unidade`, `campos_alterados`, `antes`, `depois`.
 - Exemplo real que este caminho já mostra: as taxas de cartão de Santa Fé
   voltando ao valor de fábrica em 09/09 às 16:19 (ver
   `CADASTROS_DIAGNOSTICO.md`, seção 0).
+
+
+## 7. Versão 2.2 (24/09/2026) — pendências, limite e dados pessoais
+
+### 7.1 `/pendencias` e `/pendencias/{tipo}`
+
+Relação nominal do que falta limpar antes da data de corte. Só leitura:
+nenhum registro é classificado ou corrigido pela API. Sem paginação (as
+listas são pequenas). Aceita `loja=`.
+
+| tipo | critério | campos principais |
+|---|---|---|
+| `lancamentos-sem-categoria` | sem subcategoria **e** sem categoria em texto, não cancelado | identificador, tipo, descrição, documento, fornecedor, fornecedor_cnpj, emissão, vencimento, pagamento, pago, conciliado, valor, unidade, conta, forma_pagamento, **origem** (`manual`, `nota-entrada`, `cancelamento`…), criado_em, alterado_em, **usuario** |
+| `insumos-sem-custo` | `custo` zero ou vazio | identificador, código, descrição, unidade_medida, fator, controla_estoque, compoe_cmv, custo, **custo_ultima_compra**, **saldo_atual** por unidade, **fichas_que_usam**, produtos_que_usam_direto, **ultima_compra** |
+| `produtos-sem-vinculo` | ativo, sem ficha e sem insumo | identificador, código, descrição, preço, baixa_estoque, **vendas** (quantidade, faturamento, pedidos, primeira e última venda, dias com venda) |
+| `motivos-sem-classe` | todos (o campo classe ainda não existe) | identificador, nome, direção, do_sistema, ativo, **usos**, último uso |
+
+### 7.2 Limite de chamadas
+
+Cada chave tem `limite_por_minuto` (padrão 120). Passou dele, a resposta é
+**429** com `limite_por_minuto` e `libera_em`. O uso (`usos`,
+`ultimo_uso`) e as recusas são contados no banco numa só gravação.
+
+### 7.3 Dados pessoais
+
+Nas chaves com máscara (padrão), os campos de **cliente** saem reduzidos:
+
+| campo | como sai |
+|---|---|
+| `cliente`, `cliente_nome`, `comanda`, `comanda_nome` | iniciais (`Maria da Silva` → `M. D. S.`) |
+| `cliente_tel`, `telefone`, `celular`, `whatsapp` | `•••` + 4 últimos dígitos |
+| `cpf`, `cliente_cpf` | `•••` + 2 últimos dígitos |
+| `endereco` | `(omitido)` |
+
+Operador de caixa e conta da unidade **não** são mascarados: são o "quem
+fez" da auditoria.

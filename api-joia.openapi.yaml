@@ -9,7 +9,7 @@ openapi: 3.1.0
 
 info:
   title: Joia — API de leitura e auditoria
-  version: "2.1"
+  version: "2.2"
   summary: Porta oficial, somente leitura, para resumos, análise e auditoria gerencial.
   description: |
     Autenticação por chave própria (`Authorization: Bearer <chave>` ou `x-api-key`).
@@ -759,6 +759,64 @@ paths:
                             depois: { type: [object, "null"], additionalProperties: true }
         "400": { $ref: "#/components/responses/PedidoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutorizado" }
+
+  /pendencias:
+    get:
+      tags: [pendencias]
+      summary: Quantos registros há em cada pendência de limpeza (v2.2)
+      operationId: pendencias
+      parameters:
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: contagem por pendência
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      pendencias:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            registros: { type: integer }
+                            descricao: { type: string }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+        "429": { description: limite de chamadas por minuto atingido (traz libera_em) }
+
+  /pendencias/{tipo}:
+    get:
+      tags: [pendencias]
+      summary: Relação nominal de uma pendência (v2.2)
+      operationId: pendenciaNominal
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [lancamentos-sem-categoria, insumos-sem-custo, produtos-sem-vinculo, motivos-sem-classe]
+        - $ref: "#/components/parameters/loja"
+      responses:
+        "200":
+          description: os registros da pendência, completos (sem paginação)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      pendencia: { type: string }
+                      registros: { type: integer }
+                      avisos: { type: array, items: { type: string } }
+                      dados: { type: array, items: { type: object, additionalProperties: true } }
+        "401": { $ref: "#/components/responses/NaoAutorizado" }
+        "404": { description: pendência inexistente }
+        "429": { description: limite de chamadas por minuto atingido (traz libera_em) }
 
 components:
 

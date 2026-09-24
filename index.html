@@ -11131,6 +11131,32 @@ function volta(linhas,fn,atual,col){
     return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:paiRef,nome:x.nome,tipo:x.tipo||'despesa',
       itens:(x.subcategorias_financeiras||[]).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
         .map(function(s){return {id:idFilho(paiRef,s.ref_local,s.id),nome:s.nome}})};},null,'catfin');
+  /* ==========================================================
+     A CATEGORIA DO LANCAMENTO FICAVA NO APARELHO E CHEGAVA VAZIA NA NUVEM
+     (24/09/2026 — dos 74 lancamentos "sem categoria" da auditoria RDS)
+
+     O envio traduz a subcategoria do lancamento por fkSub(), que procura
+     em _ids. `guardarIds` so registra a linha PAI (a categoria); as
+     subcategorias, que descem aninhadas, nunca entravam no mapa. Num
+     aparelho que recebeu o plano de contas pelo download — o de toda
+     loja — a traducao falhava, `subcategoria_id` subia nulo, e o
+     lancamento que a loja classificou aparecia sem categoria para a nuvem,
+     a API e o DRE da rede. Na tela da loja ele continuava classificado.
+
+     Agora cada subcategoria que desce entra no mapa pelo id que a tela usa
+     (e pelo ref_local cru, que lancamentos antigos podem guardar). */
+  try{
+    DB._uuid=DB._uuid||{}; DB._uuid.catfinSub=DB._uuid.catfinSub||{};
+    (cf||[]).forEach(function(c3){
+      var pr3=c3.ref_local||c3.id;
+      (c3.subcategorias_financeiras||[]).forEach(function(s3){
+        if(!s3||!s3.id)return;
+        [idFilho(pr3,s3.ref_local,s3.id), s3.ref_local].forEach(function(r3){
+          if(r3){ DB._uuid.catfinSub[r3]=s3.id; _ids[r3]=s3.id; }
+        });
+      });
+    });
+  }catch(e){ _quieto(e,'idsSubcategorias'); }
   var fo=await _p03;
   DB.fornec=volta(fo,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,empresa:x.empresa,nome:x.contato,
     cnpj:x.cnpj,email:x.email,tel:x.telefone,whats:x.whatsapp}},null,'fornec');
