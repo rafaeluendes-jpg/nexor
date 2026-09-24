@@ -61,6 +61,30 @@ const erros = [];
   const pr2 = Object.assign({}, principal, { permissoes: { 'controle/baixa-manual:lancar': false } });
   t('desmarcado no cadastro: nem o principal lança', win.podeLancarBaixa(pr2) === false);
 
+  grupo('No aparelho do operador (ele só enxerga a si mesmo)');
+  /* 24/09/2026: o Operador Caixa via "Lançar no estoque" — sozinho na
+     lista do aparelho dele, virava "o único login da unidade" */
+  const todos = win.DB.usuarios;
+  const cxOp = { id: 'u9', login: 'caixa@jologelato.com.br', nome: 'Operador Caixa', sucursais: ['suc_sf'], permissoes: { 'controle/baixa-manual': true } };
+  win.DB.usuarios = [cxOp];
+  win.usuarioLogado = () => cxOp;
+  win.NUVEM.perfil = { cargo: 'operador', sucursal_ref: 'suc_sf' };
+  t('operador sozinho na lista NÃO lança', win.podeLancarBaixa(cxOp) === false);
+  win.NUVEM.perfil = { cargo: 'caixa', sucursal_ref: 'suc_sf' };
+  t('caixa também não', win.podeLancarBaixa(cxOp) === false);
+  win.telaBaixaManual();
+  t('e a tela dele não mostra "Lançar no estoque"', !/lancarBaixasNoEstoque\(/.test(doc.getElementById('content').innerHTML));
+  const cxOp2 = Object.assign({}, cxOp, { permissoes: { 'controle/baixa-manual:lancar': true } });
+  win.usuarioLogado = () => cxOp2;
+  t('mas se o gerente liberou no cadastro, lança', win.podeLancarBaixa(cxOp2) === true);
+  const ger = { id: 'u8', login: 'outro@jologelato.com.br', nome: 'Gerente', sucursais: ['suc_sf'], permissoes: {} };
+  win.DB.usuarios = todos.concat([ger]);
+  win.usuarioLogado = () => ger;
+  win.NUVEM.perfil = { cargo: 'gerente', sucursal_ref: 'suc_sf' };
+  t('o gerente da unidade (cargo na nuvem) lança', win.podeLancarBaixa(ger) === true);
+  win.NUVEM.perfil = null;
+  win.DB.usuarios = todos;
+
   grupo('A tela da operadora');
   win.baseMov();
   win.DB.baixasPend = [

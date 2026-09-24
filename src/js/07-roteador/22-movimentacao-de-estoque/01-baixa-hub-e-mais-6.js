@@ -2268,8 +2268,28 @@ function valorBaixa(b){
      e nada muda para elas);
    - qualquer outro login da loja (operador): só registra. */
 var CHAVE_LANCAR_BAIXA = 'controle/baixa-manual:lancar';
+/* O cargo que a nuvem deu a quem está logado (perfis.cargo). Vale só para o
+   próprio login: dos outros acessos este aparelho não sabe o cargo. */
+function cargoNaNuvemDe(u){
+  var eu = (typeof usuarioLogado === 'function') ? usuarioLogado() : null;
+  var pf = (typeof NUVEM !== 'undefined' && NUVEM && NUVEM.perfil) ? NUVEM.perfil : null;
+  if (!u || !eu || !pf) return '';
+  var mesmo = (u.id && u.id === eu.id) ||
+    (u.login && String(u.login).toLowerCase() === String(eu.login || '').toLowerCase());
+  return mesmo ? String(pf.cargo || '') : '';
+}
 function ehLoginPrincipalDaLoja(u){
   if (!u) return false;
+  /* ------------------------------------------------------------------
+     24/09/2026 — o Operador Caixa de Santa Fé via o botão "Lançar no
+     estoque". No aparelho dele, a lista de acessos só traz ELE (o banco
+     não mostra a equipe para o operador), e a regra "único acesso da
+     unidade = login principal" o promovia. O cargo da nuvem decide antes:
+     operador e caixa nunca são o login principal; gerente da unidade é.
+     ------------------------------------------------------------------ */
+  var cargo = cargoNaNuvemDe(u);
+  if (cargo === 'operador' || cargo === 'caixa') return false;
+  if (cargo === 'gerente' && NUVEM.perfil.sucursal_ref) return true;
   var base = baseSuc(), login = String(u.login || '').toLowerCase();
   var sucs = u.sucursais || [];
   if (sucs.some(function (sid) {
