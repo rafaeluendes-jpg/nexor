@@ -247,3 +247,42 @@ forma de pagamento no comprovante, os dois avisos sobrepostos do
 cancelamento. O `testes/frente-de-caixa-guardiao.js` roda o fluxo do caixa
 no ESTADO RUIM (listas ainda não sincronizadas), que é onde os defeitos
 nascem — os testes antigos rodavam só no estado limpo.
+
+## Feito uma vez só: o completo é obrigação, não pedido (Rafael, 24/09/2026)
+
+Ordem do Rafael depois das permissões da equipe (V346–V348): "Isso é
+lógico, isso é engenharia de arquitetura, isso tem que ser feito sem eu
+pedir. Tem que ser feito uma vez só, não dá para ficar três, quatro vezes
+voltando." Os dois casos que motivaram:
+
+- a loja marcava as permissões de um funcionário e **não havia botão de
+  salvar**; ao sair, tudo se perdia (só ficava no aparelho);
+- o botão "Lançar no estoque" da Baixa Manual foi tirado do operador,
+  **validado**, e continuou aparecendo para ele — porque o teste só
+  simulou o aparelho do gerente, que enxerga a equipe toda; no aparelho do
+  operador, que só enxerga a si mesmo, a regra falhava.
+
+Daqui em diante, toda entrega segue estas regras sem ninguém pedir:
+
+1. **Toda tela que altera dado tem o ciclo inteiro**: botão de salvar
+   visível, aviso de "mudanças não salvas", confirmação só depois que a
+   nuvem devolveu o dado gravado ("Tudo salvo"), e erro claro quando não
+   gravou. Marcar e sair sem salvar nunca pode parecer que salvou.
+2. **"Salvou" quer dizer "chegou na nuvem e volta no outro aparelho"**, não
+   "ficou neste navegador". Antes de dizer pronto, conferir que o dado sai
+   do aparelho de quem mexeu e aparece no login de quem vai usar.
+3. **Toda regra de acesso é testada do lado de QUEM A SOFRE**, no aparelho
+   dele e com o que ele enxerga: o operador (lista só com ele), o gerente
+   da unidade, a matriz. Testar só do lado de quem configura não vale.
+4. **Quem recebe uma restrição é conferido de novo depois de entrar**: o
+   que foi tirado some da tela dele; o que foi liberado aparece.
+5. **O que for pedido para um caso vale para todos os do mesmo tipo** (toda
+   ficha técnica, toda unidade, todo perfil) — e o teste cobre os tipos,
+   não só o exemplo que o Rafael mostrou.
+6. **Só se diz "pronto" depois de testar e validar**: teste que falha na
+   versão publicada e passa na nova, portão inteiro verde, fotos das telas
+   conferidas — e, quando houver banco envolvido, a gravação provada no
+   banco com a sessão do perfil real (com desfazer no fim).
+
+Se uma dessas regras não pôde ser cumprida, a entrega diz "Ainda não está
+pronto" e o que falta — nunca "pronto".

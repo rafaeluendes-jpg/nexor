@@ -139,6 +139,13 @@ publique.
    botão só aparecia quando havia DOIS caixas abertos, e ele tinha um. Se
    a instrução não foi clicada aqui, ela não é instrução: é palpite.
 
+**Feito uma vez só (Rafael, 24/09/2026).** O completo é obrigação, não
+pedido: toda tela que altera dado tem botão de salvar, aviso de mudança não
+salva e "Tudo salvo" só depois que a nuvem confirmou; toda regra de acesso
+é testada no aparelho de quem a sofre (o operador só enxerga a si mesmo),
+não só de quem a configura. Detalhes em
+`JOIA_PROTOCOLO_PERMANENTE_DE_ENGENHARIA.md`, seção "Feito uma vez só".
+
 Quando houver mais de um caminho, escolher o mais seguro, mais estável,
 mais fácil de manter e compatível com o que já existe. Não inventar
 aparência nova por módulo: a identidade visual e os componentes são os
