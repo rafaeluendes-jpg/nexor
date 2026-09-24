@@ -2068,9 +2068,57 @@ function itensParaBaixa(){
   });
   (DB.fichas || []).forEach(function (f) {
     out.push({ id: f.id, nome: f.nome, tipo: 'ficha',
-               unidade: f.unidade || 'un', custo: custoDoItem(f) });
+               unidade: f.unidade || 'un', custo: custoFichaNaBaixa(f) });
   });
   return out;
+}
+/* ==========================================================
+   FICHA NA BAIXA MANUAL: O CUSTO VEM DA PRÓPRIA FICHA (Rafael, 24/09/2026)
+
+   CASCAO 2 BOLAS, 2 un, "Markting": custo R$ 0,00. A ficha de venda não
+   tem estoque próprio, e custoDoItem() devolve zero para o que está sem
+   saldo ("sem nada dentro, custo médio é zero"). Para uma ficha isso não
+   serve: o custo dela é a receita.
+
+   Regra: se a ficha tem custo médio de estoque (base produzida, com
+   saldo), vale ele — é o que está dentro. Senão, o custo da receita da
+   ficha técnica (ingredientes ÷ rendimento), convertido para a unidade da
+   ficha. */
+function custoFichaNaBaixa(f){
+  if (!f) return 0;
+  var c = custoDoItem(f);
+  if (c > 0) return c;
+  var porRend = custoPorUnidade(f) || 0;          /* por unidade do rendimento */
+  if (!porRend) return 0;
+  var ru = f.rendUnidade || f.unidade || 'un';
+  var fat = convUnid(1, f.unidade || 'un', ru);   /* 1 unidade da ficha, na unidade do rendimento */
+  return +((fat === null || !isFinite(fat)) ? porRend : porRend * fat).toFixed(6);
+}
+/* As fichas já registradas na baixa com custo zero recebem o custo da
+   receita — as pendentes e as já lançadas (com a linha do movimento de
+   estoque junto). Só toca o que está zerado; custo que existe não muda.
+   Só os registros desta unidade: a outra unidade corrige os dela. */
+function repararCustoFichasDaBaixa(){
+  var mudou = 0, eu = lojaAtualId();
+  (DB.baixasPend || []).forEach(function (b) {
+    if (!b || b.itemTipo !== 'ficha' || Number(b.custo) > 0) return;
+    if (b.sucursalRef && eu && b.sucursalRef !== eu) return;
+    var f = (DB.fichas || []).find(function (x) { return x.id === b.itemRef; });
+    var c = custoFichaNaBaixa(f);
+    if (!(c > 0)) return;
+    b.custo = c; b.custoUnidade = f.unidade || 'un'; b.custoFonte = 'ficha';
+    mudou++;
+    if (b.situacao === 'lancada' && b.movRef) {
+      var mov = (DB.movEst || []).find(function (m) { return m.id === b.movRef; });
+      (mov && mov.linhas || []).forEach(function (l) {
+        if (l.insumoId === b.itemRef && !(Number(l.custo) > 0)) {
+          var bl = { custo: b.custo, custoUnidade: b.custoUnidade, unidade: l.unidade, itemRef: b.itemRef };
+          l.custo = +custoUnBaixa(bl).toFixed(6);
+        }
+      });
+    }
+  });
+  return mudou;
 }
 /* ==========================================================
    PROCURAR ITEM: SEM ACENTO, EM QUALQUER ORDEM, DUAS LETRAS
@@ -2189,6 +2237,7 @@ function valorBaixa(b){
 }
 function telaBaixaManual(){
   baseMov(); baseBaixas();
+  try { if (repararCustoFichasDaBaixa()) salvar(); } catch (e) { _quieto(e, 'custoFichasBaixa'); }
   if (!BX.data) BX.data = hojeISO();
   if (!BX.quem) BX.quem = (usuarioLogado() || {}).nome || '';
   var motivos = motivosBaixa();
@@ -2676,6 +2725,7 @@ var BXR={de:'',ate:'',quem:''};
    ========================================================== */
 function telaRelatorioBaixas(){
   baseBaixas();
+  try { if (repararCustoFichasDaBaixa()) salvar(); } catch (e) { _quieto(e, 'custoFichasBaixa'); }
   if(!BXR.de){BXR.de=diasAtrasISO(30);BXR.ate=hojeISO();}
   var l=baseBaixas().filter(function(b){
     if(BXR.de&&b.data<BXR.de)return false;
