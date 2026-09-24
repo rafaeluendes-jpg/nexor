@@ -23,6 +23,8 @@ const t0 = Date.now();
 const ETAPAS = [
   { n: 'Montagem — o index.html é o espelho do src/',
     cmd: 'npm', args: ['run', 'montar'], mudo: true },
+  { n: 'Trava das correções — nenhum guardião apagado, desligado ou enfraquecido',
+    cmd: 'node', args: ['ferramentas/travar.js'] },
   { n: 'Vistoria — o código chama só o que existe (nada novo aponta pro vazio)',
     cmd: 'node', args: ['ferramentas/vistoriar.js'] },
   { n: 'Estrutura e versão — VERSAO e VERSAO_SW sobem juntas',

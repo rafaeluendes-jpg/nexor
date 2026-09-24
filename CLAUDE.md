@@ -146,6 +146,14 @@ salva e "Tudo salvo" só depois que a nuvem confirmou; toda regra de acesso
 não só de quem a configura. Detalhes em
 `JOIA_PROTOCOLO_PERMANENTE_DE_ENGENHARIA.md`, seção "Feito uma vez só".
 
+**Correção feita fica trancada (Rafael, 24/09/2026).** Todo guardião de
+`testes/` está registrado em `ferramentas/travas.json`; `node
+ferramentas/travar.js` (etapa 2 do portão e no GitHub) reprova se algum for
+apagado, desligado da bateria ou enfraquecido. Guardião vermelho depois de
+uma mudança nova = a mudança nova está errada. Liberar só com ordem do
+Rafael (`--liberar … --motivo`). Correção nova: guardião novo + `node
+ferramentas/travar.js --gravar`.
+
 Quando houver mais de um caminho, escolher o mais seguro, mais estável,
 mais fácil de manter e compatível com o que já existe. Não inventar
 aparência nova por módulo: a identidade visual e os componentes são os

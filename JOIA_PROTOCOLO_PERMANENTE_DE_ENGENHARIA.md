@@ -286,3 +286,29 @@ Daqui em diante, toda entrega segue estas regras sem ninguém pedir:
 
 Se uma dessas regras não pôde ser cumprida, a entrega diz "Ainda não está
 pronto" e o que falta — nunca "pronto".
+
+## Correção feita fica trancada (Rafael, 24/09/2026)
+
+"Uma vez uma correção feita, isso fica travado. Quando fizer outra
+correção, não pode quebrar aquele módulo. Não pode ter a opção daquilo ser
+quebrado novamente."
+
+Cada correção já nasce com um teste-guardião que reproduz o defeito. O
+`ferramentas/travar.js` tranca esses guardiões, como catraca — só anda
+para frente. A referência é `ferramentas/travas.json` (hoje: 101
+guardiões, 2.504 pontos conferidos, 11 etapas do portão). O portão
+(etapa 2) e o GitHub, a cada envio, reprovam se:
+
+- um guardião registrado for **apagado**;
+- um guardião **sair da bateria** (`npm test`) ou do portão;
+- um guardião passar a **conferir menos pontos** do que conferia;
+- uma **etapa do portão** for retirada (inclusive a própria trava);
+- um guardião **novo** não for registrado — toda correção nova entra com
+  `node ferramentas/travar.js --gravar`, que só aceita subir.
+
+Mudar o comportamento trancado por um guardião — ou liberar um guardião —
+só com ordem expressa do Rafael citando aquela funcionalidade. Fica
+anotado para sempre, com o motivo, no `travas.json`:
+`node ferramentas/travar.js --gravar --liberar testes/x.js --motivo "…"`.
+Sem essa ordem, se uma correção nova faz um guardião antigo ficar
+vermelho, quem está errada é a correção nova — nunca o guardião.

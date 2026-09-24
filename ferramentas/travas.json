@@ -1,0 +1,423 @@
+{
+ "sobre": "Trava das correções — ver ferramentas/travar.js. Só anda para frente.",
+ "guardioes": {
+  "testes/aparelho-atrasado-nao-manda.js": {
+   "pontos": 14,
+   "roda": true
+  },
+  "testes/aparelho-nao-congela.js": {
+   "pontos": 18,
+   "roda": true
+  },
+  "testes/armazem-indexeddb.js": {
+   "pontos": 18,
+   "roda": true
+  },
+  "testes/armazenamento-comprime.js": {
+   "pontos": 15,
+   "roda": true
+  },
+  "testes/arranque.js": {
+   "pontos": 13,
+   "roda": true
+  },
+  "testes/aviso-em-portugues.js": {
+   "pontos": 11,
+   "roda": true
+  },
+  "testes/backup.js": {
+   "pontos": 15,
+   "roda": true
+  },
+  "testes/bairro-na-entrega.js": {
+   "pontos": 17,
+   "roda": true
+  },
+  "testes/baixa-apaga-fica.js": {
+   "pontos": 6,
+   "roda": true
+  },
+  "testes/baixa-ficha-tem-custo.js": {
+   "pontos": 22,
+   "roda": true
+  },
+  "testes/baixa-manual-encontra-e-cadastra.js": {
+   "pontos": 28,
+   "roda": true
+  },
+  "testes/baixa-manual-motivos-e-custo.js": {
+   "pontos": 23,
+   "roda": true
+  },
+  "testes/baixa-quem-lanca.js": {
+   "pontos": 29,
+   "roda": true
+  },
+  "testes/baixa-venda-converte-unidade.js": {
+   "pontos": 8,
+   "roda": true
+  },
+  "testes/bases-nao-treme.js": {
+   "pontos": 9,
+   "roda": true
+  },
+  "testes/cadastro-nao-some.js": {
+   "pontos": 29,
+   "roda": true
+  },
+  "testes/cadastro-sem-sosia.js": {
+   "pontos": 36,
+   "roda": true
+  },
+  "testes/cadastro-so-a-matriz-edita.js": {
+   "pontos": 32,
+   "roda": true
+  },
+  "testes/caixa-cego.js": {
+   "pontos": 13,
+   "roda": true
+  },
+  "testes/caixa-nao-nasce-gemeo.js": {
+   "pontos": 17,
+   "roda": true
+  },
+  "testes/caixa-nao-reabre.js": {
+   "pontos": 85,
+   "roda": true
+  },
+  "testes/caixa.js": {
+   "pontos": 67,
+   "roda": true
+  },
+  "testes/canais-e-horarios.js": {
+   "pontos": 43,
+   "roda": true
+  },
+  "testes/canais.js": {
+   "pontos": 18,
+   "roda": true
+  },
+  "testes/cardapio-horario.js": {
+   "pontos": 29,
+   "roda": true
+  },
+  "testes/categoria-do-lancamento-sobe.js": {
+   "pontos": 9,
+   "roda": true
+  },
+  "testes/compra-sem-vinculo.js": {
+   "pontos": 58,
+   "roda": true
+  },
+  "testes/conferir-nuvem.js": {
+   "pontos": 11,
+   "roda": true
+  },
+  "testes/contador-nao-mente.js": {
+   "pontos": 31,
+   "roda": true
+  },
+  "testes/contagem-nao-se-perde.js": {
+   "pontos": 36,
+   "roda": true
+  },
+  "testes/contagem-retroativa.js": {
+   "pontos": 49,
+   "roda": true
+  },
+  "testes/contagem-sobe-inteira.js": {
+   "pontos": 20,
+   "roda": true
+  },
+  "testes/dia-primeiro.js": {
+   "pontos": 18,
+   "roda": true
+  },
+  "testes/download-velho-nao-apaga-edicao.js": {
+   "pontos": 4,
+   "roda": true
+  },
+  "testes/dre-arvore.js": {
+   "pontos": 24,
+   "roda": true
+  },
+  "testes/e2e.js": {
+   "pontos": 93,
+   "roda": true
+  },
+  "testes/envio-concorrente.js": {
+   "pontos": 14,
+   "roda": true
+  },
+  "testes/enxugado.js": {
+   "pontos": 11,
+   "roda": true
+  },
+  "testes/estoque-nao-guerra.js": {
+   "pontos": 6,
+   "roda": true
+  },
+  "testes/estoque-unidade-legivel.js": {
+   "pontos": 15,
+   "roda": true
+  },
+  "testes/exclusao-vale.js": {
+   "pontos": 19,
+   "roda": true
+  },
+  "testes/extrair.js": {
+   "pontos": 0,
+   "roda": false
+  },
+  "testes/fechamento-nao-some.js": {
+   "pontos": 16,
+   "roda": true
+  },
+  "testes/fechar-sem-senha.js": {
+   "pontos": 20,
+   "roda": true
+  },
+  "testes/formas-esperam-download.js": {
+   "pontos": 10,
+   "roda": true
+  },
+  "testes/formas-pagamento.js": {
+   "pontos": 56,
+   "roda": true
+  },
+  "testes/formas-visiveis-na-unidade.js": {
+   "pontos": 6,
+   "roda": true
+  },
+  "testes/frente-de-caixa-guardiao.js": {
+   "pontos": 22,
+   "roda": true
+  },
+  "testes/frente-de-caixa.js": {
+   "pontos": 93,
+   "roda": true
+  },
+  "testes/gelato-venda.js": {
+   "pontos": 10,
+   "roda": true
+  },
+  "testes/historico-nuvem.js": {
+   "pontos": 7,
+   "roda": true
+  },
+  "testes/interruptor-da-loja.js": {
+   "pontos": 44,
+   "roda": true
+  },
+  "testes/isolamento-conciliacao.js": {
+   "pontos": 7,
+   "roda": true
+  },
+  "testes/isolamento-sucursal.js": {
+   "pontos": 10,
+   "roda": true
+  },
+  "testes/lancamento-forma-pagamento.js": {
+   "pontos": 14,
+   "roda": true
+  },
+  "testes/lancamento-nao-vira-nota.js": {
+   "pontos": 17,
+   "roda": true
+  },
+  "testes/ligacoes.js": {
+   "pontos": 32,
+   "roda": true
+  },
+  "testes/login-nao-apaga-configuracao.js": {
+   "pontos": 20,
+   "roda": true
+  },
+  "testes/login-sempre-aparece.js": {
+   "pontos": 7,
+   "roda": true
+  },
+  "testes/loja-cria-equipe.js": {
+   "pontos": 17,
+   "roda": true
+  },
+  "testes/montagem.js": {
+   "pontos": 0,
+   "roda": true
+  },
+  "testes/motivo-nasce-visivel.js": {
+   "pontos": 6,
+   "roda": true
+  },
+  "testes/movimentacao-nao-se-apaga.js": {
+   "pontos": 16,
+   "roda": true
+  },
+  "testes/nota-numero-e-vencimento.js": {
+   "pontos": 19,
+   "roda": true
+  },
+  "testes/papel-sem-branco.js": {
+   "pontos": 24,
+   "roda": true
+  },
+  "testes/parcelas-batem-com-o-total.js": {
+   "pontos": 20,
+   "roda": true
+  },
+  "testes/pdv-item-sem-mais-menos.js": {
+   "pontos": 10,
+   "roda": true
+  },
+  "testes/pdv-tem-forma-pagamento.js": {
+   "pontos": 10,
+   "roda": true
+  },
+  "testes/pdv-ux.js": {
+   "pontos": 100,
+   "roda": true
+  },
+  "testes/pedido-base-sobe-inteiro.js": {
+   "pontos": 52,
+   "roda": true
+  },
+  "testes/pedido-base-vira-nota.js": {
+   "pontos": 35,
+   "roda": true
+  },
+  "testes/pedido-base.js": {
+   "pontos": 88,
+   "roda": true
+  },
+  "testes/pedido-imutavel.js": {
+   "pontos": 10,
+   "roda": true
+  },
+  "testes/pedido-numero-oficial.js": {
+   "pontos": 13,
+   "roda": true
+  },
+  "testes/pedido-online-cupom.js": {
+   "pontos": 11,
+   "roda": true
+  },
+  "testes/permissao-unidade.js": {
+   "pontos": 16,
+   "roda": true
+  },
+  "testes/permissoes-salvam.js": {
+   "pontos": 19,
+   "roda": true
+  },
+  "testes/producao-multiplica-receitas.js": {
+   "pontos": 18,
+   "roda": true
+  },
+  "testes/producao-nao-perde-rascunho.js": {
+   "pontos": 12,
+   "roda": true
+  },
+  "testes/reconciliacao.js": {
+   "pontos": 108,
+   "roda": true
+  },
+  "testes/reconexao.js": {
+   "pontos": 24,
+   "roda": true
+  },
+  "testes/relatorio-historico-liga.js": {
+   "pontos": 13,
+   "roda": true
+  },
+  "testes/resposta-zap-fecha.js": {
+   "pontos": 19,
+   "roda": true
+  },
+  "testes/retirada-e-cascao-por-unidade.js": {
+   "pontos": 27,
+   "roda": true
+  },
+  "testes/robo-le-a-nuvem-antes.js": {
+   "pontos": 18,
+   "roda": true
+  },
+  "testes/robo-segue-o-interruptor.js": {
+   "pontos": 13,
+   "roda": true
+  },
+  "testes/rolagem.js": {
+   "pontos": 13,
+   "roda": true
+  },
+  "testes/sabor-entra-em-gelato-venda.js": {
+   "pontos": 17,
+   "roda": true
+  },
+  "testes/saldo-da-conta.js": {
+   "pontos": 21,
+   "roda": true
+  },
+  "testes/salvar-confirma.js": {
+   "pontos": 13,
+   "roda": true
+  },
+  "testes/sangria-nao-some.js": {
+   "pontos": 22,
+   "roda": true
+  },
+  "testes/sessao-nao-cai.js": {
+   "pontos": 21,
+   "roda": true
+  },
+  "testes/sinal-do-aparelho.js": {
+   "pontos": 22,
+   "roda": true
+  },
+  "testes/sino.js": {
+   "pontos": 60,
+   "roda": true
+  },
+  "testes/sintaxe.js": {
+   "pontos": 0,
+   "roda": true
+  },
+  "testes/tenant.js": {
+   "pontos": 111,
+   "roda": true
+  },
+  "testes/turno-obedece.js": {
+   "pontos": 18,
+   "roda": true
+  },
+  "testes/unidade-nao-escolhe-quem-ve.js": {
+   "pontos": 8,
+   "roda": true
+  },
+  "testes/venda-baixa-mantem-vinculo.js": {
+   "pontos": 8,
+   "roda": true
+  },
+  "testes/versao.js": {
+   "pontos": 0,
+   "roda": true
+  },
+  "testes/vinculo-opcao.js": {
+   "pontos": 28,
+   "roda": true
+  }
+ },
+ "etapasDoPortao": [
+  "Montagem — o index.html é o espelho do src/",
+  "Vistoria — o código chama só o que existe (nada novo aponta pro vazio)",
+  "Estrutura e versão — VERSAO e VERSAO_SW sobem juntas",
+  "Bateria de testes — as suítes todas",
+  "Configurações — nenhuma rotina apaga o que a loja configurou",
+  "Nuvem — o que o código manda é o que o banco aceita",
+  "Varredura — as 94 telas montam e todo botão tem função",
+  "Auditoria visual — computador e celular, no Chromium",
+  "Provas — os fluxos da loja, no Chromium",
+  "Persistência — a configuração sobrevive a tudo",
+  "Trava das correções — nenhum guardião apagado, desligado ou enfraquecido"
+ ],
+ "liberacoes": []
+}

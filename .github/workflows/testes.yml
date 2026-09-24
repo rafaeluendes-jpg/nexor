@@ -45,6 +45,9 @@ jobs:
       - name: Rodar a reconciliação
         run: node testes/reconciliacao.js
 
+      - name: Trava das correções (nenhum guardião apagado, desligado ou enfraquecido)
+        run: node ferramentas/travar.js
+
       - name: Resultado
         if: failure()
         run: |
