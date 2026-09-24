@@ -64,10 +64,25 @@ function _formasFabrica(){
    fica vazio porque `syncFormas` tem uma lista de EXIBIÇÃO de fábrica, que
    NÃO é gravada nem enviada, só preenche a tela enquanto o download real
    não chega. Assim a taxa e a conta reais da loja não são mais repostas. */
+/* 24/09/2026 — A PORTA QUE SOBROU (reversão de Santa Fé em 09/09)
+
+   `_jaNaNuvem` só sabe o que ESTE aparelho já viu. Num aparelho novo, num
+   navegador limpo ou depois de trocar de login, `_uuid` está vazio mesmo
+   com a loja configurada na nuvem. Qualquer tela que chamasse baseFormas
+   antes do primeiro download terminar gravava a fábrica em DB.formasPag,
+   com os MESMOS ids (fp_debito, fp_credito...) e marcada como nova; o
+   download, vendo "alteração não enviada", preservava a cópia de fábrica,
+   e o envio seguinte regravava 1,99% / 3,49% e conta vazia por cima.
+
+   Com a nuvem ligada, a lista GRAVADA só é semeada DEPOIS que o download
+   terminou e confirmou que a loja não tem forma nenhuma. Até lá o caixa
+   usa a lista de exibição de `syncFormas`, que não é gravada nem sobe. */
 function baseFormas(){
   var _jaNaNuvem=!!(DB._uuid&&DB._uuid.formasPag&&
                     Object.keys(DB._uuid.formasPag).length);
-  if((!DB.formasPag||!DB.formasPag.length)&&!_jaNaNuvem) DB.formasPag=_formasFabrica();
+  var _esperaDownload=(typeof NUVEM!=='undefined')&&!!NUVEM&&
+                      NUVEM.ligada&&!NUVEM.baixou;
+  if((!DB.formasPag||!DB.formasPag.length)&&!_jaNaNuvem&&!_esperaDownload) DB.formasPag=_formasFabrica();
   syncFormas();
 }
 /* ==========================================================

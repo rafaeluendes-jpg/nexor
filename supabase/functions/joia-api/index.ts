@@ -13,6 +13,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
           sincronização por unidade e por aparelho, e a lista do que foi
           alterado desde um instante (carimbo `alterado_em`, gerido só
           pelo banco).
+   v2.2 — pedido da RDS de 24/09/2026: /pendencias (relação nominal do
+          que falta limpar antes da data de corte), limite de chamadas por
+          chave, contagem de uso atômica e máscara de dados pessoais.
 
    Autenticação: `Authorization: Bearer <chave>` (ou `x-api-key`).
    A chave nunca é guardada em texto — o banco tem só o sha-256 dela.
@@ -24,7 +27,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
    conferida pela chave própria, não pelo login do Supabase).
    ===================================================================== */
 
-const API_VERSAO = "2.1";
+const API_VERSAO = "2.2";
 const URL_SB = Deno.env.get("SUPABASE_URL")!;
 const SERVICO = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -84,6 +87,49 @@ const CADASTROS: Record<string, string> = {
   "fornecedores": "fornecedores com CNPJ e possíveis duplicados",
 };
 
+const PENDENCIAS: Record<string, string> = {
+  "lancamentos-sem-categoria": "lançamentos financeiros sem categoria nem subcategoria: descrição, fornecedor, emissão, vencimento, pagamento, valor, unidade, origem e usuário",
+  "insumos-sem-custo": "insumos com custo não informado: unidade de medida, saldo por unidade, fichas que usam, última compra",
+  "produtos-sem-vinculo": "produtos ativos sem ficha técnica e sem insumo: quantidade vendida, faturamento e datas das vendas",
+  "motivos-sem-classe": "motivos de movimentação de estoque ainda sem classe, com quantas vezes cada um foi usado",
+};
+
+/* ---- dados pessoais: a chave com `mascarar_pessoais` recebe só o
+   suficiente para conferir, nunca o dado inteiro. Operador e conta da
+   unidade NÃO são mascarados: são o "quem fez" que a auditoria precisa. */
+const PESSOAIS_NOME = new Set(["cliente", "cliente_nome", "comanda", "comanda_nome"]);
+const PESSOAIS_CONTATO = new Set(["cliente_tel", "telefone", "celular", "whatsapp",
+  "gestor_zap", "assistente_zap", "relatorio_zap"]);
+const PESSOAIS_DOC = new Set(["cpf", "cliente_cpf"]);
+const PESSOAIS_ENDERECO = new Set(["endereco", "cliente_endereco"]);
+
+function mascaraNome(v: string) {
+  return v.trim().split(/\s+/).map((p) => p ? p[0].toUpperCase() + "." : "").join(" ");
+}
+const soFinal = (v: string, n: number) => {
+  const d = v.replace(/\D/g, "");
+  return d.length > n ? "•••" + d.slice(-n) : "•••";
+};
+export function mascarar(x: any, chaveCampo = ""): any {
+  if (x === null || x === undefined) return x;
+  const k = chaveCampo.toLowerCase();
+  if (typeof x === "string" && x) {
+    if (PESSOAIS_NOME.has(k)) return mascaraNome(x);
+    if (PESSOAIS_CONTATO.has(k)) return soFinal(x, 4);
+    if (PESSOAIS_DOC.has(k)) return soFinal(x, 2);
+    if (PESSOAIS_ENDERECO.has(k)) return "(omitido)";
+    return x;
+  }
+  if (PESSOAIS_ENDERECO.has(k) && typeof x === "object") return "(omitido)";
+  if (Array.isArray(x)) return x.map((y) => mascarar(y, chaveCampo));
+  if (typeof x === "object") {
+    const o: Record<string, unknown> = {};
+    for (const [c, v] of Object.entries(x)) o[c] = mascarar(v, c);
+    return o;
+  }
+  return x;
+}
+
 const AJUDA = {
   api: "Joia — API de leitura e auditoria",
   api_versao: API_VERSAO,
@@ -127,10 +173,16 @@ const AJUDA = {
     "GET /alteracoes": "o que foi criado ou alterado desde um instante (parâmetro desde=AAAA-MM-DDTHH:MM:SSZ, padrão: últimas 24 h)",
     "GET /historico": "quem mudou o quê, com o antes e o depois dos campos alterados (parâmetros de, ate e tabela=)",
   },
+  pendencias: {
+    "GET /pendencias": "quantos registros há em cada pendência de limpeza",
+    "GET /pendencias/{tipo}": "a relação nominal: " + Object.keys(PENDENCIAS).join(", "),
+  },
   limites: {
     metodo: "somente GET",
     por_pagina_maximo: 1000,
     ordenacao: "determinística em todos os caminhos analíticos",
+    chamadas: "cada chave tem um limite por minuto; passou dele, a resposta é 429 com o horário em que libera",
+    dados_pessoais: "nas chaves de integração, nome, telefone, CPF e endereço de cliente saem mascarados",
   },
 };
 
@@ -165,11 +217,23 @@ Deno.serve(async (req: Request) => {
   }
   if (!chave) return erro("Chave inválida ou desativada.", 401);
 
-  rest(`api_chaves?id=eq.${chave.id}`, {
-    method: "PATCH",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({ ultimo_uso: new Date().toISOString(), usos: (chave.usos || 0) + 1 }),
-  }).catch(() => {});
+  /* conta o uso e aplica o limite por minuto numa só gravação no banco */
+  try {
+    const uso = await chamar("api_chave_uso", { p_id: chave.id });
+    if (uso && uso.permitido === false) {
+      return erro("Limite de chamadas por minuto atingido. Tente de novo em instantes.", 429, {
+        limite_por_minuto: uso.limite, libera_em: uso.libera_em,
+      });
+    }
+  } catch (_e) {
+    /* se a contagem falhar, a leitura segue: o limite protege o banco,
+       não pode derrubar a consulta */
+  }
+  /* por requisição, nunca global: duas chamadas simultâneas de chaves
+     diferentes não podem trocar a máscara uma da outra */
+  const mascaraAqui = chave.mascarar_pessoais === true;
+  const saida = (corpo: unknown, status = 200) =>
+    json(mascaraAqui && status < 400 ? mascarar(corpo) : corpo, status);
 
   /* a unidade: a chave manda; se ela vale para a rede, o parâmetro escolhe */
   const pedida = (u.searchParams.get("loja") || "").trim();
@@ -211,7 +275,7 @@ Deno.serve(async (req: Request) => {
       const { total_registros, ...resto } = x;
       return resto;
     });
-    return json(envelope({
+    return saida(envelope({
       ...(extraEnvelope || {}),
       pagina: {
         pagina, por_pagina: porPagina, nesta_pagina: dados.length,
@@ -224,9 +288,48 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    /* ---------------- pendências (v2.2) ---------------- */
+    if (rota === "pendencias") {
+      const tipos = Object.keys(PENDENCIAS);
+      const listas = await Promise.all(tipos.map((t) =>
+        chamar("api_pendencias", { p_loja: loja, p_suc: suc, p_tipo: t })));
+      const resumo: Record<string, unknown> = {};
+      tipos.forEach((t, k) => {
+        resumo[t] = { registros: Array.isArray(listas[k]) ? listas[k].length : 0, descricao: PENDENCIAS[t] };
+      });
+      return saida(envelope({
+        avisos: ["Só leitura. Nenhum registro é classificado ou corrigido automaticamente: a correção é manual e fica no /historico."],
+        pendencias: resumo,
+      }));
+    }
+    if (rota.startsWith("pendencias/")) {
+      const tipo = rota.slice("pendencias/".length);
+      if (!PENDENCIAS[tipo]) {
+        return erro(`Pendência "${tipo}" não existe.`, 404, { pendencias: Object.keys(PENDENCIAS) });
+      }
+      const dados = await chamar("api_pendencias", { p_loja: loja, p_suc: suc, p_tipo: tipo });
+      const avisos: string[] = [];
+      if (tipo === "lancamentos-sem-categoria") {
+        avisos.push("`usuario` é a conta logada no aparelho que criou o lançamento. As lojas usam uma conta por unidade: ele identifica a UNIDADE, não a pessoa.");
+        avisos.push("Lançamentos gerados pelo sistema que têm só o nome da categoria em texto (Frente de Caixa, Pedido de base, Transferência) NÃO entram aqui.");
+      }
+      if (tipo === "insumos-sem-custo") {
+        avisos.push("Hoje o Joia não separa custo NÃO INFORMADO de custo REALMENTE ZERO: os dois aparecem como 0. A separação está no desenho das travas.");
+      }
+      if (tipo === "motivos-sem-classe") {
+        avisos.push("O cadastro de motivo ainda não tem o campo classe: todos vêm sem classe até a classificação do Rafael, do Raylan e da RDS.");
+      }
+      return saida(envelope({
+        pendencia: tipo,
+        registros: Array.isArray(dados) ? dados.length : 0,
+        ...(avisos.length ? { avisos } : {}),
+        dados: dados || [],
+      }));
+    }
+
     /* ---------------- cadastros (v2.1) ---------------- */
     if (rota === "cadastros") {
-      return json(envelope({ cadastros: CADASTROS }));
+      return saida(envelope({ cadastros: CADASTROS }));
     }
     if (rota.startsWith("cadastros/")) {
       const tipo = rota.slice("cadastros/".length);
@@ -250,7 +353,7 @@ Deno.serve(async (req: Request) => {
       if (tipo === "contas") {
         avisos.push("O cadastro de conta não guarda a data do saldo inicial nem a situação ativa/inativa.");
       }
-      return json(envelope({
+      return saida(envelope({
         cadastro: tipo,
         registros: Array.isArray(dados) ? dados.length : 0,
         ...(avisos.length ? { avisos } : {}),
@@ -261,14 +364,14 @@ Deno.serve(async (req: Request) => {
     switch (rota) {
       /* ---------------- ajuda ---------------- */
       case "":
-        return json(AJUDA);
+        return saida(AJUDA);
 
       /* ---------------- consolidados (v1, sem mudança) ---------------- */
       case "lojas": {
         const ls = await rest(
           `sucursais?loja_id=eq.${loja}&select=ref_local,nome,cidade,uf,matriz,ativa&order=nome`
         );
-        return json({
+        return saida({
           lojas: chave.sucursal_id
             ? ls.filter((x: any) => x.ref_local === chave.sucursal_id)
             : ls,
@@ -278,7 +381,7 @@ Deno.serve(async (req: Request) => {
         const d = await chamar("api_faturamento", base);
         const tot = soma(d, "total");
         const ped = d.reduce((a: number, x: any) => a + Number(x.pedidos || 0), 0);
-        return json({
+        return saida({
           periodo: { de, ate }, loja: onde,
           total: tot, pedidos: ped,
           ticket_medio: ped ? +(tot / ped).toFixed(2) : 0,
@@ -286,14 +389,14 @@ Deno.serve(async (req: Request) => {
         });
       }
       case "produtos":
-        return json({
+        return saida({
           periodo: { de, ate }, loja: onde,
           produtos: await chamar("api_produtos", {
             ...base, p_limite: Number(u.searchParams.get("limite") || 50),
           }),
         });
       case "pagamentos":
-        return json({
+        return saida({
           periodo: { de, ate }, loja: onde,
           formas: await chamar("api_pagamentos", base),
         });
@@ -301,7 +404,7 @@ Deno.serve(async (req: Request) => {
         const tudo = await chamar("api_estoque", { p_loja: loja, p_suc: suc });
         const faltando = tudo.filter((x: any) => x.abaixo_do_minimo);
         const soAbaixo = u.searchParams.get("abaixo") === "1";
-        return json({
+        return saida({
           loja: onde,
           itens: tudo.length,
           valor_total_em_estoque: soma(tudo, "valor"),
@@ -314,7 +417,7 @@ Deno.serve(async (req: Request) => {
         const f = await chamar("api_financeiro", base);
         const pega = (t: string, s: string) =>
           soma(f.filter((x: any) => x.tipo === t && x.situacao === s), "total");
-        return json({
+        return saida({
           periodo: { de, ate }, loja: onde,
           a_pagar: { em_aberto: pega("despesa", "em aberto"), pago: pega("despesa", "pago") },
           a_receber: { em_aberto: pega("receita", "em aberto"), recebido: pega("receita", "pago") },
@@ -322,12 +425,12 @@ Deno.serve(async (req: Request) => {
         });
       }
       case "producao":
-        return json({
+        return saida({
           periodo: { de, ate }, loja: onde,
           ordens: await chamar("api_producao", base),
         });
       case "contagens":
-        return json({
+        return saida({
           periodo: { de, ate }, loja: onde,
           contagens: await chamar("api_contagens", base),
         });
@@ -345,7 +448,7 @@ Deno.serve(async (req: Request) => {
         const ped = fat.reduce((a: number, x: any) => a + Number(x.pedidos || 0), 0);
         const pega = (t: string, s: string) =>
           soma(fin.filter((x: any) => x.tipo === t && x.situacao === s), "total");
-        return json({
+        return saida({
           periodo: { de, ate }, loja: onde,
           venda: {
             total: tot, pedidos: ped,
@@ -418,14 +521,14 @@ Deno.serve(async (req: Request) => {
         ]);
 
       case "plano-de-contas":
-        return json(envelope({
+        return saida(envelope({
           avisos: ["Dois níveis (categoria › subcategoria). Código, natureza, " +
                    "posição na DRE e vigência ainda não existem no cadastro."],
           plano_de_contas: await chamar("api_plano_contas", { p_loja: loja }),
         }));
 
       case "fichas":
-        return json(envelope({
+        return saida(envelope({
           avisos: ["A ficha técnica NÃO tem vigência: o que sai aqui é a receita " +
                    "de HOJE. Para CPV histórico é preciso congelar o cálculo na " +
                    "venda — ver DIAGNOSTICO_API_AUDITORIA_RDS.md, decisão 2."],
@@ -435,7 +538,7 @@ Deno.serve(async (req: Request) => {
         }));
 
       case "reconciliacao/estoque":
-        return json(envelope({
+        return saida(envelope({
           regra: "saldo_inicial + entradas − saidas = saldo_final",
           avisos: ["A equação fecha por construção: o razão é a fonte do saldo. " +
                    "A divergência entre sistema e contagem física está em /inventarios."],
@@ -445,7 +548,7 @@ Deno.serve(async (req: Request) => {
       /* ---------------- Etapa 2 (v2.1) ---------------- */
       case "saude-sincronizacao": {
         const s = await chamar("api_saude_sincronizacao", base);
-        return json(envelope({
+        return saida(envelope({
           avisos: [
             "Vendas sem baixa de estoque incluem as de produto sem ficha ou insumo vinculado, que de fato não baixam nada.",
             "O sinal por aparelho começa a chegar quando as lojas atualizarem para a versão do Joia que o envia; antes disso a lista de aparelhos vem vazia.",

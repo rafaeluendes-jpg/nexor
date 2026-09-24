@@ -136,6 +136,19 @@ async function carregar() {
   const fonte = fs.readFileSync(ARQ, 'utf8');
   t('não existe mais o seletor drCpv', !/id="drCpv"/.test(fonte));
 
+  grupo('Compra lançada pela nota não vira CPV (24/09/2026)');
+  /* A nota de entrada grava o lançamento com origem 'nota-entrada'. A trava
+     do DRE procurava 'nota' e nunca casava: uma compra classificada numa
+     subcategoria ligada à rubrica 02 entrava no CPV em cima do consumo das
+     vendas — o mesmo custo contado duas vezes. */
+  win.DB.catfin.push({ id: 'cmp', nome: 'Compras', itens: [{ id: 'cmi', nome: 'Insumos' }] });
+  win.DB.cfgDre.mapa.cmi = '02';
+  win.DB.lancFin.push({ id: 'l3', categoriaId: 'cmi', valor: 500, emissao: '2026-09-04', origem: 'nota-entrada', descricao: 'NF açúcar' });
+  win.DB.lancFin.push({ id: 'l4', categoriaId: 'cmi', valor: 70, emissao: '2026-09-04', origem: 'nota', descricao: 'NF antiga' });
+  const m2 = win.calcularDRE(2026);
+  t('o CPV continua 11 com a compra da nota lançada (não 581)', perto(m2[S]['02'], 11), m2[S]['02']);
+  win.DB.lancFin = win.DB.lancFin.filter(l => l.id !== 'l3' && l.id !== 'l4');
+
   grupo('Balanço: zero erro de runtime durante o guardião');
   t('nenhum erro de runtime na sessão inteira', erros.length === 0, erros.slice(0, 8).join(' | '));
 

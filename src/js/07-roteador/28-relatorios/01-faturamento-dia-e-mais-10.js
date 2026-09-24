@@ -1859,7 +1859,11 @@ function calcularDRE(ano){
     if(c.fora.indexOf(cat)>=0)return;
     var rub=c.mapa[cat];
     if(!rub)return;                                   /* sem rubrica: fica de fora */
-    if(rub==='02'&&l.origem==='nota')return;          /* compra nao e custo do vendido */
+    /* compra nao e custo do vendido. A nota grava 'nota-entrada' (e o
+       relancamento de Compras sem Vinculo tambem); 'nota' e o nome antigo.
+       Olhar so 'nota' deixava a compra entrar no CPV em cima do consumo
+       das vendas — o mesmo custo contado duas vezes (24/09/2026). */
+    if(rub==='02'&&(l.origem==='nota'||l.origem==='nota-entrada'))return;
     var v=Number(l.valor)||0;
     m[k][rub]=(m[k][rub]||0)+v;
     var nomeCat=(typeof nomeCategoria==='function')?nomeCategoria(cat):'—';
