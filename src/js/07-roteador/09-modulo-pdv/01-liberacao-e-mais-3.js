@@ -744,6 +744,15 @@ function blocoUnidades(item,pref){
   var sucs=sucAtivas();
   if(sucs.length<2)return '';              /* loja unica nao tem o que liberar */
   if(!ehMatriz())return '';                /* so a matriz decide */
+  /* 24/09/2026 (Rafael): "estou dentro da loja de Santa Fé e a loja
+     consegue flegar qual loja vai ver — não faz sentido". Quem tem visão
+     de rede (dono, acesso total) e está OPERANDO uma unidade age como
+     aquela unidade: decidir o alcance é da matriz, então o bloco só
+     aparece com a Matriz selecionada. Sem o bloco, `lerUnidades` faz o
+     item novo nascer visível para a unidade que o criou, e o item que já
+     existe mantém a liberação que tinha. */
+  var _eu=lojaAtualId();
+  if(_eu&&!ehSucMatriz(_eu))return '';
   var l=(item&&item.sucursais)||[];
   var todas=marcadoTodas(item);
   return '<div class="blk unBlk" style="margin:0 0 11px;max-width:none">'+
