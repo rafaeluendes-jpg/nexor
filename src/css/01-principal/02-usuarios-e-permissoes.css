@@ -209,6 +209,15 @@ tr.pbSel td{background:var(--acc-soft)}
   border:1px solid var(--line);border-radius:var(--r-s);background:var(--alt);
   color:var(--acc-d);cursor:pointer}
 .bxMotNovo:hover{background:var(--acc-soft);border-color:var(--acc)}
+/* a lista de motivos aberta pelo +: nome editavel e acrescentar (24/09/2026) */
+.bxMgLista{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;
+  max-height:52vh;overflow-y:auto}
+.bxMgLin{display:flex;align-items:center;gap:8px}
+.bxMgLin input{flex:1;min-width:0;min-height:40px;padding:0 11px;font:inherit;font-size:14px;
+  color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--r-s);outline:none}
+.bxMgLin input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.bxMgLin small{flex:none;min-width:72px;text-align:right;color:var(--ink-3);font-size:12px}
+.bxMgLin.novo small{color:var(--acc-d);font-weight:600}
 .bxSug{position:absolute;left:0;right:0;top:100%;z-index:40;background:var(--panel);
   border:1px solid var(--acc);border-radius:var(--r-s);box-shadow:var(--sh2);
   overflow:hidden;margin-top:2px;max-height:230px;overflow-y:auto}

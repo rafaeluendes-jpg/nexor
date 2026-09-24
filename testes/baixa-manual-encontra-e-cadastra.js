@@ -104,10 +104,12 @@ console.log('\n── O campo não perde o cursor\n');
 console.log('\n── Cadastrar o motivo sem sair da tela\n');
 {
   const tela = corpoDaFuncao('telaBaixaManual', fonte);
-  t('há um botão de cadastrar motivo ao lado da lista',
-    /novoMotivoDaBaixa\(\)/.test(tela));
+  /* 24/09/2026: o + ao lado da lista abre a lista de motivos (editar o
+     nome e acrescentar) — ver testes/baixa-manual-motivos-e-custo.js */
+  t('há um botão ao lado da lista para mexer nos motivos',
+    /gerirMotivosDaBaixa\(\)/.test(tela));
   t('e também quando não existe nenhum motivo ainda',
-    (tela.match(/novoMotivoDaBaixa\(\)/g) || []).length >= 2);
+    /novoMotivoDaBaixa\(\)/.test(tela));
   t('a tela não manda mais o usuário procurar outra tela sozinho',
     !/Cadastre em Configuração da Loja/.test(tela));
 

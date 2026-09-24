@@ -2159,6 +2159,34 @@ function baixasDoFiltro(){
   return l;
 }
 
+/* ==========================================================
+   O CUSTO DA BAIXA NA UNIDADE EM QUE ELA FOI REGISTRADA (24/09/2026)
+
+   O Rafael: GELATO VENDA, 160 g, "Consumo Balcão" — total R$ 3.807,57.
+   O custo é gravado na unidade do cadastro do item (R$ 23,80 por kg) e a
+   quantidade na unidade escolhida na baixa (160 g). A tela multiplicava
+   os dois direto: 160 × 23,80, como se cada grama custasse um quilo. O
+   certo é 0,160 kg × R$ 23,80 = R$ 3,81.
+
+   O movimento de estoque já convertia (custoNaUnidade); o erro estava na
+   lista, no total a lançar, no relatório e na exportação da Baixa Manual.
+   Agora todos passam por valorBaixa(). Registro antigo, sem a unidade do
+   custo gravada, usa a unidade do cadastro do item — que é a mesma regra
+   com que o custo foi gravado. */
+function unidadeDoCustoBaixa(b){
+  if (b && b.custoUnidade) return b.custoUnidade;
+  var i = (typeof itemEstoque === 'function') ? itemEstoque(b && b.itemRef) : null;
+  return (i && i.unidade) || (b && b.unidade) || 'un';
+}
+/* custo de UMA unidade da baixa (ex.: de 1 g quando a baixa é em gramas) */
+function custoUnBaixa(b){
+  var c = Number(b && b.custo) || 0;
+  var f = convUnid(1, b && b.unidade, unidadeDoCustoBaixa(b));
+  return (f === null || !isFinite(f)) ? c : c * f;
+}
+function valorBaixa(b){
+  return +((Number(b && b.qtd) || 0) * custoUnBaixa(b)).toFixed(4);
+}
 function telaBaixaManual(){
   baseMov(); baseBaixas();
   if (!BX.data) BX.data = hojeISO();
@@ -2167,7 +2195,7 @@ function telaBaixaManual(){
   var lista = baixasDoFiltro();
   var pend = baseBaixas().filter(function (b) { return b.situacao !== 'lancada'; });
   var totPend = pend.reduce(function (a, b) {
-    return a + (Number(b.qtd) || 0) * (Number(b.custo) || 0);
+    return a + valorBaixa(b);
   }, 0);
 
   $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
@@ -2216,8 +2244,8 @@ function telaBaixaManual(){
            return '<option value="' + m.id + '"' + (BX.motivo === m.id ? ' selected' : '') +
                   '>' + E(m.nome) + '</option>';
          }).join('') + '</select>' +
-        '<button type="button" class="bxMotNovo" title="Cadastrar um motivo novo" ' +
-         'onclick="novoMotivoDaBaixa()">' + sv('plus', 13) + '</button>' +
+        '<button type="button" class="bxMotNovo" title="Editar os nomes ou acrescentar motivos" ' +
+         'onclick="gerirMotivosDaBaixa()">' + sv('plus', 13) + '</button>' +
        '</div></div>' +
      '</div>' +
      '<div class="bxLin3">' +
@@ -2278,9 +2306,9 @@ function telaBaixaManual(){
            '<td style="text-align:right">' + fmtQt(b.qtd) + ' ' + E(un(b.unidade).ab) + '</td>' +
            '<td>' + E(b.motivoNome || '—') + '</td>' +
            '<td>' + E(b.quem || '—') + '</td>' +
-           '<td style="text-align:right">R$ ' + money(Number(b.custo) || 0) + '</td>' +
-           '<td style="text-align:right"><b>R$ ' +
-             money((Number(b.qtd) || 0) * (Number(b.custo) || 0)) + '</b></td>' +
+           '<td style="text-align:right">R$ ' + money(Number(b.custo) || 0) +
+             '<small style="color:var(--ink-3)"> /' + E(un(unidadeDoCustoBaixa(b)).ab) + '</small></td>' +
+           '<td style="text-align:right"><b>R$ ' + money(valorBaixa(b)) + '</b></td>' +
            '<td><span class="pill ' + (lancada ? 'vd' : 'am') + '">' +
              (lancada ? 'lançada' : 'a lançar') + '</span></td>' +
            '<td>' + (lancada ? '' :
@@ -2330,6 +2358,91 @@ function novoMotivoDaBaixa(){
     telaBaixaManual();
   });
 }
+/* ==========================================================
+   O "+" DA BAIXA ABRE A LISTA DOS MOTIVOS: EDITAR O NOME E ACRESCENTAR
+   (Rafael, 24/09/2026)
+
+   "Quando a gente clica no maisinho, ter a opção de editar o nome deles
+   e ter a opção de acrescentar mais." O + abria só o cadastro de UM
+   motivo novo; para corrigir um nome era preciso ir à configuração.
+
+   Agora o + mostra os motivos da baixa manual com o nome num campo
+   editável e um botão para acrescentar quantos quiser. Um Salvar só
+   grava tudo. Só nome: o tipo continua Saída (é o que a baixa aceita),
+   e desativar/excluir continua na configuração, onde o uso é conferido.
+   ========================================================== */
+function gerirMotivosDaBaixa(){
+  baseMov();
+  var lista = motivosBaixa();
+  modal('Motivos da baixa manual',
+   '<div class="mdB">' +
+    '<p class="hint" style="margin:0 0 10px">Corrija o nome direto no campo ou ' +
+    'acrescente motivos novos. Tudo é gravado ao tocar em Salvar.</p>' +
+    '<div class="bxMgLista" id="bxMgLista">' +
+     lista.map(function (m) {
+       var usos = (DB.movEst || []).filter(function (x) { return x.motivoId === m.id; }).length;
+       return '<div class="bxMgLin"><input class="bxMgNome" data-id="' + E(m.id) + '" ' +
+         'value="' + E(m.nome) + '" maxlength="60" aria-label="Nome do motivo">' +
+         '<small>' + usos + ' lançamento(s)</small></div>';
+     }).join('') +
+    '</div>' +
+    '<button type="button" class="btn" id="bxMgMais" onclick="acrescentarMotivoDaBaixa()">' +
+     sv('plus', 13) + ' Acrescentar motivo</button>' +
+    /* quem enxerga os motivos NOVOS — o mesmo bloco de todo cadastro (só a
+       matriz vê; na unidade, o novo nasce visível para ela) */
+    '<div style="margin-top:12px">' + blocoUnidades(null, 'bxMgUn') + '</div>' +
+   '</div>', 'Salvar', salvarMotivosDaBaixa);
+  if (!lista.length) acrescentarMotivoDaBaixa();
+}
+function acrescentarMotivoDaBaixa(){
+  var box = document.getElementById('bxMgLista');
+  if (!box) return;
+  var d = document.createElement('div');
+  d.className = 'bxMgLin novo';
+  d.innerHTML = '<input class="bxMgNome" data-id="" value="" maxlength="60" ' +
+    'placeholder="nome do motivo novo — ex.: Degustação" aria-label="Nome do motivo novo">' +
+    '<small>novo</small>';
+  box.appendChild(d);
+  var i = d.querySelector('input');
+  if (i) i.focus();
+}
+function salvarMotivosDaBaixa(){
+  var campos = Array.prototype.slice.call(document.querySelectorAll('#bxMgLista .bxMgNome'));
+  var chave = function (s) { return String(s || '').trim().toLowerCase(); };
+  var vistos = {}, renomear = [], novos = [];
+  for (var i = 0; i < campos.length; i++) {
+    var id = campos[i].getAttribute('data-id') || '';
+    var nome = campos[i].value.trim();
+    if (!id && !nome) continue;                       /* linha nova deixada em branco */
+    if (!nome) { toast('O motivo não pode ficar sem nome.'); campos[i].focus(); return false; }
+    var k = chave(nome);
+    var outro = (DB.motivosMov || []).find(function (x) { return x.id !== id && chave(x.nome) === k; });
+    if (vistos[k] || outro) {
+      toast('Já existe um motivo chamado "' + nome + '".'); campos[i].focus(); return false;
+    }
+    vistos[k] = true;
+    if (id) renomear.push({ id: id, nome: nome }); else novos.push(nome);
+  }
+  var mudou = 0, ultimoNovo = null;
+  renomear.forEach(function (r) {
+    var m = DB.motivosMov.find(function (x) { return x.id === r.id; });
+    if (m && !m.sistema && m.nome !== r.nome) { m.nome = r.nome; mudou++; }
+  });
+  novos.forEach(function (nome) {
+    var m = { id: uid('mt'), sistema: false, lojas: [], nome: nome, tipo: 'saida', ativo: true };
+    lerUnidades('bxMgUn', m);   /* nasce enxergando quem criou (V191) */
+    DB.motivosMov.push(m);
+    ultimoNovo = m; mudou++;
+  });
+  if (!mudou) { toast('Nada mudou.'); telaBaixaManual(); return true; }
+  salvar();
+  if (ultimoNovo && novos.length === 1 && !BX.motivo) BX.motivo = ultimoNovo.id;
+  telaBaixaManual();
+  toast(novos.length && renomear.length ? 'Motivos salvos.' :
+        novos.length ? (novos.length === 1 ? 'Motivo acrescentado.' : novos.length + ' motivos acrescentados.') :
+        'Nome atualizado.');
+  return true;
+}
 function escolherItemBaixa(id, tipo){
   var i = itensParaBaixa().find(function (x) { return x.id === id && x.tipo === tipo; });
   if (!i) return;
@@ -2357,7 +2470,7 @@ function salvarBaixa(){
     if (b) {
       b.itemRef = BX.item.id; b.itemNome = BX.item.nome; b.itemTipo = BX.item.tipo;
       b.qtd = q; b.unidade = BX.unidade || BX.item.unidade;
-      b.custo = BX.item.custo || 0;
+      b.custo = BX.item.custo || 0; b.custoUnidade = BX.item.unidade || '';
       b.motivoRef = BX.motivo; b.motivoNome = (mot || {}).nome || '';
       b.quem = String(BX.quem).trim(); b.data = BX.data; b.obs = BX.obs;
     }
@@ -2367,6 +2480,7 @@ function salvarBaixa(){
       id: uid('bx'), sucursalRef: lojaAtualId(),
       itemRef: BX.item.id, itemNome: BX.item.nome, itemTipo: BX.item.tipo,
       qtd: q, unidade: BX.unidade || BX.item.unidade, custo: BX.item.custo || 0,
+      custoUnidade: BX.item.unidade || '',
       motivoRef: BX.motivo, motivoNome: (mot || {}).nome || '',
       quem: String(BX.quem).trim(),
       registradoPor: (usuarioLogado() || {}).login || '',
@@ -2446,7 +2560,7 @@ async function lancarBaixasNoEstoque(sohEsta){
   /* monta as linhas antes de perguntar, para poder mostrar o que vai sair */
   var grupos = [], semItem = [];
   Object.keys(porMotivo).forEach(function (mot) {
-    var itens = [];
+    var itens = [], usadas = [];
     porMotivo[mot].forEach(function (b) {
       var existe = (b.itemTipo === 'ficha')
         ? (DB.fichas || []).some(function (f) { return f.id === b.itemRef; })
@@ -2455,8 +2569,9 @@ async function lancarBaixasNoEstoque(sohEsta){
       itens.push({ tipo: b.itemTipo, refId: b.itemRef, unidade: b.unidade,
                    qtd: Number(b.qtd) || 0, custo: Number(b.custo) || 0,
                    obs: b.obs || '' });
+      usadas.push(b);
     });
-    if (itens.length) grupos.push({ motivo: mot, itens: itens, baixas: porMotivo[mot] });
+    if (itens.length) grupos.push({ motivo: mot, itens: itens, baixas: porMotivo[mot], usadas: usadas });
   });
 
   if (semItem.length) {
@@ -2477,6 +2592,15 @@ async function lancarBaixasNoEstoque(sohEsta){
   for (var g = 0; g < grupos.length; g++) {
     var ln = montarLinhas(grupos[g].itens, 'saida');
     if (!ln.length) continue;
+    /* o custo da perda é o do momento em que ela foi registrada (o custo
+       médio daquele dia e hora), na unidade da própria linha. Baixa sem
+       custo gravado fica com o custo de agora, como antes. */
+    if (ln.length === grupos[g].usadas.length) {
+      ln.forEach(function (l, k) {
+        var b = grupos[g].usadas[k];
+        if (b && Number(b.custo) > 0 && l.unidade === b.unidade) l.custo = +custoUnBaixa(b).toFixed(6);
+      });
+    }
     porGrupo.push({ g: grupos[g], linhas: ln });
     todasLinhas = todasLinhas.concat(ln);
   }
@@ -2488,7 +2612,7 @@ async function lancarBaixasNoEstoque(sohEsta){
   if (falta.length) { alert(avisoFalta(falta, 'este lançamento')); return; }
 
   var total = pend.reduce(function (a, b) {
-    return a + (Number(b.qtd) || 0) * (Number(b.custo) || 0);
+    return a + valorBaixa(b);
   }, 0);
   var ok = await confirmar({
     titulo: 'Lançar ' + todasLinhas.length + ' item(ns) no estoque?',
@@ -2559,7 +2683,7 @@ function telaRelatorioBaixas(){
     if(BXR.quem&&String(b.quem||'')!==BXR.quem)return false;
     return true;
   });
-  var vlr=function(b){return (Number(b.qtd)||0)*(Number(b.custo)||0)};
+  var vlr=function(b){return valorBaixa(b)};
   var total=l.reduce(function(a,b){return a+vlr(b)},0);
   var lanc=l.filter(function(b){return b.situacao==='lancada'});
   var pend=l.filter(function(b){return b.situacao!=='lancada'});
@@ -2672,7 +2796,7 @@ function exportarBaixas(){
   l.forEach(function(b){
     lin.push([dataBR(b.data),b.hora||'',b.itemNome,b.itemTipo,
       fmtQt(b.qtd),un(b.unidade).ab,b.motivoNome||'',b.quem||'',
-      money(b.custo),money((Number(b.qtd)||0)*(Number(b.custo)||0)),
+      money(b.custo)+'/'+un(unidadeDoCustoBaixa(b)).ab,money(valorBaixa(b)),
       b.situacao==='lancada'?'lançada':'a lançar',b.obs||'']);
   });
   var csv=lin.map(function(r){
