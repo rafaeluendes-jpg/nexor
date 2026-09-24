@@ -2605,3 +2605,8 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 /* ---------- barra de filtro do kanban ---------- */
 
 @media(max-width:900px){}
+/* Salvar permissões (24/09/2026): faixa no topo do quadro de permissões */
+.permSalvar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--alt)}
+.permSalvar #permEstado{font-size:13px;color:var(--acc-d)}
+.permSalvar #permEstado.sujo{color:var(--red);font-weight:600}
+.permSalvar .btnP2{height:44px;min-width:44px;padding:0 18px;font-size:13.5px;display:inline-flex;align-items:center;gap:6px}

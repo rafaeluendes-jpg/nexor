@@ -67,6 +67,13 @@ function abaPermUsr(u){
     : '';
   return '<div class="usrCorpo">'+
    avisoTotal+
+   /* no topo, à vista assim que se abre o acesso: o botão que grava de verdade — ver salvarPermissoesUsr */
+   '<div class="permSalvar">'+
+    '<span id="permEstado" class="'+(US.permSujo===u.id?'sujo':'')+'">'+
+     (US.permSujo===u.id?'Há mudanças ainda não salvas':'Tudo salvo')+'</span>'+
+    '<button class="btnP2 ok" id="permBtnSalvar" onclick="salvarPermissoesUsr()">'+
+     sv('check',13)+' Salvar permissões</button>'+
+   '</div>'+
    '<div class="permBarra'+(total?' permFraca':'')+'">'+
     '<span>'+contaPerm(u)+' tela(s) liberada(s)</span>'+
     '<div style="flex:1"></div>'+
@@ -106,7 +113,64 @@ function abaPermUsr(u){
            :'');
       }).join('')+'</div></div>';
    }).join('')+
-   '</div></div>';
+   '</div>'+
+   '</div>';
+}
+/* ==========================================================
+   SALVAR AS PERMISSÕES — DE VERDADE (Rafael, 24/09/2026)
+   "Coloco lá PDV, essas coisas, não tem botão de salvar. E se só deixar
+   marcado, quando eu saio, não salva nada."
+   As marcações ficavam só neste aparelho. O login da loja não é matriz, e
+   a sincronização pula usuarios_sistema para quem não é matriz — então o
+   operador entrava com a lista vazia que está na nuvem.
+   Agora o botão grava a linha daquele acesso direto na nuvem e só diz
+   "Tudo salvo" depois que o banco devolve a linha gravada. O banco ainda
+   corta o que a loja não pode liberar (gatilho tg_limitar_gerente_unidade):
+   a tela passa a mostrar o que ficou gravado, e avisa se algo ficou de fora.
+   ========================================================== */
+function marcarPermSujo(){
+  var u=usrSel(); if(!u)return;
+  US.permSujo=u.id;
+  var el=document.getElementById('permEstado');
+  if(el){el.textContent='Há mudanças ainda não salvas';el.className='sujo';}
+}
+async function salvarPermissoesUsr(){
+  var u=usrSel(); if(!u)return false;
+  salvar();
+  if(!NUVEM.ligada||!NUVEM.loja){
+    toast('Sem conexão com a nuvem: as permissões ficaram só neste aparelho. Conecte e salve de novo.');
+    return false;
+  }
+  var btn=document.getElementById('permBtnSalvar');
+  if(btn){btn.disabled=true;btn.textContent='Salvando…';}
+  var pedidas=u.permissoes||{};
+  var corpo={permissoes:pedidas};
+  /* a matriz também grava acesso total e unidades; a loja não mexe nisso */
+  if(!souGerenteDeUnidade()){corpo.tudo=!!u.tudo;corpo.sucursais=u.sucursais||[];}
+  try{
+    var r=await api('usuarios_sistema?loja_id=eq.'+NUVEM.loja+
+      '&login=ilike.'+encodeURIComponent(String(u.login||'').trim()),
+      'PATCH',corpo,{'Prefer':'return=representation'});
+    if(!r||!r.length){
+      if(btn){btn.disabled=false;btn.innerHTML=sv('check',13)+' Salvar permissões';}
+      painelErro('Não consegui salvar as permissões.',
+        'Este acesso ainda não existe na nuvem. Confira o login e tente de novo.');
+      return false;
+    }
+    var gravadas=r[0].permissoes||{};
+    var fora=Object.keys(pedidas).filter(function(k){return pedidas[k]===true&&gravadas[k]!==true}).length;
+    u.permissoes=gravadas;
+    if(US.permSujo===u.id)US.permSujo=null;
+    salvar(); semPular(telaUsuarios);
+    toast(fora
+      ?'Tudo salvo. '+fora+' tela(s) ficaram de fora: sua loja não tem acesso a elas.'
+      :'Tudo salvo. No próximo acesso, '+(u.nome||u.login)+' vê só o que está marcado.');
+    return true;
+  }catch(e){
+    if(btn){btn.disabled=false;btn.innerHTML=sv('check',13)+' Salvar permissões';}
+    painelErro('Não consegui salvar as permissões.',detalheErro(e));
+    return false;
+  }
 }
 /* ---------- ações ---------- */
 function usrSel(){return DB.usuarios.find(function(x){return x.id===US.sel})}
@@ -208,7 +272,7 @@ function togPermUsr(chave, elBox){
   u.permissoes[chave]=!u.permissoes[chave];
   var ligou=!!u.permissoes[chave];
   if(!ligou)delete u.permissoes[chave];
-  salvar();
+  salvar(); marcarPermSujo();
 
   var lab = elBox && elBox.closest ? elBox.closest('.permIt') : null;
   if(!lab){ semPular(telaUsuarios); return; }   /* sem o elemento, refaz */
@@ -234,6 +298,7 @@ function togModUsr(mid,marcar){
     if(marcar)u.permissoes[mid+'/'+i.id]=true;
     else delete u.permissoes[mid+'/'+i.id];
   });
+  US.permSujo=u.id;
   salvar();semPular(telaUsuarios);
 }
 function marcarTudoUsr(marcar){
@@ -243,6 +308,7 @@ function marcarTudoUsr(marcar){
     (m.it||[]).forEach(function(i){
       if(telaQueEuPossoLiberar(m.id+'/'+i.id))u.permissoes[m.id+'/'+i.id]=true;});
   });
+  US.permSujo=u.id;
   salvar();semPular(telaUsuarios);
 }
 var MODELOS={
@@ -271,8 +337,9 @@ function aplicarModelo(qual){
   var u=usrSel();if(!u)return;
   u.permissoes={};
   (MODELOS[qual]||[]).forEach(function(k){if(telaQueEuPossoLiberar(k))u.permissoes[k]=true});
+  US.permSujo=u.id;
   salvar();semPular(telaUsuarios);
-  toast('Modelo aplicado — ajuste o que precisar.');
+  toast('Modelo aplicado — ajuste o que precisar e clique em Salvar permissões.');
 }
 function togLojaUsr(sid){
   var u=usrSel();if(!u)return;

@@ -2303,8 +2303,9 @@ function togLancarBaixaUsr(el){
   salvar();
   var lab = el && el.closest ? el.closest('.permIt') : null;
   if (lab) lab.classList.toggle('on', !!el.checked);
-  toast(el && el.checked ? 'Esta pessoa pode lançar a baixa no estoque.'
-                         : 'Esta pessoa só registra a baixa; quem lança é o login principal.');
+  if (typeof marcarPermSujo === 'function') marcarPermSujo();
+  toast(el && el.checked ? 'Esta pessoa pode lançar a baixa no estoque. Clique em Salvar permissões.'
+                         : 'Esta pessoa só registra a baixa; quem lança é o login principal. Clique em Salvar permissões.');
 }
 function telaBaixaManual(){
   baseMov(); baseBaixas();
