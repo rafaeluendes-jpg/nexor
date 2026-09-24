@@ -79,7 +79,8 @@ function abaPermUsr(u){
    '</div>'+
    '<div class="permLista">'+
    MOD.filter(function(m){return m.id!=='teste'}).map(function(m){
-     var itens=m.it||[];
+     var itens=(m.it||[]).filter(function(i){return telaQueEuPossoLiberar(m.id+'/'+i.id)});
+     if(!itens.length)return '';
      var lib=itens.filter(function(i){return p[m.id+'/'+i.id]}).length;
      var todos=lib===itens.length&&itens.length>0;
      return '<div class="permMod">'+
@@ -229,6 +230,7 @@ function togModUsr(mid,marcar){
   u.permissoes=u.permissoes||{};
   var m=MOD.find(function(x){return x.id===mid});
   (m.it||[]).forEach(function(i){
+    if(!telaQueEuPossoLiberar(mid+'/'+i.id))return;
     if(marcar)u.permissoes[mid+'/'+i.id]=true;
     else delete u.permissoes[mid+'/'+i.id];
   });
@@ -238,7 +240,8 @@ function marcarTudoUsr(marcar){
   var u=usrSel();if(!u)return;
   u.permissoes={};
   if(marcar)MOD.filter(function(m){return m.id!=='teste'}).forEach(function(m){
-    (m.it||[]).forEach(function(i){u.permissoes[m.id+'/'+i.id]=true});
+    (m.it||[]).forEach(function(i){
+      if(telaQueEuPossoLiberar(m.id+'/'+i.id))u.permissoes[m.id+'/'+i.id]=true;});
   });
   salvar();semPular(telaUsuarios);
 }
@@ -267,12 +270,13 @@ var MODELOS={
 function aplicarModelo(qual){
   var u=usrSel();if(!u)return;
   u.permissoes={};
-  (MODELOS[qual]||[]).forEach(function(k){u.permissoes[k]=true});
+  (MODELOS[qual]||[]).forEach(function(k){if(telaQueEuPossoLiberar(k))u.permissoes[k]=true});
   salvar();semPular(telaUsuarios);
   toast('Modelo aplicado — ajuste o que precisar.');
 }
 function togLojaUsr(sid){
   var u=usrSel();if(!u)return;
+  if(souGerenteDeUnidade()){toast('A unidade de cada acesso é definida pela matriz.');return;}
   u.sucursais=u.sucursais||[];
   var i=u.sucursais.indexOf(sid);
   if(i>=0)u.sucursais.splice(i,1); else u.sucursais.push(sid);
@@ -288,7 +292,33 @@ function togAtivoUsr(){
   u.ativo=(u.ativo===false);
   salvar();semPular(telaUsuarios);
 }
-function novoUsuario(){US.novaSuc=null;formUsuario();}
+/* ==========================================================
+   A LOJA CRIA A EQUIPE DELA (Rafael, 24/09/2026)
+   "A matriz cria o login de Santa Fé. As lojas franqueadas criam os
+   acessos de operador, atendente, produção." O login principal da loja
+   (quem não é matriz e opera uma unidade) cria e ajusta a equipe da
+   PRÓPRIA unidade: sem acesso total, sem outra unidade e só com as telas
+   que ele mesmo tem. O banco e o servidor impõem as mesmas travas — aqui é
+   só para a tela não oferecer o que não vai valer.
+   ========================================================== */
+function souGerenteDeUnidade(){
+  var eu = usuarioLogado();
+  if (!eu || eu.tudo || eu.mestre) return false;
+  if (ehPlataforma(eu) || ehFranqueadora(eu)) return false;
+  return (eu.sucursais || []).length > 0;
+}
+function minhaUnidadeDeGerente(){
+  var eu = usuarioLogado() || {};
+  var l = eu.sucursais || [], a = lojaAtualId();
+  return l.indexOf(a) >= 0 ? a : (l[0] || null);
+}
+/* o gerente de unidade só libera para a equipe o que ele mesmo enxerga */
+function telaQueEuPossoLiberar(chave){
+  if (!souGerenteDeUnidade()) return true;
+  var eu = usuarioLogado() || {};
+  return !!(eu.permissoes || {})[chave];
+}
+function novoUsuario(){US.novaSuc=souGerenteDeUnidade()?minhaUnidadeDeGerente():null;formUsuario();}
 function editarUsuario(){formUsuario(US.sel);}
 function formUsuario(id){
   baseUsr();
@@ -355,7 +385,7 @@ function formUsuario(id){
     'O login precisa ser um e-mail e a senha, ao menos 6 caracteres — é o Auth do banco '+
     'que guarda, cifrada. '+(u?'Deixe a senha vazia para não alterar a atual.':'')+
    '</div>'+
-   (u&&u.mestre?'':'<label class="chkL"><input type="checkbox" id="uTudo" '+
+   (u&&u.mestre||souGerenteDeUnidade()?'':'<label class="chkL"><input type="checkbox" id="uTudo" '+
      ((u&&u.tudo)?'checked':'')+'>'+
      '<span><b>Acesso total</b><span>vê todas as telas e todas as lojas, como o administrador</span></span></label>')+
   '</div>','Salvar',async function(){
@@ -392,12 +422,12 @@ function formUsuario(id){
     /* a senha de autorizacao nao fica no cadastro: vai para o cofre como hash */
     var dados={nome:nome,login:login,tel:$('uTel').value.trim(),funcao:func,
       senhaCaixa:'',
-      tudo:$('uTudo')?$('uTudo').checked:(u?u.tudo:false)};
+      tudo:souGerenteDeUnidade()?false:($('uTudo')?$('uTudo').checked:(u?u.tudo:false))};
     if(senha)dados.senha=senha;
     if(u)Object.assign(u,dados);
     else{
       var novo=Object.assign({id:uid('usr'),ativo:true,
-        sucursais:(US.novaSuc?[US.novaSuc]:[]),permissoes:{},
+        sucursais:(souGerenteDeUnidade()?[minhaUnidadeDeGerente()]:(US.novaSuc?[US.novaSuc]:[])),permissoes:{},
         criadoEm:new Date().toISOString()},dados);
       DB.usuarios.push(novo);
       US.sel=novo.id;
@@ -422,7 +452,11 @@ async function criarAcessoNoBanco(login,senha,nome){
              'Content-Type':'application/json'},
     /* admin da propria loja: cadastra a equipe dela, dentro do que a matriz
        liberou. Ver comentario em salvarUnidade. */
-    body:JSON.stringify({email:login,senha:senha,nome:nome,cargo:'admin'})});
+    /* o login principal da loja cria OPERADOR da unidade dele — o servidor
+       impõe isso de qualquer jeito; mandar certo evita a surpresa */
+    body:JSON.stringify(souGerenteDeUnidade()
+      ?{email:login,senha:senha,nome:nome,cargo:'operador',sucursal_ref:minhaUnidadeDeGerente()}
+      :{email:login,senha:senha,nome:nome,cargo:'admin'})});
   var d=null;
   try{ d=await r.json(); }catch(e){_quieto(e,'criarAcessoNoBanco')}
   if(!r.ok)return {erro:(d&&d.erro)||('o servidor recusou ('+r.status+')')};

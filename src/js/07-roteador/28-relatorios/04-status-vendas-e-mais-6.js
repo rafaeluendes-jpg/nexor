@@ -3077,12 +3077,15 @@ function detalheUsuario(){
   var u=DB.usuarios.find(function(x){return x.id===US.sel});
   if(!u)return '';
   var sucs=sucAtivas();
+  /* o login principal da loja vê o próprio acesso, mas não o altera */
+  var soLer=(typeof souGerenteDeUnidade==='function')&&souGerenteDeUnidade()&&
+            u.id===(usuarioLogado()||{}).id;
   return '<div class="usrH">'+
     '<div class="usrAvG'+(u.mestre?' m':'')+'">'+E((u.nome||'?').charAt(0).toUpperCase())+'</div>'+
     '<div><b>'+E(u.nome)+'</b><span>'+E(u.login)+
      (u.mestre?' · dono do sistema':'')+'</span></div>'+
     '<div style="flex:1"></div>'+
-    (u.mestre?'':'<label class="chkL" style="margin:0"><input type="checkbox" '+
+    (u.mestre||soLer?'':'<label class="chkL" style="margin:0"><input type="checkbox" '+
       (u.ativo!==false?'checked':'')+' onchange="togAtivoUsr()"><span>ativo</span></label>')+
     /* ==========================================================
        O ACESSO DA UNIDADE NAO SE EDITA AQUI
@@ -3093,28 +3096,37 @@ function detalheUsuario(){
        A equipe da loja (caixa, producao) continua sendo criada e editada
        aqui — essa gente nao tem cadastro de unidade.
        ========================================================== */
-    ((function(){
+    (soLer?'':(function(){
       var _s=(DB.sucursais||[]).find(function(x){
         var a=acessoDaSuc(x); return a&&a.id===u.id;});
       if(_s)return '<button class="btnP2" onclick="formSucursal(\''+_s.id+'\')">'+
         sv('edit',12)+' Editar em Sucursais</button>';
       return '<button class="btnP2" onclick="editarUsuario()">'+sv('edit',12)+' Editar</button>';
     })())+
-    (u.mestre?'':'<button class="btnP2 rdB" onclick="excluirUsuario()">'+sv('trash',12)+'</button>')+
+    (u.mestre||soLer?'':'<button class="btnP2 rdB" onclick="excluirUsuario()">'+sv('trash',12)+'</button>')+
    '</div>'+
    (u.mestre
     ?'<div class="usrMestre">'+sv('lock',20)+
      '<div><b>Acesso total</b><span>Este é o usuário dono do sistema. '+
      'Ele enxerga todas as lojas e todas as telas, e não pode ser restringido.</span></div></div>'
+    /* o login principal da loja não mexe no próprio acesso nem na unidade
+       da equipe: isso é da matriz (24/09/2026) */
+    :(typeof souGerenteDeUnidade==='function'&&souGerenteDeUnidade()&&u.id===(usuarioLogado()||{}).id)
+    ?'<div class="usrMestre">'+sv('lock',20)+
+     '<div><b>Seu acesso é administrado pela matriz</b><span>Aqui você cria e ajusta a equipe '+
+     'da sua loja — operador de caixa, atendente, produção.</span></div></div>'
     :'<div class="usrAbas">'+
-      [['permissoes','O que pode ver','list'],['lojas','Lojas que acessa','store'],
-       ['app','Aplicativo','chart']]
+      ((typeof souGerenteDeUnidade==='function'&&souGerenteDeUnidade())
+        ?[['permissoes','O que pode ver','list']]
+        :[['permissoes','O que pode ver','list'],['lojas','Lojas que acessa','store'],
+       ['app','Aplicativo','chart']])
        .map(function(a){
         return '<button class="usrAba'+(US.aba===a[0]?' on':'')+'" '+
         'onclick="US.aba=\''+a[0]+'\';telaUsuarios()">'+sv(a[2],13)+' '+a[1]+'</button>';
        }).join('')+
      '</div>'+
-     (US.aba==='lojas'?abaLojasUsr(u,sucs):
+     ((typeof souGerenteDeUnidade==='function'&&souGerenteDeUnidade())?abaPermUsr(u):
+      US.aba==='lojas'?abaLojasUsr(u,sucs):
       US.aba==='app'?abaAppUsr(u):abaPermUsr(u)))+
   '';
 }
