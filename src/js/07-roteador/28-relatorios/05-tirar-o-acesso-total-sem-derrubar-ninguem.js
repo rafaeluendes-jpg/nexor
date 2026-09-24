@@ -95,7 +95,14 @@ function abaPermUsr(u){
          'data-perm="'+m.id+'/'+i.id+'" data-mod="'+m.id+'">'+
          '<input type="checkbox"'+(on?' checked':'')+
          ' onchange="togPermUsr(\''+m.id+'/'+i.id+'\',this)">'+
-         '<span>'+E(i.n)+'</span></label>';
+         '<span>'+E(i.n)+'</span></label>'+
+         /* ação dentro da Baixa Manual: quem pode LANÇAR no estoque (24/09/2026) */
+         ((m.id==='controle'&&i.id==='baixa-manual'&&typeof podeLancarBaixa==='function')
+           ?(function(){var l2=podeLancarBaixa(u);
+              return '<label class="permIt permSub'+(l2?' on':'')+'" title="Sem marcar: só o login principal da loja lança">'+
+               '<input type="checkbox"'+(l2?' checked':'')+' onchange="togLancarBaixaUsr(this)">'+
+               '<span>↳ Lançar a baixa no estoque</span></label>';})()
+           :'');
       }).join('')+'</div></div>';
    }).join('')+
    '</div></div>';

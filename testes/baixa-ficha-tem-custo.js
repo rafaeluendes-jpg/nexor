@@ -44,6 +44,8 @@ const erros = [];
   if (!doc.getElementById('content')) { const d = doc.createElement('div'); d.id = 'content'; doc.body.appendChild(d); }
   let salvou = 0; win.salvar = () => { salvou++; };
   win.lojaAtualId = () => 'suc_sf';
+  /* o login principal da loja (é ele quem lança no estoque) */
+  win.usuarioLogado = () => ({ login: 'santafe@jologelato.com.br', nome: 'Santa Fé', sucursais: ['suc_sf'], permissoes: { 'controle/baixa-manual:lancar': true } });
 
   /* CASCAO 2 BOLAS: 1 cascão (R$ 0,70) + 120 g de GELATO VENDA (R$ 23,80/kg) = R$ 3,556 por unidade */
   win.DB.insumos = [

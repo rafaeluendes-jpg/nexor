@@ -202,6 +202,10 @@ tr.pbSel td{background:var(--acc-soft)}
 .bxLin3{display:grid;grid-template-columns:1fr 1.3fr 2fr;gap:10px;padding:10px 14px 0}
 .bxAcoes{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px 14px}
 .bxSug:empty{display:none}
+.bxAviso{display:flex;gap:10px;align-items:flex-start;margin:12px 14px 14px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--alt);color:var(--ink-2);font-size:13.5px;line-height:1.45}
+.permSub span{font-size:12.5px;color:var(--ink-2)}
+.bxAviso svg{flex:none;margin-top:2px;color:var(--acc-d)}
+.bxSugC{display:block;margin-top:2px;font-size:11.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* o motivo e o botao de cadastrar um novo, lado a lado */
 .bxMotLin{display:flex;gap:6px;align-items:stretch}
 .bxMotLin select{flex:1;min-width:0}

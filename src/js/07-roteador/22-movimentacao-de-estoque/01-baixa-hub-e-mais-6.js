@@ -2063,8 +2063,10 @@ function baseBaixas(){ DB.baixasPend = DB.baixasPend || []; return DB.baixasPend
 function itensParaBaixa(){
   var out = [];
   (DB.insumos || []).forEach(function (i) {
+    /* insumo com saldo zerado ou negativo não fica sem valor na perda:
+       vale o custo atual (médio ou, sem ele, o da última compra) */
     out.push({ id: i.id, nome: i.nome, tipo: 'insumo',
-               unidade: i.unidade || 'un', custo: custoDoItem(i) });
+               unidade: i.unidade || 'un', custo: custoDoItem(i) || custoAtual(i) || 0 });
   });
   (DB.fichas || []).forEach(function (f) {
     out.push({ id: f.id, nome: f.nome, tipo: 'ficha',
@@ -2153,8 +2155,12 @@ function buscarItensBaixa(txt){
     /* peso 0 = comeca com o que foi digitado; 1 = so contem */
     achados.push({ it: i, peso: nome.indexOf(alvo) === 0 ? 0 : (nome.indexOf(alvo) > 0 ? 1 : 2) });
   });
+  /* mesmo nome como ficha e como insumo (AGUA COM GAS): a ficha vem
+     primeiro — é o produto como a loja entrega, com copo e canudo */
   achados.sort(function (a, b) {
-    return a.peso - b.peso || String(a.it.nome).localeCompare(String(b.it.nome));
+    return a.peso - b.peso ||
+      _semAcento(a.it.nome).localeCompare(_semAcento(b.it.nome)) ||
+      ((a.it.tipo === 'ficha' ? 0 : 1) - (b.it.tipo === 'ficha' ? 0 : 1));
   });
   return achados.slice(0, 12).map(function (a) { return a.it; });
 }
@@ -2163,9 +2169,20 @@ function sugestoesBaixaHTML(){
   var sug = BX.item ? [] : buscarItensBaixa(BX.busca);
   if (!sug.length) return '';
   return sug.map(function (i) {
+    /* a ficha diz o que vai sair do estoque; os dois dizem quanto custa */
+    var comp = '';
+    if (i.tipo === 'ficha') {
+      var f = (DB.fichas || []).find(function (x) { return x.id === i.id; });
+      var d = f ? destinoDaFicha(f) : null;
+      var nomes = d ? [d.nome] : ((f && f.itens) || []).map(function (ci) {
+        var ins = insumo(ci.insumoId); return ins ? ins.nome : ''; }).filter(Boolean);
+      if (nomes.length) comp = 'sai: ' + nomes.slice(0, 4).join(', ') + (nomes.length > 4 ? '…' : '');
+    }
     return '<div onclick="escolherItemBaixa(\'' + i.id + '\',\'' + i.tipo + '\')">' +
       E(i.nome) + '<span class="bxTg ' + (i.tipo === 'ficha' ? 'f' : '') + '">' +
-      (i.tipo === 'ficha' ? 'ficha' : 'insumo') + '</span></div>';
+      (i.tipo === 'ficha' ? 'ficha' : 'insumo') + '</span>' +
+      '<small class="bxSugC">' + (comp ? E(comp) + ' · ' : '') +
+        'R$ ' + money(Number(i.custo) || 0) + '/' + E(un(i.unidade).ab) + '</small></div>';
   }).join('');
 }
 /* ==========================================================
@@ -2235,14 +2252,76 @@ function custoUnBaixa(b){
 function valorBaixa(b){
   return +((Number(b && b.qtd) || 0) * custoUnBaixa(b)).toFixed(4);
 }
+/* ==========================================================
+   QUEM REGISTRA E QUEM LANÇA (Rafael, 24/09/2026)
+
+   "O registrar baixa, que ainda não sai do estoque, fica visível para os
+   operadores. A parte de baixo, apenas o login principal de cada loja vai
+   ter acesso e vai poder clicar em lançar no estoque."
+
+   A permissão é uma chave de AÇÃO dentro da tela Baixa Manual:
+   `controle/baixa-manual:lancar`. Marcada ou desmarcada no cadastro da
+   pessoa, ela manda. Sem marcação, vale o padrão:
+   - dono, acesso total e matriz: lançam;
+   - o login principal da loja (o "login responsável" da unidade): lança;
+   - loja com um login só: esse login lança (é como as lojas operam hoje,
+     e nada muda para elas);
+   - qualquer outro login da loja (operador): só registra. */
+var CHAVE_LANCAR_BAIXA = 'controle/baixa-manual:lancar';
+function ehLoginPrincipalDaLoja(u){
+  if (!u) return false;
+  var base = baseSuc(), login = String(u.login || '').toLowerCase();
+  var sucs = u.sucursais || [];
+  if (sucs.some(function (sid) {
+        var s = base.find(function (x) { return x.id === sid; });
+        return s && s.loginResp && String(s.loginResp).toLowerCase() === login;
+      })) return true;
+  return sucs.some(function (sid) {
+    var ativos = (DB.usuarios || []).filter(function (x) {
+      return x.ativo !== false && !x.excluidoEm && (x.sucursais || []).indexOf(sid) >= 0;
+    });
+    return ativos.length === 1 && String(ativos[0].login || '').toLowerCase() === login;
+  });
+}
+function podeLancarBaixa(u){
+  u = u || usuarioLogado();
+  if (!u) return false;
+  if (u.mestre || u.tudo || (typeof ehPlataforma === 'function' && ehPlataforma(u)) ||
+      (typeof ehFranqueadora === 'function' && ehFranqueadora(u))) return true;
+  var p = u.permissoes || {};
+  if (p[CHAVE_LANCAR_BAIXA] === true) return true;
+  if (p[CHAVE_LANCAR_BAIXA] === false) return false;
+  return ehLoginPrincipalDaLoja(u);
+}
+/* liga/desliga no cadastro da pessoa (Usuários e Permissões). Grava o
+   valor explícito — true ou false — para passar por cima do padrão. */
+function togLancarBaixaUsr(el){
+  var u = (typeof usrSel === 'function') ? usrSel() : null;
+  if (!u) return;
+  u.permissoes = u.permissoes || {};
+  u.permissoes[CHAVE_LANCAR_BAIXA] = !!(el && el.checked);
+  salvar();
+  var lab = el && el.closest ? el.closest('.permIt') : null;
+  if (lab) lab.classList.toggle('on', !!el.checked);
+  toast(el && el.checked ? 'Esta pessoa pode lançar a baixa no estoque.'
+                         : 'Esta pessoa só registra a baixa; quem lança é o login principal.');
+}
 function telaBaixaManual(){
   baseMov(); baseBaixas();
   try { if (repararCustoFichasDaBaixa()) salvar(); } catch (e) { _quieto(e, 'custoFichasBaixa'); }
   if (!BX.data) BX.data = hojeISO();
   if (!BX.quem) BX.quem = (usuarioLogado() || {}).nome || '';
   var motivos = motivosBaixa();
+  var lancador = podeLancarBaixa();
+  var eu = String((usuarioLogado() || {}).login || '').toLowerCase();
   var lista = baixasDoFiltro();
-  var pend = baseBaixas().filter(function (b) { return b.situacao !== 'lancada'; });
+  if (!lancador) lista = lista.filter(function (b) {
+    return String(b.registradoPor || '').toLowerCase() === eu;
+  });
+  var pend = baseBaixas().filter(function (b) {
+    return b.situacao !== 'lancada' &&
+      (lancador || String(b.registradoPor || '').toLowerCase() === eu);
+  });
   var totPend = pend.reduce(function (a, b) {
     return a + valorBaixa(b);
   }, 0);
@@ -2325,8 +2404,8 @@ function telaBaixaManual(){
 
    /* ---------- lista ---------- */
    '<div class="blk" style="max-width:none;margin-top:14px">' +
-    '<div class="blkH"><b>Registros</b>' +
-     '<span>' + pend.length + ' aguardando lançamento</span>' +
+    '<div class="blkH"><b>' + (lancador ? 'Registros' : 'Meus registros') + '</b>' +
+     '<span>' + pend.length + (lancador ? ' aguardando lançamento' : ' aguardando o gerente lançar') + '</span>' +
      '<div style="flex:1"></div>' +
      '<div class="lbSegm">' +
       ['pendente', 'lancada', 'todos'].map(function (f) {
@@ -2359,13 +2438,13 @@ function telaBaixaManual(){
              '<small style="color:var(--ink-3)"> /' + E(un(unidadeDoCustoBaixa(b)).ab) + '</small></td>' +
            '<td style="text-align:right"><b>R$ ' + money(valorBaixa(b)) + '</b></td>' +
            '<td><span class="pill ' + (lancada ? 'vd' : 'am') + '">' +
-             (lancada ? 'lançada' : 'a lançar') + '</span></td>' +
+             (lancada ? 'lançada' : (lancador ? 'a lançar' : 'aguardando o gerente')) + '</span></td>' +
            '<td>' + (lancada ? '' :
              '<button class="rBtn" title="Editar" onclick="editarBaixa(\'' + b.id + '\')">' +
                sv('edit', 12) + '</button>' +
-             '<button class="rBtn" title="Lançar só este" ' +
+             (lancador ? '<button class="rBtn" title="Lançar só este" ' +
                'onclick="lancarBaixasNoEstoque(\'' + b.id + '\')">' +
-               sv('cr', 12) + '</button>' +
+               sv('cr', 12) + '</button>' : '') +
              '<button class="rBtn" title="Excluir" onclick="excluirBaixa(\'' + b.id + '\')">' +
                sv('trash', 12) + '</button>') + '</td>' +
           '</tr>';
@@ -2375,7 +2454,11 @@ function telaBaixaManual(){
         '<span>' + (BX.filtro === 'lancada'
           ? 'O que for lançado no estoque aparece aqui.'
           : 'Os registros do dia aparecem nesta lista.') + '</span></div>') +
-    (pend.length
+    (!lancador
+      ? '<div class="bxAviso">' + sv('lock', 15) + '<span><b>Quem lança no estoque é o login ' +
+        'principal da loja.</b> Seus registros ficam aqui, aguardando. Você pode corrigir ou ' +
+        'apagar enquanto não forem lançados.</span></div>'
+      : pend.length
       ? '<div class="bxRod">' +
         '<div><b>Total a lançar: R$ ' + money(totPend) + '</b>' +
         '<span style="color:var(--ink-3);margin-left:8px">' + pend.length +
@@ -2647,6 +2730,10 @@ function linhasDaFichaNaBaixa(it){
 }
 async function lancarBaixasNoEstoque(sohEsta){
   baseMov(); baseBaixas();
+  if (!podeLancarBaixa()) {
+    toast('Só o login principal da loja lança a baixa no estoque.');
+    return;
+  }
   var pend = baseBaixas().filter(function (b) {
     if (b.situacao === 'lancada') return false;
     return sohEsta ? (b.id === sohEsta) : true;
