@@ -91,6 +91,29 @@ const erros = [];
   t('custo gravado da receita', perto(nv.custo, 3.556), nv.custo);
   t('total R$ 7,11', perto(win.valorBaixa(nv), 7.11), win.valorBaixa(nv));
 
+  grupo('Lançar no estoque: a ficha sai pelos ingredientes');
+  win.confirmar = async () => true;
+  win.setSaldoUn('ins_casc', 50, 'suc_sf'); win.setSaldoUn('ins_gv', 10, 'suc_sf');
+  win.DB.movEst = [];
+  const idLanc = nv.id;
+  await win.lancarBaixasNoEstoque(idLanc);
+  const mv = (win.DB.movEst || [])[0] || { linhas: [] };
+  const lin = id => mv.linhas.find(l => l.insumoId === id) || {};
+  t('a baixa foi lançada (sem trava de estoque da ficha)', (win.DB.baixasPend.find(x => x.id === idLanc) || {}).situacao === 'lancada');
+  t('saiu o cascão: 2 un', perto(lin('ins_casc').qtd, 2) && lin('ins_casc').unidade === 'un', JSON.stringify(lin('ins_casc')));
+  t('saiu o GELATO VENDA: 0,24 kg (2 × 120 g, na unidade do item)', perto(lin('ins_gv').qtd, 0.24) && lin('ins_gv').unidade === 'kg', JSON.stringify(lin('ins_gv')));
+  t('a própria ficha NÃO sai do estoque', !mv.linhas.some(l => l.insumoId === 'fi_c2'));
+  t('o saldo do cascão caiu para 48', perto(win.saldoUn('ins_casc', 'suc_sf'), 48), win.saldoUn('ins_casc', 'suc_sf'));
+  t('o saldo do GELATO VENDA caiu para 9,76 kg', perto(win.saldoUn('ins_gv', 'suc_sf'), 9.76), win.saldoUn('ins_gv', 'suc_sf'));
+  t('o custo das linhas soma R$ 7,11', perto(mv.linhas.reduce((a, l) => a + l.qtd * l.custo, 0), 7.11));
+
+  grupo('Ficha com destino sai do item pronto (não da base de novo)');
+  win.DB.fichas.push({ id: 'fi_mor', nome: 'MORANGO GELATO', unidade: 'kg', rendUnidade: 'kg', rendimento: 1,
+    destinoId: 'ins_gv', itens: [{ insumoId: 'ins_casc', qtd: 99, unidade: 'un' }] });
+  const ls = win.linhasDaFichaNaBaixa({ tipo: 'ficha', refId: 'fi_mor', qtd: 500, unidade: 'g' });
+  t('sai 0,5 kg de GELATO VENDA', ls.length === 1 && ls[0].insumoId === 'ins_gv' && perto(ls[0].qtd, 0.5), JSON.stringify(ls));
+  t('e nenhum ingrediente da receita', !ls.some(l => l.insumoId === 'ins_casc'));
+
   grupo('Sem erro de página');
   t('nenhum erro', erros.length === 0, erros.slice(0, 5).join(' | '));
 

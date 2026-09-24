@@ -2592,6 +2592,59 @@ async function excluirBaixa(id){
    e não uma só com tudo misturado. É o que faz o relatório por motivo ter
    sentido depois.
    ========================================================== */
+/* ==========================================================
+   FICHA NA BAIXA MANUAL SAI PELOS INGREDIENTES (Rafael, 24/09/2026)
+
+   "Quando eu coloco para dar lançamento no estoque do Cascão Duas Bolas,
+   não dá certo. Você quer baixar o Cascão e não existe quantidade de
+   Cascão. O que tem que ser baixado é a quantidade que compõe a ficha
+   técnica daquele produto."
+
+   A baixa tentava tirar a própria ficha do estoque — que não tem saldo —
+   e a trava "estoque insuficiente" recusava tudo. Agora a ficha segue a
+   MESMA regra da venda (baixarEstoqueVenda):
+   - ficha SEM destino (CASCAO 2 BOLAS): saem os ingredientes da receita,
+     na proporção da quantidade baixada ÷ unidades da ficha;
+   - ficha COM destino (sabor que a produção entrega como GELATO VENDA):
+     sai o item de destino, porque os ingredientes já foram consumidos na
+     produção — abrir a receita de novo contaria a base duas vezes.
+   Cada linha é gravada na unidade do próprio item, como na venda. */
+function linhasDaFichaNaBaixa(it){
+  var f = (DB.fichas || []).find(function (x) { return x.id === it.refId; });
+  if (!f) return [];
+  var q = Number(it.qtd) || 0;
+  var fu = f.unidade || 'un', uIt = it.unidade || fu;
+  var qf = convUnid(q, uIt, fu); if (qf === null) qf = q;  /* quantidade na unidade da ficha */
+  var porUn = (Number(f.unidadesVenda) || Number(f.rendimento) || 1);
+  var obs = String(it.obs || '').trim();
+  var linhas = [];
+  var dest = destinoDaFicha(f);
+  if (dest) {
+    linhas.push({ insumoId: dest.id, nome: dest.nome, unidade: f.rendUnidade || fu,
+      qtd: +((Number(f.rendimento) || 1) / porUn * qf).toFixed(4), custo: custoPorUnidade(f),
+      direcao: 'saida', origem: 'ficha:' + f.id, fichaId: f.id, fichaNome: f.nome, obs: obs });
+  } else {
+    var fator = qf / porUn;
+    (f.itens || []).forEach(function (ci) {
+      var ins = insumo(ci.insumoId);
+      if (!ins) return;
+      var uL = ci.unidade || ins.unidade;
+      linhas.push({ insumoId: ins.id, nome: ins.nome, unidade: uL,
+        qtd: +((Number(ci.qtd) || 0) * fator).toFixed(4), custo: custoNaUnidade(ins, uL),
+        direcao: 'saida', origem: 'ficha:' + f.id, fichaId: f.id, fichaNome: f.nome, obs: obs });
+    });
+  }
+  /* na unidade do item, como a venda: o que o aparelho guarda e o que a
+     nuvem recebe são a mesma quantidade */
+  return linhas.map(function (l) {
+    var ins = itemEstoque(l.insumoId);
+    if (!ins || !ins.unidade || !l.unidade || l.unidade === ins.unidade) return l;
+    var qq = convUnid(Number(l.qtd) || 0, l.unidade, ins.unidade);
+    if (qq === null) return l;
+    return Object.assign({}, l, { qtd: +qq.toFixed(4), unidade: ins.unidade,
+      custo: custoNaUnidade(ins, ins.unidade) });
+  }).filter(function (l) { return Number(l.qtd) > 0; });
+}
 async function lancarBaixasNoEstoque(sohEsta){
   baseMov(); baseBaixas();
   var pend = baseBaixas().filter(function (b) {
@@ -2639,17 +2692,21 @@ async function lancarBaixasNoEstoque(sohEsta){
   /* nenhuma baixa é aplicada se faltar saldo: metade lançada é pior que nada */
   var todasLinhas = [], porGrupo = [];
   for (var g = 0; g < grupos.length; g++) {
-    var ln = montarLinhas(grupos[g].itens, 'saida');
-    if (!ln.length) continue;
-    /* o custo da perda é o do momento em que ela foi registrada (o custo
-       médio daquele dia e hora), na unidade da própria linha. Baixa sem
-       custo gravado fica com o custo de agora, como antes. */
-    if (ln.length === grupos[g].usadas.length) {
-      ln.forEach(function (l, k) {
-        var b = grupos[g].usadas[k];
+    /* item a item: a ficha abre a receita, o insumo sai dele mesmo */
+    var ln = [];
+    grupos[g].itens.forEach(function (it, k) {
+      var b = grupos[g].usadas[k];
+      if (it.tipo === 'ficha') { ln = ln.concat(linhasDaFichaNaBaixa(it)); return; }
+      var l1 = montarLinhas([it], 'saida');
+      /* o custo da perda é o do momento em que ela foi registrada (o custo
+         médio daquele dia e hora), na unidade da própria linha. Baixa sem
+         custo gravado fica com o custo de agora, como antes. */
+      l1.forEach(function (l) {
         if (b && Number(b.custo) > 0 && l.unidade === b.unidade) l.custo = +custoUnBaixa(b).toFixed(6);
       });
-    }
+      ln = ln.concat(l1);
+    });
+    if (!ln.length) continue;
     porGrupo.push({ g: grupos[g], linhas: ln });
     todasLinhas = todasLinhas.concat(ln);
   }
