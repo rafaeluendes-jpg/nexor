@@ -77,6 +77,10 @@
    "pontos": 13,
    "roda": true
   },
+  "testes/caixa-nao-fecha-com-pedido-aberto.js": {
+   "pontos": 17,
+   "roda": true
+  },
   "testes/caixa-nao-nasce-gemeo.js": {
    "pontos": 17,
    "roda": true
@@ -194,7 +198,7 @@
    "roda": true
   },
   "testes/frente-de-caixa.js": {
-   "pontos": 93,
+   "pontos": 96,
    "roda": true
   },
   "testes/gelato-venda.js": {

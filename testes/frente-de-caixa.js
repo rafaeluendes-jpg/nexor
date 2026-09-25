@@ -443,6 +443,16 @@ function semear(w) {
   /* ---------------------------------------------------------- */
   grupo('O fechamento é cego, e continua sendo');
   t('o caixa cego está ligado e não se desliga', w.cfg().caixaCego === true);
+  /* Rafael, 25/09/2026: com pedido não finalizado o caixa não fecha — a
+     entrega de cima ainda está na fila */
+  w.fecharCaixa(); await esp(200);
+  t('com a entrega na fila, o fechamento é barrado', !$('fcOp') && !!w.caixaAberto());
+  t('e a tela avisa "Tem pedido não finalizado"',
+    /Tem pedido não finalizado/.test(($('cfOv') || {}).textContent || ''));
+  t('dizendo qual pedido', new RegExp('#' + pe.numero).test(($('cfOv') || {}).textContent || ''));
+  const volta = $('cfOv') && $('cfOv').querySelector('[data-cf="0"]'); if (volta) volta.click();
+  await esp(60);
+  pe.fase = 'entregue';   /* a entrega foi concluída */
   w.fecharCaixa(); await esp(200);
   t('a tela de fechamento abre', !!$('mdOv'));
   const sis = [...doc.querySelectorAll('.cSis')].map(e => e.textContent.trim());

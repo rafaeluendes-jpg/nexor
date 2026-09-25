@@ -2661,10 +2661,68 @@ async function garantirFechamentoNaNuvem(cx){
   }catch(e){ _quieto(e,'garantirFechamentoNaNuvem'); }
   return false;
 }
+/* ==========================================================
+   NÃO FECHA CAIXA COM PEDIDO EM ABERTO (Rafael, 25/09/2026)
+
+   "Quando a gente foi fechar o caixa, tinha pedido sem estar finalizado,
+   e mesmo assim ele fechou." O fechamento não perguntava nada: fechava o
+   turno com venda em preparo, em entrega, mesa com consumo e até venda
+   montada na tela do PDV. O que ficou de fora não entrava na conferência
+   da gaveta de ninguém.
+
+   Agora, antes de fechar, entra aqui. Conta como não finalizado:
+     - a venda montada na tela deste PDV e ainda não paga;
+     - pedido deste caixa (ou da unidade, ainda sem caixa) que não está
+       finalizado nem cancelado — aguardando, em preparo, pronto, em
+       entrega;
+     - comanda de mesa aberta com consumo, da unidade.
+   Enquanto houver algum, o caixa não fecha — nem pelo PDV, nem pela
+   Frente de Caixa, nem clicando Confirmar com o modal já aberto.
+   ========================================================== */
+function pedidosNaoFinalizados(cx){
+  var out=[];
+  if(!cx)return out;
+  var suc=cx.sucursalId||lojaAtualId();
+  var naTela=(typeof PDV!=='undefined'&&PDV.comanda)?PDV.comanda.length:0;
+  if(naTela&&(caixaAberto()||{}).id===cx.id)
+    out.push(['Venda na tela do PDV',naTela+' item(ns), ainda não paga','']);
+  (DB.pedidos||[]).forEach(function(p){
+    if(!p||ehCancelado(p)||ehFinalizado(p))return;
+    var doCaixa=p.caixaId?p.caixaId===cx.id:(!!p.sucursalId&&p.sucursalId===suc);
+    if(!doCaixa)return;
+    var st=statusVenda(p.fase);
+    out.push(['Pedido #'+(p.numero||'?')+(p.clienteNome&&p.clienteNome!=='Consumidor'?' · '+p.clienteNome:''),
+      (st&&st.nome)||nomePapel(papelDaFase(p.fase)),'']);
+  });
+  (DB.comandas||[]).forEach(function(c){
+    if(!c||c.aberta===false||!(c.itens||[]).length)return;
+    if(c.sucursalId&&c.sucursalId!==suc)return;
+    out.push(['Mesa '+(c.mesaNumero||'?')+(c.nome?' · '+c.nome:''),'comanda aberta','']);
+  });
+  return out;
+}
+async function avisarPedidosNaoFinalizados(cx){
+  var pend=pedidosNaoFinalizados(cx);
+  if(!pend.length)return false;
+  var ir=await confirmar({titulo:'Tem pedido não finalizado',
+    texto:'O caixa só fecha depois que todos os pedidos forem finalizados ou cancelados.',
+    linhas:pend.slice(0,8).concat(pend.length>8?[['e mais '+(pend.length-8)+' pedido(s)','','']]:[]),
+    aviso:'Finalize (ou cancele) cada um e depois clique em Fechar caixa de novo.',
+    ok:'Ver pedidos',cancelar:'Voltar',tipo:'info'});
+  if(ir){
+    try{ fecharModal(); }catch(e){}
+    if(pend.some(function(l){return /^Venda na tela/.test(l[0])})){PDV.aba='venda';}
+    else PDV.aba='pedidos';
+    abrir('pdv','pdv');
+  }
+  return true;
+}
 function fecharCaixa(id){
   var cx=id?(DB.caixas||[]).find(function(c){return c.id===id&&!c.fechadoEm})
            :caixaAberto();
   if(!cx){toast('Nenhum caixa aberto.');return;}
+  /* sem pendência, o fechamento abre na hora, como sempre abriu */
+  if(pedidosNaoFinalizados(cx).length){avisarPedidosNaoFinalizados(cx);return;}
   var _eraOAtual=(caixaAberto()||{}).id===cx.id;
   var mov=movimentoCaixa(cx.id);
   var cego=cfg().caixaCego;
@@ -2840,6 +2898,12 @@ function fecharCaixa(id){
     /* item 30: duplo toque em FECHAR CAIXA nao gera dois fechamentos */
     if(!travarOperacao('fechar-caixa')){
       toast('O fechamento já está sendo processado — aguarde um instante.');
+      return false;
+    }
+    /* pedido que chegou (ou foi reaberto) com o fechamento já na tela */
+    if(pedidosNaoFinalizados(cx).length){
+      liberarOperacao('fechar-caixa');
+      avisarPedidosNaoFinalizados(cx);
       return false;
     }
     var opF=await autorizar('fechar',($('fcOp')||{}).value||'',($('fcSenha')||{}).value||'');
