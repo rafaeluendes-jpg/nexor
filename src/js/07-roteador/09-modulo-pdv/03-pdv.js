@@ -522,7 +522,8 @@ function renderComanda(){
       '<div class="ci3"><b>'+E(PDV.cliente.nome)+'</b><span>'+E(PDV.cliente.tel||'sem telefone')+
       ((Number(PDV.cliente.saldoFiado)||0)?' · <b style="color:var(--red)">fiado R$ '+money(PDV.cliente.saldoFiado)+'</b>':'')+'</span></div>'+
       '<button class="qtBtn" onclick="formCliente(\''+PDV.cliente.id+'\')">'+sv('edit',13)+'</button>'+
-      '<button class="qtBtn" onclick="PDV.cliente=null;renderVenda()">'+sv('x2',13)+'</button></div>'
+      '<button class="qtBtn" onclick="tirarClienteDaComanda()">'+sv('x2',13)+'</button></div>'+
+      caixaFidelidade(PDV.cliente)
     : '<button class="btnLinha" onclick="buscarCliente()">'+sv('users',14)+' Identificar cliente</button>')+
   '</div>'+
   '<div class="comItens">';
@@ -588,7 +589,11 @@ function lancar(p,opcoes,qtd,obs){
 }
 /* mudarQt saiu junto com os botoes + e - da comanda (03/09/2026): a
    quantidade do item nao se altera mais depois de lancado. */
-function remItem(i){PDV.comanda.splice(i,1);renderVenda();}
+function remItem(i){
+  var it=PDV.comanda[i];
+  if(it&&it.brindeFidelidade){desfazerBrindeDaComanda();renderVenda();return;}
+  PDV.comanda.splice(i,1);renderVenda();
+}
 function obsItem(i){
   var it=PDV.comanda[i];
   var t=prompt('Observação para "'+it.nome+'":',it.obs||'');
@@ -597,6 +602,7 @@ function obsItem(i){
 async function limparComanda(){
   if(!PDV.comanda.length)return;
   if(!await pergunta('Limpar todos os itens da comanda?'))return;
+  if(PDV.brindeResgate)desfazerBrindeDaComanda();
   PDV.comanda=[];renderVenda();
 }
 
@@ -682,6 +688,53 @@ function modalOpcoes(p,grupos){
 
 /* ---------- CLIENTE ---------- */
 function soDigitos(t){return String(t||'').replace(/\D/g,'')}
+/* ==========================================================
+   O TELEFONE TEM DDD, SEMPRE (Rafael, 25/09/2026)
+
+   *"Eu quero que seja sempre nessa ordem: o DDD 17 e depois o resto
+   dos números. Às vezes pode ter a opção de não colocar DDD; tem que
+   colocar, é obrigatório, aí fica entre parênteses e o número para a
+   frente."*
+
+   O telefone é o IDENTIFICADOR do cliente. Sem DDD, "99812-4477" e
+   "(17) 99812-4477" são a mesma pessoa cadastrada duas vezes — e o
+   cartão fidelidade dela fica partido entre os dois cadastros.
+
+   Aqui o número vira (17) 99999-9999 enquanto se digita, e quem digita
+   só o celular ganha o DDD da loja na frente. Quem tem outro DDD
+   digita os 11 números e o formato acompanha. */
+var DDD_PADRAO='17';
+function telFormatado(t){
+  var d=soDigitos(t).slice(0,11);
+  if(d.length<=2)return d?'('+d:'';
+  var ddd=d.slice(0,2),n=d.slice(2);
+  if(!n.length)return '('+ddd+') ';
+  if(n.length<=4)return '('+ddd+') '+n;
+  if(n.length<=8)return '('+ddd+') '+n.slice(0,4)+'-'+n.slice(4);
+  return '('+ddd+') '+n.slice(0,5)+'-'+n.slice(5);
+}
+/* o que vai para o cadastro: com DDD, sempre. Oito ou nove dígitos sem
+   DDD recebem o da loja — é o número que a pessoa acabou de ditar, e
+   recusar seria atrito à toa no balcão. */
+function telComDDD(t){
+  var d=soDigitos(t);
+  if(d.length===8||d.length===9)d=DDD_PADRAO+d;
+  return telFormatado(d);
+}
+function telValido(t){
+  var d=soDigitos(telComDDD(t));
+  return d.length===10||d.length===11;
+}
+/* liga a máscara num campo: digitar só números já sai formatado */
+function ligarMascaraTel(el){
+  if(!el)return;
+  el.setAttribute('inputmode','tel');
+  el.oninput=function(){
+    var fim=this.selectionStart===this.value.length;
+    this.value=telFormatado(this.value);
+    if(fim)try{this.setSelectionRange(this.value.length,this.value.length)}catch(e){}
+  };
+}
 function clientePorTel(tel){
   var d=soDigitos(tel);
   if(!d)return null;
@@ -690,8 +743,8 @@ function clientePorTel(tel){
 function buscarCliente(){
   var h='<div class="mdB">'+
   '<div class="fld2"><label>Telefone do cliente</label>'+
-  '<input id="cliB" type="tel" placeholder="digite o telefone" autocomplete="off">'+
-  '<div class="hint">O telefone é o identificador do cliente — evita cadastro duplicado.</div></div>'+
+  '<input id="cliB" type="tel" placeholder="(17) 99999-9999" autocomplete="off">'+
+  '<div class="hint">Comece pelo DDD. O telefone é o identificador do cliente — evita cadastro duplicado.</div></div>'+
   '<div id="cliRes"></div>'+
   '<button class="btn p" onclick="formCliente(null,($(\'cliB\')||{}).value)" style="margin-top:8px">'+sv('plus',14)+' Cadastrar novo cliente</button></div>';
   modal('Identificar cliente',h,'Fechar',function(){return true});
@@ -708,9 +761,16 @@ function buscarCliente(){
       return;
     }
     var h2=r.length?'<div class="pickList">'+r.slice(0,20).map(function(c){
+      var fd=fidelidadeDoCliente(c,lojaAtualId());
       return '<label onclick="usarCliente(\''+c.id+'\')" style="cursor:pointer"><span><b>'+E(c.tel||'sem telefone')+'</b>'+
       '<div style="font-size:11px;color:var(--ink-3)">'+E(c.nome)+' · '+(c.compras||0)+' compras · ticket R$ '+
-      money(c.compras?(c.gasto/c.compras):0)+'</div></span></label>';
+      money(c.compras?(c.gasto/c.compras):0)+'</div>'+
+      (fd.temBrinde
+        ?'<div style="font-size:11px;color:var(--acc-d);font-weight:600;margin-top:3px">brinde disponível</div>'
+        :'<div class="fidBar" style="max-width:190px">'+
+          Array.apply(null,{length:FID_META}).map(function(_,i){
+            return '<i'+(i<fd.compras?' class="on"':'')+'></i>';}).join('')+'</div>')+
+      '</span></label>';
     }).join('')+'</div>':'';
     if(!r.length&&d.length>=8){
       h2='<div class="avisoCfg" style="margin-top:4px">'+sv('help',15)+
@@ -719,12 +779,96 @@ function buscarCliente(){
     $('cliRes').innerHTML=h2;
   }
   lista('');
-  inp.oninput=function(){lista(this.value.trim());};
+  /* o campo já nasce com o DDD da loja: o dedo do caixa começa no número */
+  inp.value='('+DDD_PADRAO+') ';
+  inp.oninput=function(){
+    var fim=this.selectionStart===this.value.length;
+    this.value=telFormatado(this.value);
+    if(fim)try{this.setSelectionRange(this.value.length,this.value.length)}catch(e){}
+    lista(this.value.trim());
+  };
   inp.focus();
+  try{inp.setSelectionRange(inp.value.length,inp.value.length)}catch(e){}
 }
 function usarCliente(id){
   PDV.cliente=DB.clientes.find(function(x){return x.id===id});
   fecharModal();renderVenda();
+}
+/* ==========================================================
+   O CARTÃO FIDELIDADE NA COMANDA (Rafael, 25/09/2026)
+
+   *"Na tela do PDV tem que ter a opção de ver quantas vendas ela já
+   teve. Quando ela fizer 10 compras, ela ganha um cascão de uma bola."*
+
+   A caixinha aparece assim que o cliente é identificado: quantas
+   compras já são, quantas faltam, e — quando fecha as dez — o botão de
+   resgatar. Sem cliente identificado não há cartão: o cartão é dele.
+   ========================================================== */
+function caixaFidelidade(c){
+  if(!c||typeof fidelidadeDoCliente!=='function')return '';
+  var f=fidelidadeDoCliente(c,lojaAtualId());
+  var barra='<div class="fidBar">'+
+    Array.apply(null,{length:f.meta}).map(function(_,i){
+      return '<i'+(i<Math.min(f.compras,f.meta)?' class="on"':'')+'></i>';}).join('')+'</div>';
+  if(PDV.brindeResgate){
+    return '<div class="fidCx ok"><div class="fidN"><b>Brinde entregue</b>'+
+      '<span>'+E(PDV.brindeResgate.brinde)+' · já saiu do estoque</span></div></div>';
+  }
+  if(f.temBrinde){
+    var pb=produtoDoBrinde();
+    return '<div class="fidCx ok"><div class="fidN"><b>Brinde disponível</b>'+
+      '<span>'+E((pb&&pb.nome)||'Cascão 1 Bola')+' — '+f.compras+' compras completas</span>'+
+      barra+'</div>'+
+      '<button class="fidBt" onclick="resgatarBrinde()">Resgatar</button></div>';
+  }
+  return '<div class="fidCx"><div class="fidN">'+
+    '<b>Fidelidade · '+f.compras+' de '+f.meta+'</b>'+
+    '<span>'+(f.falta===f.meta?'a contagem começa nesta compra'
+      :'falta'+(f.falta===1?' ':'m ')+f.falta+' compra'+(f.falta===1?'':'s')+
+       ' para o brinde')+'</span>'+barra+'</div></div>';
+}
+/* tirar o cliente da comanda não pode deixar o brinde dele para trás */
+function tirarClienteDaComanda(){
+  if(PDV.brindeResgate){desfazerBrindeDaComanda();}
+  PDV.cliente=null;renderVenda();
+}
+async function resgatarBrinde(){
+  var c=PDV.cliente;
+  if(!c)return;
+  var f=fidelidadeDoCliente(c,lojaAtualId());
+  var pb=produtoDoBrinde();
+  if(!pb){toast('O produto "Cascão 1 Bola" não está no cardápio desta loja.');return;}
+  var ok=await confirmar({titulo:'Resgatar o brinde de '+E(c.nome)+'?',
+    texto:'O '+pb.nome+' entra na comanda por R$ 0,00 e sai do estoque agora.',
+    linhas:[['Brinde',pb.nome,''],['Sai do estoque','pela ficha técnica',''],
+            ['Motivo da baixa','Programa de fidelidade',''],
+            ['Cartão','recomeça do zero','']],
+    aviso:'Fica registrado que '+E(c.nome)+' resgatou hoje, '+dataBR(hojeISO())+
+      ' — dá para consultar na ficha do cliente.',
+    ok:'Resgatar',cancelar:'Voltar',tipo:'check'});
+  if(!ok)return;
+  var r=resgatarFidelidade(c);
+  if(r.erro){painelErro('Não consegui resgatar o brinde.',r.erro);return;}
+  PDV.brindeResgate=r.resgate;
+  /* o brinde entra na comanda por R$ 0,00, marcado: a venda NÃO baixa
+     este item de novo — ele já saiu do estoque no resgate */
+  PDV.comanda.push({id:uid('it'),produtoId:pb.id,nome:pb.nome,qtd:1,unit:0,unitario:0,
+    total:0,opcoes:[],obs:'Brinde do programa de fidelidade',
+    brindeFidelidade:true,resgateId:r.resgate.id});
+  renderVenda();
+  toast('Brinde resgatado. '+pb.nome+' saiu do estoque pelo programa de fidelidade.');
+}
+/* o que não saiu da loja não pode ter saído do estoque: tirar o brinde
+   da comanda devolve o item e o cartão do cliente */
+function desfazerBrindeDaComanda(){
+  var r=PDV.brindeResgate;
+  if(!r)return;
+  var c=PDV.cliente||(DB.clientes||[]).find(function(x){
+    return (x.resgates||[]).some(function(y){return y.id===r.id})});
+  if(c)desfazerResgate(c,r.id);
+  PDV.brindeResgate=null;
+  PDV.comanda=PDV.comanda.filter(function(it){return !it.brindeFidelidade});
+  toast('Brinde devolvido ao estoque — o cartão do cliente voltou.');
 }
 function selectZonasCli(cidade,zonaId){
   var zs=zonasDaCidade(cidade);
@@ -749,7 +893,7 @@ function formCliente(id,telPre){
   var c=id?DB.clientes.find(function(x){return x.id===id}):null;
   var h='<div class="mdB"><div class="blk" style="margin:0 0 11px;max-width:none"><h3>Dados do cliente</h3>'+
   '<div class="row2"><div class="fld2"><label>Nome *</label><input id="clN" value="'+E(c?c.nome:'')+'"></div>'+
-  '<div class="fld2"><label>Telefone * <small style="color:var(--ink-3);font-weight:400">identificador</small></label>'+'<input id="clT" type="tel" value="'+E(c?c.tel:(telPre||''))+'" placeholder="(00) 00000-0000"></div></div></div>'+
+  '<div class="fld2"><label>Telefone * <small style="color:var(--ink-3);font-weight:400">identificador</small></label>'+'<input id="clT" type="tel" value="'+E(c?c.tel:telComDDD(telPre||''))+'" placeholder="(17) 99999-9999"></div></div></div>'+
   '<div class="blk" style="margin:0;max-width:none"><h3>Endereço <small>para entrega</small></h3>'+
   '<div class="row2"><div class="fld2"><label>Rua</label><input id="clR" value="'+E(c?c.rua:'')+'"></div>'+
   '<div class="fld2"><label>Número</label><input id="clNu" value="'+E(c?c.numero:'')+'"></div></div>'+
@@ -776,11 +920,16 @@ function formCliente(id,telPre){
      '<div><div class="hint">Ticket médio</div><b style="font-size:17px">R$ '+money(c.compras?(c.gasto/c.compras):0)+'</b></div></div>'+
      '<div class="hint" style="margin-top:9px">Última compra: '+(c.ultima||'—')+'</div></div>':'')+
   '</div>';
+  setTimeout(function(){ligarMascaraTel($('clT'))},30);
   modal(c?'Cliente':'Cadastrar cliente',h,'Salvar',async function(){
     var nome=$('clN').value.trim();
     var tel=$('clT').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
-    if(soDigitos(tel).length<8){toast('Informe um telefone válido — é ele que identifica o cliente.');return false;}
+    /* DDD obrigatório: sem ele o mesmo cliente nasce duas vezes, e o
+       cartão fidelidade dele fica partido entre os dois cadastros */
+    if(!telValido(tel)){
+      toast('O telefone precisa do DDD — exemplo: (17) 99999-9999.');return false;}
+    tel=telComDDD(tel);
     var dup=clientePorTel(tel);
     if(dup&&(!c||dup.id!==c.id)){
       if(!await pergunta('Já existe um cliente com este telefone: "'+dup.nome+'".\nDeseja atualizar o cadastro dele em vez de criar outro?','Atualizar o cadastro'))return false;
@@ -1432,6 +1581,7 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
       String((e&&e.message)||e).slice(0,100)); }catch(e2){_quieto(e2,'vendaAtomica')}
   }
   PDV.comanda=[];PDV.cliente=null;PDV.tipo='loja';_cidadeVenda='';
+  PDV.brindeResgate=null;          /* a venda fechou: o brinde foi entregue */
   if(imprimir)imprimirVia(ped);
   PDV.aba='pedidos';telaPDV();
   if(_erroEstoque){

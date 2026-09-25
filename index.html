@@ -5146,6 +5146,24 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .usrSub>.usrPastaH .usrN b{font-size:13px}
 .usrSub>.usrFilhos{margin-left:16px}
 
+/* Programa de fidelidade (Rafael, 25/09/2026): a caixinha do cartão no
+   PDV e na ficha do cliente. Os dez tracinhos são a contagem — forma e
+   cor juntas, como o resto do sistema. */
+.fidCx{display:flex;align-items:center;gap:10px;padding:9px 11px;margin:8px 0 0;
+  border:1px solid var(--line);border-radius:var(--r-s);background:var(--alt)}
+.fidCx.ok{border-color:var(--acc);background:var(--acc-soft)}
+.fidN{flex:1;min-width:0}
+.fidN b{display:block;font-size:12.5px}
+.fidN span{display:block;font-size:11.5px;color:var(--ink-3)}
+.fidBar{height:6px;border-radius:4px;margin-top:5px;display:flex;gap:2px}
+.fidBar i{flex:1;background:var(--line-2);border-radius:2px}
+.fidBar i.on{background:var(--acc)}
+.fidBt{height:38px;min-width:44px;padding:0 14px;border-radius:7px;border:1px solid var(--acc);
+  background:var(--acc);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.fidBt:hover{background:var(--acc-d);border-color:var(--acc-d)}
+.fidFicha{padding:12px 14px 14px}
+.fidFicha .fidCx{margin:0}
+
 /* ================= USUÁRIOS E PERMISSÕES ================= */
 
 @media(max-width:1000px){}
@@ -8529,6 +8547,9 @@ var MAPA=[
     bairro:x.bairro||null,cidade:x.cidade||null,referencia:x.ref||null,
     zona_id:x.zonaId||null,zona:x.zona||null,
     compras:n(x.compras),gasto:n(x.gasto),
+    /* o cartão fidelidade viaja com o cliente: o resgate feito em Santa
+       Fé precisa aparecer na ficha dele em qualquer aparelho */
+    fidelidade_resgates:x.resgates||[],
     limite_fiado:n(x.limiteFiado),saldo_fiado:n(x.saldoFiado),observacao:x.obs||null}}},
 
  {col:'entregadores', espelha:true,tab:'entregadores',
@@ -11194,6 +11215,9 @@ function volta(linhas,fn,atual,col){
     cpf:x.cpf||'',nascimento:x.nascimento||'',obs:x.observacao||'',
     zonaId:x.zona_id||'',zona:x.zona||'',
     limiteFiado:Number(x.limite_fiado)||0,saldoFiado:Number(x.saldo_fiado)||0,
+    /* o que sobe tem de descer: sem isto, o resgate feito no caixa
+       sumiria no primeiro download e o cartão voltaria cheio */
+    resgates:x.fidelidade_resgates||[],
     ultima:x.ultima_compra||''}},null,'clientes');
   var en=await _p05;
   DB.entregadores=volta(en,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,
@@ -13741,7 +13765,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V350.0.0';
+var VERSAO='V351.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -21220,7 +21244,8 @@ function renderComanda(){
       '<div class="ci3"><b>'+E(PDV.cliente.nome)+'</b><span>'+E(PDV.cliente.tel||'sem telefone')+
       ((Number(PDV.cliente.saldoFiado)||0)?' · <b style="color:var(--red)">fiado R$ '+money(PDV.cliente.saldoFiado)+'</b>':'')+'</span></div>'+
       '<button class="qtBtn" onclick="formCliente(\''+PDV.cliente.id+'\')">'+sv('edit',13)+'</button>'+
-      '<button class="qtBtn" onclick="PDV.cliente=null;renderVenda()">'+sv('x2',13)+'</button></div>'
+      '<button class="qtBtn" onclick="tirarClienteDaComanda()">'+sv('x2',13)+'</button></div>'+
+      caixaFidelidade(PDV.cliente)
     : '<button class="btnLinha" onclick="buscarCliente()">'+sv('users',14)+' Identificar cliente</button>')+
   '</div>'+
   '<div class="comItens">';
@@ -21286,7 +21311,11 @@ function lancar(p,opcoes,qtd,obs){
 }
 /* mudarQt saiu junto com os botoes + e - da comanda (03/09/2026): a
    quantidade do item nao se altera mais depois de lancado. */
-function remItem(i){PDV.comanda.splice(i,1);renderVenda();}
+function remItem(i){
+  var it=PDV.comanda[i];
+  if(it&&it.brindeFidelidade){desfazerBrindeDaComanda();renderVenda();return;}
+  PDV.comanda.splice(i,1);renderVenda();
+}
 function obsItem(i){
   var it=PDV.comanda[i];
   var t=prompt('Observação para "'+it.nome+'":',it.obs||'');
@@ -21295,6 +21324,7 @@ function obsItem(i){
 async function limparComanda(){
   if(!PDV.comanda.length)return;
   if(!await pergunta('Limpar todos os itens da comanda?'))return;
+  if(PDV.brindeResgate)desfazerBrindeDaComanda();
   PDV.comanda=[];renderVenda();
 }
 
@@ -21380,6 +21410,53 @@ function modalOpcoes(p,grupos){
 
 /* ---------- CLIENTE ---------- */
 function soDigitos(t){return String(t||'').replace(/\D/g,'')}
+/* ==========================================================
+   O TELEFONE TEM DDD, SEMPRE (Rafael, 25/09/2026)
+
+   *"Eu quero que seja sempre nessa ordem: o DDD 17 e depois o resto
+   dos números. Às vezes pode ter a opção de não colocar DDD; tem que
+   colocar, é obrigatório, aí fica entre parênteses e o número para a
+   frente."*
+
+   O telefone é o IDENTIFICADOR do cliente. Sem DDD, "99812-4477" e
+   "(17) 99812-4477" são a mesma pessoa cadastrada duas vezes — e o
+   cartão fidelidade dela fica partido entre os dois cadastros.
+
+   Aqui o número vira (17) 99999-9999 enquanto se digita, e quem digita
+   só o celular ganha o DDD da loja na frente. Quem tem outro DDD
+   digita os 11 números e o formato acompanha. */
+var DDD_PADRAO='17';
+function telFormatado(t){
+  var d=soDigitos(t).slice(0,11);
+  if(d.length<=2)return d?'('+d:'';
+  var ddd=d.slice(0,2),n=d.slice(2);
+  if(!n.length)return '('+ddd+') ';
+  if(n.length<=4)return '('+ddd+') '+n;
+  if(n.length<=8)return '('+ddd+') '+n.slice(0,4)+'-'+n.slice(4);
+  return '('+ddd+') '+n.slice(0,5)+'-'+n.slice(5);
+}
+/* o que vai para o cadastro: com DDD, sempre. Oito ou nove dígitos sem
+   DDD recebem o da loja — é o número que a pessoa acabou de ditar, e
+   recusar seria atrito à toa no balcão. */
+function telComDDD(t){
+  var d=soDigitos(t);
+  if(d.length===8||d.length===9)d=DDD_PADRAO+d;
+  return telFormatado(d);
+}
+function telValido(t){
+  var d=soDigitos(telComDDD(t));
+  return d.length===10||d.length===11;
+}
+/* liga a máscara num campo: digitar só números já sai formatado */
+function ligarMascaraTel(el){
+  if(!el)return;
+  el.setAttribute('inputmode','tel');
+  el.oninput=function(){
+    var fim=this.selectionStart===this.value.length;
+    this.value=telFormatado(this.value);
+    if(fim)try{this.setSelectionRange(this.value.length,this.value.length)}catch(e){}
+  };
+}
 function clientePorTel(tel){
   var d=soDigitos(tel);
   if(!d)return null;
@@ -21388,8 +21465,8 @@ function clientePorTel(tel){
 function buscarCliente(){
   var h='<div class="mdB">'+
   '<div class="fld2"><label>Telefone do cliente</label>'+
-  '<input id="cliB" type="tel" placeholder="digite o telefone" autocomplete="off">'+
-  '<div class="hint">O telefone é o identificador do cliente — evita cadastro duplicado.</div></div>'+
+  '<input id="cliB" type="tel" placeholder="(17) 99999-9999" autocomplete="off">'+
+  '<div class="hint">Comece pelo DDD. O telefone é o identificador do cliente — evita cadastro duplicado.</div></div>'+
   '<div id="cliRes"></div>'+
   '<button class="btn p" onclick="formCliente(null,($(\'cliB\')||{}).value)" style="margin-top:8px">'+sv('plus',14)+' Cadastrar novo cliente</button></div>';
   modal('Identificar cliente',h,'Fechar',function(){return true});
@@ -21406,9 +21483,16 @@ function buscarCliente(){
       return;
     }
     var h2=r.length?'<div class="pickList">'+r.slice(0,20).map(function(c){
+      var fd=fidelidadeDoCliente(c,lojaAtualId());
       return '<label onclick="usarCliente(\''+c.id+'\')" style="cursor:pointer"><span><b>'+E(c.tel||'sem telefone')+'</b>'+
       '<div style="font-size:11px;color:var(--ink-3)">'+E(c.nome)+' · '+(c.compras||0)+' compras · ticket R$ '+
-      money(c.compras?(c.gasto/c.compras):0)+'</div></span></label>';
+      money(c.compras?(c.gasto/c.compras):0)+'</div>'+
+      (fd.temBrinde
+        ?'<div style="font-size:11px;color:var(--acc-d);font-weight:600;margin-top:3px">brinde disponível</div>'
+        :'<div class="fidBar" style="max-width:190px">'+
+          Array.apply(null,{length:FID_META}).map(function(_,i){
+            return '<i'+(i<fd.compras?' class="on"':'')+'></i>';}).join('')+'</div>')+
+      '</span></label>';
     }).join('')+'</div>':'';
     if(!r.length&&d.length>=8){
       h2='<div class="avisoCfg" style="margin-top:4px">'+sv('help',15)+
@@ -21417,12 +21501,96 @@ function buscarCliente(){
     $('cliRes').innerHTML=h2;
   }
   lista('');
-  inp.oninput=function(){lista(this.value.trim());};
+  /* o campo já nasce com o DDD da loja: o dedo do caixa começa no número */
+  inp.value='('+DDD_PADRAO+') ';
+  inp.oninput=function(){
+    var fim=this.selectionStart===this.value.length;
+    this.value=telFormatado(this.value);
+    if(fim)try{this.setSelectionRange(this.value.length,this.value.length)}catch(e){}
+    lista(this.value.trim());
+  };
   inp.focus();
+  try{inp.setSelectionRange(inp.value.length,inp.value.length)}catch(e){}
 }
 function usarCliente(id){
   PDV.cliente=DB.clientes.find(function(x){return x.id===id});
   fecharModal();renderVenda();
+}
+/* ==========================================================
+   O CARTÃO FIDELIDADE NA COMANDA (Rafael, 25/09/2026)
+
+   *"Na tela do PDV tem que ter a opção de ver quantas vendas ela já
+   teve. Quando ela fizer 10 compras, ela ganha um cascão de uma bola."*
+
+   A caixinha aparece assim que o cliente é identificado: quantas
+   compras já são, quantas faltam, e — quando fecha as dez — o botão de
+   resgatar. Sem cliente identificado não há cartão: o cartão é dele.
+   ========================================================== */
+function caixaFidelidade(c){
+  if(!c||typeof fidelidadeDoCliente!=='function')return '';
+  var f=fidelidadeDoCliente(c,lojaAtualId());
+  var barra='<div class="fidBar">'+
+    Array.apply(null,{length:f.meta}).map(function(_,i){
+      return '<i'+(i<Math.min(f.compras,f.meta)?' class="on"':'')+'></i>';}).join('')+'</div>';
+  if(PDV.brindeResgate){
+    return '<div class="fidCx ok"><div class="fidN"><b>Brinde entregue</b>'+
+      '<span>'+E(PDV.brindeResgate.brinde)+' · já saiu do estoque</span></div></div>';
+  }
+  if(f.temBrinde){
+    var pb=produtoDoBrinde();
+    return '<div class="fidCx ok"><div class="fidN"><b>Brinde disponível</b>'+
+      '<span>'+E((pb&&pb.nome)||'Cascão 1 Bola')+' — '+f.compras+' compras completas</span>'+
+      barra+'</div>'+
+      '<button class="fidBt" onclick="resgatarBrinde()">Resgatar</button></div>';
+  }
+  return '<div class="fidCx"><div class="fidN">'+
+    '<b>Fidelidade · '+f.compras+' de '+f.meta+'</b>'+
+    '<span>'+(f.falta===f.meta?'a contagem começa nesta compra'
+      :'falta'+(f.falta===1?' ':'m ')+f.falta+' compra'+(f.falta===1?'':'s')+
+       ' para o brinde')+'</span>'+barra+'</div></div>';
+}
+/* tirar o cliente da comanda não pode deixar o brinde dele para trás */
+function tirarClienteDaComanda(){
+  if(PDV.brindeResgate){desfazerBrindeDaComanda();}
+  PDV.cliente=null;renderVenda();
+}
+async function resgatarBrinde(){
+  var c=PDV.cliente;
+  if(!c)return;
+  var f=fidelidadeDoCliente(c,lojaAtualId());
+  var pb=produtoDoBrinde();
+  if(!pb){toast('O produto "Cascão 1 Bola" não está no cardápio desta loja.');return;}
+  var ok=await confirmar({titulo:'Resgatar o brinde de '+E(c.nome)+'?',
+    texto:'O '+pb.nome+' entra na comanda por R$ 0,00 e sai do estoque agora.',
+    linhas:[['Brinde',pb.nome,''],['Sai do estoque','pela ficha técnica',''],
+            ['Motivo da baixa','Programa de fidelidade',''],
+            ['Cartão','recomeça do zero','']],
+    aviso:'Fica registrado que '+E(c.nome)+' resgatou hoje, '+dataBR(hojeISO())+
+      ' — dá para consultar na ficha do cliente.',
+    ok:'Resgatar',cancelar:'Voltar',tipo:'check'});
+  if(!ok)return;
+  var r=resgatarFidelidade(c);
+  if(r.erro){painelErro('Não consegui resgatar o brinde.',r.erro);return;}
+  PDV.brindeResgate=r.resgate;
+  /* o brinde entra na comanda por R$ 0,00, marcado: a venda NÃO baixa
+     este item de novo — ele já saiu do estoque no resgate */
+  PDV.comanda.push({id:uid('it'),produtoId:pb.id,nome:pb.nome,qtd:1,unit:0,unitario:0,
+    total:0,opcoes:[],obs:'Brinde do programa de fidelidade',
+    brindeFidelidade:true,resgateId:r.resgate.id});
+  renderVenda();
+  toast('Brinde resgatado. '+pb.nome+' saiu do estoque pelo programa de fidelidade.');
+}
+/* o que não saiu da loja não pode ter saído do estoque: tirar o brinde
+   da comanda devolve o item e o cartão do cliente */
+function desfazerBrindeDaComanda(){
+  var r=PDV.brindeResgate;
+  if(!r)return;
+  var c=PDV.cliente||(DB.clientes||[]).find(function(x){
+    return (x.resgates||[]).some(function(y){return y.id===r.id})});
+  if(c)desfazerResgate(c,r.id);
+  PDV.brindeResgate=null;
+  PDV.comanda=PDV.comanda.filter(function(it){return !it.brindeFidelidade});
+  toast('Brinde devolvido ao estoque — o cartão do cliente voltou.');
 }
 function selectZonasCli(cidade,zonaId){
   var zs=zonasDaCidade(cidade);
@@ -21447,7 +21615,7 @@ function formCliente(id,telPre){
   var c=id?DB.clientes.find(function(x){return x.id===id}):null;
   var h='<div class="mdB"><div class="blk" style="margin:0 0 11px;max-width:none"><h3>Dados do cliente</h3>'+
   '<div class="row2"><div class="fld2"><label>Nome *</label><input id="clN" value="'+E(c?c.nome:'')+'"></div>'+
-  '<div class="fld2"><label>Telefone * <small style="color:var(--ink-3);font-weight:400">identificador</small></label>'+'<input id="clT" type="tel" value="'+E(c?c.tel:(telPre||''))+'" placeholder="(00) 00000-0000"></div></div></div>'+
+  '<div class="fld2"><label>Telefone * <small style="color:var(--ink-3);font-weight:400">identificador</small></label>'+'<input id="clT" type="tel" value="'+E(c?c.tel:telComDDD(telPre||''))+'" placeholder="(17) 99999-9999"></div></div></div>'+
   '<div class="blk" style="margin:0;max-width:none"><h3>Endereço <small>para entrega</small></h3>'+
   '<div class="row2"><div class="fld2"><label>Rua</label><input id="clR" value="'+E(c?c.rua:'')+'"></div>'+
   '<div class="fld2"><label>Número</label><input id="clNu" value="'+E(c?c.numero:'')+'"></div></div>'+
@@ -21474,11 +21642,16 @@ function formCliente(id,telPre){
      '<div><div class="hint">Ticket médio</div><b style="font-size:17px">R$ '+money(c.compras?(c.gasto/c.compras):0)+'</b></div></div>'+
      '<div class="hint" style="margin-top:9px">Última compra: '+(c.ultima||'—')+'</div></div>':'')+
   '</div>';
+  setTimeout(function(){ligarMascaraTel($('clT'))},30);
   modal(c?'Cliente':'Cadastrar cliente',h,'Salvar',async function(){
     var nome=$('clN').value.trim();
     var tel=$('clT').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
-    if(soDigitos(tel).length<8){toast('Informe um telefone válido — é ele que identifica o cliente.');return false;}
+    /* DDD obrigatório: sem ele o mesmo cliente nasce duas vezes, e o
+       cartão fidelidade dele fica partido entre os dois cadastros */
+    if(!telValido(tel)){
+      toast('O telefone precisa do DDD — exemplo: (17) 99999-9999.');return false;}
+    tel=telComDDD(tel);
     var dup=clientePorTel(tel);
     if(dup&&(!c||dup.id!==c.id)){
       if(!await pergunta('Já existe um cliente com este telefone: "'+dup.nome+'".\nDeseja atualizar o cadastro dele em vez de criar outro?','Atualizar o cadastro'))return false;
@@ -22130,6 +22303,7 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
       String((e&&e.message)||e).slice(0,100)); }catch(e2){_quieto(e2,'vendaAtomica')}
   }
   PDV.comanda=[];PDV.cliente=null;PDV.tipo='loja';_cidadeVenda='';
+  PDV.brindeResgate=null;          /* a venda fechou: o brinde foi entregue */
   if(imprimir)imprimirVia(ped);
   PDV.aba='pedidos';telaPDV();
   if(_erroEstoque){
@@ -31096,6 +31270,56 @@ function fichaCliente(id){
     '<b class="'+(c.saldoFiado?'vr':'')+'">R$ '+money(c.saldoFiado||0)+'</b></div>'+
   '</div>'+
 
+  /* ==========================================================
+     O CARTÃO FIDELIDADE, NA FICHA DO CLIENTE (Rafael, 25/09/2026)
+
+     *"Como é que eu vou saber? Se eu entrar no cadastro dela, eu vou
+     saber que ela resgatou, o dia que ela resgatou, a hora que ela
+     resgatou, e como que eu vou saber se já começou a nova contagem?"*
+
+     Então a ficha responde as três: em que ponto o cartão está AGORA,
+     cada resgate com dia e hora, e o que já foi comprado depois do
+     último — que é a contagem nova, começada.
+     ========================================================== */
+  (function(){
+    var fid=fidelidadeDoCliente(c,lojaAtualId());
+    var todos=resgatesDoCliente(c).slice().sort(function(a2,b2){
+      return String(b2.em||'').localeCompare(String(a2.em||''));});
+    return '<div class="blk fidBlk" style="margin:11px 0 0;max-width:none;padding:0;overflow:hidden">'+
+     '<div class="acTit">Programa de fidelidade '+
+      '<span style="font-weight:400;text-transform:none">'+E(sucNome(fid.sucursalId)||'esta loja')+
+      ' · '+FID_META+' compras = 1 '+E((produtoDoBrinde()||{}).nome||'Cascão 1 Bola')+'</span></div>'+
+     '<div class="fidFicha">'+
+      '<div class="fidCx'+(fid.temBrinde?' ok':'')+'">'+
+       '<div class="fidN">'+
+        '<b>'+(fid.temBrinde?'Brinde disponível'
+              :'Cartão em andamento · '+fid.compras+' de '+FID_META)+'</b>'+
+        '<span>'+(fid.temBrinde
+          ?'são '+fid.compras+' compras completas — dá para resgatar no PDV'
+          :(fid.falta===FID_META?'a contagem começa na próxima compra'
+            :'faltam '+fid.falta+' compra'+(fid.falta===1?'':'s')))+
+         (fid.ultimo?' · contagem nova desde o resgate de '+dataBR(fid.ultimo.data)+
+          ' às '+E(fid.ultimo.hora||''):'')+'</span>'+
+        '<div class="fidBar">'+
+         Array.apply(null,{length:FID_META}).map(function(_,i){
+           return '<i'+(i<Math.min(fid.compras,FID_META)?' class="on"':'')+'></i>';}).join('')+
+        '</div>'+
+       '</div>'+
+      '</div>'+
+      (todos.length
+        ?'<table class="acTab" style="margin-top:10px"><thead><tr>'+
+          '<th style="width:110px">Resgatou em</th><th style="width:70px">Hora</th>'+
+          '<th>Brinde</th><th style="width:150px">Loja</th><th style="width:130px">Quem entregou</th>'+
+          '</tr></thead><tbody>'+
+          todos.map(function(r){
+            return '<tr><td><b>'+dataBR(r.data)+'</b></td><td>'+E(r.hora||'')+'</td>'+
+            '<td>'+E(r.brinde||'')+'</td><td>'+E(sucNome(r.sucursalId)||'')+'</td>'+
+            '<td>'+E(r.por||'')+'</td></tr>';}).join('')+
+          '</tbody></table>'
+        :'<div class="hint" style="padding:12px 2px 2px">Nenhum brinde resgatado até agora.</div>')+
+     '</div></div>';
+  })()+
+
   '<div class="crmCols">'+
    '<div class="blk" style="margin:0;max-width:none;padding:0;overflow:hidden">'+
     '<div class="acTit">Produtos que mais compra</div>'+
@@ -31159,7 +31383,7 @@ function formCliente2(id){
   '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Dados pessoais</h3>'+
   '<div class="row2"><div class="fld2"><label>Nome *</label><input id="k2N" value="'+E(c?c.nome:'')+'"></div>'+
   '<div class="fld2"><label>Telefone * <small style="color:var(--ink-3);font-weight:400">identificador</small></label>'+
-  '<input id="k2T" type="tel" value="'+E(c?c.tel:'')+'" placeholder="(00) 00000-0000"></div></div>'+
+  '<input id="k2T" type="tel" value="'+E(c?c.tel:'')+'" placeholder="(17) 99999-9999"></div></div>'+
   '<div class="row2"><div class="fld2" style="margin:0"><label>CPF</label><input id="k2C" value="'+E(c?c.cpf:'')+'" placeholder="000.000.000-00"></div>'+
   '<div class="fld2" style="margin:0"><label>Data de nascimento</label><input id="k2A" type="date" value="'+E(c?c.nascimento:'')+'"></div></div>'+
   '</div>'+
@@ -31181,10 +31405,15 @@ function formCliente2(id){
   '<div class="hint">Zero significa que o cliente não pode comprar fiado.</div></div>'+
   '<div class="fld2" style="margin:0"><label>Observações</label><input id="k2O" value="'+E(c?c.obs:'')+'"></div></div>'+
   '</div></div>';
+  setTimeout(function(){ligarMascaraTel($('k2T'))},30);
   modal(c?'Editar cliente':'Novo cliente',h,'Salvar',async function(){
     var nome=$('k2N').value.trim(),tel=$('k2T').value.trim();
     if(!nome){toast('Informe o nome.');return false;}
-    if(soDigitos(tel).length<8){toast('Informe um telefone válido — é ele que identifica o cliente.');return false;}
+    /* o mesmo DDD obrigatório do cadastro do PDV: é o mesmo cliente,
+       e um cadastro sem DDD parte o cartão fidelidade dele em dois */
+    if(!telValido(tel)){
+      toast('O telefone precisa do DDD — exemplo: (17) 99999-9999.');return false;}
+    tel=telComDDD(tel);
     var dup=clientePorTel(tel);
     if(dup&&(!c||dup.id!==c.id)){
       if(!await pergunta('Já existe um cliente com este telefone: "'+dup.nome+'".\nAtualizar o cadastro dele?','Atualizar o cadastro'))return false;
@@ -31263,6 +31492,197 @@ function exportarClientes(){
   a.download='nexor-clientes.csv';document.body.appendChild(a);a.click();
   setTimeout(function(){a.remove()},400);
   toast('Clientes exportados.');
+}
+
+/* ==========================================================
+   PROGRAMA DE FIDELIDADE (Rafael, 25/09/2026)
+
+   *"Quando ela fizer 10 compras, ela ganha um cascão de uma bola, tipo
+   um cartão fidelidade. Aí clicou em resgatar, automaticamente já dá
+   baixa num cascão de uma bola da ficha técnica, e o motivo é programa
+   de fidelidade."*
+
+   As duas decisões dele, de 25/09/2026:
+     - o cascão do brinde NÃO conta como compra para o próximo cartão;
+     - o cartão é DE CADA LOJA: quem compra em Santa Fé junta com Santa
+       Fé e resgata lá, e o estoque sai da loja que entregou.
+
+   O que conta como compra: pedido não cancelado, daquela unidade, feito
+   DEPOIS do último resgate, e com valor maior que zero — a venda que só
+   entregou o brinde vale R$ 0,00 e por isso não conta, que é
+   exatamente a regra que ele pediu.
+
+   Nada aqui é um contador guardado: a contagem é lida dos pedidos toda
+   vez. Contador guardado é a coisa que dessincroniza — dois caixas, um
+   pedido cancelado, um download da nuvem, e o número mente. Os pedidos
+   são a verdade, e o resgate é o único registro novo.
+   ========================================================== */
+var FID_META = 10;                       /* compras para ganhar o brinde */
+var FID_BRINDE = 'cascão 1 bola';        /* o produto do brinde, pelo nome */
+
+/* `_semAcento` já existe no módulo de movimentação e faz o mesmo: no
+   escopo único do sistema, declarar de novo apagaria o de lá — foi a
+   vistoria que pegou isto antes de virar defeito. */
+/* o produto do brinde no cardápio desta loja. Pelo nome, sem acento e
+   sem caixa: "Cascão 1 Bola", "CASCAO 1 BOLA" e "cascao 1 bola" são o
+   mesmo produto para quem digitou o cardápio. */
+function produtoDoBrinde(){
+  var alvo=_semAcento(FID_BRINDE).trim();
+  return (DB.produtos||[]).find(function(p){
+    return p.ativo!==false&&_semAcento(p.nome).trim()===alvo;
+  })||null;
+}
+function resgatesDoCliente(c,suc){
+  var l=(c&&c.resgates)||[];
+  if(!suc)return l.slice();
+  return l.filter(function(r){return (r.sucursalId||'')===suc});
+}
+/* o último resgate desta loja, para saber de onde recomeça a contagem */
+function ultimoResgate(c,suc){
+  var l=resgatesDoCliente(c,suc).slice().sort(function(a,b){
+    return String(a.em||'').localeCompare(String(b.em||''));});
+  return l.length?l[l.length-1]:null;
+}
+function comprasDoCartao(c,suc){
+  if(!c)return [];
+  var ult=ultimoResgate(c,suc);
+  var desde=ult?String(ult.em||''):'';
+  return (DB.pedidos||[]).filter(function(p){
+    if(p.clienteId!==c.id||ehCancelado(p))return false;
+    if((p.sucursalId||'')!==suc)return false;
+    if(!(Number(p.total)>0))return false;        /* a venda só do brinde não conta */
+    return !desde||String(p.data||'')>desde;
+  });
+}
+/* tudo o que a tela precisa saber, numa leitura só */
+function fidelidadeDoCliente(c,suc){
+  suc=suc||lojaAtualId();
+  var ps=comprasDoCartao(c,suc);
+  var n=ps.length;
+  return {compras:n,meta:FID_META,falta:Math.max(0,FID_META-n),
+    temBrinde:n>=FID_META,ultimo:ultimoResgate(c,suc),
+    resgates:resgatesDoCliente(c,suc),sucursalId:suc};
+}
+
+/* ==========================================================
+   O RESGATE
+
+   Faz três coisas, nesta ordem, e nenhuma pela metade:
+     1. dá baixa no estoque pela ficha técnica do brinde, num movimento
+        com motivo PRÓPRIO — "Programa de fidelidade", que é como ele
+        aparece na Movimentação de Estoque e nos relatórios;
+     2. guarda o resgate no cliente, com dia, hora, loja e quem estava
+        no caixa;
+     3. devolve o registro, para o PDV pôr o brinde na comanda por
+        R$ 0,00.
+
+   Se a baixa não puder acontecer (produto sem ficha), o resgate NÃO é
+   gravado: entregar o brinde sem tirar do estoque é criar diferença de
+   inventário que ninguém explica depois.
+   ========================================================== */
+function motivoFidelidade(){
+  baseMov();
+  var m=(DB.motivosMov||[]).find(function(x){return x.id==='mv_fidelidade'});
+  if(!m){
+    m={id:'mv_fidelidade',nome:'Programa de fidelidade',tipo:'saida',
+       sistema:true,ativo:true,lojas:[]};
+    DB.motivosMov.push(m);
+  }
+  return m;
+}
+/* as linhas de estoque do brinde: a mesma conta da venda, porque é a
+   mesma entrega — muda só o motivo */
+function linhasDoBrinde(prod,qtd){
+  var q=Number(qtd)||1;
+  if(prod.insumoId){
+    var ins=insumo(prod.insumoId);
+    if(!ins)return [];
+    var uL=prod.insumoUn||ins.unidade;
+    return [{insumoId:ins.id,nome:ins.nome,unidade:uL,
+      qtd:+((Number(prod.insumoQtd)||1)*q).toFixed(4),
+      custo:custoNaUnidade(ins,uL),direcao:'saida',origem:'fidelidade'}];
+  }
+  var f=(DB.fichas||[]).find(function(x){return x.id===prod.fichaId});
+  if(!f)return [];
+  var porUn=(Number(f.unidadesVenda)||Number(f.rendimento)||1);
+  var dest=destinoDaFicha(f);
+  if(dest){
+    return [{insumoId:dest.id,nome:dest.nome,unidade:f.rendUnidade||f.unidade,
+      qtd:+((Number(f.rendimento)||1)/porUn*q).toFixed(4),
+      custo:custoPorUnidade(f),direcao:'saida',origem:'fidelidade',fichaNome:f.nome}];
+  }
+  var fator=q/porUn;
+  return (f.itens||[]).map(function(ci){
+    var i2=insumo(ci.insumoId);
+    if(!i2)return null;
+    return {insumoId:i2.id,nome:i2.nome,unidade:ci.unidade,
+      qtd:+((Number(ci.qtd)||0)*fator).toFixed(4),
+      custo:custoNaUnidade(i2,ci.unidade),direcao:'saida',origem:'fidelidade',
+      fichaId:f.id,fichaNome:f.nome};
+  }).filter(Boolean);
+}
+/* ==========================================================
+   A BAIXA SAI NA UNIDADE DO ITEM — a mesma trava da venda
+
+   A ficha rende em GRAMA e o GELATO VENDA é guardado em QUILO. O
+   aparelho converte na hora de aplicar, mas o pacote que sobe para a
+   nuvem NÃO converte: o banco faz `estoque = estoque + qtd` e
+   descontaria 60 quilos por um cascão. Foi assim que o saldo de Santa
+   Fé foi a 779 kg negativos em 31/08/2026, pela venda.
+   Aqui vale igual: o que o aparelho guarda, o que sobe e o que o banco
+   aplica têm de ser a MESMA quantidade, na MESMA unidade.
+   ========================================================== */
+function normalizarLinhasEstoque(linhas){
+  return (linhas||[]).map(function(l){
+    var ins=itemEstoque(l.insumoId);
+    if(!ins||!ins.unidade||!l.unidade||l.unidade===ins.unidade)return l;
+    var q=convUnid(Number(l.qtd)||0,l.unidade,ins.unidade);
+    if(q===null)return l;                  /* sem base comum: não arrisca */
+    return Object.assign({},l,{qtd:+q.toFixed(4),unidade:ins.unidade,
+      custo:custoNaUnidade(ins,ins.unidade)});
+  });
+}
+function resgatarFidelidade(c){
+  baseCRM();baseMov();
+  var suc=lojaAtualId();
+  var fid=fidelidadeDoCliente(c,suc);
+  if(!fid.temBrinde)return {erro:'Este cliente ainda não completou as '+FID_META+' compras.'};
+  var prod=produtoDoBrinde();
+  if(!prod)return {erro:'O produto "Cascão 1 Bola" não está no cardápio desta loja.'};
+  var linhas=normalizarLinhasEstoque(linhasDoBrinde(prod,1));
+  if(!linhas.length)
+    return {erro:'O "'+prod.nome+'" não tem ficha técnica ligada — sem ela o estoque não baixa.'};
+
+  var mot=motivoFidelidade();
+  var mov={id:uid('mv'),data:hojeISO(),hora:agoraHM(),motivoId:mot.id,
+    identificacao:'Fidelidade · '+(c.nome||''),obs:'10 compras completas',
+    linhas:linhas,origem:'fidelidade',sucursalId:suc,clienteId:c.id};
+  DB.movEst.push(mov);
+  aplicarMovimento(mov);
+
+  var quem=(usuarioLogado()||{}).nome||'';
+  var r={id:uid('fid'),em:new Date().toISOString(),data:hojeISO(),hora:agoraHM(),
+    sucursalId:suc,por:quem,brinde:prod.nome,produtoId:prod.id,movId:mov.id,
+    compras:fid.compras};
+  c.resgates=(c.resgates||[]).concat([r]);
+  salvar();
+  return {ok:true,resgate:r,produto:prod,movimento:mov};
+}
+/* desfaz o resgate: devolve o brinde ao estoque e o cartão ao cliente.
+   Usado quando o brinde sai da comanda antes da venda fechar — o que
+   não saiu da loja não pode ter saído do estoque. */
+function desfazerResgate(c,resgateId){
+  if(!c||!resgateId)return false;
+  var r=(c.resgates||[]).find(function(x){return x.id===resgateId});
+  if(!r)return false;
+  var mov=(DB.movEst||[]).find(function(m){return m.id===r.movId});
+  if(mov){
+    aplicarMovimento(mov,true);
+    DB.movEst=(DB.movEst||[]).filter(function(m){return m.id!==r.movId});
+  }
+  c.resgates=(c.resgates||[]).filter(function(x){return x.id!==resgateId});
+  salvar();
+  return true;
 }
 
 /* ==========================================================
@@ -37549,6 +37969,13 @@ function baixarEstoqueVenda(ped){
     });
   }
   (ped.itens||[]).forEach(function(it){
+    /* ==========================================================
+       O BRINDE DA FIDELIDADE JÁ SAIU DO ESTOQUE (25/09/2026)
+       Ele baixa no instante do RESGATE, com motivo próprio ("Programa
+       de fidelidade"), que é o que o Rafael pediu para enxergar. Baixar
+       de novo aqui tiraria dois cascões do estoque por um entregue.
+       ========================================================== */
+    if(it.brindeFidelidade)return;
     baixarOpcoes(it,Number(it.qtd)||1);
     var p=(DB.produtos||[]).find(function(x){return x.id===it.produtoId});
     if(!p||!p.vinculaEstoque)return;

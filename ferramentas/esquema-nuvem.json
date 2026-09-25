@@ -1,5 +1,5 @@
 {
- "gerado": "2026-09-24",
+ "gerado": "2026-09-25",
  "projeto": "cevghkndzpzvnzwifhnm",
  "tabelas": {
   "acertos": {
@@ -544,7 +544,8 @@
     "saldo_fiado": "numeric",
     "observacao": "text",
     "zona_id": "text",
-    "zona": "text"
+    "zona": "text",
+    "fidelidade_resgates": "jsonb"
    },
    "unicos": [
     [

@@ -1591,6 +1591,9 @@ var MAPA=[
     bairro:x.bairro||null,cidade:x.cidade||null,referencia:x.ref||null,
     zona_id:x.zonaId||null,zona:x.zona||null,
     compras:n(x.compras),gasto:n(x.gasto),
+    /* o cartão fidelidade viaja com o cliente: o resgate feito em Santa
+       Fé precisa aparecer na ficha dele em qualquer aparelho */
+    fidelidade_resgates:x.resgates||[],
     limite_fiado:n(x.limiteFiado),saldo_fiado:n(x.saldoFiado),observacao:x.obs||null}}},
 
  {col:'entregadores', espelha:true,tab:'entregadores',

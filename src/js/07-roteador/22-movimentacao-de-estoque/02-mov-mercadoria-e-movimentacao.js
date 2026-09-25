@@ -1063,6 +1063,13 @@ function baixarEstoqueVenda(ped){
     });
   }
   (ped.itens||[]).forEach(function(it){
+    /* ==========================================================
+       O BRINDE DA FIDELIDADE JÁ SAIU DO ESTOQUE (25/09/2026)
+       Ele baixa no instante do RESGATE, com motivo próprio ("Programa
+       de fidelidade"), que é o que o Rafael pediu para enxergar. Baixar
+       de novo aqui tiraria dois cascões do estoque por um entregue.
+       ========================================================== */
+    if(it.brindeFidelidade)return;
     baixarOpcoes(it,Number(it.qtd)||1);
     var p=(DB.produtos||[]).find(function(x){return x.id===it.produtoId});
     if(!p||!p.vinculaEstoque)return;

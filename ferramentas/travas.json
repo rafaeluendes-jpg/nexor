@@ -181,6 +181,10 @@
    "pontos": 20,
    "roda": true
   },
+  "testes/fidelidade-e-telefone.js": {
+   "pontos": 42,
+   "roda": true
+  },
   "testes/formas-esperam-download.js": {
    "pontos": 10,
    "roda": true

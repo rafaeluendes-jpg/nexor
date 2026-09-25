@@ -33,8 +33,13 @@ t('a quantidade do item continua aparecendo no selo do topo',
   /class="qb">'\s*\+\s*it\.qtd/.test(rc));
 t('o botão de observação continua', /obsItem\(/.test(rc));
 t('o botão de remover a linha (lixeira) continua', /remItem\(/.test(rc));
+/* 25/09/2026: a conferência passou a olhar o COMPORTAMENTO, e não a
+   letra da função. O `remItem` ganhou o caso do brinde da fidelidade
+   (tirar o brinde devolve o cascão ao estoque), e a linha continua
+   saindo inteira — que é o que esta trava existe para garantir. */
+const rci = corpoDaFuncao('remItem', fonte);
 t('remItem ainda existe e tira a linha inteira',
-  /function remItem\(i\)\{PDV\.comanda\.splice\(i,1\)/.test(fonte));
+  /PDV\.comanda\.splice\(i,1\)/.test(rci) && !/qtd\s*[-+]/.test(rci), rci);
 
 console.log('\n── Adicionar continua lançando o item (uma unidade por toque)\n');
 const lc = corpoDaFuncao('lancar', fonte);
