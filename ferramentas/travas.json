@@ -397,6 +397,10 @@
    "pontos": 8,
    "roda": true
   },
+  "testes/usuarios-arvore-e-login-repetido.js": {
+   "pontos": 20,
+   "roda": true
+  },
   "testes/venda-baixa-mantem-vinculo.js": {
    "pontos": 8,
    "roda": true

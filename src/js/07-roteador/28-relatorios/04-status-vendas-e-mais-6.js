@@ -3029,8 +3029,61 @@ function telaUsuarios(){
          '<div class="usrN"><b>'+E(nomeEmp)+'</b><span>'+sucs.length+' unidade'+
           (sucs.length===1?'':'s')+' · '+totalAc+' acesso'+(totalAc===1?'':'s')+'</span></div>'+
         '</button><div class="usrFilhos">'+
-        semUn.map(function(u){return linha(u,true)}).join('')+
-        sucs.map(function(sc){
+        /* ==========================================================
+           CADA UNIDADE É UMA PASTA (Rafael, 25/09/2026)
+
+           *"Se eu criei o Ricardo Soares dentro da Jolô Gelato Matriz,
+           não deveria aparecer tudo solto. Tipo assim: Jolô Gelato, e aí
+           tem uma setinha, clicou, todas as pessoas que foram criadas
+           dentro de Jolô Gelato. Santa Fé, clicou, aparece tudo que
+           Santa Fé criou."*
+
+           Antes, os acessos das quatro unidades vinham um embaixo do
+           outro, com o nome da unidade escrito pequeno na linha de cada
+           pessoa — com seis acessos já era uma lista solta, e com a rede
+           inteira seria ilegível. Agora a pasta é a UNIDADE, e quem foi
+           criado nela mora dentro dela.
+
+           Procurando por nome, tudo abre: ninguém procura dentro de
+           pasta fechada.
+           ========================================================== */
+        (function(){
+          function pasta(chave, titulo, sub, gente, cor){
+            if(!gente.length)return '';
+            var ab=buscando||US.abertas[chave]!==false;
+            return '<div class="usrPasta usrSub'+(ab?' ab':'')+'">'+
+              '<button class="usrPastaH" onclick="abrirPastaEmpresa(this,\''+
+                String(chave).replace(/'/g,"\\'")+'\')">'+
+               '<span class="usrSeta"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" '+
+                 'stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">'+
+                 '<path d="M9 5l7 7-7 7"/></svg></span>'+
+               '<div class="usrAv" style="background:'+(cor||'var(--acc)')+';color:#fff">'+
+                 E(String(titulo||'?').charAt(0).toUpperCase())+'</div>'+
+               '<div class="usrN"><b>'+E(titulo)+'</b><span>'+E(sub)+'</span></div>'+
+              '</button><div class="usrFilhos">'+
+              gente.map(function(u){return linha(u,true)}).join('')+
+              '</div></div>';
+          }
+          var mz=sucs.find(function(x){return x.matriz});
+          /* quem não está preso a uma unidade responde pela empresa toda:
+             é o acesso da matriz, e é onde o Ricardo Soares foi criado */
+          var daMatriz=semUn.concat(mz?(porUn[mz.id]||[]):[]);
+          var fora=sucs.filter(function(x){return !x.matriz});
+          /* quando a empresa já se chama como a matriz, a sub-pasta vira
+             só "Matriz": o nome repetido em duas linhas seguidas parece
+             erro de tela */
+          var nomeMz=(mz&&mz.nome)||'Matriz';
+          if(String(nomeMz).toLowerCase()===String(nomeEmp).toLowerCase())nomeMz='Matriz';
+          return pasta('__matriz', nomeMz,
+                       daMatriz.length+' acesso'+(daMatriz.length===1?'':'s')+' · a rede toda',
+                       daMatriz, 'var(--deep)')+
+            fora.map(function(sc){
+              var us=porUn[sc.id]||[];
+              return pasta('un_'+sc.id, sc.nome,
+                us.length+' acesso'+(us.length===1?'':'s'), us, sc.cor);
+            }).join('');
+        })()+
+        [].map(function(sc){
           var us=porUn[sc.id]||[];
           /* Unidade COM acesso mostra so o acesso: o nome da unidade ja vem
              na propria linha dele, e repetir logo acima era a mesma coisa

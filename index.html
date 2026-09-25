@@ -5137,6 +5137,15 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .permSalvar #permEstado.sujo{color:var(--red);font-weight:600}
 .permSalvar .btnP2{height:44px;min-width:44px;padding:0 18px;font-size:13.5px;display:inline-flex;align-items:center;gap:6px}
 
+/* Cada unidade é uma pasta dentro da empresa (Rafael, 25/09/2026):
+   a segunda dobra é mais discreta que a primeira — mesma família de
+   linha, um degrau menor, para a árvore não virar escada. */
+.usrSub{margin:2px 0 2px 2px}
+.usrSub>.usrPastaH{padding:7px 8px}
+.usrSub>.usrPastaH .usrAv{width:26px;height:26px;font-size:11px}
+.usrSub>.usrPastaH .usrN b{font-size:13px}
+.usrSub>.usrFilhos{margin-left:16px}
+
 /* ================= USUÁRIOS E PERMISSÕES ================= */
 
 @media(max-width:1000px){}
@@ -13732,7 +13741,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V349.0.0';
+var VERSAO='V350.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -52697,8 +52706,61 @@ function telaUsuarios(){
          '<div class="usrN"><b>'+E(nomeEmp)+'</b><span>'+sucs.length+' unidade'+
           (sucs.length===1?'':'s')+' · '+totalAc+' acesso'+(totalAc===1?'':'s')+'</span></div>'+
         '</button><div class="usrFilhos">'+
-        semUn.map(function(u){return linha(u,true)}).join('')+
-        sucs.map(function(sc){
+        /* ==========================================================
+           CADA UNIDADE É UMA PASTA (Rafael, 25/09/2026)
+
+           *"Se eu criei o Ricardo Soares dentro da Jolô Gelato Matriz,
+           não deveria aparecer tudo solto. Tipo assim: Jolô Gelato, e aí
+           tem uma setinha, clicou, todas as pessoas que foram criadas
+           dentro de Jolô Gelato. Santa Fé, clicou, aparece tudo que
+           Santa Fé criou."*
+
+           Antes, os acessos das quatro unidades vinham um embaixo do
+           outro, com o nome da unidade escrito pequeno na linha de cada
+           pessoa — com seis acessos já era uma lista solta, e com a rede
+           inteira seria ilegível. Agora a pasta é a UNIDADE, e quem foi
+           criado nela mora dentro dela.
+
+           Procurando por nome, tudo abre: ninguém procura dentro de
+           pasta fechada.
+           ========================================================== */
+        (function(){
+          function pasta(chave, titulo, sub, gente, cor){
+            if(!gente.length)return '';
+            var ab=buscando||US.abertas[chave]!==false;
+            return '<div class="usrPasta usrSub'+(ab?' ab':'')+'">'+
+              '<button class="usrPastaH" onclick="abrirPastaEmpresa(this,\''+
+                String(chave).replace(/'/g,"\\'")+'\')">'+
+               '<span class="usrSeta"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" '+
+                 'stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">'+
+                 '<path d="M9 5l7 7-7 7"/></svg></span>'+
+               '<div class="usrAv" style="background:'+(cor||'var(--acc)')+';color:#fff">'+
+                 E(String(titulo||'?').charAt(0).toUpperCase())+'</div>'+
+               '<div class="usrN"><b>'+E(titulo)+'</b><span>'+E(sub)+'</span></div>'+
+              '</button><div class="usrFilhos">'+
+              gente.map(function(u){return linha(u,true)}).join('')+
+              '</div></div>';
+          }
+          var mz=sucs.find(function(x){return x.matriz});
+          /* quem não está preso a uma unidade responde pela empresa toda:
+             é o acesso da matriz, e é onde o Ricardo Soares foi criado */
+          var daMatriz=semUn.concat(mz?(porUn[mz.id]||[]):[]);
+          var fora=sucs.filter(function(x){return !x.matriz});
+          /* quando a empresa já se chama como a matriz, a sub-pasta vira
+             só "Matriz": o nome repetido em duas linhas seguidas parece
+             erro de tela */
+          var nomeMz=(mz&&mz.nome)||'Matriz';
+          if(String(nomeMz).toLowerCase()===String(nomeEmp).toLowerCase())nomeMz='Matriz';
+          return pasta('__matriz', nomeMz,
+                       daMatriz.length+' acesso'+(daMatriz.length===1?'':'s')+' · a rede toda',
+                       daMatriz, 'var(--deep)')+
+            fora.map(function(sc){
+              var us=porUn[sc.id]||[];
+              return pasta('un_'+sc.id, sc.nome,
+                us.length+' acesso'+(us.length===1?'':'s'), us, sc.cor);
+            }).join('');
+        })()+
+        [].map(function(sc){
           var us=porUn[sc.id]||[];
           /* Unidade COM acesso mostra so o acesso: o nome da unidade ja vem
              na propria linha dele, e repetir logo acima era a mesma coisa
@@ -53414,7 +53476,37 @@ function formUsuario(id){
     /* o Auth so aceita e-mail; login sem arroba nao conseguiria entrar */
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)){
       toast('O login precisa ser um e-mail — é ele que entra no sistema.');return false;}
-    var rep=DB.usuarios.find(function(x){return x.login===login&&x.id!==(u?u.id:'')});
+    /* ==========================================================
+       "JÁ EXISTE" SEM DIZER ONDE ESTÁ (Rafael, 25/09/2026)
+
+       *"Estou tentando criar uma para o Railan, e fala que já existe.
+       Mas se você ver a foto, não tem nenhum login Railan aí."*
+
+       Estava lá — DESLIGADO. A árvore esconde os desligados (e faz bem),
+       então a recusa apontava para uma linha que a tela não mostrava, e
+       do lado de fora parecia defeito do sistema.
+
+       Agora a mensagem diz o que é e o caminho: reativar aquele acesso
+       em vez de criar um segundo com o mesmo login — que o banco também
+       recusaria, porque login é único por empresa.
+       ========================================================== */
+    var rep=DB.usuarios.find(function(x){
+      return String(x.login||'').toLowerCase()===login&&x.id!==(u?u.id:'')});
+    if(rep&&rep.ativo===false){
+      var quer=await confirmar({titulo:'Este login já existe, desligado',
+        texto:'"'+rep.nome+'" usa o login '+login+' e está desligado. '+
+              'Dois acessos com o mesmo login não podem existir.',
+        linhas:[['Acesso desligado',rep.nome,''],['Login',login,'']],
+        aviso:'Reativar traz esse acesso de volta com as telas que ele já tinha. '+
+              'Se a senha for outra pessoa, troque a senha depois de reativar.',
+        ok:'Reativar este acesso',cancelar:'Voltar'});
+      if(quer){
+        rep.ativo=true; delete rep.excluidoEm;
+        US.sel=rep.id; salvar(); fecharModal(); telaUsuarios();
+        toast('Acesso de '+rep.nome+' reativado. Confira as telas e a senha.');
+      }
+      return false;
+    }
     if(rep){toast('Já existe um usuário com o login "'+login+'".');return false;}
     var senha=$('uSenha').value;
     if(!u&&!senha){toast('Informe a senha.');return false;}

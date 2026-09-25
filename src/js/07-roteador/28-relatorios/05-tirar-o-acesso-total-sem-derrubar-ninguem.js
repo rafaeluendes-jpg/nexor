@@ -463,7 +463,37 @@ function formUsuario(id){
     /* o Auth so aceita e-mail; login sem arroba nao conseguiria entrar */
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)){
       toast('O login precisa ser um e-mail — é ele que entra no sistema.');return false;}
-    var rep=DB.usuarios.find(function(x){return x.login===login&&x.id!==(u?u.id:'')});
+    /* ==========================================================
+       "JÁ EXISTE" SEM DIZER ONDE ESTÁ (Rafael, 25/09/2026)
+
+       *"Estou tentando criar uma para o Railan, e fala que já existe.
+       Mas se você ver a foto, não tem nenhum login Railan aí."*
+
+       Estava lá — DESLIGADO. A árvore esconde os desligados (e faz bem),
+       então a recusa apontava para uma linha que a tela não mostrava, e
+       do lado de fora parecia defeito do sistema.
+
+       Agora a mensagem diz o que é e o caminho: reativar aquele acesso
+       em vez de criar um segundo com o mesmo login — que o banco também
+       recusaria, porque login é único por empresa.
+       ========================================================== */
+    var rep=DB.usuarios.find(function(x){
+      return String(x.login||'').toLowerCase()===login&&x.id!==(u?u.id:'')});
+    if(rep&&rep.ativo===false){
+      var quer=await confirmar({titulo:'Este login já existe, desligado',
+        texto:'"'+rep.nome+'" usa o login '+login+' e está desligado. '+
+              'Dois acessos com o mesmo login não podem existir.',
+        linhas:[['Acesso desligado',rep.nome,''],['Login',login,'']],
+        aviso:'Reativar traz esse acesso de volta com as telas que ele já tinha. '+
+              'Se a senha for outra pessoa, troque a senha depois de reativar.',
+        ok:'Reativar este acesso',cancelar:'Voltar'});
+      if(quer){
+        rep.ativo=true; delete rep.excluidoEm;
+        US.sel=rep.id; salvar(); fecharModal(); telaUsuarios();
+        toast('Acesso de '+rep.nome+' reativado. Confira as telas e a senha.');
+      }
+      return false;
+    }
     if(rep){toast('Já existe um usuário com o login "'+login+'".');return false;}
     var senha=$('uSenha').value;
     if(!u&&!senha){toast('Informe a senha.');return false;}

@@ -2610,3 +2610,12 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .permSalvar #permEstado{font-size:13px;color:var(--acc-d)}
 .permSalvar #permEstado.sujo{color:var(--red);font-weight:600}
 .permSalvar .btnP2{height:44px;min-width:44px;padding:0 18px;font-size:13.5px;display:inline-flex;align-items:center;gap:6px}
+
+/* Cada unidade é uma pasta dentro da empresa (Rafael, 25/09/2026):
+   a segunda dobra é mais discreta que a primeira — mesma família de
+   linha, um degrau menor, para a árvore não virar escada. */
+.usrSub{margin:2px 0 2px 2px}
+.usrSub>.usrPastaH{padding:7px 8px}
+.usrSub>.usrPastaH .usrAv{width:26px;height:26px;font-size:11px}
+.usrSub>.usrPastaH .usrN b{font-size:13px}
+.usrSub>.usrFilhos{margin-left:16px}
