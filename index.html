@@ -13765,7 +13765,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V351.0.0';
+var VERSAO='V352.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -47321,7 +47321,21 @@ async function enviarResumoPedido(ped,online){
     '\n\nJá começamos a preparar. Aviso aqui quando '+
     (ped.tipo==='entrega'?'sair para entrega':'estiver pronto')+'! 🍨';
   try{
-    var alvo=(await lojaConectada())||suc;
+    /* ==========================================================
+       A MENSAGEM DO CLIENTE SAI PELO WHATSAPP DA LOJA DELE
+       (26/09/2026)
+
+       Aqui o destino era a loja CONECTADA no robô, qualquer que
+       fosse ela, e só caía na unidade do pedido se nenhuma
+       estivesse conectada. Com duas unidades ligadas ao mesmo
+       robô, o cliente de uma recebia a confirmação pelo número da
+       outra — o oposto do que o cliente espera.
+
+       Sai pela unidade do pedido. Se ela não estiver conectada, o
+       robô responde que não está, e a tela avisa; ninguém manda
+       mensagem no lugar de ninguém.
+       ========================================================== */
+    var alvo=suc;
     /* destino:'cliente' obriga a sair pela Carla. A Meta recusa mensagem
        para quem nunca escreveu para o numero — e o cliente do delivery
        pede pelo site, nao pelo WhatsApp. */
@@ -48080,19 +48094,31 @@ async function salvarZap(silencioso){
   ZP._salvoEm=agoraHM();
   var elS=$('zpSalvo');
   if(elS)elS.innerHTML='<b style="color:#1B5E36">salvo às '+ZP._salvoEm+'</b>';
-  /* manda para o banco, que o robô lê — inclusive para a loja conectada */
+  /* ==========================================================
+     UMA TELA SÓ GRAVA NA UNIDADE QUE ESTÁ NA TELA
+     (Santa Fé do Sul, 26/09/2026)
+
+     Este salvar mandava a configuração para DUAS unidades: a escolhida
+     na tela e a que estivesse conectada no robô — e carimbava as duas
+     com o nome da unidade da TELA. Quem salvou a partir de Alphaville
+     escreveu "Jolo Alphaville" dentro da configuração de Santa Fé, e a
+     Carla de Santa Fé passou a se apresentar como a de Alphaville para
+     todo cliente que escrevia.
+
+     Não existe motivo para uma unidade gravar na outra. A conectada já
+     recebe a configuração dela quando a tela dela é salva. Agora grava
+     só a da tela, e a identidade vem da própria unidade — nunca do
+     nome que está em outro lugar.
+     ========================================================== */
   if(NUVEM.ligada){
     try{
-      var cd=(DB.cardapio||{})[ZP.suc]||{};
       var alvos=[ZP.suc];
-      var conectada=await lojaConectada();
-      if(conectada&&alvos.indexOf(conectada)<0)alvos.push(conectada);
       for(var ai=0;ai<alvos.length;ai++)
       /* P20: a empresa vai explicita. Desde que o banco parou de adotar
          registro orfao, gravar sem loja_id e recusado. */
       await gravarCfgZap(alvos[ai],{
         robo_ativo:c.ativo!==false,
-        nome_loja:cd.titulo||sucNome(ZP.suc),
+        nome_loja:nomePublicoDaUnidade(alvos[ai]),
         link_cardapio:linkCardapio(alvos[ai]),
         saudacao:c.saudacao||null,texto_horario:c.textoHorario||null,
         texto_entrega:c.textoEntrega||null,texto_pagamento:c.textoPagamento||null,
@@ -48134,8 +48160,22 @@ async function salvarZap(silencioso){
   }
   if(!silencioso){ toast('Configuração salva neste aparelho. Ligue a nuvem para o robô usar.'); fecharRespostasSalvas(); }
 }
+/* ==========================================================
+   COM QUE NOME A CARLA DESTA UNIDADE SE APRESENTA
+
+   O nome público de uma unidade é o título do cardápio digital DELA e,
+   na falta dele, o nome cadastrado DELA. Nunca o título do cardápio de
+   outra unidade, nunca o nome da que está aberta na tela.
+
+   Foi essa troca que fez a Carla de Santa Fé do Sul dizer "aqui é a
+   Carla, da Jolo Alphaville" (26/09/2026).
+   ========================================================== */
+function nomePublicoDaUnidade(suc){
+  var cd=(DB.cardapio||{})[suc]||{};
+  return cd.titulo||sucNome(suc);
+}
 /* ---------- envio automático quando o pedido muda de fase ---------- */
-/* acha a configuração da loja; se o código não bater, usa a primeira */
+/* acha a configuração DESTA loja — sem ela, o padrão de fábrica */
 var MSG_PADRAO={
  msgAceito:'Oi {nome}! Recebemos seu pedido *#{numero}* 🎉\n\nTotal: *R$ {total}*\nPrevisão: {tempo}\n\nJá começamos a preparar!',
  msgPreparo:'{nome}, seu pedido *#{numero}* está sendo preparado com carinho 🍨',
@@ -48151,19 +48191,33 @@ function cfgZapDe(suc){
     return c;
   }
   if(z[suc])return completar(z[suc]);
-  var chaves=Object.keys(z);
-  if(chaves.length)return completar(z[chaves[0]]);
+  /* ==========================================================
+     CONFIGURAÇÃO DE OUTRA LOJA NÃO SERVE PARA ESTA
+     (26/09/2026)
+
+     Aqui, quando a unidade não tinha configuração própria, o código
+     pegava "a primeira" — a de outra loja. As mensagens automáticas de
+     uma unidade saíam com o texto, o nome e as regras da vizinha, e o
+     lojista não tinha como perceber.
+
+     Unidade sem configuração usa o padrão de fábrica, que não tem nome
+     de loja nenhum dentro. Errar para o lado genérico é recuperável;
+     falar como outra loja, não.
+     ========================================================== */
   return completar(Object.assign({ativo:true},MSG_PADRAO));
 }
-/* acha a loja que está de fato conectada no robô */
-async function lojaConectada(){
-  try{
-    var d=await zapApi('/diagnostico');
-    var s=(d.sessoes||[]).find(function(x){return x.estado==='conectado'});
-    if(s)return s.loja;
-  }catch(e){_quieto(e,'lojaConectada')}
-  return null;
-}
+/* ==========================================================
+   AQUI MORAVA lojaConectada() (removida em 26/09/2026)
+
+   Ela devolvia "a loja que está conectada no robô" — qualquer uma — e
+   era usada para escolher por onde mandar a mensagem e em qual unidade
+   gravar a configuração. Foi a porta de todas as misturas entre lojas:
+   com duas unidades no mesmo robô, o cliente de uma recebia o WhatsApp
+   da outra e a configuração de uma ia carimbada na outra.
+
+   Quem manda agora é a unidade do pedido / da tela. Quem sabe por onde
+   sai a mensagem é o robô, que conhece as sessões dele.
+   ========================================================== */
 async function avisarCliente(ped,fase){
   if(!ped)return;
   baseZap();
@@ -48191,7 +48245,21 @@ async function avisarCliente(ped,fase){
              .replace(/{total}/g,money(ped.total))
              .replace(/{tempo}/g,cd.tempoEntrega||'alguns minutos');
   try{
-    var alvo=(await lojaConectada())||suc;
+    /* ==========================================================
+       A MENSAGEM DO CLIENTE SAI PELO WHATSAPP DA LOJA DELE
+       (26/09/2026)
+
+       Aqui o destino era a loja CONECTADA no robô, qualquer que
+       fosse ela, e só caía na unidade do pedido se nenhuma
+       estivesse conectada. Com duas unidades ligadas ao mesmo
+       robô, o cliente de uma recebia a confirmação pelo número da
+       outra — o oposto do que o cliente espera.
+
+       Sai pela unidade do pedido. Se ela não estiver conectada, o
+       robô responde que não está, e a tela avisa; ninguém manda
+       mensagem no lugar de ninguém.
+       ========================================================== */
+    var alvo=suc;
     var r=await zapApi('/enviar','POST',{loja:alvo,telefone:cli.tel,texto:texto,destino:'cliente'});
     /* ==========================================================
        SO DIZ "ENVIADO" SE O ROBO CONFIRMAR O NUMERO
@@ -48308,9 +48376,9 @@ async function avisarGerente(suc,tipo,texto){
     divergencia:'avisaDivergencia'}[tipo];
   if(quer&&g[quer]===false)return;
   try{
-    /* lojaConectada() procura sessão de QR. Com a Assistente na Meta não há
-       sessão, e o aviso morria aqui em silêncio — o caixa fechava e nada
-       chegava. O robô é quem sabe por onde mandar. */
+    /* antes isto procurava uma sessão de QR aberta. Com a Assistente na
+       Meta não há sessão, e o aviso morria aqui em silêncio — o caixa
+       fechava e nada chegava. O robô é quem sabe por onde mandar. */
     var alvo=suc||lojaAtualId();
     var r=await zapApi('/enviar','POST',{loja:alvo,telefone:g.tel,texto:texto});
     if(r&&r.ok)toast('Gerente avisado no WhatsApp.');

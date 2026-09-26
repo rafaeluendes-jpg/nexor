@@ -105,6 +105,10 @@
    "pontos": 29,
    "roda": true
   },
+  "testes/carla-nao-troca-de-loja.js": {
+   "pontos": 14,
+   "roda": true
+  },
   "testes/categoria-do-lancamento-sobe.js": {
    "pontos": 9,
    "roda": true
