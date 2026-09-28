@@ -1,6 +1,8 @@
 # PRD — Módulo Fiscal do Joia
 ### Cupom fiscal (NFC-e) nas lojas · Nota fiscal (NF-e) na matriz
-**Versão 1 · 28/09/2026 · Rede Jolô Gelato · Provedor: Spedy**
+**Versão 1.1 · 28/09/2026 · Rede Jolô Gelato · Provedor: Spedy**
+*1.1: seção 9 conferida contra a especificação oficial da Spedy (OpenAPI v1) e um
+teste real no sandbox.*
 
 > Como usar este documento: ele tem duas metades. Da seção 1 à 8 é o **produto** —
 > o que o módulo faz, quem usa, como cada tela se comporta. Da 9 à 17 é a
@@ -304,10 +306,12 @@ chega perto disso; a fila de reprocessamento respeita o limite.
 - Cada unidade vira uma **empresa** na Spedy (`POST /v1/companies`), criada pela
   empresa *owner* (matriz). A resposta traz `apiCredentials.apiKey` → é a chave
   daquela unidade.
-- Certificado: `POST /v1/companies/{id}/certificates` (multipart, `.pfx` + senha).
-- Configuração: `PUT /v1/companies/{id}/settings` com
-  `consumerInvoice.enabled = true`, `consumerInvoice.tokenId`, `consumerInvoice.csc`
-  e `consumerInvoice.allowOfflineContingency = true`.
+- Certificado: `POST /v1/companies/{id}/certificates` (multipart, campos
+  `certificateFile` + `password`). `GET` no mesmo caminho lista os certificados com
+  `isActive` e `expirationAt` — é daí que sai o aviso de vencimento.
+- Configuração: `PUT /v1/companies/{id}/settings`, bloco `consumerInvoice` com
+  `tokenId`, `csc`, `series`, `nextNumber`, `environmentType`
+  (`production` · `development` · `simulation`) e `allowOfflineContingency`.
 - Guardar no Joia: `spedy_company_id` por unidade.
 
 ### 9.2 Emissão do cupom — `POST /v1/consumer-invoices`
@@ -331,9 +335,11 @@ backoffice da Spedy). Mapeamento campo a campo:
 | `items[].unit` / `quantity` / `unitAmount` / `totalAmount` | item da venda |
 | `items[].taxes.icms` | perfil fiscal: `origin` + `csosn` (Simples) ou `cst`+`rate` (normal); ST → `stRetentionAmount`, `baseStRetentionAmount` |
 | `items[].taxes.pis` / `cofins` | perfil fiscal (Simples: `cst: 7`) |
-| `payments[].method` | forma de pagamento do Joia → tabela SEFAZ (`01` dinheiro, `03` crédito, `04` débito, `17` PIX…) |
+| `payments[].method` | forma de pagamento do Joia → enum da Spedy: `money` (dinheiro), `creditCard`, `debitCard`, `pix`, `dynamicPix`, `mealVoucher`, `foodVoucher`, `giftVoucher`, `storeCredit`, `fidelityProgram` (brinde do cartão fidelidade), `noPayment`, `other`. **Não** é `cash` nem código numérico — a Spedy recusa |
 | `payments[].amount` | valor por forma (venda com duas formas manda duas linhas) |
 | `total.invoiceAmount` / `productAmount` | totais da venda |
+| `items[].totalTax` | valor aproximado de tributos (Lei 12.741), quando houver |
+| `items[].taxes.ibsCbs` | reforma tributária — só quando o regime exigir (Simples: a partir de 04/01/2027) |
 
 **Descontos e taxa de entrega** entram no item (`discountAmount`) e no total, e a
 soma dos itens tem de bater com o total — a Spedy valida.
@@ -360,13 +366,31 @@ soma dos itens tem de bater com o total — a Spedy valida.
 ### 9.4 Correção, cancelamento e inutilização
 - **Rejeitada:** corrigir e reenviar `POST /v1/consumer-invoices` com o **mesmo
   `integrationId`** — atualiza a nota, não cria outra.
-- **Cancelar:** `DELETE /v1/consumer-invoices/{id}` com justificativa ≥ 15 caracteres.
-  Em contingência o cancelamento não existe — a tela diz isso.
-- **Inutilizar:** `POST /v1/consumer-invoices/disablements` (série, faixa, justificativa).
-- **NF-e:** mesmos caminhos em `/v1/product-invoices`, mais
-  `POST /v1/product-invoices/{id}/corrections` (carta de correção).
+- **Cancelar:** `DELETE /v1/consumer-invoices/{id}` com corpo `{ "reason": "…" }`
+  (mínimo 15 caracteres). É **assíncrono**: a nota passa por `canceled` depois —
+  acompanhar como a emissão. Em contingência o cancelamento não existe.
+- **Inutilizar:** `POST /v1/consumer-invoices/disablements` com `series`,
+  `initialNumber`, `finalNumber` e `reason`.
+- **Reemitir sem mudar dados** (depois de corrigir configuração da empresa, ex.:
+  o CSC): `POST /v1/consumer-invoices/{id}/issue`.
+- **NF-e:** mesmos caminhos em `/v1/product-invoices`; carta de correção com o
+  texto no campo `letter` (15 a 1000 caracteres).
 
-### 9.5 Arquivos
+### 9.5 Assinatura do webhook
+Os webhooks vêm assinados no padrão *Standard Webhooks*, no header
+`webhook-signature`. O segredo da conta sai em `GET /v1/webhooks/secret` e troca
+com `POST /v1/webhooks/secret/rotate` (os dois valem juntos durante a troca). A
+função que recebe o webhook **recusa** o que não vier assinado.
+
+### 9.6 O que o teste real já provou (28/09/2026, sandbox)
+- A chave entregue pelo Rafael é do **ambiente de testes** e responde: empresa
+  *JOLO GELATO LTDA*, CNPJ 42.771.278/0001-02, Santa Fé do Sul/SP.
+- Um cupom de gelato (NCM 21050010, CEST 1701100, CFOP 5405, CSOSN 500, PIS/COFINS
+  07, pagamento `pix`) **passou pela validação** e entrou na fila.
+- Foi recusado só por falta de configuração da empresa: *"TokenId e CSC da NFC-e são
+  obrigatórios"*. A inscrição estadual também está vazia no cadastro da Spedy.
+
+### 9.7 Arquivos
 `GET …/{id}/pdf` (DANFE) e `GET …/{id}/xml` — **não exigem chave**, então a URL pode
 ir direto para a impressora, para o WhatsApp do cliente e para a exportação da
 contabilidade. Guardar as duas URLs na linha da nota.
