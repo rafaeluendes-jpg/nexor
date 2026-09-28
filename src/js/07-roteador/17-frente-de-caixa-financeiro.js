@@ -791,8 +791,11 @@ function editarCaixa(id){
     };
     c.diferencaTotal=c.snapshot.diferencaTotal;
     c.conciliado=c.snapshot.conciliado;
-    /* refaz os lançamentos deste caixa */
-    DB.lancFin=(DB.lancFin||[]).filter(function(l){return !(l.ref===c.id&&l.origem==='fechamento-caixa')});
+    /* refaz os lançamentos deste caixa. Não se apaga nada aqui: apagar só
+       neste aparelho deixava os antigos na nuvem e o refazer somava outro
+       conjunto — o Pix em dobro de 27/09. `lancarFechamento` regrava os
+       MESMOS lançamentos (identificador fixo) e declara a exclusão do que
+       sobrou de versões antigas. */
     var n2=lancarFechamento(c,mov);
     salvar();telaFrenteCaixa();
     toast('Fechamento atualizado. '+n2+' lançamento(s) refeitos no financeiro.');

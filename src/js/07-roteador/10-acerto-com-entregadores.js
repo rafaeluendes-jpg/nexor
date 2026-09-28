@@ -9,11 +9,26 @@ function baseFin(){
   DB.entregadores=DB.entregadores||[];
   DB.acertos=DB.acertos||[];
   DB.lancamentos=DB.lancamentos||[];
+  /* ==========================================================
+     AS CONTAS DE FÁBRICA NÃO PASSAM POR CIMA DO BANCO DA LOJA (28/09/2026)
+
+     Esta semente não tinha a trava que as formas de pagamento já tinham:
+     com a lista vazia — aparelho recém-atualizado, antes do download —
+     ela recriava "Banco — conta corrente" com o id da conta real
+     (`ct_banco`), e essa cópia subia por cima do "Itaú — conta corrente"
+     com agência e número. Aconteceu em 27/09 e em 28/09.
+
+     Agora: não semeia enquanto espera o download nem quando a nuvem já
+     conhece contas desta loja; e o que semeia leva `_semente`, que nunca
+     vence a nuvem (temMudancaNaoEnviada). */
   if(!DB.contas||!DB.contas.length){
+    var _jaNaNuvem=!!(DB._uuid&&DB._uuid.contas&&Object.keys(DB._uuid.contas).length);
+    var _esperaDownload=(typeof NUVEM!=='undefined')&&!!NUVEM&&NUVEM.ligada&&!NUVEM.baixou;
+    if(_jaNaNuvem||_esperaDownload){ DB.contas=DB.contas||[]; return; }
     DB.contas=[
-      {id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',saldo:0},
-      {id:'ct_cofre',nome:'Cofre',tipo:'Cofre',saldo:0},
-      {id:'ct_banco',nome:'Banco — conta corrente',tipo:'Banco',saldo:0}
+      {id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',saldo:0,_semente:true},
+      {id:'ct_cofre',nome:'Cofre',tipo:'Cofre',saldo:0,_semente:true},
+      {id:'ct_banco',nome:'Banco — conta corrente',tipo:'Banco',saldo:0,_semente:true}
     ];
   }
 }

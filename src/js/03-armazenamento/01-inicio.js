@@ -1675,7 +1675,10 @@ var MAPA=[
        repetir, porque `motivoNome` nao existe no registro baixado.
        ========================================================== */
     campos:function(o){return {tipo:o.tipo,valor:n(o.valor),
-      motivo:[o.motivoNome,o.motivo].filter(Boolean).join(' — ')||null,
+      /* a observação da sangria (28/09/2026) vai no mesmo texto: a tabela
+         não tem coluna própria, e assim ela chega em qualquer aparelho */
+      motivo:([o.motivoNome,o.motivo].filter(Boolean).join(' — ')+
+        (o.obs?' · Obs: '+o.obs:''))||null,
       responsavel:o.responsavel||null,responsavel_id:o.responsavelId||null,
       destino_conta_id:fk('contas',o.destinoContaId),destino_nome:o.destinoNome||null,
       lanc_ref:o.lancRef||null,hora:o.hora||null,
@@ -2262,6 +2265,23 @@ function impressaoDaLinha(E,x,i){
 function temMudancaNaoEnviada(col,x,i){
   try{
     if(!x||!x.id)return false;
+    /* ==========================================================
+       VALOR DE FÁBRICA NUNCA É "ALTERAÇÃO NÃO ENVIADA" (28/09/2026)
+
+       AQUI O BANCO "ITAÚ" VOLTAVA A SER "BANCO — CONTA CORRENTE".
+
+       Em 26/09 e de novo em 28/09 a loja gravou a conta como Itaú, com
+       agência e número. Minutos depois de uma versão nova, um aparelho de
+       lista vazia recriou as contas de fábrica — com o MESMO id da real
+       (`ct_banco`) — e, por nunca terem subido, elas contavam aqui como
+       "alteração ainda não enviada": venciam a nuvem no download e subiam
+       por cima dela. O audit_log mostra as duas trocas. As taxas de cartão
+       voltaram a 1,99% / 3,49% sete vezes em agosto e setembro pelo mesmo
+       caminho.
+
+       O registro de fábrica (`_semente`) só existe para a loja não ficar
+       sem nada; ele NUNCA vence o que a nuvem já tem. */
+    if(x._semente===true)return false;
     if(x._novoAqui===true)return true;
     if(x._fechamentoPendente===true)return true;
     var E=(MAPA||[]).find(function(e){return e.col===col});
@@ -3117,6 +3137,9 @@ async function sincronizar(){
             return false;
           }
           if(x._loja!==l){_retidos++;return false;}
+          /* valor de fábrica não sobe por cima do que a nuvem já tem —
+             ver temMudancaNaoEnviada (28/09/2026) */
+          if(x._semente===true&&DB._uuid[E2.col]&&DB._uuid[E2.col][x.id])return false;
           return true;
         });
         if(_retidos)RETIDOS[E2.col]=_retidos;
@@ -3175,7 +3198,7 @@ async function sincronizar(){
           /* confirmado pela nuvem: deixa de ser "so daqui" */
           var _o=lista.find(function(x){return x.id===r.ref_local});
           if(_o){delete _o._novoAqui;delete _o._filhoPendente;
-                 delete _o._fechamentoPendente;}
+                 delete _o._fechamentoPendente;delete _o._semente;}
         });
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};

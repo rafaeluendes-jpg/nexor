@@ -123,7 +123,13 @@ async function baixarDaNuvem(forcar){
   if(_baixando)return _baixando;
   var _tW=Date.now();
   _baixando=(async function(){
-    try{ return await _baixarDaNuvem(forcar); }
+    try{
+      var _okB=await _baixarDaNuvem(forcar);
+      /* caixa fechado sem lançamento no financeiro: repara (28/09/2026) */
+      try{ if(typeof repararFechamentosSemLancamento==='function')repararFechamentosSemLancamento(); }
+      catch(e){ _quieto(e,'repararFechamentos'); }
+      return _okB;
+    }
     finally{ _baixando=null; try{MEDIDA.download=Date.now()-_tW;}catch(e){} }
   })();
   return _baixando;
@@ -409,6 +415,8 @@ function volta(linhas,fn,atual,col){
           if(_maisNovoQue(x.atualizadoEm,nv.atualizadoEm)) meus[x.id]=x; /* local mais novo vence */
           return;                                        /* senao: adota a nuvem, sem guerra */
         }
+        /* valor de fábrica nunca vence a nuvem (28/09/2026) */
+        if(x._semente===true)return;
         if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; return; }
         if(_baixaVelha) meus[x.id]=x;
       });

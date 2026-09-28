@@ -8762,7 +8762,10 @@ var MAPA=[
        repetir, porque `motivoNome` nao existe no registro baixado.
        ========================================================== */
     campos:function(o){return {tipo:o.tipo,valor:n(o.valor),
-      motivo:[o.motivoNome,o.motivo].filter(Boolean).join(' — ')||null,
+      /* a observação da sangria (28/09/2026) vai no mesmo texto: a tabela
+         não tem coluna própria, e assim ela chega em qualquer aparelho */
+      motivo:([o.motivoNome,o.motivo].filter(Boolean).join(' — ')+
+        (o.obs?' · Obs: '+o.obs:''))||null,
       responsavel:o.responsavel||null,responsavel_id:o.responsavelId||null,
       destino_conta_id:fk('contas',o.destinoContaId),destino_nome:o.destinoNome||null,
       lanc_ref:o.lancRef||null,hora:o.hora||null,
@@ -9349,6 +9352,23 @@ function impressaoDaLinha(E,x,i){
 function temMudancaNaoEnviada(col,x,i){
   try{
     if(!x||!x.id)return false;
+    /* ==========================================================
+       VALOR DE FÁBRICA NUNCA É "ALTERAÇÃO NÃO ENVIADA" (28/09/2026)
+
+       AQUI O BANCO "ITAÚ" VOLTAVA A SER "BANCO — CONTA CORRENTE".
+
+       Em 26/09 e de novo em 28/09 a loja gravou a conta como Itaú, com
+       agência e número. Minutos depois de uma versão nova, um aparelho de
+       lista vazia recriou as contas de fábrica — com o MESMO id da real
+       (`ct_banco`) — e, por nunca terem subido, elas contavam aqui como
+       "alteração ainda não enviada": venciam a nuvem no download e subiam
+       por cima dela. O audit_log mostra as duas trocas. As taxas de cartão
+       voltaram a 1,99% / 3,49% sete vezes em agosto e setembro pelo mesmo
+       caminho.
+
+       O registro de fábrica (`_semente`) só existe para a loja não ficar
+       sem nada; ele NUNCA vence o que a nuvem já tem. */
+    if(x._semente===true)return false;
     if(x._novoAqui===true)return true;
     if(x._fechamentoPendente===true)return true;
     var E=(MAPA||[]).find(function(e){return e.col===col});
@@ -10204,6 +10224,9 @@ async function sincronizar(){
             return false;
           }
           if(x._loja!==l){_retidos++;return false;}
+          /* valor de fábrica não sobe por cima do que a nuvem já tem —
+             ver temMudancaNaoEnviada (28/09/2026) */
+          if(x._semente===true&&DB._uuid[E2.col]&&DB._uuid[E2.col][x.id])return false;
           return true;
         });
         if(_retidos)RETIDOS[E2.col]=_retidos;
@@ -10262,7 +10285,7 @@ async function sincronizar(){
           /* confirmado pela nuvem: deixa de ser "so daqui" */
           var _o=lista.find(function(x){return x.id===r.ref_local});
           if(_o){delete _o._novoAqui;delete _o._filhoPendente;
-                 delete _o._fechamentoPendente;}
+                 delete _o._fechamentoPendente;delete _o._semente;}
         });
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};
@@ -10867,7 +10890,13 @@ async function baixarDaNuvem(forcar){
   if(_baixando)return _baixando;
   var _tW=Date.now();
   _baixando=(async function(){
-    try{ return await _baixarDaNuvem(forcar); }
+    try{
+      var _okB=await _baixarDaNuvem(forcar);
+      /* caixa fechado sem lançamento no financeiro: repara (28/09/2026) */
+      try{ if(typeof repararFechamentosSemLancamento==='function')repararFechamentosSemLancamento(); }
+      catch(e){ _quieto(e,'repararFechamentos'); }
+      return _okB;
+    }
     finally{ _baixando=null; try{MEDIDA.download=Date.now()-_tW;}catch(e){} }
   })();
   return _baixando;
@@ -11153,6 +11182,8 @@ function volta(linhas,fn,atual,col){
           if(_maisNovoQue(x.atualizadoEm,nv.atualizadoEm)) meus[x.id]=x; /* local mais novo vence */
           return;                                        /* senao: adota a nuvem, sem guerra */
         }
+        /* valor de fábrica nunca vence a nuvem (28/09/2026) */
+        if(x._semente===true)return;
         if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; return; }
         if(_baixaVelha) meus[x.id]=x;
       });
@@ -13997,7 +14028,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V359.0.0';
+var VERSAO='V360.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16473,7 +16504,9 @@ function _formasFabrica(){
   /* nascem liberadas para TODAS as unidades: sem `sucursais`, o filtro de
      liberacao por unidade escondia as formas na loja e o seletor de forma
      de pagamento (despesa, boleto, PDV) vinha vazio. */
-  ].map(function(f){f.sucursais=['*'];return f;});   /* '*' = TODAS_UN (todas as unidades) */
+  /* `_semente`: valor de fábrica — nunca vence nem sobrescreve o que a nuvem
+     já tem (temMudancaNaoEnviada, 28/09/2026) */
+  ].map(function(f){f.sucursais=['*'];f._semente=true;return f;});   /* '*' = TODAS_UN (todas as unidades) */
 }
 /* ==========================================================
    FÁBRICA SÓ SEMEIA O QUE VAI SER GRAVADO QUANDO A LOJA É NOVA
@@ -22981,12 +23014,38 @@ function movimentoCaixa(id){
              mais venda que nao chegou a ter pagamento */
           descoberto:+(_tot-_somaF-_semForma).toFixed(2)};
 }
-/* ao fechar o caixa, cada forma vira um lançamento na conta dela, já com a taxa descontada */
+/* ==========================================================
+   UM CAIXA, UM LANÇAMENTO POR FORMA — PARA SEMPRE (Rafael, 28/09/2026)
+
+   AQUI NASCIA O PIX EM DOBRO.
+
+   Cada chamada criava lançamentos com identificador NOVO (uid). Fechar e
+   depois "Editar fechamento" apagava os antigos só NESTE aparelho — na
+   nuvem eles ficavam — e subia outros: o caixa de 27/09 apareceu com dois
+   Pix de R$ 711,00, criados com 26 segundos de diferença.
+
+   Agora o identificador é FIXO: caixa + forma (`lffc_<caixa>_<forma>`).
+   Fechar, editar, refazer, o reparo automático — qualquer caminho que
+   chegue aqui grava o MESMO lançamento, e a nuvem atualiza a mesma linha.
+   Não existe segundo lançamento. O que sobrar de uma versão anterior (id
+   antigo, ou forma que deixou de ter venda) é declarado excluído e sai da
+   nuvem também.
+
+   E A DATA É A DO CAIXA, NÃO A DE QUEM APERTOU O BOTÃO. O caixa de 27/09
+   refeito no dia 28 lançava o Pix no dia 28 — "configurado para cair no
+   mesmo dia e está caindo no dia depois". Emissão = dia em que o caixa
+   abriu; vencimento = esse dia + os dias da forma.
+   ========================================================== */
+function idLancFechamento(cx,f){ return 'lffc_'+cx.id+'_'+f.id; }
+function diaDoCaixa(cx){
+  var d=String(isoHoraDoCaixa(cx&&cx.aberto)||'').slice(0,10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:hojeISO();
+}
 function lancarFechamento(cx,mov){
   DB.lancFin=DB.lancFin||[];
-  var dt=hojeISO();
+  var dt=diaDoCaixa(cx);
   var contaCaixa=(DB.contas||[]).find(function(c){return c.fixa==='caixa'});
-  var criados=0;
+  var criados=0, feitos={};
   (DB.formasPag||[]).forEach(function(f){
     var bruto=mov.porForma[f.id]||0;
     if(bruto<=0)return;
@@ -22996,16 +23055,80 @@ function lancarFechamento(cx,mov){
     var contaId=f.contaId||(f.tipo==='dinheiro'&&contaCaixa?contaCaixa.id:'');
     var venc=dt;
     if(Number(f.dias)>0){var d=new Date(dt+'T12:00:00');d.setDate(d.getDate()+Number(f.dias));venc=d.toISOString().slice(0,10);}
-    DB.lancFin.push({id:uid('lf'),tipo:'receita',contaId:contaId,metodoId:f.id,
+    var id=idLancFechamento(cx,f);
+    var novo={id:id,tipo:'receita',contaId:contaId,metodoId:f.id,
       descricao:'Vendas — '+f.nome+(taxa?' (taxa R$ '+money(taxa)+')':''),
       fornecedor:'',documento:'',categoriaTxt:'Frente de Caixa',
       valor:liq,emissao:dt,vencimento:venc,
       pagamento:Number(f.dias)>0?'':dt,pago:Number(f.dias)>0?false:true,
-      origem:'fechamento-caixa',ref:cx.id,
-      obs:'Bruto R$ '+money(bruto)+' · '+qtd+' transação(ões)'+(taxa?' · taxa R$ '+money(taxa):'')});
+      origem:'fechamento-caixa',ref:cx.id,sucursalRef:cx.sucursalId||undefined,
+      obs:'Bruto R$ '+money(bruto)+' · '+qtd+' transação(ões)'+(taxa?' · taxa R$ '+money(taxa):'')};
+    var ja=DB.lancFin.find(function(l){return l.id===id});
+    if(ja){
+      /* já existe: atualiza no lugar. Baixa e conciliação que a pessoa fez
+         (cartão que já caiu no banco) não são desfeitas por um refazer. */
+      if(ja.pago&&!novo.pago){novo.pago=true;novo.pagamento=ja.pagamento;}
+      if(ja.conciliado){novo.conciliado=ja.conciliado;novo.dataConc=ja.dataConc;}
+      Object.assign(ja,novo);
+    }else DB.lancFin.push(novo);
+    feitos[id]=true;
     criados++;
   });
+  /* o que este caixa tinha e não é mais um dos fixos acima (id antigo, ou
+     forma que ficou sem venda) sai daqui E da nuvem */
+  DB.lancFin=DB.lancFin.filter(function(l){
+    if(l.origem!=='fechamento-caixa'||l.ref!==cx.id||feitos[l.id])return true;
+    if(l.conciliado)return true;   /* conciliado no banco: não se apaga sozinho */
+    try{declararExclusao('lancFin',l.id);}catch(e){_quieto(e,'lancarFechamento')}
+    return false;
+  });
   return criados;
+}
+/* ==========================================================
+   CAIXA FECHADO SEM LANÇAMENTO É REPARADO SOZINHO (28/09/2026)
+
+   Os caixas de 20, 24, 25 e 26/09 de Santa Fé fecharam e não geraram
+   lançamento nenhum na nuvem — "depois do dia 23 não tem mais os Pix". O
+   Financeiro tem de mostrar TODOS.
+
+   Depois de cada download, todo caixa FECHADO desta unidade, dos últimos
+   25 dias, que não tem lançamento de fechamento, ganha os seus — pelo
+   mesmo `lancarFechamento`, com identificador fixo: repetir o reparo em
+   dois aparelhos grava a MESMA linha, nunca uma segunda.
+
+   Só repara com certeza:
+     - o aparelho já baixou da nuvem (sabe o que existe lá);
+     - as formas de pagamento são as da loja, não as de fábrica
+       (senão a taxa e o banco sairiam errados);
+     - as vendas daquele caixa estão inteiras aqui: o total delas bate,
+       centavo por centavo, com o total que o fechamento registrou.
+   ========================================================== */
+function repararFechamentosSemLancamento(){
+  try{
+    if(typeof NUVEM!=='undefined'&&NUVEM&&NUVEM.ligada&&!NUVEM.baixou)return 0;
+    var fp=DB.formasPag||[];
+    if(!fp.length||fp.some(function(f){return f&&f._semente===true}))return 0;
+    var un=lojaAtualId();
+    var lim=new Date();lim.setDate(lim.getDate()-25);
+    var desde=lim.toISOString().slice(0,10);
+    var n=0;
+    (DB.caixas||[]).forEach(function(cx){
+      if(!cx||!cx.fechadoEm||!cx.sucursalId||cx.sucursalId!==un)return;
+      if(diaDoCaixa(cx)<desde)return;
+      var tem=(DB.lancFin||[]).some(function(l){return l.origem==='fechamento-caixa'&&l.ref===cx.id});
+      if(tem)return;
+      var mov=movimentoCaixa(cx.id);
+      if(!mov||!(mov.total>0))return;
+      if(Math.abs((Number(cx.vendas)||0)-mov.total)>0.009)return;
+      if(lancarFechamento(cx,mov)>0){
+        n++;
+        try{logNuvem('caixa '+cx.id+' ('+diaDoCaixa(cx)+') estava fechado sem lançamento no '+
+          'financeiro — lançamentos criados',true);}catch(e){}
+      }
+    });
+    if(n)salvar();
+    return n;
+  }catch(e){ _quieto(e,'repararFechamentosSemLancamento'); return 0; }
 }
 function tabelaFormas(mov,cego){
   var h='<table class="fpgTab">';
@@ -23110,6 +23233,7 @@ function lancarTransferenciaCaixa(cx,mv,tipo){
     valor:Number(mv.valor)||0,emissao:dt,vencimento:dt,pagamento:dt,pago:true,
     origem:'mov-caixa',ref:mv.id,caixaId:cx.id,
     obs:(mv.motivoNome||'')+(mv.motivo?' — '+mv.motivo:'')+
+        (mv.obs?' · Obs: '+mv.obs:'')+
         ' · '+(mv.responsavel||'')+' · '+(mv.hora||'')};
   DB.lancFin.push(l);
   mv.lancRef=l.id;
@@ -23148,6 +23272,10 @@ async function _movCaixa(tipo){
    '<small style="display:block;color:var(--ink-3);margin-top:4px">'+
    (tipo==='sangria'?'A conta escolhida recebe o valor no mesmo instante.'
                     :'A conta escolhida é debitada no mesmo instante.')+'</small></div>'+
+  /* observação livre: sai no comprovante impresso (Rafael, 28/09/2026) */
+  '<div class="fld2"><label>Observação <i class="opc">opcional</i></label>'+
+   '<input id="mvObs" maxlength="140" autocomplete="off" placeholder="'+
+   (tipo==='sangria'?'ex: depositado no Itaú, envelope nº 12':'ex: troco trazido do cofre')+'"></div>'+
   /* ==========================================================
      SANGRIA SEM SENHA ERA O BURACO MAIS SERIO DO MODULO
 
@@ -23183,6 +23311,7 @@ async function _movCaixa(tipo){
     if(motId==='outro'&&!desc){_lib();toast('Descreva o motivo.');return false;}
     var destId=($('mvDest')||{}).value||'';
     if(!destId){_lib();toast('Selecione o destino.');return false;}
+    var obsMv=(($('mvObs')||{}).value||'').trim();
     /* a gaveta nao pode ter mais saida do que tem dinheiro */
     if(tipo==='sangria'){
       var disp=esperadoCaixa(cx);
@@ -23199,7 +23328,7 @@ async function _movCaixa(tipo){
     cx.movimentos=cx.movimentos||[];
     var mv={id:uid('mv'),tipo:tipo,valor:v,
       motivoId:motId,motivoNome:motNome,motivo:desc,
-      destinoContaId:destId,destinoNome:contaNome(destId),
+      destinoContaId:destId,destinoNome:contaNome(destId),obs:obsMv,
       responsavel:opM.nome,responsavelId:opM.id,
       hora:agoraHM(),data:new Date().toISOString()};
     cx.movimentos.push(mv);
@@ -26140,11 +26269,26 @@ function baseFin(){
   DB.entregadores=DB.entregadores||[];
   DB.acertos=DB.acertos||[];
   DB.lancamentos=DB.lancamentos||[];
+  /* ==========================================================
+     AS CONTAS DE FÁBRICA NÃO PASSAM POR CIMA DO BANCO DA LOJA (28/09/2026)
+
+     Esta semente não tinha a trava que as formas de pagamento já tinham:
+     com a lista vazia — aparelho recém-atualizado, antes do download —
+     ela recriava "Banco — conta corrente" com o id da conta real
+     (`ct_banco`), e essa cópia subia por cima do "Itaú — conta corrente"
+     com agência e número. Aconteceu em 27/09 e em 28/09.
+
+     Agora: não semeia enquanto espera o download nem quando a nuvem já
+     conhece contas desta loja; e o que semeia leva `_semente`, que nunca
+     vence a nuvem (temMudancaNaoEnviada). */
   if(!DB.contas||!DB.contas.length){
+    var _jaNaNuvem=!!(DB._uuid&&DB._uuid.contas&&Object.keys(DB._uuid.contas).length);
+    var _esperaDownload=(typeof NUVEM!=='undefined')&&!!NUVEM&&NUVEM.ligada&&!NUVEM.baixou;
+    if(_jaNaNuvem||_esperaDownload){ DB.contas=DB.contas||[]; return; }
     DB.contas=[
-      {id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',saldo:0},
-      {id:'ct_cofre',nome:'Cofre',tipo:'Cofre',saldo:0},
-      {id:'ct_banco',nome:'Banco — conta corrente',tipo:'Banco',saldo:0}
+      {id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',saldo:0,_semente:true},
+      {id:'ct_cofre',nome:'Cofre',tipo:'Cofre',saldo:0,_semente:true},
+      {id:'ct_banco',nome:'Banco — conta corrente',tipo:'Banco',saldo:0,_semente:true}
     ];
   }
 }
@@ -27009,10 +27153,11 @@ function baseCat(){
     if(c.id==='ct_cofre')c.fixa='cofre';
     return c;
   });
+  /* conta fixa de fábrica: `_semente` — nunca vence a nuvem (28/09/2026) */
   if(!temCaixa&&!DB.contas.some(function(c){return c.fixa==='caixa'}))
-    DB.contas.unshift({id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',fixa:'caixa',saldoInicial:0});
+    DB.contas.unshift({id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',fixa:'caixa',saldoInicial:0,_semente:true});
   if(!temCofre&&!DB.contas.some(function(c){return c.fixa==='cofre'}))
-    DB.contas.push({id:'ct_cofre',nome:'Cofre',tipo:'Cofre',fixa:'cofre',saldoInicial:0});
+    DB.contas.push({id:'ct_cofre',nome:'Cofre',tipo:'Cofre',fixa:'cofre',saldoInicial:0,_semente:true});
 }
 
 /* ==========================================================
@@ -33224,8 +33369,11 @@ function editarCaixa(id){
     };
     c.diferencaTotal=c.snapshot.diferencaTotal;
     c.conciliado=c.snapshot.conciliado;
-    /* refaz os lançamentos deste caixa */
-    DB.lancFin=(DB.lancFin||[]).filter(function(l){return !(l.ref===c.id&&l.origem==='fechamento-caixa')});
+    /* refaz os lançamentos deste caixa. Não se apaga nada aqui: apagar só
+       neste aparelho deixava os antigos na nuvem e o refazer somava outro
+       conjunto — o Pix em dobro de 27/09. `lancarFechamento` regrava os
+       MESMOS lançamentos (identificador fixo) e declara a exclusão do que
+       sobrou de versões antigas. */
     var n2=lancarFechamento(c,mov);
     salvar();telaFrenteCaixa();
     toast('Fechamento atualizado. '+n2+' lançamento(s) refeitos no financeiro.');
@@ -51194,6 +51342,11 @@ function linhasMovimento(cx,mv){
   var motivo=[mv.motivoNome,mv.motivo].filter(Boolean).join(' - ');
   if(motivo)cab('Motivo: '+motivo);
   cab((sangria?'Destino: ':'Origem: ')+(mv.destinoNome||'-'));
+  /* observação escrita na hora (28/09/2026): sai inteira, quebrando a linha */
+  if(mv.obs){
+    var ob='Obs: '+String(mv.obs);
+    while(ob.length){ L.push({txt:ob.slice(0,cols)}); ob=ob.slice(cols); }
+  }
   L.push({txt:''});
   L.push({txt:('VALOR: '+money(Number(mv.valor)||0)).slice(0,cols),n:true});
   L.push({txt:''});

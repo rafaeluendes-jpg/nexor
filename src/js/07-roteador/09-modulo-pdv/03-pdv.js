@@ -1987,12 +1987,38 @@ function movimentoCaixa(id){
              mais venda que nao chegou a ter pagamento */
           descoberto:+(_tot-_somaF-_semForma).toFixed(2)};
 }
-/* ao fechar o caixa, cada forma vira um lançamento na conta dela, já com a taxa descontada */
+/* ==========================================================
+   UM CAIXA, UM LANÇAMENTO POR FORMA — PARA SEMPRE (Rafael, 28/09/2026)
+
+   AQUI NASCIA O PIX EM DOBRO.
+
+   Cada chamada criava lançamentos com identificador NOVO (uid). Fechar e
+   depois "Editar fechamento" apagava os antigos só NESTE aparelho — na
+   nuvem eles ficavam — e subia outros: o caixa de 27/09 apareceu com dois
+   Pix de R$ 711,00, criados com 26 segundos de diferença.
+
+   Agora o identificador é FIXO: caixa + forma (`lffc_<caixa>_<forma>`).
+   Fechar, editar, refazer, o reparo automático — qualquer caminho que
+   chegue aqui grava o MESMO lançamento, e a nuvem atualiza a mesma linha.
+   Não existe segundo lançamento. O que sobrar de uma versão anterior (id
+   antigo, ou forma que deixou de ter venda) é declarado excluído e sai da
+   nuvem também.
+
+   E A DATA É A DO CAIXA, NÃO A DE QUEM APERTOU O BOTÃO. O caixa de 27/09
+   refeito no dia 28 lançava o Pix no dia 28 — "configurado para cair no
+   mesmo dia e está caindo no dia depois". Emissão = dia em que o caixa
+   abriu; vencimento = esse dia + os dias da forma.
+   ========================================================== */
+function idLancFechamento(cx,f){ return 'lffc_'+cx.id+'_'+f.id; }
+function diaDoCaixa(cx){
+  var d=String(isoHoraDoCaixa(cx&&cx.aberto)||'').slice(0,10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:hojeISO();
+}
 function lancarFechamento(cx,mov){
   DB.lancFin=DB.lancFin||[];
-  var dt=hojeISO();
+  var dt=diaDoCaixa(cx);
   var contaCaixa=(DB.contas||[]).find(function(c){return c.fixa==='caixa'});
-  var criados=0;
+  var criados=0, feitos={};
   (DB.formasPag||[]).forEach(function(f){
     var bruto=mov.porForma[f.id]||0;
     if(bruto<=0)return;
@@ -2002,16 +2028,80 @@ function lancarFechamento(cx,mov){
     var contaId=f.contaId||(f.tipo==='dinheiro'&&contaCaixa?contaCaixa.id:'');
     var venc=dt;
     if(Number(f.dias)>0){var d=new Date(dt+'T12:00:00');d.setDate(d.getDate()+Number(f.dias));venc=d.toISOString().slice(0,10);}
-    DB.lancFin.push({id:uid('lf'),tipo:'receita',contaId:contaId,metodoId:f.id,
+    var id=idLancFechamento(cx,f);
+    var novo={id:id,tipo:'receita',contaId:contaId,metodoId:f.id,
       descricao:'Vendas — '+f.nome+(taxa?' (taxa R$ '+money(taxa)+')':''),
       fornecedor:'',documento:'',categoriaTxt:'Frente de Caixa',
       valor:liq,emissao:dt,vencimento:venc,
       pagamento:Number(f.dias)>0?'':dt,pago:Number(f.dias)>0?false:true,
-      origem:'fechamento-caixa',ref:cx.id,
-      obs:'Bruto R$ '+money(bruto)+' · '+qtd+' transação(ões)'+(taxa?' · taxa R$ '+money(taxa):'')});
+      origem:'fechamento-caixa',ref:cx.id,sucursalRef:cx.sucursalId||undefined,
+      obs:'Bruto R$ '+money(bruto)+' · '+qtd+' transação(ões)'+(taxa?' · taxa R$ '+money(taxa):'')};
+    var ja=DB.lancFin.find(function(l){return l.id===id});
+    if(ja){
+      /* já existe: atualiza no lugar. Baixa e conciliação que a pessoa fez
+         (cartão que já caiu no banco) não são desfeitas por um refazer. */
+      if(ja.pago&&!novo.pago){novo.pago=true;novo.pagamento=ja.pagamento;}
+      if(ja.conciliado){novo.conciliado=ja.conciliado;novo.dataConc=ja.dataConc;}
+      Object.assign(ja,novo);
+    }else DB.lancFin.push(novo);
+    feitos[id]=true;
     criados++;
   });
+  /* o que este caixa tinha e não é mais um dos fixos acima (id antigo, ou
+     forma que ficou sem venda) sai daqui E da nuvem */
+  DB.lancFin=DB.lancFin.filter(function(l){
+    if(l.origem!=='fechamento-caixa'||l.ref!==cx.id||feitos[l.id])return true;
+    if(l.conciliado)return true;   /* conciliado no banco: não se apaga sozinho */
+    try{declararExclusao('lancFin',l.id);}catch(e){_quieto(e,'lancarFechamento')}
+    return false;
+  });
   return criados;
+}
+/* ==========================================================
+   CAIXA FECHADO SEM LANÇAMENTO É REPARADO SOZINHO (28/09/2026)
+
+   Os caixas de 20, 24, 25 e 26/09 de Santa Fé fecharam e não geraram
+   lançamento nenhum na nuvem — "depois do dia 23 não tem mais os Pix". O
+   Financeiro tem de mostrar TODOS.
+
+   Depois de cada download, todo caixa FECHADO desta unidade, dos últimos
+   25 dias, que não tem lançamento de fechamento, ganha os seus — pelo
+   mesmo `lancarFechamento`, com identificador fixo: repetir o reparo em
+   dois aparelhos grava a MESMA linha, nunca uma segunda.
+
+   Só repara com certeza:
+     - o aparelho já baixou da nuvem (sabe o que existe lá);
+     - as formas de pagamento são as da loja, não as de fábrica
+       (senão a taxa e o banco sairiam errados);
+     - as vendas daquele caixa estão inteiras aqui: o total delas bate,
+       centavo por centavo, com o total que o fechamento registrou.
+   ========================================================== */
+function repararFechamentosSemLancamento(){
+  try{
+    if(typeof NUVEM!=='undefined'&&NUVEM&&NUVEM.ligada&&!NUVEM.baixou)return 0;
+    var fp=DB.formasPag||[];
+    if(!fp.length||fp.some(function(f){return f&&f._semente===true}))return 0;
+    var un=lojaAtualId();
+    var lim=new Date();lim.setDate(lim.getDate()-25);
+    var desde=lim.toISOString().slice(0,10);
+    var n=0;
+    (DB.caixas||[]).forEach(function(cx){
+      if(!cx||!cx.fechadoEm||!cx.sucursalId||cx.sucursalId!==un)return;
+      if(diaDoCaixa(cx)<desde)return;
+      var tem=(DB.lancFin||[]).some(function(l){return l.origem==='fechamento-caixa'&&l.ref===cx.id});
+      if(tem)return;
+      var mov=movimentoCaixa(cx.id);
+      if(!mov||!(mov.total>0))return;
+      if(Math.abs((Number(cx.vendas)||0)-mov.total)>0.009)return;
+      if(lancarFechamento(cx,mov)>0){
+        n++;
+        try{logNuvem('caixa '+cx.id+' ('+diaDoCaixa(cx)+') estava fechado sem lançamento no '+
+          'financeiro — lançamentos criados',true);}catch(e){}
+      }
+    });
+    if(n)salvar();
+    return n;
+  }catch(e){ _quieto(e,'repararFechamentosSemLancamento'); return 0; }
 }
 function tabelaFormas(mov,cego){
   var h='<table class="fpgTab">';
@@ -2116,6 +2206,7 @@ function lancarTransferenciaCaixa(cx,mv,tipo){
     valor:Number(mv.valor)||0,emissao:dt,vencimento:dt,pagamento:dt,pago:true,
     origem:'mov-caixa',ref:mv.id,caixaId:cx.id,
     obs:(mv.motivoNome||'')+(mv.motivo?' — '+mv.motivo:'')+
+        (mv.obs?' · Obs: '+mv.obs:'')+
         ' · '+(mv.responsavel||'')+' · '+(mv.hora||'')};
   DB.lancFin.push(l);
   mv.lancRef=l.id;
@@ -2154,6 +2245,10 @@ async function _movCaixa(tipo){
    '<small style="display:block;color:var(--ink-3);margin-top:4px">'+
    (tipo==='sangria'?'A conta escolhida recebe o valor no mesmo instante.'
                     :'A conta escolhida é debitada no mesmo instante.')+'</small></div>'+
+  /* observação livre: sai no comprovante impresso (Rafael, 28/09/2026) */
+  '<div class="fld2"><label>Observação <i class="opc">opcional</i></label>'+
+   '<input id="mvObs" maxlength="140" autocomplete="off" placeholder="'+
+   (tipo==='sangria'?'ex: depositado no Itaú, envelope nº 12':'ex: troco trazido do cofre')+'"></div>'+
   /* ==========================================================
      SANGRIA SEM SENHA ERA O BURACO MAIS SERIO DO MODULO
 
@@ -2189,6 +2284,7 @@ async function _movCaixa(tipo){
     if(motId==='outro'&&!desc){_lib();toast('Descreva o motivo.');return false;}
     var destId=($('mvDest')||{}).value||'';
     if(!destId){_lib();toast('Selecione o destino.');return false;}
+    var obsMv=(($('mvObs')||{}).value||'').trim();
     /* a gaveta nao pode ter mais saida do que tem dinheiro */
     if(tipo==='sangria'){
       var disp=esperadoCaixa(cx);
@@ -2205,7 +2301,7 @@ async function _movCaixa(tipo){
     cx.movimentos=cx.movimentos||[];
     var mv={id:uid('mv'),tipo:tipo,valor:v,
       motivoId:motId,motivoNome:motNome,motivo:desc,
-      destinoContaId:destId,destinoNome:contaNome(destId),
+      destinoContaId:destId,destinoNome:contaNome(destId),obs:obsMv,
       responsavel:opM.nome,responsavelId:opM.id,
       hora:agoraHM(),data:new Date().toISOString()};
     cx.movimentos.push(mv);

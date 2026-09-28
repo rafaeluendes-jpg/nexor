@@ -2259,6 +2259,11 @@ function linhasMovimento(cx,mv){
   var motivo=[mv.motivoNome,mv.motivo].filter(Boolean).join(' - ');
   if(motivo)cab('Motivo: '+motivo);
   cab((sangria?'Destino: ':'Origem: ')+(mv.destinoNome||'-'));
+  /* observação escrita na hora (28/09/2026): sai inteira, quebrando a linha */
+  if(mv.obs){
+    var ob='Obs: '+String(mv.obs);
+    while(ob.length){ L.push({txt:ob.slice(0,cols)}); ob=ob.slice(cols); }
+  }
   L.push({txt:''});
   L.push({txt:('VALOR: '+money(Number(mv.valor)||0)).slice(0,cols),n:true});
   L.push({txt:''});

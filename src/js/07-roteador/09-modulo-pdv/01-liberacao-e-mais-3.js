@@ -43,7 +43,9 @@ function _formasFabrica(){
   /* nascem liberadas para TODAS as unidades: sem `sucursais`, o filtro de
      liberacao por unidade escondia as formas na loja e o seletor de forma
      de pagamento (despesa, boleto, PDV) vinha vazio. */
-  ].map(function(f){f.sucursais=['*'];return f;});   /* '*' = TODAS_UN (todas as unidades) */
+  /* `_semente`: valor de fábrica — nunca vence nem sobrescreve o que a nuvem
+     já tem (temMudancaNaoEnviada, 28/09/2026) */
+  ].map(function(f){f.sucursais=['*'];f._semente=true;return f;});   /* '*' = TODAS_UN (todas as unidades) */
 }
 /* ==========================================================
    FÁBRICA SÓ SEMEIA O QUE VAI SER GRAVADO QUANDO A LOJA É NOVA

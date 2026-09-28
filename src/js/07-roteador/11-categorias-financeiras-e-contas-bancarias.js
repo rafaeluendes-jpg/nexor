@@ -33,10 +33,11 @@ function baseCat(){
     if(c.id==='ct_cofre')c.fixa='cofre';
     return c;
   });
+  /* conta fixa de fábrica: `_semente` — nunca vence a nuvem (28/09/2026) */
   if(!temCaixa&&!DB.contas.some(function(c){return c.fixa==='caixa'}))
-    DB.contas.unshift({id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',fixa:'caixa',saldoInicial:0});
+    DB.contas.unshift({id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',fixa:'caixa',saldoInicial:0,_semente:true});
   if(!temCofre&&!DB.contas.some(function(c){return c.fixa==='cofre'}))
-    DB.contas.push({id:'ct_cofre',nome:'Cofre',tipo:'Cofre',fixa:'cofre',saldoInicial:0});
+    DB.contas.push({id:'ct_cofre',nome:'Cofre',tipo:'Cofre',fixa:'cofre',saldoInicial:0,_semente:true});
 }
 
 /* ==========================================================

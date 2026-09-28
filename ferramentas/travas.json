@@ -185,6 +185,10 @@
    "pontos": 22,
    "roda": true
   },
+  "testes/fechamento-e-semente.js": {
+   "pontos": 34,
+   "roda": true
+  },
   "testes/fechamento-nao-some.js": {
    "pontos": 16,
    "roda": true

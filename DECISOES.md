@@ -7146,3 +7146,33 @@ confere de novo. Na lista, despesa sem categoria aparece em vermelho,
 "Sem categoria", e o clique abre a edição — são 20 antigas (16 de nota de
 entrada, 4 manuais, todas de antes da correção de 24/09).
 Guardião: `testes/lancamento-categoria-confere.js`.
+
+## V360 — Pix em dobro, Pix no dia seguinte, caixa sem lançamento e o banco que voltava ao de fábrica (28/09/2026)
+
+**Pix em dobro.** `lancarFechamento` criava os lançamentos com id novo a cada
+chamada; "Editar fechamento" apagava os antigos só no aparelho e subia outro
+conjunto — o caixa de 27/09 ficou com dois Pix de R$ 711,00 (26 s de
+diferença). Agora o id é fixo, `lffc_<caixa>_<forma>`: qualquer caminho grava
+a mesma linha; o que sobrar de versões antigas é declarado excluído.
+
+**Pix no dia seguinte.** A emissão era `hojeISO()` de quem apertava o botão.
+Agora é o dia em que o caixa abriu; vencimento = esse dia + dias da forma.
+
+**Caixa fechado sem lançamento** (20, 24, 25, 26/09). `repararFechamentosSemLancamento`
+roda depois de cada download e cria os lançamentos que faltam — só com a nuvem
+baixada, formas reais (não de fábrica) e o total das vendas batendo com o
+fechamento registrado.
+
+**O banco "Itaú" virando "Banco — conta corrente".** O audit_log mostrou a troca
+em 27/09 e 28/09. `baseFin` recriava as contas de fábrica com o id da conta real
+quando a lista estava vazia (sem a trava que as formas já tinham), e a cópia de
+fábrica, por nunca ter subido, contava como "alteração não enviada": vencia a
+nuvem. Agora: a semente não nasce esperando download nem com a nuvem conhecida;
+todo registro de fábrica leva `_semente`, que nunca vence nem sobrescreve a nuvem
+(`temMudancaNaoEnviada`, `volta`, envio). As taxas de cartão voltaram a 1,99/3,49
+sete vezes entre 26/08 e 10/09 pelo mesmo caminho — a regra agora é única.
+
+**Sangria/suprimento:** campo de observação, que sai no comprovante e sobe junto
+com o motivo (sem coluna nova no banco).
+
+Guardião: `testes/fechamento-e-semente.js` (34) — reprovado na V359, aprovado na V360.
