@@ -370,3 +370,7 @@ select.impIn{padding-right:2px}
 /* QR Code do cupom fiscal na bobina: ~30 mm, o mínimo da SEFAZ é 25 mm */
 .papel .ppQr{text-align:center;margin:6px 0;white-space:normal}
 .papel .ppQr svg{width:12em;height:12em;display:inline-block}
+/* lançamento de despesa sem categoria: vermelho e clicável para corrigir (28/09/2026) */
+.grpTag.semCat{background:var(--red-soft);color:var(--red);border:1px solid var(--red);cursor:pointer;
+  font:inherit;font-size:10.5px;font-weight:700;min-height:32px;padding:0 10px}
+.selArv.falta{border-color:var(--red);box-shadow:0 0 0 2px var(--red-soft)}

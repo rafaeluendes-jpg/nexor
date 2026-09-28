@@ -7102,3 +7102,47 @@ três estados: nuvem livre (confirma, sem janela), fila que termina
 enquanto espera (confirma, sem janela) e fila que passa do tempo (avisa
 que está subindo, e **não** que não chegou). Mais 6 na suíte do trilho
 para a regra do canal. Total: 23 suítes, 1.049 asserções, zero falhas.
+
+## V359 — faturamento pela metade, estorno no financeiro e categoria obrigatória (28/09/2026)
+
+### O faturamento do mês pela metade
+
+Rafael: o aplicativo de faturamento dava **R$ 71.957,99** em setembro; o
+Faturamento do Joia, **R$ 42.076,99**. O banco confirma os 71.957,99.
+
+Causa: o servidor da nuvem devolve **no máximo 1.000 linhas por consulta**,
+calado. O download pedia `limit=3000` de pedidos e recebia 1.000 — as
+vendas de 12/09 em diante. A soma de setembro dessas 1.000 dá exatamente
+R$ 42.076,99. Cupons fiscais (2.135) e movimentações de estoque (2.274)
+estavam cortados do mesmo jeito, e a trava de "download cortado" nunca
+disparava (comparava 1.000 com 3.000).
+
+Correção (`apiPaginado`, porta única do download): a primeira leitura é a
+de sempre; quando volta com 1.000 cravadas, relê em páginas de 1.000 com
+desempate por `id` até o que foi pedido. Se o download de pedidos bater no
+próprio limite (a rede inteira, no futuro), os relatórios passam a buscar
+na nuvem os dias que o aparelho não tem inteiros (`PED_COBERTO_DESDE`).
+Guardião: `testes/faturamento-inteiro.js`.
+
+### Venda cancelada não vai mais para o lançamento financeiro
+
+Quem lançava era o banco (`tg_cancelamento_estorna` e `venda_cancelar`):
+uma despesa "Estorno do pedido #N" por cancelamento. Além de poluir,
+contava duas vezes — a venda cancelada já sai do faturamento e do
+fechamento. Migration `20260928_cancelamento_sem_lancamento.sql` (ordem do
+Rafael): as funções não gravam mais em `lancamentos_financeiros`; o estorno
+de estoque continua. As 45 despesas antigas (sem conta, sem categoria,
+nunca editadas, R$ 1.658) foram removidas; cada uma se reconstrói de
+`cancelamentos` se precisar. Provado no banco num teste desfeito
+(rollback). Guardião: `testes/cancelamento-sem-lancamento.js`.
+
+### Compra e gasto têm categoria — e ela é conferida na nuvem
+
+A categoria já era exigida no formulário, mas um id de categoria apagada
+passava (aparecia "—"). Agora tem de existir e ser do lado certo. Depois de
+salvar, o sistema lê de volta da nuvem a categoria de cada lançamento e só
+diz "conferido" quando ela está lá; se faltou, relê os vínculos, reenvia e
+confere de novo. Na lista, despesa sem categoria aparece em vermelho,
+"Sem categoria", e o clique abre a edição — são 20 antigas (16 de nota de
+entrada, 4 manuais, todas de antes da correção de 24/09).
+Guardião: `testes/lancamento-categoria-confere.js`.

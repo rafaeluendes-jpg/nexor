@@ -6530,6 +6530,10 @@ select.impIn{padding-right:2px}
 /* QR Code do cupom fiscal na bobina: ~30 mm, o mínimo da SEFAZ é 25 mm */
 .papel .ppQr{text-align:center;margin:6px 0;white-space:normal}
 .papel .ppQr svg{width:12em;height:12em;display:inline-block}
+/* lançamento de despesa sem categoria: vermelho e clicável para corrigir (28/09/2026) */
+.grpTag.semCat{background:var(--red-soft);color:var(--red);border:1px solid var(--red);cursor:pointer;
+  font:inherit;font-size:10.5px;font-weight:700;min-height:32px;padding:0 10px}
+.selArv.falta{border-color:var(--red);box-shadow:0 0 0 2px var(--red-soft)}
 
 </style>
 </head>
@@ -8988,7 +8992,7 @@ async function montarMapaVinculos(loja, forcar){
   for(var i=0;i<cols.length;i++){
     var col=cols[i], tab=_TAB_VINCULO[col];
     try{
-      var r=await api(tab+'?loja_id=eq.'+loja+'&select=id,ref_local&limit=5000');
+      var r=await apiPaginado(tab+'?loja_id=eq.'+loja+'&select=id,ref_local&limit=5000');
       if(!r||!r.length)continue;
       DB._uuid[col]=DB._uuid[col]||{};
       for(var k=0;k<r.length;k++){
@@ -9139,6 +9143,68 @@ async function tokenValido(forcar){
     }
   }catch(e){_quieto(e,'tokenValido')}
   return NUVEM.token;
+}
+/* ==========================================================
+   A NUVEM ENTREGA NO MÁXIMO 1.000 LINHAS POR CONSULTA (28/09/2026)
+
+   AQUI ESTAVA O FATURAMENTO DO MÊS PELA METADE.
+
+   Setembro de Santa Fé: o aplicativo de faturamento (que soma no banco)
+   mostrava R$ 71.957,99; o Faturamento do Joia, R$ 42.076,99. O download
+   pedia `limit=3000` de pedidos, mas o servidor corta TODA resposta em
+   1.000 linhas, calado. O aparelho recebia só as 1.000 vendas mais novas
+   (de 12/09 em diante) e os relatórios somavam só elas — a soma delas dá
+   exatamente os R$ 42.076,99. Cupons fiscais (2.135) e movimentações de
+   estoque (2.274) estavam cortados do mesmo jeito.
+
+   E a trava de "download cortado" nunca disparava: ela comparava o que
+   veio (1.000) com o que foi pedido (3.000).
+
+   Agora a primeira leitura é a mesma de sempre. Só quando ela volta com
+   1.000 linhas cravadas — sinal de corte — e se pediu mais do que isso (ou
+   não se pôs limite), a leitura é refeita em páginas de 1.000 até chegar
+   ao que foi pedido ou a nuvem acabar. A ordem ganha o `id` como desempate
+   para uma página nunca repetir nem pular linha da outra. Se a leitura em
+   páginas falhar, fica o que a primeira trouxe — nunca menos que antes.
+   ========================================================== */
+var PAGINA_NUVEM=1000;
+var TETO_PAGINADO=50000;
+async function apiPaginado(caminho){
+  var m=/[?&]limit=(\d+)/.exec(String(caminho||''));
+  var lim=m?Number(m[1]):TETO_PAGINADO;
+  var r1=await api(caminho);
+  if(!Array.isArray(r1)||r1.length!==PAGINA_NUVEM||lim<=PAGINA_NUVEM)return r1;
+  try{
+    var t=await _lerEmPaginas(caminho,lim);
+    return (Array.isArray(t)&&t.length>=r1.length)?t:r1;
+  }catch(e){
+    registrarFalha('download',String(caminho).split('?')[0],
+      'leitura em páginas falhou: '+((e&&e.message)||e),{situacao:'ficou a primeira página'});
+    return r1;
+  }
+}
+async function _lerEmPaginas(caminho,lim){
+  var base=String(caminho).replace(/([?&])limit=\d+(&|$)/,function(s,a,b){return b?a:'';});
+  if(/[?&]order=/.test(base)){
+    base=base.replace(/([?&]order=)([^&]*)/,function(s,a,o){
+      return /(^|,)id\./.test(o)?s:a+o+',id.desc';});
+  }else{
+    base+=(base.indexOf('?')<0?'?':'&')+'order=id.asc';
+  }
+  var sep=(base.indexOf('?')<0?'?':'&');
+  var tudo=[],vistos={};
+  for(var off=0;off<lim;off+=PAGINA_NUVEM){
+    var n=Math.min(PAGINA_NUVEM,lim-off);
+    var pg=await api(base+sep+'limit='+n+'&offset='+off);
+    if(!Array.isArray(pg))return off?tudo:pg;
+    for(var i=0;i<pg.length;i++){
+      var x=pg[i],k=x&&x.id;
+      if(k){ if(vistos[k])continue; vistos[k]=1; }
+      tudo.push(x);
+    }
+    if(pg.length<n)break;
+  }
+  return tudo;
 }
 async function api(caminho,metodo,corpo,extra,_repetiu){
   var h={'apikey':NUVEM.chave,'Content-Type':'application/json'};
@@ -10649,6 +10715,7 @@ var _FALHOU_BAIXA=[];
    perde historico.
    ========================================================== */
 var _CORTADAS={};
+var PED_COBERTO_DESDE='';   /* pedidos cortados: dia a partir do qual o aparelho tem tudo */
 /* ==========================================================
    AS LEITURAS COMECAM TODAS JUNTAS, MAS SAO USADAS NA ORDEM
 
@@ -10728,13 +10795,30 @@ async function baixarTab(nome,url){
   if(_EMVOO[k]){ var p=_EMVOO[k]; delete _EMVOO[k]; return await p; }
   var _tt=Date.now();
   try{
-    var r=await comRetentativa(function(){ return api(url); },'baixar '+nome,2);
+    var r=await comRetentativa(function(){ return apiPaginado(url); },'baixar '+nome,2);
     var mlim=/[?&]limit=(\d+)/.exec(url||'');
     if(mlim&&Array.isArray(r)&&r.length>=Number(mlim[1])){
       _CORTADAS[nome]=true;
       logNuvem(nome+': download atingiu o limite de '+mlim[1]+
         ' — exclusões não serão espelhadas nesta tabela',true);
-    }else{ delete _CORTADAS[nome]; }
+      /* pedidos cortados: o aparelho só tem inteiros os dias a partir do dia
+         seguinte à venda mais antiga que chegou. Os relatórios buscam na
+         nuvem tudo o que vem antes disso (inicioJanelaLocal). */
+      if(nome==='pedidos'){
+        var _min='';
+        r.forEach(function(p){
+          var d=p&&p.data_venda?diaLocal(p.data_venda):'';
+          if(d&&(!_min||d<_min))_min=d;
+        });
+        if(_min){
+          var _dd=new Date(_min+'T12:00:00');_dd.setDate(_dd.getDate()+1);
+          PED_COBERTO_DESDE=_dd.toISOString().slice(0,10);
+        }
+      }
+    }else{
+      delete _CORTADAS[nome];
+      if(nome==='pedidos')PED_COBERTO_DESDE='';
+    }
     _medir(nome,_tt);
     return r;
   }catch(e){
@@ -13913,7 +13997,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V358.0.0';
+var VERSAO='V359.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -27503,6 +27587,100 @@ function nomeCategoria(subId){
   });
   return achou;
 }
+/* ==========================================================
+   COMPRA E GASTO TÊM CATEGORIA — E ELA TEM DE FICAR (Rafael, 28/09/2026)
+
+   "Quando a pessoa for lançar uma compra ou um gasto, é obrigatório
+   colocar a categoria. E uma vez salvo, confere se está salvando, para
+   não ter perigo de voltar."
+
+   Três portas:
+   1. `categoriaValida` — a categoria escolhida existe no plano de contas
+      e é do lado certo (despesa com categoria de despesa). Um id velho,
+      de categoria apagada, aparecia como "—" e passava na validação.
+   2. `conferirLancNaNuvem` — depois de salvar, espera o envio e LÊ DE
+      VOLTA da nuvem a categoria de cada lançamento. Só diz "salvo" quando
+      ela está lá. Se a nuvem recebeu sem categoria (o defeito das 74 da
+      auditoria de 24/09), reenvia uma vez e confere de novo; se ainda
+      assim não chegou, avisa com o nome do lançamento.
+   3. Na lista, despesa sem categoria aparece em vermelho, "Sem
+      categoria", com o clique abrindo a edição para corrigir.
+   ========================================================== */
+function categoriaValida(subId,tipo){
+  if(!subId)return false;
+  return (DB.catfin||[]).some(function(p){
+    if(tipo&&typeof tipoCat==='function'&&tipoCat(p)!==tipo)return false;
+    return (p.itens||[]).some(function(it){return it.id===subId});
+  });
+}
+function lancSemCategoria(l){
+  return !!l&&l.tipo==='despesa'&&!l.categoriaTxt&&!categoriaValida(l.categoriaId);
+}
+async function _lerCategoriasNaNuvem(ids){
+  var r=await api('lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
+    '&ref_local=in.('+ids.map(encodeURIComponent).join(',')+')&select=ref_local,subcategoria_id');
+  var m={};
+  (r||[]).forEach(function(x){ m[x.ref_local]=x.subcategoria_id||''; });
+  return m;
+}
+async function _esperarEnvioLanc(ids){
+  var subiu=function(){
+    return ids.every(function(id){return !!(DB._uuid&&DB._uuid.lancFin&&DB._uuid.lancFin[id])});
+  };
+  try{ await sincronizar(); }catch(e){ _quieto(e,'conferirLancNaNuvem'); }
+  var ate=Date.now()+30000;
+  while(!subiu()&&Date.now()<ate&&(NUVEM.sincronizando||NUVEM.pendente)){
+    await new Promise(function(r){setTimeout(r,400)});
+  }
+  return subiu();
+}
+async function conferirLancNaNuvem(ids){
+  ids=(ids||[]).filter(Boolean);
+  if(!ids.length)return true;
+  var qual=ids.length>1?ids.length+' lançamentos':'Lançamento';
+  if(typeof NUVEM==='undefined'||!NUVEM.ligada){
+    toast(qual+' salvo neste aparelho. Sobe para a nuvem assim que a internet voltar.');
+    return false;
+  }
+  toast(qual+' salvo — conferindo na nuvem…');
+  var comCat=ids.filter(function(id){
+    var l=(DB.lancFin||[]).find(function(x){return x.id===id});
+    return l&&l.categoriaId;
+  });
+  try{
+    if(!await _esperarEnvioLanc(ids)){
+      toast(qual+' salvo neste aparelho — ainda na fila de envio. A nuvem recebe no próximo envio.');
+      return false;
+    }
+    if(!comCat.length){ toast(qual+' salvo e conferido na nuvem.'); return true; }
+    var m=await _lerCategoriasNaNuvem(comCat);
+    var faltam=comCat.filter(function(id){return !m[id]});
+    if(faltam.length){
+      /* a nuvem recebeu sem a categoria: relê o mapa de vínculos e reenvia */
+      try{ await montarMapaVinculos(NUVEM.loja,true); }catch(e){ _quieto(e,'conferirLancNaNuvem'); }
+      try{ if(DB._hash&&DB._hash.lancFin)faltam.forEach(function(id){delete DB._hash.lancFin[id]}); }catch(e){}
+      await _esperarEnvioLanc(faltam);
+      m=await _lerCategoriasNaNuvem(faltam);
+      faltam=faltam.filter(function(id){return !m[id]});
+    }
+    if(faltam.length){
+      var nomes=faltam.map(function(id){
+        var l=(DB.lancFin||[]).find(function(x){return x.id===id});return l?l.descricao:id;});
+      await confirmar({titulo:'A categoria não chegou na nuvem',tipo:'info',
+        texto:'O lançamento foi salvo, mas a nuvem ainda não tem a categoria de: '+nomes.join(', ')+'.',
+        aviso:'Neste aparelho a categoria está certa e o sistema tenta de novo no próximo envio. '+
+          'Se o aviso voltar, abra o lançamento e salve de novo.',
+        ok:'Entendi',cancelar:null});
+      return false;
+    }
+    toast(qual+' salvo e conferido na nuvem, com a categoria.');
+    return true;
+  }catch(e){
+    _quieto(e,'conferirLancNaNuvem');
+    toast(qual+' salvo neste aparelho. Não deu para conferir a nuvem agora — ela recebe no próximo envio.');
+    return false;
+  }
+}
 function metodoNome(id){var f=formaPag(id);return f?f.nome:'—'}
 function contaNome(id){var c=(DB.contas||[]).find(function(x){return x.id===id});return c?c.nome:'—'}
 function iconeConta(id){
@@ -27669,7 +27847,9 @@ function telaLancamentos(){
         :(l.fornecedor?'<small>'+E(l.fornecedor)+(l.documento?' · doc '+E(l.documento):'')+'</small>':''))+
        '</div></div></td>'+
       '<td>'+E(l.metodoId?metodoNome(l.metodoId):'—')+'</td>'+
-      '<td><span class="grpTag">'+E(catTexto(l))+'</span>'+(l.conciliado?'<span class="concTag" title="conciliado no banco">'+sv('nike',14)+'</span>':'')+'</td>'+
+      '<td>'+(lancSemCategoria(l)
+        ?'<button class="grpTag semCat" onclick="modalLanc(\''+l.id+'\')" title="Clique para escolher a categoria">Sem categoria</button>'
+        :'<span class="grpTag">'+E(catTexto(l))+'</span>')+(l.conciliado?'<span class="concTag" title="conciliado no banco">'+sv('nike',14)+'</span>':'')+'</td>'+
       '<td style="text-align:right"><span class="vBol">'+(neg?'- ':'')+'R$ '+money(valorBoleto(l))+'</span></td>'+
       '<td style="text-align:right">'+
        (l.pago
@@ -31217,8 +31397,8 @@ function modalLanc(id,tipoNovo,pre){
   '<div class="row3">'+
    '<div class="fld2"><label>Categoria *</label>'+
     '<button class="selArv" id="lnCatB" type="button" onclick="abreCatLanc()">'+
-    '<span>'+E(l&&l.categoriaId?nomeCategoria(l.categoriaId):'Selecione uma opção')+'</span>'+sv('dn',13)+'</button>'+
-    '<input type="hidden" id="lnCat" value="'+E(l?l.categoriaId:'')+'">'+
+    '<span>'+E(l&&categoriaValida(l.categoriaId)?nomeCategoria(l.categoriaId):'Selecione uma opção')+'</span>'+sv('dn',13)+'</button>'+
+    '<input type="hidden" id="lnCat" value="'+E(l&&categoriaValida(l.categoriaId)?l.categoriaId:'')+'">'+
     '<div class="arvIn" id="lnCatArv" style="display:none"></div></div>'+
    '<div class="fld2"><label>Fornecedor</label>'+
     '<select id="lnFid"><option value="">— sem fornecedor —</option>'+
@@ -31321,10 +31501,16 @@ function modalLanc(id,tipoNovo,pre){
     var jaPago=$('lnP')&&$('lnP').checked;
     if(jaPago&&$('lnC')&&!$('lnC').value){toast('Selecione o banco / conta.');return false;}
     if(jaPago&&$('lnM')&&!$('lnM').value){toast('Selecione a forma de pagamento.');return false;}
-    if(!$('lnCat').value){toast('Selecione a categoria.');return false;}
+    var tp=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
+    /* a categoria tem de EXISTIR no plano de contas e ser do lado certo —
+       um id de categoria apagada aparecia como "—" e passava (28/09/2026) */
+    if(!categoriaValida($('lnCat').value,tp)){
+      toast('Selecione a categoria'+(tp==='despesa'?' da despesa (custo direto, imposto, despesa fixa...)':'')+'.');
+      var _cb=$('lnCatB');if(_cb){_cb.classList.add('falta');_cb.focus();}
+      return false;
+    }
     var v=parseFloat($('lnV').value)||0;
     if(!v){toast('Informe o valor.');return false;}
-    var tp=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
     var pago=$('lnP').checked;
     var fid=$('lnFid')?$('lnFid').value:'';
     var fo=(DB.fornec||[]).find(function(x){return x.id===fid});
@@ -31337,7 +31523,7 @@ function modalLanc(id,tipoNovo,pre){
       pagamento:pago?($('lnPg').value||hojeISO()):'',pago:pago,
       categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),
       codigoBarras:soDigitos(($('lnCB')||{}).value),obs:$('lnO').value};
-    if(l){Object.assign(l,o);salvar();telaLancamentos();toast('Lançamento salvo.');return true;}
+    if(l){Object.assign(l,o);salvar();telaLancamentos();conferirLancNaNuvem([l.id]);return true;}
     var parc=$('lnParc')&&$('lnParc').checked;
     if(parc){
       var ds=datasParcelas(),vs=valoresParcelas();
@@ -31359,8 +31545,8 @@ function modalLanc(id,tipoNovo,pre){
         o.vencimento=ds[0];o.valor=vs[0];
         o.id=uid('lf');DB.lancFin.push(o);
         salvar();
-        if(_preLanc&&_preLanc.apos){var cb1=_preLanc.apos;_preLanc=null;cb1([o]);return true;}
-        telaLancamentos();toast('Lançamento salvo.');return true;
+        if(_preLanc&&_preLanc.apos){var cb1=_preLanc.apos;_preLanc=null;cb1([o]);conferirLancNaNuvem([o.id]);return true;}
+        telaLancamentos();conferirLancNaNuvem([o.id]);return true;
       }
       var criados=[];
       ds.forEach(function(dt,i){
@@ -31371,18 +31557,20 @@ function modalLanc(id,tipoNovo,pre){
         DB.lancFin.push(c2);criados.push(c2);
       });
       salvar();
-      if(_preLanc&&_preLanc.apos){var cb=_preLanc.apos;_preLanc=null;cb(criados);return true;}
+      var _idsP=criados.map(function(x){return x.id});
+      if(_preLanc&&_preLanc.apos){var cb=_preLanc.apos;_preLanc=null;cb(criados);conferirLancNaNuvem(_idsP);return true;}
       telaLancamentos();
       toast(ds.length+' parcelas lançadas nas datas.');
+      conferirLancNaNuvem(_idsP);
       return true;
     }
     o.id=uid('lf');DB.lancFin.push(o);
     salvar();
-    if(_preLanc&&_preLanc.apos){var cb2=_preLanc.apos;_preLanc=null;cb2([o]);return true;}
+    if(_preLanc&&_preLanc.apos){var cb2=_preLanc.apos;_preLanc=null;cb2([o]);conferirLancNaNuvem([o.id]);return true;}
     telaLancamentos();
+    conferirLancNaNuvem([o.id]);
     /* nasceu ja pago e sem banco: pede o banco e a forma na hora */
     if(o.pago&&!o.contaId){setTimeout(function(){modalPagamento([o.id])},80);return true;}
-    toast('Lançamento salvo.');
     return true;
   },'lg');
   $('lnP').onchange=function(){
@@ -31466,6 +31654,7 @@ function togglePastaLanc(id){_catLancAbertas[id]=!_catLancAbertas[id];desenhaCat
 function escolheCatLanc(id){
   var inp=document.getElementById('lnCat');
   if(inp)inp.value=id||'';
+  var bf=document.getElementById('lnCatB');if(bf)bf.classList.remove('falta');
   var b=document.querySelector('#lnCatB span');
   if(b)b.textContent=id?nomeCategoria(id):'Selecione uma opção';
   var box=document.getElementById('lnCatArv');
@@ -43609,7 +43798,12 @@ var _histCarregado={};      /* intervalos já buscados, para não repetir */
 function inicioJanelaLocal(){
   var d=new Date();
   d.setDate(d.getDate()-(typeof DIAS_JANELA_PEDIDOS!=='undefined'?DIAS_JANELA_PEDIDOS:(typeof DIAS_JANELA!=='undefined'?DIAS_JANELA:90)));
-  return d.toISOString().slice(0,10);
+  var ini=d.toISOString().slice(0,10);
+  /* download de pedidos cortado pelo limite: antes deste dia o aparelho
+     NÃO tem tudo, e o relatório tem de ir à nuvem (28/09/2026) */
+  if(typeof PED_COBERTO_DESDE!=='undefined'&&PED_COBERTO_DESDE&&PED_COBERTO_DESDE>ini)
+    return PED_COBERTO_DESDE;
+  return ini;
 }
 function fontePedidos(){
   return _histExtra.length?(DB.pedidos||[]).concat(_histExtra):(DB.pedidos||[]);

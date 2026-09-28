@@ -51,6 +51,100 @@ function nomeCategoria(subId){
   });
   return achou;
 }
+/* ==========================================================
+   COMPRA E GASTO TÊM CATEGORIA — E ELA TEM DE FICAR (Rafael, 28/09/2026)
+
+   "Quando a pessoa for lançar uma compra ou um gasto, é obrigatório
+   colocar a categoria. E uma vez salvo, confere se está salvando, para
+   não ter perigo de voltar."
+
+   Três portas:
+   1. `categoriaValida` — a categoria escolhida existe no plano de contas
+      e é do lado certo (despesa com categoria de despesa). Um id velho,
+      de categoria apagada, aparecia como "—" e passava na validação.
+   2. `conferirLancNaNuvem` — depois de salvar, espera o envio e LÊ DE
+      VOLTA da nuvem a categoria de cada lançamento. Só diz "salvo" quando
+      ela está lá. Se a nuvem recebeu sem categoria (o defeito das 74 da
+      auditoria de 24/09), reenvia uma vez e confere de novo; se ainda
+      assim não chegou, avisa com o nome do lançamento.
+   3. Na lista, despesa sem categoria aparece em vermelho, "Sem
+      categoria", com o clique abrindo a edição para corrigir.
+   ========================================================== */
+function categoriaValida(subId,tipo){
+  if(!subId)return false;
+  return (DB.catfin||[]).some(function(p){
+    if(tipo&&typeof tipoCat==='function'&&tipoCat(p)!==tipo)return false;
+    return (p.itens||[]).some(function(it){return it.id===subId});
+  });
+}
+function lancSemCategoria(l){
+  return !!l&&l.tipo==='despesa'&&!l.categoriaTxt&&!categoriaValida(l.categoriaId);
+}
+async function _lerCategoriasNaNuvem(ids){
+  var r=await api('lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
+    '&ref_local=in.('+ids.map(encodeURIComponent).join(',')+')&select=ref_local,subcategoria_id');
+  var m={};
+  (r||[]).forEach(function(x){ m[x.ref_local]=x.subcategoria_id||''; });
+  return m;
+}
+async function _esperarEnvioLanc(ids){
+  var subiu=function(){
+    return ids.every(function(id){return !!(DB._uuid&&DB._uuid.lancFin&&DB._uuid.lancFin[id])});
+  };
+  try{ await sincronizar(); }catch(e){ _quieto(e,'conferirLancNaNuvem'); }
+  var ate=Date.now()+30000;
+  while(!subiu()&&Date.now()<ate&&(NUVEM.sincronizando||NUVEM.pendente)){
+    await new Promise(function(r){setTimeout(r,400)});
+  }
+  return subiu();
+}
+async function conferirLancNaNuvem(ids){
+  ids=(ids||[]).filter(Boolean);
+  if(!ids.length)return true;
+  var qual=ids.length>1?ids.length+' lançamentos':'Lançamento';
+  if(typeof NUVEM==='undefined'||!NUVEM.ligada){
+    toast(qual+' salvo neste aparelho. Sobe para a nuvem assim que a internet voltar.');
+    return false;
+  }
+  toast(qual+' salvo — conferindo na nuvem…');
+  var comCat=ids.filter(function(id){
+    var l=(DB.lancFin||[]).find(function(x){return x.id===id});
+    return l&&l.categoriaId;
+  });
+  try{
+    if(!await _esperarEnvioLanc(ids)){
+      toast(qual+' salvo neste aparelho — ainda na fila de envio. A nuvem recebe no próximo envio.');
+      return false;
+    }
+    if(!comCat.length){ toast(qual+' salvo e conferido na nuvem.'); return true; }
+    var m=await _lerCategoriasNaNuvem(comCat);
+    var faltam=comCat.filter(function(id){return !m[id]});
+    if(faltam.length){
+      /* a nuvem recebeu sem a categoria: relê o mapa de vínculos e reenvia */
+      try{ await montarMapaVinculos(NUVEM.loja,true); }catch(e){ _quieto(e,'conferirLancNaNuvem'); }
+      try{ if(DB._hash&&DB._hash.lancFin)faltam.forEach(function(id){delete DB._hash.lancFin[id]}); }catch(e){}
+      await _esperarEnvioLanc(faltam);
+      m=await _lerCategoriasNaNuvem(faltam);
+      faltam=faltam.filter(function(id){return !m[id]});
+    }
+    if(faltam.length){
+      var nomes=faltam.map(function(id){
+        var l=(DB.lancFin||[]).find(function(x){return x.id===id});return l?l.descricao:id;});
+      await confirmar({titulo:'A categoria não chegou na nuvem',tipo:'info',
+        texto:'O lançamento foi salvo, mas a nuvem ainda não tem a categoria de: '+nomes.join(', ')+'.',
+        aviso:'Neste aparelho a categoria está certa e o sistema tenta de novo no próximo envio. '+
+          'Se o aviso voltar, abra o lançamento e salve de novo.',
+        ok:'Entendi',cancelar:null});
+      return false;
+    }
+    toast(qual+' salvo e conferido na nuvem, com a categoria.');
+    return true;
+  }catch(e){
+    _quieto(e,'conferirLancNaNuvem');
+    toast(qual+' salvo neste aparelho. Não deu para conferir a nuvem agora — ela recebe no próximo envio.');
+    return false;
+  }
+}
 function metodoNome(id){var f=formaPag(id);return f?f.nome:'—'}
 function contaNome(id){var c=(DB.contas||[]).find(function(x){return x.id===id});return c?c.nome:'—'}
 function iconeConta(id){
@@ -217,7 +311,9 @@ function telaLancamentos(){
         :(l.fornecedor?'<small>'+E(l.fornecedor)+(l.documento?' · doc '+E(l.documento):'')+'</small>':''))+
        '</div></div></td>'+
       '<td>'+E(l.metodoId?metodoNome(l.metodoId):'—')+'</td>'+
-      '<td><span class="grpTag">'+E(catTexto(l))+'</span>'+(l.conciliado?'<span class="concTag" title="conciliado no banco">'+sv('nike',14)+'</span>':'')+'</td>'+
+      '<td>'+(lancSemCategoria(l)
+        ?'<button class="grpTag semCat" onclick="modalLanc(\''+l.id+'\')" title="Clique para escolher a categoria">Sem categoria</button>'
+        :'<span class="grpTag">'+E(catTexto(l))+'</span>')+(l.conciliado?'<span class="concTag" title="conciliado no banco">'+sv('nike',14)+'</span>':'')+'</td>'+
       '<td style="text-align:right"><span class="vBol">'+(neg?'- ':'')+'R$ '+money(valorBoleto(l))+'</span></td>'+
       '<td style="text-align:right">'+
        (l.pago

@@ -51,13 +51,30 @@ async function baixarTab(nome,url){
   if(_EMVOO[k]){ var p=_EMVOO[k]; delete _EMVOO[k]; return await p; }
   var _tt=Date.now();
   try{
-    var r=await comRetentativa(function(){ return api(url); },'baixar '+nome,2);
+    var r=await comRetentativa(function(){ return apiPaginado(url); },'baixar '+nome,2);
     var mlim=/[?&]limit=(\d+)/.exec(url||'');
     if(mlim&&Array.isArray(r)&&r.length>=Number(mlim[1])){
       _CORTADAS[nome]=true;
       logNuvem(nome+': download atingiu o limite de '+mlim[1]+
         ' — exclusões não serão espelhadas nesta tabela',true);
-    }else{ delete _CORTADAS[nome]; }
+      /* pedidos cortados: o aparelho só tem inteiros os dias a partir do dia
+         seguinte à venda mais antiga que chegou. Os relatórios buscam na
+         nuvem tudo o que vem antes disso (inicioJanelaLocal). */
+      if(nome==='pedidos'){
+        var _min='';
+        r.forEach(function(p){
+          var d=p&&p.data_venda?diaLocal(p.data_venda):'';
+          if(d&&(!_min||d<_min))_min=d;
+        });
+        if(_min){
+          var _dd=new Date(_min+'T12:00:00');_dd.setDate(_dd.getDate()+1);
+          PED_COBERTO_DESDE=_dd.toISOString().slice(0,10);
+        }
+      }
+    }else{
+      delete _CORTADAS[nome];
+      if(nome==='pedidos')PED_COBERTO_DESDE='';
+    }
     _medir(nome,_tt);
     return r;
   }catch(e){

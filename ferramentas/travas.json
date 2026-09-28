@@ -101,6 +101,10 @@
    "pontos": 18,
    "roda": true
   },
+  "testes/cancelamento-sem-lancamento.js": {
+   "pontos": 2,
+   "roda": true
+  },
   "testes/cardapio-horario.js": {
    "pontos": 29,
    "roda": true
@@ -177,6 +181,10 @@
    "pontos": 0,
    "roda": false
   },
+  "testes/faturamento-inteiro.js": {
+   "pontos": 22,
+   "roda": true
+  },
   "testes/fechamento-nao-some.js": {
    "pontos": 16,
    "roda": true
@@ -235,6 +243,10 @@
   },
   "testes/isolamento-sucursal.js": {
    "pontos": 10,
+   "roda": true
+  },
+  "testes/lancamento-categoria-confere.js": {
+   "pontos": 27,
    "roda": true
   },
   "testes/lancamento-forma-pagamento.js": {

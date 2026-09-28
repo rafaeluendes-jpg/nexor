@@ -1905,7 +1905,7 @@ async function montarMapaVinculos(loja, forcar){
   for(var i=0;i<cols.length;i++){
     var col=cols[i], tab=_TAB_VINCULO[col];
     try{
-      var r=await api(tab+'?loja_id=eq.'+loja+'&select=id,ref_local&limit=5000');
+      var r=await apiPaginado(tab+'?loja_id=eq.'+loja+'&select=id,ref_local&limit=5000');
       if(!r||!r.length)continue;
       DB._uuid[col]=DB._uuid[col]||{};
       for(var k=0;k<r.length;k++){
@@ -2056,6 +2056,68 @@ async function tokenValido(forcar){
     }
   }catch(e){_quieto(e,'tokenValido')}
   return NUVEM.token;
+}
+/* ==========================================================
+   A NUVEM ENTREGA NO MÁXIMO 1.000 LINHAS POR CONSULTA (28/09/2026)
+
+   AQUI ESTAVA O FATURAMENTO DO MÊS PELA METADE.
+
+   Setembro de Santa Fé: o aplicativo de faturamento (que soma no banco)
+   mostrava R$ 71.957,99; o Faturamento do Joia, R$ 42.076,99. O download
+   pedia `limit=3000` de pedidos, mas o servidor corta TODA resposta em
+   1.000 linhas, calado. O aparelho recebia só as 1.000 vendas mais novas
+   (de 12/09 em diante) e os relatórios somavam só elas — a soma delas dá
+   exatamente os R$ 42.076,99. Cupons fiscais (2.135) e movimentações de
+   estoque (2.274) estavam cortados do mesmo jeito.
+
+   E a trava de "download cortado" nunca disparava: ela comparava o que
+   veio (1.000) com o que foi pedido (3.000).
+
+   Agora a primeira leitura é a mesma de sempre. Só quando ela volta com
+   1.000 linhas cravadas — sinal de corte — e se pediu mais do que isso (ou
+   não se pôs limite), a leitura é refeita em páginas de 1.000 até chegar
+   ao que foi pedido ou a nuvem acabar. A ordem ganha o `id` como desempate
+   para uma página nunca repetir nem pular linha da outra. Se a leitura em
+   páginas falhar, fica o que a primeira trouxe — nunca menos que antes.
+   ========================================================== */
+var PAGINA_NUVEM=1000;
+var TETO_PAGINADO=50000;
+async function apiPaginado(caminho){
+  var m=/[?&]limit=(\d+)/.exec(String(caminho||''));
+  var lim=m?Number(m[1]):TETO_PAGINADO;
+  var r1=await api(caminho);
+  if(!Array.isArray(r1)||r1.length!==PAGINA_NUVEM||lim<=PAGINA_NUVEM)return r1;
+  try{
+    var t=await _lerEmPaginas(caminho,lim);
+    return (Array.isArray(t)&&t.length>=r1.length)?t:r1;
+  }catch(e){
+    registrarFalha('download',String(caminho).split('?')[0],
+      'leitura em páginas falhou: '+((e&&e.message)||e),{situacao:'ficou a primeira página'});
+    return r1;
+  }
+}
+async function _lerEmPaginas(caminho,lim){
+  var base=String(caminho).replace(/([?&])limit=\d+(&|$)/,function(s,a,b){return b?a:'';});
+  if(/[?&]order=/.test(base)){
+    base=base.replace(/([?&]order=)([^&]*)/,function(s,a,o){
+      return /(^|,)id\./.test(o)?s:a+o+',id.desc';});
+  }else{
+    base+=(base.indexOf('?')<0?'?':'&')+'order=id.asc';
+  }
+  var sep=(base.indexOf('?')<0?'?':'&');
+  var tudo=[],vistos={};
+  for(var off=0;off<lim;off+=PAGINA_NUVEM){
+    var n=Math.min(PAGINA_NUVEM,lim-off);
+    var pg=await api(base+sep+'limit='+n+'&offset='+off);
+    if(!Array.isArray(pg))return off?tudo:pg;
+    for(var i=0;i<pg.length;i++){
+      var x=pg[i],k=x&&x.id;
+      if(k){ if(vistos[k])continue; vistos[k]=1; }
+      tudo.push(x);
+    }
+    if(pg.length<n)break;
+  }
+  return tudo;
 }
 async function api(caminho,metodo,corpo,extra,_repetiu){
   var h={'apikey':NUVEM.chave,'Content-Type':'application/json'};
@@ -3566,6 +3628,7 @@ var _FALHOU_BAIXA=[];
    perde historico.
    ========================================================== */
 var _CORTADAS={};
+var PED_COBERTO_DESDE='';   /* pedidos cortados: dia a partir do qual o aparelho tem tudo */
 /* ==========================================================
    AS LEITURAS COMECAM TODAS JUNTAS, MAS SAO USADAS NA ORDEM
 

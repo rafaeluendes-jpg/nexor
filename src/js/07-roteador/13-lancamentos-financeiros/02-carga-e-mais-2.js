@@ -954,8 +954,8 @@ function modalLanc(id,tipoNovo,pre){
   '<div class="row3">'+
    '<div class="fld2"><label>Categoria *</label>'+
     '<button class="selArv" id="lnCatB" type="button" onclick="abreCatLanc()">'+
-    '<span>'+E(l&&l.categoriaId?nomeCategoria(l.categoriaId):'Selecione uma opção')+'</span>'+sv('dn',13)+'</button>'+
-    '<input type="hidden" id="lnCat" value="'+E(l?l.categoriaId:'')+'">'+
+    '<span>'+E(l&&categoriaValida(l.categoriaId)?nomeCategoria(l.categoriaId):'Selecione uma opção')+'</span>'+sv('dn',13)+'</button>'+
+    '<input type="hidden" id="lnCat" value="'+E(l&&categoriaValida(l.categoriaId)?l.categoriaId:'')+'">'+
     '<div class="arvIn" id="lnCatArv" style="display:none"></div></div>'+
    '<div class="fld2"><label>Fornecedor</label>'+
     '<select id="lnFid"><option value="">— sem fornecedor —</option>'+
@@ -1058,10 +1058,16 @@ function modalLanc(id,tipoNovo,pre){
     var jaPago=$('lnP')&&$('lnP').checked;
     if(jaPago&&$('lnC')&&!$('lnC').value){toast('Selecione o banco / conta.');return false;}
     if(jaPago&&$('lnM')&&!$('lnM').value){toast('Selecione a forma de pagamento.');return false;}
-    if(!$('lnCat').value){toast('Selecione a categoria.');return false;}
+    var tp=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
+    /* a categoria tem de EXISTIR no plano de contas e ser do lado certo —
+       um id de categoria apagada aparecia como "—" e passava (28/09/2026) */
+    if(!categoriaValida($('lnCat').value,tp)){
+      toast('Selecione a categoria'+(tp==='despesa'?' da despesa (custo direto, imposto, despesa fixa...)':'')+'.');
+      var _cb=$('lnCatB');if(_cb){_cb.classList.add('falta');_cb.focus();}
+      return false;
+    }
     var v=parseFloat($('lnV').value)||0;
     if(!v){toast('Informe o valor.');return false;}
-    var tp=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
     var pago=$('lnP').checked;
     var fid=$('lnFid')?$('lnFid').value:'';
     var fo=(DB.fornec||[]).find(function(x){return x.id===fid});
@@ -1074,7 +1080,7 @@ function modalLanc(id,tipoNovo,pre){
       pagamento:pago?($('lnPg').value||hojeISO()):'',pago:pago,
       categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),
       codigoBarras:soDigitos(($('lnCB')||{}).value),obs:$('lnO').value};
-    if(l){Object.assign(l,o);salvar();telaLancamentos();toast('Lançamento salvo.');return true;}
+    if(l){Object.assign(l,o);salvar();telaLancamentos();conferirLancNaNuvem([l.id]);return true;}
     var parc=$('lnParc')&&$('lnParc').checked;
     if(parc){
       var ds=datasParcelas(),vs=valoresParcelas();
@@ -1096,8 +1102,8 @@ function modalLanc(id,tipoNovo,pre){
         o.vencimento=ds[0];o.valor=vs[0];
         o.id=uid('lf');DB.lancFin.push(o);
         salvar();
-        if(_preLanc&&_preLanc.apos){var cb1=_preLanc.apos;_preLanc=null;cb1([o]);return true;}
-        telaLancamentos();toast('Lançamento salvo.');return true;
+        if(_preLanc&&_preLanc.apos){var cb1=_preLanc.apos;_preLanc=null;cb1([o]);conferirLancNaNuvem([o.id]);return true;}
+        telaLancamentos();conferirLancNaNuvem([o.id]);return true;
       }
       var criados=[];
       ds.forEach(function(dt,i){
@@ -1108,18 +1114,20 @@ function modalLanc(id,tipoNovo,pre){
         DB.lancFin.push(c2);criados.push(c2);
       });
       salvar();
-      if(_preLanc&&_preLanc.apos){var cb=_preLanc.apos;_preLanc=null;cb(criados);return true;}
+      var _idsP=criados.map(function(x){return x.id});
+      if(_preLanc&&_preLanc.apos){var cb=_preLanc.apos;_preLanc=null;cb(criados);conferirLancNaNuvem(_idsP);return true;}
       telaLancamentos();
       toast(ds.length+' parcelas lançadas nas datas.');
+      conferirLancNaNuvem(_idsP);
       return true;
     }
     o.id=uid('lf');DB.lancFin.push(o);
     salvar();
-    if(_preLanc&&_preLanc.apos){var cb2=_preLanc.apos;_preLanc=null;cb2([o]);return true;}
+    if(_preLanc&&_preLanc.apos){var cb2=_preLanc.apos;_preLanc=null;cb2([o]);conferirLancNaNuvem([o.id]);return true;}
     telaLancamentos();
+    conferirLancNaNuvem([o.id]);
     /* nasceu ja pago e sem banco: pede o banco e a forma na hora */
     if(o.pago&&!o.contaId){setTimeout(function(){modalPagamento([o.id])},80);return true;}
-    toast('Lançamento salvo.');
     return true;
   },'lg');
   $('lnP').onchange=function(){
@@ -1203,6 +1211,7 @@ function togglePastaLanc(id){_catLancAbertas[id]=!_catLancAbertas[id];desenhaCat
 function escolheCatLanc(id){
   var inp=document.getElementById('lnCat');
   if(inp)inp.value=id||'';
+  var bf=document.getElementById('lnCatB');if(bf)bf.classList.remove('falta');
   var b=document.querySelector('#lnCatB span');
   if(b)b.textContent=id?nomeCategoria(id):'Selecione uma opção';
   var box=document.getElementById('lnCatArv');

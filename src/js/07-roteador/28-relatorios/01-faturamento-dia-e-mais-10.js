@@ -58,7 +58,12 @@ var _histCarregado={};      /* intervalos já buscados, para não repetir */
 function inicioJanelaLocal(){
   var d=new Date();
   d.setDate(d.getDate()-(typeof DIAS_JANELA_PEDIDOS!=='undefined'?DIAS_JANELA_PEDIDOS:(typeof DIAS_JANELA!=='undefined'?DIAS_JANELA:90)));
-  return d.toISOString().slice(0,10);
+  var ini=d.toISOString().slice(0,10);
+  /* download de pedidos cortado pelo limite: antes deste dia o aparelho
+     NÃO tem tudo, e o relatório tem de ir à nuvem (28/09/2026) */
+  if(typeof PED_COBERTO_DESDE!=='undefined'&&PED_COBERTO_DESDE&&PED_COBERTO_DESDE>ini)
+    return PED_COBERTO_DESDE;
+  return ini;
 }
 function fontePedidos(){
   return _histExtra.length?(DB.pedidos||[]).concat(_histExtra):(DB.pedidos||[]);
