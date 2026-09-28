@@ -22,7 +22,26 @@ diz o que falta):
 
 E de proposito: melhor nao subir do que subir sem saber falar com a Meta.
 
-## Passos
+## Caminho curto: servidor proprio (VPS)
+
+Num Ubuntu novo, um comando faz tudo — banco, fila, compilacao,
+migrations, servicos e nginx com HTTPS:
+
+```bash
+DOMINIO_LANDING=franquias.jologelato.com.br \
+DOMINIO_CRM=crm.jologelato.com.br \
+DOMINIO_API=api.jologelato.com.br \
+bash scripts/instalar-vps.sh
+```
+
+Passo a passo, o que depende do operador e como conferir o script sem
+servidor: `docs/VPS_HOSTINGER.md`.
+
+Atras de proxy, duas linhas importam no `.env`: `API_HOST=127.0.0.1`
+(a API deixa de escutar a internet direto) e `TRUST_PROXY=true`
+(o IP de quem chega passa a ser o real, nao o do proxy).
+
+## Passos a mao
 
 ```bash
 pnpm install --frozen-lockfile

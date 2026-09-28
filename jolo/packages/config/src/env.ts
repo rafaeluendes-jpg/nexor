@@ -18,6 +18,9 @@ const bool = z
 export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   API_PORT: z.coerce.number().int().positive().default(3333),
+  // Em servidor com proxy na frente, 127.0.0.1: a porta da API nao fica
+  // aberta para a internet nem se o firewall falhar.
+  API_HOST: z.string().default('0.0.0.0'),
   API_PUBLIC_URL: z.string().url().default('http://localhost:3333'),
   LANDING_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
   CRM_PUBLIC_URL: z.string().url().default('http://localhost:3001'),

@@ -33,7 +33,7 @@ async function bootstrap(): Promise<void> {
   });
 
   app.enableShutdownHooks();
-  await app.listen({ port: env.API_PORT, host: '0.0.0.0' });
+  await app.listen({ port: env.API_PORT, host: env.API_HOST });
   logger.info({ port: env.API_PORT, env: env.NODE_ENV }, 'API Jolo no ar');
 }
 
