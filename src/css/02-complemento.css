@@ -311,3 +311,57 @@
 .fsUnidade span{font-size:11px;font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em}
 .fsUnidade b{font-size:15px;color:var(--ink)}
 .fsUnidade em{font-style:normal;font-size:11.5px;color:var(--ink-3)}
+/* cupons fiscais: atalhos de período, status na frente */
+.cfAtalhos{flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.cfAtalhos button{min-height:36px}
+.cfAtalhos button.on,.cfMes.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.cfMes{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px 0 10px;
+  border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:11.5px;color:var(--ink-2)}
+.cfMes input{border:0;background:transparent;font:inherit;color:var(--ink);min-height:32px}
+.cfSt{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;
+  color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.cfNao{color:var(--ink-3);font-size:12px}
+.finTab td small{display:block;font-size:11px;color:var(--ink-3)}
+.cfMes.on input{color:#fff;color-scheme:dark}
+/* impostos dos produtos */
+.impBarra{padding:0 16px 10px}
+.impPend{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);min-height:36px;align-self:flex-end}
+.impLote{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 16px 10px;padding:8px 10px;
+  border:1px dashed var(--line);border-radius:var(--r-s);font-size:12px;color:var(--ink-2)}
+.impLote select{min-height:34px;max-width:100%;border:1px solid var(--line);border-radius:6px;padding:0 6px;background:var(--panel);color:var(--ink)}
+.impTab td{vertical-align:middle}
+.impTab td small{display:block;font-size:10.5px;color:var(--ink-3)}
+.impIn{min-height:32px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;
+  font-variant-numeric:tabular-nums;background:var(--panel);color:var(--ink);max-width:100%}
+.impIn:focus{outline:2px solid var(--acc-soft);border-color:var(--acc)}
+.impIn:disabled{background:var(--alt);color:var(--ink-3)}
+select.impIn{padding-right:2px}
+.impTab tr.impSujo td{background:var(--amber-soft)}
+.impOk{display:inline-flex;align-items:center;gap:4px;color:var(--ok);font-size:11.5px;font-weight:600}
+.impFalta{color:var(--red);font-size:11.5px;font-weight:600}
+/* notas fiscais (NF-e) */
+.nfAbas{display:flex;gap:6px;flex-wrap:wrap}
+.nfAbas button{min-height:38px;padding:0 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);
+  color:var(--ink-2);font:inherit;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.nfAbas button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.nfCorpo{padding:12px 16px 20px;display:flex;flex-direction:column;gap:12px}
+.nfForm{display:flex;flex-direction:column;gap:12px}
+.nfGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 12px;align-items:end}
+.nfGrid .nfLargo{grid-column:span 2}
+@media(max-width:600px){.nfGrid{grid-template-columns:1fr}.nfGrid .nfLargo{grid-column:auto}}
+.nfAtalhoDest select,.nfAdd select{min-height:36px;border:1px solid var(--line);border-radius:6px;padding:0 8px;
+  background:var(--panel);color:var(--ink);max-width:100%;font:inherit;font-size:12.5px}
+.nfAtalhoDest{margin-bottom:8px}
+.nfAdd{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.nfAdd select{flex:1;min-width:0}
+.nfTot{display:flex;gap:22px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.nfTot span{display:block;font-size:11px;color:var(--ink-2)}
+.nfTot b{display:block;font-size:15px;color:var(--ink)}
+.nfTotG b{font-size:19px;color:var(--acc-d)}
+.nfFalta{margin-top:10px;font-size:12px;color:var(--red)}
+.nfPronta{margin-top:10px;font-size:12.5px;color:var(--ok);font-weight:600;display:flex;align-items:center;gap:6px}
+.nfBtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-top:12px}
+.nfBtns .hint{margin-right:auto}
+.nfFim{position:sticky;bottom:0;z-index:3;box-shadow:0 -4px 14px rgba(0,0,0,.06)}
+.fsIe{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--line-2)}
+.fsIe input{flex:1;min-width:0;min-height:36px;border:1px solid var(--line);border-radius:6px;padding:0 8px;background:var(--panel);color:var(--ink);font:inherit}

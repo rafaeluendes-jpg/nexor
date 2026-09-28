@@ -191,12 +191,31 @@ function _dist(total,pesos){
   out[iM]=+(out[iM]+resto).toFixed(2);
   return out;
 }
+/* ==========================================================
+   A TAXA DE ENTREGA NÃO É MERCADORIA (28/09/2026)
+   Em Santa Fé ela é um produto do cardápio ("Taxa de Entrega"), lançado
+   como item da venda. No cupom ela não pode ser item — não tem NCM, e a
+   Receita recusaria. Vai como "outras despesas", do mesmo jeito que a
+   taxa gravada no pedido.
+   ========================================================== */
+function ehTaxaEntrega(p,it){
+  var nome=String((p&&p.nome)||(it&&it.nome)||'');
+  if(/taxa\s*de\s*entrega/i.test(nome))return true;
+  var cat=p&&(DB.categorias||[]).find(function(c){return c.id===p.categoriaId});
+  return !!(cat&&/taxa\s*de\s*entrega/i.test(cat.nome||''));
+}
 function montarNfce(ped,cupom,suc){
   if(!ped)return {erro:'A venda não está neste aparelho.'};
   var u=fiscalUn(suc);
   var rede=fiscalCfg();
   var simples=String(u.regime||'simplesNacional').indexOf('simples')===0;
-  var itens=(ped.itens||[]).filter(function(it){return Number(it.total)>0.0049});
+  var taxaItens=0;
+  var itens=(ped.itens||[]).filter(function(it){
+    if(!(Number(it.total)>0.0049))return false;
+    var pp=(DB.produtos||[]).find(function(x){return x.id===it.produtoId});
+    if(ehTaxaEntrega(pp,it)){taxaItens+=Number(it.total)||0;return false;}
+    return true;
+  });
   /* o brinde do cartão fidelidade sai por R$ 0,00 e não entra no cupom:
      já saiu do estoque no resgate, e item sem valor é recusado */
   if(!itens.length)return {erro:'Venda sem valor — não há cupom a emitir.',semValor:true};
@@ -241,7 +260,7 @@ function montarNfce(ped,cupom,suc){
      despesas", desconto e cupom de desconto como desconto, e a soma bate
      com o total da venda no centavo */
   var produtos=+linhas.reduce(function(a,l){return a+l.totalAmount},0).toFixed(2);
-  var outros=+(Number(ped.taxa)||0).toFixed(2);
+  var outros=+((Number(ped.taxa)||0)+taxaItens).toFixed(2);
   var totalVenda=+(Number(ped.total)||0).toFixed(2);
   var desconto=+(produtos+outros-totalVenda).toFixed(2);
   if(desconto<0){outros=+(outros-desconto).toFixed(2);desconto=0;}
@@ -470,11 +489,11 @@ function _fsPendencias(u){
   }
   var rede=fiscalCfg();
   var semNcm=(DB.produtos||[]).filter(function(x){
-    return x.ativo!==false&&fsDigitos(x.ncm||rede.ncm).length!==8;}).length;
-  if(semNcm)p.push(semNcm+' produto(s) ativos sem NCM — a Receita recusa o cupom');
+    return x.ativo!==false&&!ehTaxaEntrega(x)&&fsDigitos(x.ncm||rede.ncm).length!==8;}).length;
+  if(semNcm)p.push(semNcm+' produto(s) ativos sem NCM — a Receita recusa o cupom. Corrija em Fiscal › Impostos dos Produtos');
   var semCest=(DB.produtos||[]).filter(function(x){
     var pf=perfilDoProduto(x);return x.ativo!==false&&pf&&pf.st&&fsDigitos(x.cest).length!==7;}).length;
-  if(semCest)p.push(semCest+' produto(s) de substituição tributária sem CEST');
+  if(semCest)p.push(semCest+' produto(s) de substituição tributária sem CEST. Corrija em Fiscal › Impostos dos Produtos');
   return p;
 }
 async function telaFiscalCfg(recarregar){
@@ -560,6 +579,10 @@ async function telaFiscalCfg(recarregar){
     ?'<div class="fsLinha"><span>Razão social</span><b>'+E(sp.nome||u.razao||'—')+'</b></div>'+
      '<div class="fsLinha"><span>CNPJ</span><b>'+E(fsCnpjFmt(sp.cnpj||u.cnpj))+'</b></div>'+
      '<div class="fsLinha"><span>Inscrição estadual</span><b>'+E(sp.ie||'não cadastrada')+'</b></div>'+
+     /* sem IE a SEFAZ recusa a nota; quem gere a unidade cadastra aqui (28/09/2026) */
+     (gerir?'<div class="fsIe"><input id="fsIe" inputmode="numeric" maxlength="20" aria-label="Inscrição estadual" '+
+       'placeholder="'+(sp.ie?'trocar a inscrição estadual':'inscrição estadual (só números)')+'">'+
+       '<button class="btnP2'+(sp.ie?'':' ok')+'" onclick="fsSalvarIe()">'+(sp.ie?'Trocar':'Guardar')+'</button></div>':'')+
      '<div class="fsLinha"><span>Certificado A1</span><b>'+E(sp.certificado&&sp.certificado.validade
         ?'válido até '+dataBR(String(sp.certificado.validade).slice(0,10)):'não enviado')+'</b></div>'+
      '<div class="fsLinha"><span>CSC homologação / produção</span><b>'+
@@ -594,21 +617,12 @@ async function telaFiscalCfg(recarregar){
    '<button class="btnP2 ok" onclick="fsCertificado()">'+sv('check',13)+(certOk?' Trocar certificado':' Enviar certificado')+'</button>'+
   '</div></div>':'';
 
+  /* o imposto de cada produto tem tela própria agora (Fiscal › Impostos dos
+     Produtos), onde se vê, corrige e salva produto por produto (28/09/2026) */
   var perfis=matriz?'<div class="cfgCol"><div class="colH">Impostos dos produtos (rede)</div><div class="fsCorpo">'+
-   '<div class="hint" style="margin-bottom:9px">Escolha o perfil e aplique a uma categoria inteira. '+
-   'Quem decide o perfil de cada produto é o contador — o sistema aplica o que você mandar.</div>'+
-   '<div class="fsPerfis">'+perfisFiscais().map(function(pf){
-     var n=(DB.produtos||[]).filter(function(p){return p.ativo!==false&&perfilDoProduto(p)===pf}).length;
-     return '<div class="fsPerfil"><b>'+E(pf.nome)+'</b><span>'+E(pf.d||'')+'</span>'+
-       '<small>CFOP '+E(pf.cfop)+' · CSOSN '+E(pf.csosn)+' · CST '+E(pf.cst)+' · '+n+' produto(s)</small></div>';
-   }).join('')+'</div>'+
-   '<div class="row2" style="margin-top:10px">'+
-    '<div class="fld2"><label>Perfil</label><select id="fsPerfil">'+
-     perfisFiscais().map(function(pf){return '<option value="'+E(pf.id)+'">'+E(pf.nome)+'</option>'}).join('')+'</select></div>'+
-    '<div class="fld2"><label>Categoria</label><select id="fsCat">'+
-     (DB.categorias||[]).map(function(c){return '<option value="'+E(c.id)+'">'+E(c.nome)+'</option>'}).join('')+'</select></div>'+
-   '</div>'+
-   '<button class="btnP2 ok" onclick="fsAplicarPerfilCategoria()">Aplicar à categoria</button>'+
+   '<div class="hint" style="margin-bottom:9px">NCM, CEST, CFOP e CSOSN de cada produto ficam em '+
+   '<b>Fiscal › Impostos dos Produtos</b>: lá você vê todos, corrige e salva.</div>'+
+   '<button class="btnP2 ok" onclick="abrir(\'fiscal\',\'impostos\')">'+sv('edit',13)+' Abrir Impostos dos Produtos</button>'+
   '</div></div>':'';
 
   $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
@@ -700,6 +714,14 @@ async function fsLigarEmpresa(empresaId,cnpjEmp){
   await telaFiscalCfg(true);
   toast('Unidade ligada à empresa de CNPJ '+fsCnpjFmt(r.d.cnpj)+'.');
 }
+async function fsSalvarIe(){
+  var v=String(($('fsIe')||{}).value||'').trim();
+  if(!v){toast('Digite a inscrição estadual.');return;}
+  var r=await fiscalChamar('empresa_ie',{sucursal:_fsSuc(),ie:v});
+  if(!r.ok){painelErro('A inscrição estadual não foi aceita.',(r.d&&r.d.erro)||'O servidor recusou.');return;}
+  await telaFiscalCfg(true);
+  toast('Inscrição estadual guardada: '+(r.d.ie||v)+'.');
+}
 async function fsCsc(){
   var suc=_fsSuc();
   var amb=($('fsCscAmb')||{}).value||'homologacao';
@@ -731,24 +753,6 @@ async function fsCertificado(){
   await telaFiscalCfg(true);
   toast('Certificado enviado.');
 }
-async function fsAplicarPerfilCategoria(){
-  var pid=($('fsPerfil')||{}).value,cid=($('fsCat')||{}).value;
-  var pf=perfisFiscais().find(function(x){return x.id===pid});
-  var lst=(DB.produtos||[]).filter(function(p){return p.categoriaId===cid&&p.ativo!==false});
-  if(!pf||!lst.length){toast('Nenhum produto ativo nesta categoria.');return;}
-  var cat=(DB.categorias||[]).find(function(c){return c.id===cid})||{};
-  var ok=await confirmar({titulo:'Aplicar "'+pf.nome+'"',
-    texto:lst.length+' produto(s) de '+(cat.nome||'')+' passam a sair no cupom com:',
-    linhas:[['CFOP',pf.cfop,''],['CSOSN (Simples)',pf.csosn,''],['CST (regime normal)',pf.cst,'']],
-    aviso:'O NCM e o CEST de cada produto não mudam — confira que estão preenchidos.',
-    ok:'Aplicar',cancelar:'Voltar',tipo:'check'});
-  if(!ok)return;
-  var n=aplicarPerfilFiscal(pid,lst);
-  _fsGuardar();
-  telaFiscalCfg();
-  toast(n+' produto(s) atualizados.');
-}
-
 /* ==========================================================
    CUPONS GERADOS — as ações que dependiam do provedor
    ========================================================== */

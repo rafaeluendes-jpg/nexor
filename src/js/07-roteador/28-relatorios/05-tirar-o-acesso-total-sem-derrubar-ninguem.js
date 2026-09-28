@@ -88,7 +88,7 @@ function abaPermUsr(u){
    MOD.filter(function(m){return m.id!=='teste'}).map(function(m){
      var itens=(m.it||[]).filter(function(i){return telaQueEuPossoLiberar(m.id+'/'+i.id)});
      if(!itens.length)return '';
-     var lib=itens.filter(function(i){return p[m.id+'/'+i.id]}).length;
+     var lib=itens.filter(function(i){return temPermissao(p,m.id+'/'+i.id)}).length;
      var todos=lib===itens.length&&itens.length>0;
      return '<div class="permMod">'+
       '<div class="permModH">'+
@@ -98,7 +98,7 @@ function abaPermUsr(u){
        sv(m.ic,15)+'<b>'+E(m.n)+'</b>'+
        '<span class="permN" data-cont="'+m.id+'">'+lib+'/'+itens.length+'</span></div>'+
       '<div class="permItens">'+itens.map(function(i){
-        var on=!!p[m.id+'/'+i.id];
+        var on=temPermissao(p,m.id+'/'+i.id);
         return '<label class="permIt'+(on?' on':'')+'" '+
          'data-perm="'+m.id+'/'+i.id+'" data-mod="'+m.id+'">'+
          '<input type="checkbox"'+(on?' checked':'')+
@@ -269,9 +269,13 @@ function semPular(fn){
 function togPermUsr(chave, elBox){
   var u=usrSel();if(!u)return;
   u.permissoes=u.permissoes||{};
-  u.permissoes[chave]=!u.permissoes[chave];
-  var ligou=!!u.permissoes[chave];
-  if(!ligou)delete u.permissoes[chave];
+  var ligou=!temPermissao(u.permissoes,chave);
+  if(ligou)u.permissoes[chave]=true;
+  else{
+    delete u.permissoes[chave];
+    /* desmarcar a tela nova tira também a marcação antiga que valia por ela */
+    (PERM_EQUIV[chave]||[]).forEach(function(k){delete u.permissoes[k]});
+  }
   salvar(); marcarPermSujo();
 
   var lab = elBox && elBox.closest ? elBox.closest('.permIt') : null;
@@ -283,7 +287,7 @@ function togPermUsr(chave, elBox){
   var cont = document.querySelector('.permN[data-cont="'+mid+'"]');
   if(cont){
     var m=MOD.find(function(x){return x.id===mid})||{it:[]};
-    var n=(m.it||[]).filter(function(i){return u.permissoes[mid+'/'+i.id]}).length;
+    var n=(m.it||[]).filter(function(i){return temPermissao(u.permissoes,mid+'/'+i.id)}).length;
     cont.textContent = n+'/'+(m.it||[]).length;
   }
   var topo=document.querySelector('.permBarra span');
@@ -296,7 +300,8 @@ function togModUsr(mid,marcar){
   (m.it||[]).forEach(function(i){
     if(!telaQueEuPossoLiberar(mid+'/'+i.id))return;
     if(marcar)u.permissoes[mid+'/'+i.id]=true;
-    else delete u.permissoes[mid+'/'+i.id];
+    else{delete u.permissoes[mid+'/'+i.id];
+      (PERM_EQUIV[mid+'/'+i.id]||[]).forEach(function(k){delete u.permissoes[k]});}
   });
   US.permSujo=u.id;
   salvar();semPular(telaUsuarios);
@@ -383,7 +388,7 @@ function minhaUnidadeDeGerente(){
 function telaQueEuPossoLiberar(chave){
   if (!souGerenteDeUnidade()) return true;
   var eu = usuarioLogado() || {};
-  return !!(eu.permissoes || {})[chave];
+  return temPermissao(eu.permissoes || {}, chave);
 }
 function novoUsuario(){US.novaSuc=souGerenteDeUnidade()?minhaUnidadeDeGerente():null;formUsuario();}
 function editarUsuario(){formUsuario(US.sel);}

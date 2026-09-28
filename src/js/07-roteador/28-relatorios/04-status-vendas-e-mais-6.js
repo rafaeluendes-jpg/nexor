@@ -2789,7 +2789,7 @@ function podeVer(mid,iid){
   if(u.tudo||u.mestre)return true;
   if(!iid)return (MOD.find(function(m){return m.id===mid})||{it:[]}).it
     .some(function(i){return podeVer(mid,i.id)});
-  return !!(u.permissoes&&u.permissoes[mid+'/'+iid]);
+  return temPermissao(u.permissoes,mid+'/'+iid);
 }
 /* pode operar nesta sucursal? */
 function podeSucursal(sid){

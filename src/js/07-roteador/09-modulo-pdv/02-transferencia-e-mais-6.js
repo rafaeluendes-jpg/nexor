@@ -711,9 +711,8 @@ function filtrarCupons(){
 }
 function telaCuponsFiscais(){
   baseCuponsFiscais();
-  if(!CFI.de){var d=new Date();
-    CFI.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-    CFI.ate=hojeISO();}
+  if(!CFI.de){var hj=hojeISO().split('-');
+    CFI.de=hj[0]+'-'+hj[1]+'-01';CFI.ate=hojeISO();CFI.atalho='mes';}
   var lst=filtrarCupons();
   var aut=lst.filter(function(c){return c.status==='autorizado'});
   var canc=lst.filter(function(c){return c.status==='cancelado'});
@@ -731,8 +730,8 @@ function telaCuponsFiscais(){
               .reduce(function(a,c){return a+(Number(c.total)||0)},0);
 
   $('content').innerHTML='<div class="finWrap">'+
-  '<div class="finTop"><div><h1>Cupons Gerados</h1>'+
-  '<p>Tudo que passou pela frente de caixa e o que foi para a Receita.</p></div>'+
+  '<div class="finTop"><div><h1>Cupons Fiscais</h1>'+
+  '<p>Cada venda de '+E(sucNome(lojaAtualId()))+', com o cupom que foi (ou não) para a Receita.</p></div>'+
   '<div class="finActs">'+
    '<button class="infoBt" onclick="explicaCupons()">'+sv('help',15)+'</button>'+
    '<button class="btnP2" onclick="exportarCupons()">'+sv('file',14)+' Exportar</button>'+
@@ -747,6 +746,14 @@ function telaCuponsFiscais(){
        'Os cupons daqui não têm valor fiscal. Troque para Produção quando estiver pronto.</div></div>'
      :''))+
 
+  /* atalhos de período: um clique para o dia, a semana, o mês (Rafael,
+     28/09/2026: "filtro por dia, filtro por mês, filtro personalizado") */
+  '<div class="bfAtalhos cfAtalhos">'+
+   [['hoje','Hoje'],['ontem','Ontem'],['7d','7 dias'],['mes','Este mês'],['mesAnt','Mês anterior']]
+    .map(function(a){return '<button class="'+(CFI.atalho===a[0]?'on':'')+'" onclick="periodoCupons(\''+a[0]+'\')">'+a[1]+'</button>';}).join('')+
+   '<label class="cfMes'+(CFI.atalho==='mesEsc'?' on':'')+'">Mês <input type="month" id="cfMes" value="'+E(CFI.mes||'')+'" '+
+    'onchange="periodoCupons(\'mesEsc\')" aria-label="Escolher o mês"></label>'+
+  '</div>'+
   '<div class="filtroCard">'+
    '<div class="fl"><label>Data inicial</label><input type="date" id="cfDe" value="'+CFI.de+'"></div>'+
    '<div class="fl"><label>Data final</label><input type="date" id="cfAte" value="'+CFI.ate+'"></div>'+
@@ -792,49 +799,49 @@ function telaCuponsFiscais(){
   '<div class="pnl2B" style="padding:0">'+
   (lst.length?'<table class="pTable finTab"><thead><tr>'+
    '<th style="width:34px"></th>'+
-   '<th style="width:88px">Pedido</th>'+
-   '<th style="width:135px">Data da venda</th>'+
-   '<th style="width:74px">Cupom</th>'+
-   '<th style="width:74px">NF-e</th>'+
+   '<th style="width:124px">Status</th>'+
+   '<th style="width:78px">Cupom nº</th>'+
+   '<th style="width:128px">Venda</th>'+
+   '<th style="width:128px">Emitido</th>'+
+   '<th style="width:84px">Pedido</th>'+
    '<th>Consumidor</th>'+
-   '<th style="width:140px">Pagamento</th>'+
-   '<th style="width:112px">Status</th>'+
-   '<th style="width:86px;text-align:right">Entrega</th>'+
-   '<th style="width:86px;text-align:right">Desconto</th>'+
-   '<th style="width:100px;text-align:right">Total</th>'+
+   '<th style="width:130px">Pagamento</th>'+
+   '<th style="width:96px;text-align:right">Total</th>'+
    '<th style="width:92px"></th></tr></thead>'+
    /* busca dentro da coluna, como na tela que o Rafael usa hoje */
    '<tbody><tr class="cfBusca">'+
-    '<td></td><td></td><td></td><td></td><td></td>'+
+    '<td></td><td></td><td></td><td></td><td></td><td></td>'+
     '<td><input id="cfCons" value="'+E(CFI.consumidor)+'" placeholder="buscar consumidor" '+
      'onkeydown="if(event.key===\'Enter\')buscarCupons()"></td>'+
     '<td><input id="cfPag" value="'+E(CFI.pag)+'" placeholder="dinheiro, pix..." '+
      'onkeydown="if(event.key===\'Enter\')buscarCupons()"></td>'+
-    '<td colspan="5"></td></tr>'+
+    '<td colspan="2"></td></tr>'+
    lst.map(function(c){
      var sv2=situacaoVenda(c);
      return '<tr'+(sv2==='cancelada'?' class="cfCanc"':'')+'>'+
       '<td><label class="flagBox"><input type="checkbox" '+(CFI.sel[c.id]?'checked':'')+
        ' onchange="CFI.sel[\''+c.id+'\']=this.checked;telaCuponsFiscais()"></label></td>'+
+      /* o status na frente: é o que se procura primeiro */
+      '<td><span class="cfSt" style="--c:'+corStatusCupom(c.status)+'">'+
+       E(nomeStatusCupom(c.status))+'</span>'+
+       (c.nfeAgrupada?'<small>em NF-e agrupada</small>':'')+
+       (sv2==='cancelada'?'<small>venda cancelada</small>':'')+'</td>'+
+      '<td><b>'+(c.numero||'—')+'</b>'+(c.numero&&c.serie?'<small>série '+E(c.serie)+'</small>':'')+'</td>'+
+      '<td>'+dataBR(diaLocal(c.data))+(c.hora?'<small>'+E(c.hora)+'</small>':'')+'</td>'+
+      '<td>'+(cupomEmitido(c)
+        ?(c.emitidoEm?dataBR(String(c.emitidoEm).slice(0,10))+'<small>'+E(String(c.emitidoEm).slice(11,16))+'</small>':'Sim')
+        :'<span class="cfNao">Não emitido</span>')+'</td>'+
       '<td><b>'+E(c.origem==='salao'?'Salão':c.origem==='entrega'?'Entrega':
         c.origem==='mesa'?'Mesa':'Online')+'</b>'+
        (c.pedidoNumero?'<small>#'+c.pedidoNumero+'</small>':'')+'</td>'+
-      '<td>'+dataBR(diaLocal(c.data))+(c.hora?', '+E(c.hora):'')+'</td>'+
-      '<td>'+(c.numero||'—')+'</td>'+
-      '<td>'+(c.nfeAgrupada?'<span class="cfNfe">agrupada</span>':'—')+'</td>'+
       '<td>'+E(c.consumidor||'Consumidor não identificado')+
        (c.doc?'<small>'+E(c.doc)+'</small>':'')+'</td>'+
       '<td>'+E(c.pagamento||'—')+'</td>'+
-      '<td><span style="color:'+corStatusCupom(c.status)+';font-weight:600">'+
-       E(nomeStatusCupom(c.status))+'</span>'+
-       (sv2==='cancelada'?'<small>venda cancelada</small>':'')+'</td>'+
-      '<td style="text-align:right">'+(c.entrega?'R$ '+money(c.entrega):'—')+'</td>'+
-      '<td style="text-align:right">'+(c.desconto?'R$ '+money(c.desconto):'—')+'</td>'+
       '<td style="text-align:right"><b>R$ '+money(c.total)+'</b></td>'+
       '<td><div class="rowAct">'+
        '<button class="rBtn" onclick="imprimirCupom(\''+c.id+'\')" title="Imprimir">'+sv('print2',12)+'</button>'+
        (c.status==='autorizado'
-        ?'<button class="rBtn rd" onclick="cancelarCupom(\''+c.id+'\')" title="Cancelar na SEFAZ">'+sv('x',12)+'</button>'
+        ?'<button class="rBtn rd" onclick="cancelarCupom(\''+c.id+'\')" title="Cancelar na SEFAZ">'+sv('x2',12)+'</button>'
         :'')+
        ((c.status==='rejeitado'||c.status==='pendente')&&fiscalEmite(lojaAtualId())
         ?'<button class="rBtn" onclick="reenviarCupom(\''+c.id+'\')" title="Emitir / reenviar">'+sv('ref',12)+'</button>'
@@ -848,8 +855,33 @@ function telaCuponsFiscais(){
   '</div></div></div>';
   rodape(lst.length+' cupons · '+aut.length+' autorizados');
 }
+/* foi para a Receita? autorizado, em contingência ou cancelado depois de autorizado */
+function cupomEmitido(c){
+  return !!c&&(['autorizado','contingencia'].indexOf(c.status)>=0||(c.status==='cancelado'&&!!(c.chave||c.protocolo)));
+}
+function _isoDia(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function periodoCupons(qual){
+  var h=hojeISO(),p=h.split('-'),d=new Date(+p[0],+p[1]-1,+p[2]);
+  if(qual==='hoje'){CFI.de=h;CFI.ate=h;}
+  else if(qual==='ontem'){var o=new Date(d);o.setDate(o.getDate()-1);CFI.de=CFI.ate=_isoDia(o);}
+  else if(qual==='7d'){var s7=new Date(d);s7.setDate(s7.getDate()-6);CFI.de=_isoDia(s7);CFI.ate=h;}
+  else if(qual==='mes'){CFI.de=_isoDia(new Date(d.getFullYear(),d.getMonth(),1));CFI.ate=h;}
+  else if(qual==='mesAnt'){CFI.de=_isoDia(new Date(d.getFullYear(),d.getMonth()-1,1));
+    CFI.ate=_isoDia(new Date(d.getFullYear(),d.getMonth(),0));}
+  else if(qual==='mesEsc'){
+    var m=($('cfMes')||{}).value||'';
+    if(!/^\d{4}-\d{2}$/.test(m))return;
+    var a=+m.slice(0,4),mm=+m.slice(5,7);
+    CFI.mes=m;CFI.de=_isoDia(new Date(a,mm-1,1));CFI.ate=_isoDia(new Date(a,mm,0));
+  }
+  CFI.atalho=qual;
+  telaCuponsFiscais();
+}
 function buscarCupons(){
   function v(id){var e=$(id);return e?e.value:''}
+  if(v('cfDe')!==CFI.de||v('cfAte')!==CFI.ate)CFI.atalho='';
   CFI.de=v('cfDe');CFI.ate=v('cfAte');CFI.num=v('cfNum').trim();
   CFI.tipoPeriodo=v('cfTp');CFI.doc=v('cfDoc').trim();
   CFI.status=v('cfSt');CFI.statusVenda=v('cfSv');CFI.origem=v('cfOr');
@@ -966,13 +998,14 @@ async function converterAgrupada(){
 function exportarCupons(){
   var lst=filtrarCupons();
   if(!lst.length){toast('Nada para exportar.');return;}
-  var l=[['Data da venda','Hora','Pedido','Origem','Cupom','NF-e agrupada','Chave de acesso',
-          'Consumidor','Documento','Pagamento','Status da nota','Status da venda',
+  var l=[['Status da nota','Cupom','Série','Data da venda','Hora','Emitido em','Pedido','Origem','NF-e agrupada','Chave de acesso',
+          'Consumidor','Documento','Pagamento','Status da venda',
           'Entrega','Desconto','Total']];
   lst.forEach(function(c){
-    l.push([dataBR(diaLocal(c.data)),c.hora||'',c.pedidoNumero||'',c.origem||'',
-      c.numero||'',c.nfeAgrupada||'',c.chave||'',c.consumidor||'',c.doc||'',c.pagamento||'',
-      nomeStatusCupom(c.status),situacaoVenda(c),
+    l.push([nomeStatusCupom(c.status),c.numero||'',c.serie||'',dataBR(diaLocal(c.data)),c.hora||'',
+      cupomEmitido(c)&&c.emitidoEm?dataBR(String(c.emitidoEm).slice(0,10))+' '+String(c.emitidoEm).slice(11,16):'',
+      c.pedidoNumero||'',c.origem||'',c.nfeAgrupada||'',c.chave||'',c.consumidor||'',c.doc||'',c.pagamento||'',
+      situacaoVenda(c),
       String(c.entrega||0).replace('.',','),String(c.desconto||0).replace('.',','),
       String(c.total||0).replace('.',',')]);
   });

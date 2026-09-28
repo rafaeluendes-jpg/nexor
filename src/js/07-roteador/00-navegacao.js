@@ -189,8 +189,27 @@ function cronometrar(rot, fn){
   });
   return r;
 }
+/* ==========================================================
+   SAIR DE UMA TELA COM MUDANÇA NÃO SALVA PERGUNTA ANTES (28/09/2026)
+   A tela que tem rascunho registra aqui uma função que diz o que ficaria
+   para trás. Sair sem salvar é escolha — nunca acidente de um clique no
+   menu.
+   ========================================================== */
+var GUARDA={fn:null};
 function abrir(mid,iid){
   var mesma=(S.mod===mid&&S.it===iid);
+  if(!mesma&&GUARDA.fn){
+    var _msg='';try{_msg=GUARDA.fn()||'';}catch(e){_quieto(e,'GUARDA');}
+    if(_msg){
+      confirmar({titulo:'Sair sem salvar?',texto:_msg,
+        aviso:'O que não foi salvo fica para trás.',
+        ok:'Sair sem salvar',cancelar:'Voltar e salvar',tipo:'perigo'}).then(function(ok){
+        if(ok){GUARDA.fn=null;abrir(mid,iid);}
+      });
+      return;
+    }
+    GUARDA.fn=null;
+  }
   var ant=0;
   if(mesma){
     var r=document.querySelector('.etScroll');
@@ -266,7 +285,12 @@ function _envolverTelas(){
 try{ _envolverTelas(); }catch(e){}
 window.addEventListener('load',function(){ try{ _envolverTelas(); }catch(e){} });
 
+/* as telas fiscais mudaram de lugar (28/09/2026): o endereço antigo leva à nova */
+var ROTA_MUDOU={'loja/fiscal':['fiscal','configuracao'],'loja/dados-fiscais':['fiscal','configuracao'],
+  'relatorios/cupons-fiscais':['fiscal','cupons']};
 function _abrirTela(mid,iid){
+  var _nova=ROTA_MUDOU[mid+'/'+iid];
+  if(_nova){mid=_nova[0];iid=_nova[1];}
   if(iid&&!podeVer(mid,iid)){
     $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
      '<div class="construIc">'+sv('lock',30)+'</div>'+
@@ -292,7 +316,7 @@ if(mid==='loja'&&iid==='turnos')return telaTurnos();
 if(mid==='loja'&&iid==='mesas')return telaMesas();
 if(mid==='loja'&&iid==='totem')return telaTotem();
 if(mid==='loja'&&iid==='liberacao')return telaLiberacao();
-if(mid==='loja'&&iid==='fiscal'){
+if(mid==='fiscal'&&iid==='configuracao'){
   /* ==========================================================
      AUDITORIA — A CHAVE DA API FISCAL NAO E DE TODO MUNDO
      Esta tela pede o token do provedor de NFC-e (Focus NFe / TecnoSpeed).
@@ -316,13 +340,15 @@ if(mid==='loja'&&iid==='fiscal'){
      ========================================================== */
   return telaFiscalCfg();
 }
-/* o item existia no menu e nao tinha tela: clicar nele nao fazia nada */
-if(mid==='loja'&&iid==='dados-fiscais')return telaFiscalCfg();
+/* "Dados Fiscais da Empresa" abria a mesma tela da Configuração Fiscal —
+   duas portas iguais. Ficou uma, no módulo Fiscal (ROTA_MUDOU acima) */
+if(mid==='fiscal'&&iid==='cupons')return telaCuponsFiscais();
+if(mid==='fiscal'&&iid==='notas')return telaNotasFiscais();
+if(mid==='fiscal'&&iid==='impostos')return telaImpostosProdutos();
 if(mid==='loja'&&iid==='modelo-impressao')return telaModeloImp();
 if(mid==='loja'&&iid==='status-vendas')return telaStatusVendas();
 if(mid==='relatorios'&&iid==='cancelamentos')return telaRelCancel();
 if(mid==='relatorios'&&iid==='vendas-mesa')return telaRelMesas();
-if(mid==='relatorios'&&iid==='cupons-fiscais')return telaCuponsFiscais();
 if(mid==='relatorios'&&iid==='pedidos-base')return telaRelPedidosBase();
 if(mid==='loja'&&iid==='cfg-loja')return telaMapaModulos();
 if(mid==='controle'&&iid==='baixa-manual')return telaBaixaHub();

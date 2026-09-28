@@ -858,8 +858,6 @@ function explicaMotivos(){
 var AFAZER={
  'relatorios/cupons':['Relatório de Cupons',
    'Cupons usados no período, quanto de desconto cada um gerou e quantos clientes novos trouxe.'],
- 'loja/dados-fiscais':['Dados Fiscais',
-   'Regime tributário, CNPJ, certificado e a integração com o emissor de nota.'],
 
 };
 /* ==========================================================

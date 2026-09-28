@@ -73,10 +73,14 @@ const STATUS: Record<string, string> = {
   authorized: "autorizado", inContingent: "contingencia", rejected: "rejeitado",
   canceled: "cancelado", denied: "denegado", disabled: "inutilizado", removed: "removido",
 };
-function nota(base: string, n: any) {
+function nota(base: string, n: any, caminho = "consumer-invoices") {
   const pd = n?.processingDetail || {};
   const st = STATUS[n?.status] || "enviando";
   return {
+    destinatario: n?.receiver?.name || null,
+    documento: n?.receiver?.federalTaxNumber || null,
+    valor: n?.amount ?? null,
+    natureza: n?.operationNature || null,
     spedyId: n?.id || null,
     integrationId: n?.integrationId || null,
     status: st,
@@ -94,9 +98,9 @@ function nota(base: string, n: any) {
     /* PDF e XML nao exigem chave (documentacao da Spedy): o endereco pode
        ir direto para a impressora e para o WhatsApp do cliente */
     pdf: n?.id && (st === "autorizado" || st === "contingencia" || st === "cancelado")
-      ? `${base}/consumer-invoices/${n.id}/pdf` : null,
+      ? `${base}/${caminho}/${n.id}/pdf` : null,
     xml: n?.id && (st === "autorizado" || st === "contingencia" || st === "cancelado")
-      ? `${base}/consumer-invoices/${n.id}/xml` : null,
+      ? `${base}/${caminho}/${n.id}/xml` : null,
   };
 }
 
@@ -222,7 +226,16 @@ Deno.serve(async (req) => {
       allowOfflineContingency: !!u.contingencia_offline && !!cscId && !!csc,
     };
     if (cscId && csc) { bloco.tokenId = cscId; bloco.csc = csc; }
-    return await spedy(chave, "PUT", `/companies/${u.spedy_company_id}/settings`, { consumerInvoice: bloco });
+    /* a NF-e (matriz) vai no mesmo PUT, com a mesma regra do numero: le e
+       devolve, nunca para tras — e nunca manda um bloco sem o outro */
+    const pi = atual.d?.productInvoice || {};
+    const blocoNfe: Record<string, unknown> = {
+      series: String(pi.series || "1"),
+      nextNumber: Math.max(1, Number(pi.nextNumber) || 0),
+      environmentType: amb === "producao" ? "production" : "development",
+    };
+    return await spedy(chave, "PUT", `/companies/${u.spedy_company_id}/settings`,
+      { consumerInvoice: bloco, productInvoice: blocoNfe });
   }
 
   try {
@@ -277,6 +290,10 @@ Deno.serve(async (req) => {
           cnpj: emp.d?.federalTaxNumber || null,
           ie: emp.d?.stateTaxNumber || null,
           regime: emp.d?.taxRegime || null,
+          uf: emp.d?.address?.city?.state || null,
+          cidade: emp.d?.address?.city?.name || null,
+          nfeSerie: cfg.d?.productInvoice?.series ?? null,
+          nfeProximo: cfg.d?.productInvoice?.nextNumber ?? null,
           nfceSerie: ci.series ?? null,
           nfceProximo: ci.nextNumber ?? null,
           nfceAmbiente: ci.environmentType ?? null,
@@ -483,6 +500,39 @@ Deno.serve(async (req) => {
     }
 
     /* ======================================================
+       INSCRICAO ESTADUAL da empresa emissora (28/09/2026)
+       Sem ela a SEFAZ recusa a nota ("emit ... esperado IE"). A Spedy so
+       aceita o cadastro inteiro no PUT: le o que esta la, troca so a IE
+       e devolve o resto como veio.
+       ====================================================== */
+    if (acao === "empresa_ie") {
+      if (!ref || !podeGerir) return responde(403, { erro: "Só a matriz ou o responsável pela unidade mudam a inscrição estadual." }, h);
+      const u = await unidadeFiscal();
+      const dono = await chaveDaConta();
+      if (!dono || !u?.spedy_company_id) return responde(409, { erro: "Ligue a unidade à Spedy primeiro." }, h);
+      const ie = String(corpo.ie || "").trim().toUpperCase() === "ISENTO" ? "ISENTO" : digitos(corpo.ie);
+      if (ie !== "ISENTO" && !(ie.length >= 8 && ie.length <= 14)) return responde(400, { erro: "Confira a inscrição estadual (só os números)." }, h);
+      const g = await spedy(dono, "GET", `/companies/${u.spedy_company_id}`);
+      if (!g.ok) return responde(502, { erro: erroSpedy(g.d, g.status) }, h);
+      const e = g.d || {}, a = e.address || {}, c = a.city || {};
+      const corpoPut: Record<string, unknown> = {
+        name: e.name, legalName: e.legalName, federalTaxNumber: e.federalTaxNumber, stateTaxNumber: ie,
+        email: e.email ?? null, phone: e.phone ?? null, taxRegime: e.taxRegime,
+        address: { street: a.street, number: a.number, district: a.district, postalCode: a.postalCode,
+          additionalInformation: a.additionalInformation ?? null,
+          city: c.code ? { code: String(c.code), name: c.name, state: c.state } : { name: c.name, state: c.state } },
+      };
+      if (Array.isArray(e.economicActivities) && e.economicActivities.length)
+        corpoPut.economicActivities = e.economicActivities.map((x: any) => ({ code: x.code, isMain: !!x.isMain }));
+      const r = await spedy(dono, "PUT", `/companies/${u.spedy_company_id}`, corpoPut);
+      await registrar(ref, "empresa", r.ok ? "ok" : "recusado", { campo: "inscricao_estadual", status: r.status });
+      if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) }, h);
+      if (digitos(r.d?.federalTaxNumber) && u.cnpj && digitos(r.d?.federalTaxNumber) !== digitos(u.cnpj))
+        return responde(409, { erro: "A empresa devolvida é de outro CNPJ." }, h);
+      return responde(200, { ok: true, ie: r.d?.stateTaxNumber || ie }, h);
+    }
+
+    /* ======================================================
        CSC da SEFAZ — para o cofre e para a Spedy; nunca volta
        ====================================================== */
     if (acao === "csc") {
@@ -625,6 +675,96 @@ Deno.serve(async (req) => {
       if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) }, h);
       const g = await spedy(chave, "GET", `/consumer-invoices/${encodeURIComponent(id)}`);
       return responde(200, { ok: true, nota: g.ok ? nota(base, g.d) : null }, h);
+    }
+
+    /* ======================================================
+       NF-e — SO NA MATRIZ (28/09/2026)
+       Nota de produto para empresa ou pessoa, com destinatario, frete e
+       transportadora. Mesmas travas do cupom: a chave e a da unidade (o
+       CNPJ da matriz), o que nunca muda o navegador nao decide, e a nota
+       que sair com outro CNPJ e barrada.
+       ====================================================== */
+    if (acao.startsWith("nfe_")) {
+      if (!ref || !unidadeJoia?.matriz) return responde(403, { erro: "A nota fiscal (NF-e) é emitida só pela matriz." }, h);
+      if (!podeGerir) return responde(403, { erro: "Nota fiscal é com a matriz." }, h);
+      const u = await unidadeFiscal();
+      const chave = await chaveDaUnidade(u);
+      if (!chave || !u?.spedy_company_id) return responde(409, { erro: "A matriz ainda não está ligada à Spedy." }, h);
+      const id = String(corpo.id || "");
+
+      if (acao === "nfe_emitir") {
+        const n = corpo.nota || {};
+        const integ = String(n.integrationId || "");
+        if (!/^[A-Za-z0-9_.:\-]{4,36}$/.test(integ)) return responde(400, { erro: "Nota sem identificação válida." }, h);
+        if (!Array.isArray(n.items) || !n.items.length) return responde(400, { erro: "A nota precisa de pelo menos um produto." }, h);
+        if (!n.receiver?.federalTaxNumber || !n.receiver?.name) return responde(400, { erro: "Informe o destinatário (CPF ou CNPJ e nome)." }, h);
+        n.operationType = "outgoing";
+        if (!["internal", "interstate", "international"].includes(n.destination)) n.destination = "internal";
+        if (!["normal", "complement", "adjustment", "devolution"].includes(n.purposeType)) n.purposeType = "normal";
+        /* a numeracao da NF-e precisa estar configurada antes da primeira nota */
+        const dono = await chaveDaConta();
+        if (dono) {
+          const cfg = await spedy(dono, "GET", `/companies/${u.spedy_company_id}/settings`);
+          const pi = cfg.d?.productInvoice || {};
+          const amb = u.ambiente === "producao" ? "production" : "development";
+          if (!pi.series || !pi.nextNumber || pi.environmentType !== amb) {
+            const ap = await aplicarNaSpedy(u, chave);
+            if (!ap.ok) return responde(502, { erro: "Não consegui preparar a numeração da NF-e: " + erroSpedy(ap.d, ap.status) }, h);
+          }
+        }
+        const r = await spedy(chave, "POST", "/product-invoices", n);
+        if (!r.ok) {
+          await registrar(ref, "nfe_emitir", "recusado", { status: r.status, integ }, integ);
+          return responde(400, { erro: erroSpedy(r.d, r.status) }, h);
+        }
+        const cnpjNota = digitos(r.d?.company?.federalTaxNumber);
+        if (cnpjNota && u.cnpj && cnpjNota !== digitos(u.cnpj)) {
+          await registrar(ref, "nfe_emitir", "cnpj_errado", { integ, cnpjNota }, r.d?.id);
+          return responde(409, { erro: "A chave da matriz é de outro CNPJ — a nota não foi aceita. Fale com o suporte." }, h);
+        }
+        await registrar(ref, "nfe_emitir", r.d?.status || "ok", { integ }, r.d?.id);
+        return responde(200, { ok: true, nota: nota(base, r.d, "product-invoices") }, h);
+      }
+      if (acao === "nfe_listar") {
+        const de = /^\d{4}-\d{2}-\d{2}$/.test(String(corpo.de)) ? corpo.de : "";
+        const ate = /^\d{4}-\d{2}-\d{2}$/.test(String(corpo.ate)) ? corpo.ate : "";
+        const pg = Math.max(1, Number(corpo.pagina) || 1);
+        const q = `/product-invoices?page=${pg}&pageSize=100` +
+          (de ? `&effectiveDateStart=${de}` : "") + (ate ? `&effectiveDateEnd=${ate}` : "");
+        const r = await spedy(chave, "GET", q);
+        if (!r.ok) return responde(502, { erro: erroSpedy(r.d, r.status) }, h);
+        const itens = (r.d?.items || []).map((x: any) => nota(base, x, "product-invoices"));
+        return responde(200, { ok: true, notas: itens, total: r.d?.totalCount ?? itens.length }, h);
+      }
+      if (acao === "nfe_consultar") {
+        const r = await spedy(chave, "GET", `/product-invoices/${encodeURIComponent(id)}`);
+        if (!r.ok) return responde(r.status === 404 ? 404 : 502, { erro: erroSpedy(r.d, r.status) }, h);
+        return responde(200, { ok: true, nota: nota(base, r.d, "product-invoices") }, h);
+      }
+      if (acao === "nfe_cancelar") {
+        const motivo = String(corpo.motivo || "").trim();
+        if (motivo.length < 15) return responde(400, { erro: "Escreva o motivo com pelo menos 15 letras." }, h);
+        const r = await spedy(chave, "DELETE", `/product-invoices/${encodeURIComponent(id)}`, { reason: motivo });
+        await registrar(ref, "nfe_cancelar", r.ok ? "pedido" : "recusado", { status: r.status }, id);
+        if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) }, h);
+        const g = await spedy(chave, "GET", `/product-invoices/${encodeURIComponent(id)}`);
+        return responde(200, { ok: true, nota: g.ok ? nota(base, g.d, "product-invoices") : null }, h);
+      }
+      if (acao === "nfe_carta") {
+        const texto = String(corpo.texto || "").trim();
+        if (texto.length < 15) return responde(400, { erro: "A carta de correção precisa de pelo menos 15 letras." }, h);
+        const r = await spedy(chave, "POST", `/product-invoices/${encodeURIComponent(id)}/corrections`, { letter: texto });
+        await registrar(ref, "nfe_carta", r.ok ? "ok" : "recusado", { status: r.status }, id);
+        if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) }, h);
+        return responde(200, { ok: true }, h);
+      }
+      if (acao === "nfe_reemitir") {
+        const r = await spedy(chave, "POST", `/product-invoices/${encodeURIComponent(id)}/issue`, {});
+        await registrar(ref, "nfe_reemitir", r.ok ? "ok" : "recusado", { status: r.status }, id);
+        if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) }, h);
+        const g = await spedy(chave, "GET", `/product-invoices/${encodeURIComponent(id)}`);
+        return responde(200, { ok: true, nota: g.ok ? nota(base, g.d, "product-invoices") : null }, h);
+      }
     }
 
     return responde(400, { erro: "Ação desconhecida." }, h);

@@ -38,7 +38,6 @@ var MOD=[
  {id:'cmv-mercadoria',n:'CMV por Mercadoria'},
  {id:'cancelamentos',n:'Cancelamentos'},
  {id:'vendas-mesa',n:'Vendas por Mesa'},
- {id:'cupons-fiscais',n:'Cupons Gerados'},
  {id:'pedidos-base',n:'Pedidos de Base'},
  {id:'cupons',n:'Cupons de Desconto'}]},
 {id:'dashboard',n:'Gestão e Dashboard',ic:'chart',it:[
@@ -46,6 +45,20 @@ var MOD=[
  {id:'faturamento',n:'Faturamento'},
  {id:'venda-data-hora',n:'Venda por Data e Hora'},
  {id:'comparativo-anual',n:'Comparativo Anual e Mensal'}]},
+/* ==========================================================
+   FISCAL — tudo que vai para a Receita num lugar só (28/09/2026)
+   Rafael: "aqui eu só tenho configuração. Mas como é que eu faço para
+   ver?" Os cupons estavam em Relatórios ("Cupons Gerados"), a
+   configuração em Configuração da Loja, e "Dados Fiscais da Empresa"
+   abria a MESMA tela da configuração — duas portas iguais. Agora é um
+   módulo: ver os cupons, emitir nota, acertar o imposto dos produtos e
+   configurar. As permissões antigas continuam valendo (PERM_EQUIV).
+   ========================================================== */
+{id:'fiscal',n:'Fiscal',ic:'file',it:[
+ {id:'cupons',n:'Cupons Fiscais (NFC-e)'},
+ {id:'notas',n:'Notas Fiscais (NF-e)'},
+ {id:'impostos',n:'Impostos dos Produtos'},
+ {id:'configuracao',n:'Configuração Fiscal'}]},
 /* ==========================================================
    CONTROLE DIARIO — o caderno da operacao
    Hoje a perda e anotada em papel e depois digitada de novo no sistema:
@@ -71,7 +84,6 @@ var MOD=[
  {id:'canais-integracao',n:'Canais de Venda e Integração'},
  {id:'cfg-gerente',n:'Assistente Joia'},
  {id:'cfg-dre',n:'Configuração do DRE'},
- {id:'dados-fiscais',n:'Dados Fiscais da Empresa'},
  {id:'modelo-impressao',n:'Modelo de Impressão'},
  {id:'motivo-cancelamento',n:'Motivo de Cancelamento'},
  /* ==========================================================
@@ -89,7 +101,6 @@ var MOD=[
  {id:'status-vendas',n:'Status de Vendas'},
  {id:'mesas',n:'Mesas e QR Code'},
  {id:'totem',n:'Totem de Autoatendimento'},
- {id:'fiscal',n:'Configuração Fiscal'},
  {id:'turnos',n:'Turnos'},
  {id:'usuarios-permissoes',n:'Usuários e Permissões'}]},
 
@@ -163,7 +174,23 @@ function recursoContratado(mid,iid){
   if(!c||!c.bloqueados||!c.bloqueados.length)return true;
   return c.bloqueados.indexOf(mid+'/'+iid)<0;
 }
-var SO_FRANQUEADORA=['loja/carga-inicial'];
+/* NF-e é da matriz, e o imposto do produto é da rede (o produto é da rede) */
+var SO_FRANQUEADORA=['loja/carga-inicial','fiscal/notas','fiscal/impostos'];
+/* ==========================================================
+   PERMISSÃO QUE MUDOU DE LUGAR CONTINUA VALENDO (28/09/2026)
+   As telas fiscais saíram de Relatórios e de Configuração da Loja para o
+   módulo Fiscal. Quem tinha a marcação antiga continua entrando — sem
+   mexer em nenhum cadastro de usuário: a chave nova aceita a antiga.
+   ========================================================== */
+var PERM_EQUIV={
+ 'fiscal/cupons':['relatorios/cupons-fiscais'],
+ 'fiscal/configuracao':['loja/fiscal','loja/dados-fiscais']
+};
+function temPermissao(p,chave){
+  if(!p)return false;
+  if(p[chave])return true;
+  return (PERM_EQUIV[chave]||[]).some(function(k){return !!p[k]});
+}
 var MOD_PLATAFORMA=[];   /* V67: nenhum modulo bloqueado inteiro — o filtro fino e o SO_PLATAFORMA */
 var ADM_MESTRE='rafael@uendes.com';
 /* quem e a plataforma nao depende de marcacao guardada: e o login, e so ele.

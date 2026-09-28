@@ -90,6 +90,8 @@ var ICM={
  dashboard:'<path d="M12 3a9 9 0 109 9h-9z"/><path d="M12 3v9h9"/>',
  loja:'<path d="M3 21V9.5L12 3l9 6.5V21z"/><path d="M9.5 21v-6h5v6"/>',
  controle:'<path d="M5 3h14v18l-4-3-3 3-3-3-4 3z"/><path d="M9 8h6M9 12h4"/>',
+ /* a nota com o visto: o que foi aceito pela Receita */
+ fiscal:'<path d="M14 3H5v18h14V8z"/><path d="M14 3v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/>',
  tecnico:'<circle cx="12" cy="12" r="3.2"/>'+
      '<path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3'+
      'M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4L5.3 5.3"/>'
