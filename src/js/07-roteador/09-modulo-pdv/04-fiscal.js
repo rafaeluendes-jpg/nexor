@@ -573,20 +573,25 @@ async function telaFiscalCfg(recarregar){
    '<div class="hint" style="margin-bottom:9px">O código que valida o QR Code do cupom. É gerado no portal da '+
    'SEFAZ-SP, um par para homologação e outro para produção. Depois de salvo, não aparece de novo.</div>'+
    '<div class="row2">'+
-    '<div class="fld2"><label>Ambiente</label><select id="fsCscAmb">'+
+    '<div class="fld2"><label>Ambiente</label><select id="fsCscAmb" onchange="fsCscMarcar()">'+
      _fsOpc(u.ambiente,[['homologacao','Homologação'],['producao','Produção']])+'</select></div>'+
     '<div class="fld2"><label>ID do CSC</label><input id="fsCscId" inputmode="numeric" placeholder="ex.: 1"></div>'+
    '</div>'+
    '<div class="fld2"><label>Código CSC</label><input id="fsCscCod" type="password" autocomplete="new-password" placeholder="cole o código da SEFAZ"></div>'+
-   '<button class="btnP2 ok" onclick="fsCsc()">'+sv('check',13)+' Guardar CSC</button>'+
+   '<div id="fsCscSalvo"></div>'+
+   '<button class="btnP2 ok" id="fsCscBtn" onclick="fsCsc()">'+sv('check',13)+' Guardar CSC</button>'+
   '</div></div>':'';
 
+  var certOk=!!(sp.certificado&&sp.certificado.validade);
   var cert=gerir&&u.vinculada?'<div class="cfgCol"><div class="colH">Certificado digital A1</div><div class="fsCorpo">'+
    '<div class="hint" style="margin-bottom:9px">O arquivo .pfx do e-CNPJ desta unidade e a senha dele. '+
    'Vão direto para a Spedy — o Joia não guarda o arquivo.</div>'+
-   '<div class="fld2"><label>Arquivo (.pfx)</label><input id="fsCertArq" type="file" accept=".pfx,.p12"></div>'+
-   '<div class="fld2"><label>Senha do certificado</label><input id="fsCertSenha" type="password" autocomplete="new-password"></div>'+
-   '<button class="btnP2 ok" onclick="fsCertificado()">'+sv('check',13)+' Enviar certificado</button>'+
+   (certOk?'<div class="fsPg" id="fsCertSalvo">'+sv('check',13)+' Certificado guardado <em>válido até '+
+     E(dataBR(String(sp.certificado.validade).slice(0,10)))+'</em></div>':'')+
+   '<div class="fld2"><label>'+(certOk?'Trocar arquivo (.pfx)':'Arquivo (.pfx)')+'</label><input id="fsCertArq" type="file" accept=".pfx,.p12"></div>'+
+   '<div class="fld2"><label>Senha do certificado</label><input id="fsCertSenha" type="password" autocomplete="new-password"'+
+     (certOk?' placeholder="••••••••  guardada"':'')+'></div>'+
+   '<button class="btnP2 ok" onclick="fsCertificado()">'+sv('check',13)+(certOk?' Trocar certificado':' Enviar certificado')+'</button>'+
   '</div></div>':'';
 
   var perfis=matriz?'<div class="cfgCol"><div class="colH">Impostos dos produtos (rede)</div><div class="fsCorpo">'+
@@ -616,6 +621,24 @@ async function telaFiscalCfg(recarregar){
    (perfis?'<div class="cfgDuas">'+perfis+'</div>':'')+
    '</div></div>';
   rodape(fiscalEmite(suc)?'fiscal ligado — '+(u.ambiente==='producao'?'PRODUÇÃO':'homologação'):'fiscal desligado');
+  fsCscMarcar();
+}
+/* o que já está guardado aparece marcado: o código em si nunca volta do
+   cofre, mas a tela não pode parecer vazia quando não está (Rafael,
+   28/09/2026 — colou o CSC, a tela ficou em branco e parecia que nada
+   tinha sido salvo) */
+function fsCscMarcar(){
+  var sel=$('fsCscAmb'),box=$('fsCscSalvo');if(!sel||!box)return;
+  var u=(fiscalUn(_fsSuc())||{});
+  var prod=sel.value==='producao';
+  var id=prod?u.cscIdProducao:u.cscIdHomologacao;
+  var ok=prod?u.cscProducao:u.cscHomologacao;
+  var cId=$('fsCscId'),cCod=$('fsCscCod'),bt=$('fsCscBtn');
+  if(cId)cId.value=id||'';
+  if(cCod){cCod.value='';cCod.placeholder=ok?'••••••••••••••••  guardado':'cole o código da SEFAZ';}
+  box.innerHTML=ok?'<div class="fsPg">'+sv('check',13)+' CSC de '+(prod?'produção':'homologação')+
+    ' guardado <em>ID '+E(id||'')+'</em></div>':'';
+  if(bt)bt.innerHTML=sv('check',13)+(ok?' Trocar CSC':' Guardar CSC');
 }
 function fsCnpjFmt(c){
   c=fsDigitos(c);

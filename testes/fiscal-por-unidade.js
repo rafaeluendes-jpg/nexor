@@ -284,6 +284,36 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   const telaO = doc.getElementById('content').innerHTML;
   t('o operador sem a permissão não entra', /Sem acesso a esta tela/.test(telaO));
   logado = gerenteSF;
+
+  /* Rafael, 28/09/2026: colou o CSC, clicou em guardar e a tela continuou
+     em branco — parecia que nada tinha sido salvo. O que está guardado
+     aparece marcado; o código em si nunca volta do cofre. */
+  grupo('O que já está guardado aparece marcado na tela');
+  win.fiscalChamar = async (acao, dados) => ({ ok: true, status: 200, d: { ok: true, podeGerir: true,
+    conta: { host: 'sandbox' },
+    unidade: { ref: dados.sucursal, nome: 'Jolo Santa Fe do Sul', vinculada: true, modo: 'desligado',
+      ambiente: 'homologacao', cnpj: '50058498000111', cscHomologacao: true, cscProducao: false,
+      cscIdHomologacao: '000001', cscIdProducao: null },
+    spedy: { nome: 'ULIAN & SOUZA SORVETERIA LTDA', cnpj: '50058498000111', ie: '614111427118',
+      certificado: { validade: '2027-03-30T00:00:00' }, nfceToken: true } } });
+  win.DB.fiscalUn = {};
+  await win.telaFiscalCfg(true);
+  const boxCsc = doc.getElementById('fsCscSalvo');
+  t('CSC de homologação aparece como guardado, com o ID',
+    boxCsc && /CSC de homologação guardado/.test(boxCsc.textContent) && /000001/.test(boxCsc.textContent));
+  t('o campo do ID vem preenchido', doc.getElementById('fsCscId').value === '000001');
+  t('o campo do código mostra que está guardado, sem mostrar o código',
+    /guardado/.test(doc.getElementById('fsCscCod').placeholder) && doc.getElementById('fsCscCod').value === '');
+  t('o botão vira "Trocar CSC"', /Trocar CSC/.test(doc.getElementById('fsCscBtn').textContent));
+  t('certificado aparece como guardado, com a validade',
+    !!doc.getElementById('fsCertSalvo') && /30\/03\/2027/.test(doc.getElementById('fsCertSalvo').textContent));
+  t('a senha do certificado mostra que está guardada',
+    /guardada/.test(doc.getElementById('fsCertSenha').placeholder) && doc.getElementById('fsCertSenha').value === '');
+  doc.getElementById('fsCscAmb').value = 'producao';
+  win.fsCscMarcar();
+  t('trocando para produção (sem CSC ainda), nada aparece como guardado',
+    doc.getElementById('fsCscSalvo').textContent === '' && doc.getElementById('fsCscId').value === '' &&
+    !/guardado/.test(doc.getElementById('fsCscCod').placeholder));
   win.lojaAtualId = () => 'suc_sf';
   win.fiscalChamar = async (acao, dados) => { chamadas.push({ acao, dados }); return resposta(acao, dados); };
 
@@ -333,6 +363,12 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
      configurar a empresa (CSC, série, certificado) é com a chave da conta */
   t('servidor: configurar a empresa usa a chave da conta',
     /async function aplicarNaSpedy[\s\S]{0,80}const chave = await chaveDaConta\(\)/.test(fonte));
+  /* 28/09/2026: o PUT sem o próximo número deixou a Spedy com null e o
+     primeiro cupom de Santa Fé saiu com número 0 — recusado */
+  t('servidor: a configuração lê e devolve o próximo número, nunca para trás',
+    /GET", `\/companies\/\$\{u\.spedy_company_id\}\/settings`\);[\s\S]{0,200}Math\.max\(1, Number\(atual\.d\?\.consumerInvoice\?\.nextNumber\)[\s\S]{0,200}nextNumber: proximo/.test(fonte));
+  t('servidor: o ID do CSC vai para a tela, o código não',
+    /cscIdHomologacao: u\?\.csc_id_homologacao/.test(fonte) && !/csc: await segredo|cscCodigo/.test(fonte.split('acao === "estado"')[1].split('acao === "empresas"')[0]));
   t('servidor: o certificado sobe com a chave da conta',
     /acao === "certificado"[\s\S]{0,300}await chaveDaConta\(\)/.test(fonte));
   t('servidor: a nota sai com a chave da unidade',

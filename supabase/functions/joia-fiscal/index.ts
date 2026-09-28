@@ -208,8 +208,16 @@ Deno.serve(async (req) => {
     const amb = u.ambiente === "producao" ? "producao" : "homologacao";
     const cscId = amb === "producao" ? u.csc_id_producao : u.csc_id_homologacao;
     const csc = await segredo(nomeSegredo("csc", ref, amb));
+    /* o PUT troca o bloco inteiro: sem o proximo numero, a Spedy fica com
+       null e a nota sai com numero 0, que a SEFAZ recusa (28/09/2026, o
+       primeiro cupom de teste de Santa Fe). Le o que esta la e devolve —
+       nunca volta a numeracao para tras. */
+    const atual = await spedy(chave, "GET", `/companies/${u.spedy_company_id}/settings`);
+    if (!atual.ok) return atual;
+    const proximo = Math.max(1, Number(atual.d?.consumerInvoice?.nextNumber) || 0);
     const bloco: Record<string, unknown> = {
       series: String(u.serie || 1),
+      nextNumber: proximo,
       environmentType: amb === "producao" ? "production" : "development",
       allowOfflineContingency: !!u.contingencia_offline && !!cscId && !!csc,
     };
@@ -241,6 +249,8 @@ Deno.serve(async (req) => {
           mandaWhatsapp: !!u?.manda_whatsapp, contingencia: u ? !!u.contingencia_offline : true,
           regime: u?.regime || null, pisCst: u?.pis_cst || "07", cofinsCst: u?.cofins_cst || "07",
           cscHomologacao: !!u?.csc_id_homologacao, cscProducao: !!u?.csc_id_producao,
+          // o ID do CSC nao e segredo (vai impresso no QR Code); o codigo nunca sai do cofre
+          cscIdHomologacao: u?.csc_id_homologacao || null, cscIdProducao: u?.csc_id_producao || null,
           producaoConfirmadaEm: u?.producao_confirmada_em || null,
         },
         spedy: null,
