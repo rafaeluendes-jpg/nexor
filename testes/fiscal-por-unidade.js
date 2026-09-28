@@ -192,7 +192,9 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   win.DB.fiscalUn.suc_sf.modo = 'desligado';
   const c2 = win.registrarCupom(Object.assign({}, venda, { id: 'ped_teste03' }));
   await espera(30);
-  t('desligado: registra, mas não emite', c2.status === 'pendente' && !chamadas.length);
+  /* 28/09/2026: com a emissão desligada a venda fica "sem cupom", não
+     "pendente" — era isso que enchia a tela de "1000 pendentes de envio" */
+  t('desligado: registra como "sem cupom fiscal", e não emite', c2.status === 'sem_cupom' && !chamadas.length, c2.status);
   win.DB.fiscalUn.suc_sf.modo = 'sempre';
 
   resposta = () => ({ ok: false, status: 0, d: { erro: 'Sem conexão com o servidor fiscal.' } });

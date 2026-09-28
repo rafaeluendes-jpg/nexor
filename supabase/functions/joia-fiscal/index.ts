@@ -646,6 +646,59 @@ Deno.serve(async (req) => {
     }
 
     /* ======================================================
+       DANFE — o cupom autorizado, para imprimir na bobina (28/09/2026)
+       Tudo sai do XML autorizado (a fonte oficial): emitente, itens,
+       totais, pagamento, chave, protocolo e o QR Code — que leva o
+       hash do CSC e por isso so existe aqui, nunca no navegador.
+       ====================================================== */
+    if (acao === "danfe") {
+      if (!ref) return responde(400, { erro: "Informe a unidade." }, h);
+      const u = await unidadeFiscal();
+      const chave = await chaveDaUnidade(u);
+      if (!chave) return responde(409, { erro: "Esta loja não está ligada à Spedy." }, h);
+      const id = String(corpo.id || "");
+      const rx = await fetch(`${base}/consumer-invoices/${encodeURIComponent(id)}/xml`, { headers: { "X-Api-Key": chave } });
+      if (!rx.ok) return responde(rx.status === 404 ? 404 : 502, { erro: "O cupom ainda não tem o XML autorizado." }, h);
+      const xml = await rx.text();
+      const tag = (x: string, n: string) => {
+        const m = x.match(new RegExp(`<${n}(?:\\s[^>]*)?>([\\s\\S]*?)</${n}>`));
+        return m ? m[1].replace(/^<!\[CDATA\[|\]\]>$/g, "").trim()
+          .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&") : "";
+      };
+      const bloco = (x: string, n: string) => {
+        const m = x.match(new RegExp(`<${n}(?:\\s[^>]*)?>[\\s\\S]*?</${n}>`));
+        return m ? m[0] : "";
+      };
+      const todos = (x: string, n: string) => x.match(new RegExp(`<${n}(?:\\s[^>]*)?>[\\s\\S]*?</${n}>`, "g")) || [];
+      const emit = bloco(xml, "emit"), ender = bloco(emit, "enderEmit"), ide = bloco(xml, "ide");
+      const tot = bloco(xml, "ICMSTot"), prot = bloco(xml, "infProt"), dest = bloco(xml, "dest");
+      const num = (v: string) => Number(v || 0);
+      const saida = {
+        emitente: { nome: tag(emit, "xNome"), fantasia: tag(emit, "xFant"), cnpj: tag(emit, "CNPJ"), ie: tag(emit, "IE"),
+          rua: tag(ender, "xLgr"), numero: tag(ender, "nro"), bairro: tag(ender, "xBairro"),
+          cidade: tag(ender, "xMun"), uf: tag(ender, "UF"), cep: tag(ender, "CEP") },
+        numero: tag(ide, "nNF"), serie: tag(ide, "serie"), emissao: tag(ide, "dhEmi"),
+        homologacao: tag(ide, "tpAmb") === "2", contingencia: tag(ide, "tpEmis") === "9",
+        itens: todos(xml, "det").map((d) => {
+          const p = bloco(d, "prod");
+          return { codigo: tag(p, "cProd"), nome: tag(p, "xProd"), qtd: num(tag(p, "qCom")), un: tag(p, "uCom"),
+            unit: num(tag(p, "vUnCom")), total: num(tag(p, "vProd")) };
+        }),
+        totais: { produtos: num(tag(tot, "vProd")), desconto: num(tag(tot, "vDesc")), outros: num(tag(tot, "vOutro")),
+          frete: num(tag(tot, "vFrete")), total: num(tag(tot, "vNF")), tributos: num(tag(tot, "vTotTrib")) },
+        pagamentos: todos(xml, "detPag").map((p) => ({ tipo: tag(p, "tPag"), valor: num(tag(p, "vPag")) })),
+        troco: num(tag(xml, "vTroco")),
+        consumidor: { doc: tag(dest, "CPF") || tag(dest, "CNPJ"), nome: tag(dest, "xNome") },
+        chave: (xml.match(/Id="NFe(\d{44})"/) || [])[1] || "",
+        protocolo: tag(prot, "nProt"), autorizadaEm: tag(prot, "dhRecbto"),
+        qrCode: tag(xml, "qrCode"), urlChave: tag(xml, "urlChave"),
+        infCpl: tag(bloco(xml, "infAdic"), "infCpl"),
+      };
+      if (!saida.chave || !saida.qrCode) return responde(409, { erro: "O cupom ainda não foi autorizado." }, h);
+      return responde(200, { ok: true, danfe: saida }, h);
+    }
+
+    /* ======================================================
        CANCELAR — so gerente da unidade ou a rede, com motivo
        ====================================================== */
     if (acao === "cancelar") {

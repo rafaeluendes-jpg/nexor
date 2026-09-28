@@ -662,8 +662,29 @@ var STATUS_CUPOM=[
  {id:'agrupado',    n:'Em NF-e agrupada',cor:'#1F5F8B'},
  {id:'denegado',    n:'Denegado',     cor:'#C94141'},
  {id:'inutilizado', n:'Inutilizado',  cor:'#8A8578'},
- {id:'sem_valor',   n:'Sem valor (brinde)',cor:'#8A8578'}
+ {id:'sem_valor',   n:'Sem valor (brinde)',cor:'#8A8578'},
+ /* venda feita com a emissão desligada (ou sem marcar "gerar cupom"):
+    não é pendência — não havia cupom a mandar */
+ {id:'sem_cupom',   n:'Sem cupom fiscal',cor:'#8A8578'}
 ];
+/* ==========================================================
+   A SITUAÇÃO QUE A TELA MOSTRA (28/09/2026)
+   Até ligar a emissão, TODA venda nascia "pendente" — e a tela de Santa
+   Fé mostrava "Pendentes de envio: 1000". Não eram pendências: eram
+   vendas sem cupom. Pendente de verdade é o que foi mandado emitir e
+   ainda não saiu (sem internet, SEFAZ fora) — e esse sempre tem motivo.
+   ========================================================== */
+function statusDoCupom(c){
+  if(!c)return '';
+  if(c.status==='pendente'&&!c.motivo&&!c.querEmitir&&!((c.tentativas||0)>0))return 'sem_cupom';
+  return c.status;
+}
+function iconeStatusCupom(st){
+  if(st==='autorizado')return sv('check',12);
+  if(st==='rejeitado'||st==='denegado'||st==='cancelado')return sv('x2',12);
+  if(st==='enviando'||st==='pendente'||st==='contingencia')return sv('clock',12);
+  return sv('minus',12);
+}
 function nomeStatusCupom(id){
   var s=STATUS_CUPOM.find(function(x){return x.id===id});
   return s?s.n:(id||'—');
@@ -697,7 +718,7 @@ function filtrarCupons(){
     var d=dataDoCupom(c);
     if(CFI.de&&d<CFI.de)return false;
     if(CFI.ate&&d>CFI.ate)return false;
-    if(CFI.status&&c.status!==CFI.status)return false;
+    if(CFI.status&&statusDoCupom(c)!==CFI.status)return false;
     if(CFI.statusVenda&&situacaoVenda(c)!==CFI.statusVenda)return false;
     if(CFI.origem&&c.origem!==CFI.origem)return false;
     if(CFI.num&&String(c.numero||'').indexOf(CFI.num)<0)return false;
@@ -716,7 +737,7 @@ function telaCuponsFiscais(){
   var lst=filtrarCupons();
   var aut=lst.filter(function(c){return c.status==='autorizado'});
   var canc=lst.filter(function(c){return c.status==='cancelado'});
-  var pendEnv=lst.filter(function(c){return c.status==='pendente'||c.status==='contingencia'});
+  var pendEnv=lst.filter(function(c){var st=statusDoCupom(c);return st==='pendente'||st==='contingencia'});
   var tot=aut.reduce(function(a,c){return a+(Number(c.total)||0)},0);
   var f=fiscalUn(lojaAtualId());
   if(NUVEM.ligada&&NUVEM.token&&!CFI._reproc){
@@ -822,8 +843,8 @@ function telaCuponsFiscais(){
       '<td><label class="flagBox"><input type="checkbox" '+(CFI.sel[c.id]?'checked':'')+
        ' onchange="CFI.sel[\''+c.id+'\']=this.checked;telaCuponsFiscais()"></label></td>'+
       /* o status na frente: é o que se procura primeiro */
-      '<td><span class="cfSt" style="--c:'+corStatusCupom(c.status)+'">'+
-       E(nomeStatusCupom(c.status))+'</span>'+
+      '<td><button class="cfSt" style="--c:'+corStatusCupom(statusDoCupom(c))+'" onclick="verCupom(\''+c.id+'\')" '+
+       'title="Ver o cupom">'+iconeStatusCupom(statusDoCupom(c))+' '+E(nomeStatusCupom(statusDoCupom(c)))+'</button>'+
        (c.nfeAgrupada?'<small>em NF-e agrupada</small>':'')+
        (sv2==='cancelada'?'<small>venda cancelada</small>':'')+'</td>'+
       '<td><b>'+(c.numero||'—')+'</b>'+(c.numero&&c.serie?'<small>série '+E(c.serie)+'</small>':'')+'</td>'+
@@ -843,7 +864,7 @@ function telaCuponsFiscais(){
        (c.status==='autorizado'
         ?'<button class="rBtn rd" onclick="cancelarCupom(\''+c.id+'\')" title="Cancelar na SEFAZ">'+sv('x2',12)+'</button>'
         :'')+
-       ((c.status==='rejeitado'||c.status==='pendente')&&fiscalEmite(lojaAtualId())
+       ((c.status==='rejeitado'||c.status==='pendente'||c.status==='sem_cupom')&&fiscalEmite(lojaAtualId())
         ?'<button class="rBtn" onclick="reenviarCupom(\''+c.id+'\')" title="Emitir / reenviar">'+sv('ref',12)+'</button>'
         :'')+
        '<button class="rBtn" onclick="verCupom(\''+c.id+'\')" title="Ver">'+sv('eye',12)+'</button>'+
@@ -893,8 +914,8 @@ function verCupom(id){
   if(!c)return;
   modal('Cupom '+(c.numero||'—'),
   '<div class="mdB">'+
-   '<div class="linha"><span>Situação</span><b style="color:'+corStatusCupom(c.status)+'">'+
-    E(nomeStatusCupom(c.status))+'</b></div>'+
+   '<div class="linha"><span>Situação</span><b style="color:'+corStatusCupom(statusDoCupom(c))+'">'+
+    E(nomeStatusCupom(statusDoCupom(c)))+'</b></div>'+
    '<div class="linha"><span>Venda</span><b>#'+(c.pedidoNumero||'—')+' · '+
     dataBR(diaLocal(c.data))+' '+E(c.hora||'')+'</b></div>'+
    '<div class="linha"><span>Origem</span><b>'+E(c.origem||'—')+'</b></div>'+
@@ -909,8 +930,9 @@ function verCupom(id){
      ?'<div class="hint">Emitido em homologação — não vale como documento fiscal.</div>':'')+
    (c.motivo?'<div class="fscPend" style="margin-top:10px">'+sv('help',14)+
      '<div><b>'+E(nomeStatusCupom(c.status))+'</b>'+E(c.motivo)+'</div></div>':'')+
-   ((c.pdf||c.xml)?'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
-     (c.pdf?'<button class="btnP2" onclick="window.open(\''+E(c.pdf)+'\',\'_blank\')">'+sv('print2',13)+' DANFE</button>':'')+
+   ((c.pdf||c.xml||c.status==='autorizado'||c.status==='contingencia')?'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
+     ((c.status==='autorizado'||c.status==='contingencia')?'<button class="btnP2 ok" onclick="imprimirDanfe(\''+c.id+'\')">'+sv('print2',13)+' Imprimir cupom fiscal</button>':'')+
+     (c.pdf?'<button class="btnP2" onclick="window.open(\''+E(c.pdf)+'\',\'_blank\')">'+sv('file',13)+' PDF</button>':'')+
      (c.xml?'<button class="btnP2" onclick="window.open(\''+E(c.xml)+'\',\'_blank\')">'+sv('file',13)+' XML</button>':'')+
     '</div>':'')+
   '</div>','Fechar',function(){return true;});
@@ -925,8 +947,8 @@ function imprimirCupom(id){
       nomeStatusCupom(c.status).toLowerCase()+'.');
     return;
   }
-  if(c.pdf){window.open(c.pdf,'_blank');return;}
-  toast('A Spedy ainda não devolveu o DANFE deste cupom.');
+  /* o cupom fiscal sai na bobina, no leiaute da SEFAZ (imprimirDanfe) */
+  imprimirDanfe(c.id);
 }
 async function cancelarCupom(id){
   var c=baseCuponsFiscais().find(function(x){return x.id===id});
@@ -1002,7 +1024,7 @@ function exportarCupons(){
           'Consumidor','Documento','Pagamento','Status da venda',
           'Entrega','Desconto','Total']];
   lst.forEach(function(c){
-    l.push([nomeStatusCupom(c.status),c.numero||'',c.serie||'',dataBR(diaLocal(c.data)),c.hora||'',
+    l.push([nomeStatusCupom(statusDoCupom(c)),c.numero||'',c.serie||'',dataBR(diaLocal(c.data)),c.hora||'',
       cupomEmitido(c)&&c.emitidoEm?dataBR(String(c.emitidoEm).slice(0,10))+' '+String(c.emitidoEm).slice(11,16):'',
       c.pedidoNumero||'',c.origem||'',c.nfeAgrupada||'',c.chave||'',c.consumidor||'',c.doc||'',c.pagamento||'',
       situacaoVenda(c),
@@ -1049,6 +1071,9 @@ function registrarCupom(ped){
         c.querEmitir=true;
         return emitirCupom(c.id);
       }
+      /* sem emissão para esta venda: fica registrado como "sem cupom", não
+         como pendência — e sobe assim para os outros aparelhos */
+      if(c.status==='pendente'&&!c.motivo){c.status='sem_cupom';salvar();}
     }).catch(function(e){_quieto(e,'emitirCupom');});
   },0);
   return c;

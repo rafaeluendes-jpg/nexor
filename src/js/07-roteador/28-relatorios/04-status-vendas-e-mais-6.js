@@ -1379,6 +1379,10 @@ function papelHTML(linhas,cols){
       return '<div class="ppCorte">'+new Array(Math.floor(cols/2)+1).join('- ')+'</div>';
     if(l.tipo==='barras')
       return '<div class="ppBar"><div class="ppBarG"></div><span>'+E(l.txt)+'</span></div>';
+    /* o QR Code do cupom fiscal (28/09/2026): desenhado aqui mesmo, sem
+       internet e sem servidor de terceiro — o mesmo gerador das mesas */
+    if(l.tipo==='qr')
+      return '<div class="ppQr">'+(typeof qrSVG==='function'?qrSVG(l.txt,200):'')+'</div>';
     var cls='ppL';
     if(l.al==='c')cls+=' ct'; else if(l.al==='d')cls+=' dr';
     if(l.n)cls+=' bd'; if(l.g)cls+=' gr'; if(l.p)cls+=' pq';

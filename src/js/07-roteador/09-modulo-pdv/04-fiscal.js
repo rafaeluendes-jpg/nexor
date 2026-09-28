@@ -382,7 +382,7 @@ async function emitirCupom(cupomId){
       c.motivo=(r.d&&r.d.erro)||'A emissão foi recusada.';
     }
   }finally{ _fsEmitindo[c.id]=false; }
-  _fsGuardar();fsChip(c);
+  _fsGuardar();fsChip(c);fsDepoisDeEmitir(c);
   if(c.status==='enviando')acompanharCupom(c.id);
   return c;
 }
@@ -397,7 +397,7 @@ async function acompanharCupom(cupomId,esperas){
                                               :{sucursal:c.sucursalId,integrationId:c.pedidoId});
     if(r.ok&&r.d&&r.d.nota){
       aplicarNotaNoCupom(c,r.d.nota);
-      if(c.status!=='enviando'){_fsGuardar();fsChip(c);return c;}
+      if(c.status!=='enviando'){_fsGuardar();fsChip(c);fsDepoisDeEmitir(c);return c;}
     }
   }
   return baseCuponsFiscais().find(function(x){return x.id===cupomId});
@@ -418,7 +418,7 @@ async function fiscalReprocessar(){
     if(new Date(ped.data||c.data).getTime()<limite)return false;
     /* só o que já tinha sido mandado emitir: venda feita antes de a loja
        ligar a emissão não vira cupom sozinha, horas depois */
-    return c.status==='enviando'||c.querEmitir||(c.tentativas||0)>0;
+    return c.status==='enviando'||c.querEmitir||(c.tentativas||0)>0||!!c.motivo;
   }).slice(0,10);
   for(var i=0;i<lst.length;i++){
     var c=lst[i];
@@ -447,7 +447,7 @@ function fsChip(c){
   var d=document.createElement('div');
   d.id='fsChip';d.className='fsChip '+cls;
   d.innerHTML='<span>'+E(txt)+'</span>'+
-    (c.pdf?'<button class="btnMini" onclick="window.open(\''+E(c.pdf)+'\',\'_blank\')">Imprimir</button>':'')+
+    ((c.status==='autorizado'||c.status==='contingencia')?'<button class="btnMini" onclick="imprimirDanfe(\''+E(c.id)+'\')">Imprimir cupom fiscal</button>':'')+
     '<button class="btnMini" aria-label="Fechar aviso" onclick="this.parentNode.remove()">✕</button>';
   document.body.appendChild(d);
   if(c.status!=='enviando')setTimeout(function(){if(d.parentNode)d.remove()},c.status==='autorizado'?15000:30000);
@@ -787,8 +787,8 @@ async function reenviarCupom(id){
   var c=baseCuponsFiscais().find(function(x){return x.id===id});
   if(!c)return;
   if(!fiscalEmite(c.sucursalId||lojaAtualId())){toast('A emissão não está ligada nesta loja.');return;}
-  toast('Reenviando o cupom…');
-  c.faltaCadastro=false;
+  toast('Emitindo o cupom…');
+  c.faltaCadastro=false;c.querEmitir=true;
   await emitirCupom(id);
   if(typeof telaCuponsFiscais==='function'&&document.getElementById('content'))telaCuponsFiscais();
 }
@@ -803,4 +803,138 @@ function pdAplicarPerfil(id){
   if($('pdOrig')&&pf.origem)$('pdOrig').value=pf.origem;
   if(pf.st&&$('pdCest')&&!fsDigitos($('pdCest').value))
     toast('Este perfil é de substituição tributária: preencha também o CEST.');
+}
+
+/* ==========================================================
+   O CUPOM FISCAL IMPRESSO — DANFE NFC-e NA BOBINA (28/09/2026)
+
+   Rafael, com a ficha na mão: "quando o cupom é fiscal, o formato de
+   impressão muda, né? Mas está saindo do mesmo jeito". A ficha continua
+   (é a senha e o pedido da cozinha); o cupom fiscal é outro papel, no
+   leiaute da SEFAZ: emitente, itens, totais, pagamento, consulta pela
+   chave, consumidor, número/série/protocolo e o QR Code.
+
+   Tudo vem do XML autorizado, pelo servidor — o QR Code leva o hash do
+   CSC, que nunca chega ao navegador. Sai na mesma impressora e no mesmo
+   papel da ficha (imprimirPapel).
+   ========================================================== */
+var PAG_SEFAZ={'01':'Dinheiro','02':'Cheque','03':'Cartão de Crédito','04':'Cartão de Débito',
+  '05':'Crédito Loja','10':'Vale Alimentação','11':'Vale Refeição','12':'Vale Presente',
+  '13':'Vale Combustível','15':'Boleto','16':'Depósito','17':'PIX','18':'Transferência',
+  '19':'Fidelidade','90':'Sem pagamento','99':'Outros'};
+function _fsNum(v,casas){return Number(v||0).toFixed(casas==null?2:casas).replace('.',',');}
+function _fsLR(a,b,cols){
+  a=String(a||'');b=String(b||'');
+  var esp=cols-a.length-b.length;
+  if(esp<1){a=a.slice(0,Math.max(0,cols-b.length-1));esp=1;}
+  return a+new Array(esp+1).join(' ')+b;
+}
+function _fsQuebra(txt,cols){
+  var out=[],linha='';
+  String(txt||'').split(/\s+/).forEach(function(p){
+    while(p.length>cols){ if(linha){out.push(linha);linha='';} out.push(p.slice(0,cols)); p=p.slice(cols); }
+    if(!p)return;
+    if(!linha)linha=p;
+    else if((linha+' '+p).length<=cols)linha+=' '+p;
+    else{out.push(linha);linha=p;}
+  });
+  if(linha)out.push(linha);
+  return out;
+}
+function _fsDataHora(iso){
+  var t=String(iso||'');
+  if(t.length<16)return t;
+  return t.slice(8,10)+'/'+t.slice(5,7)+'/'+t.slice(0,4)+' '+t.slice(11,19);
+}
+function _fsDocFmt(d){
+  d=fsDigitos(d);
+  if(d.length===11)return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');
+  if(d.length===14)return fsCnpjFmt(d);
+  return d;
+}
+/* as linhas do papel, no leiaute do DANFE NFC-e (NT 2016.002) */
+function montarDanfeNfce(d,cols){
+  cols=cols||48;
+  var L=[],e=d.emitente||{},t=d.totais||{};
+  function c(txt,o){_fsQuebra(txt,cols).forEach(function(x){L.push(Object.assign({txt:x,al:'c'},o||{}));});}
+  function l(txt,o){_fsQuebra(txt,cols).forEach(function(x){L.push(Object.assign({txt:x},o||{}));});}
+  var linha={tipo:'linha'};
+  if(d.homologacao)c('EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL',{n:true});
+  c(e.nome,{n:true});
+  c('CNPJ: '+fsCnpjFmt(e.cnpj)+'  IE: '+(e.ie||''));
+  c([e.rua,e.numero,e.bairro].filter(Boolean).join(', ')+' - '+(e.cidade||'')+'/'+(e.uf||''),{p:true});
+  L.push(linha);
+  c('Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica',{p:true});
+  L.push(linha);
+  L.push({txt:_fsLR('# Descrição','Total',cols),n:true});
+  (d.itens||[]).forEach(function(it,i){
+    l((i+1)+' '+(it.codigo?it.codigo+' ':'')+it.nome);
+    L.push({txt:_fsLR('   '+_fsNum(it.qtd,it.qtd%1?3:0)+' '+(it.un||'UN')+' x '+_fsNum(it.unit),_fsNum(it.total),cols)});
+  });
+  L.push(linha);
+  L.push({txt:_fsLR('Qtd. total de itens',String((d.itens||[]).length),cols)});
+  L.push({txt:_fsLR('Valor total R$',_fsNum(t.produtos),cols)});
+  if(t.desconto>0)L.push({txt:_fsLR('Desconto R$',_fsNum(t.desconto),cols)});
+  if(t.outros+t.frete>0)L.push({txt:_fsLR('Acréscimos R$',_fsNum(t.outros+t.frete),cols)});
+  L.push({txt:_fsLR('Valor a pagar R$',_fsNum(t.total),cols),n:true});
+  L.push({txt:_fsLR('FORMA DE PAGAMENTO','VALOR PAGO R$',cols)});
+  (d.pagamentos||[]).forEach(function(p){
+    L.push({txt:_fsLR(PAG_SEFAZ[p.tipo]||'Outros',_fsNum(p.valor),cols)});
+  });
+  if(d.troco>0)L.push({txt:_fsLR('Troco R$',_fsNum(d.troco),cols)});
+  L.push(linha);
+  c('Tributos totais incidentes (Lei Federal 12.741/2012): R$ '+_fsNum(t.tributos),{p:true});
+  L.push(linha);
+  c('Consulte pela Chave de Acesso em',{p:true});
+  c(d.urlChave||'',{p:true});
+  c(String(d.chave||'').replace(/(\d{4})(?=\d)/g,'$1 '),{p:true});
+  L.push(linha);
+  var cons=fsDigitos(d.consumidor&&d.consumidor.doc);
+  c(cons?'CONSUMIDOR - '+(cons.length===14?'CNPJ':'CPF')+' '+_fsDocFmt(cons)+
+    (d.consumidor.nome?' - '+d.consumidor.nome:''):'CONSUMIDOR NÃO IDENTIFICADO',{n:true});
+  L.push(linha);
+  c('NFC-e nº '+d.numero+'  Série '+d.serie+'  '+_fsDataHora(d.emissao),{n:true});
+  if(d.contingencia)c('EMITIDA EM CONTINGÊNCIA - pendente de autorização',{n:true});
+  else{
+    c('Protocolo de autorização: '+(d.protocolo||''));
+    c('Data de autorização: '+_fsDataHora(d.autorizadaEm));
+  }
+  if(d.qrCode)L.push({tipo:'qr',txt:d.qrCode});
+  if(d.infCpl){L.push(linha);c(d.infCpl,{p:true});}
+  if(d.homologacao)c('EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL',{n:true});
+  return L;
+}
+var _fsImprimindo={};
+async function imprimirDanfe(cupomId){
+  var c=baseCuponsFiscais().find(function(x){return x.id===cupomId});
+  if(!c)return false;
+  if(c.status!=='autorizado'&&c.status!=='contingencia'){
+    toast('Só cupom autorizado tem cupom fiscal para imprimir. Este está '+nomeStatusCupom(c.status).toLowerCase()+'.');
+    return false;
+  }
+  if(!c.spedyId||!NUVEM.ligada||!NUVEM.token){toast('Sem conexão com o emissor agora — tente de novo em instantes.');return false;}
+  if(_fsImprimindo[cupomId])return false;
+  _fsImprimindo[cupomId]=true;
+  try{
+    var r=await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+    if(!r.ok||!r.d||!r.d.danfe){toast((r.d&&r.d.erro)||'Não consegui buscar o cupom fiscal.');return false;}
+    /* a mesma bobina da ficha, na letra normal */
+    var m=(typeof modeloImp==='function'&&modeloImp('ficha'))||null;
+    var mm=typeof papelDoModelo==='function'?papelDoModelo(m):80;
+    var cols=typeof colunasDaLetra==='function'?colunasDaLetra(mm,'normal'):(mm<=58?32:48);
+    imprimirPapel(montarDanfeNfce(r.d.danfe,cols),cols,1,mm);
+    c.impressoEm=new Date().toISOString();
+    salvar();
+    return true;
+  }finally{ delete _fsImprimindo[cupomId]; }
+}
+/* o cupom acabou de sair: imprime conforme a loja escolheu. Só no aparelho
+   que fez a venda, e só logo depois dela — um cupom que ficou para trás e
+   sai horas depois não imprime sozinho no meio do movimento */
+function fsDepoisDeEmitir(c){
+  if(!c||(c.status!=='autorizado'&&c.status!=='contingencia'))return;
+  if(!c.querEmitir||c.impressoEm)return;
+  var u=fiscalUn(c.sucursalId||lojaAtualId());
+  var recente=(Date.now()-new Date(String(c.data||'')+'T'+(c.hora||'00:00')+':00').getTime())<10*60*1000;
+  if(u.imprime==='sempre'&&recente)imprimirDanfe(c.id);
 }

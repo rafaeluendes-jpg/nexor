@@ -194,7 +194,7 @@
    "roda": true
   },
   "testes/fiscal-telas.js": {
-   "pontos": 87,
+   "pontos": 114,
    "roda": true
   },
   "testes/formas-esperam-download.js": {

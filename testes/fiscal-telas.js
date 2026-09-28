@@ -341,7 +341,7 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   win.DB.pedidos.push(v2);
   const c2 = win.registrarCupom(v2);
   await espera(60);
-  t('desligada no servidor: não emite, mesmo que o aparelho lembre "sempre"', !acoes.some(x => x.acao === 'emitir') && c2.status === 'pendente');
+  t('desligada no servidor: não emite, mesmo que o aparelho lembre "sempre"', !acoes.some(x => x.acao === 'emitir') && c2.status === 'sem_cupom', c2.status);
   servidor = { suc_sf: { modo: 'sempre', ambiente: 'homologacao', vinculada: true } };
   win.DB.fiscalUn = {};
   acoes.length = 0;
@@ -351,6 +351,90 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   t('venda de antes da emissão ligada não vira cupom sozinha depois', !acoes.some(x => x.acao === 'emitir' && x.d.nota && x.d.nota.integrationId === 'ped_2474'));
   t('o PDV confere a configuração fiscal ao abrir', /fiscalGarantir\(lojaAtualId\(\)\)/.test(html));
   t('servidor: a leitura leve não pergunta nada à Spedy', /const chave = !corpo\.leve && \(await chaveDaUnidade\(u\)\)/.test(fonte));
+
+  /* ---------- 9. o cupom fiscal impresso ---------- */
+  /* 28/09/2026: "quando o cupom é fiscal, o formato de impressão muda, né?
+     Mas está saindo do mesmo jeito" — saía só a ficha. */
+  grupo('O cupom fiscal sai na bobina, no leiaute da SEFAZ');
+  const xmlAmostra = fs.readFileSync(path.join(__dirname, 'amostra-nfce-autorizada.xml'), 'utf8');
+  const iP = fonte.indexOf('const tag = (x: string, n: string)'), jP = fonte.indexOf('if (!saida.chave || !saida.qrCode)');
+  let lido = null;
+  try {
+    const corpoP = fonte.slice(iP, jP).replace(/: string/g, '');
+    lido = new Function('xml', corpoP + ';return saida;')(xmlAmostra);
+  } catch (e) { lido = null; }
+  t('servidor: lê o XML autorizado real (cupom 3 de Santa Fé)', !!lido && lido.numero === '3' && lido.serie === '1', lido && lido.numero);
+  t('com o emitente sem "&amp;" no nome', lido && lido.emitente.nome === 'ULIAN & SOUZA SORVETERIA LTDA');
+  t('itens, total e pagamento', lido && lido.itens.length === 2 && lido.totais.total === 29 && lido.pagamentos[0].tipo === '03');
+  t('chave de 44 números, protocolo e QR Code', lido && lido.chave.length === 44 && lido.protocolo === '13526000017971533' && /^https:\/\/www\.homologacao\.nfce/.test(lido.qrCode));
+  t('sabe que é homologação', lido && lido.homologacao === true);
+  const linhasD = win.montarDanfeNfce(lido || {}, 48);
+  const txtD = linhasD.map(x => x.txt || '').join(' ');
+  const longas = linhasD.filter(x => x.tipo !== 'qr' && x.txt && x.txt.length > 48).map(x => x.txt);
+  t('papel: avisa homologação — sem valor fiscal', /HOMOLOGAÇÃO - SEM VALOR FISCAL/.test(txtD));
+  t('papel: emitente, CNPJ e IE', /ULIAN & SOUZA SORVETERIA LTDA/.test(txtD) && /50\.058\.498\/0001-11/.test(txtD) && /614111427118/.test(txtD));
+  t('papel: título do DANFE NFC-e', /Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica/.test(txtD));
+  t('papel: valor a pagar e a forma de pagamento por extenso', /Valor a pagar R\$ +29,00/.test(txtD) && /Cartão de Crédito +29,00/.test(txtD));
+  t('papel: chave em grupos de 4, número, série e protocolo',
+    /3526 0950 0584 9800 0111/.test(txtD) && /NFC-e nº 3 +Série 1/.test(txtD) && /Protocolo de autorização: 13526000017971533/.test(txtD));
+  t('papel: consumidor não identificado', /CONSUMIDOR NÃO IDENTIFICADO/.test(txtD));
+  t('papel: nenhuma linha passa da largura da bobina', !longas.length, longas.join(' | '));
+  const qrL = linhasD.find(x => x.tipo === 'qr');
+  t('papel: o QR Code é o do XML autorizado', !!qrL && qrL.txt === lido.qrCode);
+  t('o papel desenha o QR Code', /<svg[\s\S]*<path/.test(win.papelHTML([qrL], 48)));
+  const impressos = [];
+  win.imprimirPapel = (linhas, cols, vias, mm) => { impressos.push({ linhas, cols, mm }); };
+  win.fiscalChamar = async (acao, d) => acao === 'danfe' ? { ok: true, status: 200, d: { ok: true, danfe: lido } } : { ok: true, status: 200, d: { ok: true } };
+  win.DB.cupons_f = [{ id: 'cfA', sucursalId: 'suc_sf', status: 'autorizado', spedyId: 's1', querEmitir: true,
+    data: win.hojeISO(), hora: '00:00', numero: 3 }];
+  await win.imprimirDanfe('cfA');
+  t('imprimir busca o cupom no servidor e manda para a bobina', impressos.length === 1 && impressos[0].linhas.some(x => x.tipo === 'qr'));
+  impressos.length = 0;
+  win.DB.cupons_f.push({ id: 'cfP', sucursalId: 'suc_sf', status: 'pendente', motivo: 'x' });
+  await win.imprimirDanfe('cfP');
+  t('cupom que não foi autorizado não imprime', impressos.length === 0);
+  const agora = new Date();
+  const hhmm = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+  const hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+  win.DB.fiscalUn = { suc_sf: { modo: 'sempre', imprime: 'sempre', vinculada: true } };
+  const cNovo = { id: 'cfN', sucursalId: 'suc_sf', status: 'autorizado', spedyId: 's2', querEmitir: true, data: hoje, hora: hhmm };
+  win.DB.cupons_f.push(cNovo);
+  win.fsDepoisDeEmitir(cNovo);
+  await espera(20);
+  t('loja em "imprimir sempre": o cupom autorizado imprime sozinho', impressos.length === 1);
+  impressos.length = 0;
+  const cVelho = { id: 'cfV', sucursalId: 'suc_sf', status: 'autorizado', spedyId: 's3', querEmitir: true, data: '2026-01-01', hora: '10:00' };
+  win.DB.cupons_f.push(cVelho);
+  win.fsDepoisDeEmitir(cVelho);
+  await espera(20);
+  t('cupom de venda antiga não imprime sozinho no meio do movimento', impressos.length === 0);
+  win.DB.fiscalUn.suc_sf.imprime = 'perguntar';
+  const cPerg = { id: 'cfQ', sucursalId: 'suc_sf', status: 'autorizado', spedyId: 's4', querEmitir: true, data: hoje, hora: hhmm };
+  win.DB.cupons_f.push(cPerg);
+  win.fsDepoisDeEmitir(cPerg);
+  await espera(20);
+  t('loja em "perguntar": não imprime sozinho', impressos.length === 0);
+  win.fsChip(cPerg);
+  t('e o aviso do caixa oferece "Imprimir cupom fiscal"', /Imprimir cupom fiscal/.test((doc.getElementById('fsChip') || {}).innerHTML || ''));
+  t('servidor: o QR Code sai do XML, nunca é montado no navegador', /acao === "danfe"[\s\S]{0,3000}qrCode: tag\(xml, "qrCode"\)/.test(fonte) && !/csc/i.test(html.slice(html.indexOf('function montarDanfeNfce'), html.indexOf('var _fsImprimindo'))));
+
+  grupo('Venda sem emissão não é "pendente de envio"');
+  t('venda antiga, nunca mandada emitir, aparece como "Sem cupom fiscal"', win.statusDoCupom({ status: 'pendente' }) === 'sem_cupom');
+  t('pendente de verdade (sem internet) continua pendente', win.statusDoCupom({ status: 'pendente', motivo: 'Sem internet' }) === 'pendente');
+  t('autorizado continua autorizado', win.statusDoCupom({ status: 'autorizado' }) === 'autorizado');
+  win.DB.cupons_f = [
+    { id: 'l1', sucursalId: 'suc_sf', data: '2026-09-20', status: 'pendente', total: 10, origem: 'salao' },
+    { id: 'l2', sucursalId: 'suc_sf', data: '2026-09-20', status: 'pendente', total: 10, origem: 'salao' },
+    { id: 'l3', sucursalId: 'suc_sf', data: '2026-09-28', status: 'pendente', motivo: 'Sem internet', total: 10, origem: 'salao' },
+    { id: 'l4', sucursalId: 'suc_sf', data: '2026-09-28', hora: '19:23', status: 'autorizado', numero: 3, total: 53, origem: 'salao' }
+  ];
+  win.lojaAtualId = () => 'suc_sf';
+  win.CFI.de = '2026-09-01'; win.CFI.ate = '2026-09-28'; win.CFI.status = '';
+  win.telaCuponsFiscais();
+  const tc2 = doc.getElementById('content').innerHTML;
+  t('"Pendentes de envio" conta só o que foi mandado emitir', /Pendentes de envio<\/span><b>1<\/b>/.test(tc2));
+  t('cada cupom mostra um ícone da situação e abre ao clicar', /<button class="cfSt"[^>]*onclick="verCupom\('l4'\)"[^>]*><svg/.test(tc2));
+  t('e o olhinho continua em cada linha', (tc2.match(/title="Ver"/g) || []).length === 4);
 
   /* 28/09/2026: a primeira versão desta tela chamava o próprio estado de
      IMP e redefinia ORIGENS_FISCAIS — nomes que já existiam em outras
