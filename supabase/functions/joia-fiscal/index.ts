@@ -188,10 +188,23 @@ Deno.serve(async (req) => {
   async function chaveDaUnidade(u: any) {
     return u?.segredo_nome ? await segredo(u.segredo_nome) : null;
   }
+  /* ==========================================================
+     DUAS CHAVES, DOIS PAPEIS (conferido no sandbox, 28/09/2026)
+     A chave de uma empresa secundaria so EMITE: `/companies/...` com ela
+     volta 403 "Acesso nao autorizado". Configurar a empresa — CSC, serie,
+     ambiente, certificado, consultar cadastro — e com a chave da CONTA
+     (a titular). Nota fiscal sai sempre com a chave da UNIDADE, que e o
+     que prende o CNPJ.
+     ========================================================== */
+  async function chaveDaConta() {
+    return conta ? await segredo(conta.segredo_nome) : null;
+  }
 
   /* a configuracao de NFC-e da empresa na Spedy, sempre com o CSC do
      ambiente em uso — nunca mandar o bloco sem ele (poderia apaga-lo) */
-  async function aplicarNaSpedy(u: any, chave: string) {
+  async function aplicarNaSpedy(u: any, _chaveUnidade: string) {
+    const chave = await chaveDaConta();
+    if (!chave) return { ok: false, status: 409, d: { errors: [{ message: "A chave da conta não está no cofre." }] } };
     const amb = u.ambiente === "producao" ? "producao" : "homologacao";
     const cscId = amb === "producao" ? u.csc_id_producao : u.csc_id_homologacao;
     const csc = await segredo(nomeSegredo("csc", ref, amb));
@@ -238,7 +251,7 @@ Deno.serve(async (req) => {
           .select("sucursal_ref, modo, ambiente, spedy_company_id, cnpj").eq("loja_id", loja);
         saida.rede = todas || [];
       }
-      const chave = await chaveDaUnidade(u);
+      const chave = (await chaveDaUnidade(u)) ? await chaveDaConta() : null;
       if (chave && u?.spedy_company_id) {
         const [emp, cfg, cert] = await Promise.all([
           spedy(chave, "GET", `/companies/${u.spedy_company_id}`),
@@ -338,13 +351,19 @@ Deno.serve(async (req) => {
        CHAVE de uma empresa criada fora do Joia — colada na tela
        ====================================================== */
     if (acao === "chave") {
-      if (!ref || !podeGerir) return responde(403, { erro: "Só a matriz ou o responsável pela unidade cadastram a chave." }, h);
+      if (!ref || !ehRede) return responde(403, { erro: "Só a matriz cadastra a chave de uma unidade." }, h);
       const chave = String(corpo.chave || "").trim();
       if (chave.length < 20) return responde(400, { erro: "Essa chave parece incompleta." }, h);
-      const r = await spedy(chave, "GET", "/companies?page=1&pageSize=50");
+      /* a chave de uma secundaria nao le cadastro: prova-se que ela vale
+         listando notas, e a empresa e achada pela chave da conta, pelo CNPJ
+         da unidade. Se a chave for de outro CNPJ, a primeira emissao pega
+         (ver "emitir") e desliga a unidade. */
+      const r = await spedy(chave, "GET", "/consumer-invoices?page=1&pageSize=1");
       if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) + " Confira se a chave é do mesmo ambiente (teste ou produção) da conta." }, h);
+      const dono = await chaveDaConta();
+      const lista = dono ? await spedy(dono, "GET", "/companies?page=1&pageSize=50") : { ok: false, d: null };
       const cnpjUni = digitos(unidadeJoia.cnpj);
-      const emp = (r.d?.items || []).find((e: any) => digitos(e.federalTaxNumber) === cnpjUni);
+      const emp = (lista.d?.items || []).find((e: any) => digitos(e.federalTaxNumber) === cnpjUni);
       if (!cnpjUni || !emp)
         return responde(409, { erro: "Esta chave não é do CNPJ desta unidade. Confira o CNPJ em Sucursais da Franquia." }, h);
       const nomeS = nomeSegredo("key", ref);
@@ -486,7 +505,7 @@ Deno.serve(async (req) => {
     if (acao === "certificado") {
       if (!ref || !podeGerir) return responde(403, { erro: "Só a matriz ou o responsável pela unidade enviam o certificado." }, h);
       const u = await unidadeFiscal();
-      const chave = await chaveDaUnidade(u);
+      const chave = (await chaveDaUnidade(u)) ? await chaveDaConta() : null;
       if (!chave || !u?.spedy_company_id) return responde(409, { erro: "Ligue a unidade à Spedy antes de enviar o certificado." }, h);
       const bin = Uint8Array.from(atob(String(corpo.arquivo || "")), (ch) => ch.charCodeAt(0));
       if (bin.length < 500 || bin.length > 200000) return responde(400, { erro: "Arquivo de certificado inválido (.pfx)." }, h);
@@ -526,6 +545,16 @@ Deno.serve(async (req) => {
         await registrar(ref, "emitir", "recusado", { status: r.status, integ }, integ);
         return responde(r.status === 429 ? 429 : 400,
           { erro: erroSpedy(r.d, r.status), status: r.status === 429 ? "pendente" : "rejeitado" }, h);
+      }
+      /* a ultima tranca: a Spedy diz com que CNPJ a nota saiu. Se nao for o
+         da unidade, a chave e de outra empresa — a unidade e desligada na
+         hora, para nenhuma outra venda sair com o CNPJ errado */
+      const cnpjNota = digitos(r.d?.company?.federalTaxNumber);
+      if (cnpjNota && u.cnpj && cnpjNota !== digitos(u.cnpj)) {
+        await db.from("fiscal_unidades").update({ modo: "desligado", atualizado_por: "trava de CNPJ",
+          atualizado_em: new Date().toISOString() }).eq("loja_id", loja).eq("sucursal_ref", ref);
+        await registrar(ref, "emitir", "cnpj_errado", { integ, cnpjNota, cnpjUnidade: u.cnpj }, r.d?.id);
+        return responde(409, { erro: "A chave desta loja é de outro CNPJ. A emissão foi desligada — fale com a matriz.", status: "pendente" }, h);
       }
       await registrar(ref, "emitir", r.d?.status || "ok", { integ }, r.d?.id);
       return responde(200, { ok: true, nota: nota(base, r.d) }, h);

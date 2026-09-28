@@ -273,6 +273,16 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   t('servidor: NFC-e sempre consumidor final e operação interna',
     /n\.isFinalCustomer = true;[\s\S]{0,80}n\.destination = "internal"/.test(fonte));
   t('servidor: cancelamento com "reason", como a Spedy pede', /\{ reason: motivo \}/.test(fonte));
+  /* conferido no sandbox em 28/09/2026: a chave de uma loja só emite —
+     configurar a empresa (CSC, série, certificado) é com a chave da conta */
+  t('servidor: configurar a empresa usa a chave da conta',
+    /async function aplicarNaSpedy[\s\S]{0,80}const chave = await chaveDaConta\(\)/.test(fonte));
+  t('servidor: o certificado sobe com a chave da conta',
+    /acao === "certificado"[\s\S]{0,300}await chaveDaConta\(\)/.test(fonte));
+  t('servidor: a nota sai com a chave da unidade',
+    /acao === "emitir"[\s\S]{0,400}const chave = await chaveDaUnidade\(u\)/.test(fonte));
+  t('servidor: nota com CNPJ diferente do da loja desliga a emissão na hora',
+    /cnpjNota !== digitos\(u\.cnpj\)[\s\S]{0,200}modo: "desligado"/.test(fonte));
 
   grupo('O produto traz os dados fiscais de volta da nuvem');
   t('NCM, CFOP, CSOSN, CST e CEST voltam no download',
