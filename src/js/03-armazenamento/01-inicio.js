@@ -1675,10 +1675,7 @@ var MAPA=[
        repetir, porque `motivoNome` nao existe no registro baixado.
        ========================================================== */
     campos:function(o){return {tipo:o.tipo,valor:n(o.valor),
-      /* a observação da sangria (28/09/2026) vai no mesmo texto: a tabela
-         não tem coluna própria, e assim ela chega em qualquer aparelho */
-      motivo:([o.motivoNome,o.motivo].filter(Boolean).join(' — ')+
-        (o.obs?' · Obs: '+o.obs:''))||null,
+      motivo:[o.motivoNome,o.motivo].filter(Boolean).join(' — ')||null,
       responsavel:o.responsavel||null,responsavel_id:o.responsavelId||null,
       destino_conta_id:fk('contas',o.destinoContaId),destino_nome:o.destinoNome||null,
       lanc_ref:o.lancRef||null,hora:o.hora||null,

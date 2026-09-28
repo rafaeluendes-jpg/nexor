@@ -174,11 +174,18 @@ function t(nome, cond, det) {
   const papel = win.linhasMovimento(cx, mv);
   const texto = papel.linhas.map(l => l.txt).join('\n');
   t('o comprovante imprime a observação', /Obs: depositado no Ita/.test(texto), texto);
+  /* a nuvem recebe a observação pelo lançamento financeiro da sangria —
+     o envio do movimento de caixa fica exatamente como o guardião
+     sangria-nao-some.js trancou */
+  win.DB.contas = [{ id: 'ct_caixa', nome: 'Caixa da loja', tipo: 'Caixa', fixa: 'caixa' },
+                   { id: 'ct_banco', nome: 'Itaú — conta corrente', tipo: 'Banco' }];
+  const cxMov = { id: 'cx_mov', aberto: ontemBR + ' 12:00', movimentos: [] };
+  const mv2 = Object.assign({ id: 'mv_obs', destinoContaId: 'ct_banco' }, mv);
+  const lf = win.lancarTransferenciaCaixa(cxMov, mv2, 'sangria');
+  t('e ela vai para a nuvem no lançamento da sangria', lf && /Obs: depositado no Itaú, envelope nº 12/.test(lf.obs || ''), lf && lf.obs);
   const E = win.MAPA.find(e => e.col === 'caixas').filhos[0];
-  const sobe = E.campos(mv);
-  t('e ela sobe para a nuvem com o motivo', /Obs: depositado no Itaú, envelope nº 12/.test(sobe.motivo || ''), sobe.motivo);
   const semObs = E.campos({ tipo: 'sangria', valor: 1, motivoNome: 'Depósito bancário' });
-  t('sangria sem observação sobe igual a antes', semObs.motivo === 'Depósito bancário', semObs.motivo);
+  t('o movimento de caixa sobe igual a antes', semObs.motivo === 'Depósito bancário', semObs.motivo);
 
   t('nenhum erro de script', erros.length === 0, erros.join(' | '));
   console.log('\n' + '═'.repeat(52));
