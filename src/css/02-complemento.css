@@ -307,3 +307,7 @@
 .fsCorpo{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px}
 .fsCorpo .permSalvar{margin-top:6px}
 .fsCorpo>.btnP2{align-self:flex-start;margin-top:4px}
+.fsUnidade{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:13px}
+.fsUnidade span{font-size:11px;font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em}
+.fsUnidade b{font-size:15px;color:var(--ink)}
+.fsUnidade em{font-style:normal;font-size:11.5px;color:var(--ink-3)}

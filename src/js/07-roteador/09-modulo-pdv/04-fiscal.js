@@ -25,7 +25,7 @@
       outra.
    ========================================================== */
 
-var FS={suc:'',carregando:false,erro:'',empresas:null,sujo:false,salvando:false};
+var FS={carregando:false,erro:'',empresas:null,sujo:false,salvando:false};
 /* o CPF digitado na tela de pagamento, do clique até o cupom nascer */
 var FISCAL_VENDA={cpf:''};
 var _fsEmitindo={};
@@ -77,6 +77,8 @@ async function fiscalCarregar(suc){
   suc=suc||lojaAtualId();
   var r=await fiscalChamar('estado',{sucursal:suc});
   if(!r.ok){FS.erro=(r.d&&r.d.erro)||'O fiscal não respondeu agora.';return null;}
+  /* a resposta tem de ser DA unidade pedida — nunca guardar a de outra */
+  if(r.d.unidade&&r.d.unidade.ref&&r.d.unidade.ref!==suc){FS.erro='Resposta de outra unidade — recarregue.';return null;}
   FS.erro='';
   var u=Object.assign({},r.d.unidade||{},{
     spedy:r.d.spedy||null,base:r.d.base||null,conta:r.d.conta||null,
@@ -436,16 +438,18 @@ function fiscalEscolhido(){
 /* ==========================================================
    CONFIGURAÇÃO FISCAL DA UNIDADE — loja/fiscal
    ========================================================== */
-function _fsSuc(){
-  if(!FS.suc||!(sucAtivas()||[]).some(function(s){return s.id===FS.suc}))FS.suc=lojaAtualId();
-  return FS.suc;
-}
-function fsTrocarUnidade(v){
-  if(FS.sujo&&!window.confirm('Há mudanças não salvas nesta unidade. Trocar mesmo assim?')){
-    telaFiscalCfg();return;
-  }
-  FS.suc=v;FS.sujo=false;FS.empresas=null;telaFiscalCfg(true);
-}
+/* ==========================================================
+   A TELA FISCAL SEGUE A LOJA ESCOLHIDA NO ALTO (28/09/2026)
+
+   A tela tinha um seletor de unidade próprio e guardava a unidade da
+   primeira visita. O Rafael trocou a loja no alto para Santa Fé, abriu
+   a Configuração Fiscal — e viu a empresa, o CNPJ e o certificado da
+   MATRIZ. Duas escolhas de loja na mesma tela, e a de dentro vencia.
+
+   Agora só existe uma: a loja do alto (lojaAtualId), a mesma que o
+   sistema inteiro obedece. Trocou lá, a tela recarrega a unidade nova.
+   ========================================================== */
+function _fsSuc(){ return lojaAtualId(); }
 function fsMudou(){
   FS.sujo=true;
   var e=document.getElementById('fsEstadoSalvo');
@@ -476,11 +480,15 @@ function _fsPendencias(u){
 async function telaFiscalCfg(recarregar){
   var suc=_fsSuc();
   var u=baseFiscalUn()[suc];
-  if((recarregar||!u)&&NUVEM.ligada&&NUVEM.token&&!FS.carregando){
+  /* dado de outra visita não vale: mais de 30 s, ou de outra unidade, busca de novo */
+  var velho=!u||!u.lidoEm||(Date.now()-Date.parse(u.lidoEm))>30000||(u.ref&&u.ref!==suc);
+  if((recarregar||velho)&&NUVEM.ligada&&NUVEM.token&&!FS.carregando){
     FS.carregando=true;
     $('content').innerHTML='<div class="etWrap"><div class="etScroll"><div class="etTopo"><div>'+
-      '<h1>Configuração Fiscal</h1><p>Conferindo com o servidor fiscal…</p></div></div></div></div>';
+      '<h1>Configuração Fiscal</h1><p>Conferindo '+E(sucNome(suc))+' com o servidor fiscal…</p></div></div></div></div>';
     try{ await fiscalCarregar(suc); }finally{ FS.carregando=false; }
+    /* trocaram a loja no alto enquanto a resposta vinha: desenha a nova */
+    if(_fsSuc()!==suc)return telaFiscalCfg();
     u=baseFiscalUn()[suc];
   }
   u=u||fiscalUn(suc);
@@ -505,13 +513,8 @@ async function telaFiscalCfg(recarregar){
       (pend.length?'<ul>'+pend.map(function(x){return '<li>'+E(x)+'</li>'}).join('')+'</ul>':
         'Tudo pronto. Escolha o modo de emissão abaixo e salve.')+'</div></div>';
 
-  var seletor=(matriz&&(sucAtivas()||[]).length>1)
-    ?'<div class="fld2" style="max-width:340px;margin:0 0 12px"><label>Unidade</label>'+
-      '<select id="fsSuc" onchange="fsTrocarUnidade(this.value)">'+
-      (sucAtivas()||[]).map(function(s){
-        return '<option value="'+E(s.id)+'"'+(s.id===suc?' selected':'')+'>'+E(s.nome)+'</option>';
-      }).join('')+'</select><div class="hint">Cada unidade emite com o próprio CNPJ. '+
-      'O que você configurar aqui vale só para ela.</div></div>':'';
+  var seletor='<div class="fsUnidade"><span>Unidade</span><b id="fsUnidadeNome">'+E(sucNome(suc))+'</b>'+
+    (matriz?'<em>Para configurar outra loja, troque a loja no alto da tela.</em>':'')+'</div>';
 
   var emissao='<div class="cfgCol"><div class="colH">Como esta loja emite</div><div class="fsCorpo">'+
    '<div class="fld2"><label>Modo</label><select id="fsModo" onchange="fsMudou()"'+dis+'>'+

@@ -190,7 +190,7 @@
    "roda": true
   },
   "testes/fiscal-por-unidade.js": {
-   "pontos": 62,
+   "pontos": 70,
    "roda": true
   },
   "testes/formas-esperam-download.js": {

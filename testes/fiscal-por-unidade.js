@@ -231,6 +231,62 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   t('Santa Fé não vê o cupom de Alphaville', vistos.indexOf('cf_alpha') < 0);
   t('e vê os dela', vistos.indexOf(c1.id) >= 0);
 
+  /* ---------- 4b. a tela fiscal segue a loja do alto ---------- */
+  grupo('A tela fiscal mostra a loja escolhida no alto — nunca a da visita anterior');
+  /* Rafael, 28/09/2026: trocou a loja no alto para Santa Fé e a tela
+     mostrou a empresa e o CNPJ da Matriz */
+  const pedidosEstado = [];
+  win.fiscalChamar = async (acao, dados) => {
+    pedidosEstado.push(dados && dados.sucursal);
+    const ref = dados && dados.sucursal;
+    return { ok: true, status: 200, d: { ok: true, podeGerir: true, conta: { host: 'sandbox' },
+      unidade: { ref, nome: ref, vinculada: true, modo: 'desligado', ambiente: 'homologacao',
+        cnpj: ref === 'suc_matriz' ? '42771278000102' : '50058498000111' },
+      spedy: { nome: ref === 'suc_matriz' ? 'JOLO GELATO LTDA' : 'ULIAN & SOUZA SORVETERIA LTDA',
+        cnpj: ref === 'suc_matriz' ? '42771278000102' : '50058498000111', ie: '1', certificado: null } } };
+  };
+  win.DB.sucursais.push({ id: 'suc_matriz', nome: 'Matriz', ativa: true, matriz: true });
+  let aberta = 'suc_matriz';
+  win.lojaAtualId = () => aberta;
+  win.DB.fiscalUn = {};
+  await win.telaFiscalCfg();
+  const tela1 = doc.getElementById('content').innerHTML;
+  aberta = 'suc_sf';                       /* troca a loja no alto */
+  await win.telaFiscalCfg();
+  const tela2 = doc.getElementById('content').innerHTML;
+  t('abrindo na Matriz, mostra a empresa da Matriz', /JOLO GELATO LTDA/.test(tela1));
+  t('trocando a loja no alto para Santa Fé, mostra a empresa de Santa Fé',
+    /ULIAN &amp; SOUZA/.test(tela2) && !/JOLO GELATO LTDA/.test(tela2));
+  t('e pede ao servidor os dados de Santa Fé, não os da Matriz', pedidosEstado[pedidosEstado.length - 1] === 'suc_sf');
+  t('a tela diz qual unidade está sendo configurada', /id="fsUnidadeNome">Jolo Santa Fe do Sul</.test(tela2));
+  t('não existe mais um segundo seletor de loja dentro da tela', !doc.getElementById('fsSuc'));
+  /* pelo caminho REAL do menu, como o login de Santa Fé entra (28/09/2026:
+     o gerente da loja via "Área restrita — só o administrador da plataforma") */
+  grupo('O gerente de Santa Fé abre a Configuração Fiscal pelo menu');
+  aberta = 'suc_sf';
+  const gerenteSF = { id: 'u_sf', nome: 'Jolo Santa Fe do Sul', login: 'santafe@jologelato.com.br', ativo: true,
+    sucursais: ['suc_sf'], permissoes: { 'loja/fiscal': true, 'relatorios/cupons-fiscais': true } };
+  const operadorSF = { id: 'u_cx', nome: 'Operador Caixa', login: 'caixa@jologelato.com.br', ativo: true,
+    sucursais: ['suc_sf'], permissoes: { 'pdv/pdv': true } };
+  let logado = gerenteSF;
+  win.usuarioLogado = () => logado;
+  win.DB.usuarios = [gerenteSF, operadorSF];
+  win.DB.fiscalUn = {};
+  await win._abrirTela('loja', 'fiscal');
+  await espera(20);
+  let telaG = doc.getElementById('content').innerHTML;
+  t('abre a tela fiscal de verdade, sem "Área restrita"',
+    /Configuração Fiscal/.test(telaG) && !/Área restrita|administração da Joia/.test(telaG), telaG.slice(0, 160));
+  t('mostra a unidade dele', /id="fsUnidadeNome">Jolo Santa Fe do Sul</.test(telaG));
+  logado = operadorSF;
+  await win._abrirTela('loja', 'fiscal');
+  await espera(20);
+  const telaO = doc.getElementById('content').innerHTML;
+  t('o operador sem a permissão não entra', /Sem acesso a esta tela/.test(telaO));
+  logado = gerenteSF;
+  win.lojaAtualId = () => 'suc_sf';
+  win.fiscalChamar = async (acao, dados) => { chamadas.push({ acao, dados }); return resposta(acao, dados); };
+
   /* ---------- 5. PDV ---------- */
   grupo('A tela de pagamento');
   win.PDV = win.PDV || {}; win.PDV.cliente = null;

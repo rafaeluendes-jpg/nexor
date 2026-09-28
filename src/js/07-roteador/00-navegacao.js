@@ -302,7 +302,18 @@ if(mid==='loja'&&iid==='fiscal'){
      caixa. Agora e do administrador, e o banco tambem recusa (politica
      "fiscal: so quem administra").
      ========================================================== */
-  if(!ehFranqueadora()&&!ehPlataforma())return telaRestrita('Configuração Fiscal');
+  /* ==========================================================
+     28/09/2026 — A TRAVA ACIMA SAIU, O MOTIVO DELA TAMBEM
+     Ela existia porque a tela antiga guardava o token do provedor no
+     aparelho. Hoje a chave, o CSC e o certificado moram no servidor
+     (joia-fiscal) e nunca chegam ao navegador; e quem ALTERA o fiscal e
+     o servidor que decide: a matriz em todas as unidades, o gerente so
+     na dele, o operador so ve (campos travados). A trava barrava
+     justamente o gerente de Santa Fe, dono da loja, de enviar o
+     certificado da propria loja ("Area restrita — so o administrador da
+     plataforma"). Quem abre a tela e quem tem a permissao dela, como em
+     todas as outras — _abrirTela ja confere.
+     ========================================================== */
   return telaFiscalCfg();
 }
 /* o item existia no menu e nao tinha tela: clicar nele nao fazia nada */
