@@ -552,24 +552,55 @@ function abaDados(){
   '<div class="fld2"><label>Categoria *</label><select id="pCat">'+
   (cats||'<option value="">— cadastre uma categoria primeiro —</option>')+'</select></div>'+
   '</div>'+
-  (fiscalCfg().modo!=='desligado'
-   ?'<div class="blk"><h3>Dados fiscais</h3>'+
-    '<div class="hint" style="margin:-4px 0 10px">Em branco, vale o padrão da '+
-    '<b>Configuração Fiscal</b>. O NCM é o único que a SEFAZ não perdoa.</div>'+
+  /* ==========================================================
+     DADOS FISCAIS DO PRODUTO (28/09/2026)
+     O produto é da rede, e cada unidade pode ter um regime: por isso o
+     CSOSN (Simples) e o CST (regime normal) ficam os dois aqui. O perfil
+     preenche os códigos de uma vez — quem cadastra não precisa saber o
+     que é CSOSN. O bloco aparece sempre: antes ele só aparecia com o
+     fiscal ligado na configuração da REDE, que deixou de existir.
+     ========================================================== */
+  (function(){
+    var f=fiscalCfg(),pfAt=perfilDoProduto(p);
+    return '<div class="blk"><h3>Dados fiscais</h3>'+
+    '<div class="hint" style="margin:-4px 0 10px">É daqui que sai o cupom fiscal. '+
+    'Sem NCM a Receita recusa; produto com substituição tributária (sorvete, bebida) também precisa do CEST.</div>'+
+    '<div class="fld2"><label>Perfil de imposto</label><select id="pdPerfil" onchange="pdAplicarPerfil(this.value)">'+
+     '<option value="">'+(pfAt?'— manter os códigos abaixo —':'— escolha para preencher os códigos —')+'</option>'+
+     perfisFiscais().map(function(pf){
+       return '<option value="'+E(pf.id)+'"'+(pfAt===pf?' selected':'')+'>'+E(pf.nome)+'</option>';
+     }).join('')+'</select>'+
+     '<div class="hint">Quem decide o perfil é o seu contador.</div></div>'+
     '<div class="row2">'+
-     '<div class="fld2"><label>NCM</label><input id="pdNcm" value="'+E(p?(p.ncm||''):'')+
-      '" placeholder="'+E(fiscalCfg().ncm||'8 dígitos')+'"></div>'+
-     '<div class="fld2"><label>CFOP</label><input id="pdCfop" value="'+E(p?(p.cfop||''):'')+
-      '" placeholder="'+E(fiscalCfg().cfop||'5102')+'"></div>'+
+     '<div class="fld2"><label>NCM</label><input id="pdNcm" inputmode="numeric" value="'+E(p?(p.ncm||''):'')+
+      '" placeholder="'+E(f.ncm||'ex.: 21050010 (sorvete com leite)')+'"></div>'+
+     '<div class="fld2"><label>CEST</label><input id="pdCest" inputmode="numeric" value="'+E(p?(p.cest||''):'')+
+      '" placeholder="ex.: 1701100 (sorvete com leite)"></div>'+
     '</div>'+
     '<div class="row2">'+
-     '<div class="fld2"><label>'+(fiscalCfg().regime==='simples'?'CSOSN':'CST')+'</label>'+
-      '<input id="pdCst" value="'+E(p?(fiscalCfg().regime==='simples'?(p.csosn||''):(p.cst||'')):'')+
-      '" placeholder="'+E(fiscalCfg().regime==='simples'?(fiscalCfg().csosn||'102'):(fiscalCfg().cst||'00'))+'"></div>'+
+     '<div class="fld2"><label>CFOP</label><input id="pdCfop" inputmode="numeric" value="'+E(p?(p.cfop||''):'')+
+      '" placeholder="'+E(f.cfop||'5102')+'"></div>'+
+     '<div class="fld2"><label>Origem</label><select id="pdOrig">'+
+      ORIGENS_FISCAIS.map(function(o){
+        return '<option value="'+o.id+'"'+(String((p&&p.origemFiscal)||f.origem||'0')===o.id?' selected':'')+'>'+E(o.n)+'</option>';
+      }).join('')+'</select></div>'+
+    '</div>'+
+    '<div class="row2">'+
+     '<div class="fld2"><label>CSOSN <small style="font-weight:400;opacity:.7">(Simples)</small></label>'+
+      '<input id="pdCsosn" inputmode="numeric" maxlength="3" value="'+E(p?(p.csosn||''):'')+'" placeholder="'+E(f.csosn||'102')+'"></div>'+
+     '<div class="fld2"><label>CST <small style="font-weight:400;opacity:.7">(regime normal)</small></label>'+
+      '<input id="pdCst" inputmode="numeric" maxlength="3" value="'+E(p?(p.cst||''):'')+'" placeholder="'+E(f.cst||'00')+'"></div>'+
+    '</div>'+
+    '<div class="row2">'+
      '<div class="fld2"><label>Código de barras (GTIN)</label>'+
-      '<input id="pdGtin" value="'+E(p?(p.gtin||''):'')+'" placeholder="opcional"></div>'+
+      '<input id="pdGtin" inputmode="numeric" value="'+E(p?(p.gtin||''):'')+'" placeholder="opcional"></div>'+
+     '<div class="fld2"><label>Unidade no cupom</label><select id="pdUnTrib">'+
+      [['UN','Unidade (UN)'],['KG','Quilo (KG)'],['LT','Litro (LT)']].map(function(o){
+        return '<option value="'+o[0]+'"'+(((p&&p.unTrib)||'UN')===o[0]?' selected':'')+'>'+o[1]+'</option>';
+      }).join('')+'</select></div>'+
     '</div>'+
-   '</div>':'')+
+   '</div>';
+  })()+
   blocoUnidades(p,'pdUn')+
   '<div class="blk"><h3>Onde o produto está disponível?</h3>'+
   '<div class="hint" style="margin:-4px 0 10px">É daqui que sai o cardápio digital: '+
@@ -690,12 +721,13 @@ function lerFormProduto(){
   /* fiscais: só existem na tela quando o fiscal está ligado */
   lerUnidades('pdUn',p);           /* quem enxerga este produto */
   if($('pdNcm'))p.ncm=soDigitos($('pdNcm').value);
+  if($('pdCest'))p.cest=soDigitos($('pdCest').value);
   if($('pdCfop'))p.cfop=soDigitos($('pdCfop').value);
   if($('pdGtin'))p.gtin=soDigitos($('pdGtin').value);
-  if($('pdCst')){
-    if(fiscalCfg().regime==='simples')p.csosn=soDigitos($('pdCst').value);
-    else p.cst=soDigitos($('pdCst').value);
-  }
+  if($('pdCsosn'))p.csosn=soDigitos($('pdCsosn').value);
+  if($('pdCst'))p.cst=soDigitos($('pdCst').value);
+  if($('pdOrig'))p.origemFiscal=$('pdOrig').value;
+  if($('pdUnTrib'))p.unTrib=$('pdUnTrib').value;
   var pp=document.querySelectorAll('.prPreco');
   for(var k=0;k<pp.length;k++)p.promocoes[pp[k].getAttribute('data-i')].preco=moedaValor(pp[k]);
   var pd=document.querySelectorAll('.prDe');

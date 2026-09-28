@@ -189,6 +189,10 @@
    "pontos": 42,
    "roda": true
   },
+  "testes/fiscal-por-unidade.js": {
+   "pontos": 58,
+   "roda": true
+  },
   "testes/formas-esperam-download.js": {
    "pontos": 10,
    "roda": true

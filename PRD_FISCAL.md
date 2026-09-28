@@ -190,10 +190,15 @@ códigos. Presets que já vêm prontos:
 | Perfil | Para que serve | Simples Nacional | Regime Normal |
 |---|---|---|---|
 | **Gelato e sorvete (ST)** | o que a loja revende e já veio com imposto pago na origem | CSOSN **500** + base e valor de ST retido | CST **60** |
-| **Gelato de produção própria** | quando a loja é a fabricante | CSOSN **400** | CST **00** com alíquota interna |
+| **Gelato de produção própria** | quando a loja é a fabricante (CFOP 5101) | CSOSN **102** | CST **00** com alíquota interna |
 | **Bebidas e industrializados (ST)** | refrigerante, água, chocolate | CSOSN **500** | CST **60** |
-| **Revenda comum** | item sem ST | CSOSN **400** | CST **00** |
+| **Revenda comum** | item sem ST (CFOP 5102) | CSOSN **102** | CST **00** |
 | **Isento / não tributado** | brinde, bonificação | CSOSN **400** | CST **40/41** |
+
+> **Correção (28/09/2026):** a primeira documentação da Spedy chamava o CSOSN 400
+> de "tributada sem crédito". Está errado: **400 é "não tributada pelo Simples"**.
+> Venda tributada no Simples, sem crédito, é **CSOSN 102**. Os perfis do sistema
+> já saem com o código certo.
 
 Cada perfil guarda: CFOP padrão (5102 · venda interna; 5405 · venda de ST ao consumidor),
 origem (0 = nacional), CST/CSOSN de ICMS, CST de PIS e COFINS (Simples: **07** —
@@ -516,7 +521,7 @@ Além do portão de publicação (11 etapas, `node ferramentas/portao.js`):
 ## 16. As quatro perguntas para o contador
 
 1. O gelato vendido na loja sai como **mercadoria já tributada por ST** (CSOSN 500 /
-   CST 60) ou como **produção própria** (CSOSN 400 / CST 00)? Vale para todas as
+   CST 60) ou como **produção própria** (CSOSN 102 / CST 00)? Vale para todas as
    unidades?
 2. Confirma **NCM 21050010** (com leite) e **21050090** (sorbet/à base de água), com
    **CEST 1701100 / 1701200**?

@@ -831,7 +831,18 @@ function volta(linhas,fn,atual,col){
       nomeOnline:x.nome_online,disponivel:x.disponivel||{},promocoes:x.promocoes||[],
       grupos:g,vinculaEstoque:!!x.vincula_estoque,
       _fichaUid:x.ficha_id||'',_insumoUid:x.insumo_id||'',
-      insumoQtd:Number(x.insumo_qtd)||0,insumoUn:x.insumo_un||'',sucursais:x.sucursais||[]};},null,'produtos');
+      insumoQtd:Number(x.insumo_qtd)||0,insumoUn:x.insumo_un||'',sucursais:x.sucursais||[],
+      /* ==========================================================
+         OS DADOS FISCAIS DO PRODUTO SUBIAM E NUNCA VOLTAVAM (28/09/2026)
+         NCM, CFOP, CSOSN, CST, CEST, origem, GTIN e unidade tributavel
+         iam para a nuvem no envio e nao estavam aqui na volta. O caixa da
+         loja — outro aparelho — recebia o produto sem NCM, e todo cupom
+         fiscal parava em "produto sem NCM". Pior: o aparelho da matriz,
+         ao baixar, ficava sem os campos e o envio seguinte gravava nulo
+         por cima do que tinha sido cadastrado.
+         ========================================================== */
+      ncm:x.ncm||'',cfop:x.cfop||'',csosn:x.csosn||'',cst:x.cst||'',cest:x.cest||'',
+      origemFiscal:x.origem_fiscal||'',gtin:x.gtin||'',unTrib:x.unidade_tributavel||''};},null,'produtos');
   var cfgS=await api('config_loja?loja_id=eq.'+l+'&select=*');
   if(cfgS&&cfgS[0]){var c3=cfg();
     c3.lojaAberta=cfgS[0].loja_aberta!==false;c3.tempoEntrega=cfgS[0].tempo_entrega;
@@ -1138,7 +1149,13 @@ function volta(linhas,fn,atual,col){
     consumidor:x.consumidor_nome||'',doc:x.consumidor_doc||'',pagamento:x.pagamento||'',
     total:Number(x.valor_total)||0,desconto:Number(x.valor_desconto)||0,
     entrega:Number(x.valor_entrega)||0,data:x.data_venda||'',hora:x.hora_venda||'',
-    nfeAgrupada:x.nfe_agrupada_ref||'',contingencia:!!x.contingencia}},null,'cupons_f');
+    nfeAgrupada:x.nfe_agrupada_ref||'',contingencia:!!x.contingencia,
+    /* a unidade e o que a Spedy devolveu voltam junto: sem a unidade, a
+       loja veria os cupons das outras; sem o endereco do DANFE, outro
+       aparelho nao reimprime */
+    sucursalId:x.sucursal_id||'',pdf:x.danfe_url||'',xml:x.xml_url||'',
+    spedyId:((String(x.danfe_url||'').match(/consumer-invoices\/([0-9a-f-]{36})\//)||[])[1])||'',
+    emitidoEm:x.emitido_em||'',canceladoEm:x.cancelado_em||''}},null,'cupons_f');
 
   var cmd=await _p28;
   DB.comandas=volta(cmd,function(x){return {id:x.ref_local||x.id,mesaId:x.mesa_ref||'',

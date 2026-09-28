@@ -1416,6 +1416,10 @@ var MAPA=[
     pagamento:x.pagamento||null,valor_total:n(x.total),valor_desconto:n(x.desconto),
     valor_entrega:n(x.entrega),data_venda:x.data||null,hora_venda:x.hora||null,
     nfe_agrupada_ref:x.nfeAgrupada||null,contingencia:!!x.contingencia,
+    /* o que a Spedy devolveu (28/09/2026): outro aparelho da loja precisa
+       achar o DANFE e o XML sem perguntar de novo */
+    danfe_url:x.pdf||null,xml_url:x.xml||null,
+    emitido_em:x.emitidoEm||null,cancelado_em:x.canceladoEm||null,
     /* o cupom sobe com a unidade da venda (isolamento por unidade) */
     sucursal_id:x.sucursalId||lojaAtualId()||null}}},
 
@@ -3416,7 +3420,7 @@ async function sincronizar(){
     await api('config_loja?on_conflict=loja_id','POST',[{loja_id:l,
       loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
       tempo_retirada:n(c.tempoRetirada),caixa_cego:!!c.caixaCego,
-      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},cfg_fiscal:c.fiscal||{},cfg_totem:c.totem||{},
+      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},cfg_fiscal:fiscalSemSegredo(c.fiscal),cfg_totem:c.totem||{},
     cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
       mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}}],
       {'Prefer':'resolution=merge-duplicates,return=minimal'});

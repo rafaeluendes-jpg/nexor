@@ -1136,7 +1136,10 @@ function irPagamento(){
   '<div id="cupMsg">'+(_cupomAtivo?'<div class="cupOk">'+sv('check',13)+' '+E(_cupomAtivo.codigo)+
    ' aplicado — desconto de R$ '+money(valorCupom(_cupomAtivo,_totPag))+'</div>':'')+'</div></div>'+
   '<div class="blk" style="margin:0;max-width:none">'+
-  '<label class="chkL"><input type="checkbox" id="pgFiscal"><span>Gerar cupom fiscal</span></label>'+
+  /* o cupom fiscal segue a configuracao DA UNIDADE (04-fiscal.js): some
+     quando a loja nao emite, sai sozinho no modo "sempre" e vira caixinha
+     no "sob demanda". Antes a caixinha aparecia sempre e nao fazia nada. */
+  blocoFiscalPagamento()+
   '<label class="chkL"><input type="checkbox" id="pgImp" checked><span>Imprimir via ao finalizar</span></label>'+
   '</div></div>';
   modal('Pagamento',h,'Finalizar venda',function(){
@@ -1290,9 +1293,14 @@ function irPagamento(){
         return false;
       }
     }
+    /* CPF na nota: digitado errado nao vai para a SEFAZ (seria recusado) —
+       o caixa corrige ou deixa em branco antes de a venda nascer */
+    var _fis=fiscalEscolhido();
+    if(_fis.erro){toast(_fis.erro);liberarFecharVenda();return false;}
+    FISCAL_VENDA.cpf=_fis.cpf||'';
     _trocoVenda=+(somaPg-final).toFixed(2);
     _nomeComanda=String((($('pgNome')||{}).value)||'').trim().slice(0,24);
-    finalizarVenda(final,taxa,desc,_pagosVenda,$('pgFiscal').checked,$('pgImp').checked,entSel?entSel.value:null,fiado);
+    finalizarVenda(final,taxa,desc,_pagosVenda,_fis.emitir,$('pgImp').checked,entSel?entSel.value:null,fiado);
     return true;
   },'lg');
   $('pgTaxa').oninput=recalcPag;$('pgDesc').oninput=recalcPag;
