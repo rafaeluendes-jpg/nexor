@@ -54,7 +54,10 @@ async function carregar() {
   win.salvar = () => {}; win.telaNotas = () => {}; win.telaLancamentos = () => {};
   win.DB.contas = [{ id: 'cc_caixa', nome: 'Caixa da loja', fixa: 'caixa' }];
   win.DB.formasPag = [{ id: 'fp_pix', nome: 'Pix', tipo: 'pix' }];
-  win.DB.catfin = [{ id: 'g1', nome: 'Custos Diretos', itens: [{ id: 'cat_forn', nome: 'Fornecedores' }] }];
+  /* 'sc1' existe no plano de contas: desde 28/09/2026 a categoria do lançamento
+     tem de existir (categoriaValida) — o dado de teste usava um id solto */
+  win.DB.catfin = [{ id: 'g1', nome: 'Custos Diretos', itens: [{ id: 'cat_forn', nome: 'Fornecedores' }] },
+    { id: 'g2', nome: 'Impostos', itens: [{ id: 'sc1', nome: 'Simples Nacional' }] }];
   win.DB.fornec = [{ id: 'fo1', empresa: 'Casa de Doce Local' }]; win.DB.lancFin = []; win.DB.notas = [];
   win.DB.insumos = [{ id: 'i1', nome: 'Açúcar', unidade: 'kg', controlaEstoque: true, estoqueAtual: 0 }];
 
