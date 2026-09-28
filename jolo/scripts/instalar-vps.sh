@@ -24,7 +24,7 @@ set -Eeuo pipefail
 
 RAIZ="${RAIZ:-/opt/jolo}"
 REPO="${REPO:-https://github.com/rafaeluendes-jpg/nexor.git}"
-BRANCH="${BRANCH:-main}"
+BRANCH="${BRANCH:-}"   # vazio = mantem a branch que ja esta no servidor
 SUBPASTA="${SUBPASTA:-jolo}"
 NODE_MAJOR=22
 PNPM_VERSAO="10.33.0"
@@ -319,10 +319,15 @@ echo "    node $(node --version), pnpm $(pnpm --version)"
 # ------------------------------------------------------------
 passo "4/10 Codigo em ${RAIZ}"
 if [ -d "${RAIZ}/.git" ]; then
+  # sem BRANCH explicito, continua na branch que o servidor ja usa: trocar
+  # sozinho para a main jogaria fora a versao que esta rodando na loja
+  BRANCH="${BRANCH:-$(git -C "$RAIZ" rev-parse --abbrev-ref HEAD)}"
+  echo "    branch: ${BRANCH}"
   git -C "$RAIZ" fetch --quiet origin "$BRANCH"
   git -C "$RAIZ" checkout --quiet "$BRANCH"
   git -C "$RAIZ" reset --hard --quiet "origin/${BRANCH}"
 else
+  BRANCH="${BRANCH:-main}"
   [ -e "$RAIZ" ] && [ -n "$(ls -A "$RAIZ" 2>/dev/null)" ] \
     && erro "${RAIZ} existe e nao esta vazio, mas nao e um clone do repositorio. Escolha outra pasta com RAIZ=/outro/lugar."
   git clone --quiet --branch "$BRANCH" "$REPO" "$RAIZ" \
