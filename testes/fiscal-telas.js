@@ -311,6 +311,47 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   win.DB.fiscalUn.suc_matriz.spedy.ie = '123456789012';
   t('com a IE, não pede mais', !/inscrição estadual da matriz/.test(win.nfProblemas(semIe).join('|')));
 
+  /* ---------- 8. o caixa pergunta ao servidor ---------- */
+  /* 28/09/2026, 18:54: Santa Fé ligou "Emitir sempre" pela Configuração
+     Fiscal e a venda 2473 saiu sem cupom — o aparelho do caixa nunca tinha
+     aberto a tela fiscal e achava que a loja estava desligada. */
+  grupo('O caixa pergunta ao servidor se a loja emite — não confia na lembrança');
+  let servidor = { suc_sf: { modo: 'sempre', ambiente: 'homologacao', vinculada: true, serie: 1, regime: 'simplesNacional' } };
+  const acoes = [];
+  win.fiscalChamar = async (acao, d) => {
+    acoes.push({ acao, d });
+    if (acao === 'estado') return { ok: true, status: 200, d: { ok: true, unidade: Object.assign({ ref: d.sucursal }, servidor[d.sucursal] || { modo: 'desligado' }) } };
+    return { ok: true, status: 200, d: { ok: true, nota: { spedyId: 'x1', status: 'autorizado', numero: 5 } } };
+  };
+  win.NUVEM.ligada = true; win.NUVEM.token = 't';
+  win.DB.fiscalUn = {};                         /* o aparelho do caixa nunca abriu a tela fiscal */
+  win.DB.cupons_f = [];
+  const vCaixa = { id: 'ped_2473', numero: 2473, sucursalId: 'suc_sf', total: 19, taxa: 0,
+    itens: [{ produtoId: 'p_gel', nome: 'Cascão 1 Bola', qtd: 1, total: 19 }], pagamentos: [{ forma: 'fp_pix', valor: 19 }] };
+  win.DB.pedidos = [vCaixa];
+  const cc = win.registrarCupom(vCaixa);
+  await espera(60);
+  t('o caixa pergunta ao servidor ("estado", leitura leve)', acoes.some(x => x.acao === 'estado' && x.d.leve === true));
+  t('e, com a loja ligada lá, emite — mesmo sem nunca ter aberto a tela fiscal',
+    acoes.some(x => x.acao === 'emitir') && cc.status === 'autorizado', cc.status);
+  acoes.length = 0;
+  servidor = { suc_sf: { modo: 'desligado', ambiente: 'homologacao', vinculada: true } };
+  win.DB.fiscalUn = { suc_sf: { modo: 'sempre', vinculada: true, ambiente: 'homologacao' } };   /* lembrança velha */
+  const v2 = Object.assign({}, vCaixa, { id: 'ped_2474', numero: 2474 });
+  win.DB.pedidos.push(v2);
+  const c2 = win.registrarCupom(v2);
+  await espera(60);
+  t('desligada no servidor: não emite, mesmo que o aparelho lembre "sempre"', !acoes.some(x => x.acao === 'emitir') && c2.status === 'pendente');
+  servidor = { suc_sf: { modo: 'sempre', ambiente: 'homologacao', vinculada: true } };
+  win.DB.fiscalUn = {};
+  acoes.length = 0;
+  await win.fiscalGarantir('suc_sf');
+  win.lojaAtualId = () => 'suc_sf';
+  await win.fiscalReprocessar();
+  t('venda de antes da emissão ligada não vira cupom sozinha depois', !acoes.some(x => x.acao === 'emitir' && x.d.nota && x.d.nota.integrationId === 'ped_2474'));
+  t('o PDV confere a configuração fiscal ao abrir', /fiscalGarantir\(lojaAtualId\(\)\)/.test(html));
+  t('servidor: a leitura leve não pergunta nada à Spedy', /const chave = !corpo\.leve && \(await chaveDaUnidade\(u\)\)/.test(fonte));
+
   /* 28/09/2026: a primeira versão desta tela chamava o próprio estado de
      IMP e redefinia ORIGENS_FISCAIS — nomes que já existiam em outras
      telas. O arquivo carregado por último vencia: a tela de impostos

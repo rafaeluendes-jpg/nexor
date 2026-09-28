@@ -1037,11 +1037,20 @@ function registrarCupom(ped){
     status:'pendente',ambiente:u.ambiente,serie:u.serie,sucursalId:suc
   };
   DB.cupons_f.push(c);
-  if(fiscalEmite(suc)&&(u.modo==='sempre'||ped.fiscal)){
-    setTimeout(function(){
-      emitirCupom(c.id).catch(function(e){_quieto(e,'emitirCupom');});
-    },0);
-  }
+  /* a decisão de emitir usa o que o SERVIDOR diz da loja agora — não a
+     lembrança deste aparelho (28/09/2026: o caixa de Santa Fé não sabia
+     que a emissão tinha sido ligada). Em segundo plano: a venda já está
+     gravada e nada aqui segura o caixa. */
+  setTimeout(function(){
+    fiscalGarantir(suc).then(function(u2){
+      u2=u2||fiscalUn(suc);
+      c.ambiente=u2.ambiente;c.serie=u2.serie;
+      if(fiscalEmite(suc)&&(u2.modo==='sempre'||ped.fiscal)){
+        c.querEmitir=true;
+        return emitirCupom(c.id);
+      }
+    }).catch(function(e){_quieto(e,'emitirCupom');});
+  },0);
   return c;
 }
 

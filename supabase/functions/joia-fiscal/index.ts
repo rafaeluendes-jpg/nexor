@@ -274,7 +274,9 @@ Deno.serve(async (req) => {
           .select("sucursal_ref, modo, ambiente, spedy_company_id, cnpj").eq("loja_id", loja);
         saida.rede = todas || [];
       }
-      const chave = (await chaveDaUnidade(u)) ? await chaveDaConta() : null;
+      /* leitura leve: o caixa só precisa saber se a loja emite — sem
+         perguntar nada à Spedy a cada venda */
+      const chave = !corpo.leve && (await chaveDaUnidade(u)) ? await chaveDaConta() : null;
       if (chave && u?.spedy_company_id) {
         const [emp, cfg, cert] = await Promise.all([
           spedy(chave, "GET", `/companies/${u.spedy_company_id}`),

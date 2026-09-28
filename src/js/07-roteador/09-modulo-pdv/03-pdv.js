@@ -37,6 +37,8 @@ async function conferirCaixaNoBanco(){
 function telaPDV(){
   /* confere em segundo plano: nao trava o desenho da tela */
   setTimeout(function(){ conferirCaixaNoBanco(); },50);
+  /* e a configuração fiscal da loja, para a primeira venda já saber se emite */
+  setTimeout(function(){ if(typeof fiscalGarantir==='function')fiscalGarantir(lojaAtualId()); },80);
   DB.clientes=DB.clientes||[];DB.pedidos=DB.pedidos||[];DB.caixas=DB.caixas||[];
   baseFormas();
   var c=cfg(),cx=caixaAberto();

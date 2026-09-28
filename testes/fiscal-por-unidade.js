@@ -157,7 +157,16 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   grupo('A venda nunca espera o fiscal');
   const chamadas = [];
   let resposta = null;
-  win.fiscalChamar = async (acao, dados) => { chamadas.push({ acao, dados }); return resposta(acao, dados); };
+  /* o servidor de verdade responde "estado" com a configuração da loja
+     (a que está gravada lá) — o caixa pergunta antes de decidir emitir */
+  let servidorUnidades = null;
+  win.fiscalChamar = async (acao, dados) => {
+    if (acao === 'estado') {
+      const un = (servidorUnidades || win.DB.fiscalUn)[dados.sucursal] || { modo: 'desligado' };
+      return { ok: true, status: 200, d: { ok: true, unidade: Object.assign({ ref: dados.sucursal }, un, { lidoEm: undefined }) } };
+    }
+    chamadas.push({ acao, dados }); return resposta(acao, dados);
+  };
   win.NUVEM.ligada = true; win.NUVEM.token = 't'; win.NUVEM.url = 'https://x.supabase.co'; win.NUVEM.chave = 'k';
   win.DB.pedidos = [venda];
   win.DB.cupons_f = [];

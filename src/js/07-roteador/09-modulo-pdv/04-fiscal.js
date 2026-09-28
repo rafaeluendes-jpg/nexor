@@ -73,19 +73,44 @@ async function fiscalChamar(acao,dados){
     return {ok:false,status:0,d:{erro:'Sem conexão com o servidor fiscal.'}};
   }
 }
-async function fiscalCarregar(suc){
+async function fiscalCarregar(suc,leve){
   suc=suc||lojaAtualId();
-  var r=await fiscalChamar('estado',{sucursal:suc});
+  var r=await fiscalChamar('estado',{sucursal:suc,leve:!!leve});
   if(!r.ok){FS.erro=(r.d&&r.d.erro)||'O fiscal não respondeu agora.';return null;}
   /* a resposta tem de ser DA unidade pedida — nunca guardar a de outra */
   if(r.d.unidade&&r.d.unidade.ref&&r.d.unidade.ref!==suc){FS.erro='Resposta de outra unidade — recarregue.';return null;}
   FS.erro='';
+  var ant=baseFiscalUn()[suc];
   var u=Object.assign({},r.d.unidade||{},{
-    spedy:r.d.spedy||null,base:r.d.base||null,conta:r.d.conta||null,
+    /* a leitura leve (a do caixa) não traz o cadastro da Spedy: mantém o
+       que a tela de configuração já tinha lido */
+    spedy:r.d.spedy||(leve&&ant&&ant.spedy)||null,base:r.d.base||null,conta:r.d.conta||null,
     podeGerir:!!r.d.podeGerir,rede:r.d.rede||null,lidoEm:new Date().toISOString()});
   baseFiscalUn()[suc]=u;
   salvar();
   return u;
+}
+
+/* ==========================================================
+   O CAIXA SABE SE A LOJA EMITE — SEM ABRIR A TELA FISCAL (28/09/2026)
+   Santa Fé ligou "Emitir sempre" e as vendas continuaram saindo sem
+   cupom: o aparelho do caixa só aprendia a configuração quando alguém
+   abria a Configuração Fiscal NELE. O operador nunca abre. Agora o PDV
+   confere no servidor ao abrir e a cada venda (no máximo a cada 3 min),
+   e a decisão de emitir é tomada com o que o servidor disse.
+   ========================================================== */
+var _fsGarantindo={};
+async function fiscalGarantir(suc){
+  suc=suc||lojaAtualId();
+  if(!NUVEM.ligada||!NUVEM.token||!suc)return fiscalUn(suc);
+  var u=baseFiscalUn()[suc];
+  var fresco=u&&u.lidoEm&&(Date.now()-Date.parse(u.lidoEm))<180000&&(!u.ref||u.ref===suc);
+  if(fresco)return u;
+  if(!_fsGarantindo[suc])_fsGarantindo[suc]=fiscalCarregar(suc,true)
+    .catch(function(e){_quieto(e,'fiscalGarantir');return null;})
+    .then(function(x){delete _fsGarantindo[suc];return x;});
+  await _fsGarantindo[suc];
+  return fiscalUn(suc);
 }
 
 /* ==========================================================
@@ -391,7 +416,9 @@ async function fiscalReprocessar(){
     var ped=(DB.pedidos||[]).find(function(p){return p.id===c.pedidoId});
     if(!ped)return false;
     if(new Date(ped.data||c.data).getTime()<limite)return false;
-    return c.status==='enviando'||u.modo==='sempre'||ped.fiscal;
+    /* só o que já tinha sido mandado emitir: venda feita antes de a loja
+       ligar a emissão não vira cupom sozinha, horas depois */
+    return c.status==='enviando'||c.querEmitir||(c.tentativas||0)>0;
   }).slice(0,10);
   for(var i=0;i<lst.length;i++){
     var c=lst[i];
