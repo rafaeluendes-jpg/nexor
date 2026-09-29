@@ -152,29 +152,10 @@ if [ -n "$DOMINIO_CRM" ]; then
   else
     ENTRADA_LANDING="listen 8000;"
   fi
-  # A landing nova (identidade "Feito para valer a pena", aprovada pelo
-  # Rafael em 29/09/2026) e uma pagina so, estatica: /landing na raiz do
-  # repositorio. Vai para uma pasta publica com a lista fechada do que o
-  # navegador precisa — o HISTORIA_JOLO.md, rascunho interno, nao sai.
-  # O app Next continua atras dela respondendo privacidade, termos,
-  # robots e sitemap.
-  LANDING_NOVA=/var/www/landing-nova
-  install -d -m 755 "$LANDING_NOVA"
-  rm -rf "${LANDING_NOVA:?}"/*
-  cp "${RAIZ}/landing/index.html" "$LANDING_NOVA/"
-  cp -r "${RAIZ}/landing/fotos" "${RAIZ}/landing/marca" "$LANDING_NOVA/"
-  chmod -R a+rX,go-w "$LANDING_NOVA"
   cat > "${DIR_NGINX}/sites-available/jolo" <<FIMNGINX
 server {
     ${ENTRADA_LANDING}
     client_max_body_size 25m;
-    root ${LANDING_NOVA};
-    location = / {
-        try_files /index.html =404;
-        add_header Cache-Control "no-cache, must-revalidate" always;
-    }
-    location /fotos/ { try_files \$uri =404; expires 7d; }
-    location /marca/ { try_files \$uri =404; expires 7d; }
     location / {
         proxy_pass http://127.0.0.1:${PORTA_LANDING:-3000};
         include ${DIR_NGINX}/jolo-proxy.conf;
