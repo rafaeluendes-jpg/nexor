@@ -14,9 +14,15 @@ Claude Code para dentro da VPS e trabalhar de la.
 ### 1. Abrir o terminal da VPS
 
 No painel da Hostinger (hpanel.hostinger.com): **VPS** → no seu servidor,
-**Gerenciar** → botao **Terminal**. Abre uma aba nova, ja logada como
-`root`. Se pedir senha, e a senha de SSH do servidor, que esta na mesma
-tela. (Se o navegador bloquear a aba, libere pop-ups do hpanel.)
+**Gerenciar** → botao **Web console** (canto direito da Visao geral).
+Abre uma aba nova ja logada como `root`. Se pedir senha, e a senha de root
+do servidor — na mesma tela ha o "Redefinir senha". Se o navegador
+bloquear a aba, libere pop-ups do hpanel.
+
+Servidor de hoje: Ubuntu 24.04 LTS, plano KVM 1, IP `2.25.199.187`.
+Nesse plano (4 GB de memoria, uma CPU) a compilacao e demorada — o
+instalador liga 2 GB de memoria de troca antes de compilar justamente
+para ela nao morrer no meio.
 
 ### 2. Instalar o Claude Code dentro da VPS
 
@@ -50,9 +56,9 @@ registros **A** apontando para o IP da VPS:
 
 | Nome | Tipo | Valor |
 |---|---|---|
-| `franquias` | A | IP da VPS |
-| `crm` | A | IP da VPS |
-| `api` | A | IP da VPS |
+| `franquias` | A | `2.25.199.187` |
+| `crm` | A | `2.25.199.187` |
+| `api` | A | `2.25.199.187` |
 
 Sem isso o sistema funciona pelo IP, mas **sem HTTPS** — e a Meta so
 entrega mensagem do WhatsApp em HTTPS.

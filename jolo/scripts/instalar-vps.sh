@@ -288,6 +288,19 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq ca-certificates curl gnupg git openssl ufw ripgrep >/dev/null
 
+# Com 4 GB e uma CPU (plano KVM 1), compilar as telas pode estourar a
+# memoria e morrer no meio. Um arquivo de troca de 2 GB segura isso.
+MEM_MB="$(free -m | awk '/^Mem:/ {print $2}')"
+SWAP_MB="$(free -m | awk '/^Swap:/ {print $2}')"
+if [ "${SWAP_MB:-0}" -eq 0 ] && [ "${MEM_MB:-0}" -lt 6000 ]; then
+  if fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; then
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null 2>&1 && swapon /swapfile 2>/dev/null \
+      && { grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab; echo "    memoria de troca de 2 GB ligada"; } \
+      || aviso "nao consegui ligar a memoria de troca; a compilacao pode ficar apertada."
+  fi
+fi
+
 # ------------------------------------------------------------
 passo "2/10 Docker (Postgres e Redis rodam dentro dele)"
 if ! tem docker; then
