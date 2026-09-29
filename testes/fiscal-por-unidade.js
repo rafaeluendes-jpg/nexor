@@ -438,6 +438,62 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
      redigitar razao social e endereco e onde nasce a diferenca entre o
      que a SEFAZ tem e o que a nota diz.
      ========================================================== */
+  /* ==========================================================
+     LIGAR A PRODUÇÃO SEM JANELINHA DE NAVEGADOR (29/09/2026)
+
+     Era `window.prompt`. O Chrome bloqueia janelinha depois que a
+     pessoa dispensa uma — e `prompt` devolve nulo. A função saía
+     calada, a tela voltava para Homologação e nada explicava por quê.
+     O Rafael tentou meia hora achando que o sistema desfazia a escolha
+     dele; o registro do servidor provou que nenhum clique chegava lá.
+
+     Nada de diálogo do navegador nesta tela: o que a pessoa precisa
+     ver e clicar tem de estar NA tela — e o teste tem de conseguir
+     clicar também.
+     ========================================================== */
+  grupo('Ligar a produção — a confirmação mora na tela');
+  /* o comentário do próprio arquivo cita `window.prompt` para explicar
+     por que ele saiu — é CHAMADA de janelinha que não pode existir */
+  t('nenhuma janelinha de navegador na tela fiscal inteira', (() => {
+    const i = html.indexOf('function telaFiscalCfg');
+    const fim = html.indexOf('function telaImpostosProdutos');
+    const bloco = html.slice(i, fim > i ? fim : i + 60000);
+    const semComentarios = bloco.replace(/\/\*[\s\S]*?\*\//g, '');
+    return !/\bprompt\s*\(/.test(semComentarios);
+  })());
+  t('existe o lugar da confirmação, dentro do bloco de emissão',
+    /<div id="fsProdConf"><\/div>/.test(html));
+  t('as três funções da confirmação existem',
+    /function fsPedirCnpjProducao\(/.test(html) &&
+    /async function fsLigarProducao\(/.test(html) &&
+    /function fsCancelarProducao\(/.test(html));
+  t('salvar com Produção escolhida abre a confirmação e não grava ainda',
+    /cfgN\.ambiente==='producao'&&u\.ambiente!=='producao'\)\{[\s\S]{0,140}fsPedirCnpjProducao\(u\);[\s\S]{0,20}return;/.test(html));
+  t('a confirmação diz qual CNPJ se espera',
+    /Digite o CNPJ de '\+E\(sucNome\(_fsSuc\(\)\)\)\+' — '\+E\(fsCnpjFmt\(u\.cnpj\)\)/.test(html));
+  t('CNPJ incompleto não vai para o servidor',
+    /if\(cnpj\.length!==14\)\{toast\('Digite os 14 números do CNPJ desta loja\.'\);return;\}/.test(html));
+  t('cancelar devolve a tela para homologação e avisa',
+    /function fsCancelarProducao\(\)\{[\s\S]{0,260}A produção não foi ligada\. Nada mudou\./.test(html));
+  /* no index.html montado o atributo vem escapado, por nascer dentro de
+     uma string de JavaScript — por isso a busca é pelas peças */
+  t('o botão e o Enter chamam a mesma função', (() => {
+    const i = html.indexOf('fsProdCnpj');
+    const trecho = i < 0 ? '' : html.slice(i, i + 400);
+    return /onkeydown=/.test(trecho) && /Enter/.test(trecho) && /fsLigarProducao\(\)/.test(trecho)
+        && /onclick=\\?"fsLigarProducao\(\)/.test(html);
+  })());
+  t('recusa do servidor aparece na tela, não em silêncio',
+    /painelErro\('Não liguei a produção\.'/.test(html));
+
+  /* o seletor do CSC voltava sozinho para Homologação depois de salvar:
+     parecia que o CSC de produção não tinha sido guardado */
+  grupo('O bloco do CSC lembra o ambiente escolhido');
+  t('o seletor nasce no que foi escolhido, não no da unidade',
+    /_fsOpc\(FS\.cscAmb\|\|u\.ambiente,\[\['homologacao'/.test(html));
+  t('trocar o ambiente guarda a escolha', /function fsCscMarcar\(\)\{[\s\S]{0,140}FS\.cscAmb=sel\.value;/.test(html));
+  t('guardar o CSC deixa a tela no mesmo ambiente', /FS\.cscAmb=amb;[\s\S]{0,120}fiscalChamar\('csc'/.test(html));
+
   grupo('Cadastrar a loja na conta nova da Spedy');
   t('servidor: só a matriz busca o cadastro da outra conta',
     /acao === "modelo_empresa"[\s\S]{0,160}!ehRede/.test(fonte));

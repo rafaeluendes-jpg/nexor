@@ -14297,7 +14297,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V365.0.0';
+var VERSAO='V366.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24774,7 +24774,10 @@ async function desconectarZapPdv(suc){
       outra.
    ========================================================== */
 
-var FS={carregando:false,erro:'',empresas:null,sujo:false,salvando:false};
+var FS={carregando:false,erro:'',empresas:null,sujo:false,salvando:false,
+        /* o ambiente escolhido no bloco do CSC e se a tela esta pedindo o
+           CNPJ da producao — os dois sobrevivem ao redesenho da tela */
+        cscAmb:'',pedindoCnpj:false};
 /* o CPF digitado na tela de pagamento, do clique até o cupom nascer */
 var FISCAL_VENDA={cpf:''};
 var _fsEmitindo={};
@@ -25322,6 +25325,9 @@ async function telaFiscalCfg(recarregar){
     '<div class="hint">'+(teste
       ?'A chave cadastrada é de <b>teste</b>: os cupons nunca valem como documento. Para produção, a conta de produção da Spedy precisa ser ligada.'
       :'Ligar a produção pede o CNPJ da unidade digitado de volta — é a confirmação de que as notas passam a valer.')+'</div></div>'+
+   /* onde a confirmação da produção aparece — na tela, nunca numa
+      janelinha do navegador (ver fsPedirCnpjProducao) */
+   '<div id="fsProdConf"></div>'+
    '<div class="row2">'+
     '<div class="fld2"><label>Série da NFC-e</label><input id="fsSerie" type="number" min="1" max="999" value="'+(u.serie||1)+'" oninput="fsMudou()"'+dis+'></div>'+
     '<div class="fld2"><label>Próximo número</label><input value="'+E(sp.nfceProximo!=null?String(sp.nfceProximo):'—')+'" disabled>'+
@@ -25379,8 +25385,11 @@ async function telaFiscalCfg(recarregar){
    '<div class="hint" style="margin-bottom:9px">O código que valida o QR Code do cupom. É gerado no portal da '+
    'SEFAZ-SP, um par para homologação e outro para produção. Depois de salvo, não aparece de novo.</div>'+
    '<div class="row2">'+
+    /* lembra o que foi escolhido: depois de guardar, a tela se redesenha
+       e voltava sozinha para Homologação — parecia que o CSC de produção
+       não tinha sido salvo, e o Rafael refez três vezes (29/09/2026) */
     '<div class="fld2"><label>Ambiente</label><select id="fsCscAmb" onchange="fsCscMarcar()">'+
-     _fsOpc(u.ambiente,[['homologacao','Homologação'],['producao','Produção']])+'</select></div>'+
+     _fsOpc(FS.cscAmb||u.ambiente,[['homologacao','Homologação'],['producao','Produção']])+'</select></div>'+
     '<div class="fld2"><label>ID do CSC</label><input id="fsCscId" inputmode="numeric" placeholder="ex.: 1"></div>'+
    '</div>'+
    '<div class="fld2"><label>Código CSC</label><input id="fsCscCod" type="password" autocomplete="new-password" placeholder="cole o código da SEFAZ"></div>'+
@@ -25447,6 +25456,7 @@ async function telaFiscalCfg(recarregar){
    tinha sido salvo) */
 function fsCscMarcar(){
   var sel=$('fsCscAmb'),box=$('fsCscSalvo');if(!sel||!box)return;
+  FS.cscAmb=sel.value;
   var u=(fiscalUn(_fsSuc())||{});
   var prod=sel.value==='producao';
   var id=prod?u.cscIdProducao:u.cscIdHomologacao;
@@ -25468,12 +25478,27 @@ async function fsSalvar(){
   function v(id){var e=document.getElementById(id);return e?e.value:undefined;}
   var cfgN={modo:v('fsModo'),ambiente:v('fsAmb'),serie:v('fsSerie'),pedeCpf:v('fsCpf'),
             contingencia:v('fsCont')==='1',regime:v('fsReg'),pisCst:v('fsPis'),cofinsCst:v('fsCofins')};
+  /* ==========================================================
+     A CONFIRMAÇÃO DA PRODUÇÃO MORA NA TELA, NÃO NUMA JANELINHA
+     (29/09/2026)
+
+     Era `window.prompt`. Quando o navegador bloqueia a janelinha — e o
+     Chrome bloqueia, sem pedir licença, depois que a pessoa dispensa
+     uma —, `prompt` devolve nulo e a função saía calada: a tela voltava
+     para Homologação e nada explicava por quê.
+
+     O Rafael passou meia hora nisso, achando que o sistema desfazia a
+     escolha dele. Era a janelinha que nunca aparecia.
+
+     Agora a confirmação é um campo da própria tela: aparece, se vê,
+     e o teste consegue clicar nela.
+     ========================================================== */
   if(cfgN.ambiente==='producao'&&u.ambiente!=='producao'){
-    var cnpj=window.prompt('Para ligar a PRODUÇÃO, digite o CNPJ desta unidade ('+fsCnpjFmt(u.cnpj)+'). '+
-      'A partir daí os cupons valem para a Receita.');
-    if(cnpj===null)return;
-    cfgN.confirmaCnpj=fsDigitos(cnpj);
+    FS.pedindoCnpj=true;
+    fsPedirCnpjProducao(u);
+    return;
   }
+  FS.pedindoCnpj=false;
   FS.salvando=true;
   var e=document.getElementById('fsEstadoSalvo');if(e){e.textContent='Salvando…';e.className='';}
   var r=await fiscalChamar('salvar',{sucursal:suc,config:cfgN});
@@ -25568,12 +25593,20 @@ async function fsListarEmpresas(){
 async function fsLigarEmpresa(empresaId,cnpjEmp){
   var suc=_fsSuc(),s=(baseSuc()||[]).find(function(x){return x.id===suc})||{};
   var dados={sucursal:suc,empresaId:empresaId};
+  /* a mesma janelinha que travou a produção estava aqui (29/09/2026):
+     bloqueada pelo navegador, `prompt` devolve nulo e a função saía
+     calada. Sem CNPJ no Joia a unidade nem devia chegar a este ponto —
+     o CNPJ é o que prende a loja ao CNPJ que assina a nota. Então, em
+     vez de perguntar numa janelinha, a tela manda cadastrar onde isso
+     mora, e diz qual empresa foi escolhida. */
   if(!fsDigitos(s.cnpj)){
-    var c=window.prompt('A unidade '+(s.nome||'')+' ainda não tem CNPJ no Joia. Para confirmar que esta empresa é dela, '+
-      'digite o CNPJ da empresa ('+fsCnpjFmt(cnpjEmp)+'):');
-    if(c===null)return;
-    dados.confirmaCnpj=fsDigitos(c);
-  }else if(fsDigitos(s.cnpj)!==fsDigitos(cnpjEmp)){
+    painelErro('Falta o CNPJ desta loja no Joia.',
+      'A unidade '+(s.nome||'')+' não tem CNPJ cadastrado, e é ele que prende a loja ao CNPJ que assina a nota. '+
+      'Cadastre em Configuração da Loja › Sucursais da Franquia (a empresa escolhida é do CNPJ '+
+      fsCnpjFmt(cnpjEmp)+') e ligue de novo.');
+    return;
+  }
+  if(fsDigitos(s.cnpj)!==fsDigitos(cnpjEmp)){
     painelErro('Esta empresa é de outro CNPJ.','A unidade '+(s.nome||'')+' é do CNPJ '+fsCnpjFmt(s.cnpj)+
       ' e a empresa escolhida é do CNPJ '+fsCnpjFmt(cnpjEmp)+'. Uma unidade só emite com o próprio CNPJ.');
     return;
@@ -25611,6 +25644,46 @@ async function fsContaChave(){
   toast('Conta de '+(r.d.host==='producao'?'produção':'teste')+' ligada'+(t?' — '+t:'')+'. '+
     (r.d.desligadas?r.d.desligadas+' loja(s) precisam ser ligadas de novo à empresa delas.':''));
 }
+/* a caixa de confirmação: nasce embaixo do Ambiente, some quando a
+   produção liga, e diz exatamente qual CNPJ se espera */
+function fsPedirCnpjProducao(u){
+  var box=document.getElementById('fsProdConf');
+  if(!box){toast('Recarregue a tela e tente de novo.');return;}
+  box.innerHTML='<div class="fscPend" style="margin:10px 0">'+sv('help',16)+
+    '<div><b>Confirme para ligar a produção</b>'+
+    'A partir daí os cupons desta loja valem para a Receita. '+
+    'Digite o CNPJ de '+E(sucNome(_fsSuc()))+' — '+E(fsCnpjFmt(u.cnpj))+'.'+
+    '<div class="fsIe" style="margin-top:8px">'+
+    '<input id="fsProdCnpj" inputmode="numeric" maxlength="18" aria-label="CNPJ desta unidade" '+
+    'placeholder="só os números" onkeydown="if(event.key===\'Enter\')fsLigarProducao()">'+
+    '<button class="btnP2 ok" onclick="fsLigarProducao()">Ligar a produção</button>'+
+    '<button class="btnP2" onclick="fsCancelarProducao()">Cancelar</button>'+
+    '</div></div></div>';
+  var c=document.getElementById('fsProdCnpj');if(c)c.focus();
+}
+function fsCancelarProducao(){
+  FS.pedindoCnpj=false;
+  var box=document.getElementById('fsProdConf');if(box)box.innerHTML='';
+  var sel=document.getElementById('fsAmb');if(sel)sel.value='homologacao';
+  toast('A produção não foi ligada. Nada mudou.');
+}
+async function fsLigarProducao(){
+  if(FS.salvando)return;
+  var suc=_fsSuc(),u=fiscalUn(suc);
+  var cnpj=fsDigitos((document.getElementById('fsProdCnpj')||{}).value);
+  if(cnpj.length!==14){toast('Digite os 14 números do CNPJ desta loja.');return;}
+  function v(id){var e=document.getElementById(id);return e?e.value:undefined;}
+  var cfgN={modo:v('fsModo'),ambiente:'producao',serie:v('fsSerie'),pedeCpf:v('fsCpf'),
+            contingencia:v('fsCont')==='1',regime:v('fsReg'),pisCst:v('fsPis'),
+            cofinsCst:v('fsCofins'),confirmaCnpj:cnpj};
+  FS.salvando=true;
+  var r=await fiscalChamar('salvar',{sucursal:suc,config:cfgN});
+  FS.salvando=false;
+  if(!r.ok){painelErro('Não liguei a produção.',(r.d&&r.d.erro)||'O servidor recusou.');return;}
+  FS.pedindoCnpj=false;FS.sujo=false;
+  await telaFiscalCfg(true);
+  toast(r.d.aviso?r.d.aviso:'Produção ligada — os cupons desta loja agora valem para a Receita.');
+}
 async function fsSalvarIe(){
   var v=String(($('fsIe')||{}).value||'').trim();
   if(!v){toast('Digite a inscrição estadual.');return;}
@@ -25625,6 +25698,7 @@ async function fsCsc(){
   var id=fsDigitos(($('fsCscId')||{}).value);
   var cod=String((($('fsCscCod')||{}).value)||'').trim();
   if(!id||cod.length<16){toast('Informe o ID e o código CSC que a SEFAZ gerou.');return;}
+  FS.cscAmb=amb;   /* a tela volta mostrando o ambiente que acabou de ser salvo */
   var r=await fiscalChamar('csc',{sucursal:suc,ambiente:amb,cscId:id,csc:cod});
   if($('fsCscCod'))$('fsCscCod').value='';
   if(!r.ok){painelErro('Não guardei o CSC.',(r.d&&r.d.erro)||'O servidor recusou.');return;}
