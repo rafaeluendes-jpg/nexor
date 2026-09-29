@@ -57,3 +57,14 @@ create trigger ab_versao_vista before update on public.contas_capital
 drop trigger if exists ab_versao_vista on public.formas_pagamento;
 create trigger ab_versao_vista before update on public.formas_pagamento
   for each row execute function public.tg_versao_vista();
+
+-- Linha sem alterado_em (ct_caixa, ct_cofre e fp_dinheiro estavam assim) não
+-- teria versão para comparar e aceitaria qualquer gravação. Ganha a data de
+-- agora. O carimbo automático repõe o valor antigo quando SÓ o alterado_em
+-- muda, então fica desligado durante este acerto e é religado em seguida.
+alter table public.contas_capital   disable trigger zz_carimbar_alteracao;
+alter table public.formas_pagamento disable trigger zz_carimbar_alteracao;
+update public.contas_capital   set alterado_em = now() where alterado_em is null;
+update public.formas_pagamento set alterado_em = now() where alterado_em is null;
+alter table public.contas_capital   enable trigger zz_carimbar_alteracao;
+alter table public.formas_pagamento enable trigger zz_carimbar_alteracao;
