@@ -3,7 +3,8 @@
     "allow": [
       "Bash(bash /opt/jolo/jolo/scripts/publicar.sh)",
       "Bash(git -C /opt/jolo pull)",
-      "Bash(cd /opt/jolo && git pull)"
+      "Bash(cd /opt/jolo && git pull)",
+      "Bash(bash /opt/jolo/jolo/scripts/bloquear-senha-padrao.sh)"
     ]
   }
 }
