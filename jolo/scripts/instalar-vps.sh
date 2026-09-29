@@ -49,6 +49,32 @@ if [ "${MODO:-}" != "conferir" ]; then
 fi
 
 # ------------------------------------------------------------
+# Diz se a porta ja tem alguem escutando. Serve para nao brigar com o que
+# ja estava rodando no servidor - derrubar o que e de outro nao se faz.
+porta_ocupada() {
+  ss -ltnH "sport = :$1" 2>/dev/null | grep -q LISTEN
+}
+
+# Primeira porta livre a partir da que foi pedida.
+porta_livre() {
+  local p="$1"
+  while porta_ocupada "$p"; do p=$((p + 1)); done
+  echo "$p"
+}
+
+# Troca a porta do banco/fila no .env quando a escolhida ja esta ocupada.
+# Mexe SO nas linhas de porta, e diz o que mudou.
+remanejar_porta() {
+  local chave="$1" antiga="$2" nova="$3"
+  sed -i "s#^${chave}=.*#${chave}=${nova}#" "$ENV_ARQ"
+  case "$chave" in
+    POSTGRES_PORT) sed -i "s#\(^DATABASE_URL=.*@127\.0\.0\.1:\)${antiga}#\1${nova}#" "$ENV_ARQ" ;;
+    REDIS_PORT)    sed -i "s#^REDIS_URL=.*#REDIS_URL=redis://127.0.0.1:${nova}#" "$ENV_ARQ" ;;
+  esac
+  aviso "a porta ${antiga} ja estava ocupada por outro programa deste servidor; o nosso ${chave%%_*} passou para a ${nova}."
+}
+
+# ------------------------------------------------------------
 # Escreve um servico do systemd: sobe junto com o servidor e volta
 # sozinho se cair.
 criar_servico() {
@@ -104,7 +130,7 @@ server {
     server_name ${DOMINIO_LANDING};
     client_max_body_size 25m;
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:${PORTA_LANDING:-3000};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
 }
@@ -114,7 +140,7 @@ server {
     server_name ${DOMINIO_CRM};
     client_max_body_size 25m;
     location / {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:${PORTA_CRM:-3001};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
 }
@@ -125,13 +151,13 @@ server {
     # planilha de leads e documento do candidato passam por aqui (limite 20 MB)
     client_max_body_size 25m;
     location / {
-        proxy_pass http://127.0.0.1:3333;
+        proxy_pass http://127.0.0.1:${API_PORT:-3333};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
     # tempo real: a conexao fica aberta de proposito. Sem desligar o buffer
     # e sem estender o tempo, a tela de conversas pararia de receber.
     location /realtime {
-        proxy_pass http://127.0.0.1:3333;
+        proxy_pass http://127.0.0.1:${API_PORT:-3333};
         include ${DIR_NGINX}/jolo-proxy.conf;
         proxy_buffering off;
         proxy_cache off;
@@ -147,7 +173,7 @@ server {
     listen 80 default_server;
     client_max_body_size 25m;
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:${PORTA_LANDING:-3000};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
 }
@@ -156,7 +182,7 @@ server {
     listen 8080;
     client_max_body_size 25m;
     location / {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:${PORTA_CRM:-3001};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
 }
@@ -165,11 +191,11 @@ server {
     listen 8081;
     client_max_body_size 25m;
     location / {
-        proxy_pass http://127.0.0.1:3333;
+        proxy_pass http://127.0.0.1:${API_PORT:-3333};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
     location /realtime {
-        proxy_pass http://127.0.0.1:3333;
+        proxy_pass http://127.0.0.1:${API_PORT:-3333};
         include ${DIR_NGINX}/jolo-proxy.conf;
         proxy_buffering off;
         proxy_cache off;
@@ -206,6 +232,8 @@ API_PORT=3333
 # a API so escuta em casa: quem fala com ela de fora e o nginx
 API_HOST=127.0.0.1
 TRUST_PROXY=true
+PORTA_LANDING=3000
+PORTA_CRM=3001
 API_PUBLIC_URL=${URL_API}
 LANDING_PUBLIC_URL=${URL_LAND}
 CRM_PUBLIC_URL=${URL_CRM}
@@ -371,6 +399,20 @@ BANCO="${POSTGRES_DB:-jolo_franquias}"
 
 # ------------------------------------------------------------
 passo "6/10 Banco e fila de pe"
+# Se a porta ja e do NOSSO container, esta tudo certo: so remaneja quando
+# quem esta escutando e outro programa.
+if porta_ocupada "${POSTGRES_PORT:-5432}" \
+   && ! docker ps --filter name=jolo-postgres --format '{{.Names}}' | grep -q jolo-postgres; then
+  NOVA="$(porta_livre $(( ${POSTGRES_PORT:-5432} + 10000 )))"
+  remanejar_porta POSTGRES_PORT "${POSTGRES_PORT:-5432}" "$NOVA"
+fi
+if porta_ocupada "${REDIS_PORT:-6379}" \
+   && ! docker ps --filter name=jolo-redis --format '{{.Names}}' | grep -q jolo-redis; then
+  NOVA="$(porta_livre $(( ${REDIS_PORT:-6379} + 10000 )))"
+  remanejar_porta REDIS_PORT "${REDIS_PORT:-6379}" "$NOVA"
+fi
+set -a; . "$ENV_ARQ"; set +a
+
 docker compose --env-file "$ENV_ARQ" -f "${APP}/infra/docker/docker-compose.yml" up -d >/dev/null
 printf '    esperando o Postgres responder'
 for _ in $(seq 1 60); do
@@ -381,6 +423,56 @@ for _ in $(seq 1 60); do
 done
 [ "${PRONTO:-}" = "1" ] || erro "o Postgres nao subiu. Veja: docker logs jolo-postgres"
 docker exec jolo-redis redis-cli ping >/dev/null 2>&1 || erro "o Redis nao subiu. Veja: docker logs jolo-redis"
+
+# ------------------------------------------------------------
+# Portas das telas e da API: o mesmo cuidado do banco. Se o servidor ja
+# usa a porta para outra coisa, a nossa muda de lugar em vez de brigar.
+for PAR in "API_PORT 3333" "PORTA_LANDING 3000" "PORTA_CRM 3001"; do
+  CHAVE="${PAR%% *}"; PADRAO="${PAR##* }"
+  VALOR="$(eval echo "\${$CHAVE:-$PADRAO}")"
+  if porta_ocupada "$VALOR" && ! pgrep -f "port=$VALOR" >/dev/null 2>&1; then
+    # a nossa propria (de uma instalacao anterior) nao conta como conflito
+    DONO_NOSSO=""
+    for SVC in jolo-api jolo-landing jolo-crm; do
+      systemctl is-active --quiet "$SVC" 2>/dev/null && DONO_NOSSO="sim"
+    done
+    if [ -z "$DONO_NOSSO" ]; then
+      NOVA="$(porta_livre $((VALOR + 10000)))"
+      if grep -q "^${CHAVE}=" "$ENV_ARQ"; then
+        sed -i "s#^${CHAVE}=.*#${CHAVE}=${NOVA}#" "$ENV_ARQ"
+      else
+        printf '%s=%s\n' "$CHAVE" "$NOVA" >> "$ENV_ARQ"
+      fi
+      aviso "a porta ${VALOR} ja era de outro programa deste servidor; ${CHAVE} passou para ${NOVA}."
+    fi
+  elif ! grep -q "^${CHAVE}=" "$ENV_ARQ"; then
+    printf '%s=%s\n' "$CHAVE" "$VALOR" >> "$ENV_ARQ"
+  fi
+done
+set -a; . "$ENV_ARQ"; set +a
+PORTA_LANDING="${PORTA_LANDING:-3000}"
+PORTA_CRM="${PORTA_CRM:-3001}"
+
+# Enderecos publicos: as telas guardam o endereco da API no momento em que
+# sao compiladas. Sem dominio, "localhost" so funcionaria para quem esta
+# sentado no servidor - entao entra o IP. Mexe so no que ainda esta no
+# valor de fabrica; endereco que voce ja ajustou fica como esta.
+IP_PUBLICO="$(curl -fsS --max-time 10 https://api.ipify.org || hostname -I | awk '{print $1}')"
+if [ -z "$DOMINIO_CRM" ] && [ -n "$IP_PUBLICO" ]; then
+  trocar_se_padrao() { # trocar_se_padrao <chave> <valor novo>
+    grep -q "^$1=http://localhost" "$ENV_ARQ" && sed -i "s#^$1=.*#$1=$2#" "$ENV_ARQ"
+    return 0
+  }
+  trocar_se_padrao API_PUBLIC_URL     "http://${IP_PUBLICO}:8081"
+  trocar_se_padrao LANDING_PUBLIC_URL "http://${IP_PUBLICO}"
+  trocar_se_padrao CRM_PUBLIC_URL     "http://${IP_PUBLICO}:8080"
+  trocar_se_padrao NEXT_PUBLIC_API_URL  "http://${IP_PUBLICO}:8081"
+  trocar_se_padrao NEXT_PUBLIC_SITE_URL "http://${IP_PUBLICO}"
+  grep -q "^CORS_ALLOWED_ORIGINS=http://localhost" "$ENV_ARQ" \
+    && sed -i "s#^CORS_ALLOWED_ORIGINS=.*#CORS_ALLOWED_ORIGINS=http://${IP_PUBLICO},http://${IP_PUBLICO}:8080#" "$ENV_ARQ"
+  set -a; . "$ENV_ARQ"; set +a
+  echo "    enderecos ajustados para o IP ${IP_PUBLICO} (sem dominio ainda)"
+fi
 
 # ------------------------------------------------------------
 passo "7/10 Instalar dependencias e compilar"
@@ -415,9 +507,9 @@ criar_servico jolo-workers "Jolo Franquias - workers" "${APP}/workers"   "${NODE
 # o Next reclama de NODE_ENV fora do padrao; para ele e sempre production
 # -H 127.0.0.1: quem atende a internet e o nginx, nao o Next direto
 criar_servico jolo-landing "Jolo Franquias - landing" "${APP}/apps/landing" \
-  "${PNPM_BIN} exec next start -p 3000 -H 127.0.0.1" "Environment=NODE_ENV=production"
+  "${PNPM_BIN} exec next start -p ${PORTA_LANDING} -H 127.0.0.1" "Environment=NODE_ENV=production"
 criar_servico jolo-crm     "Jolo Franquias - CRM"     "${APP}/apps/crm" \
-  "${PNPM_BIN} exec next start -p 3001 -H 127.0.0.1" "Environment=NODE_ENV=production"
+  "${PNPM_BIN} exec next start -p ${PORTA_CRM} -H 127.0.0.1" "Environment=NODE_ENV=production"
 systemctl daemon-reload
 systemctl enable --now jolo-api jolo-workers jolo-landing jolo-crm >/dev/null
 sleep 6
@@ -426,7 +518,7 @@ for s in jolo-api jolo-workers jolo-landing jolo-crm; do
     && echo "    ${s}: rodando" \
     || { journalctl -u "$s" -n 30 --no-pager; erro "${s} nao subiu (registro acima)."; }
 done
-curl -fsS --max-time 10 http://127.0.0.1:3333/health >/dev/null \
+curl -fsS --max-time 10 "http://127.0.0.1:${API_PORT:-3333}/health" >/dev/null \
   && echo "    /health respondeu" \
   || erro "a API subiu mas /health nao respondeu."
 
