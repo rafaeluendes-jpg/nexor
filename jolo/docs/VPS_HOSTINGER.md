@@ -24,37 +24,42 @@ Nesse plano (4 GB de memoria, uma CPU) a compilacao e demorada — o
 instalador liga 2 GB de memoria de troca antes de compilar justamente
 para ela nao morrer no meio.
 
-### 2. Instalar o Claude Code dentro da VPS
+### 2. Entrar no GitHub pela propria VPS
 
-Cole no terminal, uma linha por vez:
+O codigo fica num repositorio privado; o servidor precisa de permissao
+para ler. Isso se resolve dentro da VPS mesmo, sem cadastrar nada em
+lugar nenhum. Cole no Web console:
 
 ```bash
-curl -fsSL https://claude.ai/install.sh | bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-claude
+apt-get update -y && apt-get install -y gh git
+gh auth login --hostname github.com --git-protocol https --web
 ```
 
-A segunda linha e obrigatoria: sem ela o terminal responde
-`claude: command not found`, porque a instalacao poe o programa numa pasta
-que o terminal ainda nao consulta.
+Ele mostra um codigo curto e o endereco `github.com/login/device`: abra no
+navegador, cole o codigo e autorize. Pronto — a permissao fica guardada na
+VPS.
 
-Ele mostra um endereco para abrir no navegador e pede um codigo de volta:
-entre com a mesma conta Claude que voce usa aqui.
+### 3. Baixar e instalar
 
-### 3. Dar acesso ao codigo
+```bash
+gh auth setup-git
+git clone --depth 1 --branch claude/geologia-elato-visual-identity-c3qwzv \
+  https://github.com/rafaeluendes-jpg/nexor.git /opt/jolo
+nohup bash /opt/jolo/jolo/scripts/instalar-vps.sh > /root/instalacao.log 2>&1 &
+tail -f /root/instalacao.log
+```
 
-O repositorio e privado. Quando o Claude da VPS pedir, autorize o GitHub
-com a sua conta (ele mostra um codigo curto para colar no navegador).
+A ultima linha so mostra o andamento. A instalacao continua mesmo se a
+aba do navegador fechar; para voltar a acompanhar, `tail -f
+/root/instalacao.log`. No plano KVM 1 a compilacao demora — dez a vinte
+minutos e normal.
 
-### 4. Pedir a instalacao
+### 4. Quando terminar
 
-Escreva para ele, nessas palavras:
+A ultima linha diz o endereco. Sem dominio configurado ainda: a landing
+responde no IP do servidor e o CRM na porta 8080 dele.
 
-> Instale o CRM da Jolo neste servidor seguindo
-> `docs/VPS_HOSTINGER.md` do repositorio `rafaeluendes-jpg/nexor`,
-> branch `claude/geologia-elato-visual-identity-c3qwzv`.
-
-### 5. Apontar os enderecos (pode ser depois)
+### 5. Apontar os enderecos (dominio)
 
 No painel de quem cuida do dominio `jologelato.com.br`, criar tres
 registros **A** apontando para o IP da VPS:
@@ -148,3 +153,20 @@ escrito e conferido aqui (`MODO=conferir`: `.env` validado pelo proprio
 validador do sistema, configuracao do nginx conferida pelo nginx de
 verdade, `docker compose` conferido pelo docker), mas a execucao completa
 acontece na VPS, pelo Claude Code de lá.
+
+---
+
+## Caminho alternativo: Claude Code dentro da VPS
+
+Quem preferir conversar com um assistente no proprio servidor pode
+instalar o Claude Code la:
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+claude
+```
+
+Exige assinatura Claude Pro ou Max **na conta que estiver logada no
+navegador** na hora de autorizar — foi onde a primeira tentativa parou.
+Nao e necessario para instalar o sistema: os passos acima bastam.
