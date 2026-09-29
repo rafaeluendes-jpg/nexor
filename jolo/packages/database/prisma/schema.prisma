@@ -131,6 +131,7 @@ model User {
   messagesSent      Message[]      @relation("MessageSender")
   territories       Territory[]    @relation("TerritoryOwner")
   termAcceptances   TermAcceptance[]
+  accessLinks       AccessLink[]
 
   @@index([organizationId, status])
   @@map("users")
@@ -1054,4 +1055,23 @@ model TermAcceptance {
   @@unique([userId, version])
   @@index([organizationId, acceptedAt])
   @@map("term_acceptances")
+}
+
+/// Link de acesso de uso unico: a pessoa abre, cria a propria senha e o link
+/// morre. A senha nunca passa por conversa, e-mail ou mensagem. Guarda so o
+/// hash do link; o link em si nao fica em lugar nenhum.
+model AccessLink {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  userId         String    @db.Uuid
+  tokenHash      String    @unique
+  createdById    String?   @db.Uuid
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@map("access_links")
 }

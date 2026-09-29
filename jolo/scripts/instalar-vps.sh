@@ -700,6 +700,7 @@ Instalado.
   Servicos:   systemctl status jolo-api jolo-workers jolo-landing jolo-crm
   Registro:   journalctl -u jolo-api -f
   Backup:     automatico, todo dia (ls -lh /var/backups/jolo)
+  1o acesso:  bash ${APP}/scripts/link-de-acesso.sh  (link de uso unico para o administrador criar a senha)
 
 Falta ligar o WhatsApp: as linhas [OPERADOR] do .env (token e segredo
 da Meta). Depois de preencher, trocar NODE_ENV=staging por

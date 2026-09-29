@@ -142,6 +142,10 @@ export class UsersService {
   }
 
   /** Encerra todas as sessoes de um usuario (item 71). */
+  gerarLinkDeAcesso(actor: AuthenticatedUser, userId: string) {
+    return this.auth.gerarLinkDeAcesso({ userId, organizationId: actor.organizationId }, actor.id);
+  }
+
   async revokeSessions(actor: AuthenticatedUser, userId: string) {
     const res = await this.prisma.client.userSession.updateMany({
       where: { userId, revokedAt: null },

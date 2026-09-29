@@ -59,6 +59,14 @@ export class UsersController {
     return this.service.revokeSessions(user, id);
   }
 
+  /** Link de uso unico para a pessoa criar a propria senha (convite ou recuperacao). */
+  @RequirePermission('crm.users.edit')
+  @HttpCode(200)
+  @Post(':id/link-de-acesso')
+  linkDeAcesso(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.service.gerarLinkDeAcesso(user, id);
+  }
+
   @RequirePermission('crm.users.edit')
   @HttpCode(200)
   @Post(':id/password-reset')

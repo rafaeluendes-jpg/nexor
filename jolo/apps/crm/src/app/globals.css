@@ -354,6 +354,13 @@ legend{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:upperc
   letter-spacing:0;text-transform:none;color:var(--tinta);cursor:pointer;min-height:44px;padding:6px 0;
 }
 .login .aceite input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--bosco)}
+.login .dica{font-size:12px;color:var(--tinta-3)}
+.login .dica-erro{font-size:12px;color:var(--grave)}
+.login .cartao-login{
+  background:var(--superficie);border:1px solid var(--linha);border-radius:16px;
+  padding:32px;width:min(392px,100%);display:grid;gap:14px;box-shadow:var(--sombra-2);
+}
+.login .cartao-login .btn{text-align:center;text-decoration:none;display:block}
 
 /* =======================  TEMPO REAL  ======================= */
 .tempo-real{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tinta-3)}
@@ -389,3 +396,8 @@ legend{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:upperc
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important}
 }
+
+/* link de acesso de uso unico, mostrado uma vez para o gestor mandar */
+.aviso.link-de-acesso{display:grid;gap:8px}
+.aviso.link-de-acesso code{word-break:break-all;background:var(--superficie);padding:8px 10px;border-radius:var(--r-p);border:1px solid var(--linha);font-size:12.5px}
+.aviso.link-de-acesso .btn{justify-self:start}

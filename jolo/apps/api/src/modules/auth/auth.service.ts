@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { loadServerEnv } from '@jolo/config/server';
 import { lockoutFor } from '@jolo/security';
-import { AUDIT_EVENTS, UnauthorizedError, permissionsForRoles, type RoleKey } from '@jolo/shared';
+import { AUDIT_EVENTS, DomainError, NotFoundError, UnauthorizedError, permissionsForRoles, type RoleKey } from '@jolo/shared';
 import { writeAudit } from '@jolo/crm-core';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/decorators/index.js';
@@ -189,6 +189,84 @@ export class AuthService {
       data: { revokedAt: new Date(), revokedBy: user.id },
     });
     return res.count;
+  }
+
+  /**
+   * Link de acesso de uso unico. Quem recebe abre o link e cria a propria
+   * senha: ninguem mais conhece a senha, nem quem gerou o link. So o hash
+   * do link fica guardado; gerar um novo invalida os anteriores.
+   */
+  async gerarLinkDeAcesso(
+    alvo: { userId: string; organizationId: string },
+    criadoPor: string | null,
+    validadeHoras = 24,
+  ): Promise<{ link: string; expiraEm: Date }> {
+    const usuario = await this.prisma.client.user.findFirst({
+      where: { id: alvo.userId, organizationId: alvo.organizationId, status: 'ACTIVE' },
+    });
+    if (!usuario) throw new NotFoundError('Usuario nao encontrado ou desativado.');
+
+    await this.prisma.client.accessLink.updateMany({
+      where: { userId: usuario.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    const token = randomBytes(32).toString('base64url');
+    const expiraEm = new Date(Date.now() + validadeHoras * 3_600_000);
+    await this.prisma.client.accessLink.create({
+      data: {
+        organizationId: usuario.organizationId,
+        userId: usuario.id,
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+        createdById: criadoPor,
+        expiresAt: expiraEm,
+      },
+    });
+    await writeAudit(this.prisma.client, {
+      organizationId: usuario.organizationId,
+      event: AUDIT_EVENTS.USER_UPDATED,
+      entity: 'user',
+      entityId: usuario.id,
+      actorUserId: criadoPor,
+      actorType: criadoPor ? 'USER' : 'SYSTEM',
+      after: { acao: 'link_de_acesso_gerado', expiraEm },
+    });
+    // o # faz o link nao ir para registro de servidor nenhum
+    return { link: `${this.env.CRM_PUBLIC_URL.replace(/\/$/, '')}/definir-senha#t=${token}`, expiraEm };
+  }
+
+  async definirSenhaPorLink(token: string, senha: string): Promise<void> {
+    // mesma resposta para link inexistente, usado ou vencido: nao ajudamos quem chuta
+    const invalido = new DomainError('Este link de acesso nao vale mais. Peca um novo.', 'LINK_INVALIDO', 400);
+    const registro = await this.prisma.client.accessLink.findUnique({
+      where: { tokenHash: createHash('sha256').update(token).digest('hex') },
+      include: { user: true },
+    });
+    if (!registro || registro.usedAt || registro.expiresAt.getTime() < Date.now()) throw invalido;
+    if (registro.user.status !== 'ACTIVE') throw invalido;
+
+    // a forca da senha e conferida aqui dentro; senha fraca nao gasta o link
+    await this.provider.changePassword(registro.userId, senha);
+
+    // marca como usado so se ainda nao estava: dois cliques ao mesmo tempo nao valem os dois
+    const marcado = await this.prisma.client.accessLink.updateMany({
+      where: { id: registro.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (marcado.count !== 1) throw invalido;
+
+    await this.prisma.client.userSession.updateMany({
+      where: { userId: registro.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await writeAudit(this.prisma.client, {
+      organizationId: registro.organizationId,
+      event: AUDIT_EVENTS.USER_UPDATED,
+      entity: 'user',
+      entityId: registro.userId,
+      actorUserId: registro.userId,
+      actorType: 'USER',
+      after: { acao: 'senha_criada_pelo_link' },
+    });
   }
 
   async changeOwnPassword(user: AuthenticatedUser, current: string, next: string): Promise<void> {

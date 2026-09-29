@@ -10,6 +10,11 @@ const loginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+const definirSenhaSchema = z.object({
+  token: z.string().min(20).max(200),
+  senha: z.string().min(12).max(200),
+});
+
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(200),
   newPassword: z.string().min(12).max(200),
@@ -36,6 +41,16 @@ export class AuthController {
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
+  }
+
+  /** Quem recebeu um link de acesso cria a propria senha aqui. */
+  @Public()
+  @RateLimit('login')
+  @HttpCode(200)
+  @Post('definir-senha')
+  async definirSenha(@Body(new ZodValidationPipe(definirSenhaSchema)) body: z.infer<typeof definirSenhaSchema>) {
+    await this.auth.definirSenhaPorLink(body.token, body.senha);
+    return { ok: true, mensagem: 'Senha criada. Entre com o seu e-mail e a senha nova.' };
   }
 
   @SemTermo()

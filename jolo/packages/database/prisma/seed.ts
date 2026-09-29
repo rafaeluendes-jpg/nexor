@@ -165,7 +165,12 @@ async function main(): Promise<void> {
 
   // ---------- usuario administrador ----------
   const emailAdmin = process.env.SEED_ADMIN_EMAIL ?? 'admin@jologelato.com.br';
-  const senhaAdmin = process.env.SEED_ADMIN_PASSWORD ?? 'Jolo@Gelato#2026';
+  // A senha padrao existe so para desenvolvimento e testes. Em qualquer
+  // servidor (staging ou production) o administrador nasce SEM senha e entra
+  // pelo link de acesso de uso unico (scripts/link-de-acesso.sh): uma senha
+  // escrita no codigo seria de conhecimento publico.
+  const ambienteDeDesenvolvimento = !process.env.NODE_ENV || ['development', 'test'].includes(process.env.NODE_ENV);
+  const senhaAdmin = process.env.SEED_ADMIN_PASSWORD ?? (ambienteDeDesenvolvimento ? 'Jolo@Gelato#2026' : null);
   const superAdmin = await prisma.role.findUniqueOrThrow({ where: { name: 'SUPER_ADMIN' } });
 
   const admin = await prisma.user.upsert({
@@ -176,7 +181,7 @@ async function main(): Promise<void> {
       name: 'Administrador Jolô',
       status: 'ACTIVE',
       // Hash local usado apenas em desenvolvimento. Em producao a senha vive no Supabase Auth.
-      devPasswordHash: process.env.NODE_ENV === 'production' ? null : await hash(senhaAdmin, 12),
+      devPasswordHash: process.env.NODE_ENV === 'production' || !senhaAdmin ? null : await hash(senhaAdmin, 12),
     },
     update: {},
   });

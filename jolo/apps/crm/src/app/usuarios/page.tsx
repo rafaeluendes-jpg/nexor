@@ -27,7 +27,10 @@ const PAPEIS = [
   { chave: 'VISUALIZACAO', nome: 'Visualização', o_que: 'Só olha' },
 ];
 
-/** Senha provisoria forte, gerada aqui para ninguem inventar "123456". */
+/**
+ * Senha de arranque aleatoria que ninguem ve: a pessoa cria a propria senha
+ * pelo link de acesso. So existe porque a conta nasce com alguma senha.
+ */
 function senhaProvisoria(): string {
   const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
   const bytes = new Uint32Array(16);
@@ -42,21 +45,38 @@ export default function UsuariosPage() {
   const [papel, setPapel] = useState('EXPANSAO');
   const [salvando, setSalvando] = useState(false);
   const [recado, setRecado] = useState<{ texto: string; tipo: 'ok' | 'erro' } | null>(null);
-  const [senhaParaEntregar, setSenhaParaEntregar] = useState<string | null>(null);
+  const [linkParaEntregar, setLinkParaEntregar] = useState<{ nome: string; link: string; expiraEm: string } | null>(null);
+  const [copiado, setCopiado] = useState(false);
+
+  /** Link de uso unico: a pessoa abre, cria a propria senha, e o link morre. */
+  const gerarLink = async (id: string, nomeDaPessoa: string): Promise<void> => {
+    try {
+      const r = await api<{ link: string; expiraEm: string }>(`/users/${id}/link-de-acesso`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      setCopiado(false);
+      setLinkParaEntregar({ nome: nomeDaPessoa, link: r.link, expiraEm: r.expiraEm });
+    } catch (err) {
+      setRecado({ texto: err instanceof Error ? err.message : 'Não deu para gerar o link.', tipo: 'erro' });
+    }
+  };
 
   const criar = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setSalvando(true);
     setRecado(null);
-    setSenhaParaEntregar(null);
-    const senha = senhaProvisoria();
+    setLinkParaEntregar(null);
     try {
-      await api('/users', { method: 'POST', body: JSON.stringify({ nome, email, papel, senhaProvisoria: senha }) });
+      const criado = await api<{ id: string }>('/users', {
+        method: 'POST',
+        body: JSON.stringify({ nome, email, papel, senhaProvisoria: senhaProvisoria() }),
+      });
+      const quem = nome;
       setNome('');
       setEmail('');
-      // mostrada uma vez, para o gestor entregar em maos; nao fica guardada em lugar nenhum
-      setSenhaParaEntregar(senha);
-      setRecado({ texto: 'Usuário criado.', tipo: 'ok' });
+      setRecado({ texto: 'Usuário criado. Mande o link abaixo para a pessoa criar a própria senha.', tipo: 'ok' });
+      await gerarLink(criado.id, quem);
       recarregar();
     } catch (err) {
       setRecado({ texto: err instanceof Error ? err.message : 'Não deu para criar.', tipo: 'erro' });
@@ -101,10 +121,23 @@ export default function UsuariosPage() {
       <p className="sub">Quem entra no CRM e o que cada um pode fazer. Quem decide e o servidor, não a tela.</p>
 
       {recado ? <Aviso texto={recado.texto} tipo={recado.tipo} /> : null}
-      {senhaParaEntregar ? (
-        <div className="aviso">
-          <strong>Senha provisoria:</strong> <code>{senhaParaEntregar}</code>
-          <div>Entregue em maos e peca para trocar no primeiro acesso. Ela não aparece de novo.</div>
+      {linkParaEntregar ? (
+        <div className="aviso link-de-acesso">
+          <strong>Link de acesso de {linkParaEntregar.nome}</strong>
+          <code>{linkParaEntregar.link}</code>
+          <div>
+            Mande pelo WhatsApp. Vale até {dataHora(linkParaEntregar.expiraEm)} e funciona uma vez só: a pessoa cria a
+            própria senha e ninguém mais fica sabendo. Ele não aparece de novo aqui.
+          </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              void navigator.clipboard?.writeText(linkParaEntregar.link).then(() => setCopiado(true));
+            }}
+          >
+            {copiado ? 'Copiado' : 'Copiar link'}
+          </button>
         </div>
       ) : null}
 
@@ -165,6 +198,9 @@ export default function UsuariosPage() {
                     <button type="button" onClick={() => void mudarStatus(u.id, u.status !== 'ACTIVE')}>
                       {u.status === 'ACTIVE' ? 'Bloquear' : 'Liberar'}
                     </button>
+                    {u.status === 'ACTIVE' ? (
+                      <button type="button" onClick={() => void gerarLink(u.id, u.nome)}>Link de acesso</button>
+                    ) : null}
                     {u.sessoesAtivas > 0 ? (
                       <button type="button" onClick={() => void encerrarSessoes(u.id)}>Encerrar sessões</button>
                     ) : null}
