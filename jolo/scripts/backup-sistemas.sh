@@ -31,6 +31,14 @@ done
 
 [[ -d /var/www/joia/atual ]] && tar -C /var/www/joia/atual -czf "$PASTA/joia-no-ar.tar.gz" .
 
+# o banco da Central (Supabase na VPS, desde 29/09/2026): banco inteiro,
+# logins inclusive, e as fotos. O pg_restore -l prova que a copia abre.
+if docker inspect -f '{{.State.Running}}' central-db 2>/dev/null | grep -q true; then
+  docker exec central-db pg_dump -U supabase_admin -d postgres -Fc > "$PASTA/central-banco.dump"
+  docker exec -i central-db pg_restore -l < "$PASTA/central-banco.dump" > /dev/null
+  tar -C /opt/supabase-central -czf "$PASTA/central-arquivos.tar.gz" volumes/storage volumes/functions .env docker-compose.central.yml
+fi
+
 tar -czf "$PASTA/configuracao.tar.gz" \
   --ignore-failed-read \
   /etc/nginx/sites-available /etc/nginx/jolo-proxy.conf \

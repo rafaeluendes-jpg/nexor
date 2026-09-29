@@ -32,13 +32,23 @@ install -d -m 700 "$TRAB"; exec > >(tee -a "$LOG") 2>&1
 
 set -a; . /etc/jolo/central.env; . /etc/jolo/central-banco.env; set +a
 export PGPASSWORD="$CENTRAL_DB_SENHA"
+
+# A TROCA JA FOI FEITA em 29/09/2026 17:56. Rodar de novo apagaria o que foi
+# gravado na VPS desde entao (o banco e refeito a partir da nuvem, parada) e,
+# pela volta automatica, religaria as rotinas na nuvem. Por isso: trancado.
+if [[ -d /opt/central-nuvem ]] || grep -q 'location /banco/' /etc/nginx/sites-available/central; then
+  echo "A troca do banco da Central ja foi feita. Este roteiro esta trancado."
+  exit 1
+fi
 NUVEM="host=db.cvarnbkjlvpjehjulsuc.supabase.co user=postgres dbname=postgres sslmode=require"
 L() { docker exec -i central-db psql -U supabase_admin -d postgres "$@"; }
 passo() { echo; echo "=== $(date +%H:%M:%S) $*"; }
 
 MANUT=/etc/nginx/sites-available/central
 manutencao_liga() {
-  cp "$MANUT" "$TRAB/central.nginx.antes"
+  # so guarda o "antes" se ele ainda E o antes: rodando de novo com a
+  # manutencao ligada, guardaria a propria manutencao como original
+  grep -q MANUTENCAO "$MANUT" || cp "$MANUT" "$TRAB/central.nginx.antes"
   python3 - "$MANUT" <<'EOF'
 import sys
 p=sys.argv[1]; s=open(p).read()
@@ -59,18 +69,48 @@ EOF
 EOF
   nginx -t && systemctl reload nginx
 }
-manutencao_desliga() { cp "$TRAB/central.nginx.antes" "$MANUT"; nginx -t && systemctl reload nginx; }
+manutencao_desliga() {
+  [[ -s "$TRAB/central.nginx.antes" ]] || return 0   # a manutencao nem chegou a ligar
+  cp "$TRAB/central.nginx.antes" "$MANUT"; nginx -t && systemctl reload nginx
+}
 
 desfazer() {
   echo "!!! falhou antes de trocar. A Central volta para a nuvem, que nao foi tocada."
-  [[ "$ENSAIO" == 1 ]] || manutencao_desliga
+  if [[ "$ENSAIO" != 1 ]]; then
+    # as rotinas da nuvem voltam ao que eram
+    [[ -s "$TRAB/cron-ativar.sql" ]] && psql "$NUVEM" -q -At < "$TRAB/cron-ativar.sql" > /dev/null || true
+    manutencao_desliga
+  fi
 }
 trap desfazer ERR
 
+# ---------------------------------------------------------------- 0
+if [[ "$ENSAIO" != 1 ]]; then
+  passo "0. conferencias antes de parar"
+  # a Central nova ja montada, apontando para o banco da VPS
+  [[ -s /opt/central-vps/.next/BUILD_ID ]]
+  grep -rqs "centraljolo.com.br/banco" /opt/central-vps/.next/server
+  [[ "$(docker inspect -f '{{.State.Health.Status}}' central-db)" == healthy ]]
+  # o login de quem esta conectado agora foi assinado pela chave ES256 da
+  # nuvem: a parte publica dela tem de estar no banco da VPS, senao todo
+  # mundo cai na tela de entrar
+  for KID in $(curl -s https://cvarnbkjlvpjehjulsuc.supabase.co/auth/v1/.well-known/jwks.json | grep -oE '"kid":"[^"]+"' | cut -d'"' -f4); do
+    grep -q "$KID" "$SB/.env" || { echo "falta a chave publica $KID da nuvem"; false; }
+    docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' central-rest | grep -q "$KID"
+  done
+  # o estado das rotinas da nuvem, guardado ANTES de mexer (para voltar)
+  psql "$NUVEM" -At -c "select format('select cron.alter_job(jobid, active := %L) from cron.job where jobname = %L;', active, jobname) from cron.job order by jobid" > "$TRAB/cron-ativar.sql"
+  [[ -s "$TRAB/cron-ativar.sql" ]]
+fi
+
 # ---------------------------------------------------------------- 1
 if [[ "$ENSAIO" != 1 ]]; then
-  passo "1. manutencao ligada"
+  passo "1. manutencao ligada e rotinas da nuvem desligadas"
   manutencao_liga
+  # sem isto uma rotina gravaria na nuvem durante a copia e a conferencia
+  # (nuvem == VPS) nao bateria
+  psql "$NUVEM" -q -At -c "select cron.alter_job(jobid, active := false) from cron.job" > /dev/null
+  [[ "$(psql "$NUVEM" -At -c "select count(*) from cron.job where active")" == 0 ]]
   sleep 20   # quem estava no meio de um envio termina
 fi
 
@@ -88,7 +128,8 @@ from pg_policies where schemaname='storage';
 select pg_get_triggerdef(t.oid)||';' from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='auth' and not t.tgisinternal;
 EOF
 psql "$NUVEM" -At -c "select format('select cron.schedule(%L, %L, %L);', jobname, schedule, command) from cron.job order by jobid" > cron.sql
-psql "$NUVEM" -At -c "select format('update cron.job set active=%L where jobname=%L;', active, jobname) from cron.job order by jobid" > cron-ativar.sql
+# no ensaio o estado sai da nuvem agora; na troca ja foi guardado no passo 0
+[[ "$ENSAIO" == 1 ]] && psql "$NUVEM" -At -c "select format('select cron.alter_job(jobid, active := %L) from cron.job where jobname = %L;', active, jobname) from cron.job order by jobid" > cron-ativar.sql
 
 passo "2. banco da VPS refeito do zero"
 cd "$SB"
@@ -145,10 +186,10 @@ echo "tabelas conferidas: $(wc -l < contagem-vps.txt)"
 if [[ "$ENSAIO" == 1 ]]; then passo "ENSAIO OK — nada foi trocado"; exit 0; fi
 
 # ---------------------------------------------------------------- 5
-passo "5. rotinas: ligadas na VPS, desligadas na nuvem"
-L -q < cron-ativar.sql
-psql "$NUVEM" -q -c "update cron.job set active=false"
-trap - ERR   # daqui em diante a nuvem ja nao roda as rotinas: nao ha volta automatica
+passo "5. rotinas ligadas na VPS (na nuvem ja estao desligadas)"
+trap - ERR   # daqui em diante a VPS e a dona dos dados: nao ha volta automatica
+L -q -At < "$TRAB/cron-ativar.sql" > /dev/null
+L -At -c "select jobname||' ativo='||active from cron.job order by jobid"
 
 # ---------------------------------------------------------------- 6
 passo "6. Central apontando para o banco da VPS"
@@ -172,8 +213,12 @@ rm -f /etc/nginx/sites-enabled/central-ensaio
 sed -i '/ensaio.centraljolo.com.br/d' /etc/hosts
 grep -q ' centraljolo.com.br$' /etc/hosts || echo "127.0.0.1 centraljolo.com.br" >> /etc/hosts
 grep -q '^NEXT_PUBLIC_SUPABASE_URL=' /etc/jolo/central.env || echo "NEXT_PUBLIC_SUPABASE_URL=https://centraljolo.com.br/banco" >> /etc/jolo/central.env
+# a Central nova foi montada ANTES da manutencao em /opt/central-vps;
+# aqui so troca a pasta (a antiga fica guardada para voltar)
 systemctl stop jolo-central
-cd /opt/central && sudo -u central -H bash -c 'git pull -q && NEXT_PUBLIC_SUPABASE_URL=https://centraljolo.com.br/banco NEXT_TELEMETRY_DISABLED=1 npm run build:next > /tmp/central-build.log 2>&1'
+rm -rf /opt/central-nuvem
+mv /opt/central /opt/central-nuvem
+mv /opt/central-vps /opt/central
 systemctl start jolo-central
 
 # ---------------------------------------------------------------- 7

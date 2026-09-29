@@ -135,6 +135,38 @@ VPS hoje: 2 processadores, 8 GB de memória (4,7 GB em uso), 96 GB de disco
   gravando na nuvem se alguém usar aquele endereço: apagar o Worker
   depois da troca.
 
+## FEITO: banco da Central na VPS — 29/09/2026, 17:53 → 17:56
+
+Ordem do Rafael: "pode trocar, troca tudo agora". A Central ficou 3 min e
+37 s em manutenção. `scripts/central-banco-virar.sh` (agora trancado:
+rodar de novo apagaria o que foi gravado na VPS).
+
+- Conferido: 88 tabelas iguais nuvem × VPS, 548 fotos, 13 segredos do
+  cofre, 21 regras das fotos, 5 rotinas (3 ligadas na VPS, como estavam;
+  as 5 da NUVEM desligadas com `cron.alter_job`, projeto parado de
+  reserva).
+- Depois da troca: 5 unidades lidas pela VPS, foto assinada abre, login
+  errado recusado pelo banco novo no Chromium, 0 erro no serviço e no
+  nginx, e uso real (1 login renovado e 1 acesso registrado na VPS).
+- **Quem estava conectado continuou conectado**: a nuvem assinava o login
+  com uma chave ES256; a parte PÚBLICA dela entrou no conjunto de chaves
+  do banco da VPS (`JWT_JWKS`/`JWT_KEYS` em `/opt/supabase-central/.env`,
+  ligados em auth, rest, storage, realtime e funções pelo
+  `docker-compose.central.yml`). Provado com token ES256 de teste antes;
+  token falsificado é recusado em todas as partes.
+- Achados do ensaio e da revisão (3 verificadores independentes):
+  `update cron.job` é proibido na nuvem (usar `cron.alter_job`); o
+  PostgREST com segredo cru recusava token com `kid`; `psql < arquivo`
+  não para em erro; a conferência do passo 0 usava `env` num contêiner
+  que não tem `env`. Todos corrigidos antes da troca que valeu.
+- O padrão do banco no código da Central passou a ser o da VPS (commit
+  9d2030d do jolo-central) + `/opt/central/.env.production.local`:
+  nenhuma montagem volta a apontar para a nuvem parada.
+- Backup diário (`backup-sistemas.sh`) já leva o banco da Central
+  (`pg_dump`, conferido com `pg_restore -l`) e as fotos.
+- Pendências: SMTP para "esqueci minha senha"; chave nova da IA; apagar
+  o projeto do Supabase da nuvem só depois de 30 dias (29/10/2026).
+
 ## A virada dos endereços — ordem segura
 
 1. Trocar só o registro A dentro da Cloudflare (efeito em ~5 min) e
