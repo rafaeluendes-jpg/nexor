@@ -20,12 +20,10 @@ CHAVE="$(printf '%s' "$CHAVE" | tr -d '[:space:]')"
 # Colar duas vezes sem querer junta as chaves numa linha so (aconteceu
 # em 29/09/2026). Fica a primeira chave inteira: a JWT, se houver; se nao,
 # a primeira sb_secret_.
-JWT="$(grep -oE 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{20,}' <<<"$CHAVE" | head -1 || true)"
-if [[ -n "$JWT" ]]; then
-  CHAVE="$JWT"
-elif [[ "$CHAVE" == sb_secret_*sb_secret_* ]]; then
-  CHAVE="sb_secret_$(awk -F'sb_secret_' '{print $2}' <<<"$CHAVE")"
-fi
+PECAS="$(sed -e 's/sb_secret_/\nsb_secret_/g' -e 's/eyJhbGci/\neyJhbGci/g' <<<"$CHAVE" | grep -v '^$' || true)"
+JWT="$(grep -m1 '^eyJhbGci' <<<"$PECAS" || true)"
+SEC="$(grep -m1 '^sb_secret_' <<<"$PECAS" || true)"
+CHAVE="${JWT:-${SEC:-$CHAVE}}"
 
 # A service_role e um JWT (tres partes separadas por ponto) ou, no
 # formato novo, comeca com sb_secret_. Qualquer outra coisa e engano.
