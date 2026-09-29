@@ -471,6 +471,36 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
      errada ao cliente. E a cozinha nunca fica sem ficha — se a SEFAZ
      demorar, a via sai sozinha em 25 segundos.
      ========================================================== */
+  /* ==========================================================
+     O NOME DO PRODUTO NO CUPOM (Rafael, 29/09/2026)
+
+     O primeiro cupom autorizado de Santa Fe saiu com
+     "1 prod_msudv7ylgk00 Copo P". O XML PRECISA de um codigo de
+     produto (cProd, obrigatorio), e sem codigo cadastrado o Joia manda
+     o identificador interno — certo no XML, ilegivel no papel.
+
+     No papel so vale o que uma pessoa le.
+     ========================================================== */
+  grupo('O nome do produto no cupom');
+  t('a regra do que aparece mora num lugar só',
+    /function fsCodigoVisivel\(codigo\)\{/.test(html));
+  t('identificador interno do sistema não vai para o papel', (() => {
+    const m = html.match(/function fsCodigoVisivel\(codigo\)\{[\s\S]*?\n\}/);
+    if (!m) return false;
+    const fn = new Function('codigo', m[0].replace(/^function fsCodigoVisivel\(codigo\)\{/, '').replace(/\}$/, ''));
+    return fn('prod_msudv7ylgk00') === '' && fn('item1') === '' && fn('ped_abc') === '';
+  })());
+  t('mas o código que a loja cadastrou continua aparecendo', (() => {
+    const m = html.match(/function fsCodigoVisivel\(codigo\)\{[\s\S]*?\n\}/);
+    if (!m) return false;
+    const fn = new Function('codigo', m[0].replace(/^function fsCodigoVisivel\(codigo\)\{/, '').replace(/\}$/, ''));
+    return fn('SKU-100') === 'SKU-100 ' && fn('7891234567890') === '7891234567890 ' && fn('') === '';
+  })());
+  t('a linha do item usa a regra',
+    /l\(\(i\+1\)\+' '\+fsCodigoVisivel\(it\.codigo\)\+it\.nome\)/.test(html));
+  t('o XML continua mandando um código de produto — lá ele é obrigatório',
+    /code:String\(p\.codigo\|\|p\.id\|\|it\.produtoId\|\|\('item'\+\(i\+1\)\)\)\.slice\(0,60\)/.test(html));
+
   grupo('Duas vias: a fiscal primeiro, a da cozinha depois');
   t('a via da cozinha virou peça reaproveitável',
     /function viaDoPedido\(ped,cols\)\{/.test(html) &&

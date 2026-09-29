@@ -1061,6 +1061,30 @@ function _fsDocFmt(d){
   return d;
 }
 /* as linhas do papel, no leiaute do DANFE NFC-e (NT 2016.002) */
+/* ==========================================================
+   O CÓDIGO DO PRODUTO NO PAPEL (Rafael, 29/09/2026)
+
+   *"na frente do nome vem um monte de código. Precisa vir só o nome
+   do produto normal."*
+
+   O XML precisa de um código de produto (cProd) — é obrigatório e
+   identifica a mercadoria no sistema de quem emite. Quando a loja não
+   cadastrou um código, o Joia manda o identificador interno dele, que
+   é estável e único. Certo no XML, ilegível no papel:
+   "1 prod_msudv7ylgk00 Copo P".
+
+   No papel só vale o que uma pessoa lê: o código aparece quando a loja
+   digitou um (em Cardápio › Código do produto), e some quando é o
+   identificador interno. A descrição, que é o que o cliente confere,
+   não muda.
+   ========================================================== */
+function fsCodigoVisivel(codigo){
+  var c=String(codigo||'').trim();
+  if(!c)return '';
+  /* os identificadores do proprio sistema: prod_..., item1, ped_... */
+  if(/^(prod|item|ped)[_-]?[a-z0-9]*$/i.test(c))return '';
+  return c+' ';
+}
 function montarDanfeNfce(d,cols){
   cols=cols||48;
   var L=[],e=d.emitente||{},t=d.totais||{};
@@ -1076,7 +1100,7 @@ function montarDanfeNfce(d,cols){
   L.push(linha);
   L.push({txt:_fsLR('# Descrição','Total',cols),n:true});
   (d.itens||[]).forEach(function(it,i){
-    l((i+1)+' '+(it.codigo?it.codigo+' ':'')+it.nome);
+    l((i+1)+' '+fsCodigoVisivel(it.codigo)+it.nome);
     L.push({txt:_fsLR('   '+_fsNum(it.qtd,it.qtd%1?3:0)+' '+(it.un||'UN')+' x '+_fsNum(it.unit),_fsNum(it.total),cols)});
   });
   L.push(linha);
