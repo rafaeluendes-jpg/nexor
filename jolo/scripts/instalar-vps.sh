@@ -123,11 +123,23 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
 FIMPROXY
 
-if [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_CRM" ] && [ -n "$DOMINIO_API" ]; then
+# DOMINIO_API pode vir de duas formas:
+#   api.dominio.com.br          -> endereco proprio para o motor
+#   crm.dominio.com.br/api      -> o motor mora dentro do endereco do CRM
+# A segunda deixa tudo num nome so, que foi o pedido do Rafael.
+HOST_API="${DOMINIO_API%%/*}"
+case "$DOMINIO_API" in
+  */*) CAMINHO_API="/${DOMINIO_API#*/}" ;;
+  *)   CAMINHO_API="" ;;
+esac
+
+if [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_CRM" ]; then
+  # A landing responde tambem pelos nomes extras (o www, por exemplo).
+  NOMES_LANDING="${DOMINIO_LANDING}${DOMINIO_LANDING_EXTRA:+ ${DOMINIO_LANDING_EXTRA}}"
   cat > "${DIR_NGINX}/sites-available/jolo" <<FIMNGINX
 server {
     listen 80;
-    server_name ${DOMINIO_LANDING};
+    server_name ${NOMES_LANDING};
     client_max_body_size 25m;
     location / {
         proxy_pass http://127.0.0.1:${PORTA_LANDING:-3000};
@@ -138,24 +150,55 @@ server {
 server {
     listen 80;
     server_name ${DOMINIO_CRM};
+    # planilha de leads e documento do candidato passam por aqui (limite 20 MB)
     client_max_body_size 25m;
     location / {
         proxy_pass http://127.0.0.1:${PORTA_CRM:-3001};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
 }
+FIMNGINX
+
+  # O motor: dentro do endereco do CRM (em /api) ou com endereco proprio.
+  if [ -n "$CAMINHO_API" ] && [ "$HOST_API" = "$DOMINIO_CRM" ]; then
+    # Entra no mesmo server do CRM: o sed poe as locations antes do fecha-chaves
+    cat > /tmp/jolo-api-bloco <<FIMAPI
+    # tempo real: a conexao fica aberta de proposito. Sem desligar o buffer
+    # e sem estender o tempo, a tela de conversas pararia de receber.
+    location ${CAMINHO_API}/realtime {
+        proxy_pass http://127.0.0.1:${API_PORT:-3333}/realtime;
+        include ${DIR_NGINX}/jolo-proxy.conf;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+    }
+    # a barra no fim do proxy_pass e o que tira o ${CAMINHO_API} do caminho
+    location ${CAMINHO_API}/ {
+        proxy_pass http://127.0.0.1:${API_PORT:-3333}/;
+        include ${DIR_NGINX}/jolo-proxy.conf;
+    }
+FIMAPI
+    python3 - "${DIR_NGINX}/sites-available/jolo" /tmp/jolo-api-bloco <<'FIMPY'
+import sys
+alvo, bloco = sys.argv[1], sys.argv[2]
+conf = open(alvo, encoding='utf-8').read()
+extra = open(bloco, encoding='utf-8').read()
+# fecha-chaves do ultimo server (o do CRM)
+corte = conf.rstrip().rfind('}')
+open(alvo, 'w', encoding='utf-8').write(conf[:corte] + extra + '}\n')
+FIMPY
+    rm -f /tmp/jolo-api-bloco
+  elif [ -n "$HOST_API" ]; then
+    cat >> "${DIR_NGINX}/sites-available/jolo" <<FIMNGINX
 
 server {
     listen 80;
-    server_name ${DOMINIO_API};
-    # planilha de leads e documento do candidato passam por aqui (limite 20 MB)
+    server_name ${HOST_API};
     client_max_body_size 25m;
     location / {
         proxy_pass http://127.0.0.1:${API_PORT:-3333};
         include ${DIR_NGINX}/jolo-proxy.conf;
     }
-    # tempo real: a conexao fica aberta de proposito. Sem desligar o buffer
-    # e sem estender o tempo, a tela de conversas pararia de receber.
     location /realtime {
         proxy_pass http://127.0.0.1:${API_PORT:-3333};
         include ${DIR_NGINX}/jolo-proxy.conf;
@@ -165,6 +208,7 @@ server {
     }
 }
 FIMNGINX
+  fi
   ENDERECO_FINAL="http://${DOMINIO_CRM}"
 else
   # Se ja ha site publicado na 80, a landing vai para a 8000 e o site de
@@ -492,20 +536,23 @@ fi
 # Quando os dominios chegam depois (o normal: primeiro sobe pelo IP,
 # depois o DNS fica pronto), os enderecos provisorios em http:// dao lugar
 # aos definitivos. Endereco que ja esta em https:// nao e tocado.
-if [ -n "$DOMINIO_CRM" ] && [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_API" ]; then
+if [ -n "$DOMINIO_CRM" ] && [ -n "$DOMINIO_LANDING" ]; then
   trocar_provisorio() { # trocar_provisorio <chave> <valor novo>
     grep -q "^$1=http://" "$ENV_ARQ" && sed -i "s#^$1=.*#$1=$2#" "$ENV_ARQ"
     return 0
   }
-  trocar_provisorio API_PUBLIC_URL      "https://${DOMINIO_API}"
+  ENDERECO_MOTOR="https://${DOMINIO_API:-$DOMINIO_CRM}"
+  ORIGENS="https://${DOMINIO_LANDING},https://${DOMINIO_CRM}"
+  for EXTRA in ${DOMINIO_LANDING_EXTRA:-}; do ORIGENS="${ORIGENS},https://${EXTRA}"; done
+  trocar_provisorio API_PUBLIC_URL      "$ENDERECO_MOTOR"
   trocar_provisorio LANDING_PUBLIC_URL  "https://${DOMINIO_LANDING}"
   trocar_provisorio CRM_PUBLIC_URL      "https://${DOMINIO_CRM}"
-  trocar_provisorio NEXT_PUBLIC_API_URL "https://${DOMINIO_API}"
+  trocar_provisorio NEXT_PUBLIC_API_URL "$ENDERECO_MOTOR"
   trocar_provisorio NEXT_PUBLIC_SITE_URL "https://${DOMINIO_LANDING}"
   grep -q "^CORS_ALLOWED_ORIGINS=http://" "$ENV_ARQ" \
-    && sed -i "s#^CORS_ALLOWED_ORIGINS=.*#CORS_ALLOWED_ORIGINS=https://${DOMINIO_LANDING},https://${DOMINIO_CRM}#" "$ENV_ARQ"
+    && sed -i "s#^CORS_ALLOWED_ORIGINS=.*#CORS_ALLOWED_ORIGINS=${ORIGENS}#" "$ENV_ARQ"
   set -a; . "$ENV_ARQ"; set +a
-  echo "    enderecos definitivos: ${DOMINIO_LANDING}, ${DOMINIO_CRM}, ${DOMINIO_API}"
+  echo "    enderecos definitivos: ${DOMINIO_LANDING}, ${DOMINIO_CRM}, motor em ${ENDERECO_MOTOR}"
 fi
 
 # ------------------------------------------------------------
@@ -571,14 +618,22 @@ echo "    nginx de pe e conferido"
 
 # HTTPS: certificado do Let's Encrypt. So faz sentido depois que o DNS
 # do dominio ja aponta para este servidor - senao a Let's Encrypt recusa.
-if [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_CRM" ] && [ -n "$DOMINIO_API" ]; then
+if [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_CRM" ]; then
   MEU_IP="$(curl -fsS --max-time 10 https://api.ipify.org || true)"
   IP_DOMINIO="$(getent hosts "$DOMINIO_CRM" | awk '{print $1}' | head -1 || true)"
   if [ -n "$MEU_IP" ] && [ "$MEU_IP" = "$IP_DOMINIO" ]; then
     tem certbot || apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
+    ARGS_CERT=""
+    for NOME in "$DOMINIO_LANDING" ${DOMINIO_LANDING_EXTRA:-} "$DOMINIO_CRM" "${HOST_API:-}"; do
+      [ -z "$NOME" ] && continue
+      case " $ARGS_CERT " in *" -d $NOME "*) continue ;; esac
+      # nome que ainda nao aponta para ca faria a Let's Encrypt recusar o lote inteiro
+      [ "$(getent hosts "$NOME" | awk '{print $1}' | head -1)" = "$MEU_IP" ] || { aviso "$NOME ainda nao aponta para este servidor; ficou de fora do certificado."; continue; }
+      ARGS_CERT="${ARGS_CERT} -d $NOME"
+    done
     certbot --nginx --non-interactive --agree-tos --redirect \
       --register-unsafely-without-email \
-      -d "$DOMINIO_LANDING" -d "$DOMINIO_CRM" -d "$DOMINIO_API" \
+      $ARGS_CERT \
       && { ENDERECO_FINAL="https://${DOMINIO_CRM}"; echo "    HTTPS ligado e com renovacao automatica"; } \
       || aviso "o certificado nao saiu. O sistema continua de pe em HTTP; rode o script de novo depois."
   else

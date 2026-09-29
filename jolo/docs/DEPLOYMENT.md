@@ -2,14 +2,19 @@
 
 ## Como ficam os enderecos
 
-| Parte | Endereco sugerido |
+| Parte | Endereco |
 |---|---|
-| Landing | `https://franquias.jologelato.com.br` |
+| Landing | `https://jologelato.com.br` (e `www`) |
 | CRM | `https://crm.jologelato.com.br` |
-| API | `https://api.jologelato.com.br` |
+| API | `https://crm.jologelato.com.br/api` |
 
-A URL do webhook que vai no painel da Meta e
-`https://api.jologelato.com.br/webhooks/meta/whatsapp`.
+A API mora dentro do endereco do CRM, em `/api` (decisao de 29/09/2026:
+um nome so). A URL do webhook que vai no painel da Meta e
+`https://crm.jologelato.com.br/api/webhooks/meta/whatsapp`.
+
+O instalador aceita as duas formas em `DOMINIO_API`: um endereco proprio
+(`api.dominio.com.br`) ou um caminho dentro do CRM
+(`crm.dominio.com.br/api`).
 
 ## O que producao exige
 

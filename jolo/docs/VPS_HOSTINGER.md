@@ -61,17 +61,41 @@ responde no IP do servidor e o CRM na porta 8080 dele.
 
 ### 5. Apontar os enderecos (dominio)
 
-No painel de quem cuida do dominio `jologelato.com.br`, criar tres
-registros **A** apontando para o IP da VPS:
+Decisao do Rafael (29/09/2026): a landing passa a ser o dominio principal
+(o site antigo sai do ar) e o CRM ganha um endereco so, com o motor do
+WhatsApp dentro dele em `/api`.
 
-| Nome | Tipo | Valor |
+No Gerenciador de DNS de `jologelato.com.br`:
+
+| Tipo | Nome | Valor |
 |---|---|---|
-| `franquias` | A | `2.25.199.187` |
-| `crm` | A | `2.25.199.187` |
-| `api` | A | `2.25.199.187` |
+| A | `@` | `2.25.199.187` |
+| A | `www` | `2.25.199.187` |
+| A | `crm` | `2.25.199.187` |
 
-Sem isso o sistema funciona pelo IP, mas **sem HTTPS** — e a Meta so
-entrega mensagem do WhatsApp em HTTPS.
+Nao mexer nos registros de e-mail (MX): o e-mail do dominio continua
+como esta.
+
+Quando o DNS estiver apontando, a instalacao com os enderecos
+definitivos e HTTPS:
+
+```bash
+cd /opt/jolo && git pull && \
+DOMINIO_LANDING=jologelato.com.br \
+DOMINIO_LANDING_EXTRA=www.jologelato.com.br \
+DOMINIO_CRM=crm.jologelato.com.br \
+DOMINIO_API=crm.jologelato.com.br/api \
+bash jolo/scripts/instalar-vps.sh
+```
+
+Resultado:
+
+| O que | Endereco |
+|---|---|
+| Landing | `https://jologelato.com.br` (e `www`) |
+| CRM | `https://crm.jologelato.com.br` |
+| Motor (API) | `https://crm.jologelato.com.br/api` |
+| Webhook da Meta | `https://crm.jologelato.com.br/api/webhooks/meta/whatsapp` |
 
 ### 6. Credenciais da Meta
 
@@ -143,7 +167,7 @@ Quando as credenciais da Meta estiverem no `.env`, trocar
 API se recusa a subir sem elas, de proposito.
 
 O endereco do webhook para o painel da Meta:
-`https://api.jologelato.com.br/webhooks/meta/whatsapp`.
+`https://crm.jologelato.com.br/api/webhooks/meta/whatsapp`.
 
 ## O que este ambiente nao consegue fazer
 
