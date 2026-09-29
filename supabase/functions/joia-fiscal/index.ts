@@ -240,6 +240,90 @@ Deno.serve(async (req) => {
 
   try {
     /* ======================================================
+       CHAVE DA CONTA — ligar a conta da Spedy, ou trocar a de teste
+       pela de PRODUCAO (29/09/2026)
+
+       Ate aqui a chave da conta so entrava no cofre por fora, na
+       instalacao do modulo. Para o Rafael ligar a producao sozinho ela
+       precisa ter uma porta — e uma porta com as mesmas travas das
+       outras: so a matriz, a chave nunca volta para a tela, e ela e
+       provada na Spedy ANTES de ser guardada.
+
+       O que esta acao NAO faz, de proposito:
+         - nao liga a producao de nenhuma loja. Trocar a conta so muda
+           por onde o Joia fala com a Spedy; cada unidade continua em
+           homologacao ate alguem confirmar a producao pelo CNPJ.
+         - nao apaga a chave antiga da unidade. A empresa de teste e a
+           de producao sao OUTRAS empresas, com outras chaves: por isso
+           a troca de conta DESLIGA o vinculo de cada unidade, que
+           precisa ser refeito na conta nova. Deixar o vinculo velho de
+           pe seria pior — emitiria com a chave de uma empresa que nao
+           existe na conta em uso.
+       ====================================================== */
+    if (acao === "conta_chave") {
+      if (!ehRede) return responde(403, { erro: "Só a matriz liga a conta da Spedy." }, h);
+      const chave = String(corpo.chave || "").trim();
+      const host = corpo.host === "sandbox" ? "sandbox" : "producao";
+      if (chave.length < 20) return responde(400, { erro: "Essa chave parece incompleta." }, h);
+
+      /* prova a chave no ambiente escolhido ANTES de guardar: chave de
+         teste na producao (e vice-versa) responde 401, e e o erro mais
+         provavel de acontecer aqui */
+      const r = await fetch(BASES[host] + "/companies?page=1&pageSize=50", {
+        headers: { "X-Api-Key": chave, "Accept": "application/json" },
+      });
+      let d: any = null; try { d = await r.json(); } catch { /* corpo vazio */ }
+      if (!r.ok)
+        return responde(400, { erro: erroSpedy(d, r.status) +
+          (r.status === 401 || r.status === 403
+            ? ` Confira se ela é a chave de ${host === "producao" ? "PRODUÇÃO" : "TESTE"} da Spedy.` : "") }, h);
+
+      /* o titular: a empresa da conta. Com mais de uma, a do CNPJ da
+         matriz no Joia; sem matriz cadastrada, a primeira. */
+      const empresas = (d?.items || []) as any[];
+      if (!empresas.length)
+        return responde(409, { erro: "Essa conta da Spedy ainda não tem nenhuma empresa cadastrada." }, h);
+      const { data: matrizJoia } = await db.from("sucursais")
+        .select("cnpj").eq("loja_id", loja).eq("matriz", true).maybeSingle();
+      const cnpjMatriz = digitos(matrizJoia?.cnpj);
+      const titular = (cnpjMatriz && empresas.find((e) => digitos(e.federalTaxNumber) === cnpjMatriz)) || empresas[0];
+
+      const nomeS = "spedy_api_key_owner_" + host;
+      await guardarSegredo(nomeS, chave, `Chave da conta Spedy (${host})`);
+      const { error: eC } = await db.from("fiscal_conta").upsert({
+        loja_id: loja, segredo_nome: nomeS, host,
+        titular_company_id: titular.id,
+        titular_cnpj: digitos(titular.federalTaxNumber) || null,
+        titular_nome: titular.legalName || titular.name || null,
+        verificada_em: new Date().toISOString(), atualizado_em: new Date().toISOString(),
+      }, { onConflict: "loja_id" });
+      if (eC) return responde(400, { erro: eC.message }, h);
+
+      /* mudou de conta: o vinculo de cada unidade era com empresas da
+         conta ANTIGA. Some com ele e volta todo mundo para homologacao,
+         desligado — nada emite por engano com credencial de outra conta. */
+      let desligadas = 0;
+      if (conta && conta.host !== host) {
+        const { data: antigas } = await db.from("fiscal_unidades")
+          .select("sucursal_ref").eq("loja_id", loja).not("spedy_company_id", "is", null);
+        desligadas = (antigas || []).length;
+        if (desligadas) {
+          await db.from("fiscal_unidades").update({
+            spedy_company_id: null, segredo_nome: null, modo: "desligado",
+            ambiente: "homologacao", producao_confirmada_em: null, producao_confirmada_por: null,
+            atualizado_por: perfil.nome || quem.user.email, atualizado_em: new Date().toISOString(),
+          }).eq("loja_id", loja).not("spedy_company_id", "is", null);
+        }
+      }
+      await registrar(null, "conta_chave", "ok", { host, titular: titular.id, desligadas });
+      return responde(200, {
+        ok: true, host, desligadas,
+        titular: { nome: titular.legalName || titular.name || null, cnpj: digitos(titular.federalTaxNumber) || null },
+        empresas: empresas.length,
+      }, h);
+    }
+
+    /* ======================================================
        ESTADO — o que a tela precisa saber, sem segredo nenhum
        ====================================================== */
     if (acao === "estado") {

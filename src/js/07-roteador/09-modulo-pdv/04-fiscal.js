@@ -644,6 +644,27 @@ async function telaFiscalCfg(recarregar){
    '<button class="btnP2 ok" onclick="fsCertificado()">'+sv('check',13)+(certOk?' Trocar certificado':' Enviar certificado')+'</button>'+
   '</div></div>':'';
 
+  /* a conta da Spedy é da REDE: uma só, e é a matriz que a liga. É aqui
+     que a chave de produção entra — e a tela diz, sem rodeio, em qual
+     das duas contas o sistema está falando agora (29/09/2026) */
+  var conta=matriz?'<div class="cfgCol"><div class="colH">Conta da Spedy (rede)</div><div class="fsCorpo">'+
+   (u.conta
+    ?'<div class="fsLinha"><span>Ambiente em uso</span><b>'+(teste?'TESTE — nenhum cupom vale':'PRODUÇÃO — os cupons valem para a Receita')+'</b></div>'+
+     '<div class="fsLinha"><span>Titular</span><b>'+E(u.conta.titularNome||'—')+'</b></div>'+
+     '<div class="fsLinha"><span>CNPJ do titular</span><b>'+E(fsCnpjFmt(u.conta.titularCnpj))+'</b></div>'
+    :'<div class="hint" style="margin-bottom:10px">Nenhuma conta da Spedy ligada ainda.</div>')+
+   '<div class="hint" style="margin:9px 0">A chave da API fica no cofre do servidor e nunca volta para a tela. '+
+   'Trocar a conta desliga o vínculo das lojas: as empresas de teste e de produção são diferentes, '+
+   'e cada loja precisa ser ligada de novo à empresa dela.</div>'+
+   '<div class="row2">'+
+    '<div class="fld2"><label>Qual conta</label><select id="fsContaAmb">'+
+     _fsOpc(u.conta?u.conta.host:'producao',[['producao','Produção — vale para a Receita'],['sandbox','Teste (sandbox)']])+'</select></div>'+
+    '<div class="fld2"><label>Chave da API</label><input id="fsContaChave" type="password" autocomplete="new-password" '+
+     'placeholder="'+(u.conta?'cole a chave nova':'cole a chave da conta')+'"></div>'+
+   '</div>'+
+   '<button class="btnP2 ok" onclick="fsContaChave()">'+sv('check',13)+(u.conta?' Trocar a conta':' Ligar a conta')+'</button>'+
+  '</div></div>':'';
+
   /* o imposto de cada produto tem tela própria agora (Fiscal › Impostos dos
      Produtos), onde se vê, corrige e salva produto por produto (28/09/2026) */
   var perfis=matriz?'<div class="cfgCol"><div class="colH">Impostos dos produtos (rede)</div><div class="fsCorpo">'+
@@ -659,7 +680,7 @@ async function telaFiscalCfg(recarregar){
    '<div class="fsTopo">'+seletor+faixa+'</div>'+
    '<div class="cfgDuas">'+emissao+empresa+'</div>'+
    ((csc||cert)?'<div class="cfgDuas">'+csc+cert+'</div>':'')+
-   (perfis?'<div class="cfgDuas">'+perfis+'</div>':'')+
+   ((conta||perfis)?'<div class="cfgDuas">'+conta+perfis+'</div>':'')+
    '</div></div>';
   rodape(fiscalEmite(suc)?'fiscal ligado — '+(u.ambiente==='producao'?'PRODUÇÃO':'homologação'):'fiscal desligado');
   fsCscMarcar();
@@ -740,6 +761,34 @@ async function fsLigarEmpresa(empresaId,cnpjEmp){
   if(!r.ok){painelErro('Não liguei a unidade.',(r.d&&r.d.erro)||'O servidor recusou.');return;}
   await telaFiscalCfg(true);
   toast('Unidade ligada à empresa de CNPJ '+fsCnpjFmt(r.d.cnpj)+'.');
+}
+/* ==========================================================
+   A CONTA DA SPEDY — trocar a de teste pela de PRODUÇÃO (29/09/2026)
+
+   Rafael: *"agora eu estou com a API oficial de produção mesmo para
+   fazer nota"*. A chave da conta só entrava no cofre por fora, na
+   instalação; sem esta porta ele dependeria de mim para ligar a
+   produção.
+
+   A chave é conferida na Spedy antes de ser guardada, e nunca volta
+   para a tela. Trocar de conta desliga o vínculo das lojas de
+   propósito: as empresas de teste e de produção são outras, com outras
+   chaves — cada loja é ligada de novo, na conta nova.
+   ========================================================== */
+async function fsContaChave(){
+  var cod=String((($('fsContaChave')||{}).value)||'').trim();
+  var host=(($('fsContaAmb')||{}).value)||'producao';
+  if(cod.length<20){toast('Cole a chave da API da conta Spedy.');return;}
+  if(host==='producao'&&!window.confirm(
+      'A chave de PRODUÇÃO passa a valer para toda a rede. Cada loja precisará ser '+
+      'ligada de novo à empresa dela na conta de produção. Continuar?'))return;
+  var r=await fiscalChamar('conta_chave',{chave:cod,host:host});
+  if($('fsContaChave'))$('fsContaChave').value='';
+  if(!r.ok){painelErro('A chave da conta não foi aceita.',(r.d&&r.d.erro)||'O servidor recusou.');return;}
+  await telaFiscalCfg(true);
+  var t=(r.d.titular&&r.d.titular.nome)||'';
+  toast('Conta de '+(r.d.host==='producao'?'produção':'teste')+' ligada'+(t?' — '+t:'')+'. '+
+    (r.d.desligadas?r.d.desligadas+' loja(s) precisam ser ligadas de novo à empresa delas.':''));
 }
 async function fsSalvarIe(){
   var v=String(($('fsIe')||{}).value||'').trim();

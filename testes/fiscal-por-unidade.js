@@ -387,6 +387,47 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   t('servidor: nota com CNPJ diferente do da loja desliga a emissão na hora',
     /cnpjNota !== digitos\(u\.cnpj\)[\s\S]{0,200}modo: "desligado"/.test(fonte));
 
+  /* ==========================================================
+     A CONTA DA SPEDY — a porta que liga a PRODUÇÃO (29/09/2026)
+
+     Rafael mandou a chave oficial de produção. Antes disto ela só
+     entrava no cofre por fora, na instalação. A porta nova tem de
+     manter as mesmas travas das outras: só a matriz, a chave provada
+     antes de guardar, e nunca de volta para a tela.
+     ========================================================== */
+  grupo('A conta da Spedy — ligar a produção');
+  t('servidor: só a matriz liga ou troca a conta',
+    /acao === "conta_chave"[\s\S]{0,120}!ehRede/.test(fonte));
+  /* a ordem é a trava: perguntar à Spedy, recusar se ela recusou, e só
+     então guardar. Medida por posição, e não por uma expressão comprida
+     que quebra a cada comentário novo no meio */
+  t('servidor: a chave é provada na Spedy antes de ser guardada', (() => {
+    const b = fonte.split('acao === "conta_chave"')[1].split('acao === "estado"')[0] || '';
+    const prova = b.indexOf('BASES[host] + "/companies');
+    const recusa = b.indexOf('if (!r.ok)');
+    const guarda = b.indexOf('await guardarSegredo');
+    return prova > 0 && recusa > prova && guarda > recusa;
+  })());
+  t('servidor: chave do ambiente errado é explicada em português',
+    /Confira se ela é a chave de \$\{host === "producao" \? "PRODUÇÃO" : "TESTE"\}/.test(fonte));
+  t('servidor: trocar de conta desliga o vínculo das lojas',
+    /conta\.host !== host[\s\S]{0,400}spedy_company_id: null[\s\S]{0,120}modo: "desligado"[\s\S]{0,60}ambiente: "homologacao"/.test(fonte));
+  t('servidor: a chave da conta nunca volta na resposta',
+    !/chave: chave|apiKey: chave/.test(fonte.split('acao === "conta_chave"')[1].split('acao === "estado"')[0]));
+  t('servidor: cada conta guarda a chave num nome próprio',
+    /"spedy_api_key_owner_" \+ host/.test(fonte));
+  t('tela: o bloco da conta é só da matriz',
+    /var conta=matriz\?'<div class="cfgCol"><div class="colH">Conta da Spedy \(rede\)/.test(html));
+  t('tela: a tela diz em qual conta o sistema está falando',
+    /TESTE — nenhum cupom vale[\s\S]{0,80}PRODUÇÃO — os cupons valem para a Receita/.test(html));
+  t('tela: trocar para produção pede confirmação antes',
+    /A chave de PRODUÇÃO passa a valer para toda a rede/.test(html));
+  t('tela: o campo da chave é de senha e esvazia depois de enviar',
+    /id="fsContaChave" type="password"/.test(html) &&
+    /fsContaChave[\s\S]{0,400}\$\('fsContaChave'\)\.value=''/.test(html));
+  t('tela: o botão existe e chama a função',
+    /onclick="fsContaChave\(\)"/.test(html) && /async function fsContaChave\(\)/.test(html));
+
   grupo('O produto traz os dados fiscais de volta da nuvem');
   t('NCM, CFOP, CSOSN, CST e CEST voltam no download',
     /ncm:x\.ncm\|\|'',cfop:x\.cfop\|\|'',csosn:x\.csosn\|\|'',cst:x\.cst\|\|'',cest:x\.cest\|\|''/.test(html));
