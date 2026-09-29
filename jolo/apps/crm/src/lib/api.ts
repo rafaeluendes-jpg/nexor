@@ -69,6 +69,15 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   const corpo = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+  // LGPD: sem aceite do termo vigente, a API nao entrega dado nenhum.
+  if (res.status === 428 && corpo.error === 'TERMO_PENDENTE') {
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/termo')) {
+      window.location.href = '/termo';
+    }
+    throw new ApiError(String(corpo.message ?? 'Aceite o termo de uso.'), 428);
+  }
+
   if (!res.ok) {
     throw new ApiError(String(corpo.message ?? 'Falha na requisicao'), res.status);
   }

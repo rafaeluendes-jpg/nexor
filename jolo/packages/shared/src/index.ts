@@ -6,3 +6,5 @@ export * from './ids';
 export * from './events';
 export * from './queues';
 export * from './realtime';
+export * from './termo';
+export * from './optout';

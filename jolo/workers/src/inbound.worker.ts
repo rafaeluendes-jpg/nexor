@@ -8,13 +8,14 @@ import {
   escolherResponsavel,
   lerConfiguracao,
   moveStage,
+  registrarPedidoParaParar,
   upsertContact,
   writeActivity,
   writeAudit,
   type Roteamento,
 } from '@jolo/crm-core';
 import { parseMetaWebhook } from '@jolo/whatsapp';
-import { TIPOS_DE_AVISO } from '@jolo/shared';
+import { CONFIRMACAO_DE_PARADA, ehPedidoParaParar, TIPOS_DE_AVISO } from '@jolo/shared';
 import { publicarAviso } from './avisos.js';
 import type { WorkerContext } from './context.js';
 
@@ -216,6 +217,33 @@ export function startInboundWorker(ctx: WorkerContext): Worker {
         }
 
         const { QueueBridge } = await import('./bridge.js');
+
+        // LGPD: "PARAR" e respeitado na hora, sem depender do robo entender.
+        if (ehPedidoParaParar(msg.text)) {
+          const { jaEstavaMarcado } = await registrarPedidoParaParar(prisma, {
+            conversationId: conversation.id,
+            motivo: msg.text ?? 'pedido de parada',
+            correlationId: job.data.correlationId,
+          });
+          if (!jaEstavaMarcado) {
+            // uma unica confirmacao; depois disso, silencio
+            const confirmacao = await prisma.message.create({
+              data: {
+                organizationId: org.id,
+                conversationId: conversation.id,
+                direction: 'OUTBOUND',
+                author: 'SYSTEM',
+                type: 'text',
+                body: CONFIRMACAO_DE_PARADA,
+                status: 'QUEUED',
+              },
+            });
+            await QueueBridge.outbound(ctx, confirmacao.id, job.data.correlationId);
+          }
+          await QueueBridge.excelSync(ctx, org.id, 'lead_atualizado');
+          continue;
+        }
+
         await QueueBridge.aiTurn(ctx, conversation.id, job.data.correlationId);
         await QueueBridge.excelSync(ctx, org.id, 'lead_atualizado');
       }

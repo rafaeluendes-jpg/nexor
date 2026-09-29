@@ -130,6 +130,7 @@ model User {
   documents         Document[]
   messagesSent      Message[]      @relation("MessageSender")
   territories       Territory[]    @relation("TerritoryOwner")
+  termAcceptances   TermAcceptance[]
 
   @@index([organizationId, status])
   @@map("users")
@@ -180,6 +181,11 @@ model Contact {
   email          String?
   city           String?
   state          String?
+  /// LGPD: a pessoa pediu para nao receber mais mensagens (respondeu PARAR).
+  /// Robo e acompanhamento automatico nunca mais falam com ela; uma pessoa
+  /// ainda pode responder se ELA voltar a escrever.
+  optOutAt       DateTime?
+  optOutReason   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -1029,4 +1035,23 @@ model Setting {
 
   @@unique([organizationId, key])
   @@map("settings")
+}
+
+/// LGPD: prova de que cada usuario do CRM leu e aceitou o termo de uso e
+/// confidencialidade daquela versao. Quem nao aceitou a versao vigente nao
+/// acessa dado nenhum (a API recusa com TERMO_PENDENTE).
+model TermAcceptance {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  version        String
+  acceptedAt     DateTime @default(now())
+  ip             String?
+  userAgent      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, version])
+  @@index([organizationId, acceptedAt])
+  @@map("term_acceptances")
 }

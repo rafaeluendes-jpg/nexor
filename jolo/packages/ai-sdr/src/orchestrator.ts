@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@jolo/database';
 import { aiMayAnswer } from '@jolo/crm-core';
 import type { AiProvider } from './provider';
-import { SDR_SYSTEM_PROMPT } from './prompt';
+import { promptDoSdr } from './prompt';
 import { AI_TOOLS, AI_TOOL_MAP, type ToolContext } from './tools';
 
 export interface SdrResult {
@@ -23,6 +23,8 @@ export async function runSdrTurn(params: {
   conversationId: string;
   correlationId: string;
   maxTokens?: number;
+  /** endereco publico da politica de privacidade, citado na primeira mensagem */
+  linkPrivacidade?: string;
 }): Promise<SdrResult> {
   const { prisma, provider, conversationId, correlationId } = params;
 
@@ -35,6 +37,7 @@ export async function runSdrTurn(params: {
   });
 
   if (!aiMayAnswer(conversa)) return { status: 'skipped_human', toolsUsed: [] };
+  if (conversa.contact.optOutAt) return { status: 'skipped_human', toolsUsed: [] };
   if (provider.name === 'disabled') return { status: 'skipped_disabled', toolsUsed: [] };
   if (!conversa.leadId) return { status: 'error', toolsUsed: [], error: 'conversa sem lead' };
 
@@ -77,7 +80,7 @@ export async function runSdrTurn(params: {
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
       const saida = await provider.complete({
-        system: SDR_SYSTEM_PROMPT,
+        system: promptDoSdr(params.linkPrivacidade),
         messages: mensagens,
         tools: AI_TOOLS.map((t) => ({
           name: t.name,

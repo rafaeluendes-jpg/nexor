@@ -1,8 +1,9 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import { z } from 'zod';
-import { CurrentUser, Public, RateLimit, type AuthenticatedUser } from '../../common/decorators/index.js';
+import { CurrentUser, Public, RateLimit, SemTermo, type AuthenticatedUser } from '../../common/decorators/index.js';
 import { ZodValidationPipe } from '../../common/pipes/zod.pipe.js';
 import { AuthService } from './auth.service.js';
+import { TermoService } from '../termo/termo.service.js';
 
 const loginSchema = z.object({
   email: z.string().email().max(200),
@@ -16,7 +17,10 @@ const changePasswordSchema = z.object({
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly termo: TermoService,
+  ) {}
 
   @Public()
   @RateLimit('login')
@@ -34,11 +38,14 @@ export class AuthController {
     });
   }
 
+  @SemTermo()
   @Get('me')
-  me(@CurrentUser() user: AuthenticatedUser) {
-    return { user };
+  async me(@CurrentUser() user: AuthenticatedUser) {
+    // a tela sabe, logo ao entrar, se precisa mostrar o termo antes de tudo
+    return { user, termoPendente: !(await this.termo.aceitou(user.id)) };
   }
 
+  @SemTermo()
   @HttpCode(200)
   @Post('logout')
   async logout(@CurrentUser() user: AuthenticatedUser) {
@@ -46,6 +53,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @SemTermo()
   @HttpCode(200)
   @Post('logout-all')
   async logoutAll(@CurrentUser() user: AuthenticatedUser) {
@@ -53,6 +61,7 @@ export class AuthController {
     return { ok: true, sessoesEncerradas: count };
   }
 
+  @SemTermo()
   @HttpCode(200)
   @Post('change-password')
   async changePassword(

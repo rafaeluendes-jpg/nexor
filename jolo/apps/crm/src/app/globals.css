@@ -199,6 +199,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .tag.QUENTE{background:var(--quente-fundo);color:var(--quente)}
 .tag.MORNO{background:var(--morno-fundo);color:var(--morno)}
 .tag.FRIO{background:var(--frio-fundo);color:var(--frio)}
+/* LGPD: pediu para nao receber mensagens */
+.tag.nao-contatar{background:var(--grave-fundo);color:var(--grave);margin-left:8px}
 .pilula{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
   font-size:11.5px;font-weight:600;background:var(--neutro-fundo);color:var(--tinta-2);white-space:nowrap}
 .pilula.ok{background:var(--bom-fundo);color:var(--bom)}
@@ -337,6 +339,21 @@ legend{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:upperc
 .login .erro{background:var(--grave-fundo);color:#8A2B20;padding:9px 12px;border-radius:var(--r-p);font-size:13px;border:1px solid #EFC8C1}
 .login .btn{width:100%;padding:11px}
 .login .rodape{font-size:12px;color:var(--tinta-3);text-align:center;margin:2px 0 0}
+
+/* termo de uso (LGPD): mesma moldura do login, uma coluna, texto rolavel */
+.login.termo{grid-template-columns:1fr}
+.login.termo form{width:min(620px,100%)}
+.texto-termo{
+  max-height:min(46vh,420px);overflow-y:auto;padding:14px 16px;border:1px solid var(--linha);
+  border-radius:var(--r-p);background:var(--fundo);font-size:13.5px;line-height:1.55;color:var(--tinta-2);
+}
+.texto-termo p{margin:0 0 10px}
+.texto-termo .versao{font-size:11.5px;color:var(--tinta-3);margin:4px 0 0}
+.login .aceite{
+  display:flex;align-items:flex-start;gap:10px;font-size:13.5px;font-weight:500;
+  letter-spacing:0;text-transform:none;color:var(--tinta);cursor:pointer;min-height:44px;padding:6px 0;
+}
+.login .aceite input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--bosco)}
 
 /* =======================  TEMPO REAL  ======================= */
 .tempo-real{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tinta-3)}

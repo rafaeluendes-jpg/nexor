@@ -46,9 +46,10 @@ export default function LoginPage() {
               method: 'POST',
               body: JSON.stringify({ email, password: senha }),
             })
-              .then((r) => {
+              .then(async (r) => {
                 saveSession(r.accessToken, r.user);
-                router.replace('/dashboard');
+                const eu = await api<{ termoPendente?: boolean }>('/auth/me');
+                router.replace(eu.termoPendente ? '/termo' : '/dashboard');
               })
               .catch((e2: Error) => setErro(e2.message))
               .finally(() => setEnviando(false));

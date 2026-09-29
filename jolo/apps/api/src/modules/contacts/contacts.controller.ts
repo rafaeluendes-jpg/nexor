@@ -51,6 +51,8 @@ export class ContactsController {
         email: c.email,
         cidade: c.city,
         criadoEm: c.createdAt,
+        // LGPD: quem atende precisa ver que esta pessoa pediu para nao receber mensagens
+        naoContatarDesde: c.optOutAt,
         lead: c.leads[0]
           ? {
               id: c.leads[0].id,

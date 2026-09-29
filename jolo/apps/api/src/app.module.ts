@@ -7,6 +7,8 @@ import { DomainExceptionFilter } from './common/filters/domain-exception.filter.
 import { AuthGuard } from './common/guards/auth.guard.js';
 import { PermissionsGuard } from './common/guards/permissions.guard.js';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
+import { TermoGuard } from './common/guards/termo.guard.js';
+import { TermoModule } from './modules/termo/termo.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -59,14 +61,16 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     IntegrationsModule,
     RealtimeModule,
     ImportacaoModule,
+    TermoModule,
   ],
   providers: [
     PrismaService,
     RedisService,
     { provide: APP_FILTER, useClass: DomainExceptionFilter },
-    // Ordem importa: limite -> autenticacao -> permissao.
+    // Ordem importa: limite -> autenticacao -> termo de uso (LGPD) -> permissao.
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: TermoGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
   exports: [PrismaService, RedisService],

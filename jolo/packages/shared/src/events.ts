@@ -25,6 +25,7 @@ export const AUDIT_EVENTS = {
   USER_LOGOUT: 'user_logout',
   PERMISSION_CHANGED: 'permission_changed',
   EXPORT_REQUESTED: 'export_requested',
+  TERMO_ACEITO: 'termo_aceito',
 } as const;
 
 export type AuditEvent = (typeof AUDIT_EVENTS)[keyof typeof AUDIT_EVENTS];

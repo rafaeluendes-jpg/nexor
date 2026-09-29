@@ -82,6 +82,41 @@ declarada na pagina de privacidade. O que a operacao precisa manter:
 - pedido de exclusao apaga o contato e as conversas dele;
 - as copias de seguranca tambem envelhecem (30 dias por padrao).
 
+### Termo de uso e confidencialidade (desde 29/09/2026)
+
+Todo usuario do CRM aceita o termo antes de ver qualquer dado. Nao e so a
+tela: a API recusa toda rota com dado (`428 TERMO_PENDENTE`) ate o aceite
+da versao vigente. Ficam de fora apenas ler o termo, aceitar, saber quem
+e, trocar a propria senha e sair.
+
+- O aceite guarda usuario, versao, data, IP e navegador
+  (`term_acceptances`) e gera o evento `termo_aceito` na auditoria.
+- Aceitar de novo nao muda a data do primeiro aceite: ela e a prova.
+- Aceitar uma versao que nao e a vigente e recusado (409).
+- O texto mora em `packages/shared/src/termo.ts`. **Mudou o texto, troque
+  a versao**: todos aceitam de novo. Texto novo com versao velha seria
+  aceite de algo que a pessoa nao leu.
+
+### Pedido para parar no WhatsApp
+
+Quem responde PARAR (ou "sair", "stop", "nao quero mais receber"...) e
+atendido na hora, sem depender do robo entender:
+
+- o contato fica marcado para sempre (`contacts.optOutAt`) e aparece com
+  a etiqueta "Nao contatar" na lista de contatos;
+- a conversa sai do robo; recebe uma unica confirmacao;
+- robo e acompanhamento automatico nunca mais falam com ele. Se a pessoa
+  voltar a escrever, uma pessoa da equipe pode responder.
+- O reconhecimento e conservador ("quero parar de trabalhar para abrir uma
+  franquia" nao e pedido de parada): `packages/shared/src/optout.ts`.
+
+### Aviso no primeiro contato
+
+O robo, na primeira mensagem, diz para que os dados serao usados, que a
+pessoa pode responder PARAR e o link da politica de privacidade. Nunca
+pede documento, CPF, dado bancario ou senha pelo WhatsApp. Pedido de
+ver, corrigir ou apagar dados vai para uma pessoa.
+
 ## Se um segredo vazar
 
 1. Trocar o valor no painel de origem (Meta, Supabase, provedor de IA).

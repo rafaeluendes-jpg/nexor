@@ -24,6 +24,8 @@ export function startFollowupWorker(ctx: WorkerContext): Worker {
           status: 'ABERTO',
           lastContactAt: { lt: new Date(agora - 24 * 3_600_000) },
           stage: { key: { in: ['NOVO_LEAD', 'IA_QUALIFICANDO', 'QUALIFICADO'] } },
+          // LGPD: quem pediu para parar nao volta a ser procurado
+          contact: { optOutAt: null },
         },
         take: 100,
       });

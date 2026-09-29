@@ -27,6 +27,7 @@ export function startAiWorker(ctx: WorkerContext): Worker {
         conversationId: conversa.id,
         correlationId: job.data.correlationId,
         maxTokens: ctx.env.AI_MAX_TOKENS,
+        linkPrivacidade: `${ctx.env.LANDING_PUBLIC_URL.replace(/\/$/, '')}/politica-de-privacidade`,
       });
 
       if (resultado.status === 'skipped_disabled') {

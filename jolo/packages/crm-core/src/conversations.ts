@@ -127,6 +127,56 @@ export async function assumidaPeloCelular(
   return atualizada;
 }
 
+/**
+ * LGPD: a pessoa pediu para nao receber mais mensagens. O contato fica
+ * marcado para sempre (robo e acompanhamento automatico nunca mais falam
+ * com ele) e a conversa sai do robo. Se ela voltar a escrever, uma pessoa
+ * pode responder - quem decide voltar a conversar e ela.
+ */
+export async function registrarPedidoParaParar(
+  prisma: PrismaClient,
+  params: { conversationId: string; motivo: string; correlationId?: string },
+): Promise<{ jaEstavaMarcado: boolean }> {
+  const conversa = await prisma.conversation.findUniqueOrThrow({
+    where: { id: params.conversationId },
+    include: { contact: true },
+  });
+  const jaEstavaMarcado = Boolean(conversa.contact.optOutAt);
+  if (!jaEstavaMarcado) {
+    await prisma.contact.update({
+      where: { id: conversa.contactId },
+      data: { optOutAt: new Date(), optOutReason: params.motivo.slice(0, 200) },
+    });
+  }
+  if (conversa.mode === 'AI') {
+    await prisma.conversation.update({
+      where: { id: conversa.id },
+      data: { mode: 'HUMAN', humanTakeoverAt: new Date(), aiPausedUntil: null },
+    });
+    await prisma.aiSession.updateMany({
+      where: { conversationId: conversa.id, status: 'ATIVA' },
+      data: { status: 'PAUSADA' },
+    });
+  }
+  await writeAudit(prisma, {
+    organizationId: conversa.organizationId,
+    event: AUDIT_EVENTS.LEAD_UPDATED,
+    entity: 'contact',
+    entityId: conversa.contactId,
+    actorType: 'WEBHOOK',
+    after: { optOut: true, motivo: params.motivo.slice(0, 200) },
+    correlationId: params.correlationId,
+  });
+  await writeActivity(prisma, {
+    organizationId: conversa.organizationId,
+    leadId: conversa.leadId,
+    type: 'opt_out',
+    title: 'Pediu para não receber mais mensagens',
+    description: params.motivo.slice(0, 200),
+  });
+  return { jaEstavaMarcado };
+}
+
 /** Devolve a conversa para a IA, quando autorizado. */
 export async function releaseToAi(
   prisma: PrismaClient,

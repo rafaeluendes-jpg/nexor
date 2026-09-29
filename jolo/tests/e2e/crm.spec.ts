@@ -137,6 +137,10 @@ test.describe('permissao por papel', () => {
     expect(entrada.status, 'a conta nova entra').toBe(200);
     const restrito = (entrada.body as { accessToken: string }).accessToken;
 
+    // conta nova aceita o termo de uso antes de tudo (LGPD; o bloqueio e provado em termo.spec.ts)
+    const termo = (await (await request.get(`${URLS.api}/termos/atual`, { headers: auth(restrito) })).json()) as { versao: string };
+    expect((await request.post(`${URLS.api}/termos/aceitar`, { headers: auth(restrito), data: { versao: termo.versao } })).status()).toBe(200);
+
     // ve o que pode
     expect((await request.get(`${URLS.api}/leads`, { headers: auth(restrito) })).status()).toBe(200);
 

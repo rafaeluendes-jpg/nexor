@@ -17,8 +17,9 @@ export function startOutboundWorker(ctx: WorkerContext): Worker {
       if (!mensagem || mensagem.direction !== 'OUTBOUND') return;
       if (mensagem.status !== 'QUEUED') return; // ja enviada: nao duplica
 
-      // Ultima trava: resposta da IA ainda na fila quando uma pessoa assumiu.
-      if (mensagem.author === 'AI' && mensagem.conversation.mode !== 'AI') {
+      // Ultima trava: resposta da IA ainda na fila quando uma pessoa assumiu,
+      // ou para quem pediu para nao receber mais mensagens (LGPD).
+      if (mensagem.author === 'AI' && (mensagem.conversation.mode !== 'AI' || mensagem.conversation.contact.optOutAt)) {
         await prisma.message.update({
           where: { id: mensagem.id },
           data: {

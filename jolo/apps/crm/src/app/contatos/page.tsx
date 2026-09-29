@@ -13,6 +13,7 @@ interface Contato {
   email: string | null;
   cidade: string | null;
   criadoEm: string;
+  naoContatarDesde: string | null;
   lead: { id: string; etapa: string; score: number; temperatura: string } | null;
 }
 
@@ -52,7 +53,14 @@ export default function ContatosPage() {
                   <td>
                     {c.lead ? <a href={`/leads/${c.lead.id}`}><strong>{c.nome}</strong></a> : <strong>{c.nome}</strong>}
                   </td>
-                  <td>{c.telefone}</td>
+                  <td>
+                    {c.telefone}
+                    {c.naoContatarDesde ? (
+                      <span className="tag nao-contatar" title={`Pediu em ${data(c.naoContatarDesde)}`}>
+                        Não contatar
+                      </span>
+                    ) : null}
+                  </td>
                   <td>{c.cidade ?? '—'}</td>
                   <td>{c.lead ? rotulo(c.lead.etapa) : '—'}</td>
                   <td>
