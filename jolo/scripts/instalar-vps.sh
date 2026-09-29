@@ -167,10 +167,18 @@ server {
 FIMNGINX
   ENDERECO_FINAL="http://${DOMINIO_CRM}"
 else
+  # Se ja ha site publicado na 80, a landing vai para a 8000 e o site de
+  # la continua respondendo normalmente.
+  if porta_ocupada 80 && ! grep -rq 'proxy_pass http://127.0.0.1:' "${DIR_NGINX}/sites-enabled/" 2>/dev/null; then
+    PORTA_ENTRADA=8000
+  else
+    PORTA_ENTRADA="${PORTA_ENTRADA:-80}"
+  fi
+  [ "$PORTA_ENTRADA" = "80" ] && PADRAO_80=" default_server" || PADRAO_80=""
   cat > "${DIR_NGINX}/sites-available/jolo" <<FIMNGINX
 # Sem dominio ainda: cada parte numa porta, no IP do servidor.
 server {
-    listen 80 default_server;
+    listen ${PORTA_ENTRADA}${PADRAO_80};
     client_max_body_size 25m;
     location / {
         proxy_pass http://127.0.0.1:${PORTA_LANDING:-3000};
@@ -203,11 +211,18 @@ server {
     }
 }
 FIMNGINX
-  ENDERECO_FINAL="porta 8080 do IP do servidor"
+  ENDERECO_FINAL="porta 8080 do IP do servidor (landing na ${PORTA_ENTRADA})"
 fi
 
 ln -sfn "${DIR_NGINX}/sites-available/jolo" "${DIR_NGINX}/sites-enabled/jolo"
-rm -f "${DIR_NGINX}/sites-enabled/default"
+# A pagina de boas-vindas do Ubuntu sai da frente; qualquer OUTRO site que
+# ja estivesse publicado aqui continua onde esta - nao se derruba o que e
+# dos outros para abrir espaco.
+if [ -f "${DIR_NGINX}/sites-enabled/default" ] \
+   && grep -q 'root /var/www/html' "${DIR_NGINX}/sites-enabled/default" 2>/dev/null \
+   && ! grep -q 'server_name .*\..*;' "${DIR_NGINX}/sites-enabled/default" 2>/dev/null; then
+  rm -f "${DIR_NGINX}/sites-enabled/default"
+fi
 }
 
 # ------------------------------------------------------------
@@ -555,9 +570,19 @@ if [ "$FIREWALL" = "sim" ]; then
   if [ -z "$DOMINIO_CRM" ]; then
     ufw allow 8080/tcp >/dev/null
     ufw allow 8081/tcp >/dev/null
+    [ "${PORTA_ENTRADA:-80}" = "80" ] || ufw allow "${PORTA_ENTRADA}/tcp" >/dev/null
   fi
-  yes | ufw enable   >/dev/null 2>&1 || true
-  echo "    firewall: so 22, 80 e 443. Banco e fila nem aparecem de fora."
+  # Num servidor que ja publica outra coisa, ligar o firewall poderia
+  # cortar uma porta que aquele site usa. Entao so liga sozinho em
+  # servidor limpo; se ja estava ligado, as regras acima bastam.
+  if ufw status 2>/dev/null | grep -q '^Status: active'; then
+    echo "    firewall ja estava ligado: liberadas as portas do sistema."
+  elif [ "$(ls -1 "${DIR_NGINX}/sites-enabled" 2>/dev/null | grep -cv '^jolo$')" -gt 0 ]; then
+    aviso "este servidor ja publica outro site: nao liguei o firewall para nao cortar nada dele. Para ligar depois: ufw enable"
+  else
+    yes | ufw enable >/dev/null 2>&1 || true
+    echo "    firewall: so 22, 80 e 443. Banco e fila nem aparecem de fora."
+  fi
 fi
 
 cat <<FIM
