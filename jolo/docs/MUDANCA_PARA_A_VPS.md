@@ -90,6 +90,19 @@ VPS hoje: 2 processadores, 8 GB de memória (4,7 GB em uso), 96 GB de disco
   servidor com os segredos. Restauração provada (clone do bundle da
   Central).
 
+- 29/09/2026 ~15:50: **Central virou para a VPS.** Rafael tirou o domínio
+  do Worker e criou o registro A (DNS only) na Cloudflare; certificado
+  Let's Encrypt emitido na hora (`centraljolo.com.br`), HTTP→HTTPS.
+  Provado no Chromium: /entrar abre, login errado responde "Login ou
+  senha incorretos" (a Central conversa com o Supabase de dentro da VPS),
+  zero erro de console. O Worker continua existindo em
+  `jolo-central.rafaeluendes.workers.dev` até o cancelamento.
+- Falta na Central: a chave da IA (`ANTHROPIC_API_KEY`) estava só no
+  Worker, cifrada — não dá para copiar. Sem ela, os recursos de IA da
+  Central (marketing, ata do Jolô Meet) dizem que falta a chave. Precisa
+  de uma chave nova do console da Anthropic, guardada em
+  `/etc/jolo/central.env`.
+
 ## A virada dos endereços — ordem segura
 
 1. Trocar só o registro A dentro da Cloudflare (efeito em ~5 min) e
