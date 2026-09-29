@@ -332,9 +332,15 @@ function modalConta(id){
     if(!nome){toast('Informe o nome da conta.');return false;}
     var o={nome:nome,banco:sel,tipo:'Banco',agencia:$('cbA').value.trim(),
            numero:$('cbC').value.trim(),saldoInicial:parseFloat($('cbS').value)||0};
-    if(c)Object.assign(c,o);
+    /* grava no registro VIVO (um download com a janela aberta troca os
+       objetos de DB.contas) e só diz "salva" depois de conferir na nuvem */
+    var vivo=c?DB.contas.find(function(x){return x.id===c.id}):null;
+    if(c&&!vivo){toast('Esta conta foi excluída em outro aparelho.');telaContas();return true;}
+    if(vivo)Object.assign(vivo,o);
     else{o.id=uid('ct');DB.contas.push(o);}
-    salvar();telaContas();toast('Conta salva.');return true;
+    salvar();telaContas();
+    conferirConfigNaNuvem('contas',vivo?vivo.id:o.id,'Conta',telaContas);
+    return true;
   });
   function ligaPils(){
     var cx=document.getElementById('bcoGrid');

@@ -453,6 +453,10 @@
    "pontos": 8,
    "roda": true
   },
+  "testes/versao-vista-bancos-taxas.js": {
+   "pontos": 31,
+   "roda": true
+  },
   "testes/versao.js": {
    "pontos": 0,
    "roda": true

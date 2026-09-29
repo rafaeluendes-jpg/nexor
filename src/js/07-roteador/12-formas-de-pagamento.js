@@ -130,6 +130,14 @@ function modalForma(id){
   baseCat();
   var f=id?formaPag(id):null;
   var contas=(DB.contas||[]);
+  /* ==========================================================
+     A CONTA QUE ESTA UNIDADE NAO ENXERGA NAO PODE SER APAGADA (29/09/2026)
+
+     Os botoes de "Conta que recebe" saem das contas DESTE aparelho. Na
+     unidade, o banco da matriz nao esta na lista: nenhum botao ficava
+     marcado, e mudar so a taxa gravava a forma SEM conta por cima do
+     banco configurado. A conta atual aparece marcada, como esta. */
+  var contaOculta=!!(f&&f.contaId&&!contas.some(function(c){return c.id===f.contaId}));
   var h='<div class="mdB">'+
   '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Informações básicas</h3>'+
   '<div class="row2">'+
@@ -163,6 +171,9 @@ function modalForma(id){
   '<div class="contaGrid">'+
    '<label class="contaBox"><input type="radio" name="fpC" value=""'+(!f||!f.contaId?' checked':'')+'>'+
    '<span class="bcoIc" style="background:#9AA7B8">—</span><span><b>Não definir agora</b><small>escolher depois</small></span></label>'+
+   (contaOculta?'<label class="contaBox"><input type="radio" name="fpC" value="'+E(f.contaId)+'" checked>'+
+     '<span class="bcoIc" style="background:var(--ink-3)">$</span><span><b>Conta já definida</b>'+
+     '<small>configurada pela matriz — continua a mesma</small></span></label>':'')+
    contas.map(function(c){
      var b=c.fixa?null:banco(c.banco);
      var cor=c.fixa==='caixa'?'#0E8A46':c.fixa==='cofre'?'#5C6B80':(b?b.c:'#5C6B80');
@@ -180,9 +191,15 @@ function modalForma(id){
       taxaPct:parseFloat($('fpTx').value)||0,taxaFixa:moedaValor('fpTf'),
       dias:parseInt($('fpD').value)||0,contaId:ct?ct.value:'',
       ativa:$('fpA').value==='1',online:$('fpO').checked};
-    if(f)Object.assign(f,o);
+    /* grava no registro VIVO: um download com a janela aberta troca os
+       objetos de DB.formasPag, e o `f` de quando a janela abriu fica solto
+       — a taxa "salva" ia para um objeto que ninguém mais lia */
+    var vivo=f?formaPag(f.id):null;
+    if(f&&!vivo){toast('Esta forma de pagamento foi excluída em outro aparelho.');telaFormasPag();return true;}
+    if(vivo)Object.assign(vivo,o);
     else{o.id=uid('fp');o.ordem=(DB.formasPag||[]).length;DB.formasPag.push(o);}
-    syncFormas();salvar();telaFormasPag();toast('Forma de pagamento salva.');
+    syncFormas();salvar();telaFormasPag();
+    conferirConfigNaNuvem('formasPag',vivo?vivo.id:o.id,'Forma de pagamento',telaFormasPag);
     return true;
   },'lg');
 }

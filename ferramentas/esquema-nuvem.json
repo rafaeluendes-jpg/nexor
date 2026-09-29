@@ -705,7 +705,8 @@
     "criado_em": "timestamp with time zone",
     "ref_local": "text",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone"
    },
    "unicos": [
     [
@@ -1085,7 +1086,8 @@
     "ordem": "integer",
     "ref_local": "text",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone"
    },
    "unicos": [
     [

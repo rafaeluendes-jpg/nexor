@@ -417,7 +417,9 @@ function volta(linhas,fn,atual,col){
         }
         /* valor de fábrica nunca vence a nuvem (28/09/2026) */
         if(x._semente===true)return;
-        if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; return; }
+        /* `_manteveLocal`: a impressao desta linha NAO pode ser gravada
+           como enviada no fim do download (ver anotarImpressoes) */
+        if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; x._manteveLocal=true; return; }
         if(_baixaVelha) meus[x.id]=x;
       });
       if(_baixaVelha)
@@ -647,12 +649,15 @@ function volta(linhas,fn,atual,col){
   var _p48=baixarTab('indicadores_manuais', 'indicadores_manuais'+qs+'&limit=2000');
   var cont=await _p00;
   DB.contas=volta(cont,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
-    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},_ANT('contas'),'contas');
+    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa,
+    /* a versão que desceu: é ela que o envio apresenta ao banco (lei de versão, 29/09/2026) */
+    _alt:x.alterado_em||null}},_ANT('contas'),'contas');
   var fp=await _p01;
   var mapaConta={};cont.forEach(function(x){mapaConta[x.id]=x.ref_local||x.id});
   DB.formasPag=volta(fp,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
     taxaPct:Number(x.taxa_pct)||0,taxaFixa:Number(x.taxa_fixa)||0,dias:x.dias_recebimento||0,
-    contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0}},null,'formasPag');
+    contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0,
+    _alt:x.alterado_em||null}},null,'formasPag');
   var cf=await _p02;
   DB.catfin=volta(cf,function(x){
     var paiRef=x.ref_local||x.id;
@@ -1656,6 +1661,11 @@ function volta(linhas,fn,atual,col){
       if(!v)return;
       _VINC.forEach(function(c){
         if(!v[c])return;                       /* aqui também estava vazio: nada a fazer */
+        /* a forma de pagamento SEM conta na nuvem é decisão de alguém
+           ("Não definir agora"), não vínculo perdido — se as contas foram
+           lidas, a tradução não falhou. Religar aqui subia a conta antiga
+           por cima dessa decisão (auditoria 29/09/2026). */
+        if(k==='formasPag'&&c==='contaId'&&(_FALHOU_BAIXA||[]).indexOf('contas_capital')<0)return;
         if(x[c])return;                        /* a nuvem trouxe vínculo: ela manda */
         x[c]=v[c];_religados++;                /* a nuvem veio vazia: mantém o daqui */
       });
@@ -1783,6 +1793,15 @@ function volta(linhas,fn,atual,col){
      ========================================================== */
   NUVEM.sujo=false; DB._sujo=false;
   clearTimeout(_timerSync);
+  /* ...menos o que o download manteve por ainda não ter subido: o envio
+     dessas alterações é agendado de novo, senão ele era cancelado aqui e
+     só sairia na próxima mudança qualquer (29/09/2026) */
+  if(typeof _pendentesMantidos!=='undefined'&&_pendentesMantidos>0){
+    NUVEM.sujo=true; DB._sujo=true;
+    logNuvem(_pendentesMantidos+' alteração(ões) deste aparelho ainda não enviadas '+
+      'foram mantidas pelo download — enviando agora');
+    agendarSync();
+  }
   /* ==========================================================
      UMA COISA O DOWNLOAD NAO PODE DECLARAR LIMPA
 

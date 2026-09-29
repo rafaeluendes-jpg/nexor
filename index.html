@@ -8368,7 +8368,7 @@ setInterval(function(){
    Para acrescentar campo novo: só incluir no "campos".
    ========================================================== */
 var MAPA=[
- {col:'contas', espelha:true,      tab:'contas_capital',
+ {col:'contas', espelha:true,      tab:'contas_capital', versao:true,
   campos:function(x){return {nome:x.nome,tipo:x.tipo||'Banco',banco:x.banco||null,agencia:x.agencia||null,
     numero:x.numero||null,saldo_inicial:n(x.saldoInicial),fixa:x.fixa||null,
     /* `sucursais` sobe: sem isto a liberacao por unidade morre no
@@ -8418,7 +8418,7 @@ var MAPA=[
        caminho e a loja nao ve o cadastro (V188) */
     sucursais:x.sucursais||[]}}},
 
- {col:'formasPag', espelha:true,   tab:'formas_pagamento',
+ {col:'formasPag', espelha:true,   tab:'formas_pagamento', versao:true,
   campos:function(x,i){return {nome:x.nome,tipo:x.tipo||'outro',bandeira:x.bandeira||null,
     taxa_pct:n(x.taxaPct),taxa_fixa:n(x.taxaFixa),dias_recebimento:n(x.dias),
     conta_id:fk('contas',x.contaId),ativa:x.ativa!==false,online:!!x.online,ordem:ordemDe(x,i),
@@ -9393,6 +9393,85 @@ function impressaoDaLinha(E,x,i){
   return hashTexto(JSON.stringify(o)+extra);
 }
 /* ==========================================================
+   A LINHA QUE VOLTOU DA NUVEM E A QUE SUBIU? (29/09/2026)
+
+   Serve a lei de versao (contas e formas de pagamento): se a nuvem
+   recusou a gravacao, ela devolve o que ja estava salvo, e os campos nao
+   batem com os que subiram. Compara so o conteudo que o aparelho manda.
+   Na duvida responde "nao": o custo e baixar a nuvem de novo, nunca
+   perder o que esta salvo. */
+function linhaAceitaPelaNuvem(o,r){
+  if(!o||!r)return false;
+  function nada(v){ return v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length); }
+  for(var k in o){
+    if(k==='versao_vista'||k==='ref_local'||k==='loja_id'||k==='sucursal_id')continue;
+    var a=o[k],b=r[k];
+    if(nada(a)&&nada(b))continue;
+    if(nada(a)||nada(b))return false;
+    if(typeof a==='number'||typeof b==='number'){
+      if(!(Math.abs(Number(a)-Number(b))<1e-9))return false;
+      continue;
+    }
+    if(typeof a==='object'||typeof b==='object'){
+      if(JSON.stringify(a)!==JSON.stringify(b))return false;
+      continue;
+    }
+    if(String(a)!==String(b))return false;
+  }
+  return true;
+}
+/* ==========================================================
+   "SALVO" SO DEPOIS QUE A NUVEM CONFIRMOU — BANCO E TAXA (29/09/2026)
+
+   A janela do banco e a da forma de pagamento diziam "salva" na hora do
+   clique. Agora o envio sai, a linha e lida de volta da nuvem e comparada
+   com o que a pessoa salvou. Tres respostas honestas: conferida; ainda
+   subindo (sem internet ou fila); ou a nuvem manteve outro valor — ai a
+   tela e atualizada com o que vale, para a pessoa conferir. */
+async function conferirConfigNaNuvem(col,id,rotulo,redesenhar){
+  if(!NUVEM.ligada){
+    toast(rotulo+' salva neste aparelho. Sobe assim que a internet voltar.');
+    return false;
+  }
+  toast(rotulo+' salva — conferindo na nuvem…');
+  try{ await sincronizar(); }catch(e){ _quieto(e,'conferirConfigNaNuvem'); }
+  var _ate=Date.now()+30000;
+  while(Date.now()<_ate&&(NUVEM.sincronizando||NUVEM.pendente)){
+    await new Promise(function(r){setTimeout(r,400)});
+  }
+  var E=(MAPA||[]).find(function(e){return e.col===col});
+  var lista=DB[col]||[], k=-1;
+  for(var i=0;i<lista.length;i++){ if(lista[i]&&lista[i].id===id){k=i;break;} }
+  var x=k>=0?lista[k]:null;
+  if(!E||!x)return false;
+  if(temMudancaNaoEnviada(col,x,k)){
+    toast(rotulo+' salva neste aparelho — ainda subindo para a nuvem.');
+    return false;
+  }
+  var linhas=null;
+  try{
+    linhas=await api(E.tab+'?loja_id=eq.'+NUVEM.loja+'&ref_local=eq.'+
+      encodeURIComponent(id)+'&select=*');
+  }catch(e){
+    toast(rotulo+' salva — não consegui conferir na nuvem agora.');
+    return false;
+  }
+  var r=(linhas||[])[0];
+  if(r&&linhaAceitaPelaNuvem(E.campos(x,k),r)){
+    x._alt=r.alterado_em||x._alt||null;
+    toast(rotulo+' salva e conferida na nuvem.');
+    return true;
+  }
+  await confirmar({titulo:'A nuvem manteve o valor que já estava salvo',
+    texto:rotulo+': esta alteração não foi gravada.',
+    aviso:'Normalmente é porque outro aparelho alterou este cadastro antes. '+
+      'A tela agora mostra o que está valendo — confira e, se precisar, altere de novo.',
+    ok:'Entendi',cancelar:null,tipo:'info'});
+  try{ await baixarDaNuvem(true); }catch(e){ _quieto(e,'conferirConfigNaNuvem'); }
+  try{ if(typeof redesenhar==='function')redesenhar(); }catch(e){ _quieto(e,'conferirConfigNaNuvem'); }
+  return false;
+}
+/* ==========================================================
    O QUE ACABOU DE DESCER NAO PRECISA SUBIR DE VOLTA
 
    AQUI ESTAVA O CAIXA DO DIA 27 REABRINDO SOZINHO.
@@ -9465,12 +9544,24 @@ function temMudancaNaoEnviada(col,x,i){
     return impressaoDaLinha(E,x,i||0)!==guardada;
   }catch(e){ _quieto(e,'temMudancaNaoEnviada'); return true; }
 }
+/* ==========================================================
+   ALTERACAO QUE O DOWNLOAD MANTEVE NAO E "JA ENVIADA" (29/09/2026)
+
+   O dono salva uma taxa; antes de o envio sair (2,5 s), chega um
+   download. volta() mantem a linha dele, certo — mas aqui a impressao
+   DESSA linha era gravada como "ultimo envio confirmado". O envio
+   seguinte nao via mudanca, nada subia, e o download depois devolvia o
+   valor antigo da nuvem: "salvei e sumiu". Linha marcada por volta()
+   (`_manteveLocal`) guarda a impressao ANTERIOR — continua pendente e
+   sobe no proximo envio, que o fim do download agenda. */
+var _pendentesMantidos=0;
 function anotarImpressoes(){
   DB._hash=DB._hash||{};
   DB._uuid=DB._uuid||{};
   var l=NUVEM.loja,n=0;
+  _pendentesMantidos=0;
   for(var m=0;m<(MAPA||[]).length;m++){
-    var E=MAPA[m],h={};
+    var E=MAPA[m],h={},antes=DB._hash[E.col]||{};
     var lista=(DB[E.col]||[]).filter(function(x){
       return x&&typeof x==='object'&&x._loja===l;});
     var uu=DB._uuid[E.col]||{};
@@ -9480,6 +9571,11 @@ function anotarImpressoes(){
       if(x._filhoPendente===true)continue;/* tem filho que a nuvem nao tem */
       if(x._fechamentoPendente===true)continue;/* fechado aqui, aberto na nuvem */
       if(!uu[x.id])continue;             /* a nuvem nao conhece: tem de subir */
+      if(x._manteveLocal===true){        /* alteracao que ainda nao subiu */
+        delete x._manteveLocal; _pendentesMantidos++;
+        if(antes[x.id])h[x.id]=antes[x.id];
+        continue;
+      }
       try{ h[x.id]=impressaoDaLinha(E,x,i); n++; }
       catch(e){ _quieto(e,'anotarImpressoes'); }
     }
@@ -10177,7 +10273,10 @@ async function sincronizar(){
         var ehDestino=(DB.fichas||[]).some(function(ff){return ff.destinoId===x.id})
           ||(DB.fichaCats||[]).some(function(cc){return cc.destinoId===x.id});
         if(ehDestino){vistosId[x.id]=true;limpa.push(x);return;}
-        if(chave&&E3.espelha){
+        /* banco e forma de pagamento com o mesmo nome podem ser DOIS (dois
+           "Itaú", agências diferentes): fundir tirava um do aparelho e
+           religava as formas no outro, e isso subia (auditoria 29/09/2026) */
+        if(chave&&E3.espelha&&!E3.versao){
           var ant=vistosNome[chave];
           if(ant!==undefined){
             var peso=function(o){
@@ -10285,6 +10384,18 @@ async function sincronizar(){
          nunca subiam — o aparelho ficava "travado" sem dizer onde. */
       try{
       var lista=DB[E2.col]||[];
+      /* ==========================================================
+         VINCULO PERDIDO E DE CADA TABELA, NAO DA SINCRONIZACAO INTEIRA
+         (29/09/2026 — a cópia velha do banco que subiu às 16:47)
+
+         `_fkPerdido` e um mapa global. O download (anotarImpressoes) e o
+         contador de pendencias o sujavam com um vinculo de OUTRA tabela —
+         o grupo de ficha "Produzido" de Santa Fe, cujo destino desce como
+         identificador cru. A primeira tabela do envio com linhas (contas)
+         via "vinculo perdido", apagava a impressao inteira, e o envio
+         seguinte subia TODAS as contas do aparelho por cima da nuvem.
+         Agora cada tabela comeca limpa e so conta os proprios vinculos. */
+      _fkPerdido={};
 
       /* ---- ENVIO INCREMENTAL ----
          Antes, cada mudanca reenviava o banco inteiro: milhares de linhas e, nas
@@ -10330,6 +10441,10 @@ async function sincronizar(){
           o.ref_local=x.id;
           /* a mesma conta que a volta da nuvem usa — impressaoDaLinha */
           hNovo[x.id]=impressaoDaLinha(E2,x,i);
+          /* a versão que este aparelho viu por último: o banco recusa a
+             gravação se a nuvem tiver uma mais nova (20260929_versao_vista).
+             Vai DEPOIS da impressão: trocar de versão não é alteração. */
+          if(E2.versao)o.versao_vista=x._alt||null;
           /* ==========================================================
              O PAI COM FILHO PRESO PRECISA SUBIR DE NOVO — E LEVAR O FILHO
 
@@ -10373,6 +10488,30 @@ async function sincronizar(){
           if(_o){delete _o._novoAqui;delete _o._filhoPendente;
                  delete _o._fechamentoPendente;delete _o._semente;}
         });
+        /* ==========================================================
+           A NUVEM SO ACEITA DE QUEM VIU A VERSAO DE HOJE (29/09/2026)
+
+           Aceita: a linha que voltou e a que subiu — guarda-se a versao
+           nova, e a proxima alteracao deste aparelho passa. Recusada: a
+           nuvem devolveu o que ja estava salvo. O aparelho nao insiste (a
+           impressao fica como enviada) e baixa a nuvem em seguida, para a
+           tela mostrar o que vale. */
+        if(E2.versao&&salvos.length){
+          var _subiu={},_velhas=0;
+          envio.forEach(function(o){_subiu[o.ref_local]=o;});
+          salvos.forEach(function(r){
+            var o=_subiu[r.ref_local];
+            var x=o?lista.find(function(y){return y.id===r.ref_local}):null;
+            if(!x)return;
+            if(linhaAceitaPelaNuvem(o,r)){ x._alt=r.alterado_em||x._alt||null; return; }
+            _velhas++;
+          });
+          if(_velhas){
+            NUVEM._rebaixar=true;
+            logNuvem(E2.tab+': '+_velhas+' registro(s) deste aparelho estavam numa versão '+
+              'antiga — a nuvem manteve o que já estava salvo',true);
+          }
+        }
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
         var confirmados={};
         salvos.forEach(function(r){if(r.ref_local)confirmados[r.ref_local]=true});
@@ -10795,6 +10934,13 @@ async function sincronizar(){
     /* rabicho: os avisos das minhas gravacoes ainda estao a caminho */
     pausaTempoReal(4000);
     if(NUVEM.pendente){NUVEM.pendente=false;agendarSync();}
+    /* a nuvem recusou uma cópia antiga: a tela passa a mostrar o que vale */
+    if(NUVEM._rebaixar){
+      NUVEM._rebaixar=false;
+      setTimeout(function(){
+        try{ baixarDaNuvem(true); }catch(e){ _quieto(e,'sincronizar/rebaixar'); }
+      },400);
+    }
   }
 }
 
@@ -11270,7 +11416,9 @@ function volta(linhas,fn,atual,col){
         }
         /* valor de fábrica nunca vence a nuvem (28/09/2026) */
         if(x._semente===true)return;
-        if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; return; }
+        /* `_manteveLocal`: a impressao desta linha NAO pode ser gravada
+           como enviada no fim do download (ver anotarImpressoes) */
+        if(temMudancaNaoEnviada(col,x,i)){ meus[x.id]=x; x._manteveLocal=true; return; }
         if(_baixaVelha) meus[x.id]=x;
       });
       if(_baixaVelha)
@@ -11500,12 +11648,15 @@ function volta(linhas,fn,atual,col){
   var _p48=baixarTab('indicadores_manuais', 'indicadores_manuais'+qs+'&limit=2000');
   var cont=await _p00;
   DB.contas=volta(cont,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
-    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},_ANT('contas'),'contas');
+    agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa,
+    /* a versão que desceu: é ela que o envio apresenta ao banco (lei de versão, 29/09/2026) */
+    _alt:x.alterado_em||null}},_ANT('contas'),'contas');
   var fp=await _p01;
   var mapaConta={};cont.forEach(function(x){mapaConta[x.id]=x.ref_local||x.id});
   DB.formasPag=volta(fp,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,bandeira:x.bandeira,
     taxaPct:Number(x.taxa_pct)||0,taxaFixa:Number(x.taxa_fixa)||0,dias:x.dias_recebimento||0,
-    contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0}},null,'formasPag');
+    contaId:mapaConta[x.conta_id]||'',ativa:x.ativa!==false,online:!!x.online,ordem:x.ordem||0,
+    _alt:x.alterado_em||null}},null,'formasPag');
   var cf=await _p02;
   DB.catfin=volta(cf,function(x){
     var paiRef=x.ref_local||x.id;
@@ -12509,6 +12660,11 @@ function volta(linhas,fn,atual,col){
       if(!v)return;
       _VINC.forEach(function(c){
         if(!v[c])return;                       /* aqui também estava vazio: nada a fazer */
+        /* a forma de pagamento SEM conta na nuvem é decisão de alguém
+           ("Não definir agora"), não vínculo perdido — se as contas foram
+           lidas, a tradução não falhou. Religar aqui subia a conta antiga
+           por cima dessa decisão (auditoria 29/09/2026). */
+        if(k==='formasPag'&&c==='contaId'&&(_FALHOU_BAIXA||[]).indexOf('contas_capital')<0)return;
         if(x[c])return;                        /* a nuvem trouxe vínculo: ela manda */
         x[c]=v[c];_religados++;                /* a nuvem veio vazia: mantém o daqui */
       });
@@ -12636,6 +12792,15 @@ function volta(linhas,fn,atual,col){
      ========================================================== */
   NUVEM.sujo=false; DB._sujo=false;
   clearTimeout(_timerSync);
+  /* ...menos o que o download manteve por ainda não ter subido: o envio
+     dessas alterações é agendado de novo, senão ele era cancelado aqui e
+     só sairia na próxima mudança qualquer (29/09/2026) */
+  if(typeof _pendentesMantidos!=='undefined'&&_pendentesMantidos>0){
+    NUVEM.sujo=true; DB._sujo=true;
+    logNuvem(_pendentesMantidos+' alteração(ões) deste aparelho ainda não enviadas '+
+      'foram mantidas pelo download — enviando agora');
+    agendarSync();
+  }
   /* ==========================================================
      UMA COISA O DOWNLOAD NAO PODE DECLARAR LIMPA
 
@@ -14132,7 +14297,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V363.0.0';
+var VERSAO='V364.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -27557,9 +27722,15 @@ function modalConta(id){
     if(!nome){toast('Informe o nome da conta.');return false;}
     var o={nome:nome,banco:sel,tipo:'Banco',agencia:$('cbA').value.trim(),
            numero:$('cbC').value.trim(),saldoInicial:parseFloat($('cbS').value)||0};
-    if(c)Object.assign(c,o);
+    /* grava no registro VIVO (um download com a janela aberta troca os
+       objetos de DB.contas) e só diz "salva" depois de conferir na nuvem */
+    var vivo=c?DB.contas.find(function(x){return x.id===c.id}):null;
+    if(c&&!vivo){toast('Esta conta foi excluída em outro aparelho.');telaContas();return true;}
+    if(vivo)Object.assign(vivo,o);
     else{o.id=uid('ct');DB.contas.push(o);}
-    salvar();telaContas();toast('Conta salva.');return true;
+    salvar();telaContas();
+    conferirConfigNaNuvem('contas',vivo?vivo.id:o.id,'Conta',telaContas);
+    return true;
   });
   function ligaPils(){
     var cx=document.getElementById('bcoGrid');
@@ -27727,6 +27898,14 @@ function modalForma(id){
   baseCat();
   var f=id?formaPag(id):null;
   var contas=(DB.contas||[]);
+  /* ==========================================================
+     A CONTA QUE ESTA UNIDADE NAO ENXERGA NAO PODE SER APAGADA (29/09/2026)
+
+     Os botoes de "Conta que recebe" saem das contas DESTE aparelho. Na
+     unidade, o banco da matriz nao esta na lista: nenhum botao ficava
+     marcado, e mudar so a taxa gravava a forma SEM conta por cima do
+     banco configurado. A conta atual aparece marcada, como esta. */
+  var contaOculta=!!(f&&f.contaId&&!contas.some(function(c){return c.id===f.contaId}));
   var h='<div class="mdB">'+
   '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Informações básicas</h3>'+
   '<div class="row2">'+
@@ -27760,6 +27939,9 @@ function modalForma(id){
   '<div class="contaGrid">'+
    '<label class="contaBox"><input type="radio" name="fpC" value=""'+(!f||!f.contaId?' checked':'')+'>'+
    '<span class="bcoIc" style="background:#9AA7B8">—</span><span><b>Não definir agora</b><small>escolher depois</small></span></label>'+
+   (contaOculta?'<label class="contaBox"><input type="radio" name="fpC" value="'+E(f.contaId)+'" checked>'+
+     '<span class="bcoIc" style="background:var(--ink-3)">$</span><span><b>Conta já definida</b>'+
+     '<small>configurada pela matriz — continua a mesma</small></span></label>':'')+
    contas.map(function(c){
      var b=c.fixa?null:banco(c.banco);
      var cor=c.fixa==='caixa'?'#0E8A46':c.fixa==='cofre'?'#5C6B80':(b?b.c:'#5C6B80');
@@ -27777,9 +27959,15 @@ function modalForma(id){
       taxaPct:parseFloat($('fpTx').value)||0,taxaFixa:moedaValor('fpTf'),
       dias:parseInt($('fpD').value)||0,contaId:ct?ct.value:'',
       ativa:$('fpA').value==='1',online:$('fpO').checked};
-    if(f)Object.assign(f,o);
+    /* grava no registro VIVO: um download com a janela aberta troca os
+       objetos de DB.formasPag, e o `f` de quando a janela abriu fica solto
+       — a taxa "salva" ia para um objeto que ninguém mais lia */
+    var vivo=f?formaPag(f.id):null;
+    if(f&&!vivo){toast('Esta forma de pagamento foi excluída em outro aparelho.');telaFormasPag();return true;}
+    if(vivo)Object.assign(vivo,o);
     else{o.id=uid('fp');o.ordem=(DB.formasPag||[]).length;DB.formasPag.push(o);}
-    syncFormas();salvar();telaFormasPag();toast('Forma de pagamento salva.');
+    syncFormas();salvar();telaFormasPag();
+    conferirConfigNaNuvem('formasPag',vivo?vivo.id:o.id,'Forma de pagamento',telaFormasPag);
     return true;
   },'lg');
 }

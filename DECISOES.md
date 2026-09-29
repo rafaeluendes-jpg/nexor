@@ -7225,3 +7225,24 @@ partir da movimentação de estoque `mv_mukgya1yg2n5`: os dois aparelhos de
 Santa Fé já estavam na V362 e sincronizaram sem ela — tinha se perdido no
 aparelho, recusada pela nuvem antes da V361.
 Guardião: `testes/lei-fabrica-no-banco.js`.
+
+## 29/09/2026 — V363 e V364: nota na loja certa; banco e taxa só saem por exclusão
+
+- **V363.** A nota X260925 (Variegato Morango Zero) entrou na Matriz porque foi
+  lançada no PC de Santa Fé com o login da matriz. Quem vê várias unidades agora
+  confirma a loja antes de digitar a nota ("Trocar de loja" abre a lista). O
+  estoque e o lançamento da nota foram movidos para Santa Fé por SQL.
+- **V364 — lei de versão no banco** (`20260929_versao_vista.sql`). Cada aparelho
+  manda a versão da linha que viu (`versao_vista`); em `contas_capital` e
+  `formas_pagamento` o banco recusa a gravação de quem não viu a versão atual e
+  mantém o que está salvo. Banco e taxa novos entram sempre; só a exclusão feita
+  pela tela apaga. Provado em produção numa transação desfeita.
+- Caminhos fechados no aparelho (auditoria de 29/09): vínculo perdido de outra
+  tabela apagava a impressão das contas; alteração ainda não enviada era
+  declarada "enviada" pelo download; a rede de proteção religava a conta antiga
+  da forma; limpeza por nome fundia dois bancos; a janela da forma apagava a
+  conta que a unidade não enxerga e gravava num objeto solto. O Salvar do banco
+  e da forma só diz "salva" depois de conferir na nuvem.
+- Guardiões: `testes/nota-loja-confirmada.js`, `testes/versao-vista-bancos-taxas.js`.
+- **Ordem de ativação:** a coluna já existe; o gatilho só é ligado depois que a
+  V364 estiver no ar (aparelho antigo não manda a versão e seria recusado).
