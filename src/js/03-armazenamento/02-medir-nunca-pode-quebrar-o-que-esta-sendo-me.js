@@ -644,6 +644,7 @@ function volta(linhas,fn,atual,col){
   var _p45=baixarTab('cupons', 'cupons'+qs);
   var _p46=baixarTab('cupom_usos', 'cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
   var _p47=baixarTab('fiado_movimentos', 'fiado_movimentos'+qs+'&order=data.desc&limit=2000');
+  var _p48=baixarTab('indicadores_manuais', 'indicadores_manuais'+qs+'&limit=2000');
   var cont=await _p00;
   DB.contas=volta(cont,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
     agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa}},_ANT('contas'),'contas');
@@ -1581,6 +1582,12 @@ function volta(linhas,fn,atual,col){
   DB.fiadoMov=volta(fm,function(x){return {id:x.ref_local||x.id,clienteId:mapaCli[x.cliente_id]||'',
     tipo:x.tipo,valor:Number(x.valor)||0,data:x.data,formaId:mapaFP[x.forma_id]||'',
     contaId:mapaConta[x.conta_id]||'',obs:x.observacao||'',pedidoId:mapaPed[x.pedido_id]||''}},null,'fiadoMov');
+
+  /* Indicadores do Mês: funcionários e energia digitados (29/09/2026) */
+  var imn=await _p48;
+  DB.indManuais=volta(imn,function(x){return {id:x.ref_local||x.id,sucursalId:x.sucursal_id||'',
+    mes:x.mes||'',funcionarios:(x.funcionarios==null?null:Number(x.funcionarios)),
+    energiaKwh:(x.energia_kwh==null?null:Number(x.energia_kwh))}},null,'indManuais');
 
   }catch(e){ _falhou=e; }
 

@@ -7191,3 +7191,20 @@ a transferência à origem e ao destino — quem recebe precisa enxergar. Provad
 no banco, com o login de Santa Fé, num teste desfeito.
 Guardião: `testes/unidade-no-envio.js` — toda tabela trancada por unidade
 recebe a unidade no envio.
+
+## V362 — Indicadores do Mês (29/09/2026)
+
+Pedido do Rafael, a partir da planilha de indicadores de Jales: o fechamento do
+mês montado sozinho, em Relatórios › Indicadores do Mês. Duas abas — Vendas e
+clientes; Custos, estoque e equipe —, filtros de mês, unidade e comparação (mês
+anterior, mesmo mês do ano passado, média de 12 meses). O mês em andamento se
+refaz a cada 30 s quando entra venda, compra ou movimentação.
+
+Fontes: pedidos (as mesmas regras do Faturamento), movimentações de estoque (a
+classificação do CMV por Mercadoria, com o estorno de cancelada devolvendo o
+custo e a transferência fora das perdas), saldo de hoje, lançamentos
+(conciliação) e compras sem vínculo. Funcionários e energia (kWh) não passam
+pelo sistema: campo com botão Atualizar, gravado por unidade e mês na tabela
+nova `indicadores_manuais` (migration `20260929_indicadores_manuais.sql`), com a
+receita por funcionário calculada na hora. Sem movimentação no mês, CPV mostra
+"—", nunca um 0,0% falso. Guardião: `testes/indicadores-mes.js` (40).

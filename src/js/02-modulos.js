@@ -28,6 +28,8 @@ var MOD=[
  {id:'historico-posicao',n:'Movimentação de Mercadoria'},
  {id:'notas-entrada',n:'Notas de Entrada'}]},
 {id:'relatorios',n:'Gestão de Relatórios',ic:'file',it:[
+ /* o fechamento do mês montado sozinho (Rafael, 29/09/2026) */
+ {id:'indicadores-mes',n:'Indicadores do Mês'},
  {id:'faturamento-dia',n:'Faturamento por Dia'},
  {id:'itens-consumidos',n:'Itens Consumidos'},
  {id:'itens-vendidos',n:'Itens Vendidos'},
@@ -183,6 +185,8 @@ var SO_FRANQUEADORA=['loja/carga-inicial','fiscal/notas','fiscal/impostos'];
    mexer em nenhum cadastro de usuário: a chave nova aceita a antiga.
    ========================================================== */
 var PERM_EQUIV={
+ /* quem já vê o faturamento do dia vê os indicadores do mês (29/09/2026) */
+ 'relatorios/indicadores-mes':['relatorios/faturamento-dia'],
  'fiscal/cupons':['relatorios/cupons-fiscais'],
  'fiscal/configuracao':['loja/fiscal','loja/dados-fiscais']
 };

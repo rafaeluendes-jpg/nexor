@@ -1753,6 +1753,13 @@ var MAPA=[
        (29/09/2026) — zero acertos na nuvem até aqui */
     sucursal_id:x.sucursalId||lojaAtualId()||null}}},
 
+ /* Indicadores do Mês: o que não passa pelo sistema — funcionários e energia,
+    uma linha por unidade e por mês (29/09/2026) */
+ {col:'indManuais',  tab:'indicadores_manuais',
+  campos:function(x){return {sucursal_id:x.sucursalId||lojaAtualId()||null,mes:x.mes,
+    funcionarios:(x.funcionarios==null?null:n(x.funcionarios)),
+    energia_kwh:(x.energiaKwh==null?null:n(x.energiaKwh))}}},
+
  {col:'cupons', espelha:true,      tab:'cupons',
   campos:function(x){return {codigo:x.codigo,tipo:x.tipo,valor:n(x.valor),
     teto:n(x.tetoDesconto),minimo:n(x.minimo),valido_de:x.de||null,valido_ate:x.ate||null,

@@ -1168,6 +1168,28 @@
     ]
    ]
   },
+  "indicadores_manuais": {
+   "colunas": {
+    "id": "uuid",
+    "loja_id": "uuid",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "mes": "text",
+    "funcionarios": "integer",
+    "energia_kwh": "numeric",
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
+    ]
+   ]
+  },
   "insumos": {
    "colunas": {
     "id": "uuid",

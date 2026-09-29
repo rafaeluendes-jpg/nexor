@@ -237,6 +237,10 @@
    "pontos": 7,
    "roda": true
   },
+  "testes/indicadores-mes.js": {
+   "pontos": 40,
+   "roda": true
+  },
   "testes/interruptor-da-loja.js": {
    "pontos": 44,
    "roda": true
