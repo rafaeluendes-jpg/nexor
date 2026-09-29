@@ -59,6 +59,13 @@ export function startAiWorker(ctx: WorkerContext): Worker {
       }
 
       if (resultado.status === 'answered' && resultado.reply) {
+        // A IA levou alguns segundos pensando. Se nesse meio tempo alguem
+        // respondeu pelo celular ou assumiu no CRM, a resposta dela nao sai.
+        const agora = await prisma.conversation.findUnique({ where: { id: conversa.id } });
+        if (!agora || !aiMayAnswer(agora)) {
+          logger.info({ conversationId: conversa.id }, 'resposta da IA descartada: uma pessoa assumiu');
+          return;
+        }
         const mensagem = await prisma.message.create({
           data: {
             organizationId: conversa.organizationId,

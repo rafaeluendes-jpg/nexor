@@ -1,6 +1,7 @@
 import { Worker } from 'bullmq';
 import { AUDIT_EVENTS, QUEUES, type InboundJob } from '@jolo/shared';
 import {
+  assumidaPeloCelular,
   CHAVES_DE_CONFIGURACAO,
   ensureConversation,
   ensureLead,
@@ -217,6 +218,53 @@ export function startInboundWorker(ctx: WorkerContext): Worker {
         const { QueueBridge } = await import('./bridge.js');
         await QueueBridge.aiTurn(ctx, conversation.id, job.data.correlationId);
         await QueueBridge.excelSync(ctx, org.id, 'lead_atualizado');
+      }
+
+      // ---------- respostas dadas pelo celular (coexistencia) ----------
+      // O socio responde pelo WhatsApp Business do celular: a mensagem entra
+      // na conversa do CRM e a IA para ali, porque uma pessoa assumiu.
+      for (const eco of normalizado.echoes) {
+        if (await prisma.message.findUnique({ where: { wamid: eco.wamid } })) continue;
+
+        const { contact } = await upsertContact(prisma, {
+          organizationId: org.id,
+          phone: eco.to,
+          whatsappId: eco.to,
+        });
+        const { conversation } = await ensureConversation(prisma, {
+          organizationId: org.id,
+          contactId: contact.id,
+        });
+
+        await prisma.message.create({
+          data: {
+            organizationId: org.id,
+            conversationId: conversation.id,
+            direction: 'OUTBOUND',
+            author: 'HUMAN',
+            wamid: eco.wamid,
+            type: eco.type,
+            body: eco.text,
+            payload: eco.raw as object,
+            status: 'SENT',
+            sentAt: eco.timestamp,
+          },
+        });
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: eco.timestamp, unreadCount: 0 },
+        });
+        await assumidaPeloCelular(prisma, {
+          conversationId: conversation.id,
+          correlationId: job.data.correlationId,
+        });
+        await publicarAviso(ctx.redis, {
+          tipo: TIPOS_DE_AVISO.MENSAGEM_NOVA,
+          organizationId: org.id,
+          conversaId: conversation.id,
+          leadId: conversation.leadId ?? undefined,
+          dados: { de: 'celular da empresa' },
+        });
       }
 
       // ---------- confirmacoes de entrega ----------

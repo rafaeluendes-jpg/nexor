@@ -4,6 +4,26 @@ O sistema so fala pelo **WhatsApp Business Platform Cloud API**, da propria
 Meta. Nao ha QR Code, nao ha celular ligado num servidor, nao ha
 biblioteca nao oficial. Isso protege o numero da rede de bloqueio.
 
+## Decisao de 29/09/2026: coexistencia com o celular
+
+O numero da empresa fica **ao mesmo tempo** no WhatsApp Business do celular
+do socio e no CRM (recurso de coexistencia da Meta). O fluxo:
+
+1. O interessado escreve; a mensagem aparece no celular **e** no CRM.
+2. O robo atende pelo CRM e faz a qualificacao.
+3. Se o socio responder pelo celular, a Meta avisa o sistema
+   (`smb_message_echoes`): a resposta entra na conversa do CRM e o robo
+   **para naquela conversa na hora**. Resposta do robo que ja estivesse
+   pronta ou na fila e descartada, nao sai.
+4. Para devolver a conversa ao robo: botao "Devolver para a IA" no CRM.
+
+Condicoes: o numero precisa estar no **WhatsApp Business** (nao no
+WhatsApp comum) e o cadastro na Meta e feito pelo fluxo de cadastro
+incorporado com a opcao de usar o numero do app. Ninguem apaga conta.
+
+Verificacao da empresa (CNPJ) nao e obrigatoria para comecar: sem ela o
+limite e de 250 conversas novas por dia. Fica recomendada, em paralelo.
+
 ## O que depende de voce (operador)
 
 Estas etapas exigem conta e decisao do dono. Nenhuma delas pode ser feita
@@ -40,9 +60,11 @@ interessado para um numero errado.
 
 No painel da Meta, em WhatsApp > Configuracao:
 
-- **URL de callback:** `https://SEU-DOMINIO/webhooks/meta/whatsapp`
+- **URL de callback:** `https://crm.jologelato.com.br/api/webhooks/meta/whatsapp`
+  (enquanto o dominio nao aponta: `https://srv1750169.hstgr.cloud/api/webhooks/meta/whatsapp`)
 - **Token de verificacao:** o mesmo `META_WEBHOOK_VERIFY_TOKEN`
-- **Campos assinados:** `messages`
+- **Campos assinados:** `messages` e `smb_message_echoes` (este ultimo e
+  o que avisa quando alguem respondeu pelo celular)
 
 A Meta faz uma chamada de conferencia na hora de salvar. Se a API estiver
 no ar com o token certo, ela salva; se nao, ela recusa. Nao ha como

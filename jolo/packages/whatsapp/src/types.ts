@@ -33,8 +33,24 @@ export interface NormalizedStatus {
   raw: unknown;
 }
 
+/**
+ * Mensagem que a propria empresa mandou pelo WhatsApp Business do celular
+ * (coexistencia). A Meta avisa pelo campo smb_message_echoes: o CRM
+ * registra na conversa e a IA sai de cena, porque uma pessoa assumiu.
+ */
+export interface NormalizedEcho {
+  wamid: string;
+  /** numero do cliente para quem a empresa escreveu */
+  to: string;
+  type: string;
+  text?: string;
+  timestamp: Date;
+  raw: unknown;
+}
+
 export interface NormalizedWebhook {
   phoneNumberId?: string;
   messages: NormalizedInboundMessage[];
   statuses: NormalizedStatus[];
+  echoes: NormalizedEcho[];
 }

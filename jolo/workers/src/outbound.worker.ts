@@ -17,6 +17,21 @@ export function startOutboundWorker(ctx: WorkerContext): Worker {
       if (!mensagem || mensagem.direction !== 'OUTBOUND') return;
       if (mensagem.status !== 'QUEUED') return; // ja enviada: nao duplica
 
+      // Ultima trava: resposta da IA ainda na fila quando uma pessoa assumiu.
+      if (mensagem.author === 'AI' && mensagem.conversation.mode !== 'AI') {
+        await prisma.message.update({
+          where: { id: mensagem.id },
+          data: {
+            status: 'FAILED',
+            failedAt: new Date(),
+            errorCode: 'HUMANO_ASSUMIU',
+            errorMessage: 'Nao enviada: uma pessoa assumiu a conversa antes.',
+          },
+        });
+        logger.info({ messageId: mensagem.id }, 'resposta da IA cancelada: conversa com humano');
+        return;
+      }
+
       if (!ctx.whatsapp) {
         // Sem credencial: a mensagem fica na fila do banco, marcada, sem sumir.
         await prisma.message.update({

@@ -46,7 +46,52 @@ const status = {
   ],
 };
 
+// Resposta dada pelo WhatsApp Business do celular (coexistencia).
+const eco = {
+  object: 'whatsapp_business_account',
+  entry: [
+    {
+      id: 'WABA',
+      changes: [
+        {
+          field: 'smb_message_echoes',
+          value: {
+            messaging_product: 'whatsapp',
+            metadata: { phone_number_id: 'PNID' },
+            message_echoes: [
+              {
+                from: '5517999990000',
+                to: '5517988887777',
+                id: 'wamid.ECO1',
+                timestamp: '1788800200',
+                type: 'text',
+                text: { body: 'Oi Maria, aqui e o Rafael' },
+              },
+            ],
+          },
+        },
+      ],
+    },
+  ],
+};
+
 describe('leitura do webhook', () => {
+  it('le a resposta dada pelo celular da empresa', () => {
+    const r = parseMetaWebhook(eco);
+    expect(r.messages).toHaveLength(0); // nao e mensagem do cliente
+    expect(r.echoes).toHaveLength(1);
+    expect(r.echoes[0]).toMatchObject({
+      wamid: 'wamid.ECO1',
+      to: '5517988887777',
+      text: 'Oi Maria, aqui e o Rafael',
+    });
+  });
+
+  it('eco repetido tem a mesma chave: nao processa duas vezes', () => {
+    expect(webhookEventKey(eco)).toBe(webhookEventKey(JSON.parse(JSON.stringify(eco))));
+    expect(webhookEventKey(eco)).toContain('e:wamid.ECO1');
+  });
+
   it('extrai mensagem, contato e anuncio de origem', () => {
     const r = parseMetaWebhook(mensagem);
     expect(r.messages).toHaveLength(1);

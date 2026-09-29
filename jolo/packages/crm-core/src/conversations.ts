@@ -80,6 +80,53 @@ export async function takeOver(
   return atualizada;
 }
 
+/**
+ * Alguem da empresa respondeu pelo WhatsApp Business do celular
+ * (coexistencia). E o mesmo efeito do "assumir" do CRM: a IA para na hora
+ * naquela conversa. So nao ha usuario do CRM por tras - quem respondeu foi
+ * o celular da empresa -, entao o dono da conversa continua o mesmo.
+ */
+export async function assumidaPeloCelular(
+  prisma: PrismaClient,
+  params: { conversationId: string; correlationId?: string },
+): Promise<Conversation> {
+  const conversa = await prisma.conversation.findUniqueOrThrow({ where: { id: params.conversationId } });
+  if (conversa.mode === 'HUMAN') return conversa; // ja estava com gente
+
+  const atualizada = await prisma.conversation.update({
+    where: { id: params.conversationId },
+    data: { mode: 'HUMAN', humanTakeoverAt: new Date(), aiPausedUntil: null },
+  });
+  await prisma.aiSession.updateMany({
+    where: { conversationId: params.conversationId, status: 'ATIVA' },
+    data: { status: 'PAUSADA' },
+  });
+  await prisma.aiHandoff.create({
+    data: {
+      conversationId: params.conversationId,
+      toUserId: conversa.ownerId,
+      direction: 'AI_TO_HUMAN',
+      reason: 'Respondido pelo WhatsApp do celular',
+    },
+  });
+  await writeAudit(prisma, {
+    organizationId: conversa.organizationId,
+    event: AUDIT_EVENTS.HUMAN_TAKEOVER,
+    entity: 'conversation',
+    entityId: conversa.id,
+    actorType: 'WEBHOOK',
+    after: { mode: 'HUMAN', origem: 'celular' },
+    correlationId: params.correlationId,
+  });
+  await writeActivity(prisma, {
+    organizationId: conversa.organizationId,
+    leadId: conversa.leadId,
+    type: 'human_takeover',
+    title: 'Respondido pelo celular: a IA parou nesta conversa',
+  });
+  return atualizada;
+}
+
 /** Devolve a conversa para a IA, quando autorizado. */
 export async function releaseToAi(
   prisma: PrismaClient,

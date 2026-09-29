@@ -1,4 +1,4 @@
-import type { NormalizedInboundMessage, NormalizedStatus, NormalizedWebhook } from './types';
+import type { NormalizedEcho, NormalizedInboundMessage, NormalizedStatus, NormalizedWebhook } from './types';
 
 function toDate(ts: unknown): Date {
   const n = Number(ts);
@@ -25,6 +25,7 @@ function textOf(msg: Record<string, any>): string | undefined {
 export function parseMetaWebhook(payload: unknown): NormalizedWebhook {
   const messages: NormalizedInboundMessage[] = [];
   const statuses: NormalizedStatus[] = [];
+  const echoes: NormalizedEcho[] = [];
   let phoneNumberId: string | undefined;
 
   const body = payload as Record<string, any>;
@@ -53,6 +54,19 @@ export function parseMetaWebhook(payload: unknown): NormalizedWebhook {
         });
       }
 
+      // Resposta dada pelo celular (coexistencia com o WhatsApp Business app).
+      for (const eco of Array.isArray(value?.message_echoes) ? value.message_echoes : []) {
+        if (!eco?.id || !eco?.to) continue;
+        echoes.push({
+          wamid: String(eco.id),
+          to: String(eco.to),
+          type: String(eco.type ?? 'unknown'),
+          text: textOf(eco),
+          timestamp: toDate(eco.timestamp),
+          raw: eco,
+        });
+      }
+
       for (const st of Array.isArray(value?.statuses) ? value.statuses : []) {
         if (!st?.id || !st?.status) continue;
         const erro = Array.isArray(st.errors) ? st.errors[0] : undefined;
@@ -69,7 +83,7 @@ export function parseMetaWebhook(payload: unknown): NormalizedWebhook {
     }
   }
 
-  return { phoneNumberId, messages, statuses };
+  return { phoneNumberId, messages, statuses, echoes };
 }
 
 /** Identificador estavel do evento, para nao processar o mesmo webhook duas vezes. */
@@ -78,6 +92,7 @@ export function webhookEventKey(payload: unknown): string | undefined {
   const partes = [
     ...n.messages.map((m) => `m:${m.wamid}`),
     ...n.statuses.map((s) => `s:${s.wamid}:${s.status}`),
+    ...n.echoes.map((e) => `e:${e.wamid}`),
   ].sort();
   return partes.length ? partes.join('|').slice(0, 400) : undefined;
 }
