@@ -12,12 +12,12 @@ const loginSchema = z.object({
 
 const definirSenhaSchema = z.object({
   token: z.string().min(20).max(200),
-  senha: z.string().min(12).max(200),
+  senha: z.string().min(8).max(200),
 });
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(200),
-  newPassword: z.string().min(12).max(200),
+  newPassword: z.string().min(8).max(200),
 });
 
 @Controller('auth')

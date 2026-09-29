@@ -23,7 +23,7 @@ export default function DefinirSenhaPage() {
     if (t) window.history.replaceState(null, '', window.location.pathname);
   }, []);
 
-  const curta = senha.length > 0 && senha.length < 12;
+  const curta = senha.length > 0 && senha.length < 8;
   const diferente = confirma.length > 0 && confirma !== senha;
 
   return (
@@ -65,12 +65,12 @@ export default function DefinirSenhaPage() {
                 type="password"
                 autoComplete="new-password"
                 required
-                minLength={12}
+                minLength={8}
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
               />
               <small className={curta ? 'dica-erro' : 'dica'}>
-                Pelo menos 12 caracteres, com letra maiúscula, minúscula, número e símbolo — e sem palavras óbvias como "senha", "jolo" ou "gelato".
+                Pelo menos 8 caracteres, com letras e números. Não vale palavra óbvia ("senha", "jolo", "gelato") nem sequência como 12345678.
               </small>
             </div>
 
