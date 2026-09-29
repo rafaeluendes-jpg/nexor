@@ -97,6 +97,15 @@ VPS hoje: 2 processadores, 8 GB de memória (4,7 GB em uso), 96 GB de disco
   senha incorretos" (a Central conversa com o Supabase de dentro da VPS),
   zero erro de console. O Worker continua existindo em
   `jolo-central.rafaeluendes.workers.dev` até o cancelamento.
+- 29/09/2026 16:05: **defeito na virada da Central, corrigido.** Login
+  CERTO devolvia 502 ("upstream sent too big header"): a sessão do
+  Supabase vem em cookies grandes e o buffer padrão do nginx (4–8 KB) não
+  cabia. No navegador aparecia "Application error: a client-side
+  exception". O teste da virada usou login ERRADO, que não devolve
+  cookie — por isso não pegou. Corrigido: `proxy_buffer_size 64k` no site
+  da Central e `large_client_header_buffers 8 32k`
+  (`/etc/nginx/conf.d/jolo-cabecalhos.conf`). **Lição: prova de virada
+  tem de incluir um login que dá certo.**
 - Falta na Central: a chave da IA (`ANTHROPIC_API_KEY`) estava só no
   Worker, cifrada — não dá para copiar. Sem ela, os recursos de IA da
   Central (marketing, ata do Jolô Meet) dizem que falta a chave. Precisa
