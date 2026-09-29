@@ -14297,7 +14297,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V369.0.0';
+var VERSAO='V370.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25010,9 +25010,34 @@ function docFiscalValido(d){
    NCM, ou de substituição tributária sem CEST, para aqui com o nome do
    produto — a SEFAZ recusaria de qualquer jeito.
    ========================================================== */
+/* ==========================================================
+   A FORMA DE PAGAMENTO NO CUPOM (Rafael, 29/09/2026)
+
+   O cupom de Santa Fé saiu com "FORMA DE PAGAMENTO: Outros". A venda
+   foi em dinheiro, e o caixa sabia disso — o botão que ele apertou tem
+   o tipo escrito.
+
+   Esta função procurava só em `DB.formasPag`, a lista que vem da
+   nuvem. O caixa, porém, monta os botões de `FORMAS`, que cai na lista
+   de fábrica enquanto o download não chegou. Quando isso acontece o
+   botão funciona, a venda grava — e só o cupom fiscal sai sem saber o
+   que foi. Duas listas para a mesma pergunta, e a de baixo era a que
+   ninguém via.
+
+   Agora pergunta às duas, na ordem, e ainda ao id da própria forma:
+   `fp_dinheiro` carrega o tipo no nome. "Outros" passa a ser o que
+   realmente não se sabe.
+   ========================================================== */
 function formaSpedy(g){
-  var f=(typeof formaPag==='function'?formaPag(g&&g.forma):null)||{};
+  var id=(g&&g.forma)||'';
+  var f=(typeof formaPag==='function'?formaPag(id):null)
+      ||((typeof FORMAS!=='undefined'&&FORMAS||[]).find(function(x){return x.id===id}))
+      ||{};
   var t=String(f.tipo||'').toLowerCase();
+  if(!t){
+    var m=String(id).match(/^fp[_-]?([a-z]+)/i);
+    if(m)t=m[1].toLowerCase();
+  }
   /* os nomes são os da Spedy (OpenAPI v1): dinheiro é `money` */
   return ({dinheiro:'money',debito:'debitCard',credito:'creditCard',pix:'pix',
            voucher:'mealVoucher',vale:'mealVoucher',fiado:'storeCredit'})[t]||'other';
@@ -25039,6 +25064,38 @@ function ehTaxaEntrega(p,it){
   if(/taxa\s*de\s*entrega/i.test(nome))return true;
   var cat=p&&(DB.categorias||[]).find(function(c){return c.id===p.categoriaId});
   return !!(cat&&/taxa\s*de\s*entrega/i.test(cat.nome||''));
+}
+/* ==========================================================
+   O QUE O CLIENTE ESCOLHEU VAI NA DESCRIÇÃO (Rafael, 29/09/2026)
+
+   *"tem um item que não apareceu aí, que é a borda. O cascão é R$ 18 e
+   a borda é mais R$ 6, dá os R$ 24. Saiu o valor certo, mas não saiu o
+   item."*
+
+   O adicional não é um produto da venda: ele é uma opção do item, e o
+   preço dele já está no preço do item — por isso o total sempre bateu.
+   O que faltava era DIZER. Cupom com o valor certo e sem o que foi
+   comprado é o cupom que o cliente não confere.
+
+   Vai na descrição, e não como linha separada: linha separada precisa
+   de NCM, CFOP e CSOSN próprios, e um adicional não tem cadastro
+   fiscal nenhum — a Receita recusaria a nota inteira.
+
+   O teto de 120 caracteres é da Spedy (xProd, da SEFAZ): o nome do
+   produto tem prioridade, e as opções entram no que couber.
+   ========================================================== */
+function fsDescricaoItem(it,p){
+  var nome=String((it&&it.nome)||(p&&p.nome)||'Item').trim();
+  var ops=((it&&it.opcoes)||[]).map(function(o){
+    return String((o&&o.nome)||o||'').trim();
+  }).filter(Boolean);
+  if(!ops.length)return nome.slice(0,120);
+  var texto=nome+' ('+ops.join(', ')+')';
+  if(texto.length<=120)return texto;
+  /* não cabe tudo: o nome do produto nunca é cortado */
+  var espaco=120-nome.length-4;                 /* ' (' + '…)' */
+  if(espaco<3)return nome.slice(0,120);
+  return nome+' ('+ops.join(', ').slice(0,espaco)+'…)';
 }
 function montarNfce(ped,cupom,suc){
   if(!ped)return {erro:'A venda não está neste aparelho.'};
@@ -25084,7 +25141,7 @@ function montarNfce(ped,cupom,suc){
     var unTrib=p.unTrib||'UN';
     linhas.push({
       code:String(p.codigo||p.id||it.produtoId||('item'+(i+1))).slice(0,60),
-      description:String(it.nome||p.nome||'Item').slice(0,120),
+      description:fsDescricaoItem(it,p),
       ncm:ncm,cest:cest||undefined,cfop:Number(cfop),
       unit:unTrib,quantity:qtd,unitAmount:+(total/qtd).toFixed(4),totalAmount:total,
       unitTax:unTrib,quantityTax:qtd,unitTaxAmount:+(total/qtd).toFixed(4),

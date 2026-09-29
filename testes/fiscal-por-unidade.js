@@ -481,6 +481,59 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
 
      No papel so vale o que uma pessoa le.
      ========================================================== */
+  /* ==========================================================
+     O QUE FOI COMPRADO, E COMO FOI PAGO (Rafael, 29/09/2026)
+
+     O cupom nº 8 de Santa Fé saiu com "Cascao 1 Bola ... 24,00" e
+     "FORMA DE PAGAMENTO: Outros". O cascão é R$ 18 e a borda R$ 6: o
+     VALOR estava certo, e o que faltava era dizer o que o cliente
+     levou e como pagou. Cupom com o total certo e sem o que foi
+     comprado é o cupom que ninguem confere.
+     ========================================================== */
+  grupo('O adicional aparece na descrição');
+  t('a regra mora num lugar só', /function fsDescricaoItem\(it,p\)\{/.test(html));
+  t('o item leva as opções escolhidas', (() => {
+    const m = html.match(/function fsDescricaoItem\(it,p\)\{[\s\S]*?\n\}/);
+    if (!m) return false;
+    const fn = new Function('it', 'p', m[0].replace(/^function fsDescricaoItem\(it,p\)\{/, '').replace(/\}$/, ''));
+    return fn({ nome: 'Cascao 1 Bola', opcoes: [{ nome: 'Borda' }] }, {}) === 'Cascao 1 Bola (Borda)'
+        && fn({ nome: 'Copo', opcoes: [{ nome: 'Morango' }, { nome: 'Chocolate' }] }, {}) === 'Copo (Morango, Chocolate)';
+  })());
+  t('item sem opção continua só o nome', (() => {
+    const m = html.match(/function fsDescricaoItem\(it,p\)\{[\s\S]*?\n\}/);
+    const fn = new Function('it', 'p', m[0].replace(/^function fsDescricaoItem\(it,p\)\{/, '').replace(/\}$/, ''));
+    return fn({ nome: 'Gelato', opcoes: [] }, {}) === 'Gelato' && fn({}, { nome: 'Produto' }) === 'Produto';
+  })());
+  /* 120 é o teto do xProd da SEFAZ: passar disso a nota é recusada */
+  t('nunca passa de 120 letras, e o nome do produto não é cortado', (() => {
+    const m = html.match(/function fsDescricaoItem\(it,p\)\{[\s\S]*?\n\}/);
+    const fn = new Function('it', 'p', m[0].replace(/^function fsDescricaoItem\(it,p\)\{/, '').replace(/\}$/, ''));
+    const r = fn({ nome: 'Copo Grande Especial da Casa',
+                   opcoes: Array.from({ length: 20 }, (_, i) => ({ nome: 'Adicional ' + i })) }, {});
+    return r.length <= 120 && r.startsWith('Copo Grande Especial da Casa');
+  })());
+  t('o cupom usa a regra no lugar do nome cru',
+    /description:fsDescricaoItem\(it,p\)/.test(html));
+
+  grupo('A forma de pagamento no cupom');
+  t('pergunta às duas listas, e ao id da forma', (() => {
+    const m = html.match(/function formaSpedy\(g\)\{[\s\S]*?\n\}/);
+    if (!m) return false;
+    const fn = new Function('g', 'formaPag', 'FORMAS',
+      '"use strict";' + m[0].replace(/^function formaSpedy\(g\)\{/, '').replace(/\}$/, ''));
+    const nada = () => null;
+    return fn({ forma: 'abc' }, (id) => id === 'abc' ? { tipo: 'credito' } : null, []) === 'creditCard'
+        && fn({ forma: 'xyz' }, nada, [{ id: 'xyz', tipo: 'pix' }]) === 'pix'
+        && fn({ forma: 'fp_dinheiro' }, nada, []) === 'money'
+        && fn({ forma: 'fp_debito' }, nada, []) === 'debitCard';
+  })());
+  t('"outros" fica só para o que realmente não se sabe', (() => {
+    const m = html.match(/function formaSpedy\(g\)\{[\s\S]*?\n\}/);
+    const fn = new Function('g', 'formaPag', 'FORMAS',
+      '"use strict";' + m[0].replace(/^function formaSpedy\(g\)\{/, '').replace(/\}$/, ''));
+    return fn({ forma: 'zzz' }, () => null, []) === 'other' && fn({}, () => null, []) === 'other';
+  })());
+
   grupo('O nome do produto no cupom');
   t('a regra do que aparece mora num lugar só',
     /function fsCodigoVisivel\(codigo\)\{/.test(html));
