@@ -7176,3 +7176,18 @@ sete vezes entre 26/08 e 10/09 pelo mesmo caminho — a regra agora é única.
 com o motivo (sem coluna nova no banco).
 
 Guardião: `testes/fechamento-e-semente.js` (34) — reprovado na V359, aprovado na V360.
+
+## V361 — a transferência que sumia (29/09/2026)
+
+A transferência #1 (27/09, Santa Fé → Jales) aparecia em Movimentação de
+Mercadoria e não em Transferência. Causa: a regra de acesso da nuvem de
+`transferencias` exige `sucursal_id` = unidade de quem grava, e o envio nunca
+mandava o campo — toda transferência foi recusada (zero linhas na nuvem, nenhum
+INSERT no audit_log). `acertos` tinha o mesmo buraco (zero linhas).
+
+Correção: o envio leva `sucursal_id` (origem, na transferência); a regra da
+nuvem (migration `20260929_transferencia_origem_e_destino.sql`) passa a mostrar
+a transferência à origem e ao destino — quem recebe precisa enxergar. Provado
+no banco, com o login de Santa Fé, num teste desfeito.
+Guardião: `testes/unidade-no-envio.js` — toda tabela trancada por unidade
+recebe a unidade no envio.

@@ -429,6 +429,10 @@
    "pontos": 8,
    "roda": true
   },
+  "testes/unidade-no-envio.js": {
+   "pontos": 3,
+   "roda": true
+  },
   "testes/usuarios-arvore-e-login-repetido.js": {
    "pontos": 20,
    "roda": true

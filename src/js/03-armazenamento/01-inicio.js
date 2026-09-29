@@ -1434,7 +1434,18 @@ var MAPA=[
     situacao:x.situacao||'enviada',itens:x.itens||[],valor_total:n(x.valorTotal),
     observacao:x.obs||null,enviada_em:x.enviadaEm||null,enviada_por:x.enviadaPor||null,
     recebida_em:x.recebidaEm||null,recebida_por:x.recebidaPor||null,
-    divergencia:!!x.divergencia,data_envio:x.data||null}}},
+    divergencia:!!x.divergencia,data_envio:x.data||null,
+    /* ==========================================================
+       A TRANSFERÊNCIA SUBIA SEM UNIDADE E A NUVEM RECUSAVA (29/09/2026)
+
+       A regra da nuvem para `transferencias` só aceita a linha com
+       `sucursal_id` — e este envio nunca mandou. Toda transferência era
+       recusada: a #1 (27/09, Santa Fé → Jales) chegou como movimentação de
+       estoque, mas o registro dela ficou só no aparelho, e sumiu da tela
+       de Transferência. Zero linhas na nuvem desde sempre.
+       A unidade da transferência é a de ORIGEM; a de destino enxerga pela
+       regra da nuvem (origem_suc/destino_suc). */
+    sucursal_id:x.origemSuc||lojaAtualId()||null}}},
 
  {col:'mesas', espelha:true, tab:'mesas',
   campos:function(x){return {numero:n(x.numero),nome:x.nome||null,
@@ -1737,7 +1748,10 @@ var MAPA=[
     periodo_de:x.de||null,periodo_ate:x.ate||null,qtd:n(x.qtd),taxas:n(x.taxas),
     diaria:n(x.diaria),vendas:n(x.vendas),descontos:n(x.descontos),acrescimos:n(x.acrescimos),
     pago:n(x.pago),conta_id:fk('contas',x.contaId),forma:x.forma||null,
-    observacao:x.obs||null,data:x.data||null}}},
+    observacao:x.obs||null,data:x.data||null,
+    /* mesma recusa da transferência: a regra da nuvem exige a unidade
+       (29/09/2026) — zero acertos na nuvem até aqui */
+    sucursal_id:x.sucursalId||lojaAtualId()||null}}},
 
  {col:'cupons', espelha:true,      tab:'cupons',
   campos:function(x){return {codigo:x.codigo,tipo:x.tipo,valor:n(x.valor),
