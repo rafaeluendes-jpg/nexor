@@ -14297,7 +14297,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V364.0.0';
+var VERSAO='V365.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -25365,7 +25365,14 @@ async function telaFiscalCfg(recarregar){
        (u.cscHomologacao?'cadastrado':'falta')+' / '+(u.cscProducao?'cadastrado':'falta')+'</b></div>'
     :'<div class="hint" style="margin-bottom:10px">Esta unidade ainda não está ligada a uma empresa na Spedy. '+
      (matriz?'Escolha abaixo a empresa com o CNPJ desta loja.':'Peça à matriz para ligar.')+'</div>'+
-     (matriz?'<div id="fsEmpresas"><button class="btnP2" onclick="fsListarEmpresas()">Ver empresas da conta</button></div>':''))+
+     (matriz?'<div id="fsEmpresas"><button class="btnP2" onclick="fsListarEmpresas()">Ver empresas da conta</button>'+
+       /* a empresa pode simplesmente nao existir nesta conta — foi o que
+          aconteceu ao trocar a conta de teste pela de producao, em
+          29/09/2026: a loja ficou sem onde colar o CSC nem o
+          certificado, porque os dois pedem uma empresa ligada. O
+          caminho de saida mora aqui, ao lado da lista. */
+       '<button class="btnP2 ok" style="margin-left:8px" onclick="fsCadastrarEmpresa()">'+
+       sv('check',13)+' Cadastrar esta loja na Spedy</button></div>':''))+
   '</div></div>';
 
   var csc=gerir&&u.vinculada?'<div class="cfgCol"><div class="colH">CSC da SEFAZ</div><div class="fsCorpo">'+
@@ -25475,6 +25482,71 @@ async function fsSalvar(){
   FS.sujo=false;
   await telaFiscalCfg(true);
   toast(r.d.aviso?r.d.aviso:'Tudo salvo.');
+}
+/* ==========================================================
+   CADASTRAR A LOJA NA SPEDY — o caminho que faltava (29/09/2026)
+
+   Trocar a conta de teste pela de producao deixou Santa Fe sem empresa
+   do lado de la, e a tela sem saida: CSC e certificado so aparecem
+   depois que a loja esta ligada a uma empresa, e nao havia como criar
+   a empresa por aqui.
+
+   O formulario ja vem PREENCHIDO com o cadastro da outra conta, pelo
+   CNPJ da loja (`modelo_empresa`). Digitar de novo razao social,
+   endereco e inscricao estadual e onde nasce a diferenca entre o que a
+   SEFAZ tem e o que a nota diz — e a SEFAZ recusa por bem menos.
+   ========================================================== */
+async function fsCadastrarEmpresa(){
+  var suc=_fsSuc(), box=document.getElementById('fsEmpresas');
+  if(box)box.innerHTML='<div class="hint">Procurando o cadastro desta loja…</div>';
+  var r=await fiscalChamar('modelo_empresa',{sucursal:suc});
+  var e=(r.ok&&r.d.empresa)||{};
+  var s=(baseSuc()||[]).find(function(x){return x.id===suc})||{};
+  if(!r.ok&&r.status!==404){
+    if(box)box.innerHTML='<div class="hint">'+E((r.d&&r.d.erro)||'Não consegui buscar.')+'</div>';return;
+  }
+  /* sem modelo na outra conta, o que o Joia ja sabe da loja */
+  var v={razao:e.razao||s.razaoSocial||'',fantasia:e.fantasia||s.nome||'',
+         ie:e.ie||'',email:e.email||s.email||'',telefone:e.telefone||s.telefone||'',
+         rua:e.rua||'',numero:e.numero||'',bairro:e.bairro||'',cep:e.cep||'',
+         cidade:e.cidade||s.cidade||'',uf:e.uf||s.uf||'SP',ibge:e.ibge||'',
+         regime:e.regime||'simplesNacional'};
+  function campo(id,rot,val,dica){
+    return '<div class="fld2"><label>'+E(rot)+'</label><input id="fsNe_'+id+'" value="'+E(val||'')+'"'+
+      (dica?' placeholder="'+E(dica)+'"':'')+'></div>';
+  }
+  if(box)box.innerHTML=
+   '<div class="hint" style="margin:4px 0 9px">'+
+   (r.ok?'Dados trazidos do cadastro desta loja na conta de '+E(r.d.de==='producao'?'produção':'teste')+
+         '. Confira e cadastre.'
+        :'Esta loja ainda não tem cadastro em nenhuma conta da Spedy. Preencha os dados do cartão CNPJ.')+
+   '</div>'+
+   '<div class="row2">'+campo('razao','Razão social',v.razao)+campo('fantasia','Nome fantasia',v.fantasia)+'</div>'+
+   '<div class="row2">'+campo('ie','Inscrição estadual',v.ie,'só números, ou ISENTO')+
+     '<div class="fld2"><label>CNPJ</label><input value="'+E(fsCnpjFmt(s.cnpj))+'" disabled></div></div>'+
+   '<div class="row2">'+campo('cep','CEP',v.cep)+campo('rua','Rua',v.rua)+'</div>'+
+   '<div class="row2">'+campo('numero','Número',v.numero)+campo('bairro','Bairro',v.bairro)+'</div>'+
+   '<div class="row2">'+campo('cidade','Cidade',v.cidade)+campo('uf','UF',v.uf)+'</div>'+
+   '<div class="row2">'+campo('email','E-mail',v.email)+campo('telefone','Telefone',v.telefone)+'</div>'+
+   '<input type="hidden" id="fsNe_ibge" value="'+E(v.ibge)+'">'+
+   '<div class="fld2"><label>Regime tributário</label><select id="fsNe_regime">'+
+    _fsOpc(v.regime,[['simplesNacional','Simples Nacional'],
+      ['simplesNacionalExcessoSublimite','Simples — excesso de sublimite'],
+      ['simplesNacionalMEI','MEI'],['regimeNormal','Regime normal']])+'</select></div>'+
+   '<button class="btnP2 ok" style="margin-top:8px" onclick="fsCriarEmpresa()">'+sv('check',13)+
+   ' Cadastrar na Spedy</button>';
+}
+async function fsCriarEmpresa(){
+  function v(id){var el=document.getElementById('fsNe_'+id);return el?String(el.value||'').trim():'';}
+  var faltam=['razao','rua','numero','bairro','cep','cidade','uf'].filter(function(k){return !v(k)});
+  if(faltam.length){toast('Falta preencher: '+faltam.join(', ')+'.');return;}
+  var r=await fiscalChamar('criar_empresa',{sucursal:_fsSuc(),empresa:{
+    razao:v('razao'),fantasia:v('fantasia'),ie:v('ie'),email:v('email'),telefone:v('telefone'),
+    rua:v('rua'),numero:v('numero'),bairro:v('bairro'),cep:v('cep'),
+    cidade:v('cidade'),uf:v('uf'),ibge:v('ibge'),regime:v('regime')}});
+  if(!r.ok){painelErro('A Spedy não aceitou o cadastro.',(r.d&&r.d.erro)||'O servidor recusou.');return;}
+  await telaFiscalCfg(true);
+  toast('Loja cadastrada na Spedy. Agora envie o certificado e o CSC.');
 }
 async function fsListarEmpresas(){
   var box=document.getElementById('fsEmpresas');

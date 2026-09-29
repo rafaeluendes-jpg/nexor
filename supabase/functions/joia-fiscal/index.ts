@@ -493,6 +493,55 @@ Deno.serve(async (req) => {
     }
 
     /* ======================================================
+       MODELO DA EMPRESA — o cadastro que ja existe na outra conta
+       (29/09/2026)
+
+       Trocar a conta de teste pela de producao deixa a loja sem empresa
+       do lado de la: sao contas diferentes, com empresas diferentes. O
+       cadastro, porem, e o mesmo — razao social, endereco, IE. Ele ja
+       foi digitado uma vez, na conta de teste; repetir a digitacao e
+       onde nasce a diferenca entre o que a SEFAZ tem e o que a nota
+       diz.
+
+       Entao o Joia vai buscar esse cadastro na OUTRA conta, pelo CNPJ
+       da unidade, e devolve para a tela ja preenchido. Nada aqui e
+       segredo: razao social, endereco e IE sao dados publicos do
+       cartao CNPJ — a chave da outra conta nao sai do servidor.
+       ====================================================== */
+    if (acao === "modelo_empresa") {
+      if (!ref || !ehRede) return responde(403, { erro: "Só a matriz vê o cadastro da unidade." }, h);
+      const cnpjUni = digitos(unidadeJoia.cnpj);
+      if (!cnpjUni) return responde(409, { erro: "Esta unidade ainda não tem CNPJ no Joia. Cadastre em Sucursais da Franquia." }, h);
+      /* a outra conta: se a de hoje e producao, a de teste; e vice-versa */
+      const outros = ["spedy_api_key_owner", "spedy_api_key_owner_sandbox", "spedy_api_key_owner_producao"]
+        .filter((n) => n !== conta?.segredo_nome);
+      for (const nome of outros) {
+        const chaveOutra = await segredo(nome);
+        if (!chaveOutra) continue;
+        for (const hostOutro of ["sandbox", "producao"]) {
+          const r = await fetch(BASES[hostOutro] + "/companies?page=1&pageSize=50", {
+            headers: { "X-Api-Key": chaveOutra, "Accept": "application/json" },
+          });
+          if (!r.ok) continue;
+          let d: any = null; try { d = await r.json(); } catch { /* corpo vazio */ }
+          const e = (d?.items || []).find((x: any) => digitos(x.federalTaxNumber) === cnpjUni);
+          if (!e) continue;
+          const a = e.address || {}, c = a.city || {};
+          return responde(200, { ok: true, de: hostOutro, empresa: {
+            razao: e.legalName || null, fantasia: e.name || null,
+            cnpj: digitos(e.federalTaxNumber), ie: e.stateTaxNumber || null,
+            email: e.email || null, telefone: e.phone || null,
+            regime: e.taxRegime || "simplesNacional",
+            rua: a.street || null, numero: a.number || null, bairro: a.district || null,
+            cep: digitos(a.postalCode) || null, complemento: a.additionalInformation || null,
+            cidade: c.name || null, uf: c.state || null, ibge: c.code ? String(c.code) : null,
+          } }, h);
+        }
+      }
+      return responde(404, { erro: "Não achei esta unidade cadastrada na outra conta da Spedy. Preencha os dados à mão." }, h);
+    }
+
+    /* ======================================================
        CRIAR a empresa da unidade na conta (chave da titular)
        ====================================================== */
     if (acao === "criar_empresa") {

@@ -428,6 +428,50 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   t('tela: o botão existe e chama a função',
     /onclick="fsContaChave\(\)"/.test(html) && /async function fsContaChave\(\)/.test(html));
 
+  /* ==========================================================
+     CADASTRAR A LOJA NA CONTA NOVA (29/09/2026)
+
+     Trocar a conta de teste pela de producao deixou Santa Fe sem
+     empresa do lado de la — e a tela sem saida, porque CSC e
+     certificado so aparecem com a loja ja ligada. O caminho de volta
+     tem de existir, e o cadastro tem de vir pronto da outra conta:
+     redigitar razao social e endereco e onde nasce a diferenca entre o
+     que a SEFAZ tem e o que a nota diz.
+     ========================================================== */
+  grupo('Cadastrar a loja na conta nova da Spedy');
+  t('servidor: só a matriz busca o cadastro da outra conta',
+    /acao === "modelo_empresa"[\s\S]{0,160}!ehRede/.test(fonte));
+  /* medido por posição dentro do bloco, e não por uma expressão
+     comprida que quebra a cada comentário novo no meio */
+  t('servidor: procura pelo CNPJ da unidade, não pelo nome', (() => {
+    const b = fonte.split('acao === "modelo_empresa"')[1].split('acao === "criar_empresa"')[0] || '';
+    const declara = b.indexOf('const cnpjUni');
+    const compara = b.indexOf('digitos(x.federalTaxNumber) === cnpjUni');
+    return declara > 0 && compara > declara;
+  })());
+  t('servidor: a chave da outra conta não vai para a tela', (() => {
+    const b = fonte.split('acao === "modelo_empresa"')[1].split('acao === "criar_empresa"')[0] || '';
+    return b.includes('chaveOutra') && !/chave: chaveOutra|apiKey/.test(b);
+  })());
+  t('servidor: sem cadastro na outra conta, diz o que fazer',
+    /Não achei esta unidade cadastrada na outra conta da Spedy\. Preencha os dados à mão\./.test(fonte));
+  t('servidor: unidade sem CNPJ no Joia é barrada antes de perguntar à Spedy', (() => {
+    const b = fonte.split('acao === "modelo_empresa"')[1].split('acao === "criar_empresa"')[0] || '';
+    return b.indexOf('if (!cnpjUni)') > 0 && b.indexOf('if (!cnpjUni)') < b.indexOf('BASES[');
+  })());
+  t('tela: o botão de cadastrar a loja fica ao lado da lista de empresas',
+    /Cadastrar esta loja na Spedy<\/button>/.test(html) && /onclick="fsCadastrarEmpresa\(\)"/.test(html));
+  t('tela: as duas funções existem',
+    /async function fsCadastrarEmpresa\(\)/.test(html) && /async function fsCriarEmpresa\(\)/.test(html));
+  t('tela: o formulário nasce preenchido pelo cadastro da outra conta',
+    /fiscalChamar\('modelo_empresa'/.test(html));
+  t('tela: o CNPJ não se digita — vem da loja e fica travado',
+    /<label>CNPJ<\/label><input value="'\+E\(fsCnpjFmt\(s\.cnpj\)\)\+'" disabled>/.test(html));
+  t('tela: não cadastra com campo obrigatório em branco',
+    /faltam=\['razao','rua','numero','bairro','cep','cidade','uf'\][\s\S]{0,120}if\(faltam\.length\)/.test(html));
+  t('tela: depois de cadastrar, diz qual é o próximo passo',
+    /Loja cadastrada na Spedy\. Agora envie o certificado e o CSC\./.test(html));
+
   grupo('O produto traz os dados fiscais de volta da nuvem');
   t('NCM, CFOP, CSOSN, CST e CEST voltam no download',
     /ncm:x\.ncm\|\|'',cfop:x\.cfop\|\|'',csosn:x\.csosn\|\|'',cst:x\.cst\|\|'',cest:x\.cest\|\|''/.test(html));
