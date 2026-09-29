@@ -14117,11 +14117,22 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
+/* abre a lista "Trocar de loja" a partir de um aviso. No celular o botão
+   "Loja" fica no fim da faixa dos módulos, fora da tela: primeiro ele é
+   trazido para a vista, depois a lista abre (nota de entrada, 29/09/2026).
+   Abre no próximo instante: o clique que fechou o aviso ainda está subindo
+   até a página, e quem fecha menus ao clicar fora fecharia a lista junto. */
+function abrirTrocaDeLoja(){
+  var b=$('sucBtn');
+  if(!b)return;
+  try{ b.scrollIntoView({block:'nearest',inline:'end'}); }catch(e){ _quieto(e,'abrirTrocaDeLoja'); }
+  setTimeout(function(){ if(!$('sucMenu'))toggleSuc(); },0);
+}
 var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V362.0.0';
+var VERSAO='V363.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42221,7 +42232,31 @@ function perNota(n){
 }
 
 /* ---------- JANELA DE LANÇAMENTO ---------- */
-function novaNota(){
+/* ==========================================================
+   A NOTA ENTRA NA LOJA QUE RECEBEU A MERCADORIA (29/09/2026)
+
+   A nota X260925 (Variegato Morango Zero) foi lançada no computador de
+   Santa Fé por um login da matriz: o estoque e o contas a pagar foram para
+   a Matriz, e a ordem de produção de Santa Fé não achou o insumo. Quem
+   circula entre unidades (o mesmo critério do botão "Loja" no alto) agora
+   confirma, ANTES de digitar, em qual loja a nota vai entrar — e, se for
+   outra, o próprio aviso abre a troca de loja, sem nada digitado a perder.
+   No celular o botão "Loja" fica fora da tela, no fim da faixa dos
+   módulos: por isso o aviso não manda procurar, ele abre a lista.
+   Quem é de uma loja só não vê pergunta nenhuma. */
+function novaNota(lojaConfirmada){
+  if(lojaConfirmada!==true&&vejoVariasUnidades()){
+    var loja=nomeLojaAtual();
+    confirmar({titulo:'Nota de entrada de '+loja+'?',
+      texto:'O estoque e o contas a pagar desta nota ficam em '+loja+'.',
+      aviso:'A mercadoria chegou em outra loja? Toque em <b>Trocar de loja</b>, '+
+        'escolha a loja e abra a nota de novo.',
+      ok:'Lançar em '+loja,cancelar:'Trocar de loja',tipo:'pergunta'}).then(function(ok){
+        if(ok){novaNota(true);return;}
+        abrirTrocaDeLoja();
+      });
+    return;
+  }
   baseNotas();
   /* o numero da nota e o da NOTA DO FORNECEDOR: quem digita e a pessoa.
      Nasce vazio (Rafael, 17/09/2026) — antes vinha um numero inventado. */

@@ -112,7 +112,31 @@ function perNota(n){
 }
 
 /* ---------- JANELA DE LANÇAMENTO ---------- */
-function novaNota(){
+/* ==========================================================
+   A NOTA ENTRA NA LOJA QUE RECEBEU A MERCADORIA (29/09/2026)
+
+   A nota X260925 (Variegato Morango Zero) foi lançada no computador de
+   Santa Fé por um login da matriz: o estoque e o contas a pagar foram para
+   a Matriz, e a ordem de produção de Santa Fé não achou o insumo. Quem
+   circula entre unidades (o mesmo critério do botão "Loja" no alto) agora
+   confirma, ANTES de digitar, em qual loja a nota vai entrar — e, se for
+   outra, o próprio aviso abre a troca de loja, sem nada digitado a perder.
+   No celular o botão "Loja" fica fora da tela, no fim da faixa dos
+   módulos: por isso o aviso não manda procurar, ele abre a lista.
+   Quem é de uma loja só não vê pergunta nenhuma. */
+function novaNota(lojaConfirmada){
+  if(lojaConfirmada!==true&&vejoVariasUnidades()){
+    var loja=nomeLojaAtual();
+    confirmar({titulo:'Nota de entrada de '+loja+'?',
+      texto:'O estoque e o contas a pagar desta nota ficam em '+loja+'.',
+      aviso:'A mercadoria chegou em outra loja? Toque em <b>Trocar de loja</b>, '+
+        'escolha a loja e abra a nota de novo.',
+      ok:'Lançar em '+loja,cancelar:'Trocar de loja',tipo:'pergunta'}).then(function(ok){
+        if(ok){novaNota(true);return;}
+        abrirTrocaDeLoja();
+      });
+    return;
+  }
   baseNotas();
   /* o numero da nota e o da NOTA DO FORNECEDOR: quem digita e a pessoa.
      Nasce vazio (Rafael, 17/09/2026) — antes vinha um numero inventado. */

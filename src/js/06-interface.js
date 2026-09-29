@@ -372,11 +372,22 @@ function trocarLoja(id){
   toast('Unidade: '+nomeLojaAtual());
 }
 function fecharSuc(){$('sucBox').innerHTML='';}
+/* abre a lista "Trocar de loja" a partir de um aviso. No celular o botão
+   "Loja" fica no fim da faixa dos módulos, fora da tela: primeiro ele é
+   trazido para a vista, depois a lista abre (nota de entrada, 29/09/2026).
+   Abre no próximo instante: o clique que fechou o aviso ainda está subindo
+   até a página, e quem fecha menus ao clicar fora fecharia a lista junto. */
+function abrirTrocaDeLoja(){
+  var b=$('sucBtn');
+  if(!b)return;
+  try{ b.scrollIntoView({block:'nearest',inline:'end'}); }catch(e){ _quieto(e,'abrirTrocaDeLoja'); }
+  setTimeout(function(){ if(!$('sucMenu'))toggleSuc(); },0);
+}
 var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V362.0.0';
+var VERSAO='V363.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

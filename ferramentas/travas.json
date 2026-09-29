@@ -297,6 +297,10 @@
    "pontos": 16,
    "roda": true
   },
+  "testes/nota-loja-confirmada.js": {
+   "pontos": 15,
+   "roda": true
+  },
   "testes/nota-numero-e-vencimento.js": {
    "pontos": 19,
    "roda": true
