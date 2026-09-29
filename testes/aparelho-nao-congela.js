@@ -63,7 +63,9 @@ console.log('\n── Toda coleção do download passa pela proteção por linha
     chamadas.push(args.slice(last + 1).trim());
   }
   const semNome = chamadas.filter(a => !/^['"]/.test(a));
-  t('o download tem 45 coleções', chamadas.length === 45, chamadas.length);
+  /* 46 desde 29/09/2026: Indicadores do Mês (indicadores_manuais) — e ela
+     também passa o nome, como a regra abaixo exige */
+  t('o download tem 46 coleções', chamadas.length === 46, chamadas.length);
   t('e TODAS passam o nome da coleção — sem isso não há proteção por linha',
     semNome.length === 0, semNome.join(' | '));
 }
