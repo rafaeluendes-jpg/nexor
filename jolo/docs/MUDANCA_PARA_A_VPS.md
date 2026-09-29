@@ -112,6 +112,29 @@ VPS hoje: 2 processadores, 8 GB de memória (4,7 GB em uso), 96 GB de disco
   de uma chave nova do console da Anthropic, guardada em
   `/etc/jolo/central.env`.
 
+## Banco da Central para a VPS — ensaiado em 29/09/2026
+
+- Supabase oficial (docker) em `/opt/supabase-central`: banco, login,
+  API, arquivos, tempo real e funções; tudo só em 127.0.0.1 (porta
+  18000), sem painel e sem pooler. Mesmo JWT secret da nuvem: as chaves
+  e as sessões de hoje continuam valendo. Senhas em `/etc/jolo` (600).
+- Cookie da sessão com nome fixo na Central (commit e9d41b1 do
+  jolo-central): ninguém cai na tela de entrar na troca.
+- Roteiro: `scripts/central-banco-virar.sh` (ENSAIO=1 para ensaiar).
+  Ensaio de ponta a ponta: 88 tabelas iguais, 548 fotos, 13 segredos do
+  cofre, 21 regras de acesso às fotos, gatilho de novo usuário, 5 rotinas
+  (desligadas no ensaio), 7 funções. Login e 22 telas no Chromium sem
+  erro; foto assinada abre; função recusa quem não está logado.
+- Funções que não vieram (sondas de teste, ninguém chama): sonda-push,
+  medir-tempo, livekit-provar.
+- **Muda com a troca:** "esqueci minha senha" deixa de mandar e-mail —
+  quem mandava era o Supabase da nuvem. Precisa de uma conta de e-mail
+  (SMTP). Até lá, a senha se troca pela própria Central.
+- Na troca o roteiro desliga as rotinas da NUVEM (senão aviso em dobro)
+  — única escrita na nuvem. O Worker em `*.workers.dev` continua
+  gravando na nuvem se alguém usar aquele endereço: apagar o Worker
+  depois da troca.
+
 ## A virada dos endereços — ordem segura
 
 1. Trocar só o registro A dentro da Cloudflare (efeito em ~5 min) e
