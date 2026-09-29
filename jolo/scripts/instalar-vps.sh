@@ -493,6 +493,10 @@ fi
 passo "7/10 Instalar dependencias e compilar"
 cd "$APP"
 pnpm install --frozen-lockfile
+# O cliente do banco e gerado a partir do schema, e nao vem pronto no
+# repositorio. Sem gerar antes, o TypeScript nao acha o PrismaClient e a
+# compilacao para no meio (foi o que aconteceu na primeira instalacao).
+pnpm db:generate
 pnpm build
 
 # ------------------------------------------------------------
