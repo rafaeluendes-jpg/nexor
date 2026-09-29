@@ -114,6 +114,15 @@ FIMUNIT
 escrever_nginx() {
 mkdir -p "${DIR_NGINX}/sites-available" "${DIR_NGINX}/sites-enabled"
 
+# Servidor com IPv6 (o endereco da Hostinger tem): a Let's Encrypt confere
+# por ele, entao o nginx tambem precisa escutar ali. Sem IPv6, a linha
+# vira comentario - pedir [::] numa maquina sem IPv6 impede o nginx de subir.
+if ip -6 addr show scope global 2>/dev/null | grep -q inet6; then
+  LINHA_IPV6="listen [::]:80;"
+else
+  LINHA_IPV6="# (sem IPv6 neste servidor)"
+fi
+
 cat > "${DIR_NGINX}/jolo-proxy.conf" <<'FIMPROXY'
 # Cabecalhos que as tres partes esperam de quem esta na frente delas.
 proxy_http_version 1.1;
@@ -133,13 +142,19 @@ case "$DOMINIO_API" in
   *)   CAMINHO_API="" ;;
 esac
 
-if [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_CRM" ]; then
+if [ -n "$DOMINIO_CRM" ]; then
   # A landing responde tambem pelos nomes extras (o www, por exemplo).
-  NOMES_LANDING="${DOMINIO_LANDING}${DOMINIO_LANDING_EXTRA:+ ${DOMINIO_LANDING_EXTRA}}"
+  # Sem dominio proprio ainda, ela segue na porta 8000 do IP.
+  if [ -n "$DOMINIO_LANDING" ]; then
+    ENTRADA_LANDING="listen 80;
+    ${LINHA_IPV6}
+    server_name ${DOMINIO_LANDING}${DOMINIO_LANDING_EXTRA:+ ${DOMINIO_LANDING_EXTRA}};"
+  else
+    ENTRADA_LANDING="listen 8000;"
+  fi
   cat > "${DIR_NGINX}/sites-available/jolo" <<FIMNGINX
 server {
-    listen 80;
-    server_name ${NOMES_LANDING};
+    ${ENTRADA_LANDING}
     client_max_body_size 25m;
     location / {
         proxy_pass http://127.0.0.1:${PORTA_LANDING:-3000};
@@ -149,6 +164,7 @@ server {
 
 server {
     listen 80;
+    ${LINHA_IPV6}
     server_name ${DOMINIO_CRM};
     # planilha de leads e documento do candidato passam por aqui (limite 20 MB)
     client_max_body_size 25m;
@@ -193,6 +209,7 @@ FIMPY
 
 server {
     listen 80;
+    ${LINHA_IPV6}
     server_name ${HOST_API};
     client_max_body_size 25m;
     location / {
@@ -536,21 +553,26 @@ fi
 # Quando os dominios chegam depois (o normal: primeiro sobe pelo IP,
 # depois o DNS fica pronto), os enderecos provisorios em http:// dao lugar
 # aos definitivos. Endereco que ja esta em https:// nao e tocado.
-if [ -n "$DOMINIO_CRM" ] && [ -n "$DOMINIO_LANDING" ]; then
+if [ -n "$DOMINIO_CRM" ]; then
   trocar_provisorio() { # trocar_provisorio <chave> <valor novo>
     grep -q "^$1=http://" "$ENV_ARQ" && sed -i "s#^$1=.*#$1=$2#" "$ENV_ARQ"
     return 0
   }
   ENDERECO_MOTOR="https://${DOMINIO_API:-$DOMINIO_CRM}"
-  ORIGENS="https://${DOMINIO_LANDING},https://${DOMINIO_CRM}"
+  if [ -n "$DOMINIO_LANDING" ]; then
+    ORIGENS="https://${DOMINIO_LANDING},https://${DOMINIO_CRM}"
+  else
+    # landing ainda no IP: a origem dela continua a provisoria
+    ORIGENS="http://${IP_PUBLICO:-127.0.0.1}:8000,https://${DOMINIO_CRM}"
+  fi
   for EXTRA in ${DOMINIO_LANDING_EXTRA:-}; do ORIGENS="${ORIGENS},https://${EXTRA}"; done
   trocar_provisorio API_PUBLIC_URL      "$ENDERECO_MOTOR"
-  trocar_provisorio LANDING_PUBLIC_URL  "https://${DOMINIO_LANDING}"
+  [ -n "$DOMINIO_LANDING" ] && trocar_provisorio LANDING_PUBLIC_URL "https://${DOMINIO_LANDING}"
   trocar_provisorio CRM_PUBLIC_URL      "https://${DOMINIO_CRM}"
   trocar_provisorio NEXT_PUBLIC_API_URL "$ENDERECO_MOTOR"
-  trocar_provisorio NEXT_PUBLIC_SITE_URL "https://${DOMINIO_LANDING}"
-  grep -q "^CORS_ALLOWED_ORIGINS=http://" "$ENV_ARQ" \
-    && sed -i "s#^CORS_ALLOWED_ORIGINS=.*#CORS_ALLOWED_ORIGINS=${ORIGENS}#" "$ENV_ARQ"
+  [ -n "$DOMINIO_LANDING" ] && trocar_provisorio NEXT_PUBLIC_SITE_URL "https://${DOMINIO_LANDING}"
+  grep -q "^CORS_ALLOWED_ORIGINS=.*https://${DOMINIO_CRM}" "$ENV_ARQ" \
+    || sed -i "s#^CORS_ALLOWED_ORIGINS=.*#CORS_ALLOWED_ORIGINS=${ORIGENS}#" "$ENV_ARQ"
   set -a; . "$ENV_ARQ"; set +a
   echo "    enderecos definitivos: ${DOMINIO_LANDING}, ${DOMINIO_CRM}, motor em ${ENDERECO_MOTOR}"
 fi
@@ -618,9 +640,9 @@ echo "    nginx de pe e conferido"
 
 # HTTPS: certificado do Let's Encrypt. So faz sentido depois que o DNS
 # do dominio ja aponta para este servidor - senao a Let's Encrypt recusa.
-if [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_CRM" ]; then
+if [ -n "$DOMINIO_CRM" ]; then
   MEU_IP="$(curl -fsS --max-time 10 https://api.ipify.org || true)"
-  IP_DOMINIO="$(getent hosts "$DOMINIO_CRM" | awk '{print $1}' | head -1 || true)"
+  IP_DOMINIO="$(getent ahostsv4 "$DOMINIO_CRM" | awk '{print $1}' | head -1 || true)"
   if [ -n "$MEU_IP" ] && [ "$MEU_IP" = "$IP_DOMINIO" ]; then
     tem certbot || apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
     ARGS_CERT=""
@@ -628,7 +650,7 @@ if [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_CRM" ]; then
       [ -z "$NOME" ] && continue
       case " $ARGS_CERT " in *" -d $NOME "*) continue ;; esac
       # nome que ainda nao aponta para ca faria a Let's Encrypt recusar o lote inteiro
-      [ "$(getent hosts "$NOME" | awk '{print $1}' | head -1)" = "$MEU_IP" ] || { aviso "$NOME ainda nao aponta para este servidor; ficou de fora do certificado."; continue; }
+      [ "$(getent ahostsv4 "$NOME" | awk '{print $1}' | head -1)" = "$MEU_IP" ] || { aviso "$NOME ainda nao aponta para este servidor; ficou de fora do certificado."; continue; }
       ARGS_CERT="${ARGS_CERT} -d $NOME"
     done
     certbot --nginx --non-interactive --agree-tos --redirect \
