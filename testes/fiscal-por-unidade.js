@@ -451,6 +451,38 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
      ver e clicar tem de estar NA tela — e o teste tem de conseguir
      clicar também.
      ========================================================== */
+  /* ==========================================================
+     O CUPOM FISCAL TEM DE SAIR NA BOBINA (29/09/2026)
+
+     Santa Fé ligou a produção, vendeu — e só a FICHA imprimiu. O
+     campo que manda na impressão do documento fiscal existia no banco
+     e não estava na tela: ficava em "perguntar" para sempre. E
+     "perguntar" não perguntava nada: o código só imprimia com
+     "sempre". Ou seja, a opção do meio era um buraco silencioso.
+     ========================================================== */
+  grupo('Imprimir o cupom fiscal');
+  t('a opção está na tela, com as três escolhas',
+    /<label>Imprimir o cupom fiscal<\/label><select id="fsImp"/.test(html) &&
+    /\['sempre','Sempre — sai na bobina assim que a SEFAZ autoriza'\]/.test(html) &&
+    /\['perguntar','Perguntar a cada venda'\]/.test(html) &&
+    /\['nunca','Nunca — só quando alguém pedir'\]/.test(html));
+  t('salvar leva a escolha para o servidor', (() => {
+    const b = (html.split('async function fsSalvar')[1] || '').split('async function fsSalvarIe')[0];
+    return /imprime:v\('fsImp'\)/.test(b);
+  })());
+  t('ligar a produção não perde a escolha',
+    /async function fsLigarProducao\(\)[\s\S]{0,700}imprime:v\('fsImp'\)/.test(html));
+  t('"sempre" imprime sozinho',
+    /if\(u\.imprime==='sempre'\)\{imprimirDanfe\(c\.id\);return;\}/.test(html));
+  t('"perguntar" agora pergunta de verdade',
+    /u\.imprime==='perguntar'[\s\S]{0,400}confirmar\(\{titulo:'Imprimir o cupom fiscal\?'/.test(html));
+  t('pergunta uma vez só por cupom',
+    /if\(_fsPerguntado\[c\.id\]\)return;[\s\S]{0,40}_fsPerguntado\[c\.id\]=true;/.test(html));
+  t('uma falha ao perguntar não estoura no meio do caixa',
+    /try\{[\s\S]{0,420}_quieto\(e,'fsDepoisDeEmitir'\)/.test(html));
+  t('só imprime cupom autorizado ou em contingência',
+    /function fsDepoisDeEmitir\(c\)\{[\s\S]{0,160}c\.status!=='autorizado'&&c\.status!=='contingencia'\)\)return;/.test(html));
+
   grupo('Ligar a produção — a confirmação mora na tela');
   /* o comentário do próprio arquivo cita `window.prompt` para explicar
      por que ele saiu — é CHAMADA de janelinha que não pode existir */

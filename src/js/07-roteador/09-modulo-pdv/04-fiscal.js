@@ -591,6 +591,17 @@ async function telaFiscalCfg(recarregar){
      _fsOpc(u.contingencia===false?'0':'1',[['1','Emitir mesmo com a SEFAZ fora do ar'],['0','Esperar a SEFAZ voltar']])+'</select>'+
      '<div class="hint">Em contingência o cupom vale na hora e é transmitido sozinho depois.</div></div>'+
    '</div>'+
+   /* ---------- imprimir o cupom fiscal ----------
+      O campo existia no banco e mandava na impressão automática, mas
+      NÃO estava na tela: ficava em "perguntar" para sempre, e
+      "perguntar" não perguntava nada — o cupom fiscal simplesmente
+      nunca saía na bobina. Santa Fé emitiu em produção e só a ficha
+      imprimiu (29/09/2026). */
+   '<div class="fld2"><label>Imprimir o cupom fiscal</label><select id="fsImp" onchange="fsMudou()"'+dis+'>'+
+    _fsOpc(u.imprime,[['sempre','Sempre — sai na bobina assim que a SEFAZ autoriza'],
+                      ['perguntar','Perguntar a cada venda'],
+                      ['nunca','Nunca — só quando alguém pedir']])+'</select>'+
+    '<div class="hint">A ficha do pedido continua saindo como hoje; isto é o documento fiscal, com QR Code.</div></div>'+
    '<div class="row2">'+
     '<div class="fld2"><label>Regime tributário</label><select id="fsReg" onchange="fsMudou()"'+dis+'>'+
      _fsOpc(u.regime||'simplesNacional',[['simplesNacional','Simples Nacional'],
@@ -728,6 +739,7 @@ async function fsSalvar(){
   var suc=_fsSuc(),u=fiscalUn(suc);
   function v(id){var e=document.getElementById(id);return e?e.value:undefined;}
   var cfgN={modo:v('fsModo'),ambiente:v('fsAmb'),serie:v('fsSerie'),pedeCpf:v('fsCpf'),
+            imprime:v('fsImp'),
             contingencia:v('fsCont')==='1',regime:v('fsReg'),pisCst:v('fsPis'),cofinsCst:v('fsCofins')};
   /* ==========================================================
      A CONFIRMAÇÃO DA PRODUÇÃO MORA NA TELA, NÃO NUMA JANELINHA
@@ -925,6 +937,7 @@ async function fsLigarProducao(){
   if(cnpj.length!==14){toast('Digite os 14 números do CNPJ desta loja.');return;}
   function v(id){var e=document.getElementById(id);return e?e.value:undefined;}
   var cfgN={modo:v('fsModo'),ambiente:'producao',serie:v('fsSerie'),pedeCpf:v('fsCpf'),
+            imprime:v('fsImp'),
             contingencia:v('fsCont')==='1',regime:v('fsReg'),pisCst:v('fsPis'),
             cofinsCst:v('fsCofins'),confirmaCnpj:cnpj};
   FS.salvando=true;
@@ -1126,10 +1139,27 @@ async function imprimirDanfe(cupomId){
 /* o cupom acabou de sair: imprime conforme a loja escolheu. Só no aparelho
    que fez a venda, e só logo depois dela — um cupom que ficou para trás e
    sai horas depois não imprime sozinho no meio do movimento */
-function fsDepoisDeEmitir(c){
+async function fsDepoisDeEmitir(c){
   if(!c||(c.status!=='autorizado'&&c.status!=='contingencia'))return;
   if(!c.querEmitir||c.impressoEm)return;
   var u=fiscalUn(c.sucursalId||lojaAtualId());
   var recente=(Date.now()-new Date(String(c.data||'')+'T'+(c.hora||'00:00')+':00').getTime())<10*60*1000;
-  if(u.imprime==='sempre'&&recente)imprimirDanfe(c.id);
+  if(!recente)return;
+  if(u.imprime==='sempre'){imprimirDanfe(c.id);return;}
+  /* "perguntar" não perguntava nada: o cupom fiscal nunca saía e ninguém
+     entendia por quê (29/09/2026). Agora ele pergunta mesmo — e só uma
+     vez por cupom, para não voltar no meio da próxima venda. */
+  if(u.imprime==='perguntar'){
+    if(_fsPerguntado[c.id])return;
+    _fsPerguntado[c.id]=true;
+    /* quem chama não espera esta função: uma falha aqui não pode virar
+       erro solto no meio do caixa */
+    try{
+      var ok=await confirmar({titulo:'Imprimir o cupom fiscal?',
+        texto:'A SEFAZ autorizou o cupom da venda '+(c.numero||c.id)+'. Ele sai na bobina, com QR Code.',
+        ok:'Imprimir',cancelar:'Agora não',tipo:'pergunta'});
+      if(ok)imprimirDanfe(c.id);
+    }catch(e){_quieto(e,'fsDepoisDeEmitir')}
+  }
 }
+var _fsPerguntado={};

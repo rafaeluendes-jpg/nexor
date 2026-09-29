@@ -408,12 +408,28 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   win.fsDepoisDeEmitir(cVelho);
   await espera(20);
   t('cupom de venda antiga não imprime sozinho no meio do movimento', impressos.length === 0);
+  /* ---------- "perguntar" passou a perguntar de verdade (29/09/2026)
+     Antes ele NAO imprimia e NAO perguntava: era um buraco calado, e o
+     cupom fiscal de Santa Fe nunca saiu na bobina. O guardiao dizia so
+     "nao imprime sozinho" — e continuava verde com o buraco. Agora
+     prova os dois lados: disse sim, imprime; disse nao, nao imprime. */
   win.DB.fiscalUn.suc_sf.imprime = 'perguntar';
+  respostaConfirmar = false;
+  const cNao = { id: 'cfQn', sucursalId: 'suc_sf', status: 'autorizado', spedyId: 's4n', querEmitir: true, data: hoje, hora: hhmm };
+  win.DB.cupons_f.push(cNao);
+  await win.fsDepoisDeEmitir(cNao);
+  await espera(20);
+  t('loja em "perguntar": nada sai sem alguém mandar', impressos.length === 0);
+  respostaConfirmar = true;
   const cPerg = { id: 'cfQ', sucursalId: 'suc_sf', status: 'autorizado', spedyId: 's4', querEmitir: true, data: hoje, hora: hhmm };
   win.DB.cupons_f.push(cPerg);
-  win.fsDepoisDeEmitir(cPerg);
+  await win.fsDepoisDeEmitir(cPerg);
   await espera(20);
-  t('loja em "perguntar": não imprime sozinho', impressos.length === 0);
+  t('loja em "perguntar": disse sim, o cupom fiscal sai', impressos.length === 1);
+  await win.fsDepoisDeEmitir(cPerg);
+  await espera(20);
+  t('e ele não volta a perguntar pelo mesmo cupom', impressos.length === 1);
+  impressos.length = 0;
   win.fsChip(cPerg);
   t('e o aviso do caixa oferece "Imprimir cupom fiscal"', /Imprimir cupom fiscal/.test((doc.getElementById('fsChip') || {}).innerHTML || ''));
   t('servidor: o QR Code sai do XML, nunca é montado no navegador', /acao === "danfe"[\s\S]{0,3000}qrCode: tag\(xml, "qrCode"\)/.test(fonte) && !/csc/i.test(html.slice(html.indexOf('function montarDanfeNfce'), html.indexOf('var _fsImprimindo'))));
