@@ -30,8 +30,13 @@ Cole no terminal, uma linha por vez:
 
 ```bash
 curl -fsSL https://claude.ai/install.sh | bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 claude
 ```
+
+A segunda linha e obrigatoria: sem ela o terminal responde
+`claude: command not found`, porque a instalacao poe o programa numa pasta
+que o terminal ainda nao consulta.
 
 Ele mostra um endereco para abrir no navegador e pede um codigo de volta:
 entre com a mesma conta Claude que voce usa aqui.
