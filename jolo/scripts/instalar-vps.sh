@@ -489,6 +489,25 @@ if [ -z "$DOMINIO_CRM" ] && [ -n "$IP_PUBLICO" ]; then
   echo "    enderecos ajustados para o IP ${IP_PUBLICO} (sem dominio ainda)"
 fi
 
+# Quando os dominios chegam depois (o normal: primeiro sobe pelo IP,
+# depois o DNS fica pronto), os enderecos provisorios em http:// dao lugar
+# aos definitivos. Endereco que ja esta em https:// nao e tocado.
+if [ -n "$DOMINIO_CRM" ] && [ -n "$DOMINIO_LANDING" ] && [ -n "$DOMINIO_API" ]; then
+  trocar_provisorio() { # trocar_provisorio <chave> <valor novo>
+    grep -q "^$1=http://" "$ENV_ARQ" && sed -i "s#^$1=.*#$1=$2#" "$ENV_ARQ"
+    return 0
+  }
+  trocar_provisorio API_PUBLIC_URL      "https://${DOMINIO_API}"
+  trocar_provisorio LANDING_PUBLIC_URL  "https://${DOMINIO_LANDING}"
+  trocar_provisorio CRM_PUBLIC_URL      "https://${DOMINIO_CRM}"
+  trocar_provisorio NEXT_PUBLIC_API_URL "https://${DOMINIO_API}"
+  trocar_provisorio NEXT_PUBLIC_SITE_URL "https://${DOMINIO_LANDING}"
+  grep -q "^CORS_ALLOWED_ORIGINS=http://" "$ENV_ARQ" \
+    && sed -i "s#^CORS_ALLOWED_ORIGINS=.*#CORS_ALLOWED_ORIGINS=https://${DOMINIO_LANDING},https://${DOMINIO_CRM}#" "$ENV_ARQ"
+  set -a; . "$ENV_ARQ"; set +a
+  echo "    enderecos definitivos: ${DOMINIO_LANDING}, ${DOMINIO_CRM}, ${DOMINIO_API}"
+fi
+
 # ------------------------------------------------------------
 passo "7/10 Instalar dependencias e compilar"
 cd "$APP"
