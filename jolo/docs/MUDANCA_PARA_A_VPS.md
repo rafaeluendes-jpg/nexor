@@ -53,7 +53,12 @@ VPS hoje: 2 processadores, 8 GB de memória (4,7 GB em uso), 96 GB de disco
 
 ## Decisões do Rafael (29/09/2026)
 
-- VPS sobe para 4 processadores / 16 GB.
+- ~~VPS sobe para 4 processadores / 16 GB.~~ Corrigido no mesmo dia: a
+  medição por processo mostrou que dos 4,9 GB em uso, 3,9 GB eram 15
+  conversas abertas do assistente e só ~0,5 GB os sistemas. Estimativa com
+  tudo dentro: ~3,5 GB (Central ~0,3; dois bancos com o conjunto enxuto do
+  Supabase — banco, API, login e tempo real — ~1 GB cada). **8 GB bastam.**
+  Para caber, conversas antigas do assistente precisam ser fechadas.
 - Cópia de fora: backup diário automático da própria Hostinger, além do
   backup criptografado dentro da VPS.
 
@@ -63,6 +68,35 @@ VPS hoje: 2 processadores, 8 GB de memória (4,7 GB em uso), 96 GB de disco
   5 erros em 10 min = 1 dia bloqueado). O login por senha continua ligado
   porque hoje não há chave SSH cadastrada; desligar agora trancaria o
   Rafael para fora. Trocar por chave é passo da etapa 1.
+- 29/09/2026: backup diário da Hostinger (fora da VPS) contratado pelo
+  Rafael, 11 meses.
+- 29/09/2026: **Central rodando na VPS** — `/opt/central`, usuário próprio
+  `central` sem shell, serviço `jolo-central` (127.0.0.1:3002, disco só
+  leitura fora de `.next`, 1 GB de teto), nginx `centraljolo.com.br` em
+  HTTP. Falta: chave de serviço (`guardar-chave-central.sh`), apontar o
+  endereço e emitir o certificado. O código já lê `process.env` quando
+  não está na Cloudflare; nada foi mudado nele.
+- 29/09/2026: **Joia montado na VPS** — `publicar-joia.sh` sai sempre da
+  `main`, com a mesma lista fechada de arquivos do Pages, em
+  `/var/www/joia/versoes/*` com troca instantânea. Conferido byte a byte
+  com o que está no ar (index.html, sw.js, manifest, supabase.js, atalhos
+  das lojas: iguais). nginx `joiagest.com.br` em HTTP, com `no-cache` no
+  index.html e no sw.js. Falta: apontar o endereço e o certificado.
+- 29/09/2026: varredura de segredos (gitleaks, histórico inteiro dos dois
+  repositórios): nenhum segredo real; 5 alarmes, todos exemplo de
+  documentação (`SUA_CHAVE`) ou nome de variável.
+- 29/09/2026: `jolo-backup-sistemas` (todo dia 03:40, 30 dias): código
+  com histórico inteiro (git bundle), Joia no ar e configuração do
+  servidor com os segredos. Restauração provada (clone do bundle da
+  Central).
+
+## Ainda falta (além do que depende do Rafael)
+
+- Cardápio digital (`/delivery`, hoje no GitHub Pages) e robô do WhatsApp.
+- Bancos do Joia e da Central (Supabase → VPS), com cópia diária deles
+  antes: precisa da senha do banco de cada projeto.
+- Repositórios de código morando na VPS, e o `publicar-joia.sh` lendo de
+  lá em vez do GitHub.
 
 ## O que depende do Rafael
 
