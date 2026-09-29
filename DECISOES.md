@@ -7208,3 +7208,20 @@ pelo sistema: campo com botão Atualizar, gravado por unidade e mês na tabela
 nova `indicadores_manuais` (migration `20260929_indicadores_manuais.sql`), com a
 receita por funcionário calculada na hora. Sem movimentação no mês, CPV mostra
 "—", nunca um 0,0% falso. Guardião: `testes/indicadores-mes.js` (40).
+
+## 29/09/2026 — a lei do valor de fábrica passa a morar no banco
+
+Às 13:47 de 29/09 um aparelho de Santa Fé, já na V362, gravou de novo
+"Banco — conta corrente" (sem agência/conta) por cima do "Itaú — conta
+corrente". A proteção do aparelho (V360) tinha fechado os caminhos
+conhecidos; apareceu outro. Decisão: a regra sai do aparelho e vai para o
+banco — gatilhos `aa_fabrica_nao_sobrescreve` em `contas_capital` e
+`formas_pagamento` recusam a troca do configurado pelo valor de fábrica e
+devolvem o que a loja tinha. Provado em produção (teste desfeito): a cópia de
+fábrica não passou; editar agência e taxa passou. Itaú restaurado.
+
+Transferência #1 (27/09, Santa Fé → Jales, 4 itens, R$ 195,54) refeita a
+partir da movimentação de estoque `mv_mukgya1yg2n5`: os dois aparelhos de
+Santa Fé já estavam na V362 e sincronizaram sem ela — tinha se perdido no
+aparelho, recusada pela nuvem antes da V361.
+Guardião: `testes/lei-fabrica-no-banco.js`.

@@ -64,6 +64,16 @@ configuração gravada.
 | Download que falha não é "a nuvem está vazia" | `volta()` | os dois turnos desativados voltando sozinhos (29/08) |
 | Nada sobe antes de baixar | `sincronizar()` | aparelho atrasado gravar a cópia velha por cima (31/08) |
 | Entrar de novo não limpa o aparelho | `entrarPeloAuth`, ramo `_mesmoDono` | o login zerar o `DB` e a semente repor tudo (31/08) |
+| Registro de fábrica nunca vence a nuvem | `_semente` em `temMudancaNaoEnviada`, `volta` e no envio | a cópia de fábrica do aparelho subir por cima do banco configurado (27–28/09) |
+| **A LEI NO BANCO: a nuvem recusa valor de fábrica por cima do configurado** | gatilhos `aa_fabrica_nao_sobrescreve` em `contas_capital` e `formas_pagamento` (migration `20260929_fabrica_nao_sobrescreve.sql`) | qualquer aparelho, de qualquer versão, por qualquer caminho, trocar "Itaú" por "Banco — conta corrente" ou 2,73% por 3,49% (29/09, 13:47, já na V362) |
+
+**Por que a lei mora no banco (Rafael, 29/09/2026: "isso tem que virar
+lei").** Cada correção no aparelho fechou um caminho e outro apareceu —
+seis vezes em um mês. O banco de dados é o único ponto por onde TODO
+aparelho passa. A regra lá não depende de versão, de cache nem de qual tela
+gravou. Configuração nova com valor de fábrica entra na mesma lei: acrescente
+o gatilho e o guardião `testes/lei-fabrica-no-banco.js` confere que a
+semente do código e a lei do banco são as mesmas.
 
 `node ferramentas/auditar-configuracoes.js` confere as quatro a cada
 publicação e reprova se alguma sair do lugar.
