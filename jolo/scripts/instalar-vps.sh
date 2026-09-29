@@ -331,7 +331,10 @@ echo "    node $(node --version), pnpm $(pnpm --version)"
 
 # ------------------------------------------------------------
 passo "4/10 Codigo em ${RAIZ}"
-if [ -d "${RAIZ}/.git" ]; then
+if [ "${SEM_GIT:-}" = "sim" ]; then
+  # o codigo ja foi entregue por fora (copia do GitHub Actions): nao baixa nada
+  echo "    codigo ja entregue em ${RAIZ}"
+elif [ -d "${RAIZ}/.git" ]; then
   # sem BRANCH explicito, continua na branch que o servidor ja usa: trocar
   # sozinho para a main jogaria fora a versao que esta rodando na loja
   BRANCH="${BRANCH:-$(git -C "$RAIZ" rev-parse --abbrev-ref HEAD)}"
