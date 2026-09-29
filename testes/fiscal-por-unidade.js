@@ -460,6 +460,40 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
      "perguntar" não perguntava nada: o código só imprimia com
      "sempre". Ou seja, a opção do meio era um buraco silencioso.
      ========================================================== */
+  /* ==========================================================
+     DUAS VIAS, NA ORDEM CERTA (Rafael, 29/09/2026)
+
+     "A primeira via sai assim, fiscal. A segunda via é só via de
+     cozinha, conforme já estava saindo."
+
+     As duas no MESMO trabalho de impressão: em dois trabalhos a
+     impressora pode inverter, e quem está no balcão entrega a via
+     errada ao cliente. E a cozinha nunca fica sem ficha — se a SEFAZ
+     demorar, a via sai sozinha em 25 segundos.
+     ========================================================== */
+  grupo('Duas vias: a fiscal primeiro, a da cozinha depois');
+  t('a via da cozinha virou peça reaproveitável',
+    /function viaDoPedido\(ped,cols\)\{/.test(html) &&
+    /return \{linhas:montarImp\(textoDoModelo\(m\),ped,c\),cols:c,vias:m\.vias\|\|1,mm:papelDoModelo\(m\)\}/.test(html));
+  t('imprimir a via continua funcionando pelo mesmo caminho de antes',
+    /function imprimirVia\(ped\)\{[\s\S]{0,160}viaDoPedido\(ped\)[\s\S]{0,120}imprimirPapel\(r\.linhas,r\.cols,r\.vias,r\.mm\)/.test(html));
+  t('o cupom fiscal emenda a via da cozinha no mesmo papel, com corte',
+    /var linhas=montarDanfeNfce\(r\.d\.danfe,cols\);[\s\S]{0,400}linhas\.concat\(\[\{tipo:'corte'\}\],via\.linhas\)/.test(html));
+  t('a fiscal vem ANTES da via da cozinha', (() => {
+    const i = html.indexOf("var linhas=montarDanfeNfce(r.d.danfe,cols);");
+    const bloco = i < 0 ? '' : html.slice(i, i + 600);
+    return bloco.indexOf('montarDanfeNfce') < bloco.indexOf('viaDoPedido');
+  })());
+  t('a venda só espera o cupom quando a loja emite e imprime sempre',
+    /function fsViaSaiComOCupom\(ped\)\{[\s\S]{0,300}fiscalEmite\(suc\)[\s\S]{0,160}u\.imprime==='sempre'/.test(html));
+  t('a cozinha nunca fica sem ficha: 25 s e a via sai sozinha',
+    /_fsViasEsperando\[ped\.id\]=setTimeout\([\s\S]{0,300}imprimirVia\(ped\)[\s\S]{0,20}\},25000\)/.test(html));
+  t('se o cupom já levou a via, a espera é desarmada',
+    /function _fsViaJaSaiu\(pedidoId\)\{[\s\S]{0,200}clearTimeout/.test(html) &&
+    /_fsViaJaSaiu\(c\.pedidoId\)/.test(html));
+  t('cupom já impresso não faz a via sair duas vezes',
+    /if\(c&&c\.impressoEm\)return;[\s\S]{0,40}imprimirVia\(ped\)/.test(html));
+
   grupo('Imprimir o cupom fiscal');
   t('a opção está na tela, com as três escolhas',
     /<label>Imprimir o cupom fiscal<\/label><select id="fsImp"/.test(html) &&

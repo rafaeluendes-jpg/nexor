@@ -1130,7 +1130,24 @@ async function imprimirDanfe(cupomId){
     var m=(typeof modeloImp==='function'&&modeloImp('ficha'))||null;
     var mm=typeof papelDoModelo==='function'?papelDoModelo(m):80;
     var cols=typeof colunasDaLetra==='function'?colunasDaLetra(mm,'normal'):(mm<=58?32:48);
-    imprimirPapel(montarDanfeNfce(r.d.danfe,cols),cols,1,mm);
+    /* ==========================================================
+       DUAS VIAS NUM PAPEL SÓ: a fiscal primeiro, a da cozinha depois
+       (Rafael, 29/09/2026: "a primeira via sai assim, fiscal; a segunda
+       via é só via de cozinha, conforme já estava saindo")
+
+       As duas saem no MESMO trabalho de impressão, nesta ordem — em
+       dois trabalhos a impressora pode inverter, e quem está no balcão
+       entrega a via errada ao cliente.
+       ========================================================== */
+    var linhas=montarDanfeNfce(r.d.danfe,cols);
+    var ped=(DB.pedidos||[]).find(function(x){return x.id===c.pedidoId});
+    if(ped&&typeof viaDoPedido==='function'){
+      var via=viaDoPedido(ped,cols);
+      if(via&&via.linhas&&via.linhas.length){ linhas=linhas.concat([{tipo:'corte'}],via.linhas); }
+    }
+    imprimirPapel(linhas,cols,1,mm);
+    /* a via saiu junto: a rede de seguranca do PDV nao precisa disparar */
+    if(typeof _fsViaJaSaiu==='function')_fsViaJaSaiu(c.pedidoId);
     c.impressoEm=new Date().toISOString();
     salvar();
     return true;

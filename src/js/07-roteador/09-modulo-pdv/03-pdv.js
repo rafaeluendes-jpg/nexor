@@ -1592,7 +1592,22 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   }
   PDV.comanda=[];PDV.cliente=null;PDV.tipo='loja';_cidadeVenda='';
   PDV.brindeResgate=null;          /* a venda fechou: o brinde foi entregue */
-  if(imprimir)imprimirVia(ped);
+  /* ==========================================================
+     QUANDO A LOJA EMITE CUPOM FISCAL, A VIA SAI JUNTO COM ELE
+
+     Rafael, 29/09/2026: a primeira via tem de ser a fiscal, a segunda
+     a da cozinha. O documento fiscal só existe depois que a SEFAZ
+     autoriza (segundos), então esperar aqui é o que põe as duas na
+     ordem certa, no mesmo papel.
+
+     A cozinha NUNCA fica sem ficha: se o cupom não voltar autorizado
+     em 25 segundos, a via sai sozinha na hora, e o cupom fiscal sai
+     depois, quando chegar. Movimento não espera SEFAZ.
+     ========================================================== */
+  if(imprimir){
+    if(typeof fsViaSaiComOCupom==='function'&&fsViaSaiComOCupom(ped))_fsViaEspera(ped);
+    else imprimirVia(ped);
+  }
   PDV.aba='pedidos';telaPDV();
   if(_erroEstoque){
     /* sem await de proposito: finalizarVenda e o caminho do caixa e continua
@@ -1761,13 +1776,57 @@ async function enviarVendaAtomica(ped,mov){
    mudar uma linha do papel exigia mexer no sistema. */
 function imprimirVia(ped){
   if(!ped)return;
+  var r=viaDoPedido(ped);
+  if(!r)return;
+  imprimirPapel(r.linhas,r.cols,r.vias,r.mm);
+}
+/* ==========================================================
+   A VIA DA COZINHA, SÓ AS LINHAS (29/09/2026)
+
+   Nasceu para o cupom fiscal poder emendar esta via no MESMO papel:
+   primeiro o documento fiscal, depois a via da cozinha, com um corte
+   entre as duas (ver imprimirDanfe). Em dois trabalhos de impressão a
+   impressora pode inverter a ordem, e quem está no balcão entrega a
+   via errada ao cliente.
+
+   Quem chama com `cols` recebe as linhas no tamanho de letra do cupom
+   fiscal, para as duas vias saírem iguais no mesmo papel.
+   ========================================================== */
+/* a via vai sair junto do cupom fiscal? só quando a loja emite sempre,
+   imprime sempre, e esta venda pediu cupom */
+function fsViaSaiComOCupom(ped){
+  if(!ped)return false;
+  var suc=ped.sucursalId||lojaAtualId();
+  if(typeof fiscalEmite!=='function'||!fiscalEmite(suc))return false;
+  var u=fiscalUn(suc);
+  return u.imprime==='sempre';
+}
+/* a rede de seguranca: 25 s e a via sai sozinha, cupom ou nao */
+var _fsViasEsperando={};
+function _fsViaEspera(ped){
+  if(_fsViasEsperando[ped.id])return;
+  _fsViasEsperando[ped.id]=setTimeout(function(){
+    delete _fsViasEsperando[ped.id];
+    var c=(typeof baseCuponsFiscais==='function'?baseCuponsFiscais():[])
+      .find(function(x){return x.pedidoId===ped.id});
+    /* o cupom saiu e ja levou a via junto: nada a fazer */
+    if(c&&c.impressoEm)return;
+    imprimirVia(ped);
+  },25000);
+}
+/* o cupom fiscal imprimiu e levou a via junto: desarma a espera */
+function _fsViaJaSaiu(pedidoId){
+  if(_fsViasEsperando[pedidoId]){clearTimeout(_fsViasEsperando[pedidoId]);delete _fsViasEsperando[pedidoId];}
+}
+function viaDoPedido(ped,cols){
+  if(!ped)return null;
   baseImp();
   var tipo=(ped.tipo==='entrega')?'entrega':(ped.mesa?'mesa':'ficha');
   var m=modeloImp(tipo)||modeloImp('ficha');
-  if(!m){toast('Nenhum modelo de impressao cadastrado.');return;}
-  var cols=m.colunas||48;
+  if(!m){toast('Nenhum modelo de impressao cadastrado.');return null;}
+  var c=cols||m.colunas||48;
   /* a bobina e do modelo; as colunas so dizem o tamanho da letra */
-  imprimirPapel(montarImp(textoDoModelo(m),ped,cols),cols,m.vias||1,papelDoModelo(m));
+  return {linhas:montarImp(textoDoModelo(m),ped,c),cols:c,vias:m.vias||1,mm:papelDoModelo(m)};
 }
 
 /* ---------- ABA: PEDIDOS (kanban) ---------- */
