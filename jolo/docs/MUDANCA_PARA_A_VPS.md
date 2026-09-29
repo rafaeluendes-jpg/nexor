@@ -167,6 +167,24 @@ rodar de novo apagaria o que foi gravado na VPS).
 - Pendências: SMTP para "esqueci minha senha"; chave nova da IA; apagar
   o projeto do Supabase da nuvem só depois de 30 dias (29/10/2026).
 
+## Fiscal do Joia — a conta de PRODUÇÃO da Spedy (29/09/2026)
+
+- V363 no ar (`joiagest.com.br`), e a função `joia-fiscal` na versão 7.
+  A função foi publicada pelo painel do Supabase (MCP) e **conferida
+  byte a byte** contra a `main`: mesmo sha256 (`da26b48dcccb4fba`).
+- Para não repetir isso à mão, ficam prontos
+  `scripts/publicar-funcao-fiscal.sh` (sai sempre da `main` e confere o
+  sha depois) e `scripts/guardar-token-supabase-joia.sh` (guarda o token
+  de acesso em `/etc/jolo/joia.env`, 600). A CLI do Supabase já está
+  instalada no servidor. Falta só o token, que só o Rafael cria.
+- Falta para Santa Fé emitir de verdade: a empresa dela **não existe**
+  na conta de produção da Spedy (lá só há a matriz, JOLO GELATO LTDA,
+  42.771.278/0001-02). O certificado A1 e o CSC que ele enviou em
+  28/09 estão na empresa de TESTE — a de produção é outra e precisa do
+  certificado e do CSC de produção de novo.
+- A chave de produção da Spedy passou pelo chat: **trocar por uma nova**
+  na Spedy assim que o cupom estiver saindo.
+
 ## A virada dos endereços — ordem segura
 
 1. Trocar só o registro A dentro da Cloudflare (efeito em ~5 min) e
