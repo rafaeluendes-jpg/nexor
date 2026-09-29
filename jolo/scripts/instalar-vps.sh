@@ -629,6 +629,10 @@ curl -fsS --max-time 10 "http://127.0.0.1:${API_PORT:-3333}/health" >/dev/null \
   && echo "    /health respondeu" \
   || erro "a API subiu mas /health nao respondeu."
 
+# copia de seguranca diaria do banco, dos documentos e da configuracao
+bash "${APP}/scripts/ligar-backup.sh" | tail -1 \
+  || aviso "nao consegui ligar o backup automatico; rode depois: bash ${APP}/scripts/ligar-backup.sh"
+
 # ------------------------------------------------------------
 passo "10/10 Porta de entrada e HTTPS"
 tem nginx || apt-get install -y -qq nginx >/dev/null
@@ -695,7 +699,7 @@ Instalado.
   Config:     ${ENV_ARQ}  (somente root, 600 - nao abra em publico)
   Servicos:   systemctl status jolo-api jolo-workers jolo-landing jolo-crm
   Registro:   journalctl -u jolo-api -f
-  Backup:     ${APP}/scripts/backup.sh
+  Backup:     automatico, todo dia (ls -lh /var/backups/jolo)
 
 Falta ligar o WhatsApp: as linhas [OPERADOR] do .env (token e segredo
 da Meta). Depois de preencher, trocar NODE_ENV=staging por
