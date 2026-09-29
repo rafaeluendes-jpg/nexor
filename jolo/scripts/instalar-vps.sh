@@ -618,8 +618,12 @@ criar_servico jolo-landing "Jolo Franquias - landing" "${APP}/apps/landing" \
 criar_servico jolo-crm     "Jolo Franquias - CRM"     "${APP}/apps/crm" \
   "${PNPM_BIN} exec next start -p ${PORTA_CRM} -H 127.0.0.1" "Environment=NODE_ENV=production"
 systemctl daemon-reload
-systemctl enable --now jolo-api jolo-workers jolo-landing jolo-crm >/dev/null
-sleep 6
+systemctl enable jolo-api jolo-workers jolo-landing jolo-crm >/dev/null
+# RESTART, nao so "start": servico que ja estava rodando seguiria com a
+# versao velha na memoria, apontando para arquivos que a compilacao nova
+# ja trocou - a tela abria sem o visual (29/09/2026).
+systemctl restart jolo-api jolo-workers jolo-landing jolo-crm
+sleep 8
 for s in jolo-api jolo-workers jolo-landing jolo-crm; do
   systemctl is-active --quiet "$s" \
     && echo "    ${s}: rodando" \
