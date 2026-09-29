@@ -90,6 +90,31 @@ VPS hoje: 2 processadores, 8 GB de memória (4,7 GB em uso), 96 GB de disco
   servidor com os segredos. Restauração provada (clone do bundle da
   Central).
 
+## A virada dos endereços — ordem segura
+
+1. Trocar só o registro A dentro da Cloudflare (efeito em ~5 min) e
+   emitir o certificado na hora: a janela sem HTTPS é de ~1 minuto.
+2. Só depois, com tudo na VPS e certificado emitido, levar o DNS da
+   Cloudflare para o Registro.br com os MESMOS registros — as duas
+   respostas apontam para a VPS, então a propagação não derruba nada.
+
+Central: pode virar de dia. Joia: depois que as lojas fecham.
+
+## Achado que muda o plano: QR Code das mesas
+
+O cardápio digital mora em `rafaeluendes-jpg.github.io/delivery` — endereço
+do GitHub, não nosso. O Joia gera o QR Code das mesas com esse endereço
+(`src/js/07-roteador/09-modulo-pdv/02-transferencia-e-mais-6.js:1131`), e os
+atalhos das lojas (`/santafe`, `/jales`...) também levam para lá. **QR já
+impresso nas mesas aponta para o GitHub.** Cancelar a conta do GitHub
+apaga esse endereço e todos os QR impressos param de abrir. Antes de
+cancelar: cardápio num endereço nosso, QR novo impresso, e o endereço
+antigo mantido como redirecionamento até trocar todos os impressos
+(uma conta gratuita do GitHub só com o redirecionamento).
+
+`app.joiagest.com.br` (painel do franqueado, repositório `nexor-app`) também
+está no GitHub Pages e entra na mudança.
+
 ## Ainda falta (além do que depende do Rafael)
 
 - Cardápio digital (`/delivery`, hoje no GitHub Pages) e robô do WhatsApp.
