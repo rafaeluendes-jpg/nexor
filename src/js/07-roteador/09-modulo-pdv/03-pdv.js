@@ -1934,14 +1934,27 @@ function moverPedido(id,fase){
   var vaiCancelar=(papelDaFase(fase)==='cancelado');
   var eraCancelado=(papelDaFase(antes)==='cancelado');
   if(vaiCancelar&&!eraCancelado){pedirCancelamento(id);return;}
+  /* ==========================================================
+     VOLTAR PASSA PELA MESMA PORTA DE CANCELAR
+
+     Daqui saia um `baixarEstoqueVenda(p)` direto: sem senha, sem motivo,
+     e sem encerrar o registro do cancelamento — que continuava contando
+     no relatorio enquanto a venda voltava para o faturamento.
+
+     Pior: num pedido cancelado como JA PRODUZIDO, o estoque nunca tinha
+     voltado, e essa baixa era a SEGUNDA do mesmo pedido. O mesmo pote
+     saindo duas vezes do saldo, sem nada na tela.
+
+     As duas linhas de estoque que ficavam aqui morreram junto: cancelar
+     sai por `pedirCancelamento` e voltar por `pedirDescancelamento`, e
+     cada uma cuida do proprio estoque. Codigo que nunca roda e o comeco
+     do proximo defeito.
+     ========================================================== */
+  if(eraCancelado&&!vaiCancelar){pedirDescancelamento(id,fase);return;}
   p.fase=fase;
   p.statusEm=new Date().toISOString();   /* o relogio do status recomeca aqui */
   var stNovo=statusVenda(fase);
   if(stNovo&&stNovo.som)bipe();
-  try{
-    if(vaiCancelar&&!eraCancelado)estornarEstoqueVenda(p);
-    if(eraCancelado&&!vaiCancelar)baixarEstoqueVenda(p);
-  }catch(e){console.error('estoque pedido',e);}
   salvar();renderKanban();
   var f=statusVenda(fase);
   toast('Pedido #'+p.numero+' → '+(f?f.nome:fase));

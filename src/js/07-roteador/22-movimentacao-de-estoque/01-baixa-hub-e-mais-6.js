@@ -270,7 +270,33 @@ function qtdNoDestino(f,qtd){
    Nenhuma baixa pode deixar o estoque negativo: nem producao
    (que consome ingredientes), nem baixa manual.
    ---------------------------------------------------------- */
-function faltaEstoque(linhas){
+/* ==========================================================
+   A TRAVA CONFERIA O SALDO DA LOJA ERRADA
+
+   `n.ins.estoqueAtual` e o ESPELHO da unidade aberta no aparelho — o
+   saldo de verdade mora em `DB.estoqueUn`, uma linha por unidade+item,
+   e e de la que `ajustaEstoque` debita.
+
+   Enquanto a unidade do movimento e a unidade aberta, os dois batem e
+   ninguem percebe. Quando nao sao a mesma — transferencia recebida,
+   saida de base da matriz, movimento que desceu da nuvem de outra loja —
+   a trava conferia o saldo de Jales para autorizar uma saida de Santa
+   Fe. Podia barrar o que tinha e liberar o que nao tinha.
+
+   Agora ela le o saldo daquela unidade. Quem chama sem dizer a unidade
+   continua caindo na aberta, que e o comportamento de hoje.
+
+   ---------- por que o espelho continua no caminho ----------
+   Nem todo item tem linha em `DB.estoqueUn`: item de antes dessa tabela,
+   ou base que nunca movimentou, simplesmente nao tem registro. Ler zero
+   nesse caso barraria uma producao legitima — foi o que o portao pegou,
+   na prova do pedido de base da matriz.
+   Entao: existe registro daquela unidade, manda ele; nao existe e a
+   unidade e a aberta, manda o espelho; nao existe e e outra unidade,
+   e zero mesmo — aquela loja nao tem o item.
+   ========================================================== */
+function faltaEstoque(linhas,suc){
+  suc=suc||lojaAtualId();
   var prec={};
   (linhas||[]).forEach(function(l){
     if(l.direcao!=='saida')return;
@@ -292,7 +318,9 @@ function faltaEstoque(linhas){
   });
   var falta=[];
   Object.keys(prec).forEach(function(k){
-    var n=prec[k],tem=Number(n.ins.estoqueAtual)||0;
+    var n=prec[k],reg=regEstoque(n.ins.id,suc,false);
+    var tem=reg?(Number(reg.estoque)||0)
+               :(suc===lojaAtualId()?(Number(n.ins.estoqueAtual)||0):0);
     if(n.q>0.0001&&tem<n.q-0.0001)
       falta.push({nome:n.ins.nome,precisa:n.q,tem:tem<0?0:tem,
         falta:+(n.q-(tem>0?tem:0)).toFixed(4),un:un(n.ins.unidade).ab});
@@ -339,10 +367,34 @@ function aplicarMovimento(mov,desfazer){
      cada um lembrar. Movimento antigo, sem unidade, fica com a ativa. */
   var suc=mov.sucursalId||lojaAtualId();
   if(!mov.sucursalId&&!desfazer)mov.sucursalId=suc;
+  /* ==========================================================
+     O MOVIMENTO PASSOU A DIZER DE ONDE VEIO E PARA ONDE FOI
+
+     A linha guardava o custo aplicado e mais nada. Saldo antes, saldo
+     depois, custo medio antes e depois eram calculados aqui e jogados
+     fora — `antes` ja existia, na linha de baixo, so para servir a media
+     ponderada.
+
+     Sem isso nao ha como auditar um saldo negativo: da para ver o
+     numero de hoje e a lista de movimentos, mas nao da para dizer em
+     QUAL movimento o saldo cruzou o zero, nem com que custo. E foi
+     exatamente essa pergunta que a RDS fez.
+
+     Nada aqui muda calculo nenhum: sao campos novos num objeto que ja
+     era gravado inteiro. Quem le `linhas` itera por direcao/qtd/custo e
+     ignora o resto.
+     ========================================================== */
+  if(!desfazer){
+    try{
+      var _u=(typeof usuarioLogado==='function')?usuarioLogado():null;
+      if(_u&&!mov.usuario){mov.usuario=_u.nome||'';mov.usuarioId=_u.id||'';}
+    }catch(e){}
+  }
   (mov.linhas||[]).forEach(function(l){
     var ins=itemEstoque(l.insumoId);
     if(!ins)return;
     var antes=saldoUn(ins.id,suc);
+    var custoAntes=custoMedioUn(ins.id,suc);
     ajustaEstoque(ins,l.qtd,l.unidade,(l.direcao==='entrada'?1:-1)*mult,suc);
     /* entrada atualiza o custo médio ponderado do item */
     if(!desfazer&&l.direcao==='entrada'&&Number(l.custo)>0&&
@@ -364,6 +416,16 @@ function aplicarMovimento(mov,desfazer){
         ins.custoUltima=+custoUn.toFixed(6);
       }
       ins.modoCusto=normModo(ins.modoCusto);
+    }
+    /* o carimbo vai depois do custo: e o estado final daquele item,
+       naquela unidade, no instante deste movimento */
+    if(!desfazer){
+      l.unidadeRef=suc;
+      l.saldoAntes=+(Number(antes)||0).toFixed(6);
+      l.saldoDepois=+(Number(saldoUn(ins.id,suc))||0).toFixed(6);
+      l.custoMedioAntes=+(Number(custoAntes)||0).toFixed(6);
+      l.custoMedioDepois=+(Number(custoMedioUn(ins.id,suc))||0).toFixed(6);
+      l.valor=+(((Number(l.qtd)||0)*(Number(l.custo)||0))).toFixed(6);
     }
   });
   repararDestinos();

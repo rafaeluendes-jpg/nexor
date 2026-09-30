@@ -2380,7 +2380,8 @@ function imprimirCancelamentoGuardado(){
 }
 function imprimirCancelamento(pedId){
   var ped=(DB.pedidos||[]).find(function(x){return x.id===pedId});
-  var cn=(DB.cancelamentos||[]).filter(function(c){return c.pedidoId===pedId})
+  var cn=(DB.cancelamentos||[]).filter(function(c){
+      return cancelamentoAtivo(c)&&c.pedidoId===pedId;})
     .slice(-1)[0]||null;
   if(!ped&&_CANC_IMP&&_CANC_IMP.ped&&_CANC_IMP.ped.id===pedId){
     imprimirCancelamentoGuardado();return;

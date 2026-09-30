@@ -273,6 +273,115 @@ async function confirmarCancelamento(id){
   setTimeout(function(){ perguntaImprimirCancelamento(p,reg); },120);
 }
 
+/* ==========================================================
+   VOLTAR UMA VENDA CANCELADA CUSTAVA UM CLIQUE
+
+   Na coluna Cancelado do Kanban ha um botao "Voltar". Ele chamava
+   `moverPedido` direto — sem senha, sem motivo, sem registro. E o
+   registro do cancelamento continuava la, contando o mesmo valor como
+   cancelado, enquanto o pedido voltava para o faturamento.
+
+   Resultado: no mesmo dia, a aba Cancelamentos e o faturamento do turno
+   discordavam, e nenhum dos dois estava errado sozinho — o sistema e que
+   estava contando a venda das duas maneiras ao mesmo tempo.
+
+   Cancelar exige motivo, operador e senha. Voltar mexe no mesmo dinheiro,
+   entao passa pela mesma porta. E o cancelamento nao e apagado: fica na
+   trilha, marcado como desfeito, com quem desfez e por que.
+   ========================================================== */
+/* cancelamento desfeito continua guardado, mas nao conta mais em lugar nenhum */
+function cancelamentoAtivo(c){return !!c&&!c.desfeitoEm;}
+function cancelamentoDoPedido(id){
+  return (DB.cancelamentos||[]).filter(function(c){
+      return cancelamentoAtivo(c)&&c.pedidoId===id;})
+    .sort(function(a,b){
+      return String(b.data+' '+b.hora).localeCompare(String(a.data+' '+a.hora));})[0]||null;
+}
+function pedirDescancelamento(id,fase){
+  var p=(DB.pedidos||[]).find(function(x){return x.id===id});
+  if(!p)return;
+  if(!ehCancelado(p)){toast('Este pedido não está cancelado.');return;}
+  if(!podeCancelarVenda()){
+    toast('Você não possui permissão para voltar uma venda cancelada.');return;}
+  var reg=cancelamentoDoPedido(id);
+  var volta=reg?(reg.estoqueVoltou!==false):true;
+  var ov=document.createElement('div');ov.className='mdOv';ov.id='mdOv';
+  ov.innerHTML='<div class="mdBox lg"><div class="mdH"><b>Voltar a venda #'+E(p.numero)+'</b>'+
+   '<button onclick="fecharModal()">&times;</button></div>'+
+   '<div class="mdB"><div class="cncCard">'+
+    '<div class="cncH"><b>#'+E(p.numero)+'</b>'+
+     '<span>'+dataBR(String(p.data).slice(0,10))+' às '+E(p.hora||'')+'</span></div>'+
+    '<div class="cncCli">'+E(p.clienteNome||'Consumidor')+'</div>'+
+    '<div class="cncTot"><span>Total</span><b>R$ '+money(p.total)+'</b></div>'+
+    (reg?'<div class="cncPg">'+sv('help',12)+' Cancelada em '+dataBR(reg.data)+' às '+
+      E(reg.hora||'')+' por '+E(reg.operador||'—')+' — '+E(reg.motivo||'sem motivo')+'</div>':
+     '<div class="cncPg">'+sv('help',12)+' Sem registro de cancelamento guardado.</div>')+
+    '<div class="fld2 cncCampo"><label>Por que está voltando? *</label>'+
+     '<input id="dcMot" placeholder="ex.: cancelamento feito por engano" autocomplete="off"></div>'+
+    '<div class="cncDupla">'+
+     '<div class="fld2" style="margin:0"><label>Quem está voltando *</label>'+
+      '<select id="dcOp"><option value="">Selecione</option>'+
+      operadoresPara('cancelar').map(function(o){
+        return '<option value="'+E(o.id)+'">'+E(o.nome)+'</option>'}).join('')+
+      '</select></div>'+
+     '<div class="fld2" style="margin:0"><label>Senha *</label>'+
+      '<input id="dcSenha" type="password" placeholder="senha de acesso" autocomplete="off">'+
+      '</div></div>'+
+    '<div class="cncAviso">'+sv('help',14)+'<div>'+
+     'O valor volta para o faturamento e o cancelamento deixa de contar no relatório. '+
+     (volta
+      ? 'Os itens <b>saem do estoque de novo</b>, porque tinham voltado no cancelamento.'
+      : 'O estoque <b>não muda</b>: no cancelamento foi respondido que o pedido já tinha sido produzido, e o insumo nunca voltou.')+
+     '</div></div>'+
+    '<button class="btnP2" style="width:100%;justify-content:center;margin-top:12px" '+
+     'onclick="confirmarDescancelamento(\''+p.id+'\',\''+E(fase)+'\')">Voltar a venda #'+E(p.numero)+'</button>'+
+   '</div></div>'+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+  document.body.appendChild(ov);
+  fecharSoForaDeVerdade(ov);
+}
+async function confirmarDescancelamento(id,fase){
+  var p=(DB.pedidos||[]).find(function(x){return x.id===id});
+  if(!p)return;
+  if(!ehCancelado(p)){toast('Este pedido não está cancelado.');fecharModal();return;}
+  if(!podeCancelarVenda()){
+    toast('Você não possui permissão para voltar uma venda cancelada.');fecharModal();return;}
+  var motivo=String((($('dcMot')||{}).value)||'').trim();
+  if(!motivo){toast('Diga por que está voltando a venda.');return;}
+  var opId=($('dcOp')||{}).value||'';
+  if(!opId){toast('Selecione quem está voltando a venda.');return;}
+  var op=await autorizar('cancelar',opId,($('dcSenha')||{}).value||'');
+  if(!op)return;
+  /* entre o clique e a resposta da senha cabe outro clique */
+  if(!ehCancelado(p)){toast('Esta venda já voltou.');fecharModal();return;}
+  if(!travarOperacao('descancelar-'+p.id))return;
+  var reg=cancelamentoDoPedido(id);
+  p.fase=fase||statusInicial('entrega');
+  p.statusEm=new Date().toISOString();
+  p.canceladoEm='';p.motivoCancelamento='';p.canceladoPor='';
+  p.produzidoNoCancelamento=undefined;
+  if(reg){
+    reg.desfeitoEm=new Date().toISOString();
+    reg.desfeitoPor=op.nome;reg.desfeitoPorId=op.id;
+    reg.desfeitoMotivo=motivo;
+  }
+  /* ==========================================================
+     QUEM DECIDE SE O ESTOQUE SAI DE NOVO E O ESTOQUE, NAO O CAMPO
+
+     Poderia ser lido de `reg.estoqueVoltou`. Mas esse campo e uma
+     lembranca do que aconteceu; o movimento e o fato. `baixarEstoqueVenda`
+     hoje recusa baixar duas vezes o mesmo pedido, entao chamar aqui faz a
+     coisa certa nos dois casos: se o estorno apagou a baixa, ela nasce de
+     novo; se o pedido era produzido e a baixa continua la, nada acontece.
+     ========================================================== */
+  try{ baixarEstoqueVenda(p); }catch(e){ _quieto(e,'confirmarDescancelamento'); }
+  salvar();
+  fecharModal();
+  if(PDV.aba==='pedidos')renderKanban();
+  toast('Venda #'+p.numero+' voltou — por '+op.nome+'.');
+  if(NUVEM.ligada)sincronizar();
+}
+
 
 
 
@@ -2492,6 +2601,7 @@ function telaRelCancel(){
     RC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     RC.ate=hojeISO();}
   var lst=DB.cancelamentos.filter(function(c){
+    if(!cancelamentoAtivo(c))return false;    /* desfeito nao conta mais */
     if(RC.de&&c.data<RC.de)return false;
     if(RC.ate&&c.data>RC.ate)return false;
     if(RC.motivo&&c.motivoId!==RC.motivo)return false;
@@ -2628,6 +2738,7 @@ async function excluirCancel(id){
 }
 function exportarCancel(){
   var lst=(DB.cancelamentos||[]).filter(function(c){
+    if(!cancelamentoAtivo(c))return false;    /* desfeito nao conta mais */
     if(RC.de&&c.data<RC.de)return false;
     if(RC.ate&&c.data>RC.ate)return false;
     if(RC.motivo&&c.motivoId!==RC.motivo)return false;

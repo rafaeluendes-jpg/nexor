@@ -984,18 +984,60 @@ async function salvarMovimento(){
 }
 
 /* devolve ao estoque o que a venda tinha baixado */
+/* ==========================================================
+   O ESTORNO VOLTAVA SO NESTE APARELHO
+
+   A baixa da venda sobe para a nuvem. O estorno apagava a linha AQUI e
+   nao avisava ninguem — e desde a V201 o espelhamento so apaga da nuvem
+   o que foi DECLARADO (`declararExclusao`). Ausencia nao apaga nada, de
+   proposito: "sumiu da lista" costuma ser copia incompleta, nao ordem
+   de apagar.
+
+   Resultado: cancelar uma venda devolvia o estoque na tela e deixava a
+   baixa viva na nuvem. No download seguinte ela voltava, e o saldo
+   ficava devendo de novo — sem ninguem entender de onde.
+
+   A nota de entrada ja fazia certo (`desfazerEstoqueDaNota`). Aqui
+   faltava a mesma linha.
+   ========================================================== */
 function estornarEstoqueVenda(ped){
   baseMov();
   var movs=(DB.movEst||[]).filter(function(m){return m.pedidoId===ped.id&&m.origem==='venda'});
   if(!movs.length)return 0;
-  movs.forEach(function(m){aplicarMovimento(m,true)});
+  movs.forEach(function(m){
+    aplicarMovimento(m,true);
+    try{declararExclusao('movEst',m.id);}catch(e){_quieto(e,'estornarEstoqueVenda')}
+  });
   DB.movEst=(DB.movEst||[]).filter(function(m){return !(m.pedidoId===ped.id&&m.origem==='venda')});
   return movs.length;
 }
 
 /* ---------- BAIXA AUTOMÁTICA PELA VENDA ---------- */
+/* ==========================================================
+   UMA VENDA, UMA BAIXA — SEMPRE
+
+   Esta funcao criava um movimento novo toda vez que era chamada, e sao
+   quatro as portas que chamam: a venda do PDV, o totem, o pedido que
+   chega pelo cardapio e o "Voltar" da coluna Cancelado do Kanban.
+
+   O caminho que doia era o ultimo. Cancelar um pedido JA PRODUZIDO nao
+   devolve o estoque — o insumo ja foi consumido, e o sistema pergunta
+   isso na tela. A baixa original continua valendo. Mas quem clicasse
+   "Voltar" naquele cartao ganhava uma SEGUNDA baixa do mesmo pedido: o
+   mesmo pote de gelato saindo duas vezes do saldo. Perda silenciosa,
+   que so aparece na contagem, semanas depois.
+
+   A trava certa nao e na tela: e aqui, na porta. Se ja existe baixa de
+   venda deste pedido, nao ha o que baixar de novo — venha o clique de
+   onde vier. Estornar apaga o movimento (`estornarEstoqueVenda`), entao
+   um pedido legitimamente re-aberto continua podendo baixar.
+   ========================================================== */
 function baixarEstoqueVenda(ped){
   baseMov();
+  if(ped&&ped.id&&(DB.movEst||[]).some(function(m){
+      return m.pedidoId===ped.id&&m.origem==='venda';})){
+    return 0;
+  }
   var linhas=[];
   /* ==========================================================
      A OPCAO ESCOLHIDA TAMBEM SAI DO ESTOQUE

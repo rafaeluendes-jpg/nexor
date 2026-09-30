@@ -285,7 +285,9 @@ function dadosDoCaixa(c){
      chegaram depois, em vez de esconder a sangria que subiu atrasada */
   var movs=(s&&s.movimentos&&s.movimentos.length>=movsLive.length)?s.movimentos:movsLive;
 
-  var cancels=(DB.cancelamentos||[]).filter(function(x){return x.caixaId===c.id});
+  /* cancelamento desfeito sai da conta: a venda voltou para o faturamento */
+  var cancels=(DB.cancelamentos||[]).filter(function(x){
+    return cancelamentoAtivo(x)&&x.caixaId===c.id;});
   var descs=ok.filter(function(p){return (Number(p.desconto)||0)>0.001||p.cupom});
 
   return {c:c,fechado:fechado,doSnapshot:!!s,mov:mov,

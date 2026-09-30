@@ -14297,7 +14297,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V370.0.0';
+var VERSAO='V371.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23231,14 +23231,27 @@ function moverPedido(id,fase){
   var vaiCancelar=(papelDaFase(fase)==='cancelado');
   var eraCancelado=(papelDaFase(antes)==='cancelado');
   if(vaiCancelar&&!eraCancelado){pedirCancelamento(id);return;}
+  /* ==========================================================
+     VOLTAR PASSA PELA MESMA PORTA DE CANCELAR
+
+     Daqui saia um `baixarEstoqueVenda(p)` direto: sem senha, sem motivo,
+     e sem encerrar o registro do cancelamento — que continuava contando
+     no relatorio enquanto a venda voltava para o faturamento.
+
+     Pior: num pedido cancelado como JA PRODUZIDO, o estoque nunca tinha
+     voltado, e essa baixa era a SEGUNDA do mesmo pedido. O mesmo pote
+     saindo duas vezes do saldo, sem nada na tela.
+
+     As duas linhas de estoque que ficavam aqui morreram junto: cancelar
+     sai por `pedirCancelamento` e voltar por `pedirDescancelamento`, e
+     cada uma cuida do proprio estoque. Codigo que nunca roda e o comeco
+     do proximo defeito.
+     ========================================================== */
+  if(eraCancelado&&!vaiCancelar){pedirDescancelamento(id,fase);return;}
   p.fase=fase;
   p.statusEm=new Date().toISOString();   /* o relogio do status recomeca aqui */
   var stNovo=statusVenda(fase);
   if(stNovo&&stNovo.som)bipe();
-  try{
-    if(vaiCancelar&&!eraCancelado)estornarEstoqueVenda(p);
-    if(eraCancelado&&!vaiCancelar)baixarEstoqueVenda(p);
-  }catch(e){console.error('estoque pedido',e);}
   salvar();renderKanban();
   var f=statusVenda(fase);
   toast('Pedido #'+p.numero+' → '+(f?f.nome:fase));
@@ -33538,7 +33551,9 @@ function dadosDoCaixa(c){
      chegaram depois, em vez de esconder a sangria que subiu atrasada */
   var movs=(s&&s.movimentos&&s.movimentos.length>=movsLive.length)?s.movimentos:movsLive;
 
-  var cancels=(DB.cancelamentos||[]).filter(function(x){return x.caixaId===c.id});
+  /* cancelamento desfeito sai da conta: a venda voltou para o faturamento */
+  var cancels=(DB.cancelamentos||[]).filter(function(x){
+    return cancelamentoAtivo(x)&&x.caixaId===c.id;});
   var descs=ok.filter(function(p){return (Number(p.desconto)||0)>0.001||p.cupom});
 
   return {c:c,fechado:fechado,doSnapshot:!!s,mov:mov,
@@ -37125,7 +37140,33 @@ function qtdNoDestino(f,qtd){
    Nenhuma baixa pode deixar o estoque negativo: nem producao
    (que consome ingredientes), nem baixa manual.
    ---------------------------------------------------------- */
-function faltaEstoque(linhas){
+/* ==========================================================
+   A TRAVA CONFERIA O SALDO DA LOJA ERRADA
+
+   `n.ins.estoqueAtual` e o ESPELHO da unidade aberta no aparelho — o
+   saldo de verdade mora em `DB.estoqueUn`, uma linha por unidade+item,
+   e e de la que `ajustaEstoque` debita.
+
+   Enquanto a unidade do movimento e a unidade aberta, os dois batem e
+   ninguem percebe. Quando nao sao a mesma — transferencia recebida,
+   saida de base da matriz, movimento que desceu da nuvem de outra loja —
+   a trava conferia o saldo de Jales para autorizar uma saida de Santa
+   Fe. Podia barrar o que tinha e liberar o que nao tinha.
+
+   Agora ela le o saldo daquela unidade. Quem chama sem dizer a unidade
+   continua caindo na aberta, que e o comportamento de hoje.
+
+   ---------- por que o espelho continua no caminho ----------
+   Nem todo item tem linha em `DB.estoqueUn`: item de antes dessa tabela,
+   ou base que nunca movimentou, simplesmente nao tem registro. Ler zero
+   nesse caso barraria uma producao legitima — foi o que o portao pegou,
+   na prova do pedido de base da matriz.
+   Entao: existe registro daquela unidade, manda ele; nao existe e a
+   unidade e a aberta, manda o espelho; nao existe e e outra unidade,
+   e zero mesmo — aquela loja nao tem o item.
+   ========================================================== */
+function faltaEstoque(linhas,suc){
+  suc=suc||lojaAtualId();
   var prec={};
   (linhas||[]).forEach(function(l){
     if(l.direcao!=='saida')return;
@@ -37147,7 +37188,9 @@ function faltaEstoque(linhas){
   });
   var falta=[];
   Object.keys(prec).forEach(function(k){
-    var n=prec[k],tem=Number(n.ins.estoqueAtual)||0;
+    var n=prec[k],reg=regEstoque(n.ins.id,suc,false);
+    var tem=reg?(Number(reg.estoque)||0)
+               :(suc===lojaAtualId()?(Number(n.ins.estoqueAtual)||0):0);
     if(n.q>0.0001&&tem<n.q-0.0001)
       falta.push({nome:n.ins.nome,precisa:n.q,tem:tem<0?0:tem,
         falta:+(n.q-(tem>0?tem:0)).toFixed(4),un:un(n.ins.unidade).ab});
@@ -37194,10 +37237,34 @@ function aplicarMovimento(mov,desfazer){
      cada um lembrar. Movimento antigo, sem unidade, fica com a ativa. */
   var suc=mov.sucursalId||lojaAtualId();
   if(!mov.sucursalId&&!desfazer)mov.sucursalId=suc;
+  /* ==========================================================
+     O MOVIMENTO PASSOU A DIZER DE ONDE VEIO E PARA ONDE FOI
+
+     A linha guardava o custo aplicado e mais nada. Saldo antes, saldo
+     depois, custo medio antes e depois eram calculados aqui e jogados
+     fora — `antes` ja existia, na linha de baixo, so para servir a media
+     ponderada.
+
+     Sem isso nao ha como auditar um saldo negativo: da para ver o
+     numero de hoje e a lista de movimentos, mas nao da para dizer em
+     QUAL movimento o saldo cruzou o zero, nem com que custo. E foi
+     exatamente essa pergunta que a RDS fez.
+
+     Nada aqui muda calculo nenhum: sao campos novos num objeto que ja
+     era gravado inteiro. Quem le `linhas` itera por direcao/qtd/custo e
+     ignora o resto.
+     ========================================================== */
+  if(!desfazer){
+    try{
+      var _u=(typeof usuarioLogado==='function')?usuarioLogado():null;
+      if(_u&&!mov.usuario){mov.usuario=_u.nome||'';mov.usuarioId=_u.id||'';}
+    }catch(e){}
+  }
   (mov.linhas||[]).forEach(function(l){
     var ins=itemEstoque(l.insumoId);
     if(!ins)return;
     var antes=saldoUn(ins.id,suc);
+    var custoAntes=custoMedioUn(ins.id,suc);
     ajustaEstoque(ins,l.qtd,l.unidade,(l.direcao==='entrada'?1:-1)*mult,suc);
     /* entrada atualiza o custo médio ponderado do item */
     if(!desfazer&&l.direcao==='entrada'&&Number(l.custo)>0&&
@@ -37219,6 +37286,16 @@ function aplicarMovimento(mov,desfazer){
         ins.custoUltima=+custoUn.toFixed(6);
       }
       ins.modoCusto=normModo(ins.modoCusto);
+    }
+    /* o carimbo vai depois do custo: e o estado final daquele item,
+       naquela unidade, no instante deste movimento */
+    if(!desfazer){
+      l.unidadeRef=suc;
+      l.saldoAntes=+(Number(antes)||0).toFixed(6);
+      l.saldoDepois=+(Number(saldoUn(ins.id,suc))||0).toFixed(6);
+      l.custoMedioAntes=+(Number(custoAntes)||0).toFixed(6);
+      l.custoMedioDepois=+(Number(custoMedioUn(ins.id,suc))||0).toFixed(6);
+      l.valor=+(((Number(l.qtd)||0)*(Number(l.custo)||0))).toFixed(6);
     }
   });
   repararDestinos();
@@ -40881,18 +40958,60 @@ async function salvarMovimento(){
 }
 
 /* devolve ao estoque o que a venda tinha baixado */
+/* ==========================================================
+   O ESTORNO VOLTAVA SO NESTE APARELHO
+
+   A baixa da venda sobe para a nuvem. O estorno apagava a linha AQUI e
+   nao avisava ninguem — e desde a V201 o espelhamento so apaga da nuvem
+   o que foi DECLARADO (`declararExclusao`). Ausencia nao apaga nada, de
+   proposito: "sumiu da lista" costuma ser copia incompleta, nao ordem
+   de apagar.
+
+   Resultado: cancelar uma venda devolvia o estoque na tela e deixava a
+   baixa viva na nuvem. No download seguinte ela voltava, e o saldo
+   ficava devendo de novo — sem ninguem entender de onde.
+
+   A nota de entrada ja fazia certo (`desfazerEstoqueDaNota`). Aqui
+   faltava a mesma linha.
+   ========================================================== */
 function estornarEstoqueVenda(ped){
   baseMov();
   var movs=(DB.movEst||[]).filter(function(m){return m.pedidoId===ped.id&&m.origem==='venda'});
   if(!movs.length)return 0;
-  movs.forEach(function(m){aplicarMovimento(m,true)});
+  movs.forEach(function(m){
+    aplicarMovimento(m,true);
+    try{declararExclusao('movEst',m.id);}catch(e){_quieto(e,'estornarEstoqueVenda')}
+  });
   DB.movEst=(DB.movEst||[]).filter(function(m){return !(m.pedidoId===ped.id&&m.origem==='venda')});
   return movs.length;
 }
 
 /* ---------- BAIXA AUTOMÁTICA PELA VENDA ---------- */
+/* ==========================================================
+   UMA VENDA, UMA BAIXA — SEMPRE
+
+   Esta funcao criava um movimento novo toda vez que era chamada, e sao
+   quatro as portas que chamam: a venda do PDV, o totem, o pedido que
+   chega pelo cardapio e o "Voltar" da coluna Cancelado do Kanban.
+
+   O caminho que doia era o ultimo. Cancelar um pedido JA PRODUZIDO nao
+   devolve o estoque — o insumo ja foi consumido, e o sistema pergunta
+   isso na tela. A baixa original continua valendo. Mas quem clicasse
+   "Voltar" naquele cartao ganhava uma SEGUNDA baixa do mesmo pedido: o
+   mesmo pote de gelato saindo duas vezes do saldo. Perda silenciosa,
+   que so aparece na contagem, semanas depois.
+
+   A trava certa nao e na tela: e aqui, na porta. Se ja existe baixa de
+   venda deste pedido, nao ha o que baixar de novo — venha o clique de
+   onde vier. Estornar apaga o movimento (`estornarEstoqueVenda`), entao
+   um pedido legitimamente re-aberto continua podendo baixar.
+   ========================================================== */
 function baixarEstoqueVenda(ped){
   baseMov();
+  if(ped&&ped.id&&(DB.movEst||[]).some(function(m){
+      return m.pedidoId===ped.id&&m.origem==='venda';})){
+    return 0;
+  }
   var linhas=[];
   /* ==========================================================
      A OPCAO ESCOLHIDA TAMBEM SAI DO ESTOQUE
@@ -52162,7 +52281,8 @@ function imprimirCancelamentoGuardado(){
 }
 function imprimirCancelamento(pedId){
   var ped=(DB.pedidos||[]).find(function(x){return x.id===pedId});
-  var cn=(DB.cancelamentos||[]).filter(function(c){return c.pedidoId===pedId})
+  var cn=(DB.cancelamentos||[]).filter(function(c){
+      return cancelamentoAtivo(c)&&c.pedidoId===pedId;})
     .slice(-1)[0]||null;
   if(!ped&&_CANC_IMP&&_CANC_IMP.ped&&_CANC_IMP.ped.id===pedId){
     imprimirCancelamentoGuardado();return;
@@ -53466,6 +53586,115 @@ async function confirmarCancelamento(id){
      overlays.
      ========================================================== */
   setTimeout(function(){ perguntaImprimirCancelamento(p,reg); },120);
+}
+
+/* ==========================================================
+   VOLTAR UMA VENDA CANCELADA CUSTAVA UM CLIQUE
+
+   Na coluna Cancelado do Kanban ha um botao "Voltar". Ele chamava
+   `moverPedido` direto — sem senha, sem motivo, sem registro. E o
+   registro do cancelamento continuava la, contando o mesmo valor como
+   cancelado, enquanto o pedido voltava para o faturamento.
+
+   Resultado: no mesmo dia, a aba Cancelamentos e o faturamento do turno
+   discordavam, e nenhum dos dois estava errado sozinho — o sistema e que
+   estava contando a venda das duas maneiras ao mesmo tempo.
+
+   Cancelar exige motivo, operador e senha. Voltar mexe no mesmo dinheiro,
+   entao passa pela mesma porta. E o cancelamento nao e apagado: fica na
+   trilha, marcado como desfeito, com quem desfez e por que.
+   ========================================================== */
+/* cancelamento desfeito continua guardado, mas nao conta mais em lugar nenhum */
+function cancelamentoAtivo(c){return !!c&&!c.desfeitoEm;}
+function cancelamentoDoPedido(id){
+  return (DB.cancelamentos||[]).filter(function(c){
+      return cancelamentoAtivo(c)&&c.pedidoId===id;})
+    .sort(function(a,b){
+      return String(b.data+' '+b.hora).localeCompare(String(a.data+' '+a.hora));})[0]||null;
+}
+function pedirDescancelamento(id,fase){
+  var p=(DB.pedidos||[]).find(function(x){return x.id===id});
+  if(!p)return;
+  if(!ehCancelado(p)){toast('Este pedido não está cancelado.');return;}
+  if(!podeCancelarVenda()){
+    toast('Você não possui permissão para voltar uma venda cancelada.');return;}
+  var reg=cancelamentoDoPedido(id);
+  var volta=reg?(reg.estoqueVoltou!==false):true;
+  var ov=document.createElement('div');ov.className='mdOv';ov.id='mdOv';
+  ov.innerHTML='<div class="mdBox lg"><div class="mdH"><b>Voltar a venda #'+E(p.numero)+'</b>'+
+   '<button onclick="fecharModal()">&times;</button></div>'+
+   '<div class="mdB"><div class="cncCard">'+
+    '<div class="cncH"><b>#'+E(p.numero)+'</b>'+
+     '<span>'+dataBR(String(p.data).slice(0,10))+' às '+E(p.hora||'')+'</span></div>'+
+    '<div class="cncCli">'+E(p.clienteNome||'Consumidor')+'</div>'+
+    '<div class="cncTot"><span>Total</span><b>R$ '+money(p.total)+'</b></div>'+
+    (reg?'<div class="cncPg">'+sv('help',12)+' Cancelada em '+dataBR(reg.data)+' às '+
+      E(reg.hora||'')+' por '+E(reg.operador||'—')+' — '+E(reg.motivo||'sem motivo')+'</div>':
+     '<div class="cncPg">'+sv('help',12)+' Sem registro de cancelamento guardado.</div>')+
+    '<div class="fld2 cncCampo"><label>Por que está voltando? *</label>'+
+     '<input id="dcMot" placeholder="ex.: cancelamento feito por engano" autocomplete="off"></div>'+
+    '<div class="cncDupla">'+
+     '<div class="fld2" style="margin:0"><label>Quem está voltando *</label>'+
+      '<select id="dcOp"><option value="">Selecione</option>'+
+      operadoresPara('cancelar').map(function(o){
+        return '<option value="'+E(o.id)+'">'+E(o.nome)+'</option>'}).join('')+
+      '</select></div>'+
+     '<div class="fld2" style="margin:0"><label>Senha *</label>'+
+      '<input id="dcSenha" type="password" placeholder="senha de acesso" autocomplete="off">'+
+      '</div></div>'+
+    '<div class="cncAviso">'+sv('help',14)+'<div>'+
+     'O valor volta para o faturamento e o cancelamento deixa de contar no relatório. '+
+     (volta
+      ? 'Os itens <b>saem do estoque de novo</b>, porque tinham voltado no cancelamento.'
+      : 'O estoque <b>não muda</b>: no cancelamento foi respondido que o pedido já tinha sido produzido, e o insumo nunca voltou.')+
+     '</div></div>'+
+    '<button class="btnP2" style="width:100%;justify-content:center;margin-top:12px" '+
+     'onclick="confirmarDescancelamento(\''+p.id+'\',\''+E(fase)+'\')">Voltar a venda #'+E(p.numero)+'</button>'+
+   '</div></div>'+
+   '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button></div></div>';
+  document.body.appendChild(ov);
+  fecharSoForaDeVerdade(ov);
+}
+async function confirmarDescancelamento(id,fase){
+  var p=(DB.pedidos||[]).find(function(x){return x.id===id});
+  if(!p)return;
+  if(!ehCancelado(p)){toast('Este pedido não está cancelado.');fecharModal();return;}
+  if(!podeCancelarVenda()){
+    toast('Você não possui permissão para voltar uma venda cancelada.');fecharModal();return;}
+  var motivo=String((($('dcMot')||{}).value)||'').trim();
+  if(!motivo){toast('Diga por que está voltando a venda.');return;}
+  var opId=($('dcOp')||{}).value||'';
+  if(!opId){toast('Selecione quem está voltando a venda.');return;}
+  var op=await autorizar('cancelar',opId,($('dcSenha')||{}).value||'');
+  if(!op)return;
+  /* entre o clique e a resposta da senha cabe outro clique */
+  if(!ehCancelado(p)){toast('Esta venda já voltou.');fecharModal();return;}
+  if(!travarOperacao('descancelar-'+p.id))return;
+  var reg=cancelamentoDoPedido(id);
+  p.fase=fase||statusInicial('entrega');
+  p.statusEm=new Date().toISOString();
+  p.canceladoEm='';p.motivoCancelamento='';p.canceladoPor='';
+  p.produzidoNoCancelamento=undefined;
+  if(reg){
+    reg.desfeitoEm=new Date().toISOString();
+    reg.desfeitoPor=op.nome;reg.desfeitoPorId=op.id;
+    reg.desfeitoMotivo=motivo;
+  }
+  /* ==========================================================
+     QUEM DECIDE SE O ESTOQUE SAI DE NOVO E O ESTOQUE, NAO O CAMPO
+
+     Poderia ser lido de `reg.estoqueVoltou`. Mas esse campo e uma
+     lembranca do que aconteceu; o movimento e o fato. `baixarEstoqueVenda`
+     hoje recusa baixar duas vezes o mesmo pedido, entao chamar aqui faz a
+     coisa certa nos dois casos: se o estorno apagou a baixa, ela nasce de
+     novo; se o pedido era produzido e a baixa continua la, nada acontece.
+     ========================================================== */
+  try{ baixarEstoqueVenda(p); }catch(e){ _quieto(e,'confirmarDescancelamento'); }
+  salvar();
+  fecharModal();
+  if(PDV.aba==='pedidos')renderKanban();
+  toast('Venda #'+p.numero+' voltou — por '+op.nome+'.');
+  if(NUVEM.ligada)sincronizar();
 }
 
 
@@ -55687,6 +55916,7 @@ function telaRelCancel(){
     RC.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     RC.ate=hojeISO();}
   var lst=DB.cancelamentos.filter(function(c){
+    if(!cancelamentoAtivo(c))return false;    /* desfeito nao conta mais */
     if(RC.de&&c.data<RC.de)return false;
     if(RC.ate&&c.data>RC.ate)return false;
     if(RC.motivo&&c.motivoId!==RC.motivo)return false;
@@ -55823,6 +56053,7 @@ async function excluirCancel(id){
 }
 function exportarCancel(){
   var lst=(DB.cancelamentos||[]).filter(function(c){
+    if(!cancelamentoAtivo(c))return false;    /* desfeito nao conta mais */
     if(RC.de&&c.data<RC.de)return false;
     if(RC.ate&&c.data>RC.ate)return false;
     if(RC.motivo&&c.motivoId!==RC.motivo)return false;

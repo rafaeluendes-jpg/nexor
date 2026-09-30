@@ -105,6 +105,10 @@
    "pontos": 2,
    "roda": true
   },
+  "testes/cancelar-e-voltar.js": {
+   "pontos": 50,
+   "roda": true
+  },
   "testes/cardapio-horario.js": {
    "pontos": 29,
    "roda": true
@@ -202,11 +206,11 @@
    "roda": true
   },
   "testes/fiscal-por-unidade.js": {
-   "pontos": 79,
+   "pontos": 141,
    "roda": true
   },
   "testes/fiscal-telas.js": {
-   "pontos": 114,
+   "pontos": 116,
    "roda": true
   },
   "testes/formas-esperam-download.js": {
