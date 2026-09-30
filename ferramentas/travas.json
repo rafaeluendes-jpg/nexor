@@ -162,7 +162,7 @@
    "roda": true
   },
   "testes/dre-arvore.js": {
-   "pontos": 24,
+   "pontos": 28,
    "roda": true
   },
   "testes/e2e.js": {
@@ -399,6 +399,10 @@
   },
   "testes/relatorio-nao-mente.js": {
    "pontos": 26,
+   "roda": true
+  },
+  "testes/relatorio-separa-a-unidade.js": {
+   "pontos": 28,
    "roda": true
   },
   "testes/resposta-zap-fecha.js": {

@@ -389,6 +389,7 @@ function telaItensConsumidos(){
     IC.ate=hojeISO();}
   var por={};
   (DB.movEst||[]).forEach(function(m){
+    if(m.demo||!daUnidadeAberta(m))return;   /* rede inteira no aparelho */
     var d=diaLocal(m.data);
     if(IC.de&&d<IC.de)return;
     if(IC.ate&&d>IC.ate)return;
@@ -1818,6 +1819,8 @@ function calcularDRE(ano){
   }
   /* arvore de detalhe: det[rubrica] = no; no = {n, v[12 meses], ch{rotulo:no}} */
   var det={};
+  /* quais rubricas do mes sairam de CALCULO, e nao de lancamento */
+  var calc={};
   function zero(){return [0,0,0,0,0,0,0,0,0,0,0,0]}
   function noDe(pai,rot){
     pai.ch=pai.ch||{};
@@ -1921,6 +1924,8 @@ function calcularDRE(ano){
       var f=(DB.formasPag||[]).find(function(x){return x.id===(g.formaId||g.forma)});
       if(!f)return;
       var v=((Number(g.valor)||0)*(Number(f.taxaPct)||0)/100)+(Number(f.taxaFixa)||0);
+      /* sai do CADASTRO da forma, nao do extrato da operadora */
+      if(v)calc['05']=true;
       m[k]['05']+=v; add('05',[f.nome||'Forma de pagamento'],k,v);
     });
   });
@@ -1964,6 +1969,7 @@ function calcularDRE(ano){
   /* lancamentos financeiros, pela rubrica configurada:
      categoria -> subcategoria -> unidade (quando ha mais de uma) -> lancamento */
   (DB.lancFin||[]).forEach(function(l){
+    if(!daUnidadeAberta(l))return;      /* o aparelho tem a rede inteira */
     var dt=(c.regime==='caixa')?(l.pagamento||l.vencimento):(l.emissao||l.vencimento);
     if(c.regime==='caixa'&&!l.pago)return;
     var k=mesDe(dt); if(k<0)return;
@@ -1990,12 +1996,30 @@ function calcularDRE(ano){
   for(var k2=0;k2<12;k2++){
     var fat=m[k2]['01.01']+m[k2]['01.02'];
     m[k2]['01']=fat;
+    /* ==========================================================
+       O QUE E CALCULADO TEM DE DIZER QUE E CALCULADO
+
+       Imposto, royalties e fundo de promocao nao sao lancamentos: sao um
+       percentual aplicado sobre o faturamento quando ninguem lancou o
+       valor de verdade no mes. Na tabela do DRE eles apareciam com a
+       MESMA cara de uma linha lancada — e so quem abrisse o "+" via a
+       diferenca, no texto do galho.
+
+       O mesmo vale para a taxa de cartao (rubrica 05): ela sai do
+       cadastro da forma de pagamento, nao do extrato da operadora.
+
+       Numero estimado apresentado como real e a pior classe de erro:
+       a que ninguem sabe que existe. Agora a propria linha diz.
+       ========================================================== */
     if(Number(c.aliqImposto)>0&&!m[k2]['03']){m[k2]['03']=fat*Number(c.aliqImposto)/100;
-      add('03',['Alíquota de '+c.aliqImposto+'% sobre o faturamento'],k2,m[k2]['03']);}
+      add('03',['(calculado) Alíquota de '+c.aliqImposto+'% sobre o faturamento'],k2,m[k2]['03']);
+      calc['03']=true;}
     if(Number(c.royaltiesPct)>0&&!m[k2]['04.01']){m[k2]['04.01']=fat*Number(c.royaltiesPct)/100;
-      add('04.01',['Royalties de '+c.royaltiesPct+'% sobre o faturamento'],k2,m[k2]['04.01']);}
+      add('04.01',['(calculado) Royalties de '+c.royaltiesPct+'% sobre o faturamento'],k2,m[k2]['04.01']);
+      calc['04.01']=true;}
     if(Number(c.fundoPct)>0&&!m[k2]['04.02']){m[k2]['04.02']=fat*Number(c.fundoPct)/100;
-      add('04.02',['Fundo de '+c.fundoPct+'% sobre o faturamento'],k2,m[k2]['04.02']);}
+      add('04.02',['(calculado) Fundo de '+c.fundoPct+'% sobre o faturamento'],k2,m[k2]['04.02']);
+      calc['04.02']=true;}
     m[k2]['04']=m[k2]['04.01']+m[k2]['04.02'];
     m[k2]['11']=m[k2]['12']+m[k2]['13'];
     m[k2]['14']=m[k2]['15']+m[k2]['16']+m[k2]['17'];
@@ -2004,6 +2028,7 @@ function calcularDRE(ano){
     m[k2]['18']=m[k2]['10']-m[k2]['11']+m[k2]['14'];
   }
   m.det=det;
+  m.calc=calc;      /* rubricas que sairam de calculo, nao de lancamento */
   return m;
 }
 
@@ -2130,6 +2155,11 @@ function corpoDRE(m,cols){
        out+='<tr class="'+cls+'">'+
         '<td class="dreC">'+r.c+'</td>'+
         '<td class="dreN">'+((ehPai||temDet)?botao(r.c,aberto):'')+E(r.n)+
+         /* a linha calculada se identifica: ela nao veio de lancamento */
+         ((m.calc&&m.calc[r.c])
+           ?' <span class="grpTag" title="Este valor não veio de lançamento: é um '+
+            'cálculo sobre o faturamento, ou sobre o cadastro da forma de '+
+            'pagamento.">calculado</span>':'')+
          (r.d?'<button class="piI" onclick="dicaRub(event,\''+r.c+'\')">i</button>':'')+'</td>'+
         celulas(function(k){return m[k][r.c]},r.c==='01')+'</tr>';
        if(aberto&&temDet)filhos(d).forEach(function(f){galho(f,r.c+'|'+f.n,1)});
@@ -2602,6 +2632,26 @@ function vendaDaUnidadeAberta(p){
   var suc=lojaAtualId();
   if(ehSucMatriz(suc))return true;          /* a matriz compara a rede */
   return sucursalDoPedido(p)===suc;
+}
+/* ==========================================================
+   A MESMA TRAVA, PARA O QUE NAO E VENDA
+
+   O aparelho baixa a REDE INTEIRA: o corte do download e por loja, nao
+   por unidade. Quem separa e o relatorio — e metade deles nao separava.
+   Quem abria Santa Fe via o consumo, as mesas e o fluxo de caixa
+   somados com Jales, sem nada na tela dizendo isso.
+
+   Movimento e lancamento guardam a unidade em campos de nomes
+   diferentes (`sucursalId`, `sucursalRef`, `_suc`, conforme a idade do
+   registro). Registro antigo, sem unidade nenhuma, e de quando havia uma
+   loja so: fica com a aberta, como no resto do sistema.
+   ========================================================== */
+function daUnidadeAberta(x){
+  var suc=lojaAtualId();
+  if(!suc)return true;
+  try{ if(ehSucMatriz(suc))return true; }catch(e){}
+  var s=(x&&(x.sucursalId||x.sucursalRef||x._suc))||'';
+  return !s||s===suc;
 }
 /* filtro de sucursais usado nos painéis */
 

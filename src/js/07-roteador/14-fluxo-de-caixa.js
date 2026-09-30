@@ -18,6 +18,7 @@ function subDoLanc(l){
 }
 function lancDoMes(m){
   return (DB.lancFin||[]).filter(function(l){
+    if(!daUnidadeAberta(l))return false;      /* rede inteira no aparelho */
     if(FX.conta&&l.contaId!==FX.conta&&l.contaDestinoId!==FX.conta)return false;
     if(!FX.previsto&&!l.pago)return false;
     var d=(l.pago&&l.pagamento)?l.pagamento:(l.vencimento||l.emissao||'');

@@ -755,9 +755,10 @@ function telaRelMesas(){
   if(!RM.de){var d=new Date();
     RM.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     RM.ate=hojeISO();}
-  var peds=(DB.pedidos||[]).filter(function(p){
+  var peds=fontePedidos().filter(function(p){
     if(!p.mesaId&&!p.mesa)return false;
-    if(ehCancelado(p))return false;
+    if(ehCancelado(p)||p.demo)return false;
+    if(!vendaDaUnidadeAberta(p))return false;
     var d=diaLocal(p.data);
     return (!RM.de||d>=RM.de)&&(!RM.ate||d<=RM.ate);
   });
@@ -827,15 +828,19 @@ function explicaRelMesas(){
    ok:'Entendi',cancelar:null}).then(function(){});
 }
 function exportarMesas(){
-  var peds=(DB.pedidos||[]).filter(function(p){
+  /* mesma lista da tela: o CSV que discorda da tela vira duas verdades */
+  var peds=fontePedidos().filter(function(p){
     if(!p.mesaId&&!p.mesa)return false;
-    if(ehCancelado(p))return false;
+    if(ehCancelado(p)||p.demo)return false;
+    if(!vendaDaUnidadeAberta(p))return false;
     var d=diaLocal(p.data);
     return (!RM.de||d>=RM.de)&&(!RM.ate||d<=RM.ate);});
   if(!peds.length){toast('Nada para exportar no período.');return;}
   var l=[['Pedido','Data','Hora','Mesa','Comanda','Itens','Taxa de servico','Total']];
   peds.forEach(function(p){
-    l.push([p.numero,dataBR(String(p.data).slice(0,10)),p.hora||'',p.mesa||'',
+    /* a tela usava `diaLocal` e o CSV cortava o texto cru: a mesma venda
+       saia com dias diferentes nos dois lugares */
+    l.push([p.numero,dataBR(diaLocal(p.data)),p.hora||'',p.mesa||'',
       p.comandaNome||'',(p.itens||[]).length,
       String(p.taxaServico||0).replace('.',','),
       String(p.total||0).replace('.',',')]);

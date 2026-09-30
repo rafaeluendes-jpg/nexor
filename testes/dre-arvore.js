@@ -60,7 +60,22 @@ async function carregar() {
     t('existe ' + fn + '()', typeof win[fn] === 'function', typeof win[fn]));
 
   /* ---- cenário: setembro/2026, duas unidades ---- */
+  /* ==========================================================
+     DE QUEM E A TELA? A PERGUNTA QUE FALTAVA
+
+     Este cenario tem duas lojas e confere a cascata por unidade
+     (Santa Fe 100 + Jales 50 = 150). So que ate a V378 o DRE nao
+     perguntava de quem era a tela: somava as duas para QUALQUER um.
+     Quem abria Santa Fe via o resultado dela somado com o de Jales.
+
+     A cascata por unidade e a visao da MATRIZ — e para isso que ela
+     existe. Entao o cenario passa a dizer isso em voz alta, e o teste
+     ganhou a outra metade: aberto em Santa Fe, so Santa Fe aparece.
+     ========================================================== */
   win.ehCancelado = () => false;
+  win.lojaAtualId = () => 'suc_matriz';
+  win.ehSucMatriz = id => id === 'suc_matriz';
+  win.sucursalDoPedido = p => p.sucursalId || '';
   win.sucAtivas = () => [{ id: 'suc_a', nome: 'Santa Fé' }, { id: 'suc_b', nome: 'Jales' }];
   win.sucNome = id => ({ suc_a: 'Santa Fé', suc_b: 'Jales' })[id] || id;
   win.salvar = () => {};
@@ -131,6 +146,18 @@ async function carregar() {
   if (bt2) win.toggleDre(bt2);
   const html3 = win.document.getElementById('content').innerHTML;
   t('segundo clique chega ao produto (Copo P)', /Copo P/.test(html3));
+
+  grupo('Cada loja vê o resultado dela; a matriz vê a rede');
+  win.lojaAtualId = () => 'suc_a';
+  const mA = win.calcularDRE(2026);
+  t('aberto em Santa Fé, 09 Pessoal = 100 (era 150, somando Jales)',
+    perto(mA[S]['09'], 100), mA[S]['09']);
+  t('e a venda de Santa Fé continua aparecendo', perto(mA[S]['01.01'], 30), mA[S]['01.01']);
+  win.lojaAtualId = () => 'suc_b';
+  const mB = win.calcularDRE(2026);
+  t('aberto em Jales, 09 Pessoal = 50', perto(mB[S]['09'], 50), mB[S]['09']);
+  t('e a venda de Santa Fé NÃO aparece em Jales', perto(mB[S]['01.01'], 0), mB[S]['01.01']);
+  win.lojaAtualId = () => 'suc_matriz';
 
   grupo('Configuração: a opção de CPV por nota sumiu');
   const fonte = fs.readFileSync(ARQ, 'utf8');
