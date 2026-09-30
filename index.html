@@ -25539,17 +25539,21 @@ async function cancelarCupomDaVenda(ped,motivo,opcoes){
      e so morre quando a SEFAZ confirmar */
   c.precisaCancelar=true;
   c.motivoPendencia='Venda cancelada — cupom ainda autorizado na SEFAZ.';
-  if(opcoes.manterCupom){
-    c.motivoPendencia='Venda cancelada — quem cancelou escolheu manter o cupom. '+
-      'Ele continua valendo na Receita: cancele em Cupons Fiscais se for o caso.';
-    return {feito:false,porque:'mantido'};
-  }
   if(!fiscalEmite(suc)){
     c.motivoPendencia='Venda cancelada. Este cupom não foi emitido pela Spedy: '+
       'o cancelamento tem de ser feito com o contador.';
     return {feito:false,porque:'sem spedyId'};
   }
-  var r=await fiscalPedirCancelamento(c,suc,motivoFiscalDoCancelamento(ped,motivo));
+  /* sem o identificador da Spedy vai pela venda; a venda cancelada pode
+     ainda nao estar na nuvem (o servidor confere): sobe e tenta de novo */
+  var alvo=c.spedyId?{id:c.spedyId}:{integrationId:c.integ||c.pedidoId};
+  var r=null;
+  for(var t=0;t<4;t++){
+    r=await fiscalChamar('cancelar',Object.assign({sucursal:suc,motivo:motivoFiscalDoCancelamento(ped,motivo)},alvo));
+    if(r.ok||!(r.d&&r.d.codigo==='venda_nao_cancelada'))break;
+    try{ if(typeof sincronizar==='function')await sincronizar(); }catch(e){_quieto(e,'cancelarCupomDaVenda')}
+    await new Promise(function(ok){setTimeout(ok,1500*(t+1))});
+  }
   if(!r.ok){
     /* ==========================================================
        FORA DO PRAZO NAO E ERRO DE SISTEMA (RDS 9.3)
@@ -25577,6 +25581,16 @@ async function cancelarCupomDaVenda(ped,motivo,opcoes){
     }).catch(function(){});
   }
   return {feito:true,porque:'enviado'};
+}
+/* quem cancelou a venda desmarcou "cancelar tambem o cupom": ele continua
+   valendo, e a pendencia fica escrita em Cupons Fiscais */
+function manterCupomDaVenda(ped){
+  var c=cupomFiscalDoPedido(ped);
+  if(!c||(c.status!=='autorizado'&&c.status!=='contingencia'))return {feito:false,porque:'sem cupom'};
+  c.precisaCancelar=true;
+  c.motivoPendencia='Venda cancelada — quem cancelou escolheu manter o cupom. '+
+    'Ele continua valendo na Receita: cancele em Cupons Fiscais se for o caso.';
+  return {feito:false,porque:'mantido'};
 }
 /* pede o cancelamento pelo identificador da Spedy ou, sem ele, pela venda.
    A venda cancelada agora pode ainda nao estar na nuvem — e o servidor so
@@ -55401,7 +55415,8 @@ async function confirmarCancelamento(id){
      foi feito. Falhou, vira pendencia escrita no cupom.
      ========================================================== */
   try{
-    cancelarCupomDaVenda(p,p.motivoCancelamento,{manterCupom:!!cupomV&&!cancelaCupom}).then(function(r){
+    ((cupomV&&!cancelaCupom)?Promise.resolve(manterCupomDaVenda(p))
+      :cancelarCupomDaVenda(p,p.motivoCancelamento)).then(function(r){
       salvar();
       if(r&&r.feito&&r.porque==='enviado'){
         var c2=cupomFiscalDoPedido(p);

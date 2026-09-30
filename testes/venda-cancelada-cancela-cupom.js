@@ -60,7 +60,7 @@ function t(n, c, d) { R.total++; if (c) { R.ok++; console.log('   ok   ' + n); }
   t('a caixa vem marcada', /id="cvCupom" checked/.test(html));
   t('venda sem cupom valendo não mostra a opção', !/cvCupom/.test(w.cartaoCancelamento({ id: 'pd_x', numero: 1, itens: [] })));
   t('confirmarCancelamento leva a escolha ao cancelamento do cupom',
-    /manterCupom:!!cupomV&&!cancelaCupom/.test(String(w.confirmarCancelamento)));
+    /\(cupomV&&!cancelaCupom\)\?Promise\.resolve\(manterCupomDaVenda\(p\)\)\s*:cancelarCupomDaVenda\(p,p\.motivoCancelamento\)/.test(String(w.confirmarCancelamento)));
 
   console.log('\n── 3. Sem o identificador da Spedy, cancela pela venda — e espera a venda chegar na nuvem');
   const chamadas = []; let recusas = 1;
@@ -80,7 +80,7 @@ function t(n, c, d) { R.total++; if (c) { R.ok++; console.log('   ok   ' + n); }
   console.log('\n── 4. Quem desmarca mantém o cupom — e a pendência fica escrita');
   const cup2 = { id: 'cf_42', pedidoId: 'pd_42', sucursalId: 'suc_sf', status: 'autorizado', numero: 42, spedyId: 'sp42', data: w.hojeISO() };
   w.baseCuponsFiscais().push(cup2); chamadas.length = 0;
-  const r2 = await w.cancelarCupomDaVenda({ id: 'pd_42', numero: 2546, fase: 'cancelado' }, 'x', { manterCupom: true });
+  const r2 = w.manterCupomDaVenda({ id: 'pd_42', numero: 2546, fase: 'cancelado' });
   t('não pede à Receita', chamadas.length === 0 && r2.porque === 'mantido');
   t('fica como pendência em Cupons Fiscais', cup2.precisaCancelar === true && /manter o cupom/.test(cup2.motivoPendencia));
 

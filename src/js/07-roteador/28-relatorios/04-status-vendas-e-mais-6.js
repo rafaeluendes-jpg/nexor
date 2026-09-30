@@ -318,7 +318,8 @@ async function confirmarCancelamento(id){
      foi feito. Falhou, vira pendencia escrita no cupom.
      ========================================================== */
   try{
-    cancelarCupomDaVenda(p,p.motivoCancelamento,{manterCupom:!!cupomV&&!cancelaCupom}).then(function(r){
+    ((cupomV&&!cancelaCupom)?Promise.resolve(manterCupomDaVenda(p))
+      :cancelarCupomDaVenda(p,p.motivoCancelamento)).then(function(r){
       salvar();
       if(r&&r.feito&&r.porque==='enviado'){
         var c2=cupomFiscalDoPedido(p);
