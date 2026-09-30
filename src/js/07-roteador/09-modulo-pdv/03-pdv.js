@@ -39,6 +39,31 @@ function telaPDV(){
   setTimeout(function(){ conferirCaixaNoBanco(); },50);
   /* e a configuração fiscal da loja, para a primeira venda já saber se emite */
   setTimeout(function(){ if(typeof fiscalGarantir==='function')fiscalGarantir(lojaAtualId()); },80);
+  /* ==========================================================
+     O CUPOM PRESO SÓ SAÍA SE ALGUÉM ABRISSE A TELA DE CUPONS
+
+     `fiscalReprocessar` existia, era defensiva e fazia a coisa certa —
+     mas tinha UM chamador em todo o sistema: `telaCuponsFiscais`. E
+     ninguém abre aquela tela no balcão.
+
+     Efeito real: um cupom que ficou pendente porque a internet caiu na
+     hora da venda ficava pendente o dia inteiro, e a loja só descobria
+     quando alguém fosse procurar. Em 29/09 havia seis nessa situação.
+
+     Agora ele roda onde a loja está o dia todo: ao abrir o PDV. A função
+     já se protege sozinha (no máximo 10 por vez, só da unidade aberta,
+     só cupom de até 24 h, pula quem falta cadastro) e é assíncrona — não
+     segura o desenho da tela nem o caixa.
+     ========================================================== */
+  setTimeout(function(){
+    try{
+      if(typeof fiscalReprocessar==='function'){
+        fiscalReprocessar()
+          .then(function(){ if(typeof fsAvisoPendencias==='function')fsAvisoPendencias(lojaAtualId()); })
+          .catch(function(e){_quieto(e,'fiscalReprocessar')});
+      }else if(typeof fsAvisoPendencias==='function')fsAvisoPendencias(lojaAtualId());
+    }catch(e){_quieto(e,'fiscalReprocessar')}
+  },1500);
   DB.clientes=DB.clientes||[];DB.pedidos=DB.pedidos||[];DB.caixas=DB.caixas||[];
   baseFormas();
   var c=cfg(),cx=caixaAberto();

@@ -149,6 +149,10 @@
    "pontos": 20,
    "roda": true
   },
+  "testes/cupom-nao-fica-preso.js": {
+   "pontos": 26,
+   "roda": true
+  },
   "testes/dia-primeiro.js": {
    "pontos": 18,
    "roda": true

@@ -585,6 +585,53 @@ async function fiscalReprocessar(){
   return n;
 }
 
+/* ==========================================================
+   O QUE FICOU PARA TRÁS NO FISCAL, DITO NO LUGAR ONDE SE TRABALHA
+
+   Cupom rejeitado, preso no envio ou esperando cancelamento é uma
+   pendência FISCAL: alguém tem de olhar, e quanto antes melhor — o
+   cancelamento na SEFAZ tem prazo de minutos.
+
+   Até agora esses três casos só apareciam dentro da tela de Cupons
+   Fiscais, que ninguém abre no balcão. A loja descobria dias depois, ou
+   pela RDS.
+
+   Rejeitado NÃO entra na fila automática de propósito: reenviar sem
+   corrigir a causa é repetir a recusa para sempre. O que ele precisa é
+   de alguém — e é isso que este aviso faz.
+   ========================================================== */
+function fsPendenciasDaUnidade(suc){
+  suc=suc||lojaAtualId();
+  var r={rejeitado:0,preso:0,cancelar:0,total:0};
+  try{
+    baseCuponsFiscais().forEach(function(c){
+      if((c.sucursalId||suc)!==suc)return;
+      if(c.ambiente&&c.ambiente!=='producao')return;   /* teste não é pendência */
+      if(c.precisaCancelar){r.cancelar++;return;}
+      if(c.status==='rejeitado'||c.status==='denegado'){r.rejeitado++;return;}
+      if((c.status==='pendente'||c.status==='enviando')&&!c.faltaCadastro&&!c.naoEmitir)r.preso++;
+    });
+  }catch(e){_quieto(e,'fsPendenciasDaUnidade')}
+  r.total=r.rejeitado+r.preso+r.cancelar;
+  return r;
+}
+function fsAvisoPendencias(suc){
+  if(typeof document==='undefined')return;
+  var o=document.getElementById('fsPend');if(o)o.remove();
+  var p=fsPendenciasDaUnidade(suc);
+  if(!p.total)return;
+  var partes=[];
+  if(p.rejeitado)partes.push(p.rejeitado+' recusado(s) pela Receita');
+  if(p.preso)partes.push(p.preso+' preso(s) no envio');
+  if(p.cancelar)partes.push(p.cancelar+' esperando cancelamento');
+  var d=document.createElement('div');
+  d.id='fsPend';d.className='fsChip at';
+  d.innerHTML='<span><b>Cupom fiscal pendente:</b> '+E(partes.join(' · '))+
+    '. A venda está salva — o documento é que falta.</span>'+
+    '<button class="btnMini" onclick="abrir(\'fiscal\',\'cupons\')">Ver cupons</button>'+
+    '<button class="btnMini" aria-label="Fechar aviso" onclick="this.parentNode.remove()">✕</button>';
+  document.body.appendChild(d);
+}
 /* ---------- o aviso do caixa: pequeno, no canto, sem pedir clique ---------- */
 function fsChip(c){
   if(!c||typeof document==='undefined')return;
