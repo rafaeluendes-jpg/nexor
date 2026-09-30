@@ -250,12 +250,25 @@ async function carregar() {
   win.DB.lancFin.find(x => x.id === 'lf7').pago = false;
 
   await win.excluirNota(n7.id);
-  t('a nota saiu daqui', !win.DB.notas.some(x => x.id === n7.id));
-  t('e o motivo ficou gravado antes de ela sair',
-    ((win.DB._apagados.notas || {})[n7.id]) ? n7.excluidoMotivo === 'lancada em duplicidade' : false,
-    n7.excluidoMotivo);
-  t('a exclusão da NOTA ficou declarada (era só local: voltava no download)',
-    !!(win.DB._apagados.notas || {})[n7.id]);
+  /* ==========================================================
+     DESDE A V381 A NOTA E ANULADA, NAO APAGADA (RDS 19)
+
+     Antes ela sumia daqui e da nuvem, e o unico rastro ficava no
+     `audit_log` — bom para pericia, inutil para o dia a dia. Agora ela
+     FICA, carimbada, fora das listas.
+
+     O teste mudou de pergunta junto: nao e mais "sumiu?", e "saiu das
+     listas e continua achavel?". As tres exigencias que importam
+     continuam trancadas — o motivo gravado, o movimento de estoque
+     revertido e declarado, e o boleto declarado.
+     ========================================================== */
+  t('a nota continua no sistema, anulada', win.DB.notas.some(x => x.id === n7.id));
+  t('carimbada com a hora da anulacao', !!n7.anuladaEm);
+  t('e com o motivo', n7.excluidoMotivo === 'lancada em duplicidade', n7.excluidoMotivo);
+  t('saiu das listas operacionais',
+    !win.notasAtivas().some(x => x.id === n7.id));
+  t('e NAO foi mandada apagar da nuvem',
+    !(win.DB._apagados.notas || {})[n7.id]);
   t('a exclusão do movimento de estoque ficou declarada', !!(win.DB._apagados.movEst || {})[mov7]);
   t('a exclusão do boleto da nota ficou declarada', !!(win.DB._apagados.lancFin || {})['lf7']);
 

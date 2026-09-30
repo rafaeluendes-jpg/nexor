@@ -51,11 +51,23 @@ t('pedido dentro do aviso, não num prompt do navegador',
 t('grava quem excluiu', /n\.excluidoPor=/.test(ex) && /n\.excluidoPorId=/.test(ex));
 t('quando', /n\.excluidoEm=new Date\(\)/.test(ex));
 t('e por quê', /n\.excluidoMotivo=motivo/.test(ex));
-t('grava ANTES de excluir — senão o motivo morre junto com a nota',
-  ex.indexOf('n.excluidoMotivo=motivo') < ex.indexOf('DB.notas=DB.notas.filter'));
-t('e manda para a nuvem antes de apagar, para a trilha receber o motivo',
+/* ==========================================================
+   DESDE A V381 A NOTA NAO E MAIS APAGADA — ELA E ANULADA
+
+   Estas duas conferiam a ORDEM em relacao ao `DB.notas.filter(...)`
+   que excluia a nota. Esse filtro nao existe mais: a nota fica,
+   carimbada, fora das listas (RDS 19).
+
+   A pergunta continua sendo a mesma — o motivo tem de estar gravado
+   antes de qualquer coisa ser desfeita, e tem de chegar a nuvem — so
+   que agora medida contra o que o codigo realmente faz.
+   ========================================================== */
+t('grava o motivo ANTES de desfazer o estoque e o financeiro',
+  ex.indexOf('n.excluidoMotivo=motivo') < ex.indexOf('aplicarMovimento(mov,true)') &&
+  ex.indexOf('n.excluidoMotivo=motivo') < ex.indexOf('DB.lancFin=(DB.lancFin'));
+t('e manda para a nuvem, para a trilha receber o motivo',
   /await sincronizar\(\)/.test(ex) &&
-  ex.indexOf('await sincronizar()') < ex.indexOf('DB.notas=DB.notas.filter'));
+  ex.indexOf('await sincronizar()') > ex.indexOf('n.excluidoMotivo=motivo'));
 t('a tela mostra quem está excluindo, antes de confirmar',
   /Quem está excluindo/.test(corpoDaFuncao('excluirNota', fonte)));
 

@@ -425,7 +425,7 @@ function _dadosDoBackup(){
 }
 function _resumoDoBackup(){
   return {ingredientes:(DB.insumos||[]).length,fichas:(DB.fichas||[]).length,
-    movimentacoes:(DB.movEst||[]).length,notas:(DB.notas||[]).length,
+    movimentacoes:(DB.movEst||[]).length,notas:notasAtivas().length,
     lancamentos:(DB.lancFin||[]).length,pedidos:(DB.pedidos||[]).length,
     produtos:(DB.produtos||[]).length,clientes:(DB.clientes||[]).length,
     sucursais:(DB.sucursais||[]).length,usuarios:(DB.usuarios||[]).length};
@@ -753,7 +753,7 @@ function ctDados(){
     ctLinha('Ingredientes',String((DB.insumos||[]).length))+
     ctLinha('Fichas técnicas',String((DB.fichas||[]).length))+
     ctLinha('Movimentações de estoque',String((DB.movEst||[]).length))+
-    ctLinha('Notas de entrada',String((DB.notas||[]).length))+
+    ctLinha('Notas de entrada',String(notasAtivas().length))+
     ctLinha('Lançamentos financeiros',String((DB.lancFin||[]).length))+
     ctLinha('Pedidos',String((DB.pedidos||[]).length))+
     ctLinha('Sucursais',String((DB.sucursais||[]).length))+

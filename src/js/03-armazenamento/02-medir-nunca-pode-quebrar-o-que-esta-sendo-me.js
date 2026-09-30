@@ -1369,7 +1369,13 @@ function volta(linhas,fn,atual,col){
     fornecedorId:mapaFo[x.fornecedor_id]||'',fornecedorNome:x.fornecedor_nome||'',
     data:x.data,hora:x.hora,valorMercadorias:Number(x.valor_mercadorias)||0,
     valorTotal:Number(x.valor_total)||0,receber:x.recebida!==false,
-    pagamento:x.pagamento||{},itens:x.itens||[]}},null,'notas');
+    pagamento:x.pagamento||{},itens:x.itens||[],
+    /* nota anulada continua descendo — ela sai das listas, nao do sistema.
+       Se ela nao voltasse, o vinculo do lancamento antigo apontaria para
+       o vazio e a tela diria "nota nao encontrada" justamente onde ha
+       explicacao para dar. */
+    anuladaEm:x.excluida_em||'',excluidoEm:x.excluida_em||'',
+    excluidoPor:x.excluida_por||'',excluidoMotivo:x.excluida_motivo||''}},null,'notas');
   /* compra sem vinculo que a nuvem trouxe de volta com o boleto ja lancado */
   try{ if(typeof repararComprasSemVinculo==='function')repararComprasSemVinculo(); }catch(e){_quieto(e,'baixarDaNuvem/semVinculo')}
   try{ if(typeof soltarNotasDeLancErrado==='function')soltarNotasDeLancErrado(); }catch(e){_quieto(e,'baixarDaNuvem/lancErrado')}

@@ -130,7 +130,7 @@
    "roda": true
   },
   "testes/compra-sem-vinculo.js": {
-   "pontos": 61,
+   "pontos": 63,
    "roda": true
   },
   "testes/conferir-nuvem.js": {
@@ -319,6 +319,10 @@
   },
   "testes/movimentacao-nao-se-apaga.js": {
    "pontos": 16,
+   "roda": true
+  },
+  "testes/nota-anulada-fica.js": {
+   "pontos": 21,
    "roda": true
   },
   "testes/nota-loja-confirmada.js": {

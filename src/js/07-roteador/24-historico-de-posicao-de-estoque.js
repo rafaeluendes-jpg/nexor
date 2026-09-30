@@ -326,7 +326,7 @@ function telaReset(){
       ['Produtos',(DB.produtos||[]).length]]},
     {t:'Movimento',its:[['Movimentações de estoque',(DB.movEst||[]).length],
       ['Contagens',(DB.contagens||[]).length],
-      ['Notas de entrada',(DB.notas||[]).length],
+      ['Notas de entrada',notasAtivas().length],
       ['Ordens de produção',(DB.ordensProd||[]).length]]},
     {t:'Venda e financeiro',its:[['Pedidos',(DB.pedidos||[]).length],
       ['Caixas',(DB.caixas||[]).length],

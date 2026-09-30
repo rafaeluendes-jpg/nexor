@@ -12402,7 +12402,13 @@ function volta(linhas,fn,atual,col){
     fornecedorId:mapaFo[x.fornecedor_id]||'',fornecedorNome:x.fornecedor_nome||'',
     data:x.data,hora:x.hora,valorMercadorias:Number(x.valor_mercadorias)||0,
     valorTotal:Number(x.valor_total)||0,receber:x.recebida!==false,
-    pagamento:x.pagamento||{},itens:x.itens||[]}},null,'notas');
+    pagamento:x.pagamento||{},itens:x.itens||[],
+    /* nota anulada continua descendo — ela sai das listas, nao do sistema.
+       Se ela nao voltasse, o vinculo do lancamento antigo apontaria para
+       o vazio e a tela diria "nota nao encontrada" justamente onde ha
+       explicacao para dar. */
+    anuladaEm:x.excluida_em||'',excluidoEm:x.excluida_em||'',
+    excluidoPor:x.excluida_por||'',excluidoMotivo:x.excluida_motivo||''}},null,'notas');
   /* compra sem vinculo que a nuvem trouxe de volta com o boleto ja lancado */
   try{ if(typeof repararComprasSemVinculo==='function')repararComprasSemVinculo(); }catch(e){_quieto(e,'baixarDaNuvem/semVinculo')}
   try{ if(typeof soltarNotasDeLancErrado==='function')soltarNotasDeLancErrado(); }catch(e){_quieto(e,'baixarDaNuvem/lancErrado')}
@@ -14331,7 +14337,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V380.0.0';
+var VERSAO='V381.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -32172,7 +32178,7 @@ function _dadosDoBackup(){
 }
 function _resumoDoBackup(){
   return {ingredientes:(DB.insumos||[]).length,fichas:(DB.fichas||[]).length,
-    movimentacoes:(DB.movEst||[]).length,notas:(DB.notas||[]).length,
+    movimentacoes:(DB.movEst||[]).length,notas:notasAtivas().length,
     lancamentos:(DB.lancFin||[]).length,pedidos:(DB.pedidos||[]).length,
     produtos:(DB.produtos||[]).length,clientes:(DB.clientes||[]).length,
     sucursais:(DB.sucursais||[]).length,usuarios:(DB.usuarios||[]).length};
@@ -32500,7 +32506,7 @@ function ctDados(){
     ctLinha('Ingredientes',String((DB.insumos||[]).length))+
     ctLinha('Fichas técnicas',String((DB.fichas||[]).length))+
     ctLinha('Movimentações de estoque',String((DB.movEst||[]).length))+
-    ctLinha('Notas de entrada',String((DB.notas||[]).length))+
+    ctLinha('Notas de entrada',String(notasAtivas().length))+
     ctLinha('Lançamentos financeiros',String((DB.lancFin||[]).length))+
     ctLinha('Pedidos',String((DB.pedidos||[]).length))+
     ctLinha('Sucursais',String((DB.sucursais||[]).length))+
@@ -43068,7 +43074,7 @@ function telaReset(){
       ['Produtos',(DB.produtos||[]).length]]},
     {t:'Movimento',its:[['Movimentações de estoque',(DB.movEst||[]).length],
       ['Contagens',(DB.contagens||[]).length],
-      ['Notas de entrada',(DB.notas||[]).length],
+      ['Notas de entrada',notasAtivas().length],
       ['Ordens de produção',(DB.ordensProd||[]).length]]},
     {t:'Venda e financeiro',its:[['Pedidos',(DB.pedidos||[]).length],
       ['Caixas',(DB.caixas||[]).length],
@@ -43362,6 +43368,34 @@ function ligarCaixaAssistente(){
 var NT={de:'',ate:'',fornec:'',busca:''};
 var _nota=null;
 
+/* ==========================================================
+   ANULAR NAO E APAGAR (RDS 19)
+
+   *"A operacao podera desaparecer das telas operacionais, mas nao devera
+   ser apagada da auditoria. Registrar como ANULADA, preservando registro
+   original, etapas revertidas, usuario, data e hora, motivo."*
+
+   Excluir a nota apagava a linha daqui e da nuvem. O que sobrava era o
+   `audit_log` — o ANTES inteiro no registro do DELETE —, que serve para
+   uma pericia e nao serve para o dia a dia: ninguem abre a trilha do
+   banco para entender por que o estoque de setembro mudou.
+
+   Agora a nota FICA. Sai das listas, dos totais e da exportacao, com o
+   motivo, quem anulou e quando gravados nela. O que ela criou e
+   desfeito do mesmo jeito de antes (o movimento de estoque volta, o
+   lancamento e marcado como cancelado), e o vinculo continua de pe: um
+   lancamento antigo que aponta para ela continua achando a nota e
+   explicando de onde veio.
+
+   ---------- por que `find` continua enxergando ----------
+   Filtrar tambem a busca por id quebraria o contrario do que se quer:
+   a tela de conciliacao, o Compras sem Vinculo e o detalhe do
+   lancamento mostrariam "nota nao encontrada" justamente no caso em que
+   existe uma explicacao para dar.
+   ========================================================== */
+function notaAtiva(n){ return !!n&&!n.anuladaEm; }
+function notasAtivas(){ return (DB.notas||[]).filter(notaAtiva); }
+
 function baseNotas(){
   baseMov();baseForn();baseCat();baseFormas();
   DB.lancFin=DB.lancFin||[];
@@ -43381,7 +43415,7 @@ function telaNotas(){
   if(!NT.de){var d=new Date();
     NT.de=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
     NT.ate=hojeISO();}
-  var lista=(DB.notas||[]).filter(function(n){
+  var lista=notasAtivas().filter(function(n){
     if(NT.de&&n.data<NT.de)return false;
     if(NT.ate&&n.data>NT.ate)return false;
     if(NT.fornec&&n.fornecedorId!==NT.fornec)return false;
@@ -44130,13 +44164,15 @@ async function excluirNota(id){
   n.excluidoPorId=(quem&&quem.id)||'';
   n.excluidoEm=new Date().toISOString();
   n.excluidoMotivo=motivo;
-  salvar();
-  if(NUVEM.ligada){ try{ await sincronizar(); }catch(e){ _quieto(e,'excluirNota'); } }
+  /* a nota FICA, anulada: e este carimbo que a tira das listas */
+  n.anuladaEm=n.excluidoEm;
   var ajusta=window._cfAjEst!==false;
+  n.anuladaEstoque=!!ajusta;
   if(ajusta){
     var mov=(DB.movEst||[]).find(function(m){return m.id===n.movId});
     if(mov){aplicarMovimento(mov,true);DB.movEst=DB.movEst.filter(function(m){return m.id!==n.movId});
       try{declararExclusao('movEst',n.movId);}catch(e){_quieto(e,'excluirNota')}}
+    n.movId='';
     (n.itens||[]).forEach(function(it){
       var i2=insumo(it.insumoId);
       if(i2&&i2.compras)i2.compras=i2.compras.filter(function(c){return c.notaId!==n.id});
@@ -44156,15 +44192,29 @@ async function excluirNota(id){
       try{declararExclusao('lancFin',l.id);}catch(e){_quieto(e,'excluirNota')}}
   });
   DB.lancFin=(DB.lancFin||[]).filter(function(l){return !(l.ref===n.id&&l.origem==='nota-entrada')});
-  DB.notas=DB.notas.filter(function(x){return x.id!==id});
-  try{declararExclusao('notas',id);}catch(e){_quieto(e,'excluirNota')}
-  salvar();fecharModal();telaNotas();
-  toast('Nota excluída'+(ajusta?', estoque ajustado':', estoque mantido')+' e financeiro limpo.');
+  /* ==========================================================
+     A NOTA NAO SAI MAIS DA LISTA — ELA FICA ANULADA
+
+     Aqui havia `DB.notas.filter(...)` e `declararExclusao('notas',id)`:
+     a nota era apagada daqui e da nuvem, e o unico rastro sobrava no
+     `audit_log` — bom para uma pericia, inutil para o dia a dia. Quando
+     alguem perguntasse por que o estoque de setembro mudou, a resposta
+     estava numa tabela que ninguem abre.
+
+     Agora ela fica, carimbada, fora das listas e dos totais. O vinculo
+     continua de pe: o lancamento antigo que aponta para ela continua
+     achando a nota e explicando de onde veio.
+     ========================================================== */
+  salvar();
+  if(NUVEM.ligada){ try{ await sincronizar(); }catch(e){ _quieto(e,'excluirNota'); } }
+  fecharModal();telaNotas();
+  toast('Nota anulada'+(ajusta?', estoque ajustado':', estoque mantido')+
+    ' e financeiro limpo. Ela sai das listas e continua no histórico.');
 }
 function exportarNotas(){
   baseNotas();
   var l=[['Numero','Data','Fornecedor','Mercadoria','Qtd','Unidade','Valor un','Desconto','Total']];
-  (DB.notas||[]).forEach(function(n){
+  notasAtivas().forEach(function(n){
     if(NT.de&&n.data<NT.de)return;
     if(NT.ate&&n.data>NT.ate)return;
     (n.itens||[]).forEach(function(it){
