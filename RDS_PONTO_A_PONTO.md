@@ -31,15 +31,21 @@ antes de subir.
 
 | Situação | Itens |
 |---|---|
-| ✅ Corrigido e no ar | 17 |
+| ✅ Corrigido e no ar | 22 |
 | 📏 Já existia, conferido | 9 |
-| ⚠️ Pela metade | 7 |
-| ❌ Não existe ainda | 9 |
+| ⚠️ Pela metade | 4 |
+| ❌ Não existe ainda | 8 |
 | 🔒 Espera ordem (pode parar a loja) | 4 |
 
-**Versões publicadas nesta sequência:** V371, V372, V373, V374, V375,
-V376 — seis, todas pelo portão de 11 etapas, com 222 testes novos
-trancados.
+**Versões publicadas nesta sequência:** V371 a V378 — oito, todas pelo
+portão de 11 etapas, com 291 testes novos trancados.
+
+> **Uma coisa depende de você agora:** a V377 criou a tabela que liga
+> cada evento do sistema a uma conta do plano de contas. Ela nasce
+> **vazia** — é a RDS e você que decidem qual conta é a da venda de
+> balcão, a da sangria, a do acerto do entregador. Enquanto os oito não
+> forem escolhidos em **Plano de Contas**, eles continuam fora do DRE,
+> como sempre estiveram. A tela mostra quantos faltam.
 
 ---
 
@@ -125,6 +131,46 @@ Guardião: `testes/cupom-nao-fica-preso.js` — 26 testes.
 | **Desconciliar eram três linhas sem proteção**: sem motivo, sem prazo, sem quem foi — e apagava a data anterior, destruindo o "antes". | Exige motivo, guarda quem/quando/por quê numa lista, conta os dias e marca quando foi fora do prazo de três dias. |
 
 Guardião: `testes/financeiro-nao-deixa-passar.js` — 37 testes.
+
+### V377 — nenhum lançamento automático entrava no DRE
+*(RDS 18)*
+
+Oito eventos criam lançamento financeiro sozinhos: fechamento de caixa,
+sangria, transferência entre contas, acerto com entregadores,
+recebimento de fiado, as duas pontas do pedido de base e a nota lançada
+pela Assistente do WhatsApp.
+
+Todos nasciam com a categoria escrita à mão no código, como **texto
+solto**, sem id do plano de contas. E o DRE só enxerga quem tem id — ou
+seja, **a venda do dia, a sangria e o acerto do entregador sumiam do
+resultado**. O DRE mostrava as despesas digitadas à mão e quase nada do
+que o próprio sistema gera.
+
+Agora existe a tabela de regras que a RDS pede: evento → conta
+analítica, com vigência e responsável, configurada na tela do Plano de
+Contas. Sem regra, o lançamento nasce do mesmo jeito (o caixa não para),
+marcado como pendente — e a tela diz quantos faltam.
+
+Guardião: `testes/lancamento-automatico-entra-no-dre.js` — 41 testes.
+
+### V378 — o relatório somava a rede inteira
+*(RDS 26)*
+
+O aparelho baixa a rede toda. Quem abria Santa Fé via o consumo de
+insumos, as vendas por mesa, o fluxo de caixa e as despesas do DRE
+**somados com Jales**. Corrigidos os quatro. A matriz continua
+comparando a rede, por desenho.
+
+O CSV de Vendas por Mesa passou a usar a mesma lista da tela — antes
+ignorava a unidade, ignorava o histórico da nuvem e ainda usava outra
+data, então a mesma venda saía com dia diferente nos dois lugares.
+
+E imposto, royalties, fundo de promoção e taxa de cartão passaram a
+dizer **"calculado"**: não são lançamentos, são percentuais sobre o
+faturamento e sobre o cadastro da forma de pagamento, e apareciam com a
+mesma cara de uma linha lançada de verdade.
+
+Guardião: `testes/relatorio-separa-a-unidade.js` — 28 testes.
 
 ---
 
@@ -337,26 +383,23 @@ guarda as duas.
 
 ## O que vem agora, na ordem
 
-1. **Dar id do plano de contas aos oito lançamentos automáticos**
-   (fechamento de caixa, sangria, acerto de entregador, fiado, pedido de
-   base...). Hoje todos nascem com a categoria em TEXTO, e **nenhum deles
-   entra no DRE**. É o maior buraco que sobrou no financeiro.
-2. **A trava de unidade nos três relatórios que faltam** (Itens
-   Consumidos, Vendas por Mesa, Fluxo de Caixa).
-3. **Marcar na tela o que é calculado** — imposto, royalties e taxa de
-   cartão no DRE aparecem iguais a uma linha lançada de verdade.
-4. **Versionar a auditoria numa migração**, copiando do banco o que já
-   está rodando. Risco nenhum, e sem isso não há o que provar à RDS.
-5. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
-   sistema assume aprovado. Sem esse estado, três linhas da tabela da
-   RDS não têm como existir.
-6. **Anular em vez de apagar** (RDS 19): nota de entrada, lançamento e
+1. **Versionar a auditoria numa migração**, copiando do banco o que já
+   está rodando. Risco nenhum, e sem isso não há o que provar à RDS —
+   hoje a trilha existe só como estado de produção, e um banco novo
+   nasceria sem ela.
+2. **Anular em vez de apagar** (RDS 19): nota de entrada, lançamento e
    conciliação ainda corrigem por exclusão destrutiva, que propaga para
    a nuvem. Excluir uma nota **paga** é um clique.
-7. **Permissão por ação** (RDS 20): das 18 ações, 1 tem permissão
+3. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
+   sistema assume aprovado. Sem esse estado, três linhas da tabela da
+   RDS não têm como existir.
+4. **Permissão por ação** (RDS 20): das 18 ações, 1 tem permissão
    própria. O formato já funciona ponta a ponta; falta estendê-lo.
-8. **Lote e validade** (RDS 14) e **unidade de compra com fator**
-   (RDS 13): não existem, e são os dois maiores de construir.
+5. **Custo médio: os campos que faltam** (RDS 11) e **classificar o que
+   altera custo** (RDS 15).
+6. **Produção automática vinculada** (RDS 6).
+7. **Unidade de compra com fator** (RDS 13) e **lote e validade**
+   (RDS 14): não existem, e são os dois maiores de construir.
 
 E as quatro que **esperam ordem do Rafael**, porque mudam o que a loja
 pode fazer e podem parar o caixa: travar a venda que deixa saldo
