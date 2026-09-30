@@ -538,9 +538,38 @@ async function emitirCupom(cupomId){
   if(c.status==='enviando')acompanharCupom(c.id);
   return c;
 }
+/* ==========================================================
+   O CUPOM DEMORAVA 30 SEGUNDOS PARA SAIR NO PAPEL
+
+   Rafael, 30/09/2026: "bateu a venda, ja tem que imprimir. E ta
+   demorando coisa de 30 segundos para poder imprimir a via fiscal. Nao
+   pode, porque senao enrola na fila."
+
+   Ele esta certo, e a demora nao era da SEFAZ. Medindo os cupons de
+   producao de 29/09: a autorizacao na SEFAZ ja estava carimbada ANTES
+   de a linha chegar na nuvem, em todos os dezoito. A SEFAZ responde em
+   segundos.
+
+   A demora era nossa. A emissao (POST) devolve a nota "em
+   processamento"; quem descobre a autorizacao e esta funcao — e ela
+   esperava 2 s ANTES da primeira pergunta, depois 3 s, 5 s, 8 s, 13 s.
+   Em tempo corrido: 2 s, 5 s, 10 s, 18 s, 31 s.
+
+   Com a SEFAZ respondendo em ~1 a 3 s, a primeira pergunta (2 s)
+   perdia por pouco e a segunda so vinha aos 5 s; perdendo essa, 10 s;
+   e assim ate os 30 s que ele viu no balcao.
+
+   A escala nova pergunta cedo e com frequencia no comeco, quando a
+   resposta costuma chegar, e vai espacando depois — a cobertura total
+   continua a mesma (~48 s), mas as quatro primeiras perguntas cabem
+   dentro dos primeiros 3 segundos.
+
+   Nao ha risco de "bater demais" na Spedy: sao consultas GET de uma
+   nota so, e param assim que ela sai de `enviando`.
+   ========================================================== */
 /* acompanhar pelo GET, nunca pelo check-status (documentação da Spedy) */
 async function acompanharCupom(cupomId,esperas){
-  esperas=esperas||[2000,3000,5000,8000,13000,20000];
+  esperas=esperas||[400,600,800,1200,1800,2500,3500,5000,7000,10000,15000];
   for(var i=0;i<esperas.length;i++){
     await new Promise(function(ok){setTimeout(ok,esperas[i])});
     var c=baseCuponsFiscais().find(function(x){return x.id===cupomId});

@@ -1843,8 +1843,25 @@ function fsViaSaiComOCupom(ped){
   var u=fiscalUn(suc);
   return u.imprime==='sempre';
 }
-/* a rede de seguranca: 25 s e a via sai sozinha, cupom ou nao */
+/* ==========================================================
+   A VIA DA COZINHA NAO ESPERA MEIO MINUTO
+
+   A regra do Rafael (29/09) e que a PRIMEIRA via seja a fiscal e a
+   segunda a da cozinha — e por isso a ficha espera o cupom, que sai
+   junto com ela num papel so.
+
+   A rede de seguranca para o caso de o cupom nao vir era de 25 s. Com a
+   emissao demorando (ver `acompanharCupom`), era esse o tempo que a
+   cozinha ficava sem papel — e numa fila de balcao isso e uma
+   eternidade.
+
+   Agora sao 8 s. Na operacao normal o cupom sai em 1 ou 2 segundos e
+   leva a ficha junto, como ele pediu; a espera so aparece quando a
+   SEFAZ esta mesmo lenta — e ai a cozinha recebe a ficha e o cupom
+   fiscal sai depois, em vez de a producao parar esperando a Receita.
+   ========================================================== */
 var _fsViasEsperando={};
+var MS_ESPERA_VIA=8000;
 function _fsViaEspera(ped){
   if(_fsViasEsperando[ped.id])return;
   _fsViasEsperando[ped.id]=setTimeout(function(){
@@ -1854,7 +1871,7 @@ function _fsViaEspera(ped){
     /* o cupom saiu e ja levou a via junto: nada a fazer */
     if(c&&c.impressoEm)return;
     imprimirVia(ped);
-  },25000);
+  },MS_ESPERA_VIA);
 }
 /* o cupom fiscal imprimiu e levou a via junto: desarma a espera */
 function _fsViaJaSaiu(pedidoId){

@@ -157,6 +157,10 @@
    "pontos": 26,
    "roda": true
   },
+  "testes/cupom-sai-rapido.js": {
+   "pontos": 20,
+   "roda": true
+  },
   "testes/custo-com-memoria.js": {
    "pontos": 24,
    "roda": true
@@ -226,7 +230,7 @@
    "roda": true
   },
   "testes/fiscal-por-unidade.js": {
-   "pontos": 141,
+   "pontos": 142,
    "roda": true
   },
   "testes/fiscal-telas.js": {

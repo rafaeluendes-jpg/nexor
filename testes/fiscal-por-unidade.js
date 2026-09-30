@@ -569,8 +569,22 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   })());
   t('a venda só espera o cupom quando a loja emite e imprime sempre',
     /function fsViaSaiComOCupom\(ped\)\{[\s\S]{0,300}fiscalEmite\(suc\)[\s\S]{0,160}u\.imprime==='sempre'/.test(html));
-  t('a cozinha nunca fica sem ficha: 25 s e a via sai sozinha',
-    /_fsViasEsperando\[ped\.id\]=setTimeout\([\s\S]{0,300}imprimirVia\(ped\)[\s\S]{0,20}\},25000\)/.test(html));
+  /* ==========================================================
+     A REDE DE SEGURANCA ENCOLHEU DE 25 S PARA 8 S (V388)
+
+     O numero 25000 estava escrito aqui dentro do teste. Quando ele
+     mudou — porque 25 s de cozinha sem papel e uma eternidade numa fila
+     de balcao —, este guardiao reprovou, e com razao: ele defendia o
+     valor antigo.
+
+     A pergunta certa nao e "sao 25 s?", e "a cozinha fica sem ficha por
+     quanto tempo, no maximo?". E isso que ele passa a exigir, com teto.
+     ========================================================== */
+  t('a cozinha nunca fica sem ficha: passado o prazo, a via sai sozinha',
+    /_fsViasEsperando\[ped\.id\]=setTimeout\([\s\S]{0,300}imprimirVia\(ped\)[\s\S]{0,30}\},MS_ESPERA_VIA\)/.test(html));
+  t('e esse prazo e de no maximo 10 segundos',
+    (function(){ var m=/var MS_ESPERA_VIA=(\d+);/.exec(html);
+      return !!m && Number(m[1])>0 && Number(m[1])<=10000; })());
   t('se o cupom já levou a via, a espera é desarmada',
     /function _fsViaJaSaiu\(pedidoId\)\{[\s\S]{0,200}clearTimeout/.test(html) &&
     /_fsViaJaSaiu\(c\.pedidoId\)/.test(html));
