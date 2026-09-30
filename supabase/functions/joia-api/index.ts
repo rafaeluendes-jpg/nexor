@@ -27,7 +27,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
    conferida pela chave própria, não pelo login do Supabase).
    ===================================================================== */
 
-const API_VERSAO = "2.2";
+const API_VERSAO = "2.3";
+/* o fuso de todas as datas desta API: o dia é o dia DA LOJA, e venda
+   das 23h é do dia dela */
+const FUSO = "America/Sao_Paulo";
+/* a versão das REGRAS de apuração (o que conta como divergência, o que
+   conta como pendência). Sobe quando uma regra muda de significado —
+   senão dois relatórios com números diferentes parecem erro de um deles */
+const REGRA_VERSAO = "2026-09-30";
 const URL_SB = Deno.env.get("SUPABASE_URL")!;
 const SERVICO = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -92,6 +99,10 @@ const PENDENCIAS: Record<string, string> = {
   "insumos-sem-custo": "insumos com custo não informado: unidade de medida, saldo por unidade, fichas que usam, última compra",
   "produtos-sem-vinculo": "produtos ativos sem ficha técnica e sem insumo: quantidade vendida, faturamento e datas das vendas",
   "motivos-sem-classe": "motivos de movimentação de estoque ainda sem classe, com quantas vezes cada um foi usado",
+  /* ---- as três pedidas pela RDS no documento de homologação (30/09/2026) ---- */
+  "estoque-negativo": "itens com saldo abaixo de zero, por unidade: saldo, custo médio, valor e o ÚLTIMO movimento do item — é por ele que se acha a causa",
+  "fiscal-divergente": "venda, pagamento e cupom que não fecham: venda sem cupom, cupom recusado, pendente ou em contingência. Só conta o que é documento — unidade em produção e venda de depois da virada",
+  "caixas-com-pendencia": "caixas abertos há mais de um dia, fechados com diferença, ou com venda sem pagamento",
 };
 
 /* ---- dados pessoais: a chave com `mascarar_pessoais` recebe só o
@@ -256,11 +267,37 @@ Deno.serve(async (req: Request) => {
     parseInt(u.searchParams.get("por_pagina") || "200") || 200));
   const offset = (pagina - 1) * porPagina;
 
+  /* ==========================================================
+     O ENVELOPE DIZ ATÉ ONDE O DADO VAI (RDS, 30/09/2026)
+
+     *"cada resposta deverá informar: unidade, período, fuso horário,
+     momento da extração, última sincronização, versão da regra."*
+
+     A que faltava era a última sincronização, e é a que mais importa:
+     um relatório tirado com uma loja offline parece completo e não é —
+     e não há como saber isso olhando o número. Agora a própria
+     resposta diz até quando os dados daquela unidade chegaram.
+
+     É uma consulta a mais por chamada; por isso ela é buscada uma vez
+     e reaproveitada, e uma falha nela nunca derruba a resposta.
+     ========================================================== */
+  let _sinc: unknown = null;
+  let _sincLido = false;
+  async function ultimaSincronizacao() {
+    if (_sincLido) return _sinc;
+    _sincLido = true;
+    try { _sinc = await chamar("api_ultima_sincronizacao", { p_loja: loja, p_suc: suc }); }
+    catch { _sinc = null; }
+    return _sinc;
+  }
   const envelope = (extra: Record<string, unknown>) => ({
     api_versao: API_VERSAO,
+    regra_versao: REGRA_VERSAO,
     gerado_em: new Date().toISOString(),
+    fuso: FUSO,
     periodo: { de, ate },
     loja: onde,
+    ...(_sinc !== null ? { ultima_sincronizacao: _sinc } : {}),
     ...extra,
   });
 
@@ -297,8 +334,10 @@ Deno.serve(async (req: Request) => {
       tipos.forEach((t, k) => {
         resumo[t] = { registros: Array.isArray(listas[k]) ? listas[k].length : 0, descricao: PENDENCIAS[t] };
       });
+      await ultimaSincronizacao();
       return saida(envelope({
-        avisos: ["Só leitura. Nenhum registro é classificado ou corrigido automaticamente: a correção é manual e fica no /historico."],
+        avisos: ["Só leitura. Nenhum registro é classificado ou corrigido automaticamente: a correção é manual e fica no /historico.",
+                 "O Joia ainda não tem controle de lote e validade: a lista que a RDS pediu com esse nome não existe e não é simulada aqui."],
         pendencias: resumo,
       }));
     }
@@ -308,6 +347,7 @@ Deno.serve(async (req: Request) => {
         return erro(`Pendência "${tipo}" não existe.`, 404, { pendencias: Object.keys(PENDENCIAS) });
       }
       const dados = await chamar("api_pendencias", { p_loja: loja, p_suc: suc, p_tipo: tipo });
+      await ultimaSincronizacao();
       const avisos: string[] = [];
       if (tipo === "lancamentos-sem-categoria") {
         avisos.push("`usuario` é a conta logada no aparelho que criou o lançamento. As lojas usam uma conta por unidade: ele identifica a UNIDADE, não a pessoa.");
@@ -315,6 +355,17 @@ Deno.serve(async (req: Request) => {
       }
       if (tipo === "insumos-sem-custo") {
         avisos.push("Hoje o Joia não separa custo NÃO INFORMADO de custo REALMENTE ZERO: os dois aparecem como 0. A separação está no desenho das travas.");
+      }
+      if (tipo === "estoque-negativo") {
+        avisos.push("Saldo negativo nao se resolve acertando o saldo: a causa esta no `ultimo_movimento`, e a correcao e uma movimentacao real (entrada faltante, inventario, ficha, producao).");
+        avisos.push("O Joia ainda NAO bloqueia a saida de item negativo nem o fechamento de caixa por causa dele. Esta lista mede o problema; a trava e trabalho separado.");
+      }
+      if (tipo === "fiscal-divergente") {
+        avisos.push("So entra unidade em PRODUCAO, e venda de depois da virada: cupom de homologacao nunca foi documento fiscal.");
+        avisos.push("A divergencia e apurada a partir do PEDIDO. Venda que nunca gerou cupom nao tem linha em cupons_fiscais, e nenhuma consulta por status a encontraria.");
+      }
+      if (tipo === "caixas-com-pendencia") {
+        avisos.push("Caixa aberto ha mais de um dia normalmente e caixa que alguem esqueceu de fechar — e o movimento seguinte entra no turno errado.");
       }
       if (tipo === "motivos-sem-classe") {
         avisos.push("O cadastro de motivo ainda não tem o campo classe: todos vêm sem classe até a classificação do Rafael, do Raylan e da RDS.");

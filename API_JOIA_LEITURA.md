@@ -82,6 +82,41 @@ que o caminho tocaria, a resposta traz `avisos` dizendo isso.
 | `GET /fichas` | ficha técnica com ingredientes (`ficha=fi_...`) |
 | `GET /reconciliacao/estoque` | saldo inicial + entradas − saídas = saldo final |
 
+### Pendências (v2.2 e v2.3) — o que está fora do lugar
+
+`GET /pendencias` traz a contagem de cada uma; `GET /pendencias/{tipo}`
+traz a relação nominal.
+
+| tipo | o que devolve |
+|---|---|
+| `lancamentos-sem-categoria` | lançamento financeiro sem plano de contas |
+| `insumos-sem-custo` | insumo com custo não informado |
+| `produtos-sem-vinculo` | produto ativo sem ficha e sem insumo |
+| `motivos-sem-classe` | motivo de estoque ainda sem classe |
+| `estoque-negativo` | **(v2.3)** item com saldo abaixo de zero, com o **último movimento** do item — é por ele que se acha a causa |
+| `fiscal-divergente` | **(v2.3)** venda sem cupom, cupom recusado, pendente ou em contingência |
+| `caixas-com-pendencia` | **(v2.3)** caixa aberto há mais de um dia, fechado com diferença, ou com venda sem pagamento |
+
+**O que `fiscal-divergente` conta, e o que não conta.** Só entra unidade
+em **produção**, e venda de **depois** da virada: cupom de homologação
+nunca foi documento fiscal. Sem esse corte a lista traria 2.449
+"divergências" que ninguém pode resolver — e número que ninguém resolve
+ninguém olha. A pergunta é feita a partir do **pedido**: venda que nunca
+gerou cupom não tem linha em `cupons_fiscais`, e nenhuma consulta por
+status a encontraria.
+
+**O que a API ainda NÃO tem**, da lista que a RDS pediu:
+
+- **lote e validade** — o Joia ainda não controla lote nem validade.
+  Não há o que devolver, e nada é simulado aqui.
+- **itens *bloqueados*** — hoje o Joia **mede** o saldo negativo, mas
+  ainda não impede a saída do item nem o fechamento do caixa por causa
+  dele. A lista existe para dimensionar o problema; a trava é trabalho
+  separado.
+- **histórico de regularizações** — o que existe é `/historico` (quem
+  mudou o quê, com antes e depois). Não há ainda o registro formal de
+  causa-raiz e ação corretiva que o documento da RDS descreve.
+
 ### Etapa 2 (v2.1, 23/09/2026)
 
 | caminho | o que devolve |
@@ -90,6 +125,24 @@ que o caminho tocaria, a resposta traz `avisos` dizendo isso.
 | `GET /saude-sincronizacao` | por unidade e por aparelho: vendas sem pagamento, sem caixa, sem baixa, último registro recebido, caixas abertos, último sinal |
 | `GET /alteracoes?desde=` | o que foi criado ou alterado desde um instante |
 | `GET /historico` | quem mudou o quê, com o antes e o depois |
+
+## O envelope de toda resposta
+
+Desde a v2.3, toda resposta diz até onde o dado vai:
+
+| campo | o que é |
+|---|---|
+| `api_versao` | a versão da API |
+| `regra_versao` | a versão das **regras de apuração** — sobe quando o que conta como pendência muda de significado. Sem ela, dois relatórios com números diferentes parecem erro de um deles |
+| `gerado_em` | o momento da extração |
+| `fuso` | `America/Sao_Paulo` — o dia é o dia da loja |
+| `periodo` | `de` e `ate` |
+| `loja` | a unidade, ou a rede |
+| `ultima_sincronizacao` | por unidade, quando o último registro dela chegou à nuvem |
+
+`ultima_sincronizacao` é a que mais importa: um relatório tirado com uma
+loja offline **parece completo e não é**, e não há como saber isso
+olhando o número.
 
 ## Respostas de erro
 
