@@ -401,6 +401,10 @@
    "pontos": 19,
    "roda": true
   },
+  "testes/producao-automatica-vinculada.js": {
+   "pontos": 14,
+   "roda": true
+  },
   "testes/producao-multiplica-receitas.js": {
    "pontos": 18,
    "roda": true

@@ -1136,7 +1136,35 @@ function baixarEstoqueVenda(ped){
         linhas.push({insumoId:dest.id,nome:dest.nome,unidade:f.rendUnidade||f.unidade,
           qtd:+qd.toFixed(4),custo:custoPorUnidade(f),direcao:'saida',origem:'venda',fichaNome:f.nome});
       }else{
-        /* sem destino: baixa os ingredientes da receita */
+        /* ==========================================================
+           PRODUCAO AUTOMATICA NA VENDA (RDS 6)
+
+           Quando a ficha nao tem destino, o produto e FEITO na hora da
+           venda: a receita e aberta e os ingredientes saem do estoque.
+           E exatamente a "producao automatica" que a RDS descreve.
+
+           ---------- o que a RDS pede e o que foi feito ----------
+           Ela pede duas linhas a mais: uma ENTRADA de N do produto
+           acabado por producao automatica, e uma SAIDA de N pela venda,
+           vinculadas. O saldo liquido e zero — o produto nasce e sai no
+           mesmo instante.
+
+           Essas duas linhas NAO foram criadas, e a razao esta aqui para
+           quem vier depois: o produto acabado deste caminho (o "Cascao 1
+           bola") nao e item de estoque. Nao tem saldo, nao tem custo
+           proprio, nao tem unidade. Criar entrada e saida para ele
+           exigiria inventar um item — e esse item subiria na transacao
+           atomica da venda, onde o banco faz `estoque = estoque + qtd`
+           por linha. Foi esse caminho que levou o saldo de GELATO VENDA
+           a centenas de quilos negativos em 31/08/2026.
+
+           O que a auditoria precisa e o VINCULO — "a entrada da producao
+           automatica e a saida da venda deverao estar vinculadas" —, e
+           ele passa a existir num registro so: cada linha diz que nasceu
+           de producao automatica, de qual ficha, para qual produto e em
+           que quantidade. Um registro verdadeiro vale mais que duas
+           linhas que se anulam.
+           ========================================================== */
         var fator=q/porUn;
         (f.itens||[]).forEach(function(ci){
           var i2=insumo(ci.insumoId);
@@ -1144,7 +1172,11 @@ function baixarEstoqueVenda(ped){
           var qc=(Number(ci.qtd)||0)*fator;
           linhas.push({insumoId:i2.id,nome:i2.nome,unidade:ci.unidade,qtd:+qc.toFixed(4),
             custo:custoNaUnidade(i2,ci.unidade),direcao:'saida',origem:'venda',
-            fichaId:f.id,fichaNome:f.nome});
+            fichaId:f.id,fichaNome:f.nome,
+            /* o vinculo: componente consumido para produzir, na hora, o
+               produto vendido (RDS 6) */
+            producaoAuto:true,produtoRef:p.id,produtoNome:p.nome||'',
+            produzidoQtd:q,rendimentoPorUn:porUn});
         });
       }
     }
