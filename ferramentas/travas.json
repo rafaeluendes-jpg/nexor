@@ -221,6 +221,10 @@
    "pontos": 34,
    "roda": true
   },
+  "testes/fechamento-lanca-fisico.js": {
+   "pontos": 9,
+   "roda": true
+  },
   "testes/fechamento-nao-some.js": {
    "pontos": 16,
    "roda": true

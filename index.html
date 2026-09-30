@@ -14557,7 +14557,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V394.0.0';
+var VERSAO='V395.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23906,13 +23906,36 @@ function diaDoCaixa(cx){
   var d=String(isoHoraDoCaixa(cx&&cx.aberto)||'').slice(0,10);
   return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:hojeISO();
 }
+/* ==========================================================
+   O FINANCEIRO RECEBE O FÍSICO, NÃO O SISTEMA (Rafael, 30/09/2026)
+
+   "o que vai pro lançamento financeiro vai o que passou no sistema;
+   preciso que vá o físico que o funcionário digitou". No fechamento de
+   29/09 de Santa Fé o sistema dizia débito 323 / crédito 480 / Pix 529 e
+   a conferência dizia 507 / 410 / 415 — e o financeiro recebia o do
+   sistema, que não é o que caiu na maquininha nem no banco.
+
+   Por forma: o valor do sistema MAIS a diferença que a conferência achou
+   (físico − esperado). No cartão e no Pix isso é exatamente o físico. No
+   dinheiro, o esperado da gaveta inclui fundo de troco, suprimentos e
+   sangrias, que não são venda: o lançamento é a venda em dinheiro
+   corrigida pela sobra ou falta contada. Sem conferência gravada (caixa
+   antigo), fica o do sistema, como sempre foi. */
+function valorFisicoDaForma(cx,mov,fid){
+  var sis=Number((mov&&mov.porForma||{})[fid])||0;
+  var conf=cx&&cx.conferencia, esp=cx&&cx.esperadoPorForma;
+  if(!conf||!esp||conf[fid]===undefined||conf[fid]===null||esp[fid]===undefined)return sis;
+  var v=+(sis+(Number(conf[fid])||0)-(Number(esp[fid])||0)).toFixed(2);
+  return v>0?v:0;
+}
 function lancarFechamento(cx,mov){
   DB.lancFin=DB.lancFin||[];
   var dt=diaDoCaixa(cx);
   var contaCaixa=(DB.contas||[]).find(function(c){return c.fixa==='caixa'});
   var criados=0, feitos={};
   (DB.formasPag||[]).forEach(function(f){
-    var bruto=mov.porForma[f.id]||0;
+    var bruto=valorFisicoDaForma(cx,mov,f.id);
+    var sistema=Number(mov.porForma[f.id])||0;
     if(bruto<=0)return;
     var qtd=mov.qtdForma[f.id]||1;
     var taxa=+(bruto*(Number(f.taxaPct)||0)/100 + (Number(f.taxaFixa)||0)*qtd).toFixed(2);
@@ -23932,7 +23955,9 @@ function lancarFechamento(cx,mov){
       valor:liq,emissao:dt,vencimento:venc,
       pagamento:Number(f.dias)>0?'':dt,pago:Number(f.dias)>0?false:true,
       origem:'fechamento-caixa',ref:cx.id,sucursalRef:cx.sucursalId||undefined,
-      obs:'Bruto R$ '+money(bruto)+' · '+qtd+' transação(ões)'+(taxa?' · taxa R$ '+money(taxa):'')};
+      obs:'Bruto R$ '+money(bruto)+' (físico)'+
+        (Math.abs(bruto-sistema)>0.009?' · sistema R$ '+money(sistema):'')+
+        ' · '+qtd+' transação(ões)'+(taxa?' · taxa R$ '+money(taxa):'')};
     var ja=DB.lancFin.find(function(l){return l.id===id});
     if(ja){
       /* já existe: atualiza no lugar. Baixa e conciliação que a pessoa fez
