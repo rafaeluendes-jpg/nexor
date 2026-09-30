@@ -556,12 +556,24 @@ async function emitirCupom(cupomId){
    e a mesma venda é emitida de novo, na hora. Três tentativas no máximo:
    outra recusa depois disso é problema de outra natureza e vai para quem
    cuida. */
+/* o identificador da nota na Spedy nao desce da nuvem: o cupom que voltou
+   pelo download (ou foi recusado antes da V392) chega sem ele. Por isso a
+   recusa por numero repetido nao exige o identificador — ele e buscado
+   pela venda na hora (30/09/2026: os 9 recusados de Santa Fe ficaram
+   parados por isso) */
 function ehNumeroRepetido(c){
-  return !!(c&&c.status==='rejeitado'&&c.spedyId&&/duplicidade/i.test(String(c.motivo||'')));
+  return !!(c&&c.status==='rejeitado'&&/duplicidade/i.test(String(c.motivo||'')));
 }
 async function fsNumeroRepetido(c){
   if(!ehNumeroRepetido(c)||(c.reenvio||0)>=3)return false;
-  var r=await fiscalChamar('numero_repetido',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+  var suc=c.sucursalId||lojaAtualId();
+  if(!c.spedyId){
+    var q=await fiscalChamar('consultar',{sucursal:suc,integrationId:c.integ||c.pedidoId});
+    var nq=q&&q.ok&&q.d&&q.d.nota;
+    if(!nq||!nq.spedyId||nq.status!=='rejeitado')return false;
+    c.spedyId=nq.spedyId;
+  }
+  var r=await fiscalChamar('numero_repetido',{sucursal:suc,id:c.spedyId});
   if(!(r.ok&&r.d&&r.d.ok))return false;
   c.recusadas=(c.recusadas||[]).concat([{spedyId:c.spedyId,numero:c.numero,serie:c.serie,motivo:c.motivo}]);
   c.reenvio=(c.reenvio||0)+1;

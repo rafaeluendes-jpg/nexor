@@ -82,6 +82,24 @@ function t(n, c, d) { R.total++; if (c) { R.ok++; console.log('   ok   ' + n); }
   const outra = { id: 'cf_2', pedidoId: 'pd_1', sucursalId: 'suc_sf', status: 'rejeitado', spedyId: 'sp99', motivo: 'Rejeição: NCM inexistente' };
   t('NCM errado não troca de série', w.ehNumeroRepetido(outra) === false && (await w.fsNumeroRepetido(outra)) === false && chamadas.length === 0);
 
+  console.log('\n── 3b. Cupom que voltou da nuvem sem o identificador da Spedy');
+  chamadas.length = 0; serie = 1;
+  w.fiscalChamar = async (acao, d) => {
+    chamadas.push(acao + (d.integrationId ? ':' + d.integrationId : d.id ? ':' + d.id : ''));
+    if (acao === 'consultar') return { ok: true, d: { nota: { spedyId: 'spAntigo', status: 'rejeitado', motivo: 'Rejeição: Duplicidade de NF-e' } } };
+    if (acao === 'numero_repetido') return { ok: true, d: { ok: true, serie: 2 } };
+    if (acao === 'emitir') return { ok: true, d: { nota: { spedyId: 'spNovo', status: 'autorizado', numero: 40, serie: 2 } } };
+    return { ok: false, d: {} };
+  };
+  const semId = { id: 'cf_9', pedidoId: 'pd_1', sucursalId: 'suc_sf', status: 'rejeitado', spedyId: '',
+    motivo: 'Rejeição: Duplicidade de NF-e com diferença na Chave de Acesso', tentativas: 1, data: w.hojeISO(), hora: w.agoraHM() };
+  w.baseCuponsFiscais().push(semId);
+  t('sem o identificador ainda conta como número repetido', w.ehNumeroRepetido(semId) === true);
+  t('busca a nota pela venda, troca a série e reenvia', (await w.fsNumeroRepetido(semId)) === true &&
+    JSON.stringify(chamadas) === JSON.stringify(['consultar:pd_1', 'numero_repetido:spAntigo']), JSON.stringify(chamadas));
+  await w.emitirCupom('cf_9');
+  t('e o cupom sai autorizado', semId.status === 'autorizado', semId.status);
+
   console.log('\n── 4. No máximo três tentativas');
   serie = 1; chamadas.length = 0;
   w.fiscalChamar = async (acao) => { chamadas.push(acao);
