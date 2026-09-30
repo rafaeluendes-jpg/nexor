@@ -77,8 +77,21 @@ function categoriaValida(subId,tipo){
     return (p.itens||[]).some(function(it){return it.id===subId});
   });
 }
+/* ==========================================================
+   RECEITA SEM CATEGORIA NINGUEM VIA
+
+   Esta funcao e o que pinta "Sem categoria" em vermelho na lista. Ela
+   so olhava DESPESA. Uma receita sem plano de contas ficava com a mesma
+   cara de uma classificada — e some do DRE do mesmo jeito, porque o DRE
+   so enxerga quem tem `categoriaId`.
+
+   Transferencia entre contas fica de fora de proposito: ela nao e
+   receita nem despesa, e nao tem rubrica no plano gerencial.
+   ========================================================== */
 function lancSemCategoria(l){
-  return !!l&&l.tipo==='despesa'&&!l.categoriaTxt&&!categoriaValida(l.categoriaId);
+  if(!l)return false;
+  if(l.tipo==='transferencia')return false;
+  return !l.categoriaTxt&&!categoriaValida(l.categoriaId);
 }
 async function _lerCategoriasNaNuvem(ids){
   var r=await api('lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
@@ -116,7 +129,31 @@ async function conferirLancNaNuvem(ids){
       toast(qual+' salvo neste aparelho — ainda na fila de envio. A nuvem recebe no próximo envio.');
       return false;
     }
-    if(!comCat.length){ toast(qual+' salvo e conferido na nuvem.'); return true; }
+    if(!comCat.length){
+      /* ==========================================================
+         "SALVO E CONFERIDO" QUANDO NAO HAVIA NADA A CONFERIR
+
+         `comCat` e a lista dos que TEM categoria. Vazia significa uma de
+         duas coisas muito diferentes: ou sao transferencias (que nao tem
+         categoria por desenho, e ai esta tudo certo), ou o lancamento foi
+         salvo SEM plano de contas — e ai ele nao entra no DRE.
+
+         O codigo dizia "salvo e conferido na nuvem" nos dois casos. A
+         mensagem de sucesso completa, justamente no caso que precisava
+         de aviso.
+         ========================================================== */
+      var semCat=ids.filter(function(id){
+        var l=(DB.lancFin||[]).find(function(x){return x.id===id});
+        return l&&lancSemCategoria(l);
+      });
+      if(semCat.length){
+        toast(qual+' salvo na nuvem, mas '+
+          (semCat.length>1?semCat.length+' deles estão':'ele está')+
+          ' SEM categoria do plano de contas — assim não entra no DRE.');
+        return true;
+      }
+      toast(qual+' salvo e conferido na nuvem.'); return true;
+    }
     var m=await _lerCategoriasNaNuvem(comCat);
     var faltam=comCat.filter(function(id){return !m[id]});
     if(faltam.length){
@@ -599,6 +636,34 @@ function modalPagamento(ids){
     var c=$('pgC').value,m=$('pgM').value;
     if(!c){toast('Selecione o banco / conta.');return false;}
     if(!m){toast('Selecione a forma de pagamento.');return false;}
+    /* ==========================================================
+       PAGAR SEM CLASSIFICAR ERA A PORTA MAIS LARGA (RDS 17)
+
+       A validacao do plano de contas existia em UM lugar: o formulario
+       de cadastro do lancamento. O pagamento — que e por onde passa o
+       joinha da lista, a baixa em lote e a confirmacao com juros — nao
+       perguntava nada. Dava para pagar, conciliar e fechar o mes com um
+       lancamento que o DRE nao enxerga.
+
+       Aqui e o ponto unico: os tres caminhos de baixa caem neste mesmo
+       callback.
+
+       ---------- por que `categoriaTxt` ainda passa ----------
+       Os oito lancamentos automaticos do sistema (fechamento de caixa,
+       sangria, acerto de entregador, fiado, pedido de base...) nascem
+       com a categoria em TEXTO, sem id do plano de contas. Recusar o
+       texto hoje travaria a baixa do cartao no fechamento de caixa da
+       loja — a trava certa e dar id a eles, que e trabalho proprio.
+       Enquanto isso, texto passa; vazio nao.
+       ========================================================== */
+    var semClas=ls.filter(function(l){return lancSemCategoria(l)});
+    if(semClas.length){
+      toast(semClas.length>1
+        ? semClas.length+' lançamentos estão sem categoria do plano de contas. Classifique antes de pagar.'
+        : 'Este lançamento está sem categoria do plano de contas. Classifique antes de pagar: '+
+          (semClas[0].descricao||'sem descrição'));
+      return false;
+    }
     var d=$('pgD').value||hojeISO();
     var j=$('pgJ')?(parseFloat($('pgJ').value)||0):0;
     var mu=$('pgMu')?(parseFloat($('pgMu').value)||0):0;

@@ -213,6 +213,10 @@
    "pontos": 42,
    "roda": true
   },
+  "testes/financeiro-nao-deixa-passar.js": {
+   "pontos": 37,
+   "roda": true
+  },
   "testes/fiscal-por-unidade.js": {
    "pontos": 141,
    "roda": true

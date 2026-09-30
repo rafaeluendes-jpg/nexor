@@ -1398,6 +1398,23 @@ function confirmar(op){
      ((op.linhas&&op.linhas.length)?'<div class="cfLinhas">'+op.linhas.map(function(l){
         return '<div class="cfL"><span>'+E(l[0])+'</span>'+
         '<b class="'+(l[2]||'')+'">'+E(l[1])+'</b></div>';}).join('')+'</div>':'')+
+     /* ==========================================================
+        UM CAMPO DENTRO DO AVISO
+
+        Ha decisoes que so valem com um motivo escrito — desconciliar,
+        voltar uma venda, anular uma compra. Ate agora, quem precisava
+        disso montava um modal proprio ou caia no `window.prompt`, que o
+        Chrome bloqueia em silencio (foi o defeito da V366).
+
+        O valor sai por `window._cfCampo`, do mesmo jeito que o
+        `_cfAjEst` do checkbox da nota — assim o retorno de `confirmar`
+        continua sendo sim/nao e nenhum dos chamadores de hoje muda.
+        ========================================================== */
+     (op.campo?'<div class="fld2" style="margin:12px 16px 0">'+
+       '<label>'+E(op.campo.rotulo||'Motivo')+'</label>'+
+       '<input id="'+E(op.campo.id||'cfCampo')+'" data-cf-campo="1" autocomplete="off" '+
+       'placeholder="'+E(op.campo.dica||'')+'">'+
+       '</div>':'')+
      (op.aviso?'<div class="cfAviso">'+sv('help',14)+'<div>'+op.aviso+'</div></div>':'')+
      '<div class="cfBt">'+
       '<button class="btnP2" data-cf="0">'+E(op.cancelar||'Cancelar')+'</button>'+
@@ -1425,6 +1442,8 @@ function confirmar(op){
       if(fechado)return; fechado=true;
       var chk=ov.querySelector('#cfAjEst');
       window._cfAjEst=chk?chk.checked:undefined;
+      var cmp=ov.querySelector('[data-cf-campo]');
+      window._cfCampo=cmp?String(cmp.value||'').trim():'';
       document.removeEventListener('keydown',esc);
       if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
       resolve(v);

@@ -275,11 +275,74 @@ function conciliarSelecionadas(){
   CB.marcadas={};salvar();telaConciliacao();
   toast(n+' movimento(s) conciliado(s). Eles ficam travados nos lançamentos.');
 }
+/* ==========================================================
+   DESCONCILIAR ERA TRÊS LINHAS SEM NENHUMA PROTEÇÃO
+
+   Conciliar é dizer "este lançamento bate com o extrato do banco". A
+   partir dali ele fica travado: não dá para editar, pagar de novo nem
+   excluir. Desconciliar destrava tudo isso.
+
+   E desconciliar era: uma pergunta sim/não, e pronto. Sem motivo, sem
+   prazo, sem registro de quem foi — e, pior, `l.dataConc=''` APAGAVA a
+   data da conciliação anterior, destruindo o "antes" que a auditoria
+   precisaria para reconstruir o que aconteceu.
+
+   A RDS (item 21) pede prazo, motivo e registro do antes e do depois.
+   O prazo padrão é de três dias: dentro dele é operação normal; fora
+   dele a conferência do mês já pode ter sido fechada em cima daquele
+   número, e o sistema tem de dizer isso em voz alta.
+
+   Nada aqui bloqueia: bloquear sem a alçada por cargo (que ainda não
+   existe) só trancaria a loja sem ter quem destranque. O que existe
+   agora é a trilha — e é dela que a trava vai poder nascer.
+   ========================================================== */
+var DIAS_DESCONCILIAR=3;
+/* dias de CALENDARIO, nao horas corridas: conciliado ontem as 23h e
+   "1 dia", nao "0". Contar por milissegundos faria o mesmo lancamento
+   mudar de resposta conforme a hora em que a tela fosse aberta. */
+function diasDesdeConciliacao(l){
+  var d=String((l&&l.dataConc)||'').slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return null;
+  var hoje=(typeof hojeISO==='function')?hojeISO():new Date().toISOString().slice(0,10);
+  var t1=Date.parse(d+'T00:00:00Z'),t2=Date.parse(String(hoje).slice(0,10)+'T00:00:00Z');
+  if(isNaN(t1)||isNaN(t2))return null;
+  return Math.round((t2-t1)/86400000);
+}
 async function desconciliar(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
-  if(!await pergunta('Desconciliar "'+l.descricao+'"?\n\nEle volta a ficar editável nos lançamentos financeiros.'))return;
+  if(!l)return;
+  if(!l.conciliado){toast('Este movimento não está conciliado.');return;}
+  var dias=diasDesdeConciliacao(l);
+  var fora=(dias!==null&&dias>DIAS_DESCONCILIAR);
+  var r=await confirmar({
+    titulo:'Desconciliar "'+E(l.descricao||'movimento')+'"',
+    texto:'R$ '+money(l.valor)+(l.dataConc?' · conciliado em '+dataBR(l.dataConc):''),
+    linhas:[['Valor','R$ '+money(l.valor),''],
+            ['Conciliado em',l.dataConc?dataBR(l.dataConc):'—',''],
+            ['Há quantos dias',dias===null?'—':String(dias),'']],
+    campo:{id:'dcMotivo',rotulo:'Por que está desconciliando? *',
+           dica:'ex.: o banco estornou · lancei na conta errada · valor divergente'},
+    aviso:(fora
+      ? '<b>Fora do prazo de '+DIAS_DESCONCILIAR+' dias.</b> A conferência do período '+
+        'pode já ter sido fechada com este movimento conciliado. Desconciliar agora '+
+        'muda um número que alguém já deu por certo.'
+      : 'Ele volta a ficar editável nos lançamentos financeiros. Fica registrado quem '+
+        'desconciliou, quando e por quê.'),
+    ok:'Desconciliar',tipo:fora?'perigo':''});
+  if(!r)return;
+  var motivo=String(window._cfCampo||'').trim();
+  if(!motivo){toast('Diga por que está desconciliando.');return;}
+  var quem=null; try{ quem=usuarioLogado(); }catch(e){}
+  /* o "antes" fica guardado: apagar `dataConc` era destruir a única
+     informação que diria o que havia ali */
+  l.desconc=l.desconc||[];
+  l.desconc.push({de:l.dataConc||'',em:new Date().toISOString(),
+    por:(quem&&quem.nome)||'',porId:(quem&&quem.id)||'',
+    motivo:motivo,dias:dias,foraDoPrazo:fora});
   l.conciliado=false;l.dataConc='';
-  salvar();telaConciliacao();toast('Movimento desconciliado.');
+  salvar();telaConciliacao();
+  toast('Movimento desconciliado'+(fora?' FORA DO PRAZO':'')+' — registrado.');
+  if(NUVEM.ligada)sincronizar();
 }
 function exportarConc(){
   var conta=(DB.contas||[]).find(function(c){return c.id===CB.conta});
