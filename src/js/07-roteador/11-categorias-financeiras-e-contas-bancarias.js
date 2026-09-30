@@ -180,6 +180,7 @@ function telaCatFin(){
   '<div class="finTop"><div><h1>Plano de Contas</h1>'+
   '<p>Receita de um lado, despesa do outro. É esta divisão que faz o lançamento '+
   'mostrar só as categorias certas.</p></div></div>'+
+  avisoListaIncompleta('catfin','categoria')+
   '<div class="catDuas">'+
    colunaCatFin('receita','Receita','entradas de dinheiro')+
    colunaCatFin('despesa','Despesa','saídas de dinheiro')+
@@ -385,15 +386,9 @@ function lancamentosDaConta(id){
    O numero nao muda; o que muda e a tela DIZER que ainda esta
    chegando. Quem sabe que esta incompleto nao cadastra de novo.
    ========================================================== */
-function avisoContasIncompleto(){
-  if(!esperandoDownload())return '';
-  return '<div class="imAviso">'+sv('help',14)+'<div>'+
-    '<b>Esta lista ainda está chegando da nuvem.</b> O que aparece aqui é o '+
-    'que já estava neste aparelho — pode faltar conta. '+
-    '<b>Não cadastre de novo</b> antes de ela terminar de carregar: a conta '+
-    'do banco e as formas de pagamento ligadas a ela estão guardadas e voltam '+
-    'sozinhas.</div></div>';
-}
+/* o aviso e o mesmo de todas as listas: uma funcao so, em 01-inicio.
+   Aqui so se diz o nome do que falta, em portugues de gente. */
+function avisoContasIncompleto(){ return avisoListaIncompleta('contas','conta'); }
 function telaContas(){
   baseCat();
   var contas=DB.contas||[];

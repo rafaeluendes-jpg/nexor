@@ -549,7 +549,7 @@ function telaStatusVendas(){
   baseStatus();
   var lst=DB.statusVenda.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
   var ativos=lst.filter(function(x){return x.ativo!==false});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('statusVenda','status')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Status de Vendas</h1>'+
     '<p>Cada status ligado vira uma coluna no Kanban do PDV, na ordem daqui. '+
@@ -1687,14 +1687,31 @@ function telaModeloImp(){
   var rol=document.querySelector('.etScroll');
   var topo=rol?rol.scrollTop:0;
   var m=modeloImp(IMP.tipo);
-  if(!m.blocos||!m.blocos.length){m.blocos=blocosPadrao(m.tipo);salvar();}
+  /* ==========================================================
+     ABRIR A TELA NAO PODE GRAVAR NADA
+
+     Esta linha gravava o leiaute de FABRICA no modelo da loja so de a
+     tela ser aberta. Com a lista de modelos incompleta — download que
+     nao chegou, ou tabela que falhou — o modelo da loja ainda nao
+     estava aqui, e o de fabrica subia por cima dele. Sem ninguem
+     clicar em nada.
+
+     Agora, enquanto a lista puder estar incompleta, a tela DESENHA com
+     o padrao e nao GRAVA: o modelo verdadeiro chega no download e toma
+     o lugar.
+     ========================================================== */
+  var _impIncompleto=(typeof colecaoIncompleta==='function')&&!!colecaoIncompleta('modelosImp');
+  if(!m.blocos||!m.blocos.length){
+    m.blocos=blocosPadrao(m.tipo);
+    if(!_impIncompleto)salvar();
+  }
   var papelAtual=papelDoModelo(m);
   var letraAtual=letraDoModelo(m);
   var cols=colunasDaLetra(papelAtual,letraAtual);
   var texto=m.manual?(IMP.rascunho!==null?IMP.rascunho:m.modelo):blocosParaModelo(m.blocos);
   var linhas=montarImp(texto,pedidoExemplo(IMP.tipo),cols);
 
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('modelosImp','modelo')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Modelo de Impressao</h1>'+
     '<p>Monte o cupom ligando e desligando os pedacos. A previa ao lado mostra como '+
@@ -2507,7 +2524,7 @@ function motivosCancAtivos(){
 function telaMotivosCanc(){
   baseCanc();
   var lst=DB.motivosCanc.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('motivosCanc','motivo')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Motivo de Cancelamento</h1>'+
     '<p>O que voce cadastrar aqui aparece na hora no PDV, quando o operador cancela uma '+
@@ -2646,7 +2663,7 @@ function turnoDoRelogio(){
 function telaTurnos(){
   baseTurnos();
   var lst=DB.turnos.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('turnos','turno')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Turnos</h1>'+
     '<p>Quem abre a frente de caixa escolhe o turno. A partir dai todo pedido, sangria e '+
@@ -3170,7 +3187,7 @@ function telaUsuarios(){
   var sucsVisiveis=(DB.sucursais||[]).filter(function(sc){
     if(sc.matriz)return false;
     return !minhaRede||sc.redeId===minhaRede.id;});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('usuarios','acesso')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Usuários e Permissões</h1>'+
     '<p>Quem entra no sistema, em quais lojas e o que cada um enxerga.</p></div>'+

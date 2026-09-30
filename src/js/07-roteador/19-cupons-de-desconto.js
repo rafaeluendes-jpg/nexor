@@ -42,6 +42,7 @@ function telaCupons(){
   '<div class="finTop"><div><h1>Cupons de Desconto</h1>'+
   '<p>Descontos aplicados na tela de pagamento do PDV.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalCupom()">'+sv('plus',14)+' Novo cupom</button></div></div>'+
+  avisoListaIncompleta('cupons','cupom')+
 
   '<div class="lfTabs" style="border-radius:6px 6px 0 0;border:1px solid var(--line);border-bottom:none">'+
    '<button class="lfTab'+(CP.aba==='ativos'?' on':'')+'" onclick="CP.aba=\'ativos\';telaCupons()">Cupons'+

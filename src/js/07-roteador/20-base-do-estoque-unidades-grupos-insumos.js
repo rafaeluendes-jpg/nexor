@@ -262,6 +262,7 @@ function telaInsumos(){
    (podeEditarCadastro()
     ?'<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button>'
     :'')+'</div></div>'+
+  avisoListaIncompleta('insumos','ingrediente')+
 
   /* ==========================================================
      O FILTRO CONTINUA SENDO filtroCard
@@ -674,7 +675,7 @@ function remUnidade(k){
 function telaGruposIng(){
   baseEstoque();
   var lista=(DB.gruposIng||[]).slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
-  $('content').innerHTML='<div class="finWrap">'+
+  $('content').innerHTML=avisoListaIncompleta('gruposIng','grupo')+'<div class="finWrap">'+
   '<div class="finTop"><div><h1>Grupo de Ingredientes</h1>'+
   '<p>Organiza os insumos e define o que entra no cálculo do CMV.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalGrupoIng()">'+sv('plus',14)+' Novo grupo</button></div></div>'+

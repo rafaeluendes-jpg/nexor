@@ -224,7 +224,7 @@ function telaAcertos(){
     '</div></div>';
   }).join('');
 
-  $('content').innerHTML='<div class="finWrap">'+
+  $('content').innerHTML=avisoListaIncompleta('entregadores','entregador')+'<div class="finWrap">'+
   '<div class="finTop">'+
    '<div><h1>Acerto com Entregadores</h1>'+
    '<p>Selecione o período e o entregador para conferir e realizar o pagamento.</p></div>'+

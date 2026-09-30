@@ -1197,7 +1197,7 @@ function pintarQRs(){
 function telaMesas(){
   baseMesas();
   var lst=DB.mesas.slice().sort(function(a,b){return (a.numero||0)-(b.numero||0)});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('mesas','mesa')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Mesas</h1>'+
     '<p>Cada mesa ganha um QR Code próprio. O cliente aponta a câmera, o cardápio '+

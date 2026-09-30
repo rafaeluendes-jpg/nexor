@@ -56,6 +56,7 @@ function telaFornecedores(){
    '<input id="fbB" value="'+E(FB.busca)+'" placeholder="buscar por empresa, contato, CNPJ ou WhatsApp" '+
    'oninput="FB.busca=this.value;pintaFornec()"></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalForn()">'+sv('plus',14)+' Cadastrar fornecedor</button></div></div>'+
+  avisoListaIncompleta('fornec','fornecedor')+
   '<div class="pnl2 flex1"><div class="pnl2H">Fornecedores <span class="cnt2">'+lista.length+'</span></div>'+
   '<div class="pnl2B scroll1" style="padding:0">'+
   tabelaFornec(lista)+

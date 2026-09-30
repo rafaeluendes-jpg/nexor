@@ -9909,6 +9909,87 @@ function nuvemJaConhece(col){
 function podeSemear(col){
   return !esperandoDownload()&&!nuvemJaConhece(col);
 }
+/* ==========================================================
+   LISTA INCOMPLETA NAO PODE TER O ROSTO DE LISTA COMPLETA
+
+   Rafael, 30/09/2026: *"Onde voce ja viu a conta ta na nuvem e nao ta no
+   sistema? O dono da loja entra e vai entrar dentro da nuvem para poder
+   ver a conta? A conta tem que estar no sistema, nao na nuvem."*
+
+   Ele esta certo, e a pergunta seguinte dele e a que importa: se isso
+   estava assim nas contas, como esta no resto?
+
+   Esta assim no resto. Toda tela de cadastro desenha o que estiver no
+   aparelho. Enquanto o download nao chegou — ou quando a tabela daquela
+   colecao FALHOU no download — a tela mostra uma lista curta, ou vazia,
+   com titulo, total e contagem, exatamente igual a uma lista completa.
+   E a falha so era dita no Diagnostico, que ninguem abre.
+
+   Quem olha conclui que o cadastro sumiu. Nas contas, isso levou a
+   recadastrarem o Itau dez vezes.
+
+   Este e o aviso unico. Uma funcao, usada por todas as telas de lista:
+   nao adianta consertar uma tela por vez, porque a proxima nasce com o
+   mesmo defeito.
+   ========================================================== */
+function tabelaDaColecao(col){
+  try{
+    if(_TAB_VINCULO[col])return _TAB_VINCULO[col];
+    var m=(MAPA||[]).find(function(x){return x.col===col});
+    return m?m.tab:'';
+  }catch(e){ return ''; }
+}
+/* ==========================================================
+   A TABELA FILHA FALHA SOZINHA
+
+   A ficha tecnica vem de `fichas_tecnicas`, mas os INGREDIENTES dela
+   vem de `ficha_itens`, que e outra consulta e pode falhar sozinha — o
+   proprio download ja sabe disso. Quando isso acontece, a ficha aparece
+   inteira na lista e com a receita vazia: custo zero, "Nenhum
+   ingrediente cadastrado", e ninguem avisado.
+
+   O mesmo vale para as subcategorias do plano de contas e para o uso
+   dos cupons. Perguntar so pela tabela do pai deixa esses casos mudos.
+   ========================================================== */
+var _TAB_FILHAS={
+  fichas:['ficha_itens'],
+  catfin:['subcategorias_financeiras'],
+  cupons:['cupom_usos'],
+  produtos:['produto_grupos'],
+  pedidosBase:['pedido_base_itens']
+};
+/* '' = a lista esta inteira; 'chegando' = download a caminho;
+   'falhou' = a tabela desta colecao (ou uma filha dela) nao veio */
+function colecaoIncompleta(col){
+  try{
+    if(esperandoDownload())return 'chegando';
+    if(typeof _FALHOU_BAIXA==='undefined')return '';
+    var caiu=_FALHOU_BAIXA||[];
+    if(!caiu.length)return '';
+    var tabs=[tabelaDaColecao(col)].concat(_TAB_FILHAS[col]||[]);
+    for(var i=0;i<tabs.length;i++)
+      if(tabs[i]&&caiu.indexOf(tabs[i])>=0)return 'falhou';
+  }catch(e){ _quieto(e,'colecaoIncompleta'); }
+  return '';
+}
+/* o aviso pronto para a tela. `oQue` e o nome do que a lista mostra,
+   em portugues de gente: "conta", "forma de pagamento", "produto". */
+function avisoListaIncompleta(col,oQue){
+  var st=colecaoIncompleta(col);
+  if(!st)return '';
+  oQue=oQue||'cadastro';
+  var ic=(typeof sv==='function')?sv('help',14):'';
+  if(st==='chegando')
+    return '<div class="imAviso">'+ic+'<div><b>Esta lista ainda está chegando '+
+      'da nuvem.</b> O que aparece aqui é o que já estava neste aparelho — pode '+
+      'faltar '+oQue+'. <b>Não cadastre de novo</b> antes de ela terminar de '+
+      'carregar: o que está guardado volta sozinho.</div></div>';
+  return '<div class="imAviso">'+ic+'<div><b>Esta lista pode estar incompleta.</b> '+
+    'A última busca na nuvem não trouxe estes dados (a internet caiu ou o '+
+    'servidor recusou). O que aparece aqui é o que já estava neste aparelho. '+
+    '<b>Não cadastre de novo</b>: tente de novo em Sincronização — o que está '+
+    'guardado volta sozinho.</div></div>';
+}
 function declararExclusao(col,id){
   if(!col||!id)return;
   DB._apagados=DB._apagados||{};
@@ -14469,7 +14550,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V389.0.0';
+var VERSAO='V390.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -15069,7 +15150,8 @@ render('');inp.oninput=function(){render(this.value.toLowerCase().trim());};
    BLOCO 8 — MÓDULO CARDÁPIO
    ========================================================== */
 function telaCardapio(){
-  $('content').innerHTML='<div class="cardWrap">'+
+  $('content').innerHTML=avisoListaIncompleta('produtos','produto')+
+  '<div class="cardWrap">'+
   '<div class="card" id="colCat"></div><div class="card" id="colProd"></div></div>';
   renderCategorias();renderProdutos();
   rodape(DB.categorias.length+' categorias · '+DB.produtos.length+' produtos');
@@ -17973,7 +18055,7 @@ function libRestritos(col){
 }
 function telaLiberacao(){
   if(!ehMatriz()){
-    $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
+    $('content').innerHTML=avisoListaIncompleta('produtos','cadastro')+'<div class="construWrap"><div class="construBox">'+
      '<div class="construIc">'+sv('lock',30)+'</div><b>Tela da matriz</b>'+
      '<p>Quem decide o que cada unidade enxerga é a franqueadora.</p></div></div>';
     rodape('sem permissão');return;
@@ -20443,7 +20525,7 @@ function pintarQRs(){
 function telaMesas(){
   baseMesas();
   var lst=DB.mesas.slice().sort(function(a,b){return (a.numero||0)-(b.numero||0)});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('mesas','mesa')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Mesas</h1>'+
     '<p>Cada mesa ganha um QR Code próprio. O cliente aponta a câmera, o cardápio '+
@@ -27619,7 +27701,7 @@ function telaAcertos(){
     '</div></div>';
   }).join('');
 
-  $('content').innerHTML='<div class="finWrap">'+
+  $('content').innerHTML=avisoListaIncompleta('entregadores','entregador')+'<div class="finWrap">'+
   '<div class="finTop">'+
    '<div><h1>Acerto com Entregadores</h1>'+
    '<p>Selecione o período e o entregador para conferir e realizar o pagamento.</p></div>'+
@@ -28438,6 +28520,7 @@ function telaCatFin(){
   '<div class="finTop"><div><h1>Plano de Contas</h1>'+
   '<p>Receita de um lado, despesa do outro. É esta divisão que faz o lançamento '+
   'mostrar só as categorias certas.</p></div></div>'+
+  avisoListaIncompleta('catfin','categoria')+
   '<div class="catDuas">'+
    colunaCatFin('receita','Receita','entradas de dinheiro')+
    colunaCatFin('despesa','Despesa','saídas de dinheiro')+
@@ -28643,15 +28726,9 @@ function lancamentosDaConta(id){
    O numero nao muda; o que muda e a tela DIZER que ainda esta
    chegando. Quem sabe que esta incompleto nao cadastra de novo.
    ========================================================== */
-function avisoContasIncompleto(){
-  if(!esperandoDownload())return '';
-  return '<div class="imAviso">'+sv('help',14)+'<div>'+
-    '<b>Esta lista ainda está chegando da nuvem.</b> O que aparece aqui é o '+
-    'que já estava neste aparelho — pode faltar conta. '+
-    '<b>Não cadastre de novo</b> antes de ela terminar de carregar: a conta '+
-    'do banco e as formas de pagamento ligadas a ela estão guardadas e voltam '+
-    'sozinhas.</div></div>';
-}
+/* o aviso e o mesmo de todas as listas: uma funcao so, em 01-inicio.
+   Aqui so se diz o nome do que falta, em portugues de gente. */
+function avisoContasIncompleto(){ return avisoListaIncompleta('contas','conta'); }
 function telaContas(){
   baseCat();
   var contas=DB.contas||[];
@@ -28850,6 +28927,7 @@ function telaFormasPag(){
   '<p>Cadastre cartões, Pix e demais formas, com taxa e a conta onde o dinheiro cai. '+
   'Elas aparecem na frente de caixa e no fechamento.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalForma()">'+sv('plus',14)+' Nova forma de pagamento</button></div></div>'+
+  avisoListaIncompleta('formasPag','forma de pagamento')+
   '<div class="kpiRow">'+
    '<div class="kpi2"><span>Cadastradas</span><b>'+lista.length+'</b></div>'+
    '<div class="kpi2"><span>Ativas no PDV</span><b>'+ativas+'</b></div>'+
@@ -33984,6 +34062,7 @@ function telaFornecedores(){
    '<input id="fbB" value="'+E(FB.busca)+'" placeholder="buscar por empresa, contato, CNPJ ou WhatsApp" '+
    'oninput="FB.busca=this.value;pintaFornec()"></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalForn()">'+sv('plus',14)+' Cadastrar fornecedor</button></div></div>'+
+  avisoListaIncompleta('fornec','fornecedor')+
   '<div class="pnl2 flex1"><div class="pnl2H">Fornecedores <span class="cnt2">'+lista.length+'</span></div>'+
   '<div class="pnl2B scroll1" style="padding:0">'+
   tabelaFornec(lista)+
@@ -34949,6 +35028,7 @@ function telaClientes(){
   '<div class="finActs">'+
    '<button class="btnP2" onclick="exportarClientes()">'+sv('down2',14)+' Exportar</button>'+
    '<button class="btnP2 ok" onclick="fichaCliente()">'+sv('plus',14)+' Novo cliente</button></div></div>'+
+  avisoListaIncompleta('clientes','cliente')+
 
   '<div class="filtroCard">'+
    '<div class="fl gw2"><label>Buscar por telefone, nome ou CPF</label>'+
@@ -35512,6 +35592,7 @@ function telaCupons(){
   '<div class="finTop"><div><h1>Cupons de Desconto</h1>'+
   '<p>Descontos aplicados na tela de pagamento do PDV.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalCupom()">'+sv('plus',14)+' Novo cupom</button></div></div>'+
+  avisoListaIncompleta('cupons','cupom')+
 
   '<div class="lfTabs" style="border-radius:6px 6px 0 0;border:1px solid var(--line);border-bottom:none">'+
    '<button class="lfTab'+(CP.aba==='ativos'?' on':'')+'" onclick="CP.aba=\'ativos\';telaCupons()">Cupons'+
@@ -35947,6 +36028,7 @@ function telaInsumos(){
    (podeEditarCadastro()
     ?'<button class="btnP2 ok" onclick="modalInsumo()">'+sv('plus',14)+' Novo ingrediente</button>'
     :'')+'</div></div>'+
+  avisoListaIncompleta('insumos','ingrediente')+
 
   /* ==========================================================
      O FILTRO CONTINUA SENDO filtroCard
@@ -36359,7 +36441,7 @@ function remUnidade(k){
 function telaGruposIng(){
   baseEstoque();
   var lista=(DB.gruposIng||[]).slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
-  $('content').innerHTML='<div class="finWrap">'+
+  $('content').innerHTML=avisoListaIncompleta('gruposIng','grupo')+'<div class="finWrap">'+
   '<div class="finTop"><div><h1>Grupo de Ingredientes</h1>'+
   '<p>Organiza os insumos e define o que entra no cálculo do CMV.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalGrupoIng()">'+sv('plus',14)+' Novo grupo</button></div></div>'+
@@ -36620,6 +36702,10 @@ function telaFichaTecnica(){
   }
 
   $('content').innerHTML='<div class="ftWrap">'+
+   /* a tela le DB.fichas, nao DB.produtos: avisar pela colecao errada
+      deixa a falha de `fichas_tecnicas` passar muda, que e o defeito
+      original na tela mais cara de recadastrar */
+   avisoListaIncompleta('fichas','ficha')+
    '<div class="ftBar">'+
     '<span class="ftTit">Produto</span>'+
     '<div class="tSep2"></div>'+
@@ -39606,7 +39692,8 @@ function telaBasesValores(){
     return String(a.nome || '').localeCompare(String(b.nome || ''));
   });
 
-  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+  $('content').innerHTML = avisoListaIncompleta('basesCat','base') +
+    '<div class="etWrap"><div class="etScroll">' +
    '<div class="etTopo"><div><h1>Central de Bases e Valores</h1>' +
    '<p>A matriz define nome, valor e disponibilidade. As unidades enxergam ' +
    'esta tabela ao fazer o pedido.</p></div>' +
@@ -40100,7 +40187,8 @@ function telaBaixaManual(){
     return a + valorBaixa(b);
   }, 0);
 
-  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+  $('content').innerHTML = avisoListaIncompleta('motivosMov','motivo') +
+    '<div class="etWrap"><div class="etScroll">' +
    '<div class="etTopo"><div><h1>Baixa Manual</h1>' +
    '<p>Registre a perda na hora que acontece. Nada sai do estoque até você ' +
    'lançar — sozinho ou tudo de uma vez no fim do dia.</p></div>' +
@@ -48167,7 +48255,7 @@ function telaCfgDRE(){
     porRub[r].push(x.nome);
   });
 
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('catfin','categoria')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Configuração do DRE</h1>'+
     '<p>Diga para onde vai cada categoria financeira e como o resultado é apurado.</p></div>'+
@@ -48325,7 +48413,7 @@ var CORES_SUC=['#00A08B','#2C6FD1','#B8730B','#8B5CF6','#C94141','#0E8A46','#D94
 function telaSucursais(){
   baseSuc();
   var l=DB.sucursais;
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('sucursais','unidade')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Sucursais da Franquia</h1><p>As unidades que aparecem nos painéis e relatórios.</p></div>'+
     '<div style="flex:1"></div>'+
@@ -49416,7 +49504,7 @@ function telaAreasEntrega(){
       (a.zonas||[]).some(function(z){return (z.nome||'').toLowerCase().indexOf(q)>=0});
   });
   var totZ=DB.areas.reduce(function(a,x){return a+(x.zonas||[]).length},0);
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('areas','cidade')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Áreas de Entrega</h1>'+
     '<p>Cidades, bairros e zonas rurais com a taxa de cada uma.</p></div>'+
@@ -49622,7 +49710,7 @@ function telaCfgMovimentacao(){
    {id:'producao',n:'Produzir', ic:'box',  cor:'#00A08B',
     d:'o sistema usa sozinho na ordem de produção'}
   ];
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('motivosMov','motivo')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Motivos de Baixa de Estoque</h1>'+
     '<p>Aqui é onde você cadastra os motivos da <b>baixa manual</b> — perda, quebra, vencimento, '+
@@ -50656,7 +50744,7 @@ function telaCfgCardapio(dentro){
   /* o atalho curto e o que se divulga; o endereco completo continua
      valendo, mas ninguem poe um /delivery/?loja= num cartao */
   var link=linkCardapio(CD.suc);
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('cardapioL','configuração')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     (dentro?'<button class="btnP2" onclick="CN2.aba=\'canais\';telaCanaisIntegracao()">'+
       sv('cr2',13)+' Canais</button>':'')+
@@ -53749,7 +53837,7 @@ function telaGerente(){
   baseMov();baseSuc();baseGerente();
   if(!GE.suc)GE.suc=(sucursaisDoUsuario()[0]||{}).id||'';
   var g=DB.gerente[GE.suc]||{};
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('zap','número')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Assistente Joia</h1>'+
     '<p>Ela avisa o que acontece na loja, cobra as rotinas e responde o que você '+
@@ -54594,7 +54682,7 @@ function nomeFuncao(id){var f=FUNCOES.find(function(x){return x.id===id});return
 
 function telaOperadores(){
   baseMov();baseSuc();baseOper();
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('operadores','operador')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Operadores do Caixa</h1>'+
     '<p>Quem trabalha na loja e precisa assinar abertura de caixa e cancelamento. '+
@@ -55247,7 +55335,7 @@ function telaStatusVendas(){
   baseStatus();
   var lst=DB.statusVenda.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
   var ativos=lst.filter(function(x){return x.ativo!==false});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('statusVenda','status')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Status de Vendas</h1>'+
     '<p>Cada status ligado vira uma coluna no Kanban do PDV, na ordem daqui. '+
@@ -56385,14 +56473,31 @@ function telaModeloImp(){
   var rol=document.querySelector('.etScroll');
   var topo=rol?rol.scrollTop:0;
   var m=modeloImp(IMP.tipo);
-  if(!m.blocos||!m.blocos.length){m.blocos=blocosPadrao(m.tipo);salvar();}
+  /* ==========================================================
+     ABRIR A TELA NAO PODE GRAVAR NADA
+
+     Esta linha gravava o leiaute de FABRICA no modelo da loja so de a
+     tela ser aberta. Com a lista de modelos incompleta — download que
+     nao chegou, ou tabela que falhou — o modelo da loja ainda nao
+     estava aqui, e o de fabrica subia por cima dele. Sem ninguem
+     clicar em nada.
+
+     Agora, enquanto a lista puder estar incompleta, a tela DESENHA com
+     o padrao e nao GRAVA: o modelo verdadeiro chega no download e toma
+     o lugar.
+     ========================================================== */
+  var _impIncompleto=(typeof colecaoIncompleta==='function')&&!!colecaoIncompleta('modelosImp');
+  if(!m.blocos||!m.blocos.length){
+    m.blocos=blocosPadrao(m.tipo);
+    if(!_impIncompleto)salvar();
+  }
   var papelAtual=papelDoModelo(m);
   var letraAtual=letraDoModelo(m);
   var cols=colunasDaLetra(papelAtual,letraAtual);
   var texto=m.manual?(IMP.rascunho!==null?IMP.rascunho:m.modelo):blocosParaModelo(m.blocos);
   var linhas=montarImp(texto,pedidoExemplo(IMP.tipo),cols);
 
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('modelosImp','modelo')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Modelo de Impressao</h1>'+
     '<p>Monte o cupom ligando e desligando os pedacos. A previa ao lado mostra como '+
@@ -57205,7 +57310,7 @@ function motivosCancAtivos(){
 function telaMotivosCanc(){
   baseCanc();
   var lst=DB.motivosCanc.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('motivosCanc','motivo')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Motivo de Cancelamento</h1>'+
     '<p>O que voce cadastrar aqui aparece na hora no PDV, quando o operador cancela uma '+
@@ -57344,7 +57449,7 @@ function turnoDoRelogio(){
 function telaTurnos(){
   baseTurnos();
   var lst=DB.turnos.slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('turnos','turno')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Turnos</h1>'+
     '<p>Quem abre a frente de caixa escolhe o turno. A partir dai todo pedido, sangria e '+
@@ -57868,7 +57973,7 @@ function telaUsuarios(){
   var sucsVisiveis=(DB.sucursais||[]).filter(function(sc){
     if(sc.matriz)return false;
     return !minhaRede||sc.redeId===minhaRede.id;});
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('usuarios','acesso')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Usuários e Permissões</h1>'+
     '<p>Quem entra no sistema, em quais lojas e o que cada um enxerga.</p></div>'+

@@ -2240,7 +2240,7 @@ function telaCfgDRE(){
     porRub[r].push(x.nome);
   });
 
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('catfin','categoria')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Configuração do DRE</h1>'+
     '<p>Diga para onde vai cada categoria financeira e como o resultado é apurado.</p></div>'+
@@ -2398,7 +2398,7 @@ var CORES_SUC=['#00A08B','#2C6FD1','#B8730B','#8B5CF6','#C94141','#0E8A46','#D94
 function telaSucursais(){
   baseSuc();
   var l=DB.sucursais;
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('sucursais','unidade')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Sucursais da Franquia</h1><p>As unidades que aparecem nos painéis e relatórios.</p></div>'+
     '<div style="flex:1"></div>'+

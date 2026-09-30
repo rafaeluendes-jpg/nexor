@@ -1938,7 +1938,8 @@ function telaBasesValores(){
     return String(a.nome || '').localeCompare(String(b.nome || ''));
   });
 
-  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+  $('content').innerHTML = avisoListaIncompleta('basesCat','base') +
+    '<div class="etWrap"><div class="etScroll">' +
    '<div class="etTopo"><div><h1>Central de Bases e Valores</h1>' +
    '<p>A matriz define nome, valor e disponibilidade. As unidades enxergam ' +
    'esta tabela ao fazer o pedido.</p></div>' +
@@ -2432,7 +2433,8 @@ function telaBaixaManual(){
     return a + valorBaixa(b);
   }, 0);
 
-  $('content').innerHTML = '<div class="etWrap"><div class="etScroll">' +
+  $('content').innerHTML = avisoListaIncompleta('motivosMov','motivo') +
+    '<div class="etWrap"><div class="etScroll">' +
    '<div class="etTopo"><div><h1>Baixa Manual</h1>' +
    '<p>Registre a perda na hora que acontece. Nada sai do estoque até você ' +
    'lançar — sozinho ou tudo de uma vez no fim do dia.</p></div>' +

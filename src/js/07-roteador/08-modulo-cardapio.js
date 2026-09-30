@@ -2,7 +2,8 @@
    BLOCO 8 — MÓDULO CARDÁPIO
    ========================================================== */
 function telaCardapio(){
-  $('content').innerHTML='<div class="cardWrap">'+
+  $('content').innerHTML=avisoListaIncompleta('produtos','produto')+
+  '<div class="cardWrap">'+
   '<div class="card" id="colCat"></div><div class="card" id="colProd"></div></div>';
   renderCategorias();renderProdutos();
   rodape(DB.categorias.length+' categorias · '+DB.produtos.length+' produtos');

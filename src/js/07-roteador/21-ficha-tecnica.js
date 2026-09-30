@@ -156,6 +156,10 @@ function telaFichaTecnica(){
   }
 
   $('content').innerHTML='<div class="ftWrap">'+
+   /* a tela le DB.fichas, nao DB.produtos: avisar pela colecao errada
+      deixa a falha de `fichas_tecnicas` passar muda, que e o defeito
+      original na tela mais cara de recadastrar */
+   avisoListaIncompleta('fichas','ficha')+
    '<div class="ftBar">'+
     '<span class="ftTit">Produto</span>'+
     '<div class="tSep2"></div>'+

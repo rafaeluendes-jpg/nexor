@@ -61,6 +61,7 @@ function telaFormasPag(){
   '<p>Cadastre cartões, Pix e demais formas, com taxa e a conta onde o dinheiro cai. '+
   'Elas aparecem na frente de caixa e no fechamento.</p></div>'+
   '<div class="finActs"><button class="btnP2 ok" onclick="modalForma()">'+sv('plus',14)+' Nova forma de pagamento</button></div></div>'+
+  avisoListaIncompleta('formasPag','forma de pagamento')+
   '<div class="kpiRow">'+
    '<div class="kpi2"><span>Cadastradas</span><b>'+lista.length+'</b></div>'+
    '<div class="kpi2"><span>Ativas no PDV</span><b>'+ativas+'</b></div>'+

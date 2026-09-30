@@ -101,6 +101,7 @@ function telaClientes(){
   '<div class="finActs">'+
    '<button class="btnP2" onclick="exportarClientes()">'+sv('down2',14)+' Exportar</button>'+
    '<button class="btnP2 ok" onclick="fichaCliente()">'+sv('plus',14)+' Novo cliente</button></div></div>'+
+  avisoListaIncompleta('clientes','cliente')+
 
   '<div class="filtroCard">'+
    '<div class="fl gw2"><label>Buscar por telefone, nome ou CPF</label>'+

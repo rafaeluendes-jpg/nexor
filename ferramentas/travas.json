@@ -138,7 +138,7 @@
    "roda": true
   },
   "testes/conta-do-banco-nao-some.js": {
-   "pontos": 23,
+   "pontos": 24,
    "roda": true
   },
   "testes/contador-nao-mente.js": {
@@ -307,6 +307,10 @@
   },
   "testes/ligacoes.js": {
    "pontos": 32,
+   "roda": true
+  },
+  "testes/lista-incompleta-avisa.js": {
+   "pontos": 26,
    "roda": true
   },
   "testes/login-nao-apaga-configuracao.js": {

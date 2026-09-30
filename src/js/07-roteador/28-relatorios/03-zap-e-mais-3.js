@@ -2465,7 +2465,7 @@ function telaGerente(){
   baseMov();baseSuc();baseGerente();
   if(!GE.suc)GE.suc=(sucursaisDoUsuario()[0]||{}).id||'';
   var g=DB.gerente[GE.suc]||{};
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('zap','número')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Assistente Joia</h1>'+
     '<p>Ela avisa o que acontece na loja, cobra as rotinas e responde o que você '+
@@ -3310,7 +3310,7 @@ function nomeFuncao(id){var f=FUNCOES.find(function(x){return x.id===id});return
 
 function telaOperadores(){
   baseMov();baseSuc();baseOper();
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('operadores','operador')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Operadores do Caixa</h1>'+
     '<p>Quem trabalha na loja e precisa assinar abertura de caixa e cancelamento. '+

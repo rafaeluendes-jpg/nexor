@@ -529,7 +529,7 @@ function telaAreasEntrega(){
       (a.zonas||[]).some(function(z){return (z.nome||'').toLowerCase().indexOf(q)>=0});
   });
   var totZ=DB.areas.reduce(function(a,x){return a+(x.zonas||[]).length},0);
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('areas','cidade')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Áreas de Entrega</h1>'+
     '<p>Cidades, bairros e zonas rurais com a taxa de cada uma.</p></div>'+
@@ -735,7 +735,7 @@ function telaCfgMovimentacao(){
    {id:'producao',n:'Produzir', ic:'box',  cor:'#00A08B',
     d:'o sistema usa sozinho na ordem de produção'}
   ];
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('motivosMov','motivo')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     '<div><h1>Motivos de Baixa de Estoque</h1>'+
     '<p>Aqui é onde você cadastra os motivos da <b>baixa manual</b> — perda, quebra, vencimento, '+
@@ -1769,7 +1769,7 @@ function telaCfgCardapio(dentro){
   /* o atalho curto e o que se divulga; o endereco completo continua
      valendo, mas ninguem poe um /delivery/?loja= num cartao */
   var link=linkCardapio(CD.suc);
-  $('content').innerHTML='<div class="etWrap"><div class="etScroll">'+
+  $('content').innerHTML=avisoListaIncompleta('cardapioL','configuração')+'<div class="etWrap"><div class="etScroll">'+
    '<div class="etTopo">'+
     (dentro?'<button class="btnP2" onclick="CN2.aba=\'canais\';telaCanaisIntegracao()">'+
       sv('cr2',13)+' Canais</button>':'')+

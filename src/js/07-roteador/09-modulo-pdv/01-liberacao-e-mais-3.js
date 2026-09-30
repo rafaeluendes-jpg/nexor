@@ -1070,7 +1070,7 @@ function libRestritos(col){
 }
 function telaLiberacao(){
   if(!ehMatriz()){
-    $('content').innerHTML='<div class="construWrap"><div class="construBox">'+
+    $('content').innerHTML=avisoListaIncompleta('produtos','cadastro')+'<div class="construWrap"><div class="construBox">'+
      '<div class="construIc">'+sv('lock',30)+'</div><b>Tela da matriz</b>'+
      '<p>Quem decide o que cada unidade enxerga é a franqueadora.</p></div></div>';
     rodape('sem permissão');return;

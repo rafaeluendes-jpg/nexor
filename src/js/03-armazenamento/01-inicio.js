@@ -2686,6 +2686,87 @@ function nuvemJaConhece(col){
 function podeSemear(col){
   return !esperandoDownload()&&!nuvemJaConhece(col);
 }
+/* ==========================================================
+   LISTA INCOMPLETA NAO PODE TER O ROSTO DE LISTA COMPLETA
+
+   Rafael, 30/09/2026: *"Onde voce ja viu a conta ta na nuvem e nao ta no
+   sistema? O dono da loja entra e vai entrar dentro da nuvem para poder
+   ver a conta? A conta tem que estar no sistema, nao na nuvem."*
+
+   Ele esta certo, e a pergunta seguinte dele e a que importa: se isso
+   estava assim nas contas, como esta no resto?
+
+   Esta assim no resto. Toda tela de cadastro desenha o que estiver no
+   aparelho. Enquanto o download nao chegou — ou quando a tabela daquela
+   colecao FALHOU no download — a tela mostra uma lista curta, ou vazia,
+   com titulo, total e contagem, exatamente igual a uma lista completa.
+   E a falha so era dita no Diagnostico, que ninguem abre.
+
+   Quem olha conclui que o cadastro sumiu. Nas contas, isso levou a
+   recadastrarem o Itau dez vezes.
+
+   Este e o aviso unico. Uma funcao, usada por todas as telas de lista:
+   nao adianta consertar uma tela por vez, porque a proxima nasce com o
+   mesmo defeito.
+   ========================================================== */
+function tabelaDaColecao(col){
+  try{
+    if(_TAB_VINCULO[col])return _TAB_VINCULO[col];
+    var m=(MAPA||[]).find(function(x){return x.col===col});
+    return m?m.tab:'';
+  }catch(e){ return ''; }
+}
+/* ==========================================================
+   A TABELA FILHA FALHA SOZINHA
+
+   A ficha tecnica vem de `fichas_tecnicas`, mas os INGREDIENTES dela
+   vem de `ficha_itens`, que e outra consulta e pode falhar sozinha — o
+   proprio download ja sabe disso. Quando isso acontece, a ficha aparece
+   inteira na lista e com a receita vazia: custo zero, "Nenhum
+   ingrediente cadastrado", e ninguem avisado.
+
+   O mesmo vale para as subcategorias do plano de contas e para o uso
+   dos cupons. Perguntar so pela tabela do pai deixa esses casos mudos.
+   ========================================================== */
+var _TAB_FILHAS={
+  fichas:['ficha_itens'],
+  catfin:['subcategorias_financeiras'],
+  cupons:['cupom_usos'],
+  produtos:['produto_grupos'],
+  pedidosBase:['pedido_base_itens']
+};
+/* '' = a lista esta inteira; 'chegando' = download a caminho;
+   'falhou' = a tabela desta colecao (ou uma filha dela) nao veio */
+function colecaoIncompleta(col){
+  try{
+    if(esperandoDownload())return 'chegando';
+    if(typeof _FALHOU_BAIXA==='undefined')return '';
+    var caiu=_FALHOU_BAIXA||[];
+    if(!caiu.length)return '';
+    var tabs=[tabelaDaColecao(col)].concat(_TAB_FILHAS[col]||[]);
+    for(var i=0;i<tabs.length;i++)
+      if(tabs[i]&&caiu.indexOf(tabs[i])>=0)return 'falhou';
+  }catch(e){ _quieto(e,'colecaoIncompleta'); }
+  return '';
+}
+/* o aviso pronto para a tela. `oQue` e o nome do que a lista mostra,
+   em portugues de gente: "conta", "forma de pagamento", "produto". */
+function avisoListaIncompleta(col,oQue){
+  var st=colecaoIncompleta(col);
+  if(!st)return '';
+  oQue=oQue||'cadastro';
+  var ic=(typeof sv==='function')?sv('help',14):'';
+  if(st==='chegando')
+    return '<div class="imAviso">'+ic+'<div><b>Esta lista ainda está chegando '+
+      'da nuvem.</b> O que aparece aqui é o que já estava neste aparelho — pode '+
+      'faltar '+oQue+'. <b>Não cadastre de novo</b> antes de ela terminar de '+
+      'carregar: o que está guardado volta sozinho.</div></div>';
+  return '<div class="imAviso">'+ic+'<div><b>Esta lista pode estar incompleta.</b> '+
+    'A última busca na nuvem não trouxe estes dados (a internet caiu ou o '+
+    'servidor recusou). O que aparece aqui é o que já estava neste aparelho. '+
+    '<b>Não cadastre de novo</b>: tente de novo em Sincronização — o que está '+
+    'guardado volta sozinho.</div></div>';
+}
 function declararExclusao(col,id){
   if(!col||!id)return;
   DB._apagados=DB._apagados||{};

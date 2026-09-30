@@ -105,18 +105,32 @@ console.log('\n── O cenário da loja, rodando de verdade\n');
 })();
 
 console.log('\n── E a tela avisa, em vez de parecer completa\n');
-const av = corpoDaFuncao('avisoContasIncompleto', fonte);
-t('o aviso só aparece enquanto o download não chegou',
-  /if\(!esperandoDownload\(\)\)return '';/.test(semComentario(av)));
-t('ele diz que pode faltar conta', /pode faltar conta/.test(av));
+/* ==========================================================
+   DESDE A V390 O AVISO E UM SO, PARA TODAS AS LISTAS
+
+   Estas conferencias liam o texto dentro de `avisoContasIncompleto`.
+   Ele virou um apelido de `avisoListaIncompleta`, que serve todas as
+   telas — consertar uma tela por vez so garante que a proxima nasca
+   com o mesmo defeito.
+
+   A pergunta continua a mesma, medida na funcao que realmente monta o
+   aviso.
+   ========================================================== */
+const avGeral = corpoDaFuncao('avisoListaIncompleta', fonte);
+t('a tela de Contas usa a função comum, e não um texto próprio',
+  /return avisoListaIncompleta\('contas','conta'\);/
+    .test(semComentario(corpoDaFuncao('avisoContasIncompleto', fonte))));
+t('o aviso só aparece quando a lista pode estar incompleta',
+  /if\(!st\)return '';/.test(semComentario(avGeral)));
+t('ele diz o que pode faltar, com o nome em português', /faltar '\+oQue/.test(avGeral));
 t('e pede para NÃO cadastrar de novo — foi o que aconteceu dez vezes',
-  /Não cadastre de novo/.test(av));
-t('dizendo que a conta e as formas de pagamento estão guardadas',
-  /voltam\s*'\+\s*'sozinhas|voltam sozinhas/.test(av.replace(/\s+/g, ' ')) ||
-  /estão guardadas/.test(av));
+  (avGeral.match(/Não cadastre de novo/g) || []).length === 2);
+t('dizendo que o que está guardado volta sozinho',
+  (avGeral.match(/volta sozinho/g) || []).length === 2);
 t('o aviso entra na tela de Contas Bancárias',
   /avisoContasIncompleto\(\)/.test(semComentario(corpoDaFuncao('telaContas', fonte))));
-t('usando a faixa amarela que já existe', /class="imAviso"/.test(av));
+t('usando a faixa amarela que já existe',
+  (avGeral.match(/class="imAviso"/g) || []).length === 2);
 
 console.log('\n── E o portão passa a reprovar semente desprotegida\n');
 const aud = fs.readFileSync(__dirname + '/../ferramentas/auditar-configuracoes.js', 'utf8');
