@@ -334,7 +334,8 @@ function telaMovimentacao(){
   (DB.movEst||[]).forEach(function(m){
     if(MV.de&&m.data<MV.de)return;
     if(MV.ate&&m.data>MV.ate)return;
-    if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
+    if(MV.motivoId==='__transf'){ if(!movCasaMotivo(m))return; }
+    else if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
     (m.linhas||[]).forEach(function(l){
       var ins=itemEstoque(l.insumoId);
       if(MV.insumoId&&l.insumoId!==MV.insumoId)return;
@@ -431,6 +432,7 @@ function telaMovimentacao(){
     '</select></div>'+
     '<div class="f2"><label>Movimentação</label><select onchange="MV.motivoId=this.value;telaMovimentacao()">'+
      '<option value="">Todas</option>'+
+     '<option value="__transf"'+(MV.motivoId==='__transf'?' selected':'')+'>Transferência de mercadoria</option>'+
      (DB.motivosMov||[]).map(function(m){return '<option value="'+m.id+'"'+(MV.motivoId===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
     '</select></div>'+
     '<button class="btnP2 ok" onclick="buscarMov()">'+sv('search',13)+' Buscar</button>'+
@@ -614,13 +616,23 @@ function verMovimento(id){
   fecharSoForaDeVerdade(ov);
 }
 function buscarMov(){MV.de=$('mvDe').value;MV.ate=$('mvAte').value;telaMovimentacao();}
+/* "Transferência de mercadoria" junta enviada, recebida e estorno numa
+   escolha só (Rafael, 30/09/2026: o relatório de transferência dentro da
+   movimentação de estoque). Vale para a tela e para a exportação. */
+function movCasaMotivo(m){
+  if(!MV.motivoId)return true;
+  if(MV.motivoId==='__transf')
+    return m.origem==='transferencia'||/^mv_transf_/.test(String(m.motivoId||''));
+  return m.motivoId===MV.motivoId;
+}
 function exportarMov(){
   baseMov();
   var l=[['Data','Hora','Ingrediente','Grupo','Motivo','Identificacao','Entrada','Consumo','Unidade','Custo','Custo total','Obs']];
   (DB.movEst||[]).forEach(function(m){
     if(MV.de&&m.data<MV.de)return;
     if(MV.ate&&m.data>MV.ate)return;
-    if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
+    if(MV.motivoId==='__transf'){ if(!movCasaMotivo(m))return; }
+    else if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
     (m.linhas||[]).forEach(function(x){
       var ins=itemEstoque(x.insumoId);
       if(MV.insumoId&&x.insumoId!==MV.insumoId)return;

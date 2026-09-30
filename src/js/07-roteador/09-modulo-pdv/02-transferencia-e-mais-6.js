@@ -222,6 +222,139 @@ async function cancelarTransferencia(id){
   if(NUVEM.ligada)sincronizar();
 }
 
+/* ==========================================================
+   VER E EXCLUIR UMA TRANSFERÊNCIA (Rafael, 30/09/2026)
+
+   "ter a opção de clicar e ver qual item está em transferência e opção
+   de excluir e voltar para o estoque, e também apagar do lançamento
+   financeiro, aparecer as perguntas: voltar para o estoque e apagar
+   financeiro."
+
+   Clicar na linha do histórico mostra os itens. Excluir pergunta, uma
+   coisa de cada vez:
+     1. voltar os itens para o estoque? — a caminho: voltam para a origem;
+        já recebida: saem do destino (o que chegou) e voltam para a origem;
+     2. apagar do financeiro? — só aparece quando há lançamento ligado a
+        esta transferência (hoje a transferência de mercadoria não gera
+        lançamento sozinha; um lançado à mão com "Transferência #N" conta);
+     3. a confirmação final.
+   Tudo o que mexe no estoque vira movimento com nome ("Estorno da
+   transferência #N — excluída"): o histórico de estoque continua
+   explicando cada número. Recebida só a matriz exclui — o saldo do
+   destino é de outra unidade.
+   ========================================================== */
+function podeExcluirTransf(t){
+  if(!t)return false;
+  if(ehMatriz())return true;
+  return t.situacao!=='recebida'&&t.origemSuc===lojaAtualId();
+}
+function lancDaTransferencia(t){
+  if(!t)return [];
+  var marca=new RegExp('transfer[êe]ncia\\s*(de mercadoria\\s*)?#\\s*'+t.numero+'(?!\\d)','i');
+  return (DB.lancFin||[]).filter(function(l){
+    if(!l||l.tipo==='transferencia')return false;      /* transferência entre contas é outra coisa */
+    if(l.transfId===t.id)return true;
+    if(l.origem&&typeof l.origem==='object'&&l.origem.tipo==='transferencia'&&l.origem.ref===t.id)return true;
+    return marca.test(String(l.descricao||'')+' '+String(l.documento||''));
+  });
+}
+function verTransferencia(id){
+  var t=baseTransf().find(function(x){return x.id===id});
+  if(!t)return;
+  var rec=t.situacao==='recebida';
+  var sit=rec?(t.divergencia?'recebida com diferença':'recebida')
+         :t.situacao==='cancelada'?'cancelada':'a caminho';
+  var lancs=lancDaTransferencia(t);
+  var pode=podeExcluirTransf(t);
+  var h='<div class="mdB">'+
+   '<div class="hint" style="margin-bottom:10px"><b>'+E(sucNome(t.origemSuc))+' → '+E(sucNome(t.destinoSuc))+'</b>'+
+    ' · '+dataBR(diaLocal(t.data))+' · '+E(sit)+
+    (t.enviadaPor?' · enviada por '+E(t.enviadaPor):'')+
+    (t.recebidaPor?' · recebida por '+E(t.recebidaPor):'')+'</div>'+
+   '<table class="pTable"><thead><tr><th>Item</th>'+
+    '<th style="width:110px;text-align:right">Enviado</th>'+
+    (rec?'<th style="width:110px;text-align:right">Chegou</th>':'')+
+    '<th style="width:110px;text-align:right">Valor</th></tr></thead><tbody>'+
+   (t.itens||[]).map(function(i){
+     return '<tr><td><b>'+E(i.nome)+'</b></td>'+
+      '<td style="text-align:right">'+i.qtd+' '+E(i.unidade)+'</td>'+
+      (rec?'<td style="text-align:right">'+(i.qtdRecebida!=null?i.qtdRecebida:i.qtd)+' '+E(i.unidade)+'</td>':'')+
+      '<td style="text-align:right">R$ '+money((Number(i.qtd)||0)*(Number(i.custo)||0))+'</td></tr>';
+   }).join('')+'</tbody></table>'+
+   '<div class="trTot"><span>Valor da transferência</span><b>R$ '+money(t.valorTotal)+'</b></div>'+
+   (t.obs?'<div class="trObs" style="margin-top:8px">'+E(t.obs)+'</div>':'')+
+   (lancs.length?'<div class="hint" style="margin-top:8px">Ligada a '+lancs.length+
+     ' lançamento(s) no financeiro.</div>':'')+
+   (!pode&&t.situacao==='recebida'?'<div class="hint" style="margin-top:8px">Transferência já recebida: '+
+     'só a matriz exclui.</div>':'')+
+  '</div>';
+  modal('Transferência #'+t.numero,h,pode?'Excluir transferência':'Fechar',function(){
+    if(pode)setTimeout(function(){excluirTransferencia(id);},0);
+    return true;
+  },'lg');
+}
+async function excluirTransferencia(id){
+  var t=baseTransf().find(function(x){return x.id===id});
+  if(!t)return false;
+  if(!podeExcluirTransf(t)){
+    toast(t.situacao==='recebida'?'Transferência já recebida: só a matriz exclui.':'Só quem enviou exclui a transferência.');
+    return false;
+  }
+  var rec=t.situacao==='recebida';
+  var voltar=false;
+  if(t.situacao!=='cancelada'){
+    voltar=await confirmar({titulo:'Voltar os itens para o estoque?',
+      texto:rec?'Saem de '+sucNome(t.destinoSuc)+' e voltam para '+sucNome(t.origemSuc)+'.'
+               :'Voltam para o estoque de '+sucNome(t.origemSuc)+'.',
+      linhas:(t.itens||[]).slice(0,8).map(function(i){
+        return [i.nome,(rec&&i.qtdRecebida!=null?i.qtdRecebida:i.qtd)+' '+i.unidade];}),
+      ok:'Sim, voltar para o estoque',cancelar:'Não',tipo:'pergunta'});
+  }
+  var lancs=lancDaTransferencia(t), apagarFin=false;
+  if(lancs.length){
+    apagarFin=await confirmar({titulo:'Apagar do financeiro?',
+      texto:lancs.length+' lançamento(s) desta transferência',
+      linhas:lancs.slice(0,6).map(function(l){return [l.descricao||'Lançamento','R$ '+money(l.valor)];}),
+      ok:'Sim, apagar do financeiro',cancelar:'Não',tipo:'perigo'});
+  }
+  var ok=await confirmar({titulo:'Excluir a transferência #'+t.numero+'?',
+    texto:(voltar?'O estoque volta. ':'O estoque NÃO volta. ')+
+      (lancs.length?(apagarFin?'O financeiro é apagado.':'O financeiro fica como está.'):''),
+    ok:'Excluir',tipo:'perigo'});
+  if(!ok)return false;
+  baseMov();
+  var ident='Estorno da transferência #'+t.numero+' — excluída';
+  if(voltar){
+    var linhasDe=function(dir){
+      return (t.itens||[]).map(function(i){
+        var q=rec&&i.qtdRecebida!=null?Number(i.qtdRecebida):Number(i.qtd);
+        return {insumoId:i.id,nome:i.nome,unidade:i.unidade,qtd:q,
+          custo:i.custo,direcao:dir,origem:'transferencia'};
+      }).filter(function(l){return l.qtd>0;});
+    };
+    if(rec){
+      var saiu={id:uid('mv'),sucursalId:t.destinoSuc,data:hojeISO(),hora:agoraHM(),
+        motivoId:'mv_transf_saida',identificacao:ident,origem:'transferencia',linhas:linhasDe('saida')};
+      DB.movEst.push(saiu);aplicarMovimento(saiu);
+    }
+    var volta={id:uid('mv'),sucursalId:t.origemSuc,data:hojeISO(),hora:agoraHM(),
+      motivoId:'mv_transf_entrada',identificacao:ident,origem:'transferencia',linhas:linhasDe('entrada')};
+    DB.movEst.push(volta);aplicarMovimento(volta);
+  }
+  if(apagarFin){
+    var ids={};lancs.forEach(function(l){ids[l.id]=true;});
+    DB.lancFin=(DB.lancFin||[]).filter(function(l){return !ids[l.id];});
+    lancs.forEach(function(l){declararExclusao('lancFin',l.id);});
+  }
+  DB.transf=(DB.transf||[]).filter(function(x){return x.id!==t.id;});
+  declararExclusao('transf',t.id);
+  salvar();telaTransferencia();
+  toast('Transferência #'+t.numero+' excluída'+(voltar?' — estoque devolvido':'')+
+    (apagarFin?' e financeiro apagado':'')+'.');
+  if(NUVEM.ligada)sincronizar();
+  return true;
+}
+
 /* ---------- a tela ---------- */
 function telaTransferencia(){
   var suc=lojaAtualId();
@@ -355,7 +488,8 @@ function abaHistorico(saidas,entradas){
      var saiu=(t.origemSuc===suc);
      var cor=t.situacao==='recebida'?(t.divergencia?'#B4542F':'#0E8A46')
             :t.situacao==='cancelada'?'#C94141':'#8A8578';
-     return '<tr><td><b>#'+t.numero+'</b></td>'+
+     return '<tr class="trLinha" style="cursor:pointer" title="Ver os itens" '+
+      'onclick="verTransferencia(\''+t.id+'\')"><td><b>#'+t.numero+'</b></td>'+
       '<td>'+dataBR(diaLocal(t.data))+'</td>'+
       '<td>'+(saiu?sv('up3',11):sv('dn',11))+' '+
        E(sucNome(t.origemSuc))+' → '+E(sucNome(t.destinoSuc))+'</td>'+
@@ -365,7 +499,7 @@ function abaHistorico(saidas,entradas){
        (t.situacao==='recebida'?(t.divergencia?'recebida c/ diferença':'recebida')
         :t.situacao==='cancelada'?'cancelada':'a caminho')+'</span></td>'+
       '<td>'+(t.situacao==='enviada'&&saiu
-        ?'<button class="rBtn rd" onclick="cancelarTransferencia(\''+t.id+'\')" '+
+        ?'<button class="rBtn rd" onclick="event.stopPropagation();cancelarTransferencia(\''+t.id+'\')" '+
          'title="Cancelar">'+sv('x2',12)+'</button>':'')+'</td></tr>';
    }).join('')+'</tbody></table></div></div>';
 }

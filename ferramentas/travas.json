@@ -521,6 +521,10 @@
    "pontos": 111,
    "roda": true
   },
+  "testes/transferencia-ver-e-excluir.js": {
+   "pontos": 21,
+   "roda": true
+  },
   "testes/turno-obedece.js": {
    "pontos": 18,
    "roda": true
