@@ -130,7 +130,7 @@
    "roda": true
   },
   "testes/compra-sem-vinculo.js": {
-   "pontos": 58,
+   "pontos": 61,
    "roda": true
   },
   "testes/conferir-nuvem.js": {
@@ -327,6 +327,10 @@
   },
   "testes/nota-numero-e-vencimento.js": {
    "pontos": 19,
+   "roda": true
+  },
+  "testes/nota-paga-nao-some.js": {
+   "pontos": 21,
    "roda": true
   },
   "testes/papel-sem-branco.js": {

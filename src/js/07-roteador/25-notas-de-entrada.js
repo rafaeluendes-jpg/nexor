@@ -713,12 +713,41 @@ function verNota(id){
 async function excluirNota(id){
   var n=(DB.notas||[]).find(function(x){return x.id===id});
   if(!n)return;
-  var pagos=(DB.lancFin||[]).filter(function(l){return l.ref===n.id&&l.conciliado}).length;
-  if(pagos){toast('Esta nota tem lançamento conciliado no banco. Desconcilie antes de excluir.');return;}
+  /* ==========================================================
+     O CICLO INVERSO COMECA PELO PAGAMENTO (RDS 19.2)
+
+     A RDS manda desfazer uma compra concluida na ordem inversa: tirar a
+     conciliacao, desfazer o pagamento, desfazer o contas a pagar,
+     reverter a entrada de estoque, anular a compra.
+
+     O Joia tinha o primeiro degrau — nota com lancamento conciliado nao
+     era excluida — e pulava o segundo. Uma nota PAGA, nao conciliada,
+     sumia com um clique: o dinheiro ja tinha saido da conta, o
+     lancamento ia junto com ela, e nao sobrava contrapartida nenhuma. O
+     saldo do banco passava a nao bater, e nada na tela explicava por
+     que.
+
+     Desfazer o pagamento antes nao e burocracia: e o unico jeito de a
+     saida de dinheiro deixar rastro quando a compra some.
+     ========================================================== */
+  var conciliados=(DB.lancFin||[]).filter(function(l){return l.ref===n.id&&l.conciliado});
+  if(conciliados.length){
+    toast('Esta nota tem lançamento conciliado no banco. Desconcilie antes de excluir.');return;}
+  var pagos=(DB.lancFin||[]).filter(function(l){return l.ref===n.id&&l.pago});
+  if(pagos.length){
+    toast(pagos.length>1
+      ? pagos.length+' lançamentos desta nota já foram pagos. Desfaça o pagamento antes de excluir.'
+      : 'O lançamento desta nota já foi pago (R$ '+money(pagos[0].valor)+
+        '). Desfaça o pagamento antes de excluir — senão o dinheiro sai da conta e some o registro.');
+    return;}
+  var quem=null; try{ quem=usuarioLogado(); }catch(e){}
   var ok=await confirmar({titulo:'Excluir a nota '+n.numero,
     texto:'Fornecedor: '+n.fornecedorNome,
     linhas:[['Valor da nota','R$ '+money(n.valorTotal),''],
-            ['Itens',String((n.itens||[]).length),'']],
+            ['Itens',String((n.itens||[]).length),''],
+            ['Quem está excluindo',(quem&&quem.nome)||'—','']],
+    campo:{id:'exMotivo',rotulo:'Por que está excluindo? *',
+           dica:'ex.: nota lançada em duplicidade · fornecedor cancelou a entrega'},
     aviso:'Os lançamentos financeiros desta nota serão removidos junto.'+
      '<label class="chkL" style="margin-top:10px;display:flex">'+
       '<input type="checkbox" id="cfAjEst" checked>'+
@@ -726,6 +755,25 @@ async function excluirNota(id){
       'devolve o que esta nota tinha lançado — ex.: o 1 kg de açúcar que entrou por ela sai do saldo</small></span></label>',
     ok:'Excluir nota',tipo:'perigo'});
   if(!ok)return;
+  var motivo=String(window._cfCampo||'').trim();
+  if(!motivo){toast('Diga por que está excluindo a nota.');return;}
+  /* ==========================================================
+     A NOTA SAI DAS TELAS, MAS NAO DA TRILHA
+
+     A tabela `notas_entrada` e auditada (`tg_auditar`), entao o DELETE
+     ja grava o ANTES inteiro em `audit_log`. O que faltava era o MOTIVO:
+     a trilha dizia o que sumiu e quem apagou, e nunca por que.
+
+     Gravar o motivo na propria nota ANTES de exclui-la resolve isso sem
+     tabela nova: o UPDATE entra na trilha com o motivo, e o DELETE
+     seguinte carrega o motivo dentro do `antes`.
+     ========================================================== */
+  n.excluidoPor=(quem&&quem.nome)||'';
+  n.excluidoPorId=(quem&&quem.id)||'';
+  n.excluidoEm=new Date().toISOString();
+  n.excluidoMotivo=motivo;
+  salvar();
+  if(NUVEM.ligada){ try{ await sincronizar(); }catch(e){ _quieto(e,'excluirNota'); } }
   var ajusta=window._cfAjEst!==false;
   if(ajusta){
     var mov=(DB.movEst||[]).find(function(m){return m.id===n.movId});

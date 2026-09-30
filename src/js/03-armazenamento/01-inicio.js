@@ -1866,7 +1866,11 @@ var MAPA=[
   campos:function(x){return {numero:x.numero||null,fornecedor_id:fk('fornec',x.fornecedorId),
     fornecedor_nome:x.fornecedorNome||null,data:x.data||null,hora:x.hora||null,
     valor_mercadorias:n(x.valorMercadorias),valor_total:n(x.valorTotal),
-    recebida:x.receber!==false,pagamento:x.pagamento||{},itens:x.itens||[]}}},
+    recebida:x.receber!==false,pagamento:x.pagamento||{},itens:x.itens||[],
+    /* por que a nota foi excluida: gravado ANTES do DELETE, para que a
+       trilha carregue o motivo dentro do `antes` (RDS 19.2) */
+    excluida_em:x.excluidoEm||null,excluida_por:x.excluidoPor||null,
+    excluida_motivo:x.excluidoMotivo||null}}},
 
  {col:'clientesNexor',tab:'clientes_nexor',espelha:false,
   campos:function(x){return {rede:x.rede,responsavel:x.responsavel||null,email:x.email||null,

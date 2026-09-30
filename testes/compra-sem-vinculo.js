@@ -226,8 +226,34 @@ async function carregar() {
   const mov7 = n7.movId;
   win.confirmar = async () => true; win.telaNotas = () => {};
   win._cfAjEst = true;
+
+  /* ==========================================================
+     EXCLUIR NOTA PASSOU A EXIGIR MOTIVO E A BARRAR NOTA PAGA (V380)
+
+     A RDS 19.2 manda desfazer a compra na ordem inversa. O Joia tinha o
+     degrau da conciliacao e pulava o do pagamento: nota paga sumia com
+     um clique, o dinheiro ja tinha saido da conta e nao sobrava
+     contrapartida.
+
+     Os dois casos novos entram aqui antes do caso feliz — sao as travas,
+     e trava que nao e testada e trava que um dia some.
+     ========================================================== */
+  win._cfCampo = '';
+  await win.excluirNota(n7.id);
+  t('SEM MOTIVO, a nota nao e excluida', win.DB.notas.some(x => x.id === n7.id));
+
+  win.DB.lancFin.find(x => x.id === 'lf7').pago = true;
+  win._cfCampo = 'lancada em duplicidade';
+  await win.excluirNota(n7.id);
+  t('NOTA JA PAGA nao e excluida: desfaca o pagamento antes',
+    win.DB.notas.some(x => x.id === n7.id));
+  win.DB.lancFin.find(x => x.id === 'lf7').pago = false;
+
   await win.excluirNota(n7.id);
   t('a nota saiu daqui', !win.DB.notas.some(x => x.id === n7.id));
+  t('e o motivo ficou gravado antes de ela sair',
+    ((win.DB._apagados.notas || {})[n7.id]) ? n7.excluidoMotivo === 'lancada em duplicidade' : false,
+    n7.excluidoMotivo);
   t('a exclusão da NOTA ficou declarada (era só local: voltava no download)',
     !!(win.DB._apagados.notas || {})[n7.id]);
   t('a exclusão do movimento de estoque ficou declarada', !!(win.DB._apagados.movEst || {})[mov7]);

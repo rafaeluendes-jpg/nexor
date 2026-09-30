@@ -1,5 +1,5 @@
 {
- "gerado": "2026-09-25",
+ "gerado": "2026-09-30",
  "projeto": "cevghkndzpzvnzwifhnm",
  "tabelas": {
   "acertos": {
@@ -150,10 +150,10 @@
    },
    "unicos": [
     [
-     "id"
+     "ref_local"
     ],
     [
-     "ref_local"
+     "id"
     ]
    ]
   },
@@ -332,10 +332,10 @@
    },
    "unicos": [
     [
-     "id"
+     "ref_local"
     ],
     [
-     "ref_local"
+     "id"
     ]
    ]
   },
@@ -376,11 +376,11 @@
     ],
     [
      "loja_id",
-     "ref_local"
+     "sucursal_id"
     ],
     [
      "loja_id",
-     "sucursal_id"
+     "ref_local"
     ]
    ]
   },
@@ -845,10 +845,10 @@
    },
    "unicos": [
     [
-     "id"
+     "ref_local"
     ],
     [
-     "ref_local"
+     "id"
     ]
    ]
   },
@@ -892,16 +892,16 @@
    },
    "unicos": [
     [
+     "loja_id",
+     "sucursal_id",
+     "item_ref"
+    ],
+    [
      "id"
     ],
     [
      "loja_id",
      "ref_local"
-    ],
-    [
-     "loja_id",
-     "sucursal_id",
-     "item_ref"
     ]
    ]
   },
@@ -963,10 +963,10 @@
    },
    "unicos": [
     [
-     "id"
+     "ref_local"
     ],
     [
-     "ref_local"
+     "id"
     ],
     [
      "ficha_id",
@@ -1028,11 +1028,11 @@
      "produto_id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
    ]
   },
@@ -1067,6 +1067,79 @@
    "unicos": [
     [
      "loja_id"
+    ]
+   ]
+  },
+  "fiscal_conta": {
+   "colunas": {
+    "loja_id": "uuid",
+    "segredo_nome": "text",
+    "host": "text",
+    "titular_company_id": "text",
+    "titular_cnpj": "text",
+    "titular_nome": "text",
+    "verificada_em": "timestamp with time zone",
+    "atualizado_em": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "loja_id"
+    ]
+   ]
+  },
+  "fiscal_eventos": {
+   "colunas": {
+    "id": "bigint",
+    "loja_id": "uuid",
+    "sucursal_ref": "text",
+    "quem": "uuid",
+    "acao": "text",
+    "nota_id": "text",
+    "resultado": "text",
+    "detalhe": "jsonb",
+    "em": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
+  "fiscal_unidades": {
+   "colunas": {
+    "loja_id": "uuid",
+    "sucursal_ref": "text",
+    "sucursal_id": "uuid",
+    "spedy_company_id": "text",
+    "segredo_nome": "text",
+    "cnpj": "text",
+    "razao_social": "text",
+    "modo": "text",
+    "ambiente": "text",
+    "serie": "integer",
+    "pede_cpf": "text",
+    "pede_cpf_acima": "numeric",
+    "imprime": "text",
+    "manda_whatsapp": "boolean",
+    "contingencia_offline": "boolean",
+    "regime": "text",
+    "pis_cst": "text",
+    "cofins_cst": "text",
+    "producao_confirmada_por": "text",
+    "producao_confirmada_em": "timestamp with time zone",
+    "atualizado_por": "text",
+    "atualizado_em": "timestamp with time zone",
+    "csc_id_homologacao": "text",
+    "csc_id_producao": "text"
+   },
+   "unicos": [
+    [
+     "loja_id",
+     "sucursal_ref"
+    ],
+    [
+     "loja_id",
+     "spedy_company_id"
     ]
    ]
   },
@@ -1235,11 +1308,11 @@
      "id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
    ]
   },
@@ -1520,7 +1593,10 @@
     "criado_em": "timestamp with time zone",
     "codigo_barras": "text",
     "sucursal_id": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "excluida_em": "timestamp with time zone",
+    "excluida_por": "text",
+    "excluida_motivo": "text"
    },
    "unicos": [
     [
@@ -1545,13 +1621,13 @@
    },
    "unicos": [
     [
+     "ref_local"
+    ],
+    [
      "id"
     ],
     [
      "grupo_id"
-    ],
-    [
-     "ref_local"
     ]
    ]
   },
@@ -1672,14 +1748,14 @@
    },
    "unicos": [
     [
-     "id"
-    ],
-    [
-     "ref_local"
-    ],
-    [
      "pedido_id",
      "ref_local"
+    ],
+    [
+     "ref_local"
+    ],
+    [
+     "id"
     ]
    ]
   },
@@ -1696,10 +1772,10 @@
    },
    "unicos": [
     [
-     "id"
+     "ref_local"
     ],
     [
-     "ref_local"
+     "id"
     ],
     [
      "pedido_id",
@@ -1852,14 +1928,14 @@
    },
    "unicos": [
     [
+     "ref_local"
+    ],
+    [
      "id"
     ],
     [
      "produto_id",
      "grupo_id"
-    ],
-    [
-     "ref_local"
     ]
    ]
   },
@@ -1908,11 +1984,11 @@
      "id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
    ]
   },
@@ -1980,10 +2056,10 @@
    },
    "unicos": [
     [
-     "id"
+     "ref_local"
     ],
     [
-     "ref_local"
+     "id"
     ]
    ]
   },
@@ -2043,10 +2119,10 @@
    },
    "unicos": [
     [
-     "id"
+     "ref_local"
     ],
     [
-     "ref_local"
+     "id"
     ],
     [
      "sucursal_id",
