@@ -381,6 +381,10 @@
    "pontos": 13,
    "roda": true
   },
+  "testes/relatorio-nao-mente.js": {
+   "pontos": 26,
+   "roda": true
+  },
   "testes/resposta-zap-fecha.js": {
    "pontos": 19,
    "roda": true

@@ -91,8 +91,21 @@ function carregarHistorico(de,ate,redesenhar){
     if(novos&&typeof S!=='undefined'&&(S.mod+'/'+S.it)===rota&&typeof redesenhar==='function')redesenhar();
   }).catch(function(){});
 }
+/* ==========================================================
+   A VENDA DE DEMONSTRACAO ENTRAVA COMO VENDA DE VERDADE
+
+   `gerarVendasDemo` cria seis meses de faturamento ficticio, marcado com
+   `demo:true` — e nenhum relatorio olhava essa marca. Um clique em
+   Gerar Demonstracao injetava venda inventada no Faturamento por Dia, no
+   DRE, no Comparativo e nos Indicadores do Mes, sem nada que a
+   distinguisse da venda real.
+
+   A marca ja existia no dado. Faltava alguem perguntar por ela — e as
+   duas portas por onde quase todo relatorio le a venda sao estas.
+   ========================================================== */
 function pedidosFiltrados(f){
   return fontePedidos().filter(function(p){
+    if(p.demo)return false;                     /* venda de teste nunca e faturamento */
     if(!vendaDaUnidadeAberta(p))return false;
     var d=diaLocal(p.data);
     if(f.de&&d<f.de)return false;
@@ -1798,11 +1811,65 @@ function calcularDRE(ano){
     var no=det[rub]; no.v[k]+=val;
     (caminho||[]).forEach(function(rot){ no=noDe(no,String(rot||'—')); no.v[k]+=val; });
   }
+  /* ==========================================================
+     A VENDA DA NOITE CAIA NO MES SEGUINTE
+
+     O carimbo do pedido vem da nuvem em UTC: "2026-08-31T23:30:00Z" e
+     uma venda das 20:30 de 31 de agosto, horario da loja. Cortar o texto
+     em `s.slice(5,7)` lia "08" nesse caso e "09" numa venda das 21:10 do
+     mesmo dia — que vira 00:10 de 01/09 em UTC.
+
+     Numa gelateria o forte e justamente da noite ate fechar. Todo fim de
+     mes, uma fatia do faturamento e do CPV mudava de mes sozinha, e o
+     DRE de agosto nunca batia com o caixa de agosto.
+
+     `diaLocal` ja existe e ja resolve isso no resto do sistema (foi
+     escrita depois de R$ 1.370,00 aparecerem no dia errado no acerto com
+     entregadores). O DRE so nao a usava.
+     ========================================================== */
   function mesDe(dt){
-    var s=String(dt||'');
-    if(s.slice(0,4)!==String(ano))return -1;
-    var k=parseInt(s.slice(5,7),10)-1;
+    var s=(typeof diaLocal==='function')?diaLocal(dt):String(dt||'').slice(0,10);
+    if(String(s).slice(0,4)!==String(ano))return -1;
+    var k=parseInt(String(s).slice(5,7),10)-1;
     return (k>=0&&k<12)?k:-1;
+  }
+  /* ==========================================================
+     O DRE DE UM ANO MOSTRAVA 30 DIAS
+
+     Aqui se lia `DB.pedidos` cru. O aparelho so guarda os ultimos 30
+     dias de venda (`DIAS_JANELA_PEDIDOS`) — entao o DRE do ano inteiro
+     vinha com janeiro a agosto zerados, e o resultado do ano era o
+     resultado do mes. Sete telas ja usavam `fontePedidos()`, que junta o
+     que esta no aparelho com o historico buscado na nuvem; o DRE, que e
+     justamente o relatorio de ano inteiro, era o que nao usava.
+
+     Junto vieram as outras duas travas que faltavam:
+     - a UNIDADE: o aparelho baixa a rede inteira (o filtro do download e
+       por loja, nao por sucursal). Sem `vendaDaUnidadeAberta`, quem abria
+       Santa Fe via o DRE somado com Jales.
+     - a venda de DEMONSTRACAO: `gerarVendasDemo` cria seis meses de
+       faturamento ficticio marcado com `demo:true`, e nenhum relatorio
+       olhava essa marca. Um clique injetava venda inventada no DRE.
+     ========================================================== */
+  function vendasDoDRE(){
+    var fonte=(typeof fontePedidos==='function')?fontePedidos():(DB.pedidos||[]);
+    return fonte.filter(function(p){
+      if(!p||p.demo)return false;
+      if(typeof vendaDaUnidadeAberta==='function'&&!vendaDaUnidadeAberta(p))return false;
+      return true;
+    });
+  }
+  /* o movimento de estoque tem a unidade no cabecalho; movimento antigo,
+     sem unidade, era de quando havia uma loja so — fica com a aberta */
+  function movsDoDRE(){
+    var suc=(typeof lojaAtualId==='function')?lojaAtualId():'';
+    var daRede=false;
+    try{ daRede=(typeof ehSucMatriz==='function')&&ehSucMatriz(suc); }catch(e){}
+    return (DB.movEst||[]).filter(function(mv){
+      if(!mv||mv.demo)return false;
+      if(daRede||!suc)return true;
+      return (mv.sucursalId||suc)===suc;
+    });
   }
   var catNome=function(id){var x=(DB.categorias||[]).find(function(y){return y.id===id});return x?x.nome:'Sem grupo'};
   var prodPorId={};(DB.produtos||[]).forEach(function(p){prodPorId[p.id]=p});
@@ -1814,7 +1881,7 @@ function calcularDRE(ano){
     try{return (typeof sucNome==='function')?sucNome(s):s}catch(e){return s}};
 
   /* 01.01 — vendas do PDV: grupo do cardapio -> produto (+ taxas e ajustes) */
-  (DB.pedidos||[]).forEach(function(p){
+  vendasDoDRE().forEach(function(p){
     if(ehCancelado(p))return;
     var k=mesDe(p.data); if(k<0)return;
     var tot=Number(p.total)||0, soma=0;
@@ -1828,7 +1895,7 @@ function calcularDRE(ano){
     m[k]['01.01']+=tot;
   });
   /* 05 — taxas de cartao: por forma de pagamento */
-  (DB.pedidos||[]).forEach(function(p){
+  vendasDoDRE().forEach(function(p){
     if(ehCancelado(p))return;
     var k=mesDe(p.data); if(k<0)return;
     (p.pagamentos||[]).forEach(function(g){
@@ -1840,7 +1907,7 @@ function calcularDRE(ano){
   });
   /* 02 — CPV: o que saiu do estoque por venda, ao custo medio da baixa.
      grupo do cardapio -> produto (ficha) -> ingrediente */
-  (DB.movEst||[]).forEach(function(mv){
+  movsDoDRE().forEach(function(mv){
     var k=mesDe(mv.data); if(k<0)return;
     (mv.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida'||String(l.origem||'')!=='venda')return;
@@ -1908,6 +1975,10 @@ var DRE={ano:0,tri:0,mes:0,ab:null};
 function telaDRE(){
   baseMov();baseFormas();
   if(!DRE.ano)DRE.ano=new Date().getFullYear();
+  /* busca na nuvem o que o aparelho nao guarda: sem isto o DRE do ano
+     comeca a existir so nos ultimos 30 dias. Volta e redesenha sozinho
+     quando o historico chega. */
+  try{ carregarHistorico(DRE.ano+'-01-01',DRE.ano+'-12-31',telaDRE); }catch(e){}
   /* de inicio as rubricas-pai ficam abertas (o DRE aparece inteiro, como sempre);
      o detalhe de cada rubrica so abre no "+" */
   if(!DRE.ab){DRE.ab={};Object.keys(FILHOS_RUB).forEach(function(p){DRE.ab[p]=true})}
@@ -2547,6 +2618,7 @@ function pedsPeriodo(o){
   baseSuc();
   return fontePedidos().filter(function(p){
     if(ehCancelado(p))return false;
+    if(p.demo)return false;                     /* venda de teste nunca e faturamento */
     if(!vendaDaUnidadeAberta(p))return false;   /* unidade nao ve a venda da outra */
     var d=diaLocal(p.data);
     if(o.de&&d<o.de)return false;

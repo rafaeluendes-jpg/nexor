@@ -6,7 +6,7 @@ var CA={modo:'anual',a1:0,a2:0,metrica:'fat',m1:'',m2:'',sucs:[]};
 function anosComVenda(){
   var s={};
   fontePedidos().forEach(function(p){
-    var d=String(p.data||'').slice(0,4);
+    var d=diaLocal(p.data).slice(0,4);
     if(d&&d.length===4)s[d]=true;
   });
   var hoje=new Date().getFullYear();
@@ -19,9 +19,9 @@ function dadosAno(ano){
   for(var i=0;i<12;i++)m.push({fat:0,ped:0,loja:0,entrega:0,desc:0,taxa:0,
     cmv:0,clientes:{},itens:0});
   fontePedidos().forEach(function(p){
-    if(ehCancelado(p))return;
+    if(ehCancelado(p)||p.demo)return;
     if(CA.sucs.length&&CA.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return;
-    var d=String(p.data||'');
+    var d=diaLocal(p.data);
     if(d.slice(0,4)!==String(ano))return;
     var k=parseInt(d.slice(5,7),10)-1;
     if(isNaN(k)||k<0||k>11)return;
@@ -35,7 +35,8 @@ function dadosAno(ano){
   });
   /* custo da mercadoria: saídas de estoque por venda */
   (DB.movEst||[]).forEach(function(mv){
-    var d=String(mv.data||'');
+    if(mv.demo)return;
+    var d=diaLocal(mv.data);
     if(d.slice(0,4)!==String(ano))return;
     var k=parseInt(d.slice(5,7),10)-1;
     if(isNaN(k)||k<0||k>11)return;
@@ -61,9 +62,9 @@ function dadosMes(ano,mes){
   for(var i=0;i<dias;i++)d.push({fat:0,ped:0,loja:0,entrega:0,desc:0,taxa:0,cmv:0,clientes:{},itens:0});
   var pref=ano+'-'+String(mes).padStart(2,'0');
   fontePedidos().forEach(function(p){
-    if(ehCancelado(p))return;
+    if(ehCancelado(p)||p.demo)return;
     if(CA.sucs.length&&CA.sucs.indexOf(p.sucursalId||'suc_matriz')<0)return;
-    var s2=String(p.data||'');
+    var s2=diaLocal(p.data);
     if(s2.slice(0,7)!==pref)return;
     var k=parseInt(s2.slice(8,10),10)-1;
     if(isNaN(k)||k<0||k>=dias)return;
@@ -74,7 +75,8 @@ function dadosMes(ano,mes){
     if(p.clienteId)d[k].clientes[p.clienteId]=true;
   });
   (DB.movEst||[]).forEach(function(mv){
-    var s3=String(mv.data||'');
+    if(mv.demo)return;
+    var s3=diaLocal(mv.data);
     if(s3.slice(0,7)!==pref)return;
     var k2=parseInt(s3.slice(8,10),10)-1;
     if(isNaN(k2)||k2<0||k2>=dias)return;
@@ -94,7 +96,7 @@ function dadosMes(ano,mes){
 function mesesComVenda(){
   var s4={};
   fontePedidos().forEach(function(p){
-    var m=String(p.data||'').slice(0,7);
+    var m=diaLocal(p.data).slice(0,7);
     if(m.length===7)s4[m]=true;
   });
   var h=new Date();
@@ -121,6 +123,45 @@ var METRICAS=[
  {id:'desc',     n:'Descontos',          fmt:'money', dica:'descontos e cupons concedidos'},
  {id:'taxa',     n:'Taxa de entrega',    fmt:'money', dica:'taxas cobradas nas entregas'}
 ];
+/* ==========================================================
+   MARGEM BRUTA DE 100% NAO EXISTE — E ERA O QUE APARECIA
+
+   O faturamento deste relatorio vem de `fontePedidos()`, que junta o
+   aparelho com o historico buscado na nuvem. O CMV vem de `DB.movEst`,
+   que existe SO no aparelho e so guarda os ultimos 90 dias — nao ha
+   busca de movimentacao na nuvem.
+
+   O resultado, para o ano passado: faturamento cheio, CMV zero, "Margem
+   bruta 100,0%". Um numero redondo, convincente, e completamente falso.
+
+   Nao da para inventar o custo que nao esta aqui. O que da, e o que o
+   sistema passa a fazer, e DIZER que aquele pedaco nao chegou — em vez
+   de apresentar a falta como lucro.
+   ========================================================== */
+function corteMovLocal(){
+  var d=new Date();
+  d.setDate(d.getDate()-(typeof DIAS_JANELA!=='undefined'?DIAS_JANELA:90));
+  return d.toISOString().slice(0,10);
+}
+function periodoDoComparativo(){
+  if(CA.modo==='mensal'){
+    var a=[CA.m1,CA.m2].filter(Boolean).sort();
+    return a.length?a[0]+'-01':hojeISO();
+  }
+  var anos=[CA.a1,CA.a2].filter(Boolean).sort();
+  return anos.length?anos[0]+'-01-01':hojeISO();
+}
+function avisoCmvIncompleto(met){
+  if(!met||['cmv','cmvPct','margem'].indexOf(met.id)<0)return '';
+  if(periodoDoComparativo()>=corteMovLocal())return '';
+  /* o mesmo aviso amarelo dos Indicadores do Mes: componente que ja existe */
+  return '<div class="imAviso">'+sv('help',14)+
+    '<div><b>Este número está incompleto.</b> O custo da mercadoria fica '+
+    'guardado no aparelho por '+(typeof DIAS_JANELA!=='undefined'?DIAS_JANELA:90)+
+    ' dias. O faturamento do período escolhido vem inteiro da nuvem, mas o custo de '+
+    'antes desse prazo não está aqui — então CMV, CMV% e margem aparecem menores do que '+
+    'realmente foram. Para o período recente o número está correto.</div></div>';
+}
 function fmtM(v,tipo){
   if(tipo==='money')return 'R$ '+money(v);
   if(tipo==='pct')return (Number(v)||0).toFixed(1).replace('.',',')+'%';
@@ -203,6 +244,7 @@ function telaComparativo(){
     '<div style="flex:1"></div>'+
     '<button class="btnP2" onclick="exportarComparativo()">'+sv('down2',13)+' Exportar</button>'+
    '</div>'+
+   avisoCmvIncompleto(met)+
    '<div class="caModo">'+
     '<button class="caModoB'+(!mensal?' on':'')+'" onclick="CA.modo=\'anual\';telaComparativo()">'+
      sv('chart',14)+' Ano contra ano</button>'+
