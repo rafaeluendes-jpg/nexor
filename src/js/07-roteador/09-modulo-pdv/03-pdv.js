@@ -1877,13 +1877,18 @@ function _fsViaEspera(ped){
 function _fsViaJaSaiu(pedidoId){
   if(_fsViasEsperando[pedidoId]){clearTimeout(_fsViasEsperando[pedidoId]);delete _fsViasEsperando[pedidoId];}
 }
+var LETRA_COZINHA=1.2;
 function viaDoPedido(ped,cols){
   if(!ped)return null;
   baseImp();
   var tipo=(ped.tipo==='entrega')?'entrega':(ped.mesa?'mesa':'ficha');
   var m=modeloImp(tipo)||modeloImp('ficha');
   if(!m){toast('Nenhum modelo de impressao cadastrado.');return null;}
-  var c=cols||m.colunas||48;
+  /* a via da cozinha sai com a letra 20% maior que o resto (Rafael,
+     30/09/2026: "aumentar pelo menos o da cozinha uns 20%"): menos
+     colunas na mesma bobina = letra maior. Vale também para o cupom da
+     entrega ("pode aumentar o da entrega também", 30/09/2026). */
+  var c=Math.max(24,Math.round((cols||m.colunas||48)/LETRA_COZINHA));
   /* a bobina e do modelo; as colunas so dizem o tamanho da letra */
   return {linhas:montarImp(textoDoModelo(m),ped,c),cols:c,vias:m.vias||1,mm:papelDoModelo(m)};
 }

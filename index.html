@@ -14557,7 +14557,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V392.0.0';
+var VERSAO='V393.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23499,13 +23499,18 @@ function _fsViaEspera(ped){
 function _fsViaJaSaiu(pedidoId){
   if(_fsViasEsperando[pedidoId]){clearTimeout(_fsViasEsperando[pedidoId]);delete _fsViasEsperando[pedidoId];}
 }
+var LETRA_COZINHA=1.2;
 function viaDoPedido(ped,cols){
   if(!ped)return null;
   baseImp();
   var tipo=(ped.tipo==='entrega')?'entrega':(ped.mesa?'mesa':'ficha');
   var m=modeloImp(tipo)||modeloImp('ficha');
   if(!m){toast('Nenhum modelo de impressao cadastrado.');return null;}
-  var c=cols||m.colunas||48;
+  /* a via da cozinha sai com a letra 20% maior que o resto (Rafael,
+     30/09/2026: "aumentar pelo menos o da cozinha uns 20%"): menos
+     colunas na mesma bobina = letra maior. Vale também para o cupom da
+     entrega ("pode aumentar o da entrega também", 30/09/2026). */
+  var c=Math.max(24,Math.round((cols||m.colunas||48)/LETRA_COZINHA));
   /* a bobina e do modelo; as colunas so dizem o tamanho da letra */
   return {linhas:montarImp(textoDoModelo(m),ped,c),cols:c,vias:m.vias||1,mm:papelDoModelo(m)};
 }
@@ -26506,7 +26511,10 @@ function pdAplicarPerfil(id){
 var PAG_SEFAZ={'01':'Dinheiro','02':'Cheque','03':'Cartão de Crédito','04':'Cartão de Débito',
   '05':'Crédito Loja','10':'Vale Alimentação','11':'Vale Refeição','12':'Vale Presente',
   '13':'Vale Combustível','15':'Boleto','16':'Depósito','17':'PIX','18':'Transferência',
-  '19':'Fidelidade','90':'Sem pagamento','99':'Outros'};
+  '19':'Fidelidade','20':'PIX','21':'Crédito em loja','22':'Pagamento eletrônico',
+  '90':'Sem pagamento','99':'Outros'};
+/* '20' é o PIX estático da tabela nova da SEFAZ (NT 2023.004): é o código que
+   a nota do PIX traz, e sem ele o cupom imprimia "Outros" (30/09/2026) */
 function _fsNum(v,casas){return Number(v||0).toFixed(casas==null?2:casas).replace('.',',');}
 function _fsLR(a,b,cols){
   a=String(a||'');b=String(b||'');
@@ -26559,7 +26567,9 @@ function fsCodigoVisivel(codigo){
   var c=String(codigo||'').trim();
   if(!c)return '';
   /* os identificadores do proprio sistema: prod_..., item1, ped_... */
-  if(/^(prod|item|ped)[_-]?[a-z0-9]*$/i.test(c))return '';
+  /* o id pode ter mais de uma parte: "prod_fatiatto_di_gelato" saía na
+     frente do nome no cupom (Rafael, 30/09/2026) */
+  if(/^(prod|item|ped)([_-][a-z0-9]+)*[_-]?[a-z0-9]*$/i.test(c))return '';
   return c+' ';
 }
 function montarDanfeNfce(d,cols){
@@ -26642,11 +26652,14 @@ async function imprimirDanfe(cupomId){
        ========================================================== */
     var linhas=montarDanfeNfce(r.d.danfe,cols);
     var ped=(DB.pedidos||[]).find(function(x){return x.id===c.pedidoId});
+    var folhas=[{linhas:linhas,cols:cols}];
     if(ped&&typeof viaDoPedido==='function'){
       var via=viaDoPedido(ped,cols);
-      if(via&&via.linhas&&via.linhas.length){ linhas=linhas.concat([{tipo:'corte'}],via.linhas); }
+      if(via&&via.linhas&&via.linhas.length)folhas.push({linhas:via.linhas,cols:via.cols});
     }
-    imprimirPapel(linhas,cols,1,mm);
+    /* cada via numa folha do mesmo trabalho: a impressora corta entre as
+       duas e a ordem continua a mesma (imprimirPapeis, 30/09/2026) */
+    imprimirPapeis(folhas,mm);
     /* a via saiu junto: a rede de seguranca do PDV nao precisa disparar */
     if(typeof _fsViaJaSaiu==='function')_fsViaJaSaiu(c.pedidoId);
     c.impressoEm=new Date().toISOString();
@@ -57313,6 +57326,70 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
      com a janela abrindo na frente dela, o que desmarcar. Uma vez por
      aparelho — o Chrome guarda a escolha para a proxima impressao.
      ========================================================== */
+  avisoJanelaImpressao();
+  setTimeout(function(){window.print()},200);
+}
+
+/* ==========================================================
+   DUAS FOLHAS NUM TRABALHO SÓ — A IMPRESSORA CORTA ENTRE ELAS
+   (Rafael, 30/09/2026: "precisa cortar os dois cupons. Quando finaliza o
+   cupom fiscal, cortar o outro para sair o da cozinha")
+
+   O cupom fiscal e a via da cozinha saíam na MESMA folha, com uma linha
+   tracejada entre eles: a impressora térmica só corta no fim da folha,
+   então os dois vinham grudados. Em dois trabalhos separados ela corta,
+   mas pode inverter a ordem (29/09) — e o balcão entrega a via errada.
+
+   Aqui cada via é uma FOLHA do mesmo trabalho: a ordem continua garantida
+   e o corte acontece no fim de cada folha. Cada folha tem a sua altura
+   (página nomeada) e a sua letra — a da cozinha pode ser maior que a do
+   cupom fiscal sem mudar o cupom.
+   ========================================================== */
+function imprimirPapeis(folhas,mmPapel){
+  folhas=(folhas||[]).filter(function(f){return f&&f.linhas&&f.linhas.length;});
+  if(!folhas.length)return;
+  if(folhas.length===1){imprimirPapel(folhas[0].linhas,folhas[0].cols,1,mmPapel);return;}
+  var mm=Number(mmPapel)||80, margem=MARGEM_LADO;
+  var vazia=function(l){var t=(l&&typeof l==='object')?l.txt:l;return !String(t==null?'':t).trim();};
+  var medidas=folhas.map(function(f){
+    var linhas=f.linhas.slice();
+    while(linhas.length&&vazia(linhas[linhas.length-1]))linhas.pop();
+    var cols=Number(f.cols)||48;
+    var tmp=document.createElement('div');
+    tmp.innerHTML='<div class="papel'+(mm<=58?' p58':'')+'" style="width:'+cols+'ch">'+papelHTML(linhas,cols)+'</div>';
+    document.body.appendChild(tmp);
+    var med=medirPapel(tmp,margem,mm,cols);
+    var html=tmp.innerHTML;
+    tmp.parentNode.removeChild(tmp);
+    return {html:html,cols:cols,fonte:med.fonte,altura:med.altura};
+  });
+  var el=document.getElementById('viaImp')||document.createElement('div');
+  el.id='viaImp';
+  el.innerHTML=medidas.map(function(m,k){
+    return '<div class="papelPg folha'+k+'">'+m.html+'</div>';}).join('');
+  document.body.appendChild(el);
+  Array.prototype.forEach.call(el.querySelectorAll('.papelPg'),function(pg,k){
+    var pp=pg.querySelector('.papel'); if(pp)pp.style.fontSize=medidas[k].fonte+'mm';});
+  var st=document.getElementById('impCSS')||document.createElement('style');
+  st.id='impCSS';
+  var css='@media print{';
+  medidas.forEach(function(m,k){
+    css+='@page folha'+k+'{size:'+mm+'mm '+m.altura+'mm;margin:0}';
+  });
+  css+='@page{size:'+mm+'mm '+medidas[0].altura+'mm;margin:0}'+
+   'html,body{margin:0;padding:0;background:#fff}'+
+   'body>*{display:none!important}'+
+   '#viaImp{display:block!important;position:static;padding:0!important;margin:0;width:auto;font-size:inherit}'+
+   '#viaImp .papel{box-shadow:none;padding:'+MARGEM_TOPO+'mm '+margem+'mm '+MARGEM_PE+'mm '+margem+'mm;'+
+     'margin:0;border-radius:0;max-width:none;box-sizing:content-box}'+
+   '#viaImp .papelPg{padding:0;margin:0;display:block}'+
+   '#viaImp .papelPg+.papelPg{page-break-before:always;break-before:page}';
+  medidas.forEach(function(m,k){
+    css+='#viaImp .folha'+k+'{page:folha'+k+'}'+
+      '#viaImp .folha'+k+' .papel{width:'+m.cols+'ch;font-size:'+m.fonte+'mm}';
+  });
+  st.textContent=css+'}';
+  document.head.appendChild(st);
   avisoJanelaImpressao();
   setTimeout(function(){window.print()},200);
 }

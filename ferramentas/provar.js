@@ -1255,9 +1255,9 @@ function servir() {
       juntou: enderecoDeEntrega({ rua: 'Rua A', numero: '', referencia: '' }) };
   });
   t('O ENDEREÇO SAI NO CUPOM DA ENTREGA',
-    /Antônio Laerte margiotte, 530/.test(r.corpo), r.corpo);
+    /Antônio Laerte margiotte, 530/.test(r.corpo.replace(/\s+/g, ' ')), r.corpo);
   t('com a referência, que é como se acha a casa',
-    /Caminho das águas- portão preto/.test(r.corpo));
+    /Caminho das águas- portão preto/.test(r.corpo.replace(/\s+/g, ' ')));
   t('e o telefone de quem recebe', /Telefone: \(17\) 99678-6823/.test(r.corpo));
   t('pedido antigo, sem bairro escrito, continua saindo com a região',
     /Todos os Bairros/.test(r.corpo));
@@ -1295,7 +1295,7 @@ function servir() {
   t('O BAIRRO ESCRITO PELA PESSOA SAI NO CUPOM',
     /Jardim Alvorada/.test(rB.corpo), rB.corpo);
   t('e a região continua do lado, que é o que explica a taxa',
-    /Jardim Alvorada \(Todos os Bairros\)/.test(rB.corpo), rB.corpo);
+    /Jardim Alvorada \(Todos os Bairros\)/.test(rB.corpo.replace(/\s+/g, ' ')), rB.corpo);
   t('a linha do bairro cabe na bobina, sem cortar',
     rB.cortadas === 0, rB.cortadas + ' linha(s) cortada(s)');
   t('e a letra do cupom NÃO mudou — é a mesma do cupom acima',
@@ -1331,8 +1331,8 @@ function servir() {
     /Antônio Laerte margiotte, 530/.test(r.doCadastro), r.doCadastro);
   t('endereço sem número não sai com vírgula solta',
     r.juntou === 'Rua A', r.juntou);
-  t('OS SABORES SAEM NO CUPOM', /Cascão Tradicional/.test(r.corpo) &&
-    /Leite Ninho Trufado Gelato/.test(r.corpo) && /Jolô Gelato/.test(r.corpo));
+  t('OS SABORES SAEM NO CUPOM', /Cascão Tradicional/.test(r.corpo.replace(/\s+/g, ' ')) &&
+    /Leite Ninho Trufado Gelato/.test(r.corpo.replace(/\s+/g, ' ')) && /Jolô Gelato/.test(r.corpo.replace(/\s+/g, ' ')));
   t('E NÃO EM LETRA MIÚDA — sabor é o que a cozinha lê',
     r.miudas.every(x => !/Cascão|Ninho|Jolô/.test(x)), r.miudas.join(' | '));
   t('O CASCÃO NÃO SAI MISTURADO COM OS SABORES',
@@ -1367,7 +1367,9 @@ function servir() {
     /Chocolate Belga\n\s+9,00$/m.test(r.corpo), r.corpo);
   t('a letra do cupom é grande: 34 colunas, não as 48 de fábrica',
     r.colunas === 34, r.colunas + ' colunas');
-  t('e passa de 3 mm no papel', /font-size:\s*3\.\d+mm/.test(r.fonte), r.fonte);
+  /* a letra do cupom da entrega ficou 20% maior em 30/09/2026 (Rafael):
+     o piso de 3 mm continua valendo, o teto passou a ser 5 mm */
+  t('e passa de 3 mm no papel', /font-size:\s*[34]\.\d+mm/.test(r.fonte), r.fonte);
   t('nenhuma linha passa da largura do papel', r.maior <= 34, r.maior);
   t('e nenhuma fica cortada', r.cortadas === 0, r.cortadas);
   console.log('\n' + r.corpo + '\n');
@@ -1782,7 +1784,10 @@ function servir() {
     Element.prototype.getBoundingClientRect = orig;
     return { normal: normal, quebrada: quebrada, erro: erro };
   });
-  t('medindo normalmente a folha acompanha o texto', r.normal > 30 && r.normal < 160,
+  /* a ficha da cozinha tem a letra 20% maior desde 30/09/2026 (Rafael):
+     o teto acompanha a letra — 160 mm x 1,2. O defeito vigiado aqui é a
+     folha de 200 mm FIXOS, que o teste de baixo continua pegando. */
+  t('medindo normalmente a folha acompanha o texto', r.normal > 30 && r.normal < 160 * 1.2,
     r.normal + ' mm');
   t('COM A MEDIÇÃO QUEBRADA ela NÃO vira 200 mm', r.quebrada !== 200, r.quebrada + ' mm');
   t('e continua no tamanho do cupom, não um palmo maior',

@@ -2485,6 +2485,70 @@ function imprimirPapel(linhas,cols,vias,mmPapel){
 }
 
 /* ==========================================================
+   DUAS FOLHAS NUM TRABALHO SÓ — A IMPRESSORA CORTA ENTRE ELAS
+   (Rafael, 30/09/2026: "precisa cortar os dois cupons. Quando finaliza o
+   cupom fiscal, cortar o outro para sair o da cozinha")
+
+   O cupom fiscal e a via da cozinha saíam na MESMA folha, com uma linha
+   tracejada entre eles: a impressora térmica só corta no fim da folha,
+   então os dois vinham grudados. Em dois trabalhos separados ela corta,
+   mas pode inverter a ordem (29/09) — e o balcão entrega a via errada.
+
+   Aqui cada via é uma FOLHA do mesmo trabalho: a ordem continua garantida
+   e o corte acontece no fim de cada folha. Cada folha tem a sua altura
+   (página nomeada) e a sua letra — a da cozinha pode ser maior que a do
+   cupom fiscal sem mudar o cupom.
+   ========================================================== */
+function imprimirPapeis(folhas,mmPapel){
+  folhas=(folhas||[]).filter(function(f){return f&&f.linhas&&f.linhas.length;});
+  if(!folhas.length)return;
+  if(folhas.length===1){imprimirPapel(folhas[0].linhas,folhas[0].cols,1,mmPapel);return;}
+  var mm=Number(mmPapel)||80, margem=MARGEM_LADO;
+  var vazia=function(l){var t=(l&&typeof l==='object')?l.txt:l;return !String(t==null?'':t).trim();};
+  var medidas=folhas.map(function(f){
+    var linhas=f.linhas.slice();
+    while(linhas.length&&vazia(linhas[linhas.length-1]))linhas.pop();
+    var cols=Number(f.cols)||48;
+    var tmp=document.createElement('div');
+    tmp.innerHTML='<div class="papel'+(mm<=58?' p58':'')+'" style="width:'+cols+'ch">'+papelHTML(linhas,cols)+'</div>';
+    document.body.appendChild(tmp);
+    var med=medirPapel(tmp,margem,mm,cols);
+    var html=tmp.innerHTML;
+    tmp.parentNode.removeChild(tmp);
+    return {html:html,cols:cols,fonte:med.fonte,altura:med.altura};
+  });
+  var el=document.getElementById('viaImp')||document.createElement('div');
+  el.id='viaImp';
+  el.innerHTML=medidas.map(function(m,k){
+    return '<div class="papelPg folha'+k+'">'+m.html+'</div>';}).join('');
+  document.body.appendChild(el);
+  Array.prototype.forEach.call(el.querySelectorAll('.papelPg'),function(pg,k){
+    var pp=pg.querySelector('.papel'); if(pp)pp.style.fontSize=medidas[k].fonte+'mm';});
+  var st=document.getElementById('impCSS')||document.createElement('style');
+  st.id='impCSS';
+  var css='@media print{';
+  medidas.forEach(function(m,k){
+    css+='@page folha'+k+'{size:'+mm+'mm '+m.altura+'mm;margin:0}';
+  });
+  css+='@page{size:'+mm+'mm '+medidas[0].altura+'mm;margin:0}'+
+   'html,body{margin:0;padding:0;background:#fff}'+
+   'body>*{display:none!important}'+
+   '#viaImp{display:block!important;position:static;padding:0!important;margin:0;width:auto;font-size:inherit}'+
+   '#viaImp .papel{box-shadow:none;padding:'+MARGEM_TOPO+'mm '+margem+'mm '+MARGEM_PE+'mm '+margem+'mm;'+
+     'margin:0;border-radius:0;max-width:none;box-sizing:content-box}'+
+   '#viaImp .papelPg{padding:0;margin:0;display:block}'+
+   '#viaImp .papelPg+.papelPg{page-break-before:always;break-before:page}';
+  medidas.forEach(function(m,k){
+    css+='#viaImp .folha'+k+'{page:folha'+k+'}'+
+      '#viaImp .folha'+k+' .papel{width:'+m.cols+'ch;font-size:'+m.fonte+'mm}';
+  });
+  st.textContent=css+'}';
+  document.head.appendChild(st);
+  avisoJanelaImpressao();
+  setTimeout(function(){window.print()},200);
+}
+
+/* ==========================================================
    MOTIVOS DE CANCELAMENTO — cadastro
    O motivo era uma lista fixa dentro do codigo. Virou cadastro:
    a loja inclui, desativa e apaga sem depender de atualizacao.

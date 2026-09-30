@@ -1294,7 +1294,10 @@ function pdAplicarPerfil(id){
 var PAG_SEFAZ={'01':'Dinheiro','02':'Cheque','03':'Cartão de Crédito','04':'Cartão de Débito',
   '05':'Crédito Loja','10':'Vale Alimentação','11':'Vale Refeição','12':'Vale Presente',
   '13':'Vale Combustível','15':'Boleto','16':'Depósito','17':'PIX','18':'Transferência',
-  '19':'Fidelidade','90':'Sem pagamento','99':'Outros'};
+  '19':'Fidelidade','20':'PIX','21':'Crédito em loja','22':'Pagamento eletrônico',
+  '90':'Sem pagamento','99':'Outros'};
+/* '20' é o PIX estático da tabela nova da SEFAZ (NT 2023.004): é o código que
+   a nota do PIX traz, e sem ele o cupom imprimia "Outros" (30/09/2026) */
 function _fsNum(v,casas){return Number(v||0).toFixed(casas==null?2:casas).replace('.',',');}
 function _fsLR(a,b,cols){
   a=String(a||'');b=String(b||'');
@@ -1347,7 +1350,9 @@ function fsCodigoVisivel(codigo){
   var c=String(codigo||'').trim();
   if(!c)return '';
   /* os identificadores do proprio sistema: prod_..., item1, ped_... */
-  if(/^(prod|item|ped)[_-]?[a-z0-9]*$/i.test(c))return '';
+  /* o id pode ter mais de uma parte: "prod_fatiatto_di_gelato" saía na
+     frente do nome no cupom (Rafael, 30/09/2026) */
+  if(/^(prod|item|ped)([_-][a-z0-9]+)*[_-]?[a-z0-9]*$/i.test(c))return '';
   return c+' ';
 }
 function montarDanfeNfce(d,cols){
@@ -1430,11 +1435,14 @@ async function imprimirDanfe(cupomId){
        ========================================================== */
     var linhas=montarDanfeNfce(r.d.danfe,cols);
     var ped=(DB.pedidos||[]).find(function(x){return x.id===c.pedidoId});
+    var folhas=[{linhas:linhas,cols:cols}];
     if(ped&&typeof viaDoPedido==='function'){
       var via=viaDoPedido(ped,cols);
-      if(via&&via.linhas&&via.linhas.length){ linhas=linhas.concat([{tipo:'corte'}],via.linhas); }
+      if(via&&via.linhas&&via.linhas.length)folhas.push({linhas:via.linhas,cols:via.cols});
     }
-    imprimirPapel(linhas,cols,1,mm);
+    /* cada via numa folha do mesmo trabalho: a impressora corta entre as
+       duas e a ordem continua a mesma (imprimirPapeis, 30/09/2026) */
+    imprimirPapeis(folhas,mm);
     /* a via saiu junto: a rede de seguranca do PDV nao precisa disparar */
     if(typeof _fsViaJaSaiu==='function')_fsViaJaSaiu(c.pedidoId);
     c.impressoEm=new Date().toISOString();

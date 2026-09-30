@@ -560,8 +560,11 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
     /return \{linhas:montarImp\(textoDoModelo\(m\),ped,c\),cols:c,vias:m\.vias\|\|1,mm:papelDoModelo\(m\)\}/.test(html));
   t('imprimir a via continua funcionando pelo mesmo caminho de antes',
     /function imprimirVia\(ped\)\{[\s\S]{0,160}viaDoPedido\(ped\)[\s\S]{0,120}imprimirPapel\(r\.linhas,r\.cols,r\.vias,r\.mm\)/.test(html));
-  t('o cupom fiscal emenda a via da cozinha no mesmo papel, com corte',
-    /var linhas=montarDanfeNfce\(r\.d\.danfe,cols\);[\s\S]{0,400}linhas\.concat\(\[\{tipo:'corte'\}\],via\.linhas\)/.test(html));
+  /* 30/09/2026, ordem do Rafael: "precisa cortar os dois cupons". Continua
+     UM trabalho de impressão (a ordem não inverte), mas cada via é uma
+     FOLHA — a impressora corta no fim de cada uma (imprimirPapeis). */
+  t('o cupom fiscal e a via da cozinha saem no mesmo trabalho, em folhas separadas (a impressora corta entre elas)',
+    /var linhas=montarDanfeNfce\(r\.d\.danfe,cols\);[\s\S]{0,200}var folhas=\[\{linhas:linhas,cols:cols\}\];[\s\S]{0,300}folhas\.push\(\{linhas:via\.linhas,cols:via\.cols\}\)[\s\S]{0,300}imprimirPapeis\(folhas,mm\)/.test(html));
   t('a fiscal vem ANTES da via da cozinha', (() => {
     const i = html.indexOf("var linhas=montarDanfeNfce(r.d.danfe,cols);");
     const bloco = i < 0 ? '' : html.slice(i, i + 600);
