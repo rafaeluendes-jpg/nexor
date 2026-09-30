@@ -245,7 +245,10 @@ begin
     else
       v_dados := (select coalesce(jsonb_agg(r), '[]'::jsonb)
                     from jsonb_array_elements(coalesce(to_jsonb(api_pendencias(p_loja, null, t)), '[]'::jsonb)) r
-                   where r->>'unidade' is null or r->>'unidade' = any(p_sucs));
+                   where r->>'unidade' = any(p_sucs)
+                      -- cadastro da rede: entra se for visível numa unidade do filtro ('*' = todas; [] = nenhuma)
+                      or (r->>'unidade' is null and (jsonb_typeof(r->'unidades_do_cadastro') is distinct from 'array'
+                          or r->'unidades_do_cadastro' ?| (p_sucs || array['*']::text[]))));
     end if;
     v_dados := (select coalesce(jsonb_agg(r || jsonb_build_object(
         'pendencia', t,
@@ -402,7 +405,7 @@ begin
   end if;
 
   v_precisa_escopo := not (v_rota in ('', 'ajuda', 'lojas', 'metas', 'jornadas', 'analises/realizado-versus-meta',
-                                      'cadastros', 'cadastros/plano-de-contas', 'cadastros/formas-pagamento',
+                                      'cadastros', 'cadastros/produtos', 'cadastros/contas-financeiras', 'cadastros/plano-de-contas', 'cadastros/formas-pagamento',
                                       'cadastros/fornecedores', 'cadastros/motivos-estoque', 'cadastros/pessoas', 'analitico/fichas'));
   if v_sem_escopo and v_precisa_escopo then
     return jsonb_build_object('_status', 400,
@@ -588,6 +591,9 @@ begin
     v_avisos := v_avisos || 'Período parcialmente sincronizado: ele chega até hoje e há unidade offline ou com pendência local.'::text;
   end if;
 
+  if v_rota in ('historico', 'alteracoes') and jsonb_array_length(coalesce(v_lista,'[]'::jsonb)) >= 1000 then
+    v_avisos := v_avisos || 'Esta consulta chegou ao teto de 1000 registros por chamada: reduza o período (de/ate) ou use alterados_desde mais recente.'::text;
+  end if;
   if v_lista is not null then
     v_x := rds_lista(p_loja, v_lista, q, v_ids, v_rede);
     v_avisos := v_avisos || coalesce(array(select jsonb_array_elements_text(v_x->'avisos_lista')), '{}');

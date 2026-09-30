@@ -5,25 +5,34 @@ somente leitura". Este documento traz o plano, o inventário (o que já
 existia, o que foi acrescentado, o que o Joia não tem), as regras de
 cálculo e o roteiro de homologação das 20 perguntas.
 
-> **Situação em 30/09/2026:** código pronto no repositório. A parte 1 das
-> funções está aplicada no banco. As partes 2 a 4, a publicação da função
-> `joia-rds` e a criação da chave "RDS Inteligência e Gestão" aguardam
-> ordem expressa do Rafael (regra 2 do CLAUDE.md: nada se aplica no banco
-> de produção sem ordem expressa). A homologação das 20 perguntas roda
-> logo depois dessa ordem.
+> **Situação em 30/09/2026:** no ar. Funções aplicadas no banco com ordem
+> do Rafael ("pode aplicar"), função `joia-rds` publicada, chave "RDS
+> Inteligência e Gestão" criada e as 20 perguntas homologadas com dado
+> real (`RDS_API_V3_HOMOLOGACAO.md`). Contrato: `api-joia-rds.openapi.json`.
+> Exemplos: `RDS_API_V3_EXEMPLOS.md`.
 
 ## 1. Plano de implementação
 
 | etapa | o que é | estado |
 |---|---|---|
 | 1 | Base: identidade da unidade, escopo, sincronização, regras de classificação, paginação (`rds_*` parte 1) | aplicada |
-| 2 | Extração registro a registro: vendas, itens, pagamentos, estoque, razão, inventários, compras, fichas, produções, caixas (parte 2) | pronta, aguarda ordem |
-| 3 | Financeiro e análises: títulos, extrato, cadastros, CPV e perdas, DRE, fluxo de caixa, clientes (parte 3) | pronta, aguarda ordem |
-| 4 | Agregações e a porta única `rds_consulta`: faturamento, produtos, curva ABC, custos, CRM, comparativo, pendências (parte 4) | pronta, aguarda ordem |
-| 5 | Função de borda `joia-rds` (GET, chave, limite, máscara) | pronta, aguarda ordem |
-| 6 | Chave exclusiva "RDS Inteligência e Gestão" (rede Jolô, sem unidade fixa) | aguarda ordem |
-| 7 | Homologação: as 20 perguntas, com evidência | depois da ordem |
-| 8 | OpenAPI e arquivo de exemplos gerados das respostas reais | depois da homologação |
+| 2 | Extração registro a registro: vendas, itens, pagamentos, estoque, razão, inventários, compras, fichas, produções, caixas (parte 2) | aplicada |
+| 3 | Financeiro e análises: títulos, extrato, cadastros, CPV e perdas, DRE, fluxo de caixa, clientes (parte 3) | aplicada |
+| 4 | Agregações e a porta única `rds_consulta`: faturamento, produtos, curva ABC, custos, CRM, comparativo, pendências (parte 4) | aplicada |
+| 5 | Função de borda `joia-rds` (GET, chave, limite, máscara) | publicada (versão 1) |
+| 6 | Chave exclusiva "RDS Inteligência e Gestão" (rede Jolô, sem unidade fixa) | criada (prefixo `joia_rdsg_425874`) |
+| 7 | Homologação: as 20 perguntas, com evidência | feita — `RDS_API_V3_HOMOLOGACAO.md` |
+| 8 | OpenAPI e arquivo de exemplos | `api-joia-rds.openapi.json`, `RDS_API_V3_EXEMPLOS.md` |
+
+**Limites reais que a homologação mostrou:** só Santa Fé vende pelo Joia
+hoje, então as comparações entre unidades mostram as outras com zero; a
+Matriz aparece offline (aparelho sem sinal desde 29/09), o que deixa
+`dado_completo=false` nas consultas da rede; 37 das 38 notas de entrada
+não gravaram a unidade (a API lê a unidade do movimento da nota e diz
+isso em `unidade_origem`); cerca de 6% do CPV teórico de setembro vem de
+adicionais sem vínculo com um item e fica só no total da venda, não no
+item. A chamada HTTP ponta a ponta não pôde ser feita deste ambiente (a
+rede dele bloqueia o endereço do Supabase).
 
 **Por que "homologação" é um endereço novo e não um banco novo.** O Joia
 tem um único banco, o de produção, e a RDS precisa de dado real ("expor
@@ -251,8 +260,7 @@ são mexidas.
 | 19 | contas a pagar dos próximos 7 dias | `/analitico/titulos?rede=1&data=vencimento&de=hoje&ate=hoje+7&situacao=em aberto` |
 | 20 | unidades com pendência de caixa ou sincronização | `/pendencias/caixas-com-pendencia?rede=1` e `/sincronizacao/unidades?rede=1` |
 
-As respostas reais de cada uma entram em `RDS_API_V3_HOMOLOGACAO.md`
-assim que as partes 2–4 estiverem aplicadas.
+As respostas reais de cada uma estão em `RDS_API_V3_HOMOLOGACAO.md`.
 
 ## 11. Versão e compatibilidade
 

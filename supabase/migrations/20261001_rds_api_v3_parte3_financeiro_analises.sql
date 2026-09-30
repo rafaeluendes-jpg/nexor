@@ -113,8 +113,9 @@ returns jsonb language sql stable security definer set search_path = public as $
   ), ult_compra as (
     select l->>'insumoId' item, max(n.data) d,
            (array_agg((l->>'valorUn')::numeric order by n.data desc, n.criado_em desc))[1] preco
-      from notas_entrada n cross join lateral jsonb_array_elements(coalesce(n.itens,'[]'::jsonb)) l
-     where n.loja_id = p_loja and n.sucursal_id = any(p_sucs) and n.excluida_em is null group by 1
+      from notas_entrada n join rds_notas_unidade(p_loja) nu on nu.nota_id = n.id
+      cross join lateral jsonb_array_elements(coalesce(n.itens,'[]'::jsonb)) l
+     where n.loja_id = p_loja and nu.sucursal_id = any(p_sucs) and n.excluida_em is null group by 1
   ), ult_mov as (
     select l->>'insumoId' item, max(m.data) d
       from movimentacoes_estoque m cross join lateral jsonb_array_elements(coalesce(m.linhas,'[]'::jsonb)) l
@@ -494,16 +495,13 @@ begin
            'lancamentos',coalesce((select refs from lc where linha='sem_plano_de_contas'),'[]'::jsonb),
            'observacao','lançamento sem categoria: entra no resultado como despesa e aparece em /pendencias/lancamentos-sem-categoria'),
         jsonb_build_object('linha','outras_receitas_operacionais','valor',round(coalesce((select v from lc where linha='outras_receitas_operacionais'),0)
-            + case when v_suc = '__rede__' then 0 else coalesce((select v from lc where linha='intra_rede_venda_de_base'),0) end,2),'origem','lançada',
-           'lancamentos',coalesce((select refs from lc where linha='outras_receitas_operacionais'),'[]'::jsonb)
-              || case when v_suc = '__rede__' then '[]'::jsonb else coalesce((select refs from lc where linha='intra_rede_venda_de_base'),'[]'::jsonb) end,
-           'observacao', case when v_suc = '__rede__' then 'venda de base entre unidades é eliminada na rede (é receita de uma e custo de outra)'
-                              else 'inclui venda de base para outras unidades, quando houver' end),
+,2),'origem','lançada',
+           'lancamentos',coalesce((select refs from lc where linha='outras_receitas_operacionais'),'[]'::jsonb),
+           'observacao','venda de base entre unidades NÃO entra aqui: vai em fora_do_resultado (intra_rede_venda_de_base) — é receita de uma unidade e custo de outra, e o lançamento nem sempre diz qual'),
         jsonb_build_object('linha','ebitda','valor',round(vd.liquida
             - coalesce((select sum(v) from lc where linha in ('impostos','royalties','fundo_marketing','despesas_variaveis',
                   'despesas_pessoal','despesas_ocupacao','despesas_administrativas','outras_despesas','sem_plano_de_contas')),0)
             + coalesce((select v from lc where linha='outras_receitas_operacionais'),0)
-            + case when v_suc = '__rede__' then 0 else coalesce((select v from lc where linha='intra_rede_venda_de_base'),0) end
             - tx.taxa - cp.cpv - cp.perdas,2),'origem','calculada',
            'formula','margem_contribuicao − pessoal − ocupação − administrativas − outras despesas − sem plano + outras receitas operacionais'),
         jsonb_build_object('linha','depreciacao','valor',null,'origem','não_disponível',
@@ -517,11 +515,10 @@ begin
                   'despesas_pessoal','despesas_ocupacao','despesas_administrativas','outras_despesas','sem_plano_de_contas',
                   'despesas_financeiras')),0)
             + coalesce((select sum(v) from lc where linha in ('outras_receitas_operacionais','receitas_financeiras')),0)
-            + case when v_suc = '__rede__' then 0 else coalesce((select v from lc where linha='intra_rede_venda_de_base'),0) end
             - tx.taxa - cp.cpv - cp.perdas,2),'origem','calculada','formula','ebitda − depreciação + resultado_financeiro')
       ),
       'fora_do_resultado', coalesce((select jsonb_agg(jsonb_build_object('grupo', linha, 'valor', round(v,2), 'lancamentos', refs))
-                                       from lc where linha like 'fora_%'), '[]'::jsonb)
+                                       from lc where linha like 'fora_%' or linha like 'intra_rede%'), '[]'::jsonb)
     ) into v_one
     from vd, tx, cp, esc;
     v_res := v_res || jsonb_build_array(v_one);
@@ -560,7 +557,8 @@ returns jsonb language sql stable security definer set search_path = public as $
       'transferencias', 'entre contas: não mudam o saldo da unidade, só a conta onde o dinheiro está',
       'competencia', 'o fluxo NÃO usa competência: use /analises/dre para o resultado'),
     'saldo_inicial_realizado', round((select saldo from ini),2),
-    'periodos', coalesce((select jsonb_agg(jsonb_build_object(
+    'periodos', coalesce((select jsonb_agg(pp.o order by pp.per) from (
+      select per, jsonb_build_object(
         'periodo', per,
         'entradas_realizadas', round(coalesce(sum(valor) filter (where pago and tipo='receita'),0),2),
         'saidas_realizadas', round(coalesce(sum(valor) filter (where pago and tipo='despesa'),0),2),
@@ -569,8 +567,8 @@ returns jsonb language sql stable security definer set search_path = public as $
         'saidas_previstas', round(coalesce(sum(valor) filter (where not pago and tipo='despesa'),0),2),
         'vencido_a_receber', round(coalesce(sum(valor) filter (where not pago and tipo='receita' and vencimento < hoje),0),2),
         'vencido_a_pagar', round(coalesce(sum(valor) filter (where not pago and tipo='despesa' and vencimento < hoje),0),2),
-        'titulos', jsonb_agg(ref_local order by ref_local)) order by per)
-      from (select * from b) bb group by per), '[]'::jsonb),
+        'titulos', jsonb_agg(ref_local order by ref_local)) o
+      from b group by per) pp), '[]'::jsonb),
     'totais', (select jsonb_build_object(
         'entradas_realizadas', round(coalesce(sum(valor) filter (where pago and tipo='receita'),0),2),
         'saidas_realizadas', round(coalesce(sum(valor) filter (where pago and tipo='despesa'),0),2),
@@ -579,11 +577,12 @@ returns jsonb language sql stable security definer set search_path = public as $
         'saidas_previstas', round(coalesce(sum(valor) filter (where not pago and tipo='despesa'),0),2),
         'saldo_final_projetado', round((select saldo from ini)
             + coalesce(sum(case when tipo='receita' then valor when tipo='despesa' then -valor else 0 end),0),2)) from b),
-    'por_conta_financeira', coalesce((select jsonb_agg(jsonb_build_object('conta_financeira', coalesce(conta_nome,'sem conta financeira'),
+    'por_conta_financeira', coalesce((select jsonb_agg(pc.o) from (
+      select jsonb_build_object('conta_financeira', coalesce(conta_nome,'sem conta financeira'),
         'entradas_realizadas', round(coalesce(sum(valor) filter (where pago and tipo='receita'),0),2),
         'saidas_realizadas', round(coalesce(sum(valor) filter (where pago and tipo='despesa'),0),2),
-        'previsto_liquido', round(coalesce(sum(case when tipo='receita' then valor when tipo='despesa' then -valor else 0 end) filter (where not pago),0),2)))
-      from b group by conta_nome), '[]'::jsonb),
+        'previsto_liquido', round(coalesce(sum(case when tipo='receita' then valor when tipo='despesa' then -valor else 0 end) filter (where not pago),0),2)) o
+      from b group by conta_nome) pc), '[]'::jsonb),
     'abertos_sem_conta_financeira', (select count(*) from b where not pago and conta_id is null),
     'movimentados_sem_conta_financeira', (select count(*) from b where pago and conta_id is null and tipo <> 'transferencia'));
 $$;

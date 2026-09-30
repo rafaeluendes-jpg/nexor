@@ -16,36 +16,41 @@ returns table(sucursal_id text, numero int, mov_ref text, dia date, pedido_ref t
               unidade text, quantidade numeric, custo_unitario numeric, valor numeric, producao_auto boolean,
               produzido_qtd numeric)
 language sql stable security definer set search_path = public as $$
-  with m as (
+  -- a venda é ligada ao movimento ANTES de abrir as linhas: são ~2 mil
+  -- movimentos contra ~15 mil linhas (medido: 5 s → décimos)
+  with m as materialized (
     select m.sucursal_id suc, substring(m.identificacao from '#(\d+)')::int num, m.ref_local, m.data, m.linhas
       from movimentacoes_estoque m
      where m.loja_id = p_loja and m.origem = 'venda' and m.sucursal_id = any(p_sucs)
        and m.data between p_de - 2 and p_ate + 2
-  ), est as (
+  ), est as materialized (
     select distinct m.sucursal_id suc, substring(m.identificacao from '#(\d+)')::int num
       from movimentacoes_estoque m
      where m.loja_id = p_loja and m.origem = 'estorno' and m.sucursal_id = any(p_sucs)
-  ), ped as (
+  ), ped as materialized (
     select distinct on (s.ref_local, p.numero) s.ref_local suc, p.numero num, p.ref_local,
            (p.data_venda at time zone 'America/Sao_Paulo')::date dia, p.fase
       from pedidos p join sucursais s on s.id = p.sucursal_id
      where p.loja_id = p_loja and s.ref_local = any(p_sucs)
        and (p.data_venda at time zone 'America/Sao_Paulo')::date between p_de - 2 and p_ate + 2
      order by s.ref_local, p.numero, p.data_venda desc
+  ), mm as materialized (
+    select m.suc, m.num, m.ref_local, coalesce(ped.dia, m.data) dia, ped.ref_local pref,
+           coalesce(ped.fase = 'cancelado', false) canc, (est.num is not null) tem_est, m.linhas
+      from m
+      left join ped on ped.suc = m.suc and ped.num = m.num
+      left join est on est.suc = m.suc and est.num = m.num
+     where coalesce(ped.dia, m.data) between p_de and p_ate
   )
-  select m.suc, m.num, m.ref_local, coalesce(ped.dia, m.data), ped.ref_local,
-         coalesce(ped.fase = 'cancelado', false), (est.num is not null),
+  select mm.suc, mm.num, mm.ref_local, mm.dia, mm.pref, mm.canc, mm.tem_est,
          l->>'produtoRef', l->>'fichaId', l->>'fichaNome', l->>'insumoId', l->>'nome',
          coalesce(nullif(l->>'unidade',''), 'un'),
          coalesce((l->>'qtd')::numeric, 0), coalesce((l->>'custo')::numeric, 0),
          coalesce((l->>'qtd')::numeric, 0) * coalesce((l->>'custo')::numeric, 0),
          coalesce((l->>'producaoAuto')::boolean, false), (l->>'produzidoQtd')::numeric
-    from m
-    cross join lateral jsonb_array_elements(coalesce(m.linhas,'[]'::jsonb)) l
-    left join ped on ped.suc = m.suc and ped.num = m.num
-    left join est on est.suc = m.suc and est.num = m.num
-   where coalesce(l->>'direcao','saida') = 'saida'
-     and coalesce(ped.dia, m.data) between p_de and p_ate;
+    from mm
+    cross join lateral jsonb_array_elements(coalesce(mm.linhas,'[]'::jsonb)) l
+   where coalesce(l->>'direcao','saida') = 'saida';
 $$;
 
 -- ---------- vendas: uma linha por venda ----------
@@ -145,10 +150,14 @@ returns jsonb language sql stable security definer set search_path = public as $
       left join produtos pr on pr.id = i.produto_id
       left join categorias c on c.id = pr.categoria_id
       left join fichas_tecnicas f on f.id = pr.ficha_id
-  ), lv as (
+  ), lv as materialized (
     select l.sucursal_id, l.numero, coalesce(l.produto_ref, '') produto_ref, coalesce(l.ficha_ref,'') ficha_ref,
            sum(l.valor) valor, bool_or(l.producao_auto) auto
       from rds_linhas_venda(p_loja, p_sucs, p_de, p_ate) l group by 1,2,3,4
+  ), lvp as materialized (
+    select sucursal_id, numero, produto_ref, sum(valor) v, bool_or(auto) auto from lv where produto_ref <> '' group by 1,2,3
+  ), lvf as materialized (
+    select sucursal_id, numero, ficha_ref, sum(valor) v, bool_or(auto) auto from lv where produto_ref = '' group by 1,2,3
   )
   select coalesce(jsonb_agg(x.o order by x.dia, x.numero, x.ref), '[]'::jsonb) from (
     select i.dia, i.numero, i.ref_local ref, jsonb_build_object(
@@ -177,12 +186,10 @@ returns jsonb language sql stable security definer set search_path = public as $
       'updated_at', i.alterado_em) o
       from i
       left join caixas cx on cx.id = i.caixa_id
-      left join lateral (
-        select sum(lv.valor) v, bool_or(lv.auto) auto from lv
-         where lv.sucursal_id = i.suc_ref and lv.numero = i.numero
-           and ((i.prod_ref is not null and lv.produto_ref = i.prod_ref)
-             or (lv.produto_ref = '' and i.ficha_ref is not null and lv.ficha_ref = i.ficha_ref))
-      ) cpv on true
+      left join lvp on lvp.sucursal_id = i.suc_ref and lvp.numero = i.numero and lvp.produto_ref = i.prod_ref
+      left join lvf on lvf.sucursal_id = i.suc_ref and lvf.numero = i.numero and lvf.ficha_ref = i.ficha_ref
+      cross join lateral (select case when lvp.v is null and lvf.v is null then null else coalesce(lvp.v,0) + coalesce(lvf.v,0) end v,
+                                 coalesce(lvp.auto, lvf.auto) auto) cpv
   ) x;
 $$;
 
@@ -331,11 +338,36 @@ returns jsonb language sql stable security definer set search_path = public as $
    where c.loja_id = p_loja and c.sucursal_id = any(p_sucs) and c.data between p_de and p_ate;
 $$;
 
+-- ---------- a unidade de cada nota de entrada ----------
+-- 37 das 38 notas de entrada foram gravadas sem a unidade (sucursal_id
+-- vazio). A unidade delas é lida do movimento de estoque da própria nota
+-- ("NF <número>") ou do título financeiro que ela gerou — e a resposta
+-- diz de onde veio (`unidade_origem`), nunca em silêncio.
+create or replace function public.rds_notas_unidade(p_loja uuid)
+returns table(nota_id uuid, sucursal_id text, unidade_origem text)
+language sql stable security definer set search_path = public as $$
+  select n.id,
+         coalesce(n.sucursal_id, mv.suc, lf.suc),
+         case when n.sucursal_id is not null then 'gravada na nota'
+              when mv.suc is not null then 'derivada do movimento de estoque da nota (a nota não gravou a unidade)'
+              when lf.suc is not null then 'derivada do título financeiro da nota (a nota não gravou a unidade)'
+              else 'não identificada' end
+    from notas_entrada n
+    left join lateral (select m.sucursal_id suc from movimentacoes_estoque m
+                        where m.loja_id = n.loja_id and m.origem = 'nota' and m.identificacao = 'NF ' || n.numero
+                          and m.sucursal_id is not null limit 1) mv on true
+    left join lateral (select l.sucursal_id suc from lancamentos_financeiros l
+                        where l.loja_id = n.loja_id and l.origem = 'nota-entrada'
+                          and (l.origem_ref = n.ref_local or l.ref_local_origem = n.ref_local)
+                          and l.sucursal_id is not null limit 1) lf on true
+   where n.loja_id = p_loja;
+$$;
+
 -- ---------- compras: uma linha por nota de entrada ----------
 create or replace function public.rds_x_compras(p_loja uuid, p_sucs text[], p_de date, p_ate date)
 returns jsonb language sql stable security definer set search_path = public as $$
   select coalesce(jsonb_agg(jsonb_build_object(
-      'compra_ref', n.ref_local, 'sucursal_id', n.sucursal_id,
+      'compra_ref', n.ref_local, 'sucursal_id', nu.sucursal_id, 'unidade_origem', nu.unidade_origem,
       'fornecedor_ref', fo.ref_local, 'fornecedor', coalesce(n.fornecedor_nome, fo.empresa),
       'documento', n.numero, 'data_emissao', n.data, 'data_competencia', 'não_disponível',
       'data_entrada', (n.criado_em at time zone 'America/Sao_Paulo')::date,
@@ -350,18 +382,21 @@ returns jsonb language sql stable security definer set search_path = public as $
       'excluida', n.excluida_em is not null, 'excluida_em', n.excluida_em, 'motivo_exclusao', n.excluida_motivo,
       'updated_at', coalesce(n.alterado_em, n.criado_em)
     ) order by n.data, n.numero), '[]'::jsonb)
-    from notas_entrada n left join fornecedores fo on fo.id = n.fornecedor_id
-   where n.loja_id = p_loja and n.sucursal_id = any(p_sucs) and n.data between p_de and p_ate;
+    from notas_entrada n
+    join rds_notas_unidade(p_loja) nu on nu.nota_id = n.id
+    left join fornecedores fo on fo.id = n.fornecedor_id
+   where n.loja_id = p_loja and nu.sucursal_id = any(p_sucs) and n.data between p_de and p_ate;
 $$;
 
 -- ---------- itens das compras ----------
 create or replace function public.rds_x_itens_compra(p_loja uuid, p_sucs text[], p_de date, p_ate date)
 returns jsonb language sql stable security definer set search_path = public as $$
   with it as (
-    select n.ref_local nota, n.numero, n.sucursal_id, n.data, n.criado_em, n.fornecedor_id, n.fornecedor_nome,
+    select n.ref_local nota, n.numero, nu.sucursal_id, nu.unidade_origem, n.data, n.criado_em, n.fornecedor_id, n.fornecedor_nome,
            n.excluida_em, l.o, l.r, l.r->>'insumoId' item
-      from notas_entrada n cross join lateral jsonb_array_elements(coalesce(n.itens,'[]'::jsonb)) with ordinality l(r, o)
-     where n.loja_id = p_loja and n.sucursal_id = any(p_sucs)
+      from notas_entrada n join rds_notas_unidade(p_loja) nu on nu.nota_id = n.id
+      cross join lateral jsonb_array_elements(coalesce(n.itens,'[]'::jsonb)) with ordinality l(r, o)
+     where n.loja_id = p_loja and nu.sucursal_id = any(p_sucs)
   ), h as (
     select it.*, lag(coalesce((r->>'valorUn')::numeric,0)) over (partition by sucursal_id, item order by data, criado_em, o) preco_anterior
       from it where excluida_em is null
@@ -372,7 +407,7 @@ returns jsonb language sql stable security definer set search_path = public as $
      where m.loja_id = p_loja and m.origem = 'nota' and m.sucursal_id = any(p_sucs)
   )
   select coalesce(jsonb_agg(jsonb_build_object(
-      'item_compra_ref', h.nota || ':' || h.o, 'compra_ref', h.nota, 'sucursal_id', h.sucursal_id,
+      'item_compra_ref', h.nota || ':' || h.o, 'compra_ref', h.nota, 'sucursal_id', h.sucursal_id, 'unidade_origem', h.unidade_origem,
       'fornecedor_ref', fo.ref_local, 'fornecedor', coalesce(h.fornecedor_nome, fo.empresa),
       'documento', h.numero, 'data_emissao', h.data, 'data_competencia', 'não_disponível',
       'data_entrada', (h.criado_em at time zone 'America/Sao_Paulo')::date,
@@ -554,6 +589,8 @@ revoke all on function public.rds_x_estoque(uuid, text[]) from public, anon, aut
 grant execute on function public.rds_x_estoque(uuid, text[]) to service_role;
 revoke all on function public.rds_x_inventarios(uuid, text[], date, date) from public, anon, authenticated;
 grant execute on function public.rds_x_inventarios(uuid, text[], date, date) to service_role;
+revoke all on function public.rds_notas_unidade(uuid) from public, anon, authenticated;
+grant execute on function public.rds_notas_unidade(uuid) to service_role;
 revoke all on function public.rds_x_compras(uuid, text[], date, date) from public, anon, authenticated;
 grant execute on function public.rds_x_compras(uuid, text[], date, date) to service_role;
 revoke all on function public.rds_x_itens_compra(uuid, text[], date, date) from public, anon, authenticated;
