@@ -313,6 +313,10 @@
    "pontos": 17,
    "roda": true
   },
+  "testes/lote-e-validade.js": {
+   "pontos": 33,
+   "roda": true
+  },
   "testes/montagem.js": {
    "pontos": 0,
    "roda": true

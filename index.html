@@ -8527,6 +8527,7 @@ var MAPA=[
     subcategoria_id:fkSub(x.catFinId),controla_estoque:x.controlaEstoque!==false,
     compoe_cmv:x.compoeCMV!==false,estoque_min:n(x.estoqueMin),estoque_max:n(x.estoqueMax),
     validade:x.validade||null,ean13:x.ean13||null,
+    controla_lote:!!x.controlaLote,controla_validade:!!x.controlaValidade,
     permite_venda:!!x.permiteVenda,embalagem:x.unidadeVenda||null,
     estoque_atual:n(x.estoqueAtual),
     fator:n(x.fator)||1,custo:n(x.custo),custo_ultima:n(x.custoUltima),modo_custo:normModo(x.modoCusto),
@@ -8723,6 +8724,20 @@ var MAPA=[
        perde a referencia de quanto custava (RDS 11.2) */
     ultimo_custo_medio_com_saldo:(x.ultimoCustoMedioComSaldo==null?null:n(x.ultimoCustoMedioComSaldo)),
     atualizado_em:x.atualizadoEm||null}}},
+
+ /* ==========================================================
+    O RAZAO DE LOTES (RDS 14)
+
+    Uma linha por entrada de item controlado: numero do lote, validade,
+    quantidade e de qual nota veio. Nao e saldo — ver o comentario em
+    `lancarEstoqueDaNota` e a migration 20260930_lote_e_validade.sql.
+    ========================================================== */
+ {col:'lotes',       tab:'lotes_estoque',
+  campos:function(x){return {sucursal_id:x.sucursalId||lojaAtualId()||null,
+    item_ref:x.itemRef||null,item_nome:x.itemNome||null,
+    lote:x.lote||null,fabricacao:x.fabricacao||null,validade:x.validade||null,
+    quantidade:n(x.quantidade),unidade:x.unidade||null,
+    origem:x.origem||null,origem_ref:x.origemRef||null,documento:x.documento||null}}},
 
  {col:'movEst',      tab:'movimentacoes_estoque',
   campos:function(x){return {data:x.data||null,hora:x.hora||null,
@@ -14033,6 +14048,7 @@ setTimeout(restaurarSessaoGuardada,0);
 function boot(){
   DB.motivosCanc=DB.motivosCanc||[];DB.turnos=DB.turnos||[];
   DB.cancelamentos=DB.cancelamentos||[];
+  DB.lotes=DB.lotes||[];
   DB.modelosImp=DB.modelosImp||[];
   DB.statusVenda=DB.statusVenda||[];
   DB.mesas=DB.mesas||[];DB.comandas=DB.comandas||[];DB.cupons_f=DB.cupons_f||[];
@@ -14418,7 +14434,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V386.0.0';
+var VERSAO='V387.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -35945,8 +35961,27 @@ function modalInsumo(id,copia){
     '<div class="hint">Abaixo disso o item é sinalizado.</div></div>'+
    '<div class="fld2"><label>Estoque máximo</label><input id="isMx" type="number" step="0.001" value="'+(i?(i.estoqueMax||0):0)+'">'+
     '<div class="hint">Quanto vale a pena manter em casa.</div></div>'+
-   '<div class="fld2"><label>Validade</label><input id="isVal" type="date" value="'+E(i&&i.validade?String(i.validade).slice(0,10):'')+'">'+
-    '<div class="hint">Do lote em estoque.</div></div>'+
+   /* ==========================================================
+      A "VALIDADE" DO CADASTRO NUNCA FOI DO LOTE (RDS 14)
+
+      Este campo e uma data SO — uma por item, sobrescrita pela entrada
+      seguinte. A dica dizia "do lote em estoque", prometendo um controle
+      de lote que nao existia: com duas entradas, a segunda apagava a
+      validade da primeira e ninguem via.
+
+      Ele continua aqui porque loja nenhuma perde o que digitou. Mas o
+      controle de verdade passa a ser o de baixo: marcado, TODA entrada
+      daquele item passa a exigir lote e validade proprios, e o sistema
+      avisa o que esta vencendo.
+      ========================================================== */
+   '<div class="fld2"><label>Validade (referência)</label><input id="isVal" type="date" value="'+E(i&&i.validade?String(i.validade).slice(0,10):'')+'">'+
+    '<div class="hint">Uma data só, do item. Para controlar por lote, marque abaixo.</div></div>'+
+   '<div class="fld2" style="justify-content:flex-end"><label>Controle por lote</label>'+
+    '<label class="chkL"><input type="checkbox" id="isCtLote"'+((i&&i.controlaLote)?' checked':'')+'>'+
+    '<span>Controla lote</span></label>'+
+    '<label class="chkL"><input type="checkbox" id="isCtVal"'+((i&&i.controlaValidade)?' checked':'')+'>'+
+    '<span>Controla validade</span></label>'+
+    '<div class="hint">Marcado, toda nota de entrada deste item pede lote e validade.</div></div>'+
    '<div class="fld2"><label>Unidade de venda</label><select id="isUV">'+
     '<option value="">igual à de estoque</option>'+
     unidades().map(function(u){return '<option value="'+u.id+'"'+
@@ -36101,6 +36136,8 @@ function salvarInsumo(id,copia){
     /* custo e custo da ultima compra vem das notas de entrada, nunca da tela */
     custo:(alvoPrev?Number(alvoPrev.custo)||0:0),
     custoUltima:(alvoUlt!==undefined?alvoUlt:0),
+    controlaLote:!!($('isCtLote')||{}).checked,
+    controlaValidade:!!($('isCtVal')||{}).checked,
     fornecedorId:$('isF').value,descricao:$('isD').value.trim()};
   var alvo=alvoPrev;
   if(alvo)Object.assign(alvo,o);
@@ -42006,6 +42043,61 @@ function abrirCadastroItem(id){
   if(i){modalInsumo(i.id);return;}
   toast('Item não encontrado.');
 }
+/* ==========================================================
+   O QUE ESTA VENCENDO (RDS 14)
+
+   O razao de lotes existe para responder duas perguntas, e as duas so
+   valem se alguem for avisado: o que ja venceu, e o que vence nos
+   proximos dias. Um relatorio que a pessoa precisa lembrar de abrir nao
+   evita perda nenhuma — por isso o aviso fica na tela do estoque, que e
+   onde quem cuida disso passa.
+
+   O prazo de sete dias e o da reposicao semanal da gelateria: e o
+   tempo que alguem ainda tem para usar, promover ou devolver.
+   ========================================================== */
+var DIAS_AVISO_VALIDADE=7;
+function lotesDaUnidade(){
+  var suc=lojaAtualId();
+  return (DB.lotes||[]).filter(function(l){
+    if(!l||!l.validade)return false;
+    if(!suc)return true;
+    try{ if(ehSucMatriz(suc))return true; }catch(e){}
+    return (l.sucursalId||suc)===suc;
+  });
+}
+function lotesPorValidade(){
+  var hoje=hojeISO();
+  var limite=new Date(); limite.setDate(limite.getDate()+DIAS_AVISO_VALIDADE);
+  var ate=limite.toISOString().slice(0,10);
+  var venc=[],perto=[];
+  lotesDaUnidade().forEach(function(l){
+    var v=String(l.validade).slice(0,10);
+    if(v<hoje)venc.push(l); else if(v<=ate)perto.push(l);
+  });
+  var ord=function(a,b){return String(a.validade).localeCompare(String(b.validade))};
+  return {vencidos:venc.sort(ord),vencendo:perto.sort(ord)};
+}
+function avisoValidade(){
+  var r;
+  try{ r=lotesPorValidade(); }catch(e){ _quieto(e,'avisoValidade'); return ''; }
+  if(!r.vencidos.length&&!r.vencendo.length)return '';
+  var linha=function(l){
+    return E(l.itemNome||l.itemRef)+(l.lote?' · lote '+E(l.lote):'')+
+      ' · '+fmtQt(Number(l.quantidade)||0)+' '+E(un(l.unidade).ab)+
+      ' · vence '+dataBR(String(l.validade).slice(0,10));
+  };
+  var partes=[];
+  if(r.vencidos.length)partes.push('<b>'+r.vencidos.length+' lote(s) vencido(s)</b>');
+  if(r.vencendo.length)partes.push('<b>'+r.vencendo.length+' vence(m) em até '+
+    DIAS_AVISO_VALIDADE+' dias</b>');
+  return '<div class="imAviso">'+sv('help',14)+'<div>'+partes.join(' · ')+'.<br>'+
+    r.vencidos.concat(r.vencendo).slice(0,6).map(linha).join('<br>')+
+    ((r.vencidos.length+r.vencendo.length)>6
+      ? '<br><small>e mais '+((r.vencidos.length+r.vencendo.length)-6)+'…</small>' : '')+
+    '<br><small>O Joia ainda não baixa o lote mais antigo sozinho (FEFO): '+
+    'o saldo não é por lote. Este aviso diz o que olhar.</small>'+
+    '</div></div>';
+}
 function telaEstoqueTotal(){
   baseMov();
   /* o saldo mostrado aqui vem de estoque_unidade; reaplica antes de desenhar
@@ -42051,6 +42143,7 @@ function telaEstoqueTotal(){
     '</div>'+
     '<button class="btnP2" onclick="exportarEstoque()">'+sv('down2',13)+' Exportar</button>'+
    '</div>'+
+   avisoValidade()+
    '<div class="etFiltros">'+
     '<div class="f2" style="max-width:170px"><label>Estoque no fim do dia</label>'+
      '<input type="date" id="etData" max="'+hojeISO()+'" value="'+E(ET.data||'')+'" '+
@@ -43839,6 +43932,19 @@ function desenhaNota(){
     '<div class="f2" style="max-width:110px"><label>Qtd.</label>'+
      '<input id="ntItQt" type="number" step="0.001" value="" oninput="pintaFatorNota()">'+
      '<div class="hint" id="ntDicaUn"></div></div>'+
+    /* ==========================================================
+       LOTE E VALIDADE NA ENTRADA (RDS 14)
+
+       So aparecem para item que o cadastro marcou como controlado. Para
+       o resto da loja a linha continua exatamente como era — e a maior
+       parte dos itens de uma gelateria nao precisa de lote.
+       ========================================================== */
+    ((_itemSel&&_itemSel.controlaLote)
+      ?'<div class="f2" style="max-width:130px"><label>Lote *</label>'+
+        '<input id="ntItLote" autocomplete="off" placeholder="do rótulo"></div>':'')+
+    ((_itemSel&&_itemSel.controlaValidade)
+      ?'<div class="f2" style="max-width:150px"><label>Validade *</label>'+
+        '<input id="ntItVal" type="date"></div>':'')+
     '<div class="f2" style="max-width:120px"><label>Valor un.</label>'+
      /* ==========================================================
         ESTE CAMPO NAO USA O COMPONENTE DE DINHEIRO — DE PROPOSITO
@@ -44148,12 +44254,17 @@ function addItemNota(){
      precisa saber que a compra foi em caixa */
   var qItem=+qtdNaUnidadeDoItem(q,uC,fat).toFixed(6);
   if(!(qItem>0)){toast('Não consegui converter a quantidade para a unidade do item.');return;}
+  var lote=String((($('ntItLote')||{}).value)||'').trim();
+  var val=String((($('ntItVal')||{}).value)||'').slice(0,10);
+  if(_itemSel.controlaLote&&!lote){toast('Este item controla lote: informe o número do lote.');return;}
+  if(_itemSel.controlaValidade&&!val){toast('Este item controla validade: informe a data.');return;}
   var d=moedaValor('ntItDs');
   _nota.itens.push({insumoId:_itemSel.id,nome:_itemSel.nome,unidade:_itemSel.unidade,
     qtd:qItem,valorUn:+(v*q/qItem).toFixed(6),desconto:d,total:+(q*v-d).toFixed(2),
     ncm:_itemSel.ncm||'',
     /* como a compra foi digitada, para a conversão poder ser conferida */
-    unidadeCompra:uC,qtdCompra:q,fatorCompra:fat,valorUnCompra:v});
+    unidadeCompra:uC,qtdCompra:q,fatorCompra:fat,valorUnCompra:v,
+    lote:lote,validade:val});
   _itemSel=null;
   desenhaNota();
   setTimeout(function(){var nm=$('ntItNome');if(nm){nm.value='';nm.focus();}},50);
@@ -44248,6 +44359,26 @@ function lancarEstoqueDaNota(n){
       notaId:n.id,notaNumero:n.numero||'',
       fornecedorId:n.fornecedorId||'',fornecedor:n.fornecedorNome||''});
     i2.custoUltima=+(it.total/it.qtd).toFixed(6);
+    /* ==========================================================
+       O RAZAO DE LOTES (RDS 14)
+
+       Uma linha por ENTRADA, nao um saldo. E dele que sai a resposta
+       para "o que esta vencido" e "o que vence esta semana", e por qual
+       nota aquele lote entrou.
+
+       Nao e saldo de proposito: o saldo por lote exigiria refazer o
+       motor de estoque inteiro, que e a base da venda, da producao, da
+       transferencia, da contagem, do CPV e da transacao atomica. Aqui o
+       lote INFORMA; nao consome.
+       ========================================================== */
+    if(it.lote||it.validade){
+      DB.lotes=DB.lotes||[];
+      DB.lotes.push({id:uid('lt'),sucursalId:n.sucursalId||lojaAtualId(),
+        itemRef:i2.id,itemNome:i2.nome,lote:it.lote||'',validade:it.validade||'',
+        quantidade:Number(it.qtd)||0,unidade:it.unidade||i2.unidade||'',
+        origem:'nota-entrada',origemRef:n.id,
+        documento:'NF '+(n.numero||''),criadoEm:new Date().toISOString()});
+    }
   });
 }
 function desfazerEstoqueDaNota(n){

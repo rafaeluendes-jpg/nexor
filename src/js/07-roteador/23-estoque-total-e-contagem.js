@@ -132,6 +132,61 @@ function abrirCadastroItem(id){
   if(i){modalInsumo(i.id);return;}
   toast('Item não encontrado.');
 }
+/* ==========================================================
+   O QUE ESTA VENCENDO (RDS 14)
+
+   O razao de lotes existe para responder duas perguntas, e as duas so
+   valem se alguem for avisado: o que ja venceu, e o que vence nos
+   proximos dias. Um relatorio que a pessoa precisa lembrar de abrir nao
+   evita perda nenhuma — por isso o aviso fica na tela do estoque, que e
+   onde quem cuida disso passa.
+
+   O prazo de sete dias e o da reposicao semanal da gelateria: e o
+   tempo que alguem ainda tem para usar, promover ou devolver.
+   ========================================================== */
+var DIAS_AVISO_VALIDADE=7;
+function lotesDaUnidade(){
+  var suc=lojaAtualId();
+  return (DB.lotes||[]).filter(function(l){
+    if(!l||!l.validade)return false;
+    if(!suc)return true;
+    try{ if(ehSucMatriz(suc))return true; }catch(e){}
+    return (l.sucursalId||suc)===suc;
+  });
+}
+function lotesPorValidade(){
+  var hoje=hojeISO();
+  var limite=new Date(); limite.setDate(limite.getDate()+DIAS_AVISO_VALIDADE);
+  var ate=limite.toISOString().slice(0,10);
+  var venc=[],perto=[];
+  lotesDaUnidade().forEach(function(l){
+    var v=String(l.validade).slice(0,10);
+    if(v<hoje)venc.push(l); else if(v<=ate)perto.push(l);
+  });
+  var ord=function(a,b){return String(a.validade).localeCompare(String(b.validade))};
+  return {vencidos:venc.sort(ord),vencendo:perto.sort(ord)};
+}
+function avisoValidade(){
+  var r;
+  try{ r=lotesPorValidade(); }catch(e){ _quieto(e,'avisoValidade'); return ''; }
+  if(!r.vencidos.length&&!r.vencendo.length)return '';
+  var linha=function(l){
+    return E(l.itemNome||l.itemRef)+(l.lote?' · lote '+E(l.lote):'')+
+      ' · '+fmtQt(Number(l.quantidade)||0)+' '+E(un(l.unidade).ab)+
+      ' · vence '+dataBR(String(l.validade).slice(0,10));
+  };
+  var partes=[];
+  if(r.vencidos.length)partes.push('<b>'+r.vencidos.length+' lote(s) vencido(s)</b>');
+  if(r.vencendo.length)partes.push('<b>'+r.vencendo.length+' vence(m) em até '+
+    DIAS_AVISO_VALIDADE+' dias</b>');
+  return '<div class="imAviso">'+sv('help',14)+'<div>'+partes.join(' · ')+'.<br>'+
+    r.vencidos.concat(r.vencendo).slice(0,6).map(linha).join('<br>')+
+    ((r.vencidos.length+r.vencendo.length)>6
+      ? '<br><small>e mais '+((r.vencidos.length+r.vencendo.length)-6)+'…</small>' : '')+
+    '<br><small>O Joia ainda não baixa o lote mais antigo sozinho (FEFO): '+
+    'o saldo não é por lote. Este aviso diz o que olhar.</small>'+
+    '</div></div>';
+}
 function telaEstoqueTotal(){
   baseMov();
   /* o saldo mostrado aqui vem de estoque_unidade; reaplica antes de desenhar
@@ -177,6 +232,7 @@ function telaEstoqueTotal(){
     '</div>'+
     '<button class="btnP2" onclick="exportarEstoque()">'+sv('down2',13)+' Exportar</button>'+
    '</div>'+
+   avisoValidade()+
    '<div class="etFiltros">'+
     '<div class="f2" style="max-width:170px"><label>Estoque no fim do dia</label>'+
      '<input type="date" id="etData" max="'+hojeISO()+'" value="'+E(ET.data||'')+'" '+

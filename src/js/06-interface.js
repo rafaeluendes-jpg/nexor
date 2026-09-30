@@ -2,6 +2,7 @@
 function boot(){
   DB.motivosCanc=DB.motivosCanc||[];DB.turnos=DB.turnos||[];
   DB.cancelamentos=DB.cancelamentos||[];
+  DB.lotes=DB.lotes||[];
   DB.modelosImp=DB.modelosImp||[];
   DB.statusVenda=DB.statusVenda||[];
   DB.mesas=DB.mesas||[];DB.comandas=DB.comandas||[];DB.cupons_f=DB.cupons_f||[];
@@ -387,7 +388,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V386.0.0';
+var VERSAO='V387.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço

@@ -306,6 +306,19 @@ function desenhaNota(){
     '<div class="f2" style="max-width:110px"><label>Qtd.</label>'+
      '<input id="ntItQt" type="number" step="0.001" value="" oninput="pintaFatorNota()">'+
      '<div class="hint" id="ntDicaUn"></div></div>'+
+    /* ==========================================================
+       LOTE E VALIDADE NA ENTRADA (RDS 14)
+
+       So aparecem para item que o cadastro marcou como controlado. Para
+       o resto da loja a linha continua exatamente como era — e a maior
+       parte dos itens de uma gelateria nao precisa de lote.
+       ========================================================== */
+    ((_itemSel&&_itemSel.controlaLote)
+      ?'<div class="f2" style="max-width:130px"><label>Lote *</label>'+
+        '<input id="ntItLote" autocomplete="off" placeholder="do rótulo"></div>':'')+
+    ((_itemSel&&_itemSel.controlaValidade)
+      ?'<div class="f2" style="max-width:150px"><label>Validade *</label>'+
+        '<input id="ntItVal" type="date"></div>':'')+
     '<div class="f2" style="max-width:120px"><label>Valor un.</label>'+
      /* ==========================================================
         ESTE CAMPO NAO USA O COMPONENTE DE DINHEIRO — DE PROPOSITO
@@ -615,12 +628,17 @@ function addItemNota(){
      precisa saber que a compra foi em caixa */
   var qItem=+qtdNaUnidadeDoItem(q,uC,fat).toFixed(6);
   if(!(qItem>0)){toast('Não consegui converter a quantidade para a unidade do item.');return;}
+  var lote=String((($('ntItLote')||{}).value)||'').trim();
+  var val=String((($('ntItVal')||{}).value)||'').slice(0,10);
+  if(_itemSel.controlaLote&&!lote){toast('Este item controla lote: informe o número do lote.');return;}
+  if(_itemSel.controlaValidade&&!val){toast('Este item controla validade: informe a data.');return;}
   var d=moedaValor('ntItDs');
   _nota.itens.push({insumoId:_itemSel.id,nome:_itemSel.nome,unidade:_itemSel.unidade,
     qtd:qItem,valorUn:+(v*q/qItem).toFixed(6),desconto:d,total:+(q*v-d).toFixed(2),
     ncm:_itemSel.ncm||'',
     /* como a compra foi digitada, para a conversão poder ser conferida */
-    unidadeCompra:uC,qtdCompra:q,fatorCompra:fat,valorUnCompra:v});
+    unidadeCompra:uC,qtdCompra:q,fatorCompra:fat,valorUnCompra:v,
+    lote:lote,validade:val});
   _itemSel=null;
   desenhaNota();
   setTimeout(function(){var nm=$('ntItNome');if(nm){nm.value='';nm.focus();}},50);
@@ -715,6 +733,26 @@ function lancarEstoqueDaNota(n){
       notaId:n.id,notaNumero:n.numero||'',
       fornecedorId:n.fornecedorId||'',fornecedor:n.fornecedorNome||''});
     i2.custoUltima=+(it.total/it.qtd).toFixed(6);
+    /* ==========================================================
+       O RAZAO DE LOTES (RDS 14)
+
+       Uma linha por ENTRADA, nao um saldo. E dele que sai a resposta
+       para "o que esta vencido" e "o que vence esta semana", e por qual
+       nota aquele lote entrou.
+
+       Nao e saldo de proposito: o saldo por lote exigiria refazer o
+       motor de estoque inteiro, que e a base da venda, da producao, da
+       transferencia, da contagem, do CPV e da transacao atomica. Aqui o
+       lote INFORMA; nao consome.
+       ========================================================== */
+    if(it.lote||it.validade){
+      DB.lotes=DB.lotes||[];
+      DB.lotes.push({id:uid('lt'),sucursalId:n.sucursalId||lojaAtualId(),
+        itemRef:i2.id,itemNome:i2.nome,lote:it.lote||'',validade:it.validade||'',
+        quantidade:Number(it.qtd)||0,unidade:it.unidade||i2.unidade||'',
+        origem:'nota-entrada',origemRef:n.id,
+        documento:'NF '+(n.numero||''),criadoEm:new Date().toISOString()});
+    }
   });
 }
 function desfazerEstoqueDaNota(n){

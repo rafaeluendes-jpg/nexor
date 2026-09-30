@@ -1306,7 +1306,9 @@
     "custo_ajustado_em": "timestamp with time zone",
     "custo_ajustado_por": "text",
     "custo_ajustado_de": "numeric",
-    "custo_ajustado_origem": "text"
+    "custo_ajustado_origem": "text",
+    "controla_lote": "boolean",
+    "controla_validade": "boolean"
    },
    "unicos": [
     [
@@ -2385,6 +2387,35 @@
     [
      "loja_id",
      "chave"
+    ]
+   ]
+  },
+  "lotes_estoque": {
+   "colunas": {
+    "id": "uuid",
+    "loja_id": "uuid",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "item_ref": "text",
+    "item_nome": "text",
+    "lote": "text",
+    "fabricacao": "date",
+    "validade": "date",
+    "quantidade": "numeric",
+    "unidade": "text",
+    "origem": "text",
+    "origem_ref": "text",
+    "documento": "text",
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
     ]
    ]
   }

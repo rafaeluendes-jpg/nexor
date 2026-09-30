@@ -392,8 +392,27 @@ function modalInsumo(id,copia){
     '<div class="hint">Abaixo disso o item é sinalizado.</div></div>'+
    '<div class="fld2"><label>Estoque máximo</label><input id="isMx" type="number" step="0.001" value="'+(i?(i.estoqueMax||0):0)+'">'+
     '<div class="hint">Quanto vale a pena manter em casa.</div></div>'+
-   '<div class="fld2"><label>Validade</label><input id="isVal" type="date" value="'+E(i&&i.validade?String(i.validade).slice(0,10):'')+'">'+
-    '<div class="hint">Do lote em estoque.</div></div>'+
+   /* ==========================================================
+      A "VALIDADE" DO CADASTRO NUNCA FOI DO LOTE (RDS 14)
+
+      Este campo e uma data SO — uma por item, sobrescrita pela entrada
+      seguinte. A dica dizia "do lote em estoque", prometendo um controle
+      de lote que nao existia: com duas entradas, a segunda apagava a
+      validade da primeira e ninguem via.
+
+      Ele continua aqui porque loja nenhuma perde o que digitou. Mas o
+      controle de verdade passa a ser o de baixo: marcado, TODA entrada
+      daquele item passa a exigir lote e validade proprios, e o sistema
+      avisa o que esta vencendo.
+      ========================================================== */
+   '<div class="fld2"><label>Validade (referência)</label><input id="isVal" type="date" value="'+E(i&&i.validade?String(i.validade).slice(0,10):'')+'">'+
+    '<div class="hint">Uma data só, do item. Para controlar por lote, marque abaixo.</div></div>'+
+   '<div class="fld2" style="justify-content:flex-end"><label>Controle por lote</label>'+
+    '<label class="chkL"><input type="checkbox" id="isCtLote"'+((i&&i.controlaLote)?' checked':'')+'>'+
+    '<span>Controla lote</span></label>'+
+    '<label class="chkL"><input type="checkbox" id="isCtVal"'+((i&&i.controlaValidade)?' checked':'')+'>'+
+    '<span>Controla validade</span></label>'+
+    '<div class="hint">Marcado, toda nota de entrada deste item pede lote e validade.</div></div>'+
    '<div class="fld2"><label>Unidade de venda</label><select id="isUV">'+
     '<option value="">igual à de estoque</option>'+
     unidades().map(function(u){return '<option value="'+u.id+'"'+
@@ -548,6 +567,8 @@ function salvarInsumo(id,copia){
     /* custo e custo da ultima compra vem das notas de entrada, nunca da tela */
     custo:(alvoPrev?Number(alvoPrev.custo)||0:0),
     custoUltima:(alvoUlt!==undefined?alvoUlt:0),
+    controlaLote:!!($('isCtLote')||{}).checked,
+    controlaValidade:!!($('isCtVal')||{}).checked,
     fornecedorId:$('isF').value,descricao:$('isD').value.trim()};
   var alvo=alvoPrev;
   if(alvo)Object.assign(alvo,o);

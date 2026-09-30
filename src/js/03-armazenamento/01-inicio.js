@@ -1304,6 +1304,7 @@ var MAPA=[
     subcategoria_id:fkSub(x.catFinId),controla_estoque:x.controlaEstoque!==false,
     compoe_cmv:x.compoeCMV!==false,estoque_min:n(x.estoqueMin),estoque_max:n(x.estoqueMax),
     validade:x.validade||null,ean13:x.ean13||null,
+    controla_lote:!!x.controlaLote,controla_validade:!!x.controlaValidade,
     permite_venda:!!x.permiteVenda,embalagem:x.unidadeVenda||null,
     estoque_atual:n(x.estoqueAtual),
     fator:n(x.fator)||1,custo:n(x.custo),custo_ultima:n(x.custoUltima),modo_custo:normModo(x.modoCusto),
@@ -1500,6 +1501,20 @@ var MAPA=[
        perde a referencia de quanto custava (RDS 11.2) */
     ultimo_custo_medio_com_saldo:(x.ultimoCustoMedioComSaldo==null?null:n(x.ultimoCustoMedioComSaldo)),
     atualizado_em:x.atualizadoEm||null}}},
+
+ /* ==========================================================
+    O RAZAO DE LOTES (RDS 14)
+
+    Uma linha por entrada de item controlado: numero do lote, validade,
+    quantidade e de qual nota veio. Nao e saldo — ver o comentario em
+    `lancarEstoqueDaNota` e a migration 20260930_lote_e_validade.sql.
+    ========================================================== */
+ {col:'lotes',       tab:'lotes_estoque',
+  campos:function(x){return {sucursal_id:x.sucursalId||lojaAtualId()||null,
+    item_ref:x.itemRef||null,item_nome:x.itemNome||null,
+    lote:x.lote||null,fabricacao:x.fabricacao||null,validade:x.validade||null,
+    quantidade:n(x.quantidade),unidade:x.unidade||null,
+    origem:x.origem||null,origem_ref:x.origemRef||null,documento:x.documento||null}}},
 
  {col:'movEst',      tab:'movimentacoes_estoque',
   campos:function(x){return {data:x.data||null,hora:x.hora||null,
