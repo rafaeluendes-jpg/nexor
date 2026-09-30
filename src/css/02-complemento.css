@@ -438,3 +438,10 @@ select.impIn{padding-right:2px}
   .imMix{flex-direction:column;align-items:stretch}.imRosca{margin:0 auto}
   .imSit{margin-left:0}.imK b{font-size:17px}
 }
+/* PLANO DE CONTAS ESPREMIDO (V391, 30/09/2026)
+   O bloco "O que o sistema lança sozinho" (V377) entrou dentro da tela de
+   altura fixa do Plano de Contas: a árvore encolheu para duas linhas e os
+   botões de ver, editar e excluir ficaram escondidos. A árvore volta a
+   ocupar a tela, como antes; o bloco novo fica embaixo, rolando a página. */
+.catFinCheio{overflow-y:auto}
+.catFinCheio .catDuas{flex:1 0 auto;min-height:max(420px,calc(100vh - 330px))}

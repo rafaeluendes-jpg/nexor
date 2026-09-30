@@ -417,6 +417,10 @@
    "pontos": 19,
    "roda": true
   },
+  "testes/plano-contas-nao-espreme.js": {
+   "pontos": 3,
+   "roda": true
+  },
   "testes/producao-automatica-vinculada.js": {
    "pontos": 14,
    "roda": true
