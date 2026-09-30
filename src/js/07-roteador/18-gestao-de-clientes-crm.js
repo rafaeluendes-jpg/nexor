@@ -403,6 +403,8 @@ function pagarFiado(id){
     DB.lancFin=DB.lancFin||[];
     DB.lancFin.push({id:uid('lf'),tipo:'receita',contaId:ct?ct.value:'',metodoId:$('pfF').value,
       descricao:'Recebimento de fiado — '+c.nome,fornecedor:'',documento:'',
+      categoriaId:categoriaDoEvento('fiado'),
+      pendenciaRegra:!categoriaDoEvento('fiado'),
       categoriaTxt:'Recebimento de fiado',valor:v,emissao:dt,vencimento:dt,pagamento:dt,pago:true,
       origem:'fiado',ref:c.id});
     salvar();telaClientes();

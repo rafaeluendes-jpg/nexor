@@ -639,7 +639,10 @@ function gerarReceberPedido(p){
     id: uid('lf'), tipo: 'receita',
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — ' + (p.sucursalNome || ''),
-    contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
+    contaId: '', metodoId: '',
+    categoriaId: categoriaDoEvento('pedbase-receber'),
+    pendenciaRegra: !categoriaDoEvento('pedbase-receber'),
+    categoriaTxt: 'Pedido de base',
     fornecedor: '', documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: vencimentoPedidoBase(p), pagamento: '',
@@ -886,7 +889,10 @@ async function receberPedidoBase(id){
     id: uid('lf'), tipo: 'despesa',
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — matriz',
-    contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
+    contaId: '', metodoId: '',
+    categoriaId: categoriaDoEvento('pedbase-pagar'),
+    pendenciaRegra: !categoriaDoEvento('pedbase-pagar'),
+    categoriaTxt: 'Pedido de base',
     fornecedor: 'Matriz', documento: '',
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: hojeISO(), pagamento: '',

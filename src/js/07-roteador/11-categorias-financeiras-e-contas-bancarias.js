@@ -1,4 +1,118 @@
 /* ==========================================================
+   NENHUM LANÇAMENTO AUTOMÁTICO ENTRAVA NO DRE (RDS 18)
+
+   Oito eventos do sistema criam lançamento financeiro sozinhos: o
+   fechamento de caixa, a sangria, a transferência entre contas, o acerto
+   com entregadores, o recebimento de fiado, as duas pontas do pedido de
+   base e a nota lançada pela Assistente do WhatsApp.
+
+   Todos nasciam com a categoria escrita à mão no código, como TEXTO
+   solto — "Frente de Caixa", "Transferência", "Acerto com entregadores"
+   —, sem id do plano de contas. E o DRE só enxerga quem tem id:
+
+       var cat=l.categoriaId||''; var rub=c.mapa[cat]; if(!rub)return;
+
+   Ou seja: a venda do dia, a sangria, o acerto do entregador e a compra
+   lançada pela Assistente entravam no Fluxo de Caixa como grupos soltos
+   e SUMIAM do resultado. O DRE mostrava as despesas digitadas à mão e
+   quase nada do que o próprio sistema gera.
+
+   ---------- por que uma tabela, e não um id fixo no código ----------
+   O plano de contas é da RDS e muda: a conta analítica de "venda de
+   balcão" não é a mesma em toda rede, e não é o programador quem decide
+   qual é. A regra passa a ser CONFIGURADA, com vigência e responsável, e
+   o código só a consulta.
+
+   ---------- e o que acontece sem regra ----------
+   A RDS (item 18) é explícita: sem regra válida, não gerar lançamento
+   CONFIRMADO, registrar pendência operacional, e **permitir que o PDV
+   continue**. É isso: o lançamento nasce do mesmo jeito (o caixa não
+   pode parar por causa de cadastro), marcado como pendente de regra — e
+   a tela de Categorias Financeiras diz quantos e quais faltam.
+   ========================================================== */
+var EVENTOS_AUTO=[
+ {id:'fechamento-caixa',  n:'Fechamento de caixa',
+  d:'a venda do turno, uma linha por forma de pagamento',       lado:'receita'},
+ {id:'mov-caixa',         n:'Sangria e suprimento',
+  d:'dinheiro que sai ou entra na gaveta',                      lado:'transferencia'},
+ {id:'transferencia',     n:'Transferência entre contas',
+  d:'de um banco para outro, sem receita nem despesa',          lado:'transferencia'},
+ {id:'acerto-entregador', n:'Acerto com entregadores',
+  d:'o que a loja paga ao entregador no acerto',                lado:'despesa'},
+ {id:'fiado',             n:'Recebimento de fiado',
+  d:'o cliente quitando o que devia',                           lado:'receita'},
+ {id:'pedbase-receber',   n:'Pedido de base — a receber',
+  d:'a matriz cobrando a unidade',                              lado:'receita'},
+ {id:'pedbase-pagar',     n:'Pedido de base — a pagar',
+  d:'a unidade pagando a matriz',                               lado:'despesa'},
+ {id:'assistente-nota',   n:'Nota da Assistente do WhatsApp',
+  d:'a compra que a Assistente lança a partir da foto da nota', lado:'despesa'}
+];
+function regrasAuto(){
+  var c=cfgDRE();
+  if(!c.regrasAuto)c.regrasAuto={};
+  return c.regrasAuto;
+}
+/* a subcategoria configurada para o evento — '' quando não há regra
+   válida (nunca configurada, ou apontando para categoria que sumiu) */
+function categoriaDoEvento(ev){
+  try{
+    var r=regrasAuto()[ev];
+    if(r&&categoriaValida(r))return r;
+  }catch(e){ _quieto(e,'categoriaDoEvento'); }
+  return '';
+}
+function eventosSemRegra(){
+  return EVENTOS_AUTO.filter(function(e){return !categoriaDoEvento(e.id)});
+}
+function salvarRegraAuto(ev){
+  var s=$('ra_'+ev); if(!s)return;
+  var r=regrasAuto();
+  var quem=null; try{ quem=usuarioLogado(); }catch(e){}
+  if(s.value)r[ev]=s.value; else delete r[ev];
+  /* vigência e responsável, como a RDS pede: a regra é uma decisão, e
+     decisão sem dono nem data não se audita */
+  r['_'+ev]={em:new Date().toISOString(),por:(quem&&quem.nome)||''};
+  salvar();
+  toast(s.value?'Regra gravada.':'Regra removida.');
+  telaCatFin();
+  if(NUVEM.ligada)sincronizar();
+}
+function blocoRegrasAuto(){
+  var faltam=eventosSemRegra().length;
+  var opts=function(sel){
+    return '<option value="">— sem regra —</option>'+
+      (DB.catfin||[]).map(function(p){
+        return '<optgroup label="'+E(p.nome)+'">'+
+          (p.itens||[]).map(function(it){
+            return '<option value="'+E(it.id)+'"'+(sel===it.id?' selected':'')+'>'+
+              E(it.nome)+'</option>';}).join('')+'</optgroup>';}).join('');
+  };
+  return '<div class="pnl2"><div class="pnl2H">O que o sistema lança sozinho'+
+   (faltam?' <span class="grpTag semCat">'+faltam+' sem regra</span>':'')+'</div>'+
+   '<div class="pnl2B">'+
+   (faltam
+    ? '<div class="imAviso">'+sv('help',14)+'<div><b>'+faltam+
+      ' evento(s) ainda sem conta do plano de contas.</b> O lançamento continua '+
+      'sendo criado — o caixa não para —, mas sem a conta ele <b>não entra no '+
+      'DRE</b>. Escolha a conta de cada um abaixo.</div></div>'
+    : '<div class="imAviso" style="background:var(--ok-soft);color:var(--ok)">'+
+      sv('check',14)+'<div>Todos os oito eventos têm conta definida: tudo o que o '+
+      'sistema lança sozinho entra no resultado.</div></div>')+
+   '<table class="pTable"><thead><tr><th>Evento</th>'+
+   '<th style="width:280px">Conta do plano de contas</th></tr></thead><tbody>'+
+   EVENTOS_AUTO.map(function(e){
+     var atual=categoriaDoEvento(e.id);
+     return '<tr><td><b>'+E(e.n)+'</b>'+
+      (atual?'':' <span class="grpTag semCat">sem regra</span>')+
+      '<div class="hint" style="margin:2px 0 0">'+E(e.d)+'</div></td>'+
+      '<td><select id="ra_'+E(e.id)+'" onchange="salvarRegraAuto(\''+E(e.id)+'\')">'+
+      opts(atual)+'</select></td></tr>';
+   }).join('')+
+   '</tbody></table></div></div>';
+}
+
+/* ==========================================================
    BLOCO 11 — CATEGORIAS FINANCEIRAS E CONTAS BANCÁRIAS
    ========================================================== */
 var BANCOS=[
@@ -56,8 +170,12 @@ function telaCatFin(){
   '<div class="catDuas">'+
    colunaCatFin('receita','Receita','entradas de dinheiro')+
    colunaCatFin('despesa','Despesa','saídas de dinheiro')+
-  '</div></div>';
-  rodape((DB.catfin||[]).length+' categorias');
+  '</div>'+
+  blocoRegrasAuto()+
+  '</div>';
+  var faltam=eventosSemRegra().length;
+  rodape((DB.catfin||[]).length+' categorias'+
+    (faltam?' · '+faltam+' evento(s) do sistema sem conta':''));
 }
 function colunaCatFin(tipo,titulo,desc){
   titulo=E(titulo);desc=E(desc);   /* P14: nunca entram crus no HTML */

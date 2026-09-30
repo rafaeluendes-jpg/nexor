@@ -2128,7 +2128,12 @@ function lancarFechamento(cx,mov){
     var id=idLancFechamento(cx,f);
     var novo={id:id,tipo:'receita',contaId:contaId,metodoId:f.id,
       descricao:'Vendas — '+f.nome+(taxa?' (taxa R$ '+money(taxa)+')':''),
-      fornecedor:'',documento:'',categoriaTxt:'Frente de Caixa',
+      fornecedor:'',documento:'',
+      /* a conta do plano de contas vem da regra configurada (RDS 18);
+         sem regra, o lancamento nasce igual e fica marcado como pendente */
+      categoriaId:categoriaDoEvento('fechamento-caixa'),
+      pendenciaRegra:!categoriaDoEvento('fechamento-caixa'),
+      categoriaTxt:'Frente de Caixa',
       valor:liq,emissao:dt,vencimento:venc,
       pagamento:Number(f.dias)>0?'':dt,pago:Number(f.dias)>0?false:true,
       origem:'fechamento-caixa',ref:cx.id,sucursalRef:cx.sucursalId||undefined,
@@ -2299,6 +2304,8 @@ function lancarTransferenciaCaixa(cx,mv,tipo){
   var l={id:uid('lf'),tipo:'transferencia',contaId:de,contaDestinoId:para,metodoId:'',
     descricao:(tipo==='sangria'?'Sangria':'Suprimento')+' de caixa: '+
       contaNome(de)+' → '+contaNome(para),
+    categoriaId:categoriaDoEvento('mov-caixa'),
+    pendenciaRegra:!categoriaDoEvento('mov-caixa'),
     categoriaTxt:'Transferência',
     valor:Number(mv.valor)||0,emissao:dt,vencimento:dt,pagamento:dt,pago:true,
     origem:'mov-caixa',ref:mv.id,caixaId:cx.id,

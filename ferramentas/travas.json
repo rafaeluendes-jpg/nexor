@@ -269,6 +269,10 @@
    "pontos": 10,
    "roda": true
   },
+  "testes/lancamento-automatico-entra-no-dre.js": {
+   "pontos": 22,
+   "roda": true
+  },
   "testes/lancamento-categoria-confere.js": {
    "pontos": 27,
    "roda": true

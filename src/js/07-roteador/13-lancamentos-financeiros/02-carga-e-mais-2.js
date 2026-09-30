@@ -1368,7 +1368,10 @@ function modalTransf(){
     if(!v){toast('Informe o valor.');return false;}
     var dt=$('trD').value||hojeISO();
     DB.lancFin.push({id:uid('lf'),tipo:'transferencia',contaId:de,contaDestinoId:para,metodoId:'',
-      descricao:'Transferência: '+contaNome(de)+' → '+contaNome(para),categoriaTxt:'Transferência',
+      descricao:'Transferência: '+contaNome(de)+' → '+contaNome(para),
+      categoriaId:categoriaDoEvento('transferencia'),
+      pendenciaRegra:!categoriaDoEvento('transferencia'),
+      categoriaTxt:'Transferência',
       valor:v,emissao:dt,vencimento:dt,pagamento:dt,pago:true,obs:$('trO').value});
     salvar();telaLancamentos();
     toast('Transferência de R$ '+money(v)+' registrada.');

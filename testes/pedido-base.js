@@ -53,7 +53,11 @@ const amb = {
   baseFin: () => {},
   baseMov: () => {},
   money: v => String(v),
-  dataBR: v => v
+  dataBR: v => v,
+  /* a conta do plano de contas do pedido de base agora vem da regra
+     configurada (V377). Aqui ela nao esta configurada — que e o caso que
+     importa provar: o lancamento nasce do mesmo jeito, so que marcado. */
+  categoriaDoEvento: () => ''
 };
 
 function mundo() {

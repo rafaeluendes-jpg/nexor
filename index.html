@@ -14327,7 +14327,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V376.0.0';
+var VERSAO='V377.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23519,7 +23519,12 @@ function lancarFechamento(cx,mov){
     var id=idLancFechamento(cx,f);
     var novo={id:id,tipo:'receita',contaId:contaId,metodoId:f.id,
       descricao:'Vendas — '+f.nome+(taxa?' (taxa R$ '+money(taxa)+')':''),
-      fornecedor:'',documento:'',categoriaTxt:'Frente de Caixa',
+      fornecedor:'',documento:'',
+      /* a conta do plano de contas vem da regra configurada (RDS 18);
+         sem regra, o lancamento nasce igual e fica marcado como pendente */
+      categoriaId:categoriaDoEvento('fechamento-caixa'),
+      pendenciaRegra:!categoriaDoEvento('fechamento-caixa'),
+      categoriaTxt:'Frente de Caixa',
       valor:liq,emissao:dt,vencimento:venc,
       pagamento:Number(f.dias)>0?'':dt,pago:Number(f.dias)>0?false:true,
       origem:'fechamento-caixa',ref:cx.id,sucursalRef:cx.sucursalId||undefined,
@@ -23690,6 +23695,8 @@ function lancarTransferenciaCaixa(cx,mv,tipo){
   var l={id:uid('lf'),tipo:'transferencia',contaId:de,contaDestinoId:para,metodoId:'',
     descricao:(tipo==='sangria'?'Sangria':'Suprimento')+' de caixa: '+
       contaNome(de)+' → '+contaNome(para),
+    categoriaId:categoriaDoEvento('mov-caixa'),
+    pendenciaRegra:!categoriaDoEvento('mov-caixa'),
     categoriaTxt:'Transferência',
     valor:Number(mv.valor)||0,emissao:dt,vencimento:dt,pagamento:dt,pago:true,
     origem:'mov-caixa',ref:mv.id,caixaId:cx.id,
@@ -27905,7 +27912,10 @@ function modalRealizarAcerto(entId){
     DB.lancFin=DB.lancFin||[];
     DB.lancFin.push({id:uid('lf'),tipo:'despesa',contaId:conta.id,metodoId:'',
       descricao:'Acerto com entregador — '+e.nome+' ('+r.qtd+' entregas)',
-      fornecedor:e.nome,documento:'',categoriaTxt:'Acerto com entregadores',
+      fornecedor:e.nome,documento:'',
+      categoriaId:categoriaDoEvento('acerto-entregador'),
+      pendenciaRegra:!categoriaDoEvento('acerto-entregador'),
+      categoriaTxt:'Acerto com entregadores',
       valor:pago,emissao:ag,vencimento:ag,pagamento:ag,pago:true,
       ref:ac.id,origem:'acerto-entregadores'});
 
@@ -28042,6 +28052,120 @@ function atribuirEntregador(pedId,voltarAcerto){
 }
 
 /* ==========================================================
+   NENHUM LANÇAMENTO AUTOMÁTICO ENTRAVA NO DRE (RDS 18)
+
+   Oito eventos do sistema criam lançamento financeiro sozinhos: o
+   fechamento de caixa, a sangria, a transferência entre contas, o acerto
+   com entregadores, o recebimento de fiado, as duas pontas do pedido de
+   base e a nota lançada pela Assistente do WhatsApp.
+
+   Todos nasciam com a categoria escrita à mão no código, como TEXTO
+   solto — "Frente de Caixa", "Transferência", "Acerto com entregadores"
+   —, sem id do plano de contas. E o DRE só enxerga quem tem id:
+
+       var cat=l.categoriaId||''; var rub=c.mapa[cat]; if(!rub)return;
+
+   Ou seja: a venda do dia, a sangria, o acerto do entregador e a compra
+   lançada pela Assistente entravam no Fluxo de Caixa como grupos soltos
+   e SUMIAM do resultado. O DRE mostrava as despesas digitadas à mão e
+   quase nada do que o próprio sistema gera.
+
+   ---------- por que uma tabela, e não um id fixo no código ----------
+   O plano de contas é da RDS e muda: a conta analítica de "venda de
+   balcão" não é a mesma em toda rede, e não é o programador quem decide
+   qual é. A regra passa a ser CONFIGURADA, com vigência e responsável, e
+   o código só a consulta.
+
+   ---------- e o que acontece sem regra ----------
+   A RDS (item 18) é explícita: sem regra válida, não gerar lançamento
+   CONFIRMADO, registrar pendência operacional, e **permitir que o PDV
+   continue**. É isso: o lançamento nasce do mesmo jeito (o caixa não
+   pode parar por causa de cadastro), marcado como pendente de regra — e
+   a tela de Categorias Financeiras diz quantos e quais faltam.
+   ========================================================== */
+var EVENTOS_AUTO=[
+ {id:'fechamento-caixa',  n:'Fechamento de caixa',
+  d:'a venda do turno, uma linha por forma de pagamento',       lado:'receita'},
+ {id:'mov-caixa',         n:'Sangria e suprimento',
+  d:'dinheiro que sai ou entra na gaveta',                      lado:'transferencia'},
+ {id:'transferencia',     n:'Transferência entre contas',
+  d:'de um banco para outro, sem receita nem despesa',          lado:'transferencia'},
+ {id:'acerto-entregador', n:'Acerto com entregadores',
+  d:'o que a loja paga ao entregador no acerto',                lado:'despesa'},
+ {id:'fiado',             n:'Recebimento de fiado',
+  d:'o cliente quitando o que devia',                           lado:'receita'},
+ {id:'pedbase-receber',   n:'Pedido de base — a receber',
+  d:'a matriz cobrando a unidade',                              lado:'receita'},
+ {id:'pedbase-pagar',     n:'Pedido de base — a pagar',
+  d:'a unidade pagando a matriz',                               lado:'despesa'},
+ {id:'assistente-nota',   n:'Nota da Assistente do WhatsApp',
+  d:'a compra que a Assistente lança a partir da foto da nota', lado:'despesa'}
+];
+function regrasAuto(){
+  var c=cfgDRE();
+  if(!c.regrasAuto)c.regrasAuto={};
+  return c.regrasAuto;
+}
+/* a subcategoria configurada para o evento — '' quando não há regra
+   válida (nunca configurada, ou apontando para categoria que sumiu) */
+function categoriaDoEvento(ev){
+  try{
+    var r=regrasAuto()[ev];
+    if(r&&categoriaValida(r))return r;
+  }catch(e){ _quieto(e,'categoriaDoEvento'); }
+  return '';
+}
+function eventosSemRegra(){
+  return EVENTOS_AUTO.filter(function(e){return !categoriaDoEvento(e.id)});
+}
+function salvarRegraAuto(ev){
+  var s=$('ra_'+ev); if(!s)return;
+  var r=regrasAuto();
+  var quem=null; try{ quem=usuarioLogado(); }catch(e){}
+  if(s.value)r[ev]=s.value; else delete r[ev];
+  /* vigência e responsável, como a RDS pede: a regra é uma decisão, e
+     decisão sem dono nem data não se audita */
+  r['_'+ev]={em:new Date().toISOString(),por:(quem&&quem.nome)||''};
+  salvar();
+  toast(s.value?'Regra gravada.':'Regra removida.');
+  telaCatFin();
+  if(NUVEM.ligada)sincronizar();
+}
+function blocoRegrasAuto(){
+  var faltam=eventosSemRegra().length;
+  var opts=function(sel){
+    return '<option value="">— sem regra —</option>'+
+      (DB.catfin||[]).map(function(p){
+        return '<optgroup label="'+E(p.nome)+'">'+
+          (p.itens||[]).map(function(it){
+            return '<option value="'+E(it.id)+'"'+(sel===it.id?' selected':'')+'>'+
+              E(it.nome)+'</option>';}).join('')+'</optgroup>';}).join('');
+  };
+  return '<div class="pnl2"><div class="pnl2H">O que o sistema lança sozinho'+
+   (faltam?' <span class="grpTag semCat">'+faltam+' sem regra</span>':'')+'</div>'+
+   '<div class="pnl2B">'+
+   (faltam
+    ? '<div class="imAviso">'+sv('help',14)+'<div><b>'+faltam+
+      ' evento(s) ainda sem conta do plano de contas.</b> O lançamento continua '+
+      'sendo criado — o caixa não para —, mas sem a conta ele <b>não entra no '+
+      'DRE</b>. Escolha a conta de cada um abaixo.</div></div>'
+    : '<div class="imAviso" style="background:var(--ok-soft);color:var(--ok)">'+
+      sv('check',14)+'<div>Todos os oito eventos têm conta definida: tudo o que o '+
+      'sistema lança sozinho entra no resultado.</div></div>')+
+   '<table class="pTable"><thead><tr><th>Evento</th>'+
+   '<th style="width:280px">Conta do plano de contas</th></tr></thead><tbody>'+
+   EVENTOS_AUTO.map(function(e){
+     var atual=categoriaDoEvento(e.id);
+     return '<tr><td><b>'+E(e.n)+'</b>'+
+      (atual?'':' <span class="grpTag semCat">sem regra</span>')+
+      '<div class="hint" style="margin:2px 0 0">'+E(e.d)+'</div></td>'+
+      '<td><select id="ra_'+E(e.id)+'" onchange="salvarRegraAuto(\''+E(e.id)+'\')">'+
+      opts(atual)+'</select></td></tr>';
+   }).join('')+
+   '</tbody></table></div></div>';
+}
+
+/* ==========================================================
    BLOCO 11 — CATEGORIAS FINANCEIRAS E CONTAS BANCÁRIAS
    ========================================================== */
 var BANCOS=[
@@ -28099,8 +28223,12 @@ function telaCatFin(){
   '<div class="catDuas">'+
    colunaCatFin('receita','Receita','entradas de dinheiro')+
    colunaCatFin('despesa','Despesa','saídas de dinheiro')+
-  '</div></div>';
-  rodape((DB.catfin||[]).length+' categorias');
+  '</div>'+
+  blocoRegrasAuto()+
+  '</div>';
+  var faltam=eventosSemRegra().length;
+  rodape((DB.catfin||[]).length+' categorias'+
+    (faltam?' · '+faltam+' evento(s) do sistema sem conta':''));
 }
 function colunaCatFin(tipo,titulo,desc){
   titulo=E(titulo);desc=E(desc);   /* P14: nunca entram crus no HTML */
@@ -32983,7 +33111,10 @@ function modalTransf(){
     if(!v){toast('Informe o valor.');return false;}
     var dt=$('trD').value||hojeISO();
     DB.lancFin.push({id:uid('lf'),tipo:'transferencia',contaId:de,contaDestinoId:para,metodoId:'',
-      descricao:'Transferência: '+contaNome(de)+' → '+contaNome(para),categoriaTxt:'Transferência',
+      descricao:'Transferência: '+contaNome(de)+' → '+contaNome(para),
+      categoriaId:categoriaDoEvento('transferencia'),
+      pendenciaRegra:!categoriaDoEvento('transferencia'),
+      categoriaTxt:'Transferência',
       valor:v,emissao:dt,vencimento:dt,pagamento:dt,pago:true,obs:$('trO').value});
     salvar();telaLancamentos();
     toast('Transferência de R$ '+money(v)+' registrada.');
@@ -34878,6 +35009,8 @@ function pagarFiado(id){
     DB.lancFin=DB.lancFin||[];
     DB.lancFin.push({id:uid('lf'),tipo:'receita',contaId:ct?ct.value:'',metodoId:$('pfF').value,
       descricao:'Recebimento de fiado — '+c.nome,fornecedor:'',documento:'',
+      categoriaId:categoriaDoEvento('fiado'),
+      pendenciaRegra:!categoriaDoEvento('fiado'),
       categoriaTxt:'Recebimento de fiado',valor:v,emissao:dt,vencimento:dt,pagamento:dt,pago:true,
       origem:'fiado',ref:c.id});
     salvar();telaClientes();
@@ -37911,7 +38044,10 @@ function gerarReceberPedido(p){
     id: uid('lf'), tipo: 'receita',
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — ' + (p.sucursalNome || ''),
-    contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
+    contaId: '', metodoId: '',
+    categoriaId: categoriaDoEvento('pedbase-receber'),
+    pendenciaRegra: !categoriaDoEvento('pedbase-receber'),
+    categoriaTxt: 'Pedido de base',
     fornecedor: '', documento: 'PB' + String(p.numero || 0).padStart(4, '0'),
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: vencimentoPedidoBase(p), pagamento: '',
@@ -38158,7 +38294,10 @@ async function receberPedidoBase(id){
     id: uid('lf'), tipo: 'despesa',
     descricao: 'Pedido de base #' + String(p.numero || 0).padStart(4, '0') +
                ' — matriz',
-    contaId: '', metodoId: '', categoriaId: '', categoriaTxt: 'Pedido de base',
+    contaId: '', metodoId: '',
+    categoriaId: categoriaDoEvento('pedbase-pagar'),
+    pendenciaRegra: !categoriaDoEvento('pedbase-pagar'),
+    categoriaTxt: 'Pedido de base',
     fornecedor: 'Matriz', documento: '',
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: hojeISO(), pagamento: '',
@@ -43111,7 +43250,10 @@ async function aplicarPendenteAssistente(p){
   var lanc={id:uid('lf'),tipo:'despesa',contaId:'',metodoId:'',
     descricao:'NF '+doc+' — '+(forn?forn.empresa:'sem fornecedor'),
     fornecedor:forn?forn.empresa:'',fornecedorId:forn?forn.id:'',
-    documento:'NF '+doc,categoriaTxt:'',
+    documento:'NF '+doc,
+    categoriaId:categoriaDoEvento('assistente-nota'),
+    pendenciaRegra:!categoriaDoEvento('assistente-nota'),
+    categoriaTxt:'',
     valor:total,emissao:dt,vencimento:dt,
     pagamento:jaPago?dt:'',pago:jaPago,
     origem:'nota-entrada',ref:n.id,

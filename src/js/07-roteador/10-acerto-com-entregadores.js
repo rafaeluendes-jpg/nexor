@@ -722,7 +722,10 @@ function modalRealizarAcerto(entId){
     DB.lancFin=DB.lancFin||[];
     DB.lancFin.push({id:uid('lf'),tipo:'despesa',contaId:conta.id,metodoId:'',
       descricao:'Acerto com entregador — '+e.nome+' ('+r.qtd+' entregas)',
-      fornecedor:e.nome,documento:'',categoriaTxt:'Acerto com entregadores',
+      fornecedor:e.nome,documento:'',
+      categoriaId:categoriaDoEvento('acerto-entregador'),
+      pendenciaRegra:!categoriaDoEvento('acerto-entregador'),
+      categoriaTxt:'Acerto com entregadores',
       valor:pago,emissao:ag,vencimento:ag,pagamento:ag,pago:true,
       ref:ac.id,origem:'acerto-entregadores'});
 
