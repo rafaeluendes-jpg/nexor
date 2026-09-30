@@ -147,7 +147,20 @@ function baseCat(){
     if(c.id==='ct_cofre')c.fixa='cofre';
     return c;
   });
-  /* conta fixa de fábrica: `_semente` — nunca vence a nuvem (28/09/2026) */
+  /* ==========================================================
+     A MESMA TRAVA DE `baseFin` — E AGORA E A MESMA FUNCAO
+
+     Aqui se semeava Caixa e Cofre sempre que eles faltassem, sem
+     perguntar se o download ja tinha chegado. Num aparelho recem
+     atualizado a tela abria com essas duas contas e mais nada: o Itau
+     da loja, que esta na nuvem com agencia, numero e as tres formas de
+     pagamento apontando para ele, simplesmente nao aparecia — e a lista
+     ainda dizia "2 conta(s)", como se fosse a conta completa.
+
+     `podeSemear` e a regra unica: nao nasce semente enquanto o download
+     nao chegou, nem quando a nuvem ja conhece as contas desta loja.
+     ========================================================== */
+  if(!podeSemear('contas'))return;
   if(!temCaixa&&!DB.contas.some(function(c){return c.fixa==='caixa'}))
     DB.contas.unshift({id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',fixa:'caixa',saldoInicial:0,_semente:true});
   if(!temCofre&&!DB.contas.some(function(c){return c.fixa==='cofre'}))
@@ -360,6 +373,27 @@ function lancamentosDaConta(id){
   return (DB.lancFin||[]).filter(function(l){
     return l&&(l.contaId===id||l.contaDestinoId===id);}).length;
 }
+/* ==========================================================
+   LISTA INCOMPLETA NAO PODE PARECER LISTA COMPLETA
+
+   Enquanto o download nao chega, `DB.contas` pode estar vazia ou ter so
+   o que ja estava neste aparelho. A tela mostrava isso com o mesmo
+   rosto de sempre — titulo, total, "2 conta(s)" — e quem olhava
+   concluia que a conta do banco tinha sumido. Foi essa a leitura que
+   levou a cadastrarem o Itau dez vezes.
+
+   O numero nao muda; o que muda e a tela DIZER que ainda esta
+   chegando. Quem sabe que esta incompleto nao cadastra de novo.
+   ========================================================== */
+function avisoContasIncompleto(){
+  if(!esperandoDownload())return '';
+  return '<div class="imAviso">'+sv('help',14)+'<div>'+
+    '<b>Esta lista ainda está chegando da nuvem.</b> O que aparece aqui é o '+
+    'que já estava neste aparelho — pode faltar conta. '+
+    '<b>Não cadastre de novo</b> antes de ela terminar de carregar: a conta '+
+    'do banco e as formas de pagamento ligadas a ela estão guardadas e voltam '+
+    'sozinhas.</div></div>';
+}
 function telaContas(){
   baseCat();
   var contas=DB.contas||[];
@@ -372,6 +406,7 @@ function telaContas(){
    '<div class="ctTotTopo"><span>Saldo total</span><b>R$ '+money(total)+'</b></div>'+
    '<button class="btnP2 ok" onclick="modalConta()">'+sv('plus',14)+' Cadastrar conta</button>'+
   '</div></div>'+
+  avisoContasIncompleto()+
 
   /* uma lista, não um cartão por conta: as três cabem onde antes cabia uma */
   '<div class="ctLista">'+

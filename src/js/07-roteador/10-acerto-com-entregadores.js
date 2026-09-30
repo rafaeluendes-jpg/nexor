@@ -22,9 +22,9 @@ function baseFin(){
      conhece contas desta loja; e o que semeia leva `_semente`, que nunca
      vence a nuvem (temMudancaNaoEnviada). */
   if(!DB.contas||!DB.contas.length){
-    var _jaNaNuvem=!!(DB._uuid&&DB._uuid.contas&&Object.keys(DB._uuid.contas).length);
-    var _esperaDownload=(typeof NUVEM!=='undefined')&&!!NUVEM&&NUVEM.ligada&&!NUVEM.baixou;
-    if(_jaNaNuvem||_esperaDownload){ DB.contas=DB.contas||[]; return; }
+    /* a regra mora em `podeSemear` (01-inicio): uma so, para nao divergir
+       da de `baseCat` no primeiro caso de borda */
+    if(!podeSemear('contas')){ DB.contas=DB.contas||[]; return; }
     DB.contas=[
       {id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',saldo:0,_semente:true},
       {id:'ct_cofre',nome:'Cofre',tipo:'Cofre',saldo:0,_semente:true},

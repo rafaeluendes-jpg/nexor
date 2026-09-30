@@ -39,11 +39,18 @@ um bug seu para uma loja de vender.
 4. **Nunca editar o `index.html` à mão.** Ele é gerado a partir do `src/`.
    Edite o módulo e rode `npm run montar`. `npm test` reprova se os dois
    estiverem fora de compasso.
-5. **Corrigir uma coisa não autoriza alterar outra.** O que já funciona
+5. **Semente de fábrica só nasce DEPOIS do download.** A pergunta é uma
+   só — `podeSemear(colecao)` — e nenhuma tela escreve a sua própria
+   versão dela. Enquanto o download não chega, a tela diz que está
+   chegando em vez de mostrar uma lista incompleta como completa. Foi
+   por essa porta que a conta do Itaú de Santa Fé "sumiu" dez vezes
+   (30/09/2026) sem nunca ter sido apagada. O portão reprova semente sem
+   essa trava.
+6. **Corrigir uma coisa não autoriza alterar outra.** O que já funciona
    continua funcionando, a menos que o pedido cite aquela funcionalidade.
    Configuração da loja é DADO: publicar código nunca repõe valor de
    fábrica. O protocolo inteiro está em `JOIA_REGRAS_DE_ENGENHARIA.md`.
-6. **`VERSAO` (em `src/js/06-interface.js`) e `VERSAO_SW` (em `sw.js`)
+7. **`VERSAO` (em `src/js/06-interface.js`) e `VERSAO_SW` (em `sw.js`)
    sobem juntas.** Se só uma subir, o navegador da loja continua servindo
    o sistema velho do cache — foi o defeito da V195. `testes/versao.js`
    reprova a publicação quando não batem.

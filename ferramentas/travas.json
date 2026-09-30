@@ -137,6 +137,10 @@
    "pontos": 11,
    "roda": true
   },
+  "testes/conta-do-banco-nao-some.js": {
+   "pontos": 23,
+   "roda": true
+  },
   "testes/contador-nao-mente.js": {
    "pontos": 31,
    "roda": true

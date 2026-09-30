@@ -2651,6 +2651,41 @@ var TABS_CADASTRO_REDE=['insumos','fichas_tecnicas','produtos','categorias','fic
    Chamada por quem apaga de verdade, pela tela. E a unica coisa que
    autoriza o espelhamento a apagar da nuvem.
    ========================================================== */
+/* ==========================================================
+   QUANDO UMA SEMENTE DE FABRICA PODE NASCER — REGRA UNICA
+
+   A conta do Itau de Santa Fe sumiu da tela umas dez vezes. Ela NUNCA
+   foi apagada da nuvem: esta la, com agencia, numero, e as tres formas
+   de pagamento (credito, debito e Pix) apontando para ela. O que
+   acontecia era pior de entender — o aparelho mostrava uma lista
+   SEMEADA como se fosse a verdade.
+
+   A trava certa ja existia em `baseFin` desde 28/09: nao semear
+   enquanto o download nao chegou, e nao semear quando a nuvem ja conhece
+   aquela colecao. Mas ela estava escrita LA, e `baseCat` — que roda logo
+   depois, na mesma tela — tinha a sua propria versao, mais fraca: "se
+   nao tem conta Caixa, cria a conta Caixa".
+
+   Entao, num aparelho recem-atualizado, antes do download: `baseFin`
+   corretamente nao semeava nada, e `baseCat` semeava Caixa e Cofre. A
+   tela abria com DUAS contas, dizia "2 conta(s)", e o Itau nao estava
+   la. Para quem olha, a conta sumiu.
+
+   Duas copias da mesma regra divergem no primeiro caso de borda. Agora
+   e uma so, aqui, e as duas perguntam a ela.
+   ========================================================== */
+function esperandoDownload(){
+  try{ return (typeof NUVEM!=='undefined')&&!!NUVEM&&NUVEM.ligada&&!NUVEM.baixou; }
+  catch(e){ return false; }
+}
+function nuvemJaConhece(col){
+  try{ return !!(DB._uuid&&DB._uuid[col]&&Object.keys(DB._uuid[col]).length); }
+  catch(e){ return false; }
+}
+/* true = pode nascer a semente de fabrica desta colecao */
+function podeSemear(col){
+  return !esperandoDownload()&&!nuvemJaConhece(col);
+}
 function declararExclusao(col,id){
   if(!col||!id)return;
   DB._apagados=DB._apagados||{};

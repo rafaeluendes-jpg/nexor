@@ -9874,6 +9874,41 @@ var TABS_CADASTRO_REDE=['insumos','fichas_tecnicas','produtos','categorias','fic
    Chamada por quem apaga de verdade, pela tela. E a unica coisa que
    autoriza o espelhamento a apagar da nuvem.
    ========================================================== */
+/* ==========================================================
+   QUANDO UMA SEMENTE DE FABRICA PODE NASCER — REGRA UNICA
+
+   A conta do Itau de Santa Fe sumiu da tela umas dez vezes. Ela NUNCA
+   foi apagada da nuvem: esta la, com agencia, numero, e as tres formas
+   de pagamento (credito, debito e Pix) apontando para ela. O que
+   acontecia era pior de entender — o aparelho mostrava uma lista
+   SEMEADA como se fosse a verdade.
+
+   A trava certa ja existia em `baseFin` desde 28/09: nao semear
+   enquanto o download nao chegou, e nao semear quando a nuvem ja conhece
+   aquela colecao. Mas ela estava escrita LA, e `baseCat` — que roda logo
+   depois, na mesma tela — tinha a sua propria versao, mais fraca: "se
+   nao tem conta Caixa, cria a conta Caixa".
+
+   Entao, num aparelho recem-atualizado, antes do download: `baseFin`
+   corretamente nao semeava nada, e `baseCat` semeava Caixa e Cofre. A
+   tela abria com DUAS contas, dizia "2 conta(s)", e o Itau nao estava
+   la. Para quem olha, a conta sumiu.
+
+   Duas copias da mesma regra divergem no primeiro caso de borda. Agora
+   e uma so, aqui, e as duas perguntam a ela.
+   ========================================================== */
+function esperandoDownload(){
+  try{ return (typeof NUVEM!=='undefined')&&!!NUVEM&&NUVEM.ligada&&!NUVEM.baixou; }
+  catch(e){ return false; }
+}
+function nuvemJaConhece(col){
+  try{ return !!(DB._uuid&&DB._uuid[col]&&Object.keys(DB._uuid[col]).length); }
+  catch(e){ return false; }
+}
+/* true = pode nascer a semente de fabrica desta colecao */
+function podeSemear(col){
+  return !esperandoDownload()&&!nuvemJaConhece(col);
+}
 function declararExclusao(col,id){
   if(!col||!id)return;
   DB._apagados=DB._apagados||{};
@@ -14434,7 +14469,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V388.0.0';
+var VERSAO='V389.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -27382,9 +27417,9 @@ function baseFin(){
      conhece contas desta loja; e o que semeia leva `_semente`, que nunca
      vence a nuvem (temMudancaNaoEnviada). */
   if(!DB.contas||!DB.contas.length){
-    var _jaNaNuvem=!!(DB._uuid&&DB._uuid.contas&&Object.keys(DB._uuid.contas).length);
-    var _esperaDownload=(typeof NUVEM!=='undefined')&&!!NUVEM&&NUVEM.ligada&&!NUVEM.baixou;
-    if(_jaNaNuvem||_esperaDownload){ DB.contas=DB.contas||[]; return; }
+    /* a regra mora em `podeSemear` (01-inicio): uma so, para nao divergir
+       da de `baseCat` no primeiro caso de borda */
+    if(!podeSemear('contas')){ DB.contas=DB.contas||[]; return; }
     DB.contas=[
       {id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',saldo:0,_semente:true},
       {id:'ct_cofre',nome:'Cofre',tipo:'Cofre',saldo:0,_semente:true},
@@ -28370,7 +28405,20 @@ function baseCat(){
     if(c.id==='ct_cofre')c.fixa='cofre';
     return c;
   });
-  /* conta fixa de fábrica: `_semente` — nunca vence a nuvem (28/09/2026) */
+  /* ==========================================================
+     A MESMA TRAVA DE `baseFin` — E AGORA E A MESMA FUNCAO
+
+     Aqui se semeava Caixa e Cofre sempre que eles faltassem, sem
+     perguntar se o download ja tinha chegado. Num aparelho recem
+     atualizado a tela abria com essas duas contas e mais nada: o Itau
+     da loja, que esta na nuvem com agencia, numero e as tres formas de
+     pagamento apontando para ele, simplesmente nao aparecia — e a lista
+     ainda dizia "2 conta(s)", como se fosse a conta completa.
+
+     `podeSemear` e a regra unica: nao nasce semente enquanto o download
+     nao chegou, nem quando a nuvem ja conhece as contas desta loja.
+     ========================================================== */
+  if(!podeSemear('contas'))return;
   if(!temCaixa&&!DB.contas.some(function(c){return c.fixa==='caixa'}))
     DB.contas.unshift({id:'ct_caixa',nome:'Caixa da loja',tipo:'Caixa',fixa:'caixa',saldoInicial:0,_semente:true});
   if(!temCofre&&!DB.contas.some(function(c){return c.fixa==='cofre'}))
@@ -28583,6 +28631,27 @@ function lancamentosDaConta(id){
   return (DB.lancFin||[]).filter(function(l){
     return l&&(l.contaId===id||l.contaDestinoId===id);}).length;
 }
+/* ==========================================================
+   LISTA INCOMPLETA NAO PODE PARECER LISTA COMPLETA
+
+   Enquanto o download nao chega, `DB.contas` pode estar vazia ou ter so
+   o que ja estava neste aparelho. A tela mostrava isso com o mesmo
+   rosto de sempre — titulo, total, "2 conta(s)" — e quem olhava
+   concluia que a conta do banco tinha sumido. Foi essa a leitura que
+   levou a cadastrarem o Itau dez vezes.
+
+   O numero nao muda; o que muda e a tela DIZER que ainda esta
+   chegando. Quem sabe que esta incompleto nao cadastra de novo.
+   ========================================================== */
+function avisoContasIncompleto(){
+  if(!esperandoDownload())return '';
+  return '<div class="imAviso">'+sv('help',14)+'<div>'+
+    '<b>Esta lista ainda está chegando da nuvem.</b> O que aparece aqui é o '+
+    'que já estava neste aparelho — pode faltar conta. '+
+    '<b>Não cadastre de novo</b> antes de ela terminar de carregar: a conta '+
+    'do banco e as formas de pagamento ligadas a ela estão guardadas e voltam '+
+    'sozinhas.</div></div>';
+}
 function telaContas(){
   baseCat();
   var contas=DB.contas||[];
@@ -28595,6 +28664,7 @@ function telaContas(){
    '<div class="ctTotTopo"><span>Saldo total</span><b>R$ '+money(total)+'</b></div>'+
    '<button class="btnP2 ok" onclick="modalConta()">'+sv('plus',14)+' Cadastrar conta</button>'+
   '</div></div>'+
+  avisoContasIncompleto()+
 
   /* uma lista, não um cartão por conta: as três cabem onde antes cabia uma */
   '<div class="ctLista">'+

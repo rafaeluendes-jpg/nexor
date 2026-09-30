@@ -27,6 +27,51 @@ aprovada é protegida por teste. Uma tarefa só está concluída quando o que
 foi pedido funciona **E** o que já funcionava continua funcionando, provado
 pela bateria verde.
 
+---
+
+## ORDEM DO RAFAEL, 30/09/2026 — a semente de fábrica
+
+*"Eu preciso que você trave todas as atualizações. Não pode apagar outra
+coisa que está salva, não pode estragar outra coisa. Se você está fazendo
+atualização, atualiza só aquilo que está sendo feito."*
+
+O caso que gerou esta ordem: a conta **Itaú — conta corrente** de Santa
+Fé do Sul "sumiu" da tela umas dez vezes, e foi recadastrada outras
+tantas. **Ela nunca foi apagada.** Estava na nuvem o tempo todo, com
+agência 0614, conta 339968, e as três formas de pagamento — crédito
+2,73%/1 dia, débito 0,73%/1 dia e Pix — apontando para ela.
+
+O que sumia era da **tela**: num aparelho recém-atualizado, antes de o
+download chegar, uma semente de fábrica criava "Caixa da loja" e "Cofre",
+a tela dizia *"2 conta(s)"*, e quem olhava concluía que a conta do banco
+tinha sumido.
+
+### As quatro regras da semente
+
+1. **Semente de fábrica só nasce quando o registro AINDA NÃO EXISTE** —
+   e "não existe" significa *depois do download*, não *antes dele*.
+   A pergunta é uma só, e mora num lugar só: **`podeSemear(colecao)`**
+   (`src/js/03-armazenamento/01-inicio.js`). Ela responde não enquanto o
+   download não chegou, e não quando a nuvem já conhece a coleção.
+
+2. **Nenhuma tela escreve a sua própria versão dessa regra.** Duas cópias
+   divergem no primeiro caso de borda — foi exatamente o que aconteceu:
+   `baseFin` tinha a trava desde 28/09 e `baseCat`, que roda logo depois
+   na mesma tela, tinha uma versão mais fraca.
+
+3. **Lista incompleta não pode parecer lista completa.** Enquanto o
+   download não chegou, a tela diz que está chegando e pede para não
+   cadastrar de novo. Quem sabe que está incompleto não recadastra.
+
+4. **O portão reprova semente desprotegida.**
+   `ferramentas/auditar-configuracoes.js` varre todo item marcado com
+   `_semente:true` e exige `podeSemear` em volta. A única exceção é
+   declarada pelo nome, com a prova da mitigação própria (`baseSuc`, que
+   precisa de uma unidade para a tela desenhar, e tem `soSemente()` para
+   que nada seja decidido a partir dela).
+
+Guardião: `testes/conta-do-banco-nao-some.js`.
+
 ```
 ENTENDER → REPRODUZIR → PROTEGER → ALTERAR O MÍNIMO → TESTAR
 → COMPARAR → VALIDAR → COMPROVAR
