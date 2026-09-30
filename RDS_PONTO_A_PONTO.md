@@ -31,14 +31,14 @@ antes de subir.
 
 | Situação | Itens |
 |---|---|
-| ✅ Corrigido e no ar | 22 |
+| ✅ Corrigido e no ar | 26 |
 | 📏 Já existia, conferido | 9 |
-| ⚠️ Pela metade | 4 |
-| ❌ Não existe ainda | 8 |
+| ⚠️ Pela metade | 3 |
+| ❌ Não existe ainda | 6 |
 | 🔒 Espera ordem (pode parar a loja) | 4 |
 
-**Versões publicadas nesta sequência:** V371 a V378 — oito, todas pelo
-portão de 11 etapas, com 291 testes novos trancados.
+**Versões publicadas nesta sequência:** V371 a V380 — dez, todas pelo
+portão de 11 etapas, com 364 testes novos trancados.
 
 > **Uma coisa depende de você agora:** a V377 criou a tabela que liga
 > cada evento do sistema a uma conta do plano de contas. Ela nasce
@@ -171,6 +171,41 @@ faturamento e sobre o cadastro da forma de pagamento, e apareciam com a
 mesma cara de uma linha lançada de verdade.
 
 Guardião: `testes/relatorio-separa-a-unidade.js` — 28 testes.
+
+### V379 — a trilha de auditoria existia só em produção
+*(RDS 22)*
+
+`audit_log`, o gatilho que grava e a trava de imutabilidade rodam no
+banco desde sempre — e a definição deles **não estava em nenhuma
+migração**. Consequências: uma migração de setembro só roda num banco
+que já tenha a função; não havia como provar a trava à RDS; e um banco
+novo nasceria sem auditoria, em silêncio.
+
+A migração é a fotografia do que já roda, conferida por md5 função a
+função. As 35 tabelas auditadas entram como lista **escrita**: tabela
+nova entra por decisão, e tabela que sair aparece no `git diff`.
+
+E a trilha passou a **entrar no backup**. Ficava de fora por padrão —
+auditoria fora do backup não é auditoria, e a trava do banco não protege
+contra quem pode desligar o gatilho (aconteceu: 291.063 linhas apagadas
+em 27/08/2026).
+
+Guardião: `testes/auditoria-versionada.js` — 52 testes.
+
+### V380 — a nota paga sumia com um clique
+*(RDS 19.2)*
+
+O ciclo inverso da RDS tem cinco degraus. O Joia tinha o primeiro (nota
+conciliada não é excluída) e pulava o segundo: uma nota **paga** sumia
+com um clique — o dinheiro já tinha saído da conta, o lançamento ia
+junto e não sobrava contrapartida. O saldo do banco passava a não bater
+sem explicação na tela.
+
+Agora a nota paga é barrada, e excluir exige **motivo escrito** — que é
+gravado e sincronizado antes da exclusão, para chegar à trilha. Até
+aqui a auditoria dizia o que sumiu e quem apagou, nunca por quê.
+
+Guardião: `testes/nota-paga-nao-some.js` — 21 testes.
 
 ---
 
@@ -383,22 +418,19 @@ guarda as duas.
 
 ## O que vem agora, na ordem
 
-1. **Versionar a auditoria numa migração**, copiando do banco o que já
-   está rodando. Risco nenhum, e sem isso não há o que provar à RDS —
-   hoje a trilha existe só como estado de produção, e um banco novo
-   nasceria sem ela.
-2. **Anular em vez de apagar** (RDS 19): nota de entrada, lançamento e
-   conciliação ainda corrigem por exclusão destrutiva, que propaga para
-   a nuvem. Excluir uma nota **paga** é um clique.
-3. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
+1. **Anular em vez de apagar, de verdade** (RDS 19): a nota paga já está
+   protegida, mas excluir ainda é excluir. Marcar como **anulada** e
+   tirar das telas — preservando o registro — toca 24 lugares que leem a
+   lista de notas, e por isso vem como passo próprio.
+2. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
    sistema assume aprovado. Sem esse estado, três linhas da tabela da
    RDS não têm como existir.
-4. **Permissão por ação** (RDS 20): das 18 ações, 1 tem permissão
+3. **Permissão por ação** (RDS 20): das 18 ações, 1 tem permissão
    própria. O formato já funciona ponta a ponta; falta estendê-lo.
-5. **Custo médio: os campos que faltam** (RDS 11) e **classificar o que
+4. **Custo médio: os campos que faltam** (RDS 11) e **classificar o que
    altera custo** (RDS 15).
-6. **Produção automática vinculada** (RDS 6).
-7. **Unidade de compra com fator** (RDS 13) e **lote e validade**
+5. **Produção automática vinculada** (RDS 6).
+6. **Unidade de compra com fator** (RDS 13) e **lote e validade**
    (RDS 14): não existem, e são os dois maiores de construir.
 
 E as quatro que **esperam ordem do Rafael**, porque mudam o que a loja
