@@ -25,9 +25,26 @@
    o que o usuario enxerga nao e backup. Ela NAO pode ir para o
    repositorio nem para o navegador — so para a variavel de ambiente.
 
-   Por padrao o audit_log fica de fora: sao 395 MB de trilha de auditoria
-   contra ~15 MB de dado de negocio, e misturar os dois faz voce parar de
-   guardar backup por ser grande demais. `--com-auditoria` inclui.
+   ==========================================================
+   A TRILHA DE AUDITORIA ENTRA NO BACKUP (RDS 22)
+
+   Ate a V379 o `audit_log` ficava de fora POR PADRAO. O motivo era bom
+   na epoca — eram 395 MB de trilha contra ~15 MB de dado de negocio, e
+   misturar os dois faz a pessoa parar de guardar backup por ser grande
+   demais.
+
+   So que auditoria fora do backup nao e auditoria. A RDS pede retencao
+   minima de cinco anos e trilha protegida; guardar o dado de negocio e
+   deixar o registro de QUEM MEXEU de fora inverte exatamente o que se
+   quer proteger. E a trava de imutabilidade do banco nao cobre isso: o
+   dono do banco pode desligar o gatilho e limpar a tabela (aconteceu em
+   27/08/2026, 291.063 linhas). A copia fora do banco e a unica defesa
+   contra esse caso.
+
+   Depois da limpeza a trilha voltou a um tamanho normal — 46.844 linhas
+   e 69 MB em 30/09/2026, crescendo cerca de mil linhas por dia. Cabe.
+
+   `--sem-auditoria` continua existindo para quando nao couber.
    ========================================================== */
 const fs = require('fs');
 const path = require('path');
@@ -35,11 +52,13 @@ const crypto = require('crypto');
 
 const URL_BASE = process.env.SUPABASE_URL;
 const CHAVE = process.env.SUPABASE_SERVICE_KEY;
-const COM_AUDITORIA = process.argv.includes('--com-auditoria');
+/* entra por padrao; `--sem-auditoria` tira, para quando nao couber */
+const COM_AUDITORIA = !process.argv.includes('--sem-auditoria');
 const DESTINO = process.env.BACKUP_DIR || path.join(__dirname, '..', 'backup');
 
-/* pesadas e reconstruiveis: ficam de fora salvo pedido explicito */
-const FORA = COM_AUDITORIA ? [] : ['audit_log', 'backups'];
+/* `backups` e a tabela dos proprios backups: guardar backup do backup
+   so faz o arquivo dobrar de tamanho a cada rodada */
+const FORA = COM_AUDITORIA ? ['backups'] : ['audit_log', 'backups'];
 
 if (!URL_BASE || !CHAVE) {
   console.error('backup: faltam SUPABASE_URL e SUPABASE_SERVICE_KEY no ambiente.');

@@ -21,12 +21,16 @@
    "pontos": 13,
    "roda": true
   },
+  "testes/auditoria-versionada.js": {
+   "pontos": 23,
+   "roda": true
+  },
   "testes/aviso-em-portugues.js": {
    "pontos": 11,
    "roda": true
   },
   "testes/backup.js": {
-   "pontos": 15,
+   "pontos": 17,
    "roda": true
   },
   "testes/bairro-na-entrega.js": {

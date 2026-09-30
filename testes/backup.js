@@ -29,7 +29,7 @@ function t(nome, ok) {
 }
 
 /* 2.500 linhas: obriga o script a pedir tres paginas */
-const LINHAS = { produtos: 2500, pedidos: 42, clientes: 0 };
+const LINHAS = { produtos: 2500, pedidos: 42, clientes: 0, audit_log: 7 };
 
 function servidor(quebrar) {
   return http.createServer((req, res) => {
@@ -39,7 +39,7 @@ function servidor(quebrar) {
     if (url.pathname === '/rest/v1/' || url.pathname === '/rest/v1') {
       const paths = {};
       Object.keys(LINHAS).forEach(k => { paths['/' + k] = {}; });
-      paths['/audit_log'] = {};                 /* tem de ficar de fora */
+      paths['/backups'] = {};                   /* backup do backup: fica de fora */
       paths['/rpc/alguma_funcao'] = {};         /* nao e tabela */
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ paths }));
@@ -101,7 +101,20 @@ function rodar(porta, destino) {
     t('a ultima linha da terceira pagina veio', b.dados.produtos[2499].id === 2499);
     t('tabela pequena veio inteira', b.dados.pedidos.length === 42);
     t('tabela vazia entra como vazia, nao some', Array.isArray(b.dados.clientes) && b.dados.clientes.length === 0);
-    t('o audit_log ficou de fora', !('audit_log' in b.dados));
+    /* ==========================================================
+       A TRILHA ENTRA NO BACKUP
+
+       Este teste exigia o contrario ate a V379: que o `audit_log`
+       ficasse de fora. Era o comportamento de entao, e o teste estava
+       certo sobre o codigo — mas errado sobre o que um backup precisa
+       ser. Auditoria fora do backup nao e auditoria: a trava de
+       imutabilidade do banco nao protege contra quem pode desligar o
+       gatilho, e a copia fora do banco e a unica defesa nesse caso.
+       ========================================================== */
+    t('a trilha de auditoria ENTRA no backup', 'audit_log' in b.dados);
+    t('e vem com as linhas dela', (b.dados.audit_log || []).length === 7,
+      (b.dados.audit_log || []).length);
+    t('a tabela dos proprios backups continua de fora', !('backups' in b.dados));
     t('a rota de funcao nao virou tabela', !Object.keys(b.dados).some(k => k.startsWith('rpc')));
     t('o manifesto bate com os dados', b.manifesto.produtos === 2500 && b.manifesto.pedidos === 42);
     t('gravou quando foi feito', typeof b.quando === 'string' && b.quando.length > 10);
