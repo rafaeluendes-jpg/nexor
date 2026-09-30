@@ -1308,6 +1308,11 @@ var MAPA=[
     estoque_atual:n(x.estoqueAtual),
     fator:n(x.fator)||1,custo:n(x.custo),custo_ultima:n(x.custoUltima),modo_custo:normModo(x.modoCusto),
     fornecedor_id:fk('fornec',x.fornecedorId),descricao:x.descricao||null,
+    /* o rastro de um custo mexido a mao: quem, quando, de quanto, e por
+       qual caminho (RDS 15). Ate agora so o VALOR novo ficava. */
+    custo_ajustado_em:x.custoAjustadoEm||null,custo_ajustado_por:x.custoAjustadoPor||null,
+    custo_ajustado_de:(x.custoAjustadoDe==null?null:n(x.custoAjustadoDe)),
+    custo_ajustado_origem:x.custoAjustadoOrigem||null,
     gelato_venda:!!x.gelatoVenda,sucursais:x.sucursais||[]}}},
 
  {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
@@ -1491,6 +1496,9 @@ var MAPA=[
  {col:'estoqueUn', espelha:true, tab:'estoque_unidade',
   campos:function(x){return {sucursal_id:x.sucursalId,item_ref:x.itemId,
     tipo:x.tipo||'insumo',estoque:n(x.estoque),custo_medio:n(x.custoMedio),
+    /* o custo medio de quando ainda havia saldo: sem ele, item zerado
+       perde a referencia de quanto custava (RDS 11.2) */
+    ultimo_custo_medio_com_saldo:(x.ultimoCustoMedioComSaldo==null?null:n(x.ultimoCustoMedioComSaldo)),
     atualizado_em:x.atualizadoEm||null}}},
 
  {col:'movEst',      tab:'movimentacoes_estoque',

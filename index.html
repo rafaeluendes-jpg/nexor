@@ -8531,6 +8531,11 @@ var MAPA=[
     estoque_atual:n(x.estoqueAtual),
     fator:n(x.fator)||1,custo:n(x.custo),custo_ultima:n(x.custoUltima),modo_custo:normModo(x.modoCusto),
     fornecedor_id:fk('fornec',x.fornecedorId),descricao:x.descricao||null,
+    /* o rastro de um custo mexido a mao: quem, quando, de quanto, e por
+       qual caminho (RDS 15). Ate agora so o VALOR novo ficava. */
+    custo_ajustado_em:x.custoAjustadoEm||null,custo_ajustado_por:x.custoAjustadoPor||null,
+    custo_ajustado_de:(x.custoAjustadoDe==null?null:n(x.custoAjustadoDe)),
+    custo_ajustado_origem:x.custoAjustadoOrigem||null,
     gelato_venda:!!x.gelatoVenda,sucursais:x.sucursais||[]}}},
 
  {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
@@ -8714,6 +8719,9 @@ var MAPA=[
  {col:'estoqueUn', espelha:true, tab:'estoque_unidade',
   campos:function(x){return {sucursal_id:x.sucursalId,item_ref:x.itemId,
     tipo:x.tipo||'insumo',estoque:n(x.estoque),custo_medio:n(x.custoMedio),
+    /* o custo medio de quando ainda havia saldo: sem ele, item zerado
+       perde a referencia de quanto custava (RDS 11.2) */
+    ultimo_custo_medio_com_saldo:(x.ultimoCustoMedioComSaldo==null?null:n(x.ultimoCustoMedioComSaldo)),
     atualizado_em:x.atualizadoEm||null}}},
 
  {col:'movEst',      tab:'movimentacoes_estoque',
@@ -14410,7 +14418,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V383.0.0';
+var VERSAO='V384.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -37861,6 +37869,23 @@ function ajustaEstoque(ins,qtd,unidade,sinal,suc){
   /* sem estoque nao ha custo medio: ele renasce na proxima entrada.
      Vale para a unidade — zerar em Jales nao pode zerar o custo de Sorocaba. */
   if(novo<=0.00001){
+    /* ==========================================================
+       ZERAR O CUSTO NAO PODE APAGAR A MEMORIA DELE (RDS 11.2)
+
+       Zerar esta certo: custo medio e o preco do que esta la dentro, e
+       sem nada dentro ele e zero. O que faltava era a outra metade da
+       regra — "preservar o ultimo custo medio conhecido".
+
+       Sem isso, um item que zerou perde a unica referencia de quanto
+       ele custava, e o sistema cai em `custoUltima` (o preco da ultima
+       COMPRA), que e outra coisa. Numa rede em que cada unidade compra
+       pelo seu preco, e a coisa errada.
+       ========================================================== */
+    var _antesZerar=custoMedioUn(ins.id,suc);
+    if(_antesZerar>0){
+      var _r=regEstoque(ins.id,suc,true);
+      if(_r)_r.ultimoCustoMedioComSaldo=+Number(_antesZerar).toFixed(6);
+    }
     setCustoUn(ins.id,0,suc);
     if(suc===lojaAtualId())ins.custo=0;
   }
@@ -42750,10 +42775,26 @@ async function fecharContagem(){
       :'')+
     'O estoque será ajustado e o lançamento vai para a movimentação.'+avisoPreco))return;
   /* grava o custo antes do ajuste, para a movimentacao ja usar o valor novo */
+  var _quemC=null; try{ _quemC=usuarioLogado(); }catch(e){}
   precos.forEach(function(p2){
+    /* ==========================================================
+       `modoCusto='manual'` NAO FAZIA NADA
+
+       Isto era gravado aqui e `normModo()` convertia de volta para
+       'media' na leitura seguinte: a contagem achava que tinha fixado o
+       custo e o sistema descartava a intencao, em silencio. Campo que
+       se escreve e que ninguem le e o comeco do proximo defeito.
+
+       O valor em si fica, e continua ficando — o custo do item passa a
+       ser o digitado ate a proxima entrada. O que faltava era o RASTRO:
+       quem mudou, quando, e de quanto para quanto (RDS 15).
+       ========================================================== */
+    p2.item.custoAjustadoDe=Number(p2.item.custo)||0;
     p2.item.custo=p2.para;
     p2.item.custoUltima=p2.para;
-    p2.item.modoCusto='manual';
+    p2.item.custoAjustadoEm=new Date().toISOString();
+    p2.item.custoAjustadoPor=(_quemC&&_quemC.nome)||'';
+    p2.item.custoAjustadoOrigem='contagem de estoque';
   });
   /* ==========================================================
      O AJUSTE LEVA A DATA DA CONTAGEM, NAO A DE HOJE
@@ -44060,7 +44101,18 @@ function lancarEstoqueDaNota(n){
     var i2=insumo(it.insumoId);
     if(!i2)return;
     i2.compras=i2.compras||[];
-    i2.compras.push({data:n.data,qtd:it.qtd,valor:+(it.total/it.qtd).toFixed(6),notaId:n.id});
+    /* ==========================================================
+       DE QUEM E COM QUAL DOCUMENTO (RDS 11)
+
+       A RDS pede, junto do preco da ultima compra, a DATA, o FORNECEDOR
+       e o DOCUMENTO dela. A data e o id da nota ja estavam aqui; o
+       fornecedor e o numero da nota nao — e sao justamente o que alguem
+       precisa para conferir um preco que parece errado, sem ter de abrir
+       a nota para descobrir de quem foi a compra.
+       ========================================================== */
+    i2.compras.push({data:n.data,qtd:it.qtd,valor:+(it.total/it.qtd).toFixed(6),
+      notaId:n.id,notaNumero:n.numero||'',
+      fornecedorId:n.fornecedorId||'',fornecedor:n.fornecedorNome||''});
     i2.custoUltima=+(it.total/it.qtd).toFixed(6);
   });
 }

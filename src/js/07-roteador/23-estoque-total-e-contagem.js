@@ -933,10 +933,26 @@ async function fecharContagem(){
       :'')+
     'O estoque será ajustado e o lançamento vai para a movimentação.'+avisoPreco))return;
   /* grava o custo antes do ajuste, para a movimentacao ja usar o valor novo */
+  var _quemC=null; try{ _quemC=usuarioLogado(); }catch(e){}
   precos.forEach(function(p2){
+    /* ==========================================================
+       `modoCusto='manual'` NAO FAZIA NADA
+
+       Isto era gravado aqui e `normModo()` convertia de volta para
+       'media' na leitura seguinte: a contagem achava que tinha fixado o
+       custo e o sistema descartava a intencao, em silencio. Campo que
+       se escreve e que ninguem le e o comeco do proximo defeito.
+
+       O valor em si fica, e continua ficando — o custo do item passa a
+       ser o digitado ate a proxima entrada. O que faltava era o RASTRO:
+       quem mudou, quando, e de quanto para quanto (RDS 15).
+       ========================================================== */
+    p2.item.custoAjustadoDe=Number(p2.item.custo)||0;
     p2.item.custo=p2.para;
     p2.item.custoUltima=p2.para;
-    p2.item.modoCusto='manual';
+    p2.item.custoAjustadoEm=new Date().toISOString();
+    p2.item.custoAjustadoPor=(_quemC&&_quemC.nome)||'';
+    p2.item.custoAjustadoOrigem='contagem de estoque';
   });
   /* ==========================================================
      O AJUSTE LEVA A DATA DA CONTAGEM, NAO A DE HOJE

@@ -888,7 +888,8 @@
     "estoque": "numeric",
     "custo_medio": "numeric",
     "atualizado_em": "timestamp with time zone",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "ultimo_custo_medio_com_saldo": "numeric"
    },
    "unicos": [
     [
@@ -1301,7 +1302,11 @@
     "replicado_de": "uuid",
     "replicado_em": "timestamp with time zone",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "custo_ajustado_em": "timestamp with time zone",
+    "custo_ajustado_por": "text",
+    "custo_ajustado_de": "numeric",
+    "custo_ajustado_origem": "text"
    },
    "unicos": [
     [

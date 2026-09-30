@@ -354,6 +354,23 @@ function ajustaEstoque(ins,qtd,unidade,sinal,suc){
   /* sem estoque nao ha custo medio: ele renasce na proxima entrada.
      Vale para a unidade — zerar em Jales nao pode zerar o custo de Sorocaba. */
   if(novo<=0.00001){
+    /* ==========================================================
+       ZERAR O CUSTO NAO PODE APAGAR A MEMORIA DELE (RDS 11.2)
+
+       Zerar esta certo: custo medio e o preco do que esta la dentro, e
+       sem nada dentro ele e zero. O que faltava era a outra metade da
+       regra — "preservar o ultimo custo medio conhecido".
+
+       Sem isso, um item que zerou perde a unica referencia de quanto
+       ele custava, e o sistema cai em `custoUltima` (o preco da ultima
+       COMPRA), que e outra coisa. Numa rede em que cada unidade compra
+       pelo seu preco, e a coisa errada.
+       ========================================================== */
+    var _antesZerar=custoMedioUn(ins.id,suc);
+    if(_antesZerar>0){
+      var _r=regEstoque(ins.id,suc,true);
+      if(_r)_r.ultimoCustoMedioComSaldo=+Number(_antesZerar).toFixed(6);
+    }
     setCustoUn(ins.id,0,suc);
     if(suc===lojaAtualId())ins.custo=0;
   }

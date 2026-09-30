@@ -600,7 +600,18 @@ function lancarEstoqueDaNota(n){
     var i2=insumo(it.insumoId);
     if(!i2)return;
     i2.compras=i2.compras||[];
-    i2.compras.push({data:n.data,qtd:it.qtd,valor:+(it.total/it.qtd).toFixed(6),notaId:n.id});
+    /* ==========================================================
+       DE QUEM E COM QUAL DOCUMENTO (RDS 11)
+
+       A RDS pede, junto do preco da ultima compra, a DATA, o FORNECEDOR
+       e o DOCUMENTO dela. A data e o id da nota ja estavam aqui; o
+       fornecedor e o numero da nota nao — e sao justamente o que alguem
+       precisa para conferir um preco que parece errado, sem ter de abrir
+       a nota para descobrir de quem foi a compra.
+       ========================================================== */
+    i2.compras.push({data:n.data,qtd:it.qtd,valor:+(it.total/it.qtd).toFixed(6),
+      notaId:n.id,notaNumero:n.numero||'',
+      fornecedorId:n.fornecedorId||'',fornecedor:n.fornecedorNome||''});
     i2.custoUltima=+(it.total/it.qtd).toFixed(6);
   });
 }
