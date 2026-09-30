@@ -1161,7 +1161,8 @@ async function cancelarCupom(id){
     ok:'Cancelar na SEFAZ',tipo:'perigo'});
   if(!ok)return;
   var suc=c.sucursalId||lojaAtualId();
-  if(!fiscalEmite(suc)||!c.spedyId){
+  /* sem o identificador da Spedy (cupom que desceu da nuvem) vai pela venda */
+  if(!fiscalEmite(suc)){
     toast('Este cupom não foi emitido pela Spedy — nada a cancelar na SEFAZ.');
     return;
   }
@@ -1171,10 +1172,11 @@ async function cancelarCupom(id){
   motivo=String(motivo).trim();
   if(motivo.length<15){toast('Escreva o motivo com pelo menos 15 letras.');return;}
   toast('Pedindo o cancelamento à SEFAZ…');
-  var r=await fiscalChamar('cancelar',{sucursal:suc,id:c.spedyId,motivo:motivo});
+  var r=await fiscalPedirCancelamento(c,suc,motivo);
   if(!r.ok){painelErro('A SEFAZ não cancelou o cupom.',(r.d&&r.d.erro)||'O servidor recusou.');return;}
   c.motivoCancelamento=motivo;
   if(r.d.nota)aplicarNotaNoCupom(c,r.d.nota);
+  if(c.status==='cancelado'){c.precisaCancelar=false;c.motivoPendencia='';}
   /* o cancelamento é assíncrono: acompanha até a SEFAZ confirmar */
   if(c.status==='autorizado'){c.status='enviando';acompanharCupom(c.id).then(function(){
     if(document.getElementById('cfDe'))telaCuponsFiscais();});}

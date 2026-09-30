@@ -124,12 +124,37 @@ function cartaoCancelamento(p){
      '<input id="cvSenha" type="password" placeholder="senha de acesso" autocomplete="off">'+
      '</div>'+
    '</div>'+
+   blocoCupomNoCancelamento(p)+
    '<div class="cncAviso">'+sv('help',14)+
     '<div>Ao cancelar: o estoque volta, o valor sai do faturamento e '+
     'o gerente é avisado no WhatsApp.</div></div>'+
    '<button class="btnP2 rdB" style="width:100%;justify-content:center;margin-top:12px" '+
     'onclick="confirmarCancelamento(\''+p.id+'\')">'+sv('x2',13)+' Cancelar a venda #'+E(p.numero)+'</button>'+
   '</div>';
+}
+/* ==========================================================
+   O CUPOM FISCAL APARECE NA HORA DE CANCELAR (Rafael, 30/09/2026)
+
+   "Quando for cancelar essa venda, precisa ja aparecer na frente de
+   caixa a opcao de cancelar o cupom fiscal, para nao pagar imposto por
+   uma venda que foi cancelada." Venda com cupom valendo na Receita
+   mostra o numero dele e ja vem marcada para cancelar junto.
+   ========================================================== */
+function cupomValendoDaVenda(p){
+  try{
+    var c=(typeof cupomFiscalDoPedido==='function')?cupomFiscalDoPedido(p):null;
+    return (c&&(c.status==='autorizado'||c.status==='contingencia'))?c:null;
+  }catch(e){ _quieto(e,'cupomValendoDaVenda'); return null; }
+}
+function blocoCupomNoCancelamento(p){
+  var c=cupomValendoDaVenda(p);
+  if(!c)return '';
+  return '<label class="cncOp on" style="margin-top:12px">'+
+    '<input type="checkbox" id="cvCupom" checked '+
+     'onchange="this.parentNode.classList.toggle(\'on\',this.checked)">'+
+    '<span><b>Cancelar também o cupom fiscal nº '+E(c.numero||'')+' na Receita</b>'+
+    '<small>assim a loja não paga imposto sobre esta venda. A Receita só aceita '+
+    'o cancelamento nas primeiras horas depois da venda.</small></span></label>';
 }
 /* mostra a senha so quando o operador escolhido tem senha cadastrada */
 function produzidoEscolhido(){
@@ -214,6 +239,9 @@ async function confirmarCancelamento(id){
     return;
   }
   var foiProduzido = (prod==='sim');
+  var cupomV=cupomValendoDaVenda(p);
+  var cxCupom=$('cvCupom');
+  var cancelaCupom=!!cupomV&&(!cxCupom||cxCupom.checked);
   var ok=await confirmar({
     titulo:'Cancelar a venda #'+p.numero,
     texto:E(p.clienteNome||'Consumidor'),
@@ -222,7 +250,9 @@ async function confirmarCancelamento(id){
             ['Motivo',motivo,''],
             ['Produzido',foiProduzido?'Sim':'Não',''],
             ['Estoque',foiProduzido?'não volta':'volta para o saldo',''],
-            ['Quem cancela',op.nome,'']],
+            ['Quem cancela',op.nome,'']].concat(cupomV?[['Cupom fiscal',
+              'nº '+(cupomV.numero||'')+(cancelaCupom?' — será cancelado na Receita':' — continua valendo'),
+              '']]:[]),
     aviso:(foiProduzido
       ? 'O pedido já foi produzido: o estoque NÃO volta, porque o insumo já foi consumido. '
       : 'O pedido não foi produzido: os itens voltam para o estoque. ')+
@@ -288,9 +318,15 @@ async function confirmarCancelamento(id){
      foi feito. Falhou, vira pendencia escrita no cupom.
      ========================================================== */
   try{
-    cancelarCupomDaVenda(p,p.motivoCancelamento).then(function(r){
+    cancelarCupomDaVenda(p,p.motivoCancelamento,{manterCupom:!!cupomV&&!cancelaCupom}).then(function(r){
       salvar();
-      if(r&&!r.feito&&r.porque!=='sem cupom')
+      if(r&&r.feito&&r.porque==='enviado'){
+        var c2=cupomFiscalDoPedido(p);
+        toast(c2&&c2.status==='cancelado'
+          ?'Cupom fiscal nº '+(c2.numero||'')+' cancelado na Receita.'
+          :'Cancelamento do cupom fiscal enviado à Receita.');
+      }
+      else if(r&&!r.feito&&r.porque!=='sem cupom'&&r.porque!=='mantido')
         toast('Venda cancelada. O cupom fiscal ficou pendente — veja em Cupons Fiscais.');
       if(NUVEM.ligada)sincronizar();
     }).catch(function(e){_quieto(e,'cancelarCupomDaVenda')});

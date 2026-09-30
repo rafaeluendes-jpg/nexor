@@ -553,6 +553,10 @@
    "pontos": 8,
    "roda": true
   },
+  "testes/venda-cancelada-cancela-cupom.js": {
+   "pontos": 21,
+   "roda": true
+  },
   "testes/versao-vista-bancos-taxas.js": {
    "pontos": 31,
    "roda": true

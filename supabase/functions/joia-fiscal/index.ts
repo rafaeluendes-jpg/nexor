@@ -835,13 +835,45 @@ Deno.serve(async (req) => {
        CANCELAR — so gerente da unidade ou a rede, com motivo
        ====================================================== */
     if (acao === "cancelar") {
-      if (!ref || !podeGerir) return responde(403, { erro: "Cancelar cupom é com o gerente ou a matriz." }, h);
+      if (!ref) return responde(403, { erro: "Cancelar cupom é com o gerente ou a matriz." }, h);
       const motivo = String(corpo.motivo || "").trim();
       if (motivo.length < 15) return responde(400, { erro: "Escreva o motivo com pelo menos 15 letras." }, h);
       const u = await unidadeFiscal();
       const chave = await chaveDaUnidade(u);
       if (!chave) return responde(409, { erro: "Esta loja não está ligada à Spedy." }, h);
-      const id = String(corpo.id || "");
+      let id = String(corpo.id || "");
+      /* sem o identificador da Spedy (o cupom que desceu da nuvem nao o
+         traz), acha a nota pela venda */
+      if (!id && corpo.integrationId) {
+        const l = await spedy(chave, "GET", `/consumer-invoices?integrationId=${encodeURIComponent(String(corpo.integrationId))}&page=1&pageSize=1`);
+        id = String(l.d?.items?.[0]?.id || "");
+        if (!id) return responde(404, { erro: "Não achei este cupom na Spedy." }, h);
+      }
+      /* ======================================================
+         O CAIXA CANCELA O CUPOM DA VENDA QUE ELE CANCELOU (30/09/2026)
+
+         Santa Fe: a venda 2545 foi cancelada no PDV e o cupom 41 ficou
+         autorizado — o computador da loja entra como operador, e esta
+         porta so abria para gerente e matriz. O imposto seria pago sobre
+         uma venda que nao existe.
+
+         A venda so e cancelada no PDV com a senha de quem pode cancelar.
+         Entao, fora gerente e matriz, o cancelamento do cupom passa quando
+         a VENDA dele esta cancelada no banco — conferido aqui, pela
+         venda da propria nota, e da mesma unidade.
+         ====================================================== */
+      if (!podeGerir) {
+        const g0 = await spedy(chave, "GET", `/consumer-invoices/${encodeURIComponent(id)}`);
+        const integ = String(g0.d?.integrationId || "").replace(/-r\d+$/, "");
+        let vendaCancelada = false;
+        if (integ) {
+          const { data: pv } = await db.from("pedidos").select("fase, sucursal_id")
+            .eq("loja_id", loja).eq("ref_local", integ).maybeSingle();
+          vendaCancelada = !!pv && pv.fase === "cancelado" && (!pv.sucursal_id || pv.sucursal_id === ref);
+        }
+        if (!vendaCancelada)
+          return responde(403, { erro: "Cancelar cupom é com o gerente ou a matriz.", codigo: "venda_nao_cancelada" }, h);
+      }
       const r = await spedy(chave, "DELETE", `/consumer-invoices/${encodeURIComponent(id)}`, { reason: motivo });
       await registrar(ref, "cancelar", r.ok ? "pedido" : "recusado", { status: r.status }, id);
       if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) }, h);

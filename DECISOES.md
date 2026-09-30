@@ -7246,3 +7246,21 @@ Guardião: `testes/lei-fabrica-no-banco.js`.
 - Guardiões: `testes/nota-loja-confirmada.js`, `testes/versao-vista-bancos-taxas.js`.
 - **Ordem de ativação:** a coluna já existe; o gatilho só é ligado depois que a
   V364 estiver no ar (aparelho antigo não manda a versão e seria recusado).
+
+## V397 — cancelar a venda cancela o cupom fiscal (30/09/2026)
+
+Santa Fé: vendas 2545 (cupom 41) e 2508 (cupom 4) canceladas no caixa com o
+cupom ainda autorizado na Receita. O computador da loja entra como operador
+e o servidor só deixava gerente e matriz cancelar cupom; e o cupom que
+desce da nuvem não traz o identificador da Spedy.
+
+- Servidor (`joia-fiscal` v10): o operador cancela o cupom quando a venda
+  DAQUELE cupom está cancelada no banco, na mesma unidade. Sem o
+  identificador, a nota é achada pela venda (`integrationId`).
+- Caixa: a tela de cancelar a venda mostra "Cancelar também o cupom fiscal
+  nº X na Receita", já marcada. Desmarcar deixa a pendência escrita em
+  Cupons Fiscais.
+- Se a venda cancelada ainda não subiu, o caixa sobe e tenta de novo.
+- Cupom a caminho que a Receita autorizar depois é cancelado; recusado de
+  venda cancelada não é reenviado nem impresso.
+- Guardião: `testes/venda-cancelada-cancela-cupom.js`.

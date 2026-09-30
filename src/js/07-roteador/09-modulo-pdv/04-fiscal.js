@@ -113,7 +113,24 @@ function cupomFiscalDoPedido(ped){
   return baseCuponsFiscais().find(function(c){
     return (c.pedidoId===ped.id)||(c.pedidoRef&&c.pedidoRef===ped.ref_local);})||null;
 }
-async function cancelarCupomDaVenda(ped,motivo){
+/* ==========================================================
+   O CUPOM DA VENDA CANCELADA FICAVA VALENDO (30/09/2026)
+
+   Santa Fe: a venda 2545 foi cancelada no caixa e o cupom 41 continuou
+   autorizado — imposto sobre venda que nao existe. Tres portas fechavam
+   o caminho, e as tres estao abertas agora:
+     · o servidor so deixava gerente e matriz cancelar cupom; o caixa
+       entra como operador. Agora ele cancela o cupom da venda que ele
+       mesmo cancelou (o servidor confere a venda no banco);
+     · cupom que desceu da nuvem nao traz o identificador da Spedy, e
+       sem ele o cancelamento nem era pedido. Agora vai pela venda;
+     · a venda cancelada podia nao ter chegado a nuvem quando o pedido
+       de cancelamento saia. Agora sobe a venda e tenta de novo.
+   E o cupom que ainda estava a caminho, se a Receita autorizar depois,
+   e cancelado assim que a autorizacao chega.
+   ========================================================== */
+async function cancelarCupomDaVenda(ped,motivo,opcoes){
+  opcoes=opcoes||{};
   var c=cupomFiscalDoPedido(ped);
   if(!c)return {feito:false,porque:'sem cupom'};
   /* cupom que nunca virou documento nao tem o que cancelar na SEFAZ */
@@ -121,6 +138,20 @@ async function cancelarCupomDaVenda(ped,motivo){
     if(c.status==='pendente'||c.status==='enviando'){
       /* estava a caminho: marca para nao ser emitido */
       c.naoEmitir=true;c.motivoPendencia='Venda cancelada antes da autorização.';
+      /* ja tinha ido para a Receita: se ela autorizar, cancela na hora */
+      if(c.status==='enviando'&&!opcoes.segunda){
+        acompanharCupom(c.id).then(function(c2){
+          if(c2&&(c2.status==='autorizado'||c2.status==='contingencia'))
+            return cancelarCupomDaVenda(ped,motivo,{segunda:true}).then(function(){salvar();});
+        }).catch(function(e){_quieto(e,'cancelarCupomDaVenda')});
+      }
+      return {feito:true,porque:'cupom nao autorizado'};
+    }
+    /* recusado pela Receita nao vale como documento — e nao pode ser
+       reenviado para uma venda que nao existe mais */
+    if(c.status==='rejeitado'||c.status==='sem_valor'){
+      c.naoEmitir=true;c.status='sem_cupom';
+      c.motivo='Venda cancelada — o cupom não tinha sido aceito pela Receita, nada a cancelar.';
       return {feito:true,porque:'cupom nao autorizado'};
     }
     return {feito:false,porque:'cupom '+(c.status||'sem status')};
@@ -130,13 +161,17 @@ async function cancelarCupomDaVenda(ped,motivo){
      e so morre quando a SEFAZ confirmar */
   c.precisaCancelar=true;
   c.motivoPendencia='Venda cancelada — cupom ainda autorizado na SEFAZ.';
-  if(!fiscalEmite(suc)||!c.spedyId){
+  if(opcoes.manterCupom){
+    c.motivoPendencia='Venda cancelada — quem cancelou escolheu manter o cupom. '+
+      'Ele continua valendo na Receita: cancele em Cupons Fiscais se for o caso.';
+    return {feito:false,porque:'mantido'};
+  }
+  if(!fiscalEmite(suc)){
     c.motivoPendencia='Venda cancelada. Este cupom não foi emitido pela Spedy: '+
       'o cancelamento tem de ser feito com o contador.';
     return {feito:false,porque:'sem spedyId'};
   }
-  var r=await fiscalChamar('cancelar',
-    {sucursal:suc,id:c.spedyId,motivo:motivoFiscalDoCancelamento(ped,motivo)});
+  var r=await fiscalPedirCancelamento(c,suc,motivoFiscalDoCancelamento(ped,motivo));
   if(!r.ok){
     /* ==========================================================
        FORA DO PRAZO NAO E ERRO DE SISTEMA (RDS 9.3)
@@ -164,6 +199,20 @@ async function cancelarCupomDaVenda(ped,motivo){
     }).catch(function(){});
   }
   return {feito:true,porque:'enviado'};
+}
+/* pede o cancelamento pelo identificador da Spedy ou, sem ele, pela venda.
+   A venda cancelada agora pode ainda nao estar na nuvem — e o servidor so
+   deixa o caixa cancelar cupom de venda cancelada: sobe e tenta de novo. */
+async function fiscalPedirCancelamento(c,suc,motivo){
+  var alvo=c.spedyId?{id:c.spedyId}:{integrationId:c.integ||c.pedidoId};
+  var r=null;
+  for(var t=0;t<4;t++){
+    r=await fiscalChamar('cancelar',Object.assign({sucursal:suc,motivo:motivo},alvo));
+    if(r.ok||!(r.d&&r.d.codigo==='venda_nao_cancelada'))break;
+    try{ if(typeof sincronizar==='function')await sincronizar(); }catch(e){_quieto(e,'fiscalPedirCancelamento')}
+    await new Promise(function(ok){setTimeout(ok,1500*(t+1))});
+  }
+  return r;
 }
 async function fiscalCarregar(suc,leve){
   suc=suc||lojaAtualId();
@@ -511,6 +560,7 @@ async function emitirCupom(cupomId){
      para uma venda que nao existe mais */
   if(c.naoEmitir){c.status='sem_cupom';c.motivo=c.motivoPendencia||'Venda cancelada.';return c;}
   var ped=(DB.pedidos||[]).find(function(p){return p.id===c.pedidoId});
+  if(ped&&ehCancelado(ped)){c.naoEmitir=true;c.status='sem_cupom';c.motivo='Venda cancelada.';return c;}
   var suc=c.sucursalId||(ped&&ped.sucursalId)||lojaAtualId();
   c.sucursalId=suc;
   if(!NUVEM.ligada||!NUVEM.token){
@@ -646,6 +696,8 @@ async function fiscalReprocessar(){
     if(c.status!=='pendente'&&c.status!=='enviando'&&!ehNumeroRepetido(c))return false;
     var ped=(DB.pedidos||[]).find(function(p){return p.id===c.pedidoId});
     if(!ped)return false;
+    /* venda cancelada nao ganha cupom novo */
+    if(c.naoEmitir||ehCancelado(ped))return false;
     if(new Date(ped.data||c.data).getTime()<limite)return false;
     /* só o que já tinha sido mandado emitir: venda feita antes de a loja
        ligar a emissão não vira cupom sozinha, horas depois */
@@ -1467,7 +1519,7 @@ async function imprimirDanfe(cupomId){
    sai horas depois não imprime sozinho no meio do movimento */
 async function fsDepoisDeEmitir(c){
   if(!c||(c.status!=='autorizado'&&c.status!=='contingencia'))return;
-  if(!c.querEmitir||c.impressoEm)return;
+  if(!c.querEmitir||c.impressoEm||c.naoEmitir)return;   /* venda cancelada nao imprime */
   var u=fiscalUn(c.sucursalId||lojaAtualId());
   var recente=(Date.now()-new Date(String(c.data||'')+'T'+(c.hora||'00:00')+':00').getTime())<10*60*1000;
   if(!recente)return;
