@@ -24,14 +24,22 @@ não pode voltar a quebrar.
 
 ## Placar geral
 
+Ordem do Rafael, 30/09/2026: *"tem que ser feito 100%, não existe isso
+fazer pela metade. E 11 que não existe no Joia, vamos fazer"*. É o que
+está acontecendo — item por item, cada um com o portão inteiro verde
+antes de subir.
+
 | Situação | Itens |
 |---|---|
-| ✅ Corrigido e no ar | 6 |
-| 🔨 Em andamento | — |
-| 📏 Já existe, medido e honesto | 9 |
-| ⚠️ Pela metade | 12 |
-| ❌ Não existe | 11 |
-| 🔒 Depende de decisão (pode parar a loja) | 4 |
+| ✅ Corrigido e no ar | 17 |
+| 📏 Já existia, conferido | 9 |
+| ⚠️ Pela metade | 7 |
+| ❌ Não existe ainda | 9 |
+| 🔒 Espera ordem (pode parar a loja) | 4 |
+
+**Versões publicadas nesta sequência:** V371, V372, V373, V374, V375,
+V376 — seis, todas pelo portão de 11 etapas, com 222 testes novos
+trancados.
 
 ---
 
@@ -62,6 +70,61 @@ Guardião: `testes/cancelar-e-voltar.js` — 50 testes.
 | No Comparativo, o faturamento vem da nuvem e o custo só do aparelho (90 dias). Para o ano passado: faturamento cheio, CMV zero, **"Margem bruta 100,0%"** — um número redondo e falso. | Não dá para inventar o custo que não está aqui. A tela passa a **dizer** que aquele pedaço não chegou, no aviso amarelo que o sistema já usa. |
 
 Guardião: `testes/relatorio-nao-mente.js` — 38 testes.
+
+### V373 — cancelar a venda mexia só no estoque
+*(RDS 8, 9.1, 9.3, 26)*
+
+A venda cria seis coisas. O cancelamento desfazia uma.
+
+| O que estava errado | O que foi feito |
+|---|---|
+| **O cliente continuava devendo.** O fiado entrou como débito e o crédito nunca saiu: venda cancelada, dívida viva. | O crédito nasce ligado ao cancelamento, e só uma vez. |
+| O **cartão fidelidade** avançava com uma compra que não houve, e o gasto do cliente junto. | Recuam os dois. |
+| O **cupom de desconto** queimava o limite por cliente à toa. | O uso volta. |
+| A **NFC-e ficava autorizada na SEFAZ**, valendo, com o valor de uma venda que não existe mais. | O cancelamento da venda pede o cancelamento do cupom, depois de gravar — o fiscal nunca segura o caixa. Prazo vencido ou SEFAZ fora do ar viram pendência escrita, que aparece na tela e na API. |
+| O cancelamento **carimbava o caixa de hoje**: cancelar hoje uma venda de ontem punha o cancelamento no turno errado. | O caixa do cancelamento é o caixa da venda. |
+| O **custo do que foi produzido e jogado fora** continuava no CPV, ao lado de uma receita que o cancelamento tirou do faturamento. | Vira perda identificada. O DRE leva para Despesas Gerais Variáveis, o CMV para baixas, o Comparativo tira do CMV e os Indicadores contam como perda. O resultado é o mesmo; a leitura deixa de mentir. |
+
+Guardião: `testes/cancelamento-fecha-o-ciclo.js` — 44 testes.
+
+### V374 — a tela de Sincronização dizia coisas que não eram
+*(RDS 3)*
+
+| O que estava errado | O que foi feito |
+|---|---|
+| **"Último envio: —", para sempre.** A tela lia um campo que nada, em lugar nenhum do sistema, escrevia. | Passou a ser escrito ao fim de cada sincronização. |
+| **"1 a enviar", com setecentas pendências.** A função somava tudo e devolvia 1, jogando a conta fora na última linha. | Usa a contagem do próprio motor. |
+| A **pendência mais antiga** não aparecia — embora o dado já fosse coletado e descartado. Dez minutos é rede instável; três dias é um aparelho que ninguém percebeu que parou. | Aparece, com o tempo decorrido. |
+| O **aparelho responsável** não era dito nem gravado. | Toda linha carimba de qual aparelho veio e em que versão nasceu. |
+
+Guardião: `testes/sincronizacao-diz-a-verdade.js` — 27 testes.
+
+### V375 — o cupom preso só saía se alguém abrisse a tela de Cupons
+*(RDS 9.2)*
+
+A rotina de reenvio existia, era cuidadosa e fazia a coisa certa — e
+tinha **um** chamador: a tela de Cupons Fiscais. Ninguém abre aquela
+tela no balcão. Em 29/09 havia seis cupons parados por queda de
+internet; ficaram o dia inteiro.
+
+Agora roda onde a loja passa o dia: ao abrir o PDV, em segundo plano.
+E o que não dá para reenviar sozinho — cupom recusado pela Receita, que
+precisa de alguém corrigir a causa, e cupom esperando cancelamento, que
+tem prazo de minutos — virou uma faixa amarela no próprio PDV.
+
+Guardião: `testes/cupom-nao-fica-preso.js` — 26 testes.
+
+### V376 — o financeiro deixava passar
+*(RDS 17, 21, 27.5)*
+
+| O que estava errado | O que foi feito |
+|---|---|
+| **Pagar não perguntava nada.** O joinha, a baixa em lote e a confirmação com juros caem no mesmo lugar, e ele só exigia conta e forma. Dava para pagar, conciliar e fechar o mês com um lançamento que o DRE não enxerga. | A baixa recusa e diz qual lançamento. |
+| **Receita sem categoria ninguém via** — a marca vermelha só olhava despesa. | Vale para os dois lados. |
+| **"Salvo e conferido na nuvem" era dito sem conferir nada**, justamente quando o lançamento tinha sido salvo sem plano de contas. | Separa "é transferência, está certo" de "está sem categoria e não vai entrar no DRE". |
+| **Desconciliar eram três linhas sem proteção**: sem motivo, sem prazo, sem quem foi — e apagava a data anterior, destruindo o "antes". | Exige motivo, guarda quem/quando/por quê numa lista, conta os dias e marca quando foi fora do prazo de três dias. |
+
+Guardião: `testes/financeiro-nao-deixa-passar.js` — 37 testes.
 
 ---
 
@@ -274,21 +337,26 @@ guarda as duas.
 
 ## O que vem agora, na ordem
 
-1. **A tela de Sincronização que mostra "—" para sempre**, e o crachá que
-   diz "1 a enviar" com 700 pendências. Duas linhas, risco nulo, e é o
-   painel que a RDS pede no item 3.
-2. **Cancelar a venda passa a marcar o cupom fiscal como pendente de
-   cancelamento**, e a estornar o fiado. Hoje o cliente cancelado
-   continua devendo.
-3. **O reenvio do cupom fiscal sai da tela de Cupons** e passa a rodar no
-   PDV. Hoje um cupom preso por queda de internet só sai se alguém abrir
-   aquela tela.
-4. **A trava de unidade nos quatro relatórios que faltam** (CMV, Itens
+1. **Dar id do plano de contas aos oito lançamentos automáticos**
+   (fechamento de caixa, sangria, acerto de entregador, fiado, pedido de
+   base...). Hoje todos nascem com a categoria em TEXTO, e **nenhum deles
+   entra no DRE**. É o maior buraco que sobrou no financeiro.
+2. **A trava de unidade nos três relatórios que faltam** (Itens
    Consumidos, Vendas por Mesa, Fluxo de Caixa).
-5. **Marcar na tela o que é calculado** — imposto, royalties e taxa de
-   cartão no DRE.
-6. **Versionar a auditoria numa migração**, copiando do banco o que já
+3. **Marcar na tela o que é calculado** — imposto, royalties e taxa de
+   cartão no DRE aparecem iguais a uma linha lançada de verdade.
+4. **Versionar a auditoria numa migração**, copiando do banco o que já
    está rodando. Risco nenhum, e sem isso não há o que provar à RDS.
+5. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
+   sistema assume aprovado. Sem esse estado, três linhas da tabela da
+   RDS não têm como existir.
+6. **Anular em vez de apagar** (RDS 19): nota de entrada, lançamento e
+   conciliação ainda corrigem por exclusão destrutiva, que propaga para
+   a nuvem. Excluir uma nota **paga** é um clique.
+7. **Permissão por ação** (RDS 20): das 18 ações, 1 tem permissão
+   própria. O formato já funciona ponta a ponta; falta estendê-lo.
+8. **Lote e validade** (RDS 14) e **unidade de compra com fator**
+   (RDS 13): não existem, e são os dois maiores de construir.
 
 E as quatro que **esperam ordem do Rafael**, porque mudam o que a loja
 pode fazer e podem parar o caixa: travar a venda que deixa saldo
