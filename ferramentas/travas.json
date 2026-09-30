@@ -433,6 +433,10 @@
    "pontos": 22,
    "roda": true
   },
+  "testes/sincronizacao-diz-a-verdade.js": {
+   "pontos": 27,
+   "roda": true
+  },
   "testes/sino.js": {
    "pontos": 60,
    "roda": true

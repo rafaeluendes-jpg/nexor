@@ -420,15 +420,67 @@ function pintarRede(){
     el.onclick=function(){abrir('tecnico','sincronizacao')};
   }
 }
-/* quanta coisa ainda nao subiu */
+/* ==========================================================
+   O CRACHA DIZIA "1 A ENVIAR" COM SETECENTAS PENDENCIAS
+
+   Esta funcao varria o MAPA inteiro somando `n` — e devolvia `1`,
+   jogando a conta fora na ultima linha. O cabecalho entao mostrava
+   sempre "1 a enviar", desse o aparelho uma pendencia ou setecentas.
+
+   Numa loja que ficou o dia offline, esse `1` e a diferenca entre
+   "faltou uma coisinha" e "o dia inteiro nao subiu".
+
+   A conta certa ja existe e e a do proprio motor: `contarPendencias()`
+   usa `precisaSubir`, a mesma regra que decide o que sobe. Duas contas
+   diferentes para a mesma pergunta divergem no primeiro caso de borda.
+   ========================================================== */
 function pendentesDeEnvio(){
   if(!NUVEM.ligada)return 0;
-  if(!NUVEM.sujo&&!DB._sujo)return 0;
-  var n=0;
   try{
-    MAPA.forEach(function(m){ n+=((DB[m.col]||[]).length?1:0); });
+    var n=contarPendencias();
+    if(n>0)return n;
   }catch(e){_quieto(e,'pendentesDeEnvio')}
-  return NUVEM.sujo||DB._sujo?1:0;   /* 1 = ha algo pendente */
+  /* a marca de sujo existe mesmo quando a contagem nao acha nada (falha de
+     tabela, vinculo pendente): continua valendo como "ha algo pendente" */
+  return (NUVEM.sujo||DB._sujo)?1:0;
+}
+/* ==========================================================
+   A HORA DA PENDENCIA MAIS ANTIGA
+
+   A RDS pede este numero no item 3, e o dado ja era coletado:
+   `carimbarOrigem` grava `_criadoEm` em toda linha. Ninguem o lia.
+
+   Uma pendencia de dez minutos e rede instavel; uma de tres dias e um
+   aparelho que ninguem percebeu que parou de subir. Sao dois problemas
+   diferentes, e ate agora a tela mostrava os dois igual.
+   ========================================================== */
+function pendenciaMaisAntiga(){
+  var min='';
+  try{
+    var l=NUVEM.loja;
+    (MAPA||[]).forEach(function(E2){
+      var lista=DB[E2.col]; if(!Array.isArray(lista))return;
+      var h=(DB._hash&&DB._hash[E2.col])||{};
+      var uu=(DB._uuid&&DB._uuid[E2.col])||{};
+      var minhas=lista.filter(function(x){return x&&typeof x==='object'&&x._loja===l;});
+      for(var i=0;i<minhas.length;i++){
+        if(!precisaSubir(E2,minhas[i],i,h,uu))continue;
+        var q=minhas[i]._criadoEm||'';
+        if(q&&(!min||q<min))min=q;
+      }
+    });
+  }catch(e){_quieto(e,'pendenciaMaisAntiga')}
+  return min;
+}
+function hMaisAntiga(){
+  var q=pendenciaMaisAntiga();
+  if(!q)return '';
+  var d=new Date(q); if(isNaN(d))return '';
+  var min=Math.max(0,Math.round((Date.now()-d.getTime())/60000));
+  var quando=d.toLocaleString('pt-BR');
+  if(min<60)return quando+' (há '+min+' min)';
+  if(min<1440)return quando+' (há '+Math.floor(min/60)+' h)';
+  return quando+' (há '+Math.floor(min/1440)+' dia(s))';
 }
 function caiuARede(){
   if(!NET.online)return;
@@ -511,8 +563,11 @@ function avisoRede(txt,tipo,segurar){
 
 /* ---------- a tela de conferência ---------- */
 function telaSincronizacao(){
-  var pend=(NUVEM.sujo||DB._sujo);
+  var nPend=pendentesDeEnvio();
+  var pend=(nPend>0)||NUVEM.sujo||DB._sujo;
   var ultimo=NUVEM.ultimoEnvio||'—';
+  var antiga=hMaisAntiga();
+  var apId=''; try{ apId=idDoAparelho()||''; }catch(e){}
   var contas={};
   try{ MAPA.forEach(function(m){ contas[m.col]=(DB[m.col]||[]).length; }); }catch(e){_quieto(e,'telaSincronizacao')}
   var vendasHoje=(DB.pedidos||[]).filter(function(p){
@@ -528,7 +583,9 @@ function telaSincronizacao(){
     sv('cloud',26)+
     '<div><b>'+(NET.online?'Conectado':'Sem internet — modo offline')+'</b>'+
     '<span>'+(NET.online
-      ?(pend?'Há alterações esperando para subir.':'Tudo enviado para a nuvem.')
+      ?(pend?(nPend>0?nPend+' registro(s) esperando para subir.'
+                     :'Há alterações esperando para subir.')
+            :'Tudo enviado para a nuvem.')
       :'Continue vendendo. Nada se perde: tudo está guardado neste aparelho e sobe '+
        'sozinho quando a conexão voltar.')+'</span></div>'+
     (NET.online&&pend?'<button class="btnP2 ok" onclick="enviarAgora()">'+
@@ -539,6 +596,13 @@ function telaSincronizacao(){
     '<div class="syC"><span>Situação da nuvem</span><b>'+
       (NUVEM.ligada?(pend?'pendente':'em dia'):'desligada')+'</b></div>'+
     '<div class="syC"><span>Último envio</span><b>'+E(ultimo)+'</b></div>'+
+    '<div class="syC"><span>Esperando para subir</span><b>'+nPend+'</b></div>'+
+    /* uma pendencia de dez minutos e rede instavel; uma de tres dias e um
+       aparelho que ninguem percebeu que parou de subir */
+    '<div class="syC"><span>Pendência mais antiga</span><b>'+E(antiga||'—')+'</b></div>'+
+    '<div class="syC"><span>Este aparelho</span><b>'+
+      E((apId?apId.slice(-6).toUpperCase():'—')+
+        (typeof VERSAO!=='undefined'?' · '+VERSAO:''))+'</b></div>'+
     '<div class="syC"><span>Vendas de hoje neste aparelho</span><b>'+vendasHoje+'</b></div>'+
     '<div class="syC"><span>Cópia local</span><b>'+
       (function(){ var _b=(typeof _baseCrua==='function'?_baseCrua():localStorage.getItem('nexor_dados'));

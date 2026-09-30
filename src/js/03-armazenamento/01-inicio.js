@@ -804,6 +804,23 @@ function carimbarOrigem(){
          conferencia de sessao de proposito. */
       marcarNovoAqui(r,col);
       if(!temSessao)continue;              /* sem sessao nao da para dizer de quem e */
+      /* ==========================================================
+         DE QUAL APARELHO E ESTA LINHA, E EM QUE VERSAO ELA NASCEU
+
+         A RDS pede aparelho de origem e versao do aplicativo em toda
+         operacao. Hoje o aparelho so aparece num sinal de telemetria a
+         cada dois minutos, que pode falhar em silencio — e a versao nao
+         sai do aparelho nunca.
+
+         Comecam como campos com `_`: nao sobem (nao entram em
+         `E.campos`) e por isso nao mexem na impressao digital nem
+         forcam reenvio de tabela nenhuma. Ja servem a fila de
+         diagnostico, que e onde a pergunta "qual aparelho esta atrasado"
+         e feita, e ficam prontos para subir no dia em que as colunas
+         existirem no banco.
+         ========================================================== */
+      if(!r._ap){ try{ r._ap=idDoAparelho(); }catch(e){} }
+      if(!r._ver&&typeof VERSAO!=='undefined')r._ver=String(VERSAO);
       if(!r._loja){ r._loja=NUVEM.loja; r._suc=r._suc||suc;
                     r._criadoEm=r._criadoEm||new Date().toISOString(); n++;
                     /* nasceu aqui antes de a sessao existir: agora tem dono e
@@ -3713,6 +3730,19 @@ async function sincronizar(){
     if(pend.length)logNuvem(pend.length+' vínculo(s) de produção gravado(s)');
 
     NUVEM.ultima=new Date();
+    /* ==========================================================
+       A TELA DE SINCRONIZACAO DIZIA "—" PARA SEMPRE
+
+       `telaSincronizacao` mostra `NUVEM.ultimoEnvio`. Varrendo o sistema
+       inteiro so existiam LEITURAS desse campo — nada, em lugar nenhum,
+       o escrevia. Havia uma variavel de modulo com nome parecido
+       (`_ultimoEnvio`), que e outra coisa.
+
+       Resultado: a tela oficial que a loja abre para saber se o dia
+       subiu mostrava um traco, sempre, mesmo com tudo em dia. Quem
+       olhava concluia que nada tinha subido.
+       ========================================================== */
+    NUVEM.ultimoEnvio=NUVEM.ultima.toLocaleString('pt-BR');
     /* Uma ou outra tabela com problema de dado nao pode paralisar o aparelho.
        Mas se MUITAS falharem de uma vez, isso e rede ou credencial caindo — e
        ai a pendencia continua marcada, para nada ser baixado por cima. */
