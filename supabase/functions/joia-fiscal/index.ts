@@ -850,6 +850,56 @@ Deno.serve(async (req) => {
     }
 
     /* ======================================================
+       NUMERO QUE A RECEITA JA TEM — SERIE NOVA (30/09/2026)
+
+       Santa Fe: do cupom 22 em diante, todos recusados com "Duplicidade
+       de NF-e com diferenca na Chave de Acesso". A SEFAZ ja tinha a serie
+       1, numeros 22 em diante, emitidos em 12/2025 pelo sistema antigo
+       (a chave recusada comeca com 3525 12). A Spedy numera em sequencia
+       e nao sabe o que o outro sistema usou: cada venda batia num numero
+       ocupado e o cupom nunca saia no papel.
+
+       Nao da para saber ate onde o sistema antigo foi. Uma SERIE nova
+       comeca limpa. Esta acao so age com prova: le a nota na Spedy e
+       exige que ela esteja recusada por duplicidade. Qualquer pessoa da
+       unidade chama (e o caixa que descobre a recusa), mas ela nao
+       aceita serie nem numero do navegador — so sobe uma serie, uma vez
+       por serie (duas vendas ao mesmo tempo nao pulam duas).
+       ====================================================== */
+    if (acao === "numero_repetido") {
+      if (!ref) return responde(400, { erro: "Informe a unidade." }, h);
+      const u = await unidadeFiscal();
+      const chave = await chaveDaUnidade(u);
+      if (!chave || !u?.spedy_company_id) return responde(409, { erro: "Esta loja não está ligada à Spedy." }, h);
+      const id = String(corpo.id || "");
+      const g = await spedy(chave, "GET", `/consumer-invoices/${encodeURIComponent(id)}`);
+      if (!g.ok) return responde(g.status === 404 ? 404 : 502, { erro: erroSpedy(g.d, g.status) }, h);
+      const msg = String(g.d?.processingDetail?.message || "");
+      if (g.d?.status !== "rejected" || !/duplicidade/i.test(msg))
+        return responde(409, { erro: "Esta nota não foi recusada por número repetido." }, h);
+      const chaveConta = await chaveDaConta();
+      if (!chaveConta) return responde(409, { erro: "A chave da conta não está no cofre." }, h);
+      const cfg = await spedy(chaveConta, "GET", `/companies/${u.spedy_company_id}/settings`);
+      if (!cfg.ok) return responde(502, { erro: erroSpedy(cfg.d, cfg.status) }, h);
+      const serieNota = Number(g.d?.series) || Number(u.serie) || 1;
+      const serieAgora = Number(cfg.d?.consumerInvoice?.series) || Number(u.serie) || 1;
+      let serie = serieAgora;
+      if (serieAgora <= serieNota) {
+        serie = serieNota + 1;
+        if (serie > 889) return responde(409, { erro: "Não há série livre para esta loja." }, h);
+        const r = await aplicarNaSpedy({ ...u, serie }, chave);
+        if (!r.ok) {
+          await registrar(ref, "numero_repetido", "recusado", { status: r.status, serieNota }, id);
+          return responde(502, { erro: erroSpedy(r.d, r.status) }, h);
+        }
+        await db.from("fiscal_unidades").update({ serie, atualizado_por: "numeração repetida na SEFAZ",
+          atualizado_em: new Date().toISOString() }).eq("loja_id", loja).eq("sucursal_ref", ref);
+      }
+      await registrar(ref, "numero_repetido", "ok", { serieNota, serie, numero: g.d?.number, motivo: msg.slice(0, 200) }, id);
+      return responde(200, { ok: true, serie }, h);
+    }
+
+    /* ======================================================
        REEMITIR — depois de corrigir a configuracao (ex.: o CSC)
        ====================================================== */
     if (acao === "reemitir") {

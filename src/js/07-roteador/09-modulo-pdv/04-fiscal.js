@@ -458,7 +458,9 @@ function montarNfce(ped,cupom,suc){
     var ult=pags[pags.length-1];ult.amount=+(ult.amount+totalVenda-somaPg).toFixed(2);
   }
   var nota={
-    integrationId:String(ped.id),
+    /* o reenvio depois de número repetido na SEFAZ é OUTRA nota na Spedy:
+       leva um sufixo, para não colidir com a recusada (fsNumeroRepetido) */
+    integrationId:String(ped.id)+((cupom&&cupom.reenvio)?'-r'+cupom.reenvio:''),
     isFinalCustomer:true,operationType:'outgoing',destination:'internal',
     presenceType:(ped.origem==='online'||ped.canal==='cardapio')
       ?(ped.tipo==='entrega'?'delivery':'internet'):'presence',
@@ -525,6 +527,7 @@ async function emitirCupom(cupomId){
     c.status='enviando';c.motivo='';c.faltaCadastro=false;
     c.tentativas=(c.tentativas||0)+1;
     salvar();fsChip(c);
+    c.integ=m.nota.integrationId;
     var r=await fiscalChamar('emitir',{sucursal:suc,nota:m.nota});
     if(r.ok&&r.d&&r.d.nota)aplicarNotaNoCupom(c,r.d.nota);
     else if(r.status===0||r.status===429||r.status>=500){
@@ -534,9 +537,38 @@ async function emitirCupom(cupomId){
       c.motivo=(r.d&&r.d.erro)||'A emissão foi recusada.';
     }
   }finally{ _fsEmitindo[c.id]=false; }
-  _fsGuardar();fsChip(c);fsDepoisDeEmitir(c);
+  _fsGuardar();fsChip(c);
+  if(await fsNumeroRepetido(c))return emitirCupom(c.id);
+  fsDepoisDeEmitir(c);
   if(c.status==='enviando')acompanharCupom(c.id);
   return c;
+}
+/* ==========================================================
+   NÚMERO QUE A RECEITA JÁ TEM: SÉRIE NOVA E REENVIO NA HORA (30/09/2026)
+
+   Santa Fé, do cupom 22 em diante: "Duplicidade de NF-e com diferença na
+   Chave de Acesso". A SEFAZ já tinha esses números na série 1, usados pelo
+   sistema antigo em 12/2025. Cada venda batia num número ocupado, o cupom
+   era recusado e nunca saía no papel — para o caixa, "demorava" para sempre.
+
+   Agora a recusa por número repetido não para no balcão: o servidor
+   confere a recusa na Spedy e passa a loja para a série seguinte (limpa),
+   e a mesma venda é emitida de novo, na hora. Três tentativas no máximo:
+   outra recusa depois disso é problema de outra natureza e vai para quem
+   cuida. */
+function ehNumeroRepetido(c){
+  return !!(c&&c.status==='rejeitado'&&c.spedyId&&/duplicidade/i.test(String(c.motivo||'')));
+}
+async function fsNumeroRepetido(c){
+  if(!ehNumeroRepetido(c)||(c.reenvio||0)>=3)return false;
+  var r=await fiscalChamar('numero_repetido',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+  if(!(r.ok&&r.d&&r.d.ok))return false;
+  c.recusadas=(c.recusadas||[]).concat([{spedyId:c.spedyId,numero:c.numero,serie:c.serie,motivo:c.motivo}]);
+  c.reenvio=(c.reenvio||0)+1;
+  c.spedyId='';c.chave='';c.protocolo='';c.numero=null;c.serie=null;
+  c.status='pendente';c.motivo='';
+  salvar();
+  return true;
 }
 /* ==========================================================
    O CUPOM DEMORAVA 30 SEGUNDOS PARA SAIR NO PAPEL
@@ -575,10 +607,14 @@ async function acompanharCupom(cupomId,esperas){
     var c=baseCuponsFiscais().find(function(x){return x.id===cupomId});
     if(!c||c.status!=='enviando')return c;
     var r=await fiscalChamar('consultar',c.spedyId?{sucursal:c.sucursalId,id:c.spedyId}
-                                              :{sucursal:c.sucursalId,integrationId:c.pedidoId});
+                                              :{sucursal:c.sucursalId,integrationId:c.integ||c.pedidoId});
     if(r.ok&&r.d&&r.d.nota){
       aplicarNotaNoCupom(c,r.d.nota);
-      if(c.status!=='enviando'){_fsGuardar();fsChip(c);fsDepoisDeEmitir(c);return c;}
+      if(c.status!=='enviando'){
+        _fsGuardar();fsChip(c);
+        if(await fsNumeroRepetido(c))return emitirCupom(c.id);
+        fsDepoisDeEmitir(c);return c;
+      }
     }
   }
   return baseCuponsFiscais().find(function(x){return x.id===cupomId});
@@ -593,7 +629,9 @@ async function fiscalReprocessar(){
   var lst=baseCuponsFiscais().filter(function(c){
     if((c.sucursalId||suc)!==suc)return false;
     if(c.faltaCadastro)return false;
-    if(c.status!=='pendente'&&c.status!=='enviando')return false;
+    /* recusado por número repetido na SEFAZ também volta: a causa é nossa
+       e se resolve sozinha (fsNumeroRepetido) — os outros recusados não */
+    if(c.status!=='pendente'&&c.status!=='enviando'&&!ehNumeroRepetido(c))return false;
     var ped=(DB.pedidos||[]).find(function(p){return p.id===c.pedidoId});
     if(!ped)return false;
     if(new Date(ped.data||c.data).getTime()<limite)return false;
@@ -605,9 +643,11 @@ async function fiscalReprocessar(){
     var c=lst[i];
     if(c.status==='enviando'){
       var r=await fiscalChamar('consultar',c.spedyId?{sucursal:suc,id:c.spedyId}
-                                                :{sucursal:suc,integrationId:c.pedidoId});
+                                                :{sucursal:suc,integrationId:c.integ||c.pedidoId});
       if(r.ok&&r.d&&r.d.nota){aplicarNotaNoCupom(c,r.d.nota);n++;}
       else if(r.ok&&r.d&&r.d.nota===null){c.status='pendente';}
+    }else if(ehNumeroRepetido(c)){
+      if(await fsNumeroRepetido(c)){await emitirCupom(c.id);n++;}
     }else{ await emitirCupom(c.id);n++; }
   }
   if(n)_fsGuardar();

@@ -357,6 +357,10 @@
    "pontos": 21,
    "roda": true
   },
+  "testes/numero-repetido-serie-nova.js": {
+   "pontos": 16,
+   "roda": true
+  },
   "testes/pagamento-tem-estado.js": {
    "pontos": 27,
    "roda": true
