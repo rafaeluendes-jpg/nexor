@@ -136,9 +136,27 @@ function imVendas(mes,suc){
 /* ---------- custos e estoque ----------
    Mesma classificação do "CMV por Mercadoria" (cmvCalcular). Duas
    diferenças, as duas para não contar duas vezes:
-     - o estorno de venda cancelada (origem 'estorno') DEVOLVE o custo;
+     - venda cancelada não é CMV;
      - o insumo consumido NA PRODUÇÃO não é CMV: ele vira o gelato, e o
-       gelato é que sai na venda. */
+       gelato é que sai na venda.
+
+   ==========================================================
+   O ESTORNO QUE ESTE CÓDIGO ESPERAVA NUNCA EXISTIU
+
+   Havia aqui `if(org==='estorno')` e, no fim, `cmv = cmv − estorno`.
+   Varrendo o sistema inteiro, `'estorno'` nunca era ESCRITO em lugar
+   nenhum: `r.estorno` era sempre zero, e o desconto do CMV nunca
+   acontecia. Código que descreve um comportamento que não existe é pior
+   que código ausente — ele faz quem lê acreditar que o caso está
+   tratado.
+
+   O caso é real e tem duas formas:
+     · cancelamento NÃO produzido — o estorno apaga o movimento, e ele
+       simplesmente deixa de existir (nada a descontar);
+     · cancelamento JÁ produzido — o movimento fica (o insumo foi gasto
+       mesmo), agora marcado com `perdaCancelamento`. Isso não é CMV:
+       é perda, e entra em `perdas`, como o resto.
+   ========================================================== */
 function imJanelaMov(){
   var d=new Date();d.setDate(d.getDate()-(typeof DIAS_JANELA!=='undefined'?DIAS_JANELA:90));
   return d.toISOString().slice(0,10);
@@ -146,9 +164,9 @@ function imJanelaMov(){
 function imEstoque(mes,suc){
   var L=imLimites(mes);
   if(L.de<imJanelaMov())return null;          /* o aparelho não tem esse mês inteiro */
-  var r={cmv:0,estorno:0,ajustes:0,baixas:0,perdaProd:0,compras:0,prodV:0,prodKg:0};
+  var r={cmv:0,perdaCanc:0,ajustes:0,baixas:0,perdaProd:0,compras:0,prodV:0,prodKg:0};
   (DB.movEst||[]).forEach(function(m){
-    if(!m||m.data<L.de||m.data>L.ate)return;
+    if(!m||m.demo||m.data<L.de||m.data>L.ate)return;
     if(suc&&m.sucursalId&&m.sucursalId!==suc)return;
     var tipo=tipoMotivo(m.motivoId),org=String(m.origem||''),nome=nomeMotivo(m.motivoId);
     (m.linhas||[]).forEach(function(l){
@@ -156,7 +174,7 @@ function imEstoque(mes,suc){
       var q=convUnid(l.qtd,l.unidade,ins.unidade);if(q===null)q=Number(l.qtd)||0;
       var v=Math.abs(q*(Number(l.custo)||0));
       var ent=(l.direcao==='entrada');
-      if(org==='estorno'){r.estorno+=v;return;}
+      if(m.perdaCancelamento){ if(!ent)r.perdaCanc+=v; return; }
       if(org==='venda'){r.cmv+=ent?-v:v;return;}
       if(org.indexOf('producao')>=0||tipo==='producao'||String(l.origem||'').indexOf('producao')>=0){
         if(ent&&/gelato/i.test(ins.nome||'')){
@@ -171,8 +189,8 @@ function imEstoque(mes,suc){
       if(!ent)r.baixas+=v;
     });
   });
-  r.cmv=Math.max(0,r.cmv-r.estorno);
-  r.perdas=Math.max(0,r.ajustes)+r.baixas+r.perdaProd;
+  r.cmv=Math.max(0,r.cmv);
+  r.perdas=Math.max(0,r.ajustes)+r.baixas+r.perdaProd+r.perdaCanc;
   r.custoKg=r.prodKg>0?r.prodV/r.prodKg:null;
   return r;
 }

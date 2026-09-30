@@ -40,6 +40,7 @@ function dadosAno(ano){
     if(d.slice(0,4)!==String(ano))return;
     var k=parseInt(d.slice(5,7),10)-1;
     if(isNaN(k)||k<0||k>11)return;
+    if(mv.perdaCancelamento)return;   /* produzido e cancelado nao e CMV */
     (mv.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida')return;
       if(String(l.origem||'')!=='venda')return;
@@ -80,6 +81,7 @@ function dadosMes(ano,mes){
     if(s3.slice(0,7)!==pref)return;
     var k2=parseInt(s3.slice(8,10),10)-1;
     if(isNaN(k2)||k2<0||k2>=dias)return;
+    if(mv.perdaCancelamento)return;   /* produzido e cancelado nao e CMV */
     (mv.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida'||String(l.origem||'')!=='venda')return;
       d[k2].cmv+=(Number(l.qtd)||0)*(Number(l.custo)||0);

@@ -1049,9 +1049,25 @@ function cmvCalcular(de,ate){
   }
   (DB.insumos||[]).forEach(function(i){if(i.controlaEstoque!==false)reg(i.id)});
   (DB.fichas||[]).forEach(function(f){if(f.estocavel!==false)reg(f.id)});
+  /* ==========================================================
+     O CMV SOMAVA A REDE INTEIRA, E CONTAVA TESTE COMO VENDA
+
+     O aparelho baixa a rede toda (o corte do download e por loja, nao
+     por unidade). Sem a trava, quem abria Santa Fe via o CMV somado com
+     Jales. E a movimentacao de demonstracao entrava como consumo real.
+
+     Movimento antigo, sem unidade, e de quando havia uma loja so: fica
+     com a aberta, como no resto do sistema.
+     ========================================================== */
+  var _suc=lojaAtualId();
+  var _rede=false; try{ _rede=ehSucMatriz(_suc); }catch(e){}
   /* varre as movimentacoes uma vez so */
   (DB.movEst||[]).forEach(function(m){
+    if(m.demo)return;
+    if(!_rede&&_suc&&(m.sucursalId||_suc)!==_suc)return;
     var tipo=tipoMotivo(m.motivoId),org=String(m.origem||''),nome=nomeMotivo(m.motivoId);
+    /* produzido e cancelado: o insumo saiu, mas nao virou venda — e baixa */
+    if(m.perdaCancelamento)org='perda-cancelamento';
     (m.linhas||[]).forEach(function(l){
       var r=reg(l.insumoId);if(!r)return;
       var q=convUnid(l.qtd,l.unidade,r.ins.unidade); if(q===null)q=Number(l.qtd)||0;

@@ -12,9 +12,9 @@
    cada indicador contra a conta feita à mão:
      1. vendas, ticket, clientes, descontos, cancelamentos, média por dia;
      2. mix: Cascão/Copo/Potes somam em Gelato; taxa de entrega fica fora;
-     3. consumo (CMV) com estorno de cancelada devolvendo; perdas =
-        contagem + baixa + perda de produção; transferência NÃO é perda;
-        custo médio do gelato produzido;
+     3. consumo (CMV) sem a venda cancelada; perdas = contagem + baixa +
+        perda de produção + perda de venda cancelada; transferência NÃO é
+        perda; custo médio do gelato produzido;
      4. funcionários e energia: Atualizar grava por unidade e mês, sobe
         para a nuvem com a unidade, e a receita por funcionário aparece;
         sair com número digitado e não atualizado pergunta antes;
@@ -101,7 +101,22 @@ const perto = (a, b) => Math.abs(a - b) < 0.005;
   const mv = (id, dia, motivoId, origem, linhas) => ({ id, data: dia, motivoId, origem, sucursalId: suc, linhas });
   win.DB.movEst = [
     mv('m1', d1, 'mv_venda', 'venda', [{ insumoId: 'i_gel', qtd: 2, unidade: 'kg', custo: 20, direcao: 'saida' }]),      /* 40 */
-    mv('m2', d2, 'mv_venda', 'estorno', [{ insumoId: 'i_gel', qtd: 0.5, unidade: 'kg', custo: 20, direcao: 'saida' }]),   /* devolve 10 */
+    /* ==========================================================
+       ESTE CASO ERA FALSO, E O TESTE PASSAVA MESMO ASSIM
+
+       Aqui havia um movimento com `origem:'estorno'`, montado à mão, e
+       o teste conferia que o CMV descontava 10. O sistema descontava
+       mesmo — mas NADA no Joia jamais escrevia `origem:'estorno'`.
+       O caso só existia dentro deste arquivo: teste verde, código morto,
+       e o cancelamento de verdade continuando a somar no CMV.
+
+       O caso REAL é este: pedido já produzido e depois cancelado. O
+       insumo foi consumido de verdade (o movimento fica, o saldo está
+       certo), mas não virou venda — então não é CMV, é perda.
+       ========================================================== */
+    Object.assign(
+      mv('m2', d2, 'mv_venda', 'venda', [{ insumoId: 'i_gel', qtd: 0.5, unidade: 'kg', custo: 20, direcao: 'saida' }]),
+      { perdaCancelamento: 'cn_teste', perdaMotivo: 'Cliente desistiu' }),                                                /* perda 10 */
     mv('m3', d2, 'mv_perda', 'manual', [{ insumoId: 'i_cas', qtd: 5, unidade: 'un', custo: 1, direcao: 'saida' }]),       /* baixa 5 */
     mv('m4', d2, 'mv_cont', 'contagem', [{ insumoId: 'i_cas', qtd: 3, unidade: 'un', custo: 1, direcao: 'saida' }]),      /* ajuste 3 */
     mv('m5', d1, 'mv_prod', 'producao', [{ insumoId: 'i_gel', qtd: 10, unidade: 'kg', custo: 18, direcao: 'entrada' }]),  /* 180 / 10 kg */
@@ -109,11 +124,13 @@ const perto = (a, b) => Math.abs(a - b) < 0.005;
     mv('m7', d2, 'mv_transf_saida', 'transferencia', [{ insumoId: 'i_gel', qtd: 1, unidade: 'kg', custo: 20, direcao: 'saida' }])
   ];
   const e = win.imEstoque(mes, suc);
-  t('consumo = venda 40 − estorno 10 = R$ 30,00', perto(e.cmv, 30), e.cmv);
+  t('consumo = só a venda que valeu = R$ 40,00', perto(e.cmv, 40), e.cmv);
+  t('a venda cancelada já produzida NÃO entra no consumo', perto(e.cmv, 40), e.cmv);
+  t('ela entra como perda = R$ 10,00', perto(e.perdaCanc, 10), e.perdaCanc);
   t('baixa manual = R$ 5,00', perto(e.baixas, 5), e.baixas);
   t('ajuste de contagem = R$ 3,00', perto(e.ajustes, 3), e.ajustes);
-  t('total de perdas = R$ 8,00', perto(e.perdas, 8), e.perdas);
-  t('transferência não é perda nem consumo', perto(e.perdas, 8) && perto(e.cmv, 30));
+  t('total de perdas = 5 + 3 + 10 = R$ 18,00', perto(e.perdas, 18), e.perdas);
+  t('transferência não é perda nem consumo', perto(e.perdas, 18) && perto(e.cmv, 40));
   t('compras do mês = R$ 100,00', perto(e.compras, 100), e.compras);
   t('custo médio do gelato produzido = R$ 18,00/kg', perto(e.custoKg, 18), e.custoKg);
 

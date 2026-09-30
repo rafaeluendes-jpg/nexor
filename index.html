@@ -14297,7 +14297,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V372.0.0';
+var VERSAO='V373.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -24897,6 +24897,95 @@ async function fiscalChamar(acao,dados){
     return {ok:false,status:0,d:{erro:'Sem conexão com o servidor fiscal.'}};
   }
 }
+/* ==========================================================
+   CANCELAR A VENDA TEM DE CANCELAR O CUPOM
+
+   Cancelar no PDV mexia no estoque e no faturamento e NAO encostava no
+   documento fiscal: a NFC-e ficava autorizada na SEFAZ, valendo, com o
+   valor de uma venda que nao existe mais. A unica pista era um rotulo
+   "venda cancelada" na tela de Cupons — um aviso, nao uma acao.
+
+   Aqui e a acao. Ela roda depois do cancelamento comercial, nunca antes:
+   o que o cliente ve e a venda cancelada na hora; o documento vai atras.
+
+   ---------- por que nao pode estourar ----------
+   A SEFAZ tem prazo curto (em geral 30 minutos) e pode estar fora do ar.
+   Falhar aqui nao pode desfazer o cancelamento nem travar o caixa. Entao
+   toda falha vira PENDENCIA marcada no cupom — que aparece na tela de
+   Cupons Fiscais e na lista `fiscal-divergente` da API — em vez de sumir
+   num console que ninguem abre.
+
+   ---------- o motivo ----------
+   A lei pede no minimo 15 letras. O motivo do cancelamento da loja
+   ("Cliente desistiu") costuma ter menos, entao ele e completado com o
+   numero do pedido, que e o que um fiscal precisaria para achar a venda.
+   ========================================================== */
+function motivoFiscalDoCancelamento(ped,motivo){
+  var t=String(motivo||'').trim();
+  var compl='Cancelamento da venda #'+(ped&&ped.numero!==undefined?ped.numero:'');
+  var txt=t?(t+' — '+compl):compl;
+  txt=txt.replace(/\s+/g,' ').trim();
+  /* 15 e o minimo legal; 255 e o teto do campo */
+  while(txt.length<15)txt+=' .';
+  return txt.slice(0,255);
+}
+function cupomFiscalDoPedido(ped){
+  if(!ped||!ped.id)return null;
+  return baseCuponsFiscais().find(function(c){
+    return (c.pedidoId===ped.id)||(c.pedidoRef&&c.pedidoRef===ped.ref_local);})||null;
+}
+async function cancelarCupomDaVenda(ped,motivo){
+  var c=cupomFiscalDoPedido(ped);
+  if(!c)return {feito:false,porque:'sem cupom'};
+  /* cupom que nunca virou documento nao tem o que cancelar na SEFAZ */
+  if(c.status!=='autorizado'&&c.status!=='contingencia'){
+    if(c.status==='pendente'||c.status==='enviando'){
+      /* estava a caminho: marca para nao ser emitido */
+      c.naoEmitir=true;c.motivoPendencia='Venda cancelada antes da autorização.';
+      return {feito:true,porque:'cupom nao autorizado'};
+    }
+    return {feito:false,porque:'cupom '+(c.status||'sem status')};
+  }
+  var suc=c.sucursalId||ped.sucursalId||lojaAtualId();
+  /* a partir daqui existe documento valendo: a pendencia nasce ligada,
+     e so morre quando a SEFAZ confirmar */
+  c.precisaCancelar=true;
+  c.motivoPendencia='Venda cancelada — cupom ainda autorizado na SEFAZ.';
+  if(!fiscalEmite(suc)||!c.spedyId){
+    c.motivoPendencia='Venda cancelada. Este cupom não foi emitido pela Spedy: '+
+      'o cancelamento tem de ser feito com o contador.';
+    return {feito:false,porque:'sem spedyId'};
+  }
+  var r=await fiscalChamar('cancelar',
+    {sucursal:suc,id:c.spedyId,motivo:motivoFiscalDoCancelamento(ped,motivo)});
+  if(!r.ok){
+    /* ==========================================================
+       FORA DO PRAZO NAO E ERRO DE SISTEMA (RDS 9.3)
+
+       Passado o prazo da SEFAZ o caminho deixa de ser o cancelamento e
+       passa a ser a nota de devolucao, que e assunto do contador. O
+       sistema nao pode fingir que cancelou nem apagar o rastro: ele
+       deixa a pendencia escrita, com o motivo que a SEFAZ devolveu.
+       ========================================================== */
+    var msg=String((r.d&&r.d.erro)||'A SEFAZ não aceitou o cancelamento.');
+    c.motivoPendencia=/prazo|tempo|expirad|126|501/i.test(msg)
+      ? 'Fora do prazo de cancelamento da SEFAZ. O caminho agora é a nota de '+
+        'devolução — fale com o contador. ('+msg.slice(0,120)+')'
+      : 'A SEFAZ não cancelou: '+msg.slice(0,160);
+    return {feito:false,porque:msg};
+  }
+  c.motivoCancelamento=motivoFiscalDoCancelamento(ped,motivo);
+  if(r.d&&r.d.nota)aplicarNotaNoCupom(c,r.d.nota);
+  if(c.status==='autorizado'||c.status==='contingencia')c.status='enviando';
+  if(c.status==='cancelado'){c.precisaCancelar=false;c.motivoPendencia='';}
+  else{
+    acompanharCupom(c.id).then(function(){
+      var c2=baseCuponsFiscais().find(function(x){return x.id===c.id});
+      if(c2&&c2.status==='cancelado'){c2.precisaCancelar=false;c2.motivoPendencia='';salvar();}
+    }).catch(function(){});
+  }
+  return {feito:true,porque:'enviado'};
+}
 async function fiscalCarregar(suc,leve){
   suc=suc||lojaAtualId();
   var r=await fiscalChamar('estado',{sucursal:suc,leve:!!leve});
@@ -25237,6 +25326,9 @@ async function emitirCupom(cupomId){
   var c=baseCuponsFiscais().find(function(x){return x.id===cupomId});
   if(!c||_fsEmitindo[c.id])return c||null;
   if(['autorizado','contingencia','cancelado','inutilizado'].indexOf(c.status)>=0)return c;
+  /* a venda foi cancelada antes de a SEFAZ responder: nao emite documento
+     para uma venda que nao existe mais */
+  if(c.naoEmitir){c.status='sem_cupom';c.motivo=c.motivoPendencia||'Venda cancelada.';return c;}
   var ped=(DB.pedidos||[]).find(function(p){return p.id===c.pedidoId});
   var suc=c.sucursalId||(ped&&ped.sucursalId)||lojaAtualId();
   c.sucursalId=suc;
@@ -29418,9 +29510,25 @@ function cmvCalcular(de,ate){
   }
   (DB.insumos||[]).forEach(function(i){if(i.controlaEstoque!==false)reg(i.id)});
   (DB.fichas||[]).forEach(function(f){if(f.estocavel!==false)reg(f.id)});
+  /* ==========================================================
+     O CMV SOMAVA A REDE INTEIRA, E CONTAVA TESTE COMO VENDA
+
+     O aparelho baixa a rede toda (o corte do download e por loja, nao
+     por unidade). Sem a trava, quem abria Santa Fe via o CMV somado com
+     Jales. E a movimentacao de demonstracao entrava como consumo real.
+
+     Movimento antigo, sem unidade, e de quando havia uma loja so: fica
+     com a aberta, como no resto do sistema.
+     ========================================================== */
+  var _suc=lojaAtualId();
+  var _rede=false; try{ _rede=ehSucMatriz(_suc); }catch(e){}
   /* varre as movimentacoes uma vez so */
   (DB.movEst||[]).forEach(function(m){
+    if(m.demo)return;
+    if(!_rede&&_suc&&(m.sucursalId||_suc)!==_suc)return;
     var tipo=tipoMotivo(m.motivoId),org=String(m.origem||''),nome=nomeMotivo(m.motivoId);
+    /* produzido e cancelado: o insumo saiu, mas nao virou venda — e baixa */
+    if(m.perdaCancelamento)org='perda-cancelamento';
     (m.linhas||[]).forEach(function(l){
       var r=reg(l.insumoId);if(!r)return;
       var q=convUnid(l.qtd,l.unidade,r.ins.unidade); if(q===null)q=Number(l.qtd)||0;
@@ -44412,6 +44520,7 @@ function dadosAno(ano){
     if(d.slice(0,4)!==String(ano))return;
     var k=parseInt(d.slice(5,7),10)-1;
     if(isNaN(k)||k<0||k>11)return;
+    if(mv.perdaCancelamento)return;   /* produzido e cancelado nao e CMV */
     (mv.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida')return;
       if(String(l.origem||'')!=='venda')return;
@@ -44452,6 +44561,7 @@ function dadosMes(ano,mes){
     if(s3.slice(0,7)!==pref)return;
     var k2=parseInt(s3.slice(8,10),10)-1;
     if(isNaN(k2)||k2<0||k2>=dias)return;
+    if(mv.perdaCancelamento)return;   /* produzido e cancelado nao e CMV */
     (mv.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida'||String(l.origem||'')!=='venda')return;
       d[k2].cmv+=(Number(l.qtd)||0)*(Number(l.custo)||0);
@@ -46657,6 +46767,27 @@ function calcularDRE(ano){
      grupo do cardapio -> produto (ficha) -> ingrediente */
   movsDoDRE().forEach(function(mv){
     var k=mesDe(mv.data); if(k<0)return;
+    /* ==========================================================
+       CUSTO SEM VENDA NAO E CUSTO DO VENDIDO
+
+       Pedido ja produzido e depois cancelado: o insumo foi consumido de
+       verdade (o saldo esta certo), mas a receita saiu do faturamento
+       com o cancelamento. O custo continuava no CPV, sozinho, do lado de
+       uma venda que nao existe — e a margem caia por um motivo que o
+       numero nao explicava.
+
+       Ele vai para Despesas Gerais Variaveis, como perda identificada.
+       O Resultado Final e o mesmo (as duas rubricas entram negativas
+       antes da Margem de Contribuicao); o que muda e a leitura.
+       ========================================================== */
+    if(mv.perdaCancelamento){
+      var vp=(mv.linhas||[]).reduce(function(a,l){
+        return a+((l.direcao==='saida'&&String(l.origem||'')==='venda')
+          ?((Number(l.qtd)||0)*(Number(l.custo)||0)):0);},0);
+      if(vp){ m[k]['06']+=vp; add('06',['Perdas por cancelamento',
+        mv.perdaMotivo||'venda cancelada'],k,vp); }
+      return;
+    }
     (mv.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida'||String(l.origem||'')!=='venda')return;
       var v=(Number(l.qtd)||0)*(Number(l.custo)||0);
@@ -53656,6 +53787,9 @@ async function confirmarCancelamento(id){
       'inteiro. Esta ação fica registrada e não pode ser desfeita.',
     ok:'Confirmar cancelamento',tipo:'perigo'});
   if(!ok)return;
+  /* entre o clique em Confirmar e a resposta da senha cabe outro clique */
+  if(ehCancelado(p)){toast('Esta venda já foi cancelada.');fecharModal();return;}
+  if(!travarOperacao('cancelar-'+p.id))return;
   var antes=p.fase;
   var cx=caixaAberto();
   p.fase='cancelado';
@@ -53664,13 +53798,26 @@ async function confirmarCancelamento(id){
   p.canceladoPor=op.nome;
   /* registro proprio: e dele que o relatorio de Cancelamentos vive */
   DB.cancelamentos=DB.cancelamentos||[];
+  /* ==========================================================
+     O CANCELAMENTO CARIMBAVA O CAIXA DE HOJE
+
+     `caixaId:cx.id` era o caixa ABERTO agora. Cancelar hoje uma venda de
+     ontem punha o cancelamento no turno de hoje — enquanto o valor saia
+     do faturamento do turno de ONTEM, que e de onde a venda veio. Os
+     dois relatorios do mesmo dia discordavam, por construcao.
+     O caixa do cancelamento e o caixa DA VENDA.
+     ========================================================== */
+  var quem=null; try{ quem=usuarioLogado(); }catch(e){}
   var reg={id:uid('cn'),pedidoId:p.id,numero:p.numero,
     valor:Number(p.total)||0,data:hojeISO(),hora:agoraHM(),
     motivoId:motId,motivo:motivo,obs:obs,
     produzido:foiProduzido,
     estoqueVoltou:!foiProduzido,
+    /* quem autorizou com a propria senha, e de qual conta o aparelho
+       estava logado: a RDS pede os dois, e nem sempre sao a mesma pessoa */
     operadorId:op.id,operador:op.nome,
-    caixaId:cx?cx.id:'',turno:cx?(cx.turno||''):''};
+    registradoPorId:(quem&&quem.id)||'',registradoPor:(quem&&quem.nome)||'',
+    caixaId:p.caixaId||(cx?cx.id:''),turno:cx?(cx.turno||''):''};
   DB.cancelamentos.push(reg);
   p.produzidoNoCancelamento=foiProduzido;
   /* o estoque so volta quando NAO foi produzido. O valor sai do faturamento
@@ -53678,7 +53825,10 @@ async function confirmarCancelamento(id){
      ja desconta. */
   try{
     if(antes!=='cancelado'&&!foiProduzido)estornarEstoqueVenda(p);
+    else if(antes!=='cancelado')marcarPerdaDoCancelamento(p,reg);
   }catch(e){_quieto(e,'confirmarCancelamento')}
+  /* tudo o que a venda criou fora do estoque volta atras */
+  try{ reverterEfeitosDaVenda(p,reg); }catch(e){_quieto(e,'reverterEfeitosDaVenda')}
   salvar();
   fecharModal();
   if(PDV.aba==='pedidos')renderKanban();
@@ -53686,6 +53836,22 @@ async function confirmarCancelamento(id){
   toast('Venda #'+p.numero+' cancelada por '+op.nome+
     (foiProduzido?' — estoque não voltou (já produzido).':' — itens devolvidos ao estoque.'));
   if(NUVEM.ligada)sincronizar();
+  /* ==========================================================
+     O DOCUMENTO FISCAL VAI ATRAS, NUNCA NA FRENTE
+
+     A venda ja esta cancelada na tela e no caixa. O cupom e um pedido a
+     SEFAZ, que pode demorar, recusar por prazo ou estar fora do ar —
+     nada disso pode segurar quem esta no balcao nem desfazer o que ja
+     foi feito. Falhou, vira pendencia escrita no cupom.
+     ========================================================== */
+  try{
+    cancelarCupomDaVenda(p,p.motivoCancelamento).then(function(r){
+      salvar();
+      if(r&&!r.feito&&r.porque!=='sem cupom')
+        toast('Venda cancelada. O cupom fiscal ficou pendente — veja em Cupons Fiscais.');
+      if(NUVEM.ligada)sincronizar();
+    }).catch(function(e){_quieto(e,'cancelarCupomDaVenda')});
+  }catch(e){_quieto(e,'cancelarCupomDaVenda')}
   avisarGerente(p.sucursalId||lojaAtualId(),'cancelamento',
     msgCancelamento(p,p.motivoCancelamento));
   /* ==========================================================
@@ -53700,6 +53866,105 @@ async function confirmarCancelamento(id){
      overlays.
      ========================================================== */
   setTimeout(function(){ perguntaImprimirCancelamento(p,reg); },120);
+}
+
+/* ==========================================================
+   CANCELAR A VENDA MEXIA SO NO ESTOQUE
+
+   A venda cria seis coisas: movimento de estoque, pagamento, cupom
+   fiscal, dívida de fiado, contador do cartão fidelidade e uso do cupom
+   de desconto. O cancelamento desfazia UMA.
+
+   O que isso fazia com a loja, em ordem de quem reclama primeiro:
+   · o cliente que teve a venda cancelada CONTINUAVA DEVENDO o fiado —
+     o débito entrou e o crédito nunca saiu;
+   · o cartão fidelidade dele avançava com uma compra que não houve;
+   · o cupom de desconto queimava o limite por cliente à toa;
+   · e a NFC-e ficava autorizada na SEFAZ (tratada em `cancelarCupomDaVenda`).
+
+   Cada reversão aqui é o espelho exato de uma linha de `finalizarVenda`.
+   Foram escritas lado a lado com o original, e todas são idempotentes:
+   guardam no registro do cancelamento o que devolveram, e só devolvem
+   uma vez.
+   ========================================================== */
+function reverterEfeitosDaVenda(p,reg){
+  if(!p||!reg||reg.revertido)return;
+  var desf={fiado:0,compras:0,gasto:0,cupons:0};
+  var cli=p.clienteId?(DB.clientes||[]).find(function(x){return x.id===p.clienteId}):null;
+  /* ---------- fiado ---------- */
+  var fiado=(DB.fiadoMov||[]).filter(function(m){
+    return m.pedidoId===p.id&&m.tipo==='debito';})
+    .reduce(function(a,m){return a+(Number(m.valor)||0)},0);
+  if(fiado>0.001&&cli){
+    DB.fiadoMov=DB.fiadoMov||[];
+    DB.fiadoMov.push({id:uid('fm'),clienteId:cli.id,tipo:'credito',valor:fiado,
+      data:hojeISO(),pedidoId:p.id,cancelamentoId:reg.id,
+      obs:'venda cancelada — pedido #'+p.numero});
+    cli.saldoFiado=+(((Number(cli.saldoFiado)||0)-fiado)).toFixed(2);
+    desf.fiado=fiado;
+  }
+  /* ---------- cartao fidelidade e histórico do cliente ---------- */
+  if(cli){
+    if((Number(cli.compras)||0)>0){cli.compras=(Number(cli.compras)||0)-1;desf.compras=1;}
+    var g=Number(p.total)||0;
+    if(g>0.001){cli.gasto=+(Math.max(0,(Number(cli.gasto)||0)-g)).toFixed(2);desf.gasto=g;}
+  }
+  /* ---------- cupom de desconto: o limite por cliente volta ---------- */
+  var antesCu=(DB.cupomUsos||[]).length;
+  DB.cupomUsos=(DB.cupomUsos||[]).filter(function(u){return u.pedidoId!==p.id});
+  desf.cupons=antesCu-(DB.cupomUsos||[]).length;
+  reg.revertido=desf;
+  return desf;
+}
+/* ==========================================================
+   O QUE FOI PRODUZIDO E JOGADO FORA E PERDA, NAO CUSTO DE VENDA
+
+   Cancelar um pedido ja produzido deixa a baixa de estoque no lugar —
+   e certo: o insumo foi consumido de verdade. Mas o custo continuava
+   entrando no CPV, ao lado de uma receita que o proprio cancelamento
+   tirou do faturamento. O DRE ficava com custo sem venda, e a margem
+   caia por um motivo que o numero nao explicava.
+
+   O movimento nao e mexido (o saldo esta certo). O que muda e a
+   CLASSIFICACAO: ele passa a ser perda identificada, ligada ao
+   cancelamento, e o DRE o leva para Despesas Gerais Variaveis em vez de
+   CPV. O resultado final e o mesmo; a leitura e que deixa de mentir.
+   ========================================================== */
+function marcarPerdaDoCancelamento(p,reg){
+  var n=0;
+  (DB.movEst||[]).forEach(function(m){
+    if(m.pedidoId!==p.id||m.origem!=='venda')return;
+    m.perdaCancelamento=reg.id;
+    m.perdaMotivo=reg.motivo||'venda cancelada';
+    n++;
+  });
+  if(n)reg.perdaMovs=n;
+  return n;
+}
+function desmarcarPerdaDoCancelamento(p){
+  (DB.movEst||[]).forEach(function(m){
+    if(m.pedidoId!==p.id||m.origem!=='venda')return;
+    delete m.perdaCancelamento; delete m.perdaMotivo;
+  });
+}
+/* desfaz a reversão quando o cancelamento é desfeito */
+function reporEfeitosDaVenda(p,reg){
+  if(!p||!reg||!reg.revertido)return;
+  var d=reg.revertido;
+  var cli=p.clienteId?(DB.clientes||[]).find(function(x){return x.id===p.clienteId}):null;
+  if(cli){
+    if(d.fiado>0.001){
+      DB.fiadoMov=(DB.fiadoMov||[]).filter(function(m){return m.cancelamentoId!==reg.id});
+      cli.saldoFiado=+(((Number(cli.saldoFiado)||0)+d.fiado)).toFixed(2);
+    }
+    if(d.compras)cli.compras=(Number(cli.compras)||0)+d.compras;
+    if(d.gasto>0.001)cli.gasto=+(((Number(cli.gasto)||0)+d.gasto)).toFixed(2);
+  }
+  /* o uso do cupom nao volta: ele foi apagado, e recria-lo sem os dados
+     originais inventaria um registro. Fica dito no registro, para quem
+     olhar o historico. */
+  reg.reposto=new Date().toISOString();
+  delete reg.revertido;
 }
 
 /* ==========================================================
@@ -53793,7 +54058,10 @@ async function confirmarDescancelamento(id,fase){
     reg.desfeitoEm=new Date().toISOString();
     reg.desfeitoPor=op.nome;reg.desfeitoPorId=op.id;
     reg.desfeitoMotivo=motivo;
+    /* fiado, fidelidade e a classificacao de perda voltam para onde estavam */
+    try{ reporEfeitosDaVenda(p,reg); }catch(e){_quieto(e,'reporEfeitosDaVenda')}
   }
+  try{ desmarcarPerdaDoCancelamento(p); }catch(e){_quieto(e,'desmarcarPerda')}
   /* ==========================================================
      QUEM DECIDE SE O ESTOQUE SAI DE NOVO E O ESTOQUE, NAO O CAMPO
 
@@ -57904,9 +58172,27 @@ function imVendas(mes,suc){
 /* ---------- custos e estoque ----------
    Mesma classificação do "CMV por Mercadoria" (cmvCalcular). Duas
    diferenças, as duas para não contar duas vezes:
-     - o estorno de venda cancelada (origem 'estorno') DEVOLVE o custo;
+     - venda cancelada não é CMV;
      - o insumo consumido NA PRODUÇÃO não é CMV: ele vira o gelato, e o
-       gelato é que sai na venda. */
+       gelato é que sai na venda.
+
+   ==========================================================
+   O ESTORNO QUE ESTE CÓDIGO ESPERAVA NUNCA EXISTIU
+
+   Havia aqui `if(org==='estorno')` e, no fim, `cmv = cmv − estorno`.
+   Varrendo o sistema inteiro, `'estorno'` nunca era ESCRITO em lugar
+   nenhum: `r.estorno` era sempre zero, e o desconto do CMV nunca
+   acontecia. Código que descreve um comportamento que não existe é pior
+   que código ausente — ele faz quem lê acreditar que o caso está
+   tratado.
+
+   O caso é real e tem duas formas:
+     · cancelamento NÃO produzido — o estorno apaga o movimento, e ele
+       simplesmente deixa de existir (nada a descontar);
+     · cancelamento JÁ produzido — o movimento fica (o insumo foi gasto
+       mesmo), agora marcado com `perdaCancelamento`. Isso não é CMV:
+       é perda, e entra em `perdas`, como o resto.
+   ========================================================== */
 function imJanelaMov(){
   var d=new Date();d.setDate(d.getDate()-(typeof DIAS_JANELA!=='undefined'?DIAS_JANELA:90));
   return d.toISOString().slice(0,10);
@@ -57914,9 +58200,9 @@ function imJanelaMov(){
 function imEstoque(mes,suc){
   var L=imLimites(mes);
   if(L.de<imJanelaMov())return null;          /* o aparelho não tem esse mês inteiro */
-  var r={cmv:0,estorno:0,ajustes:0,baixas:0,perdaProd:0,compras:0,prodV:0,prodKg:0};
+  var r={cmv:0,perdaCanc:0,ajustes:0,baixas:0,perdaProd:0,compras:0,prodV:0,prodKg:0};
   (DB.movEst||[]).forEach(function(m){
-    if(!m||m.data<L.de||m.data>L.ate)return;
+    if(!m||m.demo||m.data<L.de||m.data>L.ate)return;
     if(suc&&m.sucursalId&&m.sucursalId!==suc)return;
     var tipo=tipoMotivo(m.motivoId),org=String(m.origem||''),nome=nomeMotivo(m.motivoId);
     (m.linhas||[]).forEach(function(l){
@@ -57924,7 +58210,7 @@ function imEstoque(mes,suc){
       var q=convUnid(l.qtd,l.unidade,ins.unidade);if(q===null)q=Number(l.qtd)||0;
       var v=Math.abs(q*(Number(l.custo)||0));
       var ent=(l.direcao==='entrada');
-      if(org==='estorno'){r.estorno+=v;return;}
+      if(m.perdaCancelamento){ if(!ent)r.perdaCanc+=v; return; }
       if(org==='venda'){r.cmv+=ent?-v:v;return;}
       if(org.indexOf('producao')>=0||tipo==='producao'||String(l.origem||'').indexOf('producao')>=0){
         if(ent&&/gelato/i.test(ins.nome||'')){
@@ -57939,8 +58225,8 @@ function imEstoque(mes,suc){
       if(!ent)r.baixas+=v;
     });
   });
-  r.cmv=Math.max(0,r.cmv-r.estorno);
-  r.perdas=Math.max(0,r.ajustes)+r.baixas+r.perdaProd;
+  r.cmv=Math.max(0,r.cmv);
+  r.perdas=Math.max(0,r.ajustes)+r.baixas+r.perdaProd+r.perdaCanc;
   r.custoKg=r.prodKg>0?r.prodV/r.prodKg:null;
   return r;
 }

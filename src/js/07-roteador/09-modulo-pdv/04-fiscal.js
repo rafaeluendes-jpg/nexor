@@ -76,6 +76,95 @@ async function fiscalChamar(acao,dados){
     return {ok:false,status:0,d:{erro:'Sem conexão com o servidor fiscal.'}};
   }
 }
+/* ==========================================================
+   CANCELAR A VENDA TEM DE CANCELAR O CUPOM
+
+   Cancelar no PDV mexia no estoque e no faturamento e NAO encostava no
+   documento fiscal: a NFC-e ficava autorizada na SEFAZ, valendo, com o
+   valor de uma venda que nao existe mais. A unica pista era um rotulo
+   "venda cancelada" na tela de Cupons — um aviso, nao uma acao.
+
+   Aqui e a acao. Ela roda depois do cancelamento comercial, nunca antes:
+   o que o cliente ve e a venda cancelada na hora; o documento vai atras.
+
+   ---------- por que nao pode estourar ----------
+   A SEFAZ tem prazo curto (em geral 30 minutos) e pode estar fora do ar.
+   Falhar aqui nao pode desfazer o cancelamento nem travar o caixa. Entao
+   toda falha vira PENDENCIA marcada no cupom — que aparece na tela de
+   Cupons Fiscais e na lista `fiscal-divergente` da API — em vez de sumir
+   num console que ninguem abre.
+
+   ---------- o motivo ----------
+   A lei pede no minimo 15 letras. O motivo do cancelamento da loja
+   ("Cliente desistiu") costuma ter menos, entao ele e completado com o
+   numero do pedido, que e o que um fiscal precisaria para achar a venda.
+   ========================================================== */
+function motivoFiscalDoCancelamento(ped,motivo){
+  var t=String(motivo||'').trim();
+  var compl='Cancelamento da venda #'+(ped&&ped.numero!==undefined?ped.numero:'');
+  var txt=t?(t+' — '+compl):compl;
+  txt=txt.replace(/\s+/g,' ').trim();
+  /* 15 e o minimo legal; 255 e o teto do campo */
+  while(txt.length<15)txt+=' .';
+  return txt.slice(0,255);
+}
+function cupomFiscalDoPedido(ped){
+  if(!ped||!ped.id)return null;
+  return baseCuponsFiscais().find(function(c){
+    return (c.pedidoId===ped.id)||(c.pedidoRef&&c.pedidoRef===ped.ref_local);})||null;
+}
+async function cancelarCupomDaVenda(ped,motivo){
+  var c=cupomFiscalDoPedido(ped);
+  if(!c)return {feito:false,porque:'sem cupom'};
+  /* cupom que nunca virou documento nao tem o que cancelar na SEFAZ */
+  if(c.status!=='autorizado'&&c.status!=='contingencia'){
+    if(c.status==='pendente'||c.status==='enviando'){
+      /* estava a caminho: marca para nao ser emitido */
+      c.naoEmitir=true;c.motivoPendencia='Venda cancelada antes da autorização.';
+      return {feito:true,porque:'cupom nao autorizado'};
+    }
+    return {feito:false,porque:'cupom '+(c.status||'sem status')};
+  }
+  var suc=c.sucursalId||ped.sucursalId||lojaAtualId();
+  /* a partir daqui existe documento valendo: a pendencia nasce ligada,
+     e so morre quando a SEFAZ confirmar */
+  c.precisaCancelar=true;
+  c.motivoPendencia='Venda cancelada — cupom ainda autorizado na SEFAZ.';
+  if(!fiscalEmite(suc)||!c.spedyId){
+    c.motivoPendencia='Venda cancelada. Este cupom não foi emitido pela Spedy: '+
+      'o cancelamento tem de ser feito com o contador.';
+    return {feito:false,porque:'sem spedyId'};
+  }
+  var r=await fiscalChamar('cancelar',
+    {sucursal:suc,id:c.spedyId,motivo:motivoFiscalDoCancelamento(ped,motivo)});
+  if(!r.ok){
+    /* ==========================================================
+       FORA DO PRAZO NAO E ERRO DE SISTEMA (RDS 9.3)
+
+       Passado o prazo da SEFAZ o caminho deixa de ser o cancelamento e
+       passa a ser a nota de devolucao, que e assunto do contador. O
+       sistema nao pode fingir que cancelou nem apagar o rastro: ele
+       deixa a pendencia escrita, com o motivo que a SEFAZ devolveu.
+       ========================================================== */
+    var msg=String((r.d&&r.d.erro)||'A SEFAZ não aceitou o cancelamento.');
+    c.motivoPendencia=/prazo|tempo|expirad|126|501/i.test(msg)
+      ? 'Fora do prazo de cancelamento da SEFAZ. O caminho agora é a nota de '+
+        'devolução — fale com o contador. ('+msg.slice(0,120)+')'
+      : 'A SEFAZ não cancelou: '+msg.slice(0,160);
+    return {feito:false,porque:msg};
+  }
+  c.motivoCancelamento=motivoFiscalDoCancelamento(ped,motivo);
+  if(r.d&&r.d.nota)aplicarNotaNoCupom(c,r.d.nota);
+  if(c.status==='autorizado'||c.status==='contingencia')c.status='enviando';
+  if(c.status==='cancelado'){c.precisaCancelar=false;c.motivoPendencia='';}
+  else{
+    acompanharCupom(c.id).then(function(){
+      var c2=baseCuponsFiscais().find(function(x){return x.id===c.id});
+      if(c2&&c2.status==='cancelado'){c2.precisaCancelar=false;c2.motivoPendencia='';salvar();}
+    }).catch(function(){});
+  }
+  return {feito:true,porque:'enviado'};
+}
 async function fiscalCarregar(suc,leve){
   suc=suc||lojaAtualId();
   var r=await fiscalChamar('estado',{sucursal:suc,leve:!!leve});
@@ -416,6 +505,9 @@ async function emitirCupom(cupomId){
   var c=baseCuponsFiscais().find(function(x){return x.id===cupomId});
   if(!c||_fsEmitindo[c.id])return c||null;
   if(['autorizado','contingencia','cancelado','inutilizado'].indexOf(c.status)>=0)return c;
+  /* a venda foi cancelada antes de a SEFAZ responder: nao emite documento
+     para uma venda que nao existe mais */
+  if(c.naoEmitir){c.status='sem_cupom';c.motivo=c.motivoPendencia||'Venda cancelada.';return c;}
   var ped=(DB.pedidos||[]).find(function(p){return p.id===c.pedidoId});
   var suc=c.sucursalId||(ped&&ped.sucursalId)||lojaAtualId();
   c.sucursalId=suc;

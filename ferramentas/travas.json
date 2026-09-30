@@ -101,6 +101,10 @@
    "pontos": 18,
    "roda": true
   },
+  "testes/cancelamento-fecha-o-ciclo.js": {
+   "pontos": 42,
+   "roda": true
+  },
   "testes/cancelamento-sem-lancamento.js": {
    "pontos": 2,
    "roda": true
@@ -242,7 +246,7 @@
    "roda": true
   },
   "testes/indicadores-mes.js": {
-   "pontos": 40,
+   "pontos": 42,
    "roda": true
   },
   "testes/interruptor-da-loja.js": {

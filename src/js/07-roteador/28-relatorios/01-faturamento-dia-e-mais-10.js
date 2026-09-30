@@ -1909,6 +1909,27 @@ function calcularDRE(ano){
      grupo do cardapio -> produto (ficha) -> ingrediente */
   movsDoDRE().forEach(function(mv){
     var k=mesDe(mv.data); if(k<0)return;
+    /* ==========================================================
+       CUSTO SEM VENDA NAO E CUSTO DO VENDIDO
+
+       Pedido ja produzido e depois cancelado: o insumo foi consumido de
+       verdade (o saldo esta certo), mas a receita saiu do faturamento
+       com o cancelamento. O custo continuava no CPV, sozinho, do lado de
+       uma venda que nao existe — e a margem caia por um motivo que o
+       numero nao explicava.
+
+       Ele vai para Despesas Gerais Variaveis, como perda identificada.
+       O Resultado Final e o mesmo (as duas rubricas entram negativas
+       antes da Margem de Contribuicao); o que muda e a leitura.
+       ========================================================== */
+    if(mv.perdaCancelamento){
+      var vp=(mv.linhas||[]).reduce(function(a,l){
+        return a+((l.direcao==='saida'&&String(l.origem||'')==='venda')
+          ?((Number(l.qtd)||0)*(Number(l.custo)||0)):0);},0);
+      if(vp){ m[k]['06']+=vp; add('06',['Perdas por cancelamento',
+        mv.perdaMotivo||'venda cancelada'],k,vp); }
+      return;
+    }
     (mv.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida'||String(l.origem||'')!=='venda')return;
       var v=(Number(l.qtd)||0)*(Number(l.custo)||0);
