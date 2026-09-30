@@ -105,6 +105,16 @@ ninguém olha. A pergunta é feita a partir do **pedido**: venda que nunca
 gerou cupom não tem linha em `cupons_fiscais`, e nenhuma consulta por
 status a encontraria.
 
+O corte é pelo **instante** da virada, não pelo dia dela. Santa Fé do Sul
+virou às 17:43 de 29/09/2026 e vendeu a manhã toda em homologação;
+cortando pelo dia, aqueles testes voltavam para a lista como divergência
+(eram 12 linhas, 9 delas teste — hoje são 3). No mesmo espírito, cupom de
+homologação **não conta como cupom**: se uma venda de produção só tem um
+cupom de teste amarrado nela, a linha diz *venda sem cupom fiscal*, que é
+a verdade. E `data_venda` sai no **dia da loja** (fuso da unidade): crua,
+uma venda das 22:47 de 29/09 apareceria como 30/09 com hora 22:47 do
+lado, e quem lê concluiria que o sistema está errado.
+
 **O que a API ainda NÃO tem**, da lista que a RDS pediu:
 
 - **lote e validade** — o Joia ainda não controla lote nem validade.

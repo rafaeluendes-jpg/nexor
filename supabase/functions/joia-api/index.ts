@@ -16,6 +16,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
    v2.2 — pedido da RDS de 24/09/2026: /pendencias (relação nominal do
           que falta limpar antes da data de corte), limite de chamadas por
           chave, contagem de uso atômica e máscara de dados pessoais.
+   v2.3 — documento de homologação da RDS (30/09/2026): as três pendências
+          que faltavam da lista dele (estoque negativo, divergência de
+          venda × pagamento × fiscal, caixas com pendência) e o envelope
+          dizendo fuso, versão da regra e ÚLTIMA SINCRONIZAÇÃO por unidade.
 
    Autenticação: `Authorization: Bearer <chave>` (ou `x-api-key`).
    A chave nunca é guardada em texto — o banco tem só o sha-256 dela.
@@ -144,6 +148,7 @@ export function mascarar(x: any, chaveCampo = ""): any {
 const AJUDA = {
   api: "Joia — API de leitura e auditoria",
   api_versao: API_VERSAO,
+  regra_versao: REGRA_VERSAO,
   como_usar: "Todas as chamadas são GET, com o cabeçalho Authorization: Bearer SUA_CHAVE",
   observacao: "Esta API só lê. Nada aqui altera o sistema.",
   parametros_comuns: {
@@ -187,6 +192,11 @@ const AJUDA = {
   pendencias: {
     "GET /pendencias": "quantos registros há em cada pendência de limpeza",
     "GET /pendencias/{tipo}": "a relação nominal: " + Object.keys(PENDENCIAS).join(", "),
+  },
+  nao_existe_ainda: {
+    lote_e_validade: "o Joia ainda não controla lote nem validade — não há o que devolver, e nada é simulado aqui",
+    itens_bloqueados: "o saldo negativo é MEDIDO (/pendencias/estoque-negativo), mas o Joia ainda não impede a saída do item nem o fechamento do caixa por causa dele",
+    historico_de_regularizacoes: "o que existe é /historico (quem mudou o quê). O registro formal de causa-raiz e ação corretiva ainda não existe",
   },
   limites: {
     metodo: "somente GET",
@@ -325,7 +335,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    /* ---------------- pendências (v2.2) ---------------- */
+    /* ---------------- pendências (v2.2 e v2.3) ---------------- */
     if (rota === "pendencias") {
       const tipos = Object.keys(PENDENCIAS);
       const listas = await Promise.all(tipos.map((t) =>
@@ -357,15 +367,15 @@ Deno.serve(async (req: Request) => {
         avisos.push("Hoje o Joia não separa custo NÃO INFORMADO de custo REALMENTE ZERO: os dois aparecem como 0. A separação está no desenho das travas.");
       }
       if (tipo === "estoque-negativo") {
-        avisos.push("Saldo negativo nao se resolve acertando o saldo: a causa esta no `ultimo_movimento`, e a correcao e uma movimentacao real (entrada faltante, inventario, ficha, producao).");
-        avisos.push("O Joia ainda NAO bloqueia a saida de item negativo nem o fechamento de caixa por causa dele. Esta lista mede o problema; a trava e trabalho separado.");
+        avisos.push("Saldo negativo não se resolve acertando o saldo: a causa está no `ultimo_movimento`, e a correção é uma movimentação real (entrada faltante, inventário, ficha, produção).");
+        avisos.push("O Joia ainda NÃO bloqueia a saída de item negativo nem o fechamento de caixa por causa dele. Esta lista mede o problema; a trava é trabalho separado.");
       }
       if (tipo === "fiscal-divergente") {
-        avisos.push("So entra unidade em PRODUCAO, e venda de depois da virada: cupom de homologacao nunca foi documento fiscal.");
-        avisos.push("A divergencia e apurada a partir do PEDIDO. Venda que nunca gerou cupom nao tem linha em cupons_fiscais, e nenhuma consulta por status a encontraria.");
+        avisos.push("Só entra unidade em PRODUÇÃO, e venda de depois da virada: cupom de homologação nunca foi documento fiscal.");
+        avisos.push("A divergência é apurada a partir do PEDIDO. Venda que nunca gerou cupom não tem linha em cupons_fiscais, e nenhuma consulta por status a encontraria.");
       }
       if (tipo === "caixas-com-pendencia") {
-        avisos.push("Caixa aberto ha mais de um dia normalmente e caixa que alguem esqueceu de fechar — e o movimento seguinte entra no turno errado.");
+        avisos.push("Caixa aberto há mais de um dia normalmente é caixa que alguém esqueceu de fechar — e o movimento seguinte entra no turno errado.");
       }
       if (tipo === "motivos-sem-classe") {
         avisos.push("O cadastro de motivo ainda não tem o campo classe: todos vêm sem classe até a classificação do Rafael, do Raylan e da RDS.");

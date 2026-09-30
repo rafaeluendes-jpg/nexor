@@ -15,6 +15,13 @@
 -- trabalho de outra ordem, no sistema — e enquanto elas nao existem,
 -- o valor destas tres e justamente MEDIR o tamanho do problema.
 --
+-- ---------- correcao do mesmo dia (30/09/2026, 23h) ----------
+-- A primeira versao cortava pela DATA da virada para producao. Santa Fe
+-- virou as 17:43 de 29/09 — e o dia 29 inteiro entrou, inclusive os
+-- cupons de homologacao da manha, que nunca foram documento. Davam 12
+-- "divergencias"; 9 delas eram teste. O corte agora e pelo INSTANTE, e
+-- so cupom de producao conta como cupom.
+--
 -- ---------- por que "divergencia fiscal" nao e so status ----------
 -- Um cupom `rejeitado` e obvio. O que escapa e a venda que NUNCA gerou
 -- cupom numa loja que emite sempre: nao ha linha em `cupons_fiscais`,
@@ -97,11 +104,16 @@ begin
 
   -- ---------- venda, pagamento e fiscal que nao fecham ----------
   if p_tipo = 'fiscal-divergente' then
-    select coalesce(jsonb_agg(x order by x->>'data_venda' desc, x->>'numero'), '[]') into r from (
+    /* a ordem vem das COLUNAS, nao do jsonb: por texto, o cupom 9
+       viria depois do 100. */
+    select coalesce(jsonb_agg(x order by t.ord_quando desc, t.ord_numero desc), '[]') into r from (
       select jsonb_build_object(
         'pedido_ref', pd.ref_local,
         'numero', pd.numero,
-        'data_venda', pd.data_venda,
+        /* a data tem de ser o DIA DA LOJA: cru, uma venda das 22:47 de
+           29/09 sai como 30/09 (UTC) com hora 22:47 do lado — e quem le
+           conclui que o sistema esta errado. */
+        'data_venda', (pd.data_venda at time zone 'America/Sao_Paulo')::date,
         'hora', pd.hora,
         'unidade', s.ref_local,
         'unidade_nome', s.nome,
@@ -122,14 +134,19 @@ begin
           when cf.status = 'contingencia' then 'cupom em contingencia, ainda nao transmitido'
           else 'cupom cancelado sem venda cancelada' end,
         'obs', 'Apurada a partir do PEDIDO: venda que nunca gerou cupom nao tem linha em cupons_fiscais e nenhuma consulta por status a encontraria.'
-      ) x
+      ) x, pd.data_venda as ord_quando, pd.numero as ord_numero
       /* em `pedidos` a unidade e o ID da sucursal (uuid); no resto do
          banco e a referencia (`ref_local`, texto). Junta pelo id e
          filtra pela referencia. */
       from pedidos pd
       join sucursais s on s.id = pd.sucursal_id
       join fiscal_unidades fu on fu.loja_id = pd.loja_id and fu.sucursal_ref = s.ref_local
-      left join cupons_fiscais cf on cf.loja_id = pd.loja_id and cf.pedido_ref = pd.ref_local
+      /* cupom de homologacao NAO e cupom: se a venda de producao tem so
+         um cupom de teste amarrado nela, ela e "venda sem cupom fiscal",
+         e e isso que a linha tem de dizer. */
+      left join cupons_fiscais cf on cf.loja_id = pd.loja_id
+                                 and cf.pedido_ref = pd.ref_local
+                                 and cf.ambiente = 'producao'
      where pd.loja_id = p_loja
        and (p_suc is null or s.ref_local = p_suc)
        and fu.modo <> 'desligado'
@@ -139,8 +156,11 @@ begin
        and fu.ambiente = 'producao'
        and fu.producao_confirmada_em is not null
        and coalesce(pd.fase,'') <> 'cancelado'
-       and pd.data_venda >= (fu.producao_confirmada_em at time zone 'America/Sao_Paulo')::date
-       and pd.data_venda >= (now() at time zone 'America/Sao_Paulo')::date - 90
+       /* pelo INSTANTE da virada, nao pelo dia dela: a loja virou as
+          17:43 e vendeu a manha toda em homologacao. Cortar pelo dia
+          trazia esses testes de volta como divergencia. */
+       and pd.data_venda >= fu.producao_confirmada_em
+       and pd.data_venda >= now() - interval '90 days'
        and (cf.id is null or cf.status <> 'autorizado')
     ) t;
     return coalesce(r, '[]'::jsonb);
