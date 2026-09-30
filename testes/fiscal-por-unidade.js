@@ -365,7 +365,13 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   const fonte = fs.readFileSync(FUNC, 'utf8');
   t('servidor: só liga a unidade quando o CNPJ bate', /cnpjUni && cnpjUni !== cnpjEmp/.test(fonte));
   t('servidor: produção só com o CNPJ digitado de volta', /digitos\(c\.confirmaCnpj\) !== cnpj/.test(fonte));
-  t('servidor: cancelar é do gerente ou da matriz', /acao === "cancelar"[\s\S]{0,80}!podeGerir/.test(fonte));
+  /* V397 (Rafael, 30/09/2026): o caixa cancela o cupom da venda que ele
+     cancelou. Fora gerente e matriz, só passa com a venda DAQUELE cupom
+     cancelada no banco, na mesma unidade — qualquer outro cupom continua
+     sendo do gerente ou da matriz. */
+  t('servidor: cancelar é do gerente ou da matriz (o caixa, só o da venda cancelada)',
+    /acao === "cancelar"[\s\S]{0,80}if \(!ref\) return responde\(403/.test(fonte) &&
+    /acao === "cancelar"[\s\S]{0,3000}if \(!podeGerir\) \{[\s\S]{0,600}pv\.fase === "cancelado" && \(!pv\.sucursal_id \|\| pv\.sucursal_id === ref\)[\s\S]{0,120}if \(!vendaCancelada\)\s*return responde\(403/.test(fonte));
   t('servidor: o caixa de uma loja não alcança outra', /perfil\.sucursal_ref !== ref/.test(fonte));
   t('servidor: NFC-e sempre consumidor final e operação interna',
     /n\.isFinalCustomer = true;[\s\S]{0,80}n\.destination = "internal"/.test(fonte));
