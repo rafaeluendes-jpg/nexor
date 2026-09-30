@@ -8981,7 +8981,12 @@ var MAPA=[
        ========================================================== */
     campos:function(o){var _f=formaDoPagamento(o);
       return {forma_id:fk('formasPag',_f),forma_ref:_f||null,
-      valor:n(o.valor),equipamento:o.equipamento||null}}}]},
+      valor:n(o.valor),equipamento:o.equipamento||null,
+      /* o estado do pagamento (RDS 9): nasce recebido, vira estornado
+         quando a venda e cancelada. Pagamento antigo nao tem o campo e
+         cai no padrao, que e o que ele sempre foi. */
+      situacao:o.situacao||'recebido',
+      estornado_em:o.estornadoEm||null,estornado_por:o.estornadoPor||null}}}]},
 
  {col:'acertos',     tab:'acertos',
   campos:function(x){return {entregador_id:fk('entregadores',x.entregadorId),
@@ -14405,7 +14410,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V382.0.0';
+var VERSAO='V383.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -23036,7 +23041,24 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   if(_cupomAtivo)ped.cupom={id:_cupomAtivo.id,codigo:_cupomAtivo.codigo,valor:valorCupom(_cupomAtivo,total+desc-taxa)};
   /* de qual aparelho saiu o pagamento — o fechamento separa por isso */
   ped.equipamento=(ped.canal==='totem')?'totem':(ped.canal==='mesa'?'mesa':'balcao');
-  (ped.pagamentos||[]).forEach(function(x){ if(!x.equipamento)x.equipamento=ped.equipamento; });
+  (ped.pagamentos||[]).forEach(function(x){
+    if(!x.equipamento)x.equipamento=ped.equipamento;
+    /* ==========================================================
+       O PAGAMENTO PASSA A TER ESTADO (RDS 9)
+
+       Ele nascia como `{forma, valor, recebido, equipamento}` e mais
+       nada. Nao havia como perguntar "quais pagamentos foram
+       estornados" — a resposta nao existia em lugar nenhum, e cancelar
+       a venda deixava o pagamento intacto.
+
+       `recebido` e o estado de nascimento: o operador conferiu o
+       dinheiro, a maquininha ou o Pix e fechou a venda. E a verdade do
+       que aconteceu; "aprovado pela adquirente" seria invencao, porque
+       o Joia nao fala com maquininha.
+       ========================================================== */
+    if(!x.situacao)x.situacao='recebido';
+    if(!x.recebidoEm)x.recebidoEm=new Date().toISOString();
+  });
   /* fecha as comandas e carimba a mesa no pedido, antes de ele ser gravado */
   if(PDV.mesaPag&&MESA_PAG)concluirMesa(ped);
   DB.pedidos.push(ped);
@@ -54575,7 +54597,20 @@ async function confirmarCancelamento(id){
    ========================================================== */
 function reverterEfeitosDaVenda(p,reg){
   if(!p||!reg||reg.revertido)return;
-  var desf={fiado:0,compras:0,gasto:0,cupons:0};
+  var desf={fiado:0,compras:0,gasto:0,cupons:0,pagamentos:0};
+  /* ---------- o pagamento deixa de valer (RDS 9) ----------
+     Estornar aqui e registro, nao devolucao de dinheiro: quem devolve e
+     a loja, no balcao ou pela maquininha. O que o sistema pode — e ate
+     agora nao fazia — e dizer que aquele pagamento nao vale mais. */
+  var _quemE=null; try{ _quemE=usuarioLogado(); }catch(e){}
+  (p.pagamentos||[]).forEach(function(g){
+    if(!g||g.situacao==='estornado')return;
+    g.situacao='estornado';
+    g.estornadoEm=new Date().toISOString();
+    g.estornadoPor=(_quemE&&_quemE.nome)||'';
+    g.cancelamentoId=reg.id;
+    desf.pagamentos++;
+  });
   var cli=p.clienteId?(DB.clientes||[]).find(function(x){return x.id===p.clienteId}):null;
   /* ---------- fiado ---------- */
   var fiado=(DB.fiadoMov||[]).filter(function(m){
@@ -54646,6 +54681,12 @@ function reporEfeitosDaVenda(p,reg){
     if(d.compras)cli.compras=(Number(cli.compras)||0)+d.compras;
     if(d.gasto>0.001)cli.gasto=+(((Number(cli.gasto)||0)+d.gasto)).toFixed(2);
   }
+  /* o pagamento volta a valer: a venda voltou */
+  (p.pagamentos||[]).forEach(function(g){
+    if(!g||g.cancelamentoId!==reg.id)return;
+    g.situacao='recebido';
+    delete g.estornadoEm; delete g.estornadoPor; delete g.cancelamentoId;
+  });
   /* o uso do cupom nao volta: ele foi apagado, e recria-lo sem os dados
      originais inventaria um registro. Fica dito no registro, para quem
      olhar o historico. */

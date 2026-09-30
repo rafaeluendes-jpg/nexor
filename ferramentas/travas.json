@@ -337,6 +337,10 @@
    "pontos": 21,
    "roda": true
   },
+  "testes/pagamento-tem-estado.js": {
+   "pontos": 27,
+   "roda": true
+  },
   "testes/papel-sem-branco.js": {
    "pontos": 24,
    "roda": true

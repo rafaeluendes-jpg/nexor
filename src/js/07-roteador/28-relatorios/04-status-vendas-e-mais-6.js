@@ -332,7 +332,20 @@ async function confirmarCancelamento(id){
    ========================================================== */
 function reverterEfeitosDaVenda(p,reg){
   if(!p||!reg||reg.revertido)return;
-  var desf={fiado:0,compras:0,gasto:0,cupons:0};
+  var desf={fiado:0,compras:0,gasto:0,cupons:0,pagamentos:0};
+  /* ---------- o pagamento deixa de valer (RDS 9) ----------
+     Estornar aqui e registro, nao devolucao de dinheiro: quem devolve e
+     a loja, no balcao ou pela maquininha. O que o sistema pode — e ate
+     agora nao fazia — e dizer que aquele pagamento nao vale mais. */
+  var _quemE=null; try{ _quemE=usuarioLogado(); }catch(e){}
+  (p.pagamentos||[]).forEach(function(g){
+    if(!g||g.situacao==='estornado')return;
+    g.situacao='estornado';
+    g.estornadoEm=new Date().toISOString();
+    g.estornadoPor=(_quemE&&_quemE.nome)||'';
+    g.cancelamentoId=reg.id;
+    desf.pagamentos++;
+  });
   var cli=p.clienteId?(DB.clientes||[]).find(function(x){return x.id===p.clienteId}):null;
   /* ---------- fiado ---------- */
   var fiado=(DB.fiadoMov||[]).filter(function(m){
@@ -403,6 +416,12 @@ function reporEfeitosDaVenda(p,reg){
     if(d.compras)cli.compras=(Number(cli.compras)||0)+d.compras;
     if(d.gasto>0.001)cli.gasto=+(((Number(cli.gasto)||0)+d.gasto)).toFixed(2);
   }
+  /* o pagamento volta a valer: a venda voltou */
+  (p.pagamentos||[]).forEach(function(g){
+    if(!g||g.cancelamentoId!==reg.id)return;
+    g.situacao='recebido';
+    delete g.estornadoEm; delete g.estornadoPor; delete g.cancelamentoId;
+  });
   /* o uso do cupom nao volta: ele foi apagado, e recria-lo sem os dados
      originais inventaria um registro. Fica dito no registro, para quem
      olhar o historico. */

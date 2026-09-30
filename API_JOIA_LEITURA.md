@@ -126,6 +126,17 @@ lado, e quem lê concluiria que o sistema está errado.
 - **histórico de regularizações** — o que existe é `/historico` (quem
   mudou o quê, com antes e depois). Não há ainda o registro formal de
   causa-raiz e ação corretiva que o documento da RDS descreve.
+- **pagamento "não aprovado" e "estorno pendente"** — desde a V383 o
+  pagamento tem estado: nasce `recebido` (o operador conferiu o dinheiro,
+  a maquininha ou o Pix e fechou a venda) e vira `estornado` quando a
+  venda é cancelada. Mas `não aprovado` e `estorno pendente` dependem de
+  o sistema **falar com a maquininha** — TEF ou integração de adquirente
+  —, e o Joia não fala. Criar esses estados seria criar campo que nunca
+  muda de valor: o pior tipo de mentira num relatório de auditoria, a
+  que parece controle.
+- **retorno de adquirente** — não há data efetiva de recebimento nem
+  estorno por transação. A taxa e o prazo saem do cadastro da forma de
+  pagamento, não do extrato da operadora.
 
 ### Etapa 2 (v2.1, 23/09/2026)
 

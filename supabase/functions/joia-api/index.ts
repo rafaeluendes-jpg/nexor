@@ -16,6 +16,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
    v2.2 — pedido da RDS de 24/09/2026: /pendencias (relação nominal do
           que falta limpar antes da data de corte), limite de chamadas por
           chave, contagem de uso atômica e máscara de dados pessoais.
+   v2.4 — o pagamento passou a ter estado (`recebido` / `estornado`), e a
+          API diz por escrito o que NÃO dá para ter sem integração com
+          maquininha: "não aprovado" e "estorno pendente".
    v2.3 — documento de homologação da RDS (30/09/2026): as três pendências
           que faltavam da lista dele (estoque negativo, divergência de
           venda × pagamento × fiscal, caixas com pendência) e o envelope
@@ -31,7 +34,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
    conferida pela chave própria, não pelo login do Supabase).
    ===================================================================== */
 
-const API_VERSAO = "2.3";
+const API_VERSAO = "2.4";
 /* o fuso de todas as datas desta API: o dia é o dia DA LOJA, e venda
    das 23h é do dia dela */
 const FUSO = "America/Sao_Paulo";
@@ -197,6 +200,8 @@ const AJUDA = {
     lote_e_validade: "o Joia ainda não controla lote nem validade — não há o que devolver, e nada é simulado aqui",
     itens_bloqueados: "o saldo negativo é MEDIDO (/pendencias/estoque-negativo), mas o Joia ainda não impede a saída do item nem o fechamento do caixa por causa dele",
     historico_de_regularizacoes: "o que existe é /historico (quem mudou o quê). O registro formal de causa-raiz e ação corretiva ainda não existe",
+    pagamento_nao_aprovado: "o pagamento tem estado — `recebido` ou `estornado` (quando a venda é cancelada) —, mas NÃO existe `não aprovado` nem `estorno pendente`: isso depende de o sistema falar com a maquininha (TEF), e o Joia não fala. O operador confere o dinheiro e confirma",
+    retorno_de_adquirente: "não há data efetiva de recebimento nem estorno por transação: a taxa e o prazo saem do cadastro da forma de pagamento, não do extrato da operadora",
   },
   limites: {
     metodo: "somente GET",

@@ -1567,7 +1567,24 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   if(_cupomAtivo)ped.cupom={id:_cupomAtivo.id,codigo:_cupomAtivo.codigo,valor:valorCupom(_cupomAtivo,total+desc-taxa)};
   /* de qual aparelho saiu o pagamento — o fechamento separa por isso */
   ped.equipamento=(ped.canal==='totem')?'totem':(ped.canal==='mesa'?'mesa':'balcao');
-  (ped.pagamentos||[]).forEach(function(x){ if(!x.equipamento)x.equipamento=ped.equipamento; });
+  (ped.pagamentos||[]).forEach(function(x){
+    if(!x.equipamento)x.equipamento=ped.equipamento;
+    /* ==========================================================
+       O PAGAMENTO PASSA A TER ESTADO (RDS 9)
+
+       Ele nascia como `{forma, valor, recebido, equipamento}` e mais
+       nada. Nao havia como perguntar "quais pagamentos foram
+       estornados" — a resposta nao existia em lugar nenhum, e cancelar
+       a venda deixava o pagamento intacto.
+
+       `recebido` e o estado de nascimento: o operador conferiu o
+       dinheiro, a maquininha ou o Pix e fechou a venda. E a verdade do
+       que aconteceu; "aprovado pela adquirente" seria invencao, porque
+       o Joia nao fala com maquininha.
+       ========================================================== */
+    if(!x.situacao)x.situacao='recebido';
+    if(!x.recebidoEm)x.recebidoEm=new Date().toISOString();
+  });
   /* fecha as comandas e carimba a mesa no pedido, antes de ele ser gravado */
   if(PDV.mesaPag&&MESA_PAG)concluirMesa(ped);
   DB.pedidos.push(ped);

@@ -1768,7 +1768,10 @@
     "ref_local": "text",
     "equipamento": "text",
     "forma_ref": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "situacao": "text",
+    "estornado_em": "timestamp with time zone",
+    "estornado_por": "text"
    },
    "unicos": [
     [

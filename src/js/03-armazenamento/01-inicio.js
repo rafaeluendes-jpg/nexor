@@ -1758,7 +1758,12 @@ var MAPA=[
        ========================================================== */
     campos:function(o){var _f=formaDoPagamento(o);
       return {forma_id:fk('formasPag',_f),forma_ref:_f||null,
-      valor:n(o.valor),equipamento:o.equipamento||null}}}]},
+      valor:n(o.valor),equipamento:o.equipamento||null,
+      /* o estado do pagamento (RDS 9): nasce recebido, vira estornado
+         quando a venda e cancelada. Pagamento antigo nao tem o campo e
+         cai no padrao, que e o que ele sempre foi. */
+      situacao:o.situacao||'recebido',
+      estornado_em:o.estornadoEm||null,estornado_por:o.estornadoPor||null}}}]},
 
  {col:'acertos',     tab:'acertos',
   campos:function(x){return {entregador_id:fk('entregadores',x.entregadorId),
