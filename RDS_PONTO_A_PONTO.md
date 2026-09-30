@@ -31,14 +31,22 @@ antes de subir.
 
 | Situação | Itens |
 |---|---|
-| ✅ Corrigido e no ar | 29 |
+| ✅ Corrigido e no ar | 34 |
 | 📏 Já existia, conferido | 9 |
-| ⚠️ Pela metade | 2 |
-| ❌ Não existe ainda | 4 |
+| ❌ Não existe ainda | 1 |
 | 🔒 Espera ordem (pode parar a loja) | 4 |
 
-**Versões publicadas nesta sequência:** V371 a V382 — doze, todas pelo
-portão de 11 etapas, com 419 testes novos trancados.
+**Versões publicadas nesta sequência:** V371 a V387 — dezessete, todas
+pelo portão de 11 etapas, com 543 testes novos trancados.
+
+**O que sobrou:** uma coisa só, e é grande — a **baixa automática por
+FEFO/PEPS** (consumir o lote mais próximo do vencimento). Ela exige que
+o saldo passe a ser por lote, e o saldo de hoje é a base de venda,
+produção, transferência, contagem, CPV, DRE e da transação atômica da
+venda. É refazer o motor de estoque de um sistema que está em produção
+em seis lojas — não é trabalho de uma versão, e não se faz sem sua
+ordem. O registro de lotes e o alerta de vencimento já estão no ar
+(V387); o que falta é o sistema **escolher o lote sozinho** na saída.
 
 > **Uma coisa depende de você agora:** a V377 criou a tabela que liga
 > cada evento do sistema a uma conta do plano de contas. Ela nasce
@@ -240,6 +248,73 @@ custo nasce da nota e da média ponderada. Uma permissão sem nada para
 controlar é uma trava que não tranca.
 
 Guardião: `testes/permissao-por-acao.js` — 34 testes.
+
+### V383 — o pagamento não tinha estado
+*(RDS 9)*
+
+O fiscal tem onze estados; a venda tem uma fase; e o pagamento não tinha
+**nada**. Cancelar uma venda deixava o pagamento intacto, e não havia
+como perguntar quais foram estornados.
+
+Agora nasce `recebido` e vira `estornado` quando a venda é cancelada,
+ligado ao cancelamento. **"Não aprovado" e "estorno pendente" não
+existem** — dependem de falar com a maquininha, e o Joia não fala.
+Inventá-los seria criar campo que nunca muda de valor.
+
+Guardião: `testes/pagamento-tem-estado.js` — 27 testes.
+
+### V384 — o custo médio perdia a memória
+*(RDS 11 e 15)*
+
+Zerar o saldo zerava o custo — certo — e apagava a única referência de
+quanto o item custava. Agora o último custo médio com saldo fica
+guardado. E o custo mexido à mão na contagem passou a deixar rastro:
+de quanto era, para quanto foi, quem e quando. O `modoCusto='manual'`,
+que era gravado e descartado na leitura seguinte, saiu.
+
+Guardião: `testes/custo-com-memoria.js` — 24 testes.
+
+### V385 — produção automática vinculada
+*(RDS 6)*
+
+Ficha sem destino = o produto é feito na hora da venda. Faltava o
+vínculo: agora cada componente diz para qual produto, em que quantidade
+e com qual rendimento foi consumido.
+
+As duas linhas fantasma que a RDS pede (entrada + saída do acabado) não
+foram criadas de propósito — o produto não é item de estoque, e criá-lo
+faria essas linhas subirem na transação atômica da venda, o caminho que
+levou o GELATO VENDA a centenas de quilos negativos em 31/08.
+
+Guardião: `testes/producao-automatica-vinculada.js` — 14 testes.
+
+### V386 — a unidade de compra não existia
+*(RDS 13)*
+
+O campo era `disabled`: a compra sempre entrava na unidade de estoque.
+E havia uma armadilha — `cx`, `pc` e `fd` valem **f:1** na tabela de
+unidades, então liberar o campo faria "1 caixa" de copos somar 1 copo.
+
+Agora a lista só oferece unidades da mesma família, caixa/pacote/fardo
+**perguntam quantas unidades vêm dentro**, e a conversão acontece na
+entrada — a linha é gravada já na unidade do item, então nada depois
+disso muda.
+
+Guardião: `testes/unidade-de-compra.js` — 26 testes.
+
+### V387 — lote e validade
+*(RDS 14)*
+
+Não existia nada. Agora o item diz se controla lote e validade, toda
+entrada controlada exige os dois, cada uma vira uma linha no razão de
+lotes, e o Estoque Total avisa o que venceu e o que vence em até sete
+dias.
+
+**A baixa por FEFO/PEPS não existe** — e está escrito na migração, no
+código e no próprio aviso da tela, para ninguém achar que o sistema
+escolhe o lote sozinho.
+
+Guardião: `testes/lote-e-validade.js` — 33 testes.
 
 ---
 
@@ -450,20 +525,37 @@ guarda as duas.
 
 ---
 
-## O que vem agora, na ordem
+## O que vem agora
 
-1. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
-   sistema assume aprovado. O que dá para registrar de verdade é
-   *recebido* e *estornado* — as linhas da tabela da RDS que falam em
-   "pagamento não aprovado" dependem de integração com maquininha, que o
-   Joia não tem, e isso tem de ser dito em vez de simulado.
-2. **Custo médio: os campos que faltam** (RDS 11) e **classificar o que
-   altera custo** (RDS 15).
-3. **Produção automática vinculada** (RDS 6).
-4. **Unidade de compra com fator** (RDS 13) e **lote e validade**
-   (RDS 14): não existem, e são os dois maiores de construir.
+**Uma coisa só, e é grande: a baixa automática por FEFO/PEPS.**
 
-E as quatro que **esperam ordem do Rafael**, porque mudam o que a loja
-pode fazer e podem parar o caixa: travar a venda que deixa saldo
-negativo, travar o fechamento de caixa com pendência, ligar a alçada por
-cargo, e subir a precisão da quantidade para seis casas.
+Consumir o lote mais próximo do vencimento exige que o saldo seja **por
+lote**. O saldo de hoje é uma linha por item e unidade, e é a base de
+venda, produção, transferência, contagem, CPV, DRE e da transação
+atômica da venda. Mudar isso é refazer o motor de estoque de um sistema
+que está em produção em seis lojas.
+
+O que já existe (V387) é o registro dos lotes e o aviso de vencimento —
+o suficiente para ninguém perder mercadoria por não olhar. O que falta é
+o sistema escolher o lote sozinho na saída, e isso precisa de ordem.
+
+---
+
+## E as quatro que esperam ordem
+
+Mudam o que a loja pode fazer, e podem parar o caixa:
+
+1. **Travar a venda que deixa saldo negativo** (RDS 4.1). Hoje há 17
+   itens negativos; a trava valeria para os NOVOS, como a RDS pede
+   ("zero novos itens online com saldo negativo"), mas ainda assim é
+   uma venda que pode ser recusada no balcão.
+2. **Travar o fechamento de caixa com pendência** (RDS 10). Pode
+   impedir o fechamento numa noite em que a SEFAZ está fora do ar. O
+   caminho seguro é listar primeiro, medir uma semana, e só então
+   travar — com liberação por senha de gerente, registrada.
+3. **Ligar a alçada por cargo no caixa** (RDS 20). A máquina existe e
+   está desligada por um objeto vazio. Ligá-la na ordem errada repete o
+   incidente de 29/08/2026: Santa Fé sem conseguir fechar o caixa.
+4. **Subir a precisão da quantidade de 4 para 6 casas** (RDS 12). É a
+   única que muda número já existente, e mexe nos limites de tolerância
+   que decidem quando o custo médio é zerado.
