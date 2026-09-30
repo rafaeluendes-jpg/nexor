@@ -31,14 +31,14 @@ antes de subir.
 
 | Situação | Itens |
 |---|---|
-| ✅ Corrigido e no ar | 26 |
+| ✅ Corrigido e no ar | 29 |
 | 📏 Já existia, conferido | 9 |
-| ⚠️ Pela metade | 3 |
-| ❌ Não existe ainda | 6 |
+| ⚠️ Pela metade | 2 |
+| ❌ Não existe ainda | 4 |
 | 🔒 Espera ordem (pode parar a loja) | 4 |
 
-**Versões publicadas nesta sequência:** V371 a V380 — dez, todas pelo
-portão de 11 etapas, com 364 testes novos trancados.
+**Versões publicadas nesta sequência:** V371 a V382 — doze, todas pelo
+portão de 11 etapas, com 419 testes novos trancados.
 
 > **Uma coisa depende de você agora:** a V377 criou a tabela que liga
 > cada evento do sistema a uma conta do plano de contas. Ela nasce
@@ -206,6 +206,40 @@ gravado e sincronizado antes da exclusão, para chegar à trilha. Até
 aqui a auditoria dizia o que sumiu e quem apagou, nunca por quê.
 
 Guardião: `testes/nota-paga-nao-some.js` — 21 testes.
+
+### V381 — anular não é apagar
+*(RDS 19)*
+
+Excluir a nota apagava a linha daqui **e da nuvem**. O único rastro
+sobrava no `audit_log` — bom para uma perícia, inútil para o dia a dia:
+quando alguém pergunta por que o estoque de setembro mudou, a resposta
+está numa tabela que ninguém abre.
+
+A nota agora **fica**, carimbada com quando foi anulada, por quem, por
+quê e se o estoque foi devolvido. Sai das listas, da exportação e dos
+totais. E o vínculo continua de pé: um lançamento antigo que aponta para
+ela continua achando a nota e explicando de onde veio.
+
+Guardião: `testes/nota-anulada-fica.js` — 21 testes.
+
+### V382 — permissão por ação
+*(RDS 20)*
+
+As permissões eram por **tela**. Quem tinha a tela da Contagem podia
+fechar a contagem — que ajusta saldo e custo de todos os itens de uma
+vez. Quem tinha a tela da Conciliação podia desconciliar qualquer coisa.
+
+Agora cinco ações têm permissão própria — fechar contagem, lançar
+movimentação manual, desconciliar, anular nota e cancelar venda —, cada
+uma dentro da tela a que pertence. **Marcação ausente vale o
+comportamento de hoje**: nada passa a ser barrado; elas só podem ser
+tiradas de alguém, de propósito.
+
+"Alterar custo" ficou de fora porque no Joia não existe essa ação — o
+custo nasce da nota e da média ponderada. Uma permissão sem nada para
+controlar é uma trava que não tranca.
+
+Guardião: `testes/permissao-por-acao.js` — 34 testes.
 
 ---
 
@@ -418,19 +452,15 @@ guarda as duas.
 
 ## O que vem agora, na ordem
 
-1. **Anular em vez de apagar, de verdade** (RDS 19): a nota paga já está
-   protegida, mas excluir ainda é excluir. Marcar como **anulada** e
-   tirar das telas — preservando o registro — toca 24 lugares que leem a
-   lista de notas, e por isso vem como passo próprio.
-2. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
-   sistema assume aprovado. Sem esse estado, três linhas da tabela da
-   RDS não têm como existir.
-3. **Permissão por ação** (RDS 20): das 18 ações, 1 tem permissão
-   própria. O formato já funciona ponta a ponta; falta estendê-lo.
-4. **Custo médio: os campos que faltam** (RDS 11) e **classificar o que
+1. **Estado do pagamento** (RDS 9): hoje o operador digita o valor e o
+   sistema assume aprovado. O que dá para registrar de verdade é
+   *recebido* e *estornado* — as linhas da tabela da RDS que falam em
+   "pagamento não aprovado" dependem de integração com maquininha, que o
+   Joia não tem, e isso tem de ser dito em vez de simulado.
+2. **Custo médio: os campos que faltam** (RDS 11) e **classificar o que
    altera custo** (RDS 15).
-5. **Produção automática vinculada** (RDS 6).
-6. **Unidade de compra com fator** (RDS 13) e **lote e validade**
+3. **Produção automática vinculada** (RDS 6).
+4. **Unidade de compra com fator** (RDS 13) e **lote e validade**
    (RDS 14): não existem, e são os dois maiores de construir.
 
 E as quatro que **esperam ordem do Rafael**, porque mudam o que a loja
