@@ -497,6 +497,10 @@
    "pontos": 18,
    "roda": true
   },
+  "testes/unidade-de-compra.js": {
+   "pontos": 26,
+   "roda": true
+  },
   "testes/unidade-nao-escolhe-quem-ve.js": {
    "pontos": 8,
    "roda": true

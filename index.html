@@ -14418,7 +14418,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V385.0.0';
+var VERSAO='V386.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -43801,10 +43801,44 @@ function desenhaNota(){
        'value="'+E(_itemSel?_itemSel.nome:'')+'">'+
       '<button class="btnP2" onclick="abrirSelMerc()">'+sv('search',12)+'</button></div>'+
      '<div class="ntSug" id="ntSug" style="display:none"></div></div>'+
-    '<div class="f2" style="max-width:96px"><label>Un.</label>'+
-     '<input id="ntItUn" value="'+(_itemSel?un(_itemSel.unidade).ab:'')+'" disabled style="background:var(--alt)"></div>'+
+    /* ==========================================================
+       A UNIDADE DE COMPRA NAO EXISTIA (RDS 13)
+
+       Este campo era `disabled`: a nota SEMPRE entrava na unidade de
+       estoque do item. Quem compra farinha em saco de 25 kg e guarda em
+       quilo tinha de dividir de cabeca antes de digitar; quem compra
+       copo em caixa de 100 tinha de digitar 100.
+
+       Pior: na tabela de unidades, `cx`, `pc` e `fd` valem todos f:1 —
+       uma caixa vale UMA unidade. Se o campo fosse simplesmente
+       liberado, digitar "1 cx" de copos somaria 1 copo ao estoque, em
+       silencio.
+
+       Entao: a lista so oferece unidades da MESMA familia (peso com
+       peso, volume com volume, contagem com contagem), e quando a
+       unidade escolhida e das que nao tem tamanho fixo — caixa, pacote,
+       fardo — o sistema PERGUNTA quantas unidades vem dentro, mostra a
+       conta na tela e guarda o fator usado na propria linha da nota.
+
+       A conversao acontece na ENTRADA: a linha e gravada ja na unidade
+       de estoque do item. Nada depois disso muda — nem o motor de
+       estoque, nem a transacao atomica da venda.
+       ========================================================== */
+    '<div class="f2" style="max-width:120px"><label>Un. da compra</label>'+
+     (_itemSel
+       ?'<select id="ntItUn" onchange="pintaFatorNota()">'+
+         unidadesCompativeis(_itemSel.unidade).map(function(u2){
+           return '<option value="'+E(u2.id)+'"'+(u2.id===_itemSel.unidade?' selected':'')+'>'+
+             E(u2.ab)+'</option>';}).join('')+'</select>'
+       :'<input id="ntItUn" value="" disabled style="background:var(--alt)">')+
+     '</div>'+
+    '<div class="f2" id="ntBoxFat" style="max-width:130px;display:none">'+
+     '<label id="ntLbFat">Un. por caixa</label>'+
+     '<input id="ntItFat" type="number" step="0.0001" min="0" value="'+
+      (_itemSel&&Number(_itemSel.fator)>1?E(String(_itemSel.fator)):'')+'"></div>'+
     '<div class="f2" style="max-width:110px"><label>Qtd.</label>'+
-     '<input id="ntItQt" type="number" step="0.001" value=""></div>'+
+     '<input id="ntItQt" type="number" step="0.001" value="" oninput="pintaFatorNota()">'+
+     '<div class="hint" id="ntDicaUn"></div></div>'+
     '<div class="f2" style="max-width:120px"><label>Valor un.</label>'+
      /* ==========================================================
         ESTE CAMPO NAO USA O COMPONENTE DE DINHEIRO — DE PROPOSITO
@@ -43902,7 +43936,19 @@ function escolherMercTexto(id){
   var q=$('ntItQt');if(q)q.focus();
 }
 function pintaLinhaMerc(){
-  var u=$('ntItUn');if(u)u.value=_itemSel?un(_itemSel.unidade).ab:'';
+  /* a unidade virou uma LISTA (as da mesma familia do item). Escolher
+     outra mercadoria troca a lista inteira, entao a linha e redesenhada;
+     aqui so se acerta o que ja esta na tela. */
+  var u=$('ntItUn');
+  if(u&&u.tagName==='SELECT'){
+    if(_itemSel){
+      u.innerHTML=unidadesCompativeis(_itemSel.unidade).map(function(u2){
+        return '<option value="'+E(u2.id)+'"'+(u2.id===_itemSel.unidade?' selected':'')+'>'+
+          E(u2.ab)+'</option>';}).join('');
+      u.value=_itemSel.unidade;
+    }
+    pintaFatorNota();
+  }else if(u){ u.value=_itemSel?un(_itemSel.unidade).ab:''; }
   var v=$('ntItVl');
   if(v&&_itemSel&&!(parseFloat(v.value)>0))v.value=custoAtual(_itemSel)||'';
   var t=$('ntItTt');
@@ -44042,6 +44088,51 @@ function escolherMerc(id){
   desenhaNota();
   setTimeout(function(){var q=$('ntItQt');if(q){q.focus();}},60);
 }
+/* unidades que dao para converter com esta: a mesma familia, e so.
+   Oferecer litro para quem guarda em quilo seria oferecer um erro. */
+function unidadesCompativeis(uItem){
+  var b=(un(uItem)||{}).base;
+  return (typeof unidades==='function'?unidades():UNID).filter(function(u2){
+    return u2&&u2.base===b;});
+}
+/* caixa, pacote e fardo nao tem tamanho: quem diz e a nota */
+var UN_SEM_TAMANHO={cx:1,pc:1,fd:1};
+function precisaFatorNota(uCompra,uItem){
+  if(!uCompra||uCompra===uItem)return false;
+  return !!UN_SEM_TAMANHO[uCompra];
+}
+/* mostra (ou esconde) o campo do fator e escreve a conta na tela */
+function pintaFatorNota(){
+  if(!_itemSel)return;
+  var uC=($('ntItUn')||{}).value||_itemSel.unidade;
+  var box=$('ntBoxFat'),lb=$('ntLbFat'),dica=$('ntDicaUn');
+  var precisa=precisaFatorNota(uC,_itemSel.unidade);
+  if(box)box.style.display=precisa?'':'none';
+  if(lb&&precisa)lb.textContent=un(_itemSel.unidade).ab+' por '+un(uC).ab;
+  if(dica)dica.innerHTML=E(frasePorUnidade(uC));
+}
+function fatorNotaAtual(uC){
+  if(!precisaFatorNota(uC,_itemSel.unidade))return 1;
+  return parseFloat(($('ntItFat')||{}).value)||0;
+}
+function qtdNaUnidadeDoItem(q,uC,fat){
+  if(!_itemSel)return q;
+  if(uC===_itemSel.unidade)return q;
+  if(precisaFatorNota(uC,_itemSel.unidade))return q*fat;
+  var c=convUnid(q,uC,_itemSel.unidade);
+  return (c===null)?q:c;
+}
+function frasePorUnidade(uC){
+  if(!_itemSel)return '';
+  var q=parseFloat(($('ntItQt')||{}).value)||0;
+  if(!q)return '';
+  var fat=fatorNotaAtual(uC);
+  if(precisaFatorNota(uC,_itemSel.unidade)&&!fat)
+    return 'Diga quantos '+un(_itemSel.unidade).ab+' vêm em 1 '+un(uC).ab+'.';
+  var qi=qtdNaUnidadeDoItem(q,uC,fat);
+  if(uC===_itemSel.unidade)return '';
+  return 'Entra no estoque como '+fmtQt(+qi.toFixed(6))+' '+un(_itemSel.unidade).ab+'.';
+}
 function addItemNota(){
   guardarCabNota();
   if(!_itemSel){toast('Selecione a mercadoria.');return;}
@@ -44049,9 +44140,20 @@ function addItemNota(){
   if(q<=0){toast('Informe a quantidade.');return;}
   var v=parseFloat($('ntItVl').value)||0;
   if(v<=0){toast('Informe o valor unitário.');return;}
+  var uC=($('ntItUn')||{}).value||_itemSel.unidade;
+  var fat=fatorNotaAtual(uC);
+  if(precisaFatorNota(uC,_itemSel.unidade)&&!(fat>0)){
+    toast('Diga quantos '+un(_itemSel.unidade).ab+' vêm em 1 '+un(uC).ab+'.');return;}
+  /* a linha entra JA na unidade de estoque do item: nada depois disto
+     precisa saber que a compra foi em caixa */
+  var qItem=+qtdNaUnidadeDoItem(q,uC,fat).toFixed(6);
+  if(!(qItem>0)){toast('Não consegui converter a quantidade para a unidade do item.');return;}
   var d=moedaValor('ntItDs');
   _nota.itens.push({insumoId:_itemSel.id,nome:_itemSel.nome,unidade:_itemSel.unidade,
-    qtd:q,valorUn:v,desconto:d,total:+(q*v-d).toFixed(2),ncm:_itemSel.ncm||''});
+    qtd:qItem,valorUn:+(v*q/qItem).toFixed(6),desconto:d,total:+(q*v-d).toFixed(2),
+    ncm:_itemSel.ncm||'',
+    /* como a compra foi digitada, para a conversão poder ser conferida */
+    unidadeCompra:uC,qtdCompra:q,fatorCompra:fat,valorUnCompra:v});
   _itemSel=null;
   desenhaNota();
   setTimeout(function(){var nm=$('ntItNome');if(nm){nm.value='';nm.focus();}},50);
