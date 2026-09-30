@@ -881,6 +881,9 @@ function preencherContagem(){
   toast('Preenchido com o estoque do sistema — ajuste o que estiver diferente.');
 }
 async function fecharContagem(){
+  /* fechar a contagem ajusta saldo E custo de uma vez: e a acao mais
+     pesada do estoque, e ate agora qualquer um com a tela fazia (RDS 20) */
+  if(!exigirAcao('estoque/contagem-estoque:inventariar'))return;
   baseMov();
   var linhas=[],det=[],precos=[],perda=0,ganho=0;
   itensEstoque().forEach(function(i){

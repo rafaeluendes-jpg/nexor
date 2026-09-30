@@ -309,6 +309,7 @@ function diasDesdeConciliacao(l){
   return Math.round((t2-t1)/86400000);
 }
 async function desconciliar(id){
+  if(!exigirAcao('financeira/conciliacao-bancaria:desconciliar'))return;
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(!l)return;
   if(!l.conciliado){toast('Este movimento não está conciliado.');return;}

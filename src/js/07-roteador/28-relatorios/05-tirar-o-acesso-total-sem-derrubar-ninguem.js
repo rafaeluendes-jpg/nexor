@@ -110,12 +110,47 @@ function abaPermUsr(u){
               return '<label class="permIt permSub'+(l2?' on':'')+'" title="Sem marcar: só o login principal da loja lança">'+
                '<input type="checkbox"'+(l2?' checked':'')+' onchange="togLancarBaixaUsr(this)">'+
                '<span>↳ Lançar a baixa no estoque</span></label>';})()
+           :'')+
+         /* ==========================================================
+            AS ACOES CONTROLADAS APARECEM DENTRO DA TELA DELAS
+
+            Permissao por acao so e usada quando esta onde a pessoa ja
+            esta olhando. Numa lista a parte, ninguem acha — e permissao
+            que ninguem acha e permissao que ninguem usa.
+
+            Vem marcada: ausente vale o comportamento de hoje, e
+            desmarcar e que TIRA a acao daquela pessoa.
+            ========================================================== */
+         ((typeof ACOES_CONTROLADAS!=='undefined')
+           ?ACOES_CONTROLADAS.filter(function(a){return a.tela===m.id+'/'+i.id})
+             .map(function(a){
+               var on=podeAcao(a.chave,u);
+               return '<label class="permIt permSub'+(on?' on':'')+'" title="'+E(a.d)+'">'+
+                '<input type="checkbox"'+(on?' checked':'')+
+                ' onchange="togAcaoUsr(\''+E(a.chave)+'\',this)">'+
+                '<span>↳ '+E(a.n)+'</span></label>';}).join('')
            :'');
       }).join('')+'</div></div>';
    }).join('')+
    '</div>'+
    '</div>';
 }
+/* liga/desliga uma acao controlada no cadastro da pessoa. Grava o valor
+   explicito — true ou false —, porque ausente significa "como hoje" e
+   nao "barrado". */
+function togAcaoUsr(chave,el){
+  var u=(typeof usrSel==='function')?usrSel():null;
+  if(!u)return;
+  u.permissoes=u.permissoes||{};
+  u.permissoes[chave]=!!(el&&el.checked);
+  salvar();
+  var lab=el&&el.closest?el.closest('.permIt'):null;
+  if(lab)lab.classList.toggle('on',!!el.checked);
+  if(typeof marcarPermSujo==='function')marcarPermSujo();
+  toast((el&&el.checked?'Liberado: ':'Bloqueado: ')+nomeDaAcao(chave)+
+    '. Clique em Salvar permissões.');
+}
+
 /* ==========================================================
    SALVAR AS PERMISSÕES — DE VERDADE (Rafael, 24/09/2026)
    "Coloco lá PDV, essas coisas, não tem botão de salvar. E se só deixar

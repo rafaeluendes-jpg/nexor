@@ -158,6 +158,9 @@ function pedeSenhaCancel(){
 function podeCancelarVenda(){
   try{
     if(ehPlataforma()||ehFranqueadora())return true;
+    /* a permissao por ACAO pode tirar isto de alguem, sem tirar o PDV
+       inteiro dela (RDS 20). Ausente, vale o de sempre. */
+    if(typeof podeAcao==='function'&&!podeAcao('pdv/pdv:cancelar-venda'))return false;
     return podeVer('pdv','pdv')||podeVer('financeira','frente-caixa');
   }catch(e){ _quieto(e,'podeCancelarVenda'); return false; }
 }

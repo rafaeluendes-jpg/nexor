@@ -7076,6 +7076,74 @@ var PERM_EQUIV={
  'fiscal/cupons':['relatorios/cupons-fiscais'],
  'fiscal/configuracao':['loja/fiscal','loja/dados-fiscais']
 };
+/* ==========================================================
+   PERMISSAO POR ACAO (RDS 20)
+
+   As permissoes do Joia sao por TELA: 75 chaves `modulo/item`. A RDS
+   pede 18 por ACAO — cancelar venda, ajustar estoque, inventariar,
+   alterar custo, desconciliar, reabrir caixa, anular compra.
+
+   Uma ja existia e prova que o formato funciona ponta a ponta,
+   inclusive no banco: `controle/baixa-manual:lancar`. Faltava
+   estende-lo.
+
+   ---------- a regra que nao pode quebrar a loja ----------
+   Marcacao AUSENTE vale o comportamento de HOJE. Nenhuma destas acoes
+   passa a ser barrada por existir esta lista: elas so podem ser TIRADAS
+   de alguem, de proposito, no cadastro da pessoa.
+
+   O contrario — nascer tudo barrado e ir liberando — e o incidente de
+   29/08/2026 outra vez: Santa Fe do Sul sem conseguir fechar o caixa
+   porque uma alcada foi ligada antes de a lista de cargos estar certa.
+   A trava que chega antes da liberacao para a loja.
+   ========================================================== */
+var ACOES_CONTROLADAS=[
+ {chave:'estoque/contagem-estoque:inventariar', tela:'estoque/contagem-estoque',
+  n:'Fechar a contagem (ajusta saldo e custo)',
+  d:'sem isto, a pessoa conta e alguem confere antes de virar saldo'},
+ {chave:'controle/movimentacao-estoque:ajustar', tela:'controle/movimentacao-estoque',
+  n:'Lançar movimentação manual de estoque',
+  d:'tirar ou pôr item no saldo sem nota e sem produção'},
+ /* ---------- "alterar custo" NAO entra aqui, e de proposito ----------
+    A RDS pede essa permissao. Mas no Joia nao existe a acao: o custo
+    nasce da nota de entrada e da media ponderada, e a tela do insumo
+    ignora o campo de proposito ("custo e custo da ultima compra vem das
+    notas de entrada, nunca da tela"). O unico lugar que altera custo a
+    mao e o fechamento da contagem — e esse ja esta controlado acima.
+    Criar a chave sem ter o que ela controle seria uma permissao que nao
+    permite nada: a tela mostraria uma trava que nao tranca. */
+ {chave:'financeira/conciliacao-bancaria:desconciliar', tela:'financeira/conciliacao-bancaria',
+  n:'Desconciliar movimento do banco',
+  d:'destrava um lançamento que já foi dado como conferido com o extrato'},
+ {chave:'controle/notas-entrada:anular', tela:'controle/notas-entrada',
+  n:'Anular nota de entrada',
+  d:'desfaz a entrada no estoque e o financeiro dela'},
+ {chave:'pdv/pdv:cancelar-venda', tela:'pdv/pdv',
+  n:'Cancelar venda',
+  d:'além da senha do operador, que continua sendo exigida'}
+];
+/* ausente = como hoje. So o `false` explicito barra. */
+function podeAcao(chave,u){
+  try{
+    u=u||((typeof usuarioLogado==='function')?usuarioLogado():null);
+    if(!u)return true;
+    if(u.mestre||u.tudo)return true;
+    if(typeof ehPlataforma==='function'&&ehPlataforma(u))return true;
+    if(typeof ehFranqueadora==='function'&&ehFranqueadora(u))return true;
+    var p=u.permissoes||{};
+    return p[chave]!==false;
+  }catch(e){ return true; }
+}
+function nomeDaAcao(chave){
+  var a=ACOES_CONTROLADAS.find(function(x){return x.chave===chave});
+  return a?a.n:chave;
+}
+/* barra e avisa; devolve true quando pode seguir */
+function exigirAcao(chave){
+  if(podeAcao(chave))return true;
+  try{ toast('Você não tem permissão para: '+nomeDaAcao(chave)+'.'); }catch(e){}
+  return false;
+}
 function temPermissao(p,chave){
   if(!p)return false;
   if(p[chave])return true;
@@ -14337,7 +14405,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V381.0.0';
+var VERSAO='V382.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -33641,6 +33709,7 @@ function diasDesdeConciliacao(l){
   return Math.round((t2-t1)/86400000);
 }
 async function desconciliar(id){
+  if(!exigirAcao('financeira/conciliacao-bancaria:desconciliar'))return;
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(!l)return;
   if(!l.conciliado){toast('Este movimento não está conciliado.');return;}
@@ -41475,6 +41544,8 @@ function fecharMov(){
   telaMovimentacao();
 }
 async function salvarMovimento(){
+  /* tirar item do saldo sem nota e sem producao (RDS 20) */
+  if(!exigirAcao('controle/movimentacao-estoque:ajustar'))return;
   guardarCabMov();
   if(!_movMotivo){toast('Selecione o motivo da movimentação.');return;}
   var itens=_movItens.filter(function(it){return it.tipo&&it.refId&&(Number(it.qtd)||0)>0});
@@ -42605,6 +42676,9 @@ function preencherContagem(){
   toast('Preenchido com o estoque do sistema — ajuste o que estiver diferente.');
 }
 async function fecharContagem(){
+  /* fechar a contagem ajusta saldo E custo de uma vez: e a acao mais
+     pesada do estoque, e ate agora qualquer um com a tela fazia (RDS 20) */
+  if(!exigirAcao('estoque/contagem-estoque:inventariar'))return;
   baseMov();
   var linhas=[],det=[],precos=[],perda=0,ganho=0;
   itensEstoque().forEach(function(i){
@@ -44103,6 +44177,7 @@ function verNota(id){
   fecharSoForaDeVerdade(o);
 }
 async function excluirNota(id){
+  if(!exigirAcao('controle/notas-entrada:anular'))return;
   var n=(DB.notas||[]).find(function(x){return x.id===id});
   if(!n)return;
   /* ==========================================================
@@ -54326,6 +54401,9 @@ function pedeSenhaCancel(){
 function podeCancelarVenda(){
   try{
     if(ehPlataforma()||ehFranqueadora())return true;
+    /* a permissao por ACAO pode tirar isto de alguem, sem tirar o PDV
+       inteiro dela (RDS 20). Ausente, vale o de sempre. */
+    if(typeof podeAcao==='function'&&!podeAcao('pdv/pdv:cancelar-venda'))return false;
     return podeVer('pdv','pdv')||podeVer('financeira','frente-caixa');
   }catch(e){ _quieto(e,'podeCancelarVenda'); return false; }
 }
@@ -57871,12 +57949,47 @@ function abaPermUsr(u){
               return '<label class="permIt permSub'+(l2?' on':'')+'" title="Sem marcar: só o login principal da loja lança">'+
                '<input type="checkbox"'+(l2?' checked':'')+' onchange="togLancarBaixaUsr(this)">'+
                '<span>↳ Lançar a baixa no estoque</span></label>';})()
+           :'')+
+         /* ==========================================================
+            AS ACOES CONTROLADAS APARECEM DENTRO DA TELA DELAS
+
+            Permissao por acao so e usada quando esta onde a pessoa ja
+            esta olhando. Numa lista a parte, ninguem acha — e permissao
+            que ninguem acha e permissao que ninguem usa.
+
+            Vem marcada: ausente vale o comportamento de hoje, e
+            desmarcar e que TIRA a acao daquela pessoa.
+            ========================================================== */
+         ((typeof ACOES_CONTROLADAS!=='undefined')
+           ?ACOES_CONTROLADAS.filter(function(a){return a.tela===m.id+'/'+i.id})
+             .map(function(a){
+               var on=podeAcao(a.chave,u);
+               return '<label class="permIt permSub'+(on?' on':'')+'" title="'+E(a.d)+'">'+
+                '<input type="checkbox"'+(on?' checked':'')+
+                ' onchange="togAcaoUsr(\''+E(a.chave)+'\',this)">'+
+                '<span>↳ '+E(a.n)+'</span></label>';}).join('')
            :'');
       }).join('')+'</div></div>';
    }).join('')+
    '</div>'+
    '</div>';
 }
+/* liga/desliga uma acao controlada no cadastro da pessoa. Grava o valor
+   explicito — true ou false —, porque ausente significa "como hoje" e
+   nao "barrado". */
+function togAcaoUsr(chave,el){
+  var u=(typeof usrSel==='function')?usrSel():null;
+  if(!u)return;
+  u.permissoes=u.permissoes||{};
+  u.permissoes[chave]=!!(el&&el.checked);
+  salvar();
+  var lab=el&&el.closest?el.closest('.permIt'):null;
+  if(lab)lab.classList.toggle('on',!!el.checked);
+  if(typeof marcarPermSujo==='function')marcarPermSujo();
+  toast((el&&el.checked?'Liberado: ':'Bloqueado: ')+nomeDaAcao(chave)+
+    '. Clique em Salvar permissões.');
+}
+
 /* ==========================================================
    SALVAR AS PERMISSÕES — DE VERDADE (Rafael, 24/09/2026)
    "Coloco lá PDV, essas coisas, não tem botão de salvar. E se só deixar

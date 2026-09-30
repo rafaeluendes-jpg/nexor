@@ -381,6 +381,10 @@
    "pontos": 11,
    "roda": true
   },
+  "testes/permissao-por-acao.js": {
+   "pontos": 22,
+   "roda": true
+  },
   "testes/permissao-unidade.js": {
    "pontos": 16,
    "roda": true

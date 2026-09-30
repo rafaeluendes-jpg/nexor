@@ -949,6 +949,8 @@ function fecharMov(){
   telaMovimentacao();
 }
 async function salvarMovimento(){
+  /* tirar item do saldo sem nota e sem producao (RDS 20) */
+  if(!exigirAcao('controle/movimentacao-estoque:ajustar'))return;
   guardarCabMov();
   if(!_movMotivo){toast('Selecione o motivo da movimentação.');return;}
   var itens=_movItens.filter(function(it){return it.tipo&&it.refId&&(Number(it.qtd)||0)>0});

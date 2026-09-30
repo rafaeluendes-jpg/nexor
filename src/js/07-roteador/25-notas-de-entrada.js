@@ -739,6 +739,7 @@ function verNota(id){
   fecharSoForaDeVerdade(o);
 }
 async function excluirNota(id){
+  if(!exigirAcao('controle/notas-entrada:anular'))return;
   var n=(DB.notas||[]).find(function(x){return x.id===id});
   if(!n)return;
   /* ==========================================================

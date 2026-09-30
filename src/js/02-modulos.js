@@ -190,6 +190,74 @@ var PERM_EQUIV={
  'fiscal/cupons':['relatorios/cupons-fiscais'],
  'fiscal/configuracao':['loja/fiscal','loja/dados-fiscais']
 };
+/* ==========================================================
+   PERMISSAO POR ACAO (RDS 20)
+
+   As permissoes do Joia sao por TELA: 75 chaves `modulo/item`. A RDS
+   pede 18 por ACAO — cancelar venda, ajustar estoque, inventariar,
+   alterar custo, desconciliar, reabrir caixa, anular compra.
+
+   Uma ja existia e prova que o formato funciona ponta a ponta,
+   inclusive no banco: `controle/baixa-manual:lancar`. Faltava
+   estende-lo.
+
+   ---------- a regra que nao pode quebrar a loja ----------
+   Marcacao AUSENTE vale o comportamento de HOJE. Nenhuma destas acoes
+   passa a ser barrada por existir esta lista: elas so podem ser TIRADAS
+   de alguem, de proposito, no cadastro da pessoa.
+
+   O contrario — nascer tudo barrado e ir liberando — e o incidente de
+   29/08/2026 outra vez: Santa Fe do Sul sem conseguir fechar o caixa
+   porque uma alcada foi ligada antes de a lista de cargos estar certa.
+   A trava que chega antes da liberacao para a loja.
+   ========================================================== */
+var ACOES_CONTROLADAS=[
+ {chave:'estoque/contagem-estoque:inventariar', tela:'estoque/contagem-estoque',
+  n:'Fechar a contagem (ajusta saldo e custo)',
+  d:'sem isto, a pessoa conta e alguem confere antes de virar saldo'},
+ {chave:'controle/movimentacao-estoque:ajustar', tela:'controle/movimentacao-estoque',
+  n:'Lançar movimentação manual de estoque',
+  d:'tirar ou pôr item no saldo sem nota e sem produção'},
+ /* ---------- "alterar custo" NAO entra aqui, e de proposito ----------
+    A RDS pede essa permissao. Mas no Joia nao existe a acao: o custo
+    nasce da nota de entrada e da media ponderada, e a tela do insumo
+    ignora o campo de proposito ("custo e custo da ultima compra vem das
+    notas de entrada, nunca da tela"). O unico lugar que altera custo a
+    mao e o fechamento da contagem — e esse ja esta controlado acima.
+    Criar a chave sem ter o que ela controle seria uma permissao que nao
+    permite nada: a tela mostraria uma trava que nao tranca. */
+ {chave:'financeira/conciliacao-bancaria:desconciliar', tela:'financeira/conciliacao-bancaria',
+  n:'Desconciliar movimento do banco',
+  d:'destrava um lançamento que já foi dado como conferido com o extrato'},
+ {chave:'controle/notas-entrada:anular', tela:'controle/notas-entrada',
+  n:'Anular nota de entrada',
+  d:'desfaz a entrada no estoque e o financeiro dela'},
+ {chave:'pdv/pdv:cancelar-venda', tela:'pdv/pdv',
+  n:'Cancelar venda',
+  d:'além da senha do operador, que continua sendo exigida'}
+];
+/* ausente = como hoje. So o `false` explicito barra. */
+function podeAcao(chave,u){
+  try{
+    u=u||((typeof usuarioLogado==='function')?usuarioLogado():null);
+    if(!u)return true;
+    if(u.mestre||u.tudo)return true;
+    if(typeof ehPlataforma==='function'&&ehPlataforma(u))return true;
+    if(typeof ehFranqueadora==='function'&&ehFranqueadora(u))return true;
+    var p=u.permissoes||{};
+    return p[chave]!==false;
+  }catch(e){ return true; }
+}
+function nomeDaAcao(chave){
+  var a=ACOES_CONTROLADAS.find(function(x){return x.chave===chave});
+  return a?a.n:chave;
+}
+/* barra e avisa; devolve true quando pode seguir */
+function exigirAcao(chave){
+  if(podeAcao(chave))return true;
+  try{ toast('Você não tem permissão para: '+nomeDaAcao(chave)+'.'); }catch(e){}
+  return false;
+}
 function temPermissao(p,chave){
   if(!p)return false;
   if(p[chave])return true;
