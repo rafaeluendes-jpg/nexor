@@ -2224,6 +2224,10 @@ function servir() {
 
   /* o histórico e a perda separada da sobra */
   const rCt3 = await pg.evaluate(async () => {
+    /* desde a V399 a contagem termina com a mensagem "gravada" (e o
+       relatório, se pedido): fecha antes de abrir o olhinho */
+    await new Promise(r => setTimeout(r, 300));
+    document.querySelectorAll('#mdOv').forEach(e => e.remove());
     CT2.aba = 'hist'; CT2.de = ''; CT2.ate = '';
     telaContagem();
     var h = document.getElementById('content').innerHTML;
@@ -3081,6 +3085,42 @@ function servir() {
     rDig.dataFolha === rDig.ontem && rDig.rascunho.data === rDig.ontem, rDig.dataFolha);
   await pg.screenshot({ path: FOTOS + '/contagem-linhas-contadas.png' });
 
+  /* diferença acima de 30%: o Enter só segue com o "Sim, está certo" */
+  await pg.evaluate(() => { window._perg = []; window.confirmar = async (o) => { window._perg.push(o.titulo); return false; }; });
+  await pg.fill('.ctIn[data-id="in_leite"]', '15');
+  await pg.focus('.ctIn[data-id="in_leite"]');
+  await pg.keyboard.press('Enter');
+  await pg.waitForTimeout(150);
+  const rDif1 = await pg.evaluate(() => ({ perg: window._perg.slice(),
+    foco: document.activeElement && document.activeElement.getAttribute('data-id'),
+    selo: document.querySelector('#lc-in_leite .ctSelo').textContent }));
+  t('15 kg contra 5 kg no sistema: aparece "Confirma esta quantidade?"',
+    rDif1.perg.length === 1 && /Confirma esta quantidade/.test(rDif1.perg[0]), JSON.stringify(rDif1.perg));
+  t('respondendo "Corrigir", o cursor FICA no leite', rDif1.foco === 'in_leite', rDif1.foco);
+  t('e a linha avisa para conferir a diferença', /confira a diferença/.test(rDif1.selo), rDif1.selo);
+  await pg.evaluate(() => { window._perg = []; window.confirmar = async (o) => { window._perg.push(o.titulo); return true; }; });
+  await pg.keyboard.press('Enter');
+  await pg.waitForTimeout(150);
+  const rDif2 = await pg.evaluate(() => ({ perg: window._perg.slice(),
+    foco: document.activeElement && document.activeElement.getAttribute('data-id'),
+    selo: document.querySelector('#lc-in_leite .ctSelo').textContent,
+    conf: (JSON.parse(localStorage.getItem('nexor_contagem_rascunho') || '{}').confirmados || {}).in_leite }));
+  t('com "Sim, está certo", segue para o próximo item', rDif2.perg.length === 1 && rDif2.foco !== 'in_leite', rDif2.foco);
+  t('a linha diz "contado · diferença confirmada"', /contado · diferença confirmada/.test(rDif2.selo), rDif2.selo);
+  t('e a confirmação fica guardada com a folha', rDif2.conf === '15', rDif2.conf);
+  /* volta ao número certo: 4,5 é 10% — passa sem pergunta */
+  await pg.evaluate(() => { window._perg = []; });
+  await pg.fill('.ctIn[data-id="in_leite"]', '4,5');
+  await pg.focus('.ctIn[data-id="in_leite"]');
+  await pg.keyboard.press('Enter');
+  await pg.waitForTimeout(150);
+  const rDif3 = await pg.evaluate(() => ({ perg: window._perg.length,
+    selo: document.querySelector('#lc-in_leite .ctSelo').textContent,
+    seloCopo: document.querySelector('#lc-in_copo .ctSelo').textContent }));
+  t('diferença de até 30% passa sem pergunta', rDif3.perg === 0, rDif3.perg);
+  t('e a linha escreve "✓ contado"', /✓ contado/.test(rDif3.selo) && /✓ contado/.test(rDif3.seloCopo), rDif3.selo + ' / ' + rDif3.seloCopo);
+  await pg.evaluate(() => { window.confirmar = async () => true; });
+
   /* a folha rola com a roda do mouse, e o cabeçalho fica grudado */
   const rRola = await pg.evaluate(() => {
     var w = document.querySelector('.etWrap.ctCheia');
@@ -3138,7 +3178,9 @@ function servir() {
   /* dois cliques em Finalizar gravam UMA contagem */
   const rFim = await pg.evaluate(async () => {
     window.pergunta = async () => { await new Promise(r => setTimeout(r, 60)); return true; };
+    window._fim = []; window.confirmar = async (o) => { window._fim.push(o); return false; };
     await Promise.all([fecharContagem(), fecharContagem()]);
+    await new Promise(r => setTimeout(r, 600));
     espelharEstoque();
     var c = (DB.contagens || [])[0] || {};
     var raw = localStorage.getItem('nexor_contagem_rascunho');
@@ -3147,8 +3189,11 @@ function servir() {
       perda: c.perda, ganho: c.ganho,
       copo: itemEstoque('in_copo').estoqueAtual, leite: itemEstoque('in_leite').estoqueAtual,
       calda: itemEstoque('in_calda').estoqueAtual,
-      rascunho: raw, aba: CT2.aba, ajustes: (DB.movEst || []).filter(m => m.origem === 'contagem').length };
+      rascunho: raw, aba: CT2.aba, ajustes: (DB.movEst || []).filter(m => m.origem === 'contagem').length,
+      fim: (window._fim || []).map(o => ({ titulo: o.titulo, linhas: (o.linhas || []).map(l => l[0] + ': ' + l[1]) })),
+      nuvemLigada: !!(NUVEM.ligada && NUVEM.token) };
   });
+  await pg.evaluate(() => { window.confirmar = async () => true; });
   t('dois cliques em Finalizar gravam UMA contagem só', rFim.n === 1 && rFim.ajustes === 1,
     rFim.n + ' contagem(ns), ' + rFim.ajustes + ' ajuste(s)');
   t('com a data de ontem', rFim.data === rFim.ontem, rFim.data);
@@ -3159,6 +3204,14 @@ function servir() {
   t('perda R$ 2,00 (0,5 kg de leite) e sobra R$ 1,00 (2 copos)', rFim.perda === -2 && rFim.ganho === 1,
     rFim.perda + ' / ' + rFim.ganho);
   t('SÓ AGORA a folha zera', rFim.rascunho === null && rFim.aba === 'hist', String(rFim.rascunho));
+  const fim0 = (rFim.fim[0] || { linhas: [] });
+  const fimL = fim0.linhas.join(' | ');
+  t('aparece UMA mensagem final dizendo que a contagem foi gravada',
+    rFim.fim.length === 1 && /gravada/.test(fim0.titulo), JSON.stringify(rFim.fim).slice(0, 200));
+  t('e ela confere o estoque total item por item', /Estoque total atualizado: sim — 2 de 2/.test(fimL), fimL);
+  t('o relatório e a gravação no aparelho', /Relatório: salvo/.test(fimL) && /Neste aparelho: gravada/.test(fimL), fimL);
+  t('e só diz "no banco de dados" se conferiu — sem internet, diz que sobe depois',
+    rFim.nuvemLigada ? /Banco de dados/.test(fimL) : /Banco de dados \(nuvem\): sem conexão/.test(fimL), fimL);
 
   /* o relatório abre num clique na linha e tem EDITAR */
   await pg.click('.etTab tbody tr.ctLinhaHist td:first-child');

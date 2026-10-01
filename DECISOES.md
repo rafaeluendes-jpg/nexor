@@ -7287,3 +7287,17 @@ com anotação do que mudou.
   para. O relatório lista as correções.
 - Prova no Chromium: provar.js 11c (34 verificações, com recarga da
   página). Guardião: `testes/contagem-inicio-do-mes.js`.
+
+## V399 — diferença grande pede confirmação; a contagem prova que gravou (01/10/2026)
+
+- Digitou e deu Enter (ou saiu do campo) com diferença acima de 30% do
+  sistema, para mais ou para menos — inclusive sistema zerado: aparece
+  "Confirma esta quantidade?" com sistema, contado e diferença. "Corrigir"
+  deixa o cursor no item; só "Sim, está certo" segue. O OK fica guardado
+  com o número (e na folha); trocar o número pergunta de novo.
+- A linha escreve "✓ contado" (ou "✓ contado · diferença confirmada").
+- Ao finalizar (e ao salvar uma correção), a mensagem final confere de
+  verdade: estoque do dia igual ao contado item por item, relatório na
+  lista, gravação no aparelho e, com internet, a contagem e o ajuste
+  LIDOS de volta da nuvem. Sem internet ela diz que sobe depois — nunca
+  "no banco de dados" sem ter conferido.

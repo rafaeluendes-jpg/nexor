@@ -1835,6 +1835,10 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .ctTab tbody tr.invalido td{background:var(--red-soft)}
 .ctTab tbody tr.invalido td:first-child{box-shadow:inset 4px 0 0 var(--red)}
 .ctTab tbody tr.invalido .ctIn{border-color:var(--red);box-shadow:0 0 0 2px var(--red-soft)}
+/* "✓ contado" escrito na própria linha */
+.ctTab .ctSelo{margin-left:6px;white-space:nowrap}
+.ctTab .ctSeloOk{font-size:11px;font-weight:700;color:var(--ok)}
+.ctTab .ctSeloAt{font-size:11px;font-weight:700;color:var(--red)}
 /* a linha do histórico abre o relatório com um clique */
 .etTab tbody tr.ctLinhaHist{cursor:pointer}
 .etTab tbody tr.ctLinhaHist:hover td{background:var(--alt)}

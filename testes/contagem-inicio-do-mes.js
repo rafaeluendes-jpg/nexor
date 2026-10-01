@@ -94,6 +94,30 @@ const ec = semCom(corpoDaFuncao('editarContagem', fonte));
 t('a edição abre no dia da contagem', /CT2\.data=c\.data/.test(ec));
 t('com o que foi contado', /CT2\.cont\[x\.insumoId\]=String\(x\.conferido\)/.test(ec));
 
+console.log('\n── 4b. Diferença acima de 30% e a prova de que gravou (V399)\n');
+t('o limite é 30%', /var LIMITE_DIF_CONTAGEM=0\.30;/.test(fonte));
+const dp = semCom(corpoDaFuncao('difContagemPct', fonte));
+t('a conta é contra o mesmo saldo da folha', /sistemaNaContagem\(i\)/.test(dp));
+t('sistema zerado e contado acima de zero também pergunta', /return q>0\?1:0;/.test(dp));
+const cd = semCom(corpoDaFuncao('conferirDiferencaGrande', fonte));
+t('pergunta "Confirma esta quantidade?"', /Confirma esta quantidade\?/.test(cd) && /ok:'Sim, está certo',cancelar:'Corrigir'/.test(cd));
+t('Enter e a saída do campo fazem UMA pergunta só', /if\(_perguntandoDif\[id\]\)return _perguntandoDif\[id\];/.test(cd));
+t('o OK fica guardado com o número', /CT2\.confirmados\[id\]=normCont\(CT2\.cont\[id\]\)/.test(cd));
+const lc2 = semCom(corpoDaFuncao('ligarContagem', fonte));
+t('o Enter só segue com a confirmação', /if\(!\(await conferirDiferencaGrande\(campo\.getAttribute\('data-id'\)\)\)\)\{\s*campo\.focus\(\);campo\.select\(\);return;/.test(lc2));
+t('sair do campo também confere', /onchange=async function/.test(lc2));
+t('a linha escreve "✓ contado"', /✓ contado/.test(semCom(corpoDaFuncao('seloContagem', fonte))));
+const fc2 = semCom(corpoDaFuncao('fecharContagem', fonte));
+t('a finalização avisa as diferenças grandes sem confirmação', /_grandes\.length/.test(fc2));
+t('e termina conferindo o que gravou', /conferirContagemGravada\(_ctId,mov\.id,/.test(fc2));
+const cg = semCom(corpoDaFuncao('conferirContagemGravada', fonte));
+t('confere o estoque item por item pelo saldo do dia', /saldoNaData\(x\.insumoId,c\.data/.test(cg));
+t('confere a gravação no aparelho', /indexOf\(ctId\)>=0/.test(cg));
+t('e só diz "no banco" depois de LER de volta da nuvem',
+  /api\('contagens_estoque\?loja_id=eq\.'/.test(cg) && /api\('movimentacoes_estoque\?loja_id=eq\.'/.test(cg) &&
+  /nuvem\.ok=!!\(lc&&lc\.length\)&&!!\(lm&&lm\.length\)/.test(cg));
+t('sem internet, diz que sobe depois — nunca que já está no banco', /sem conexão agora/.test(cg));
+
 console.log('\n── 5. O relatório\n');
 const vc = semCom(corpoDaFuncao('verContagem', fonte));
 t('tem o botão Editar', /editarContagem\(/.test(vc));

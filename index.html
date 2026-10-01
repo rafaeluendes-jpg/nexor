@@ -4361,6 +4361,10 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .ctTab tbody tr.invalido td{background:var(--red-soft)}
 .ctTab tbody tr.invalido td:first-child{box-shadow:inset 4px 0 0 var(--red)}
 .ctTab tbody tr.invalido .ctIn{border-color:var(--red);box-shadow:0 0 0 2px var(--red-soft)}
+/* "✓ contado" escrito na própria linha */
+.ctTab .ctSelo{margin-left:6px;white-space:nowrap}
+.ctTab .ctSeloOk{font-size:11px;font-weight:700;color:var(--ok)}
+.ctTab .ctSeloAt{font-size:11px;font-weight:700;color:var(--red)}
 /* a linha do histórico abre o relatório com um clique */
 .etTab tbody tr.ctLinhaHist{cursor:pointer}
 .etTab tbody tr.ctLinhaHist:hover td{background:var(--alt)}
@@ -14567,7 +14571,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V398.0.0';
+var VERSAO='V399.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -42819,7 +42823,7 @@ function exportarEstoque(){
    veio aquele preco.
    ========================================================== */
 var CT2={aba:'hist',busca:'',grupo:'',cont:{},custo:{},de:'',ate:'',data:'',
-  _auto:false,_retomado:'',editando:''};
+  _auto:false,_retomado:'',editando:'',confirmados:{}};
 /* ==========================================================
    A CONTAGEM E DO FIM DAQUELE DIA
 
@@ -43120,7 +43124,7 @@ function guardarRascunhoContagem(){
     localStorage.setItem(_CHAVE_RASCUNHO,JSON.stringify({
       suc:lojaAtualId(),data:CT2.data||'',
       cont:CT2.cont||{},custo:CT2.custo||{},
-      editando:CT2.editando||'',
+      editando:CT2.editando||'',confirmados:CT2.confirmados||{},
       quando:new Date().toISOString()}));
   }catch(e){ _quieto(e,'guardarRascunhoContagem'); }
 }
@@ -43162,7 +43166,7 @@ async function descartarRascunhoContagem(){
     if(!ok)return;
   }
   limparRascunhoContagem();
-  CT2.cont={};CT2.custo={};CT2._retomado='';CT2.editando='';
+  CT2.cont={};CT2.custo={};CT2._retomado='';CT2.editando='';CT2.confirmados={};
   CT2.data=hojeISO();
   telaContagem();
   toast(n?'Folha apagada. A contagem começa do zero.':'Folha limpa.');
@@ -43177,8 +43181,9 @@ function novaContagem(){
     CT2._retomado=r.quando||'';
     /* edição pela metade volta como edição — nunca como contagem nova */
     CT2.editando=(r.editando&&(DB.contagens||[]).some(function(x){return x.id===r.editando}))?r.editando:'';
+    CT2.confirmados=r.confirmados||{};
   }else{
-    CT2.cont={};CT2.custo={};CT2.data=hojeISO();CT2._retomado='';CT2.editando='';
+    CT2.cont={};CT2.custo={};CT2.data=hojeISO();CT2._retomado='';CT2.editando='';CT2.confirmados={};
   }
   telaContagem();
 }
@@ -43346,6 +43351,73 @@ function telaContagemNova(){
    continua dizendo se sobrou ou faltou. Número digitado errado deixa a
    linha vermelha e segura a finalização.
    ========================================================== */
+/* ==========================================================
+   DIFERENÇA GRANDE PEDE CONFIRMAÇÃO (Rafael, 01/10/2026)
+
+   "O estoque é 1 kg e eu digitei 15 kg: quando der diferença de mais
+   de 30%, a mais ou a menos, aparecer 'você tem certeza?'. Só com o OK
+   deixa continuar."
+
+   A conta é contra o MESMO número que a folha mostra na coluna do
+   sistema (sistemaNaContagem). Sistema zerado e contado acima de zero
+   também pergunta: é diferença de 100%. O OK fica guardado junto com
+   o número (e no rascunho) — o mesmo número não é perguntado de novo;
+   trocar o número pergunta de novo.
+   ========================================================== */
+var LIMITE_DIF_CONTAGEM=0.30;
+function difContagemPct(i,c){
+  var q=qtdContada(c);
+  if(typeof q!=='number'||isNaN(q))return null;
+  var sis=sistemaNaContagem(i);
+  if(Math.abs(sis)<0.000001)return q>0?1:0;
+  return Math.abs(q-sis)/Math.abs(sis);
+}
+function difContagemGrande(i,c){
+  var p=difContagemPct(i,c);
+  return p!==null&&p>LIMITE_DIF_CONTAGEM+0.000001;
+}
+function difContagemConfirmada(id){
+  CT2.confirmados=CT2.confirmados||{};
+  return CT2.confirmados[id]!==undefined&&CT2.confirmados[id]===normCont(CT2.cont[id]);
+}
+var _perguntandoDif={};
+function conferirDiferencaGrande(id){
+  var i=itemEstoque(id), c=CT2.cont[id];
+  if(!i||!contadoOk(c)||!difContagemGrande(i,c)||difContagemConfirmada(id))return Promise.resolve(true);
+  /* Enter e a saída do campo chegam juntos: uma pergunta só */
+  if(_perguntandoDif[id])return _perguntandoDif[id];
+  var sis=sistemaNaContagem(i), q=qtdContada(c), d=q-sis, pct=difContagemPct(i,c);
+  var u=un(i.unidade).ab;
+  _perguntandoDif[id]=confirmar({
+    titulo:'Confirma esta quantidade?',
+    texto:i.nome+' — a diferença para o sistema passa de 30%.',
+    linhas:[['No sistema',fmtQt(sis)+' '+u,''],
+            ['Contado agora',fmtQt(q)+' '+u,''],
+            ['Diferença',(d>0?'+':'')+fmtQt(d)+' '+u+' ('+(d>0?'+':'−')+Math.round(pct*100)+'%)',d<0?'vr':'']],
+    aviso:'Confira se o número e a unidade estão certos (kg × g, caixa × unidade) antes de seguir.',
+    ok:'Sim, está certo',cancelar:'Corrigir',tipo:'pergunta'
+  }).then(function(ok){
+    delete _perguntandoDif[id];
+    if(ok){
+      CT2.confirmados=CT2.confirmados||{};
+      CT2.confirmados[id]=normCont(CT2.cont[id]);
+      guardarRascunhoContagem();
+      atualizaLinhaCont(id);
+    }
+    return !!ok;
+  },function(){ delete _perguntandoDif[id]; return false; });
+  return _perguntandoDif[id];
+}
+/* "✓ contado" escrito na própria linha; diferença grande confirmada
+   diz que foi confirmada */
+function seloContagem(id,tem){
+  if(!tem)return '';
+  var i=itemEstoque(id);
+  if(i&&difContagemGrande(i,CT2.cont[id]))
+    return difContagemConfirmada(id)?'<span class="ctSeloOk">✓ contado · diferença confirmada</span>'
+                                    :'<span class="ctSeloAt">⚠ confira a diferença</span>';
+  return '<span class="ctSeloOk">✓ contado</span>';
+}
 function classeLinhaCont(tem,errado,d){
   if(errado)return 'invalido';
   if(!tem)return '';
@@ -43359,7 +43431,7 @@ function linhaContagem(i){
   var d=tem?(qtdContada(c)-sis):0;
   var v=d*custoCont(i);
   return '<tr id="lc-'+i.id+'" class="'+classeLinhaCont(tem,errado,d)+'">'+
-  '<td>'+E(i.codigo)+'</td><td><b>'+E(i.nome)+'</b></td>'+
+  '<td>'+E(i.codigo)+'</td><td><b>'+E(i.nome)+'</b> <span class="ctSelo">'+seloContagem(i.id,tem)+'</span></td>'+
   '<td>'+E(g?g.nome:'—')+'</td>'+
   '<td style="text-align:right">'+fmtQt(sis)+' '+un(i.unidade).ab+'</td>'+
   '<td><input class="ctIn" data-id="'+i.id+'" type="text" inputmode="decimal" autocomplete="off" '+
@@ -43409,6 +43481,7 @@ function atualizaLinhaCont(id){
   var d=tem?(qtdContada(c)-sis):0;
   var v=d*custoCont(i);
   tr.className=classeLinhaCont(tem,errado,d);
+  var sl=tr.querySelector('.ctSelo'); if(sl)sl.innerHTML=seloContagem(id,tem);
   var cd=tr.querySelector('.cDif2'),cv=tr.querySelector('.cVal2');
   if(cd)cd.innerHTML=difContHtml(i,tem,errado,d);
   if(cv)cv.innerHTML=valContHtml(tem,v);
@@ -43449,12 +43522,24 @@ function ligarContagem(){
       guardarRascunhoContagem();
       atualizaLinhaCont(id);
     };
-    ins[i].onkeydown=function(e){
+    ins[i].onkeydown=async function(e){
       if(e.key==='Enter'){
         e.preventDefault();
+        var campo=this;
+        /* diferença acima de 30%: só segue para o próximo item com o OK */
+        if(!(await conferirDiferencaGrande(campo.getAttribute('data-id')))){
+          campo.focus();campo.select();return;
+        }
         var todos=document.querySelectorAll('.ctIn');
-        for(var k=0;k<todos.length;k++)if(todos[k]===this&&todos[k+1]){
+        for(var k=0;k<todos.length;k++)if(todos[k]===campo&&todos[k+1]){
           todos[k+1].focus();todos[k+1].select();break;}
+      }
+    };
+    /* saiu do campo com o mouse ou o Tab: a mesma pergunta */
+    ins[i].onchange=async function(){
+      var campo=this;
+      if(!(await conferirDiferencaGrande(campo.getAttribute('data-id')))){
+        campo.focus();campo.select();
       }
     };
   }
@@ -43535,6 +43620,9 @@ async function fecharContagem(){
     }
     var _dt=dataDaContagem();
     var _retro=contagemRetroativa();
+    /* diferença acima de 30% que ainda não passou pelo "Sim, está certo" */
+    var _grandes=itensEstoque().filter(function(i){var c=CT2.cont[i.id];
+      return contadoOk(c)&&difContagemGrande(i,c)&&!difContagemConfirmada(i.id);});
     if(!await pergunta('Finalizar a contagem?\n\n'+
       'Data da contagem: '+dataBR(_dt)+
       (_retro?' (fim do dia, depois de toda a venda)':' (hoje)')+'\n\n'+
@@ -43548,6 +43636,10 @@ async function fecharContagem(){
         ?'ATENÇÃO: este aparelho só tem as movimentações desde '+
          dataBR(limiteContagemRetroativa())+'. A quantidade do sistema nesse dia pode '+
          'estar incompleta.\n\n'
+        :'')+
+      (_grandes.length
+        ?'CONFIRA: '+_grandes.length+' item(ns) com diferença acima de 30% ainda sem confirmação: '+
+         _grandes.slice(0,6).map(function(i){return i.nome}).join(', ')+(_grandes.length>6?'…':'')+'.\n\n'
         :'')+
       'O estoque será ajustado e o lançamento vai para a movimentação.'+avisoPreco))return;
     /* grava o custo antes do ajuste, para a movimentacao ja usar o valor novo */
@@ -43594,11 +43686,14 @@ async function fecharContagem(){
       itens:det,perda:+perda.toFixed(2),ganho:+ganho.toFixed(2),
       resultado:+(ganho+perda).toFixed(2),loja:lojaAtual(),sucursalId:lojaAtualId(),
       precos:precos.map(function(p2){return {insumoId:p2.item.id,nome:p2.item.nome,de:p2.de,para:p2.para}})});
-    CT2.cont={};CT2.custo={};CT2.data='';CT2._retomado='';CT2.aba='hist';
+    var _ctId=DB.contagens[DB.contagens.length-1].id;
+    CT2.cont={};CT2.custo={};CT2.data='';CT2._retomado='';CT2.aba='hist';CT2.confirmados={};
     limparRascunhoContagem();       /* a contagem foi gravada: o rascunho acabou */
     salvar();telaContagem();
     toast('Contagem de '+dataBR(_dt)+' finalizada. Estoque ajustado'+
       (precos.length?', '+precos.length+' custo(s) atualizado(s)':'')+' e lançado na movimentação.');
+    /* a prova de que gravou: estoque, relatório, aparelho e nuvem */
+    conferirContagemGravada(_ctId,mov.id,'Contagem de '+dataBR(_dt)+' gravada');
   }finally{ _finalizandoContagem=false; }
 }
 /* ==========================================================
@@ -43652,9 +43747,9 @@ function editarContagem(id){
   CT2.aba='nova';CT2.busca='';CT2.grupo='';
   CT2.editando=id;CT2.data=c.data;
   if(r&&r.editando===id){
-    CT2.cont=r.cont;CT2.custo=r.custo||{};CT2._retomado=r.quando||'';
+    CT2.cont=r.cont;CT2.custo=r.custo||{};CT2._retomado=r.quando||'';CT2.confirmados=r.confirmados||{};
   }else{
-    CT2.cont={};CT2.custo={};CT2._retomado='';
+    CT2.cont={};CT2.custo={};CT2._retomado='';CT2.confirmados={};
     (c.itens||[]).forEach(function(x){ CT2.cont[x.insumoId]=String(x.conferido); });
     guardarRascunhoContagem();
   }
@@ -43739,11 +43834,12 @@ async function salvarEdicaoContagem(){
   c.perda=+perda.toFixed(2);c.ganho=+ganho.toFixed(2);c.resultado=+(ganho+perda).toFixed(2);
   if(precos.length)c.precos=(c.precos||[]).concat(precos.map(function(p2){
     return {insumoId:p2.item.id,nome:p2.item.nome,de:p2.de,para:p2.para,em:agora}}));
-  CT2.cont={};CT2.custo={};CT2.data='';CT2._retomado='';CT2.editando='';CT2.aba='hist';
+  CT2.cont={};CT2.custo={};CT2.data='';CT2._retomado='';CT2.editando='';CT2.aba='hist';CT2.confirmados={};
   limparRascunhoContagem();
   salvar();telaContagem();
   toast('Correção salva: '+mudancas.length+' item(ns) na contagem de '+dataBR(c.data)+
     (mov?', estoque ajustado pela diferença':'')+'.');
+  conferirContagemGravada(c.id,mov?mov.id:'','Correção da contagem de '+dataBR(c.data)+' gravada');
 }
 /* todas as correções de uma contagem, da mais nova para a mais antiga */
 function edicoesDaContagem(c){
@@ -43752,6 +43848,75 @@ function edicoesDaContagem(c){
     (x.edicoes||[]).forEach(function(e){ l.push({nome:x.nome,unidade:x.unidade,e:e}); });
   });
   return l.sort(function(a,b){return String(b.e.em).localeCompare(String(a.e.em))});
+}
+/* ==========================================================
+   "GRAVOU MESMO?" — DITO COM PROVA (Rafael, 01/10/2026)
+
+   "Aparecer uma mensagem: a contagem foi feita e salva, o estoque
+   total foi atualizado, relatórios, tudo ok, já está no banco de
+   dados — para poder validar que funcionou."
+
+   Cada linha da mensagem é conferida de verdade, não escrita de
+   enfeite:
+     · estoque: o saldo do dia da contagem bate, item por item, com o
+       que foi contado (saldoNaData);
+     · relatório: a contagem está na lista;
+     · aparelho: está no que foi gravado neste aparelho;
+     · banco de dados: a contagem e o ajuste foram LIDOS de volta da
+       nuvem. Sem internet, a mensagem diz que sobe quando voltar —
+       nunca "já está no banco" sem ter conferido.
+   ========================================================== */
+async function conferirContagemGravada(ctId,movId,titulo){
+  var c=(DB.contagens||[]).find(function(x){return x.id===ctId});
+  if(!c)return null;
+  try{ espelharEstoque(); }catch(e){ _quieto(e,'conferirContagemGravada'); }
+  var n=(c.itens||[]).length, bate=0, naoBate=[];
+  (c.itens||[]).forEach(function(x){
+    var sNa=NaN;
+    try{ sNa=Number(saldoNaData(x.insumoId,c.data,c.sucursalId||lojaAtualId())); }catch(e){}
+    if(isFinite(sNa)&&Math.abs(sNa-Number(x.conferido))<0.001)bate++; else naoBate.push(x.nome);
+  });
+  var noAparelho=false;
+  try{
+    var raw=(typeof _baseCrua==='function'?_baseCrua():localStorage.getItem('nexor_dados'))||'';
+    noAparelho=String(raw).indexOf(ctId)>=0;
+  }catch(e){ _quieto(e,'conferirContagemGravada'); }
+  var nuvem={txt:'',ok:false};
+  if(!NUVEM.ligada||!NUVEM.token){
+    nuvem.txt='sem conexão agora — sobe sozinha assim que a internet voltar';
+  }else{
+    toast('Conferindo a contagem na nuvem…');
+    try{ await sincronizar(); }catch(e){ _quieto(e,'conferirContagemGravada'); }
+    var ate=Date.now()+30000;
+    while(Date.now()<ate&&(NUVEM.sincronizando||NUVEM.pendente)){
+      await new Promise(function(r){setTimeout(r,400)});
+    }
+    try{
+      var lc=await api('contagens_estoque?loja_id=eq.'+NUVEM.loja+'&ref_local=eq.'+encodeURIComponent(ctId)+'&select=ref_local');
+      var lm=movId?await api('movimentacoes_estoque?loja_id=eq.'+NUVEM.loja+'&ref_local=eq.'+encodeURIComponent(movId)+'&select=ref_local'):[1];
+      nuvem.ok=!!(lc&&lc.length)&&!!(lm&&lm.length);
+      nuvem.txt=nuvem.ok?'conferida: a contagem e o ajuste do estoque já estão no banco de dados'
+                        :'ainda subindo — confira de novo em alguns minutos (ícone da nuvem no topo)';
+    }catch(e){
+      nuvem.txt='não consegui conferir agora — ela está salva neste aparelho e sobe sozinha';
+    }
+  }
+  var tudo=bate===n&&noAparelho&&nuvem.ok;
+  var ok=await confirmar({
+    titulo:(tudo?'✓ ':'')+titulo,
+    texto:n+' item(ns) · sobra R$ '+money(c.ganho)+' · perda R$ '+money(Math.abs(c.perda)),
+    linhas:[
+      ['Contagem gravada', 'sim, com '+n+' item(ns)', ''],
+      ['Estoque total atualizado', bate===n?'sim — '+bate+' de '+n+' itens conferidos':
+         bate+' de '+n+' (confira: '+naoBate.slice(0,3).join(', ')+')', bate===n?'':'vr'],
+      ['Relatório', 'salvo em Contagem de Estoque (perdas e sobras)', ''],
+      ['Neste aparelho', noAparelho?'gravada':'não encontrei a gravação — não feche a tela', noAparelho?'':'vr'],
+      ['Banco de dados (nuvem)', nuvem.txt, nuvem.ok?'':'vr']],
+    aviso:tudo?'Tudo conferido. O estoque do dia '+dataBR(c.data)+' agora é o que foi contado.'
+              :'O que não está conferido aparece em vermelho acima.',
+    ok:'Ver o relatório',cancelar:'Fechar',tipo:tudo?'check':'info'});
+  if(ok)verContagem(ctId);
+  return {bate:bate,itens:n,aparelho:noAparelho,nuvem:nuvem.ok,tudo:tudo};
 }
 function verContagem(id){
   var c=(DB.contagens||[]).find(function(x){return x.id===id});

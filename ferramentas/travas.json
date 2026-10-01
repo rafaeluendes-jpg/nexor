@@ -146,7 +146,7 @@
    "roda": true
   },
   "testes/contagem-inicio-do-mes.js": {
-   "pontos": 41,
+   "pontos": 56,
    "roda": true
   },
   "testes/contagem-nao-se-perde.js": {
