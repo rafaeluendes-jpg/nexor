@@ -10,7 +10,7 @@
 # repositório — todos os ramos, todas as etiquetas, todo o histórico.
 # Não é uma pasta com os arquivos de hoje: é o repositório inteiro. De um
 # espelho desses dá para subir o sistema em qualquer lugar, sem GitHub,
-# com um `git clone /opt/espelho/jolo-central.git`.
+# com um `git clone /opt/sistemas/espelho/jolo-central.git`.
 #
 # Ele NÃO apaga nada no GitHub e NÃO mexe em nada que está publicado.
 # Rodar de novo só atualiza o que mudou.
@@ -25,11 +25,12 @@
 # ==========================================================
 set -uo pipefail
 
-DESTINO="${DESTINO:-/opt/espelho}"
+# fica ao lado das caixas de Docker, em /opt/sistemas
+DESTINO="${DESTINO:-/opt/sistemas/espelho}"
 DONO="rafaeluendes-jpg"
 
 # Ordem do Rafael de 01/10/2026: só os sistemas dele entram no servidor.
-# Os de fora ficam de fora — nexor (Joia), nexor-whatsapp, nexor-app,
+# Os de fora ficam de fora — nexor (Joia), nexor-app,
 # delivery e sistema-inteligente NÃO são copiados. Acrescentar um aqui sem
 # ele pedir é guardar código que não é dele.
 REPOS=(
@@ -38,6 +39,7 @@ REPOS=(
   r2on                        # R2ON (parado, mas guardado)
   Rafael-gest-o-              # Dalu — o projeto da Lu
   rafaellos-centro-de-gestao  # Central Rafaello's
+  nexor-whatsapp              # Assistente do WhatsApp
 )
 
 # 1) o que vier no ambiente; 2) o arquivo guardado; 3) o gh desta máquina
