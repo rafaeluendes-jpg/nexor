@@ -12,5 +12,5 @@ TMP="$(mktemp "$(dirname "$ARQ")/.ia.XXXXXX")"
 grep -v '^ANTHROPIC_API_KEY=' "$ARQ" > "$TMP" || true
 printf 'ANTHROPIC_API_KEY=%s\n' "$CHAVE" >> "$TMP"
 chmod 600 "$TMP"; mv "$TMP" "$ARQ"
-[[ "${SEM_REINICIAR:-0}" == 1 ]] || systemctl restart jolo-central
+[[ "${SEM_REINICIAR:-0}" == 1 ]] || docker compose -f /opt/jolo/jolo/infra/docker/docker-compose.sistemas.yml -p jolo-sistemas up -d --no-deps --force-recreate jolo-central >/dev/null 2>&1
 echo "Chave da IA guardada com seguranca."

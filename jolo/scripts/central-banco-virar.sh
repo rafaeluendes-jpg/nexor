@@ -215,11 +215,11 @@ grep -q ' centraljolo.com.br$' /etc/hosts || echo "127.0.0.1 centraljolo.com.br"
 grep -q '^NEXT_PUBLIC_SUPABASE_URL=' /etc/jolo/central.env || echo "NEXT_PUBLIC_SUPABASE_URL=https://centraljolo.com.br/banco" >> /etc/jolo/central.env
 # a Central nova foi montada ANTES da manutencao em /opt/central-vps;
 # aqui so troca a pasta (a antiga fica guardada para voltar)
-systemctl stop jolo-central
+docker stop jolo-central
 rm -rf /opt/central-nuvem
 mv /opt/central /opt/central-nuvem
 mv /opt/central-vps /opt/central
-systemctl start jolo-central
+docker compose -f /opt/jolo/jolo/infra/docker/docker-compose.sistemas.yml -p jolo-sistemas up -d --no-deps --force-recreate jolo-central
 
 # ---------------------------------------------------------------- 7
 passo "7. manutencao desligada"

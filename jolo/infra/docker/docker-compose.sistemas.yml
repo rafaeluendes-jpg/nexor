@@ -1,0 +1,131 @@
+# ============================================================
+# Um container para cada sistema do servidor.
+#
+#   docker compose -f /opt/jolo/jolo/infra/docker/docker-compose.sistemas.yml -p jolo-sistemas ps
+#
+# Os bancos do CRM (jolo-postgres, jolo-redis) continuam no
+# docker-compose.yml ao lado; o banco da Central, em /opt/supabase-central.
+# A Gestao de Franquias tem a aplicacao e o banco proprios aqui tambem.
+#
+# Rede do servidor (network_mode: host): cada sistema continua escutando
+# so por dentro (127.0.0.1) e na mesma porta de antes, entao o nginx, os
+# enderecos e as configuracoes nao mudam. O codigo ja compilado fica no
+# lugar de sempre e entra no container pela mesma pasta: publicar
+# continua sendo compilar e reiniciar (scripts/instalar-vps.sh).
+# ============================================================
+
+x-node: &node
+  image: jolo/node:22
+  build: ./node
+  network_mode: host
+  restart: unless-stopped
+  init: true
+  security_opt: ['no-new-privileges:true']
+  logging:
+    driver: json-file
+    options: { max-size: '20m', max-file: '5' }
+
+x-franquias: &franquias
+  <<: *node
+  volumes:
+    - /opt/jolo/jolo:/opt/jolo/jolo
+  environment:
+    HOME: /root
+    ARQUIVOS_ENV: /opt/jolo/jolo/.env
+  mem_limit: 1g
+
+services:
+  # ---------------- Franquias (landing, CRM, motor e fila) ----------------
+  # NODE_ENV fica o do .env, como ja era: no systemd o arquivo .env
+  # prevalecia sobre o "production" escrito na unidade.
+  jolo-landing:
+    <<: *franquias
+    container_name: jolo-landing
+    working_dir: /opt/jolo/jolo/apps/landing
+    command: ['sh', '-c', 'exec node_modules/.bin/next start -p "$${PORTA_LANDING:-13000}" -H 127.0.0.1']
+
+  jolo-crm:
+    <<: *franquias
+    container_name: jolo-crm
+    working_dir: /opt/jolo/jolo/apps/crm
+    command: ['sh', '-c', 'exec node_modules/.bin/next start -p "$${PORTA_CRM:-3001}" -H 127.0.0.1']
+
+  jolo-api:
+    <<: *franquias
+    container_name: jolo-api
+    working_dir: /opt/jolo/jolo/apps/api
+    command: ['node', 'dist/main.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS --max-time 5 "http://127.0.0.1:3333/health" > /dev/null']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  jolo-workers:
+    <<: *franquias
+    container_name: jolo-workers
+    working_dir: /opt/jolo/jolo/workers
+    command: ['node', 'dist/main.js']
+
+  # ---------------- Central Jolo ----------------
+  # Mesmas travas de quando rodava fora: usuario "central" (999:987), so a
+  # pasta .next gravavel, teto de 1 GB de memoria.
+  jolo-central:
+    <<: *node
+    container_name: jolo-central
+    working_dir: /opt/central
+    volumes:
+      - /opt/central:/opt/central:ro
+      - /opt/central/.next:/opt/central/.next
+      - /etc/jolo/central.env:/etc/jolo/central.env:ro
+    environment:
+      ARQUIVOS_ENV: /etc/jolo/central.env
+      FIXAR: NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+      CORRER_COMO: '999:987'
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+    mem_limit: 1g
+    command: ['/opt/central/node_modules/.bin/next', 'start', '-p', '3002', '-H', '127.0.0.1']
+
+  # ---------------- Gestao de Franquias (gestao.jologelato.com.br) ----------------
+  # O Next "standalone" ja compilado em /var/www/jolo-gestao; os documentos
+  # enviados ficam em .next/standalone/public/uploads (pasta montada).
+  # A senha do banco fica em /etc/jolo/gestao.env (so root). Depois de
+  # trocar esse arquivo: up -d --force-recreate gestao-app.
+  gestao-app:
+    <<: *node
+    container_name: gestao-app
+    working_dir: /var/www/jolo-gestao
+    volumes:
+      - /var/www/jolo-gestao:/var/www/jolo-gestao
+      - /etc/jolo/gestao.env:/etc/jolo/gestao.env:ro
+    environment:
+      ARQUIVOS_ENV: /etc/jolo/gestao.env
+      FIXAR: HOSTNAME=127.0.0.1 PORT=3000
+    mem_limit: 1g
+    depends_on:
+      gestao-postgres: { condition: service_healthy }
+    command: ['node', '.next/standalone/server.js']
+
+  gestao-postgres:
+    image: postgres:16-alpine
+    container_name: gestao-postgres
+    restart: unless-stopped
+    env_file:
+      - path: /etc/jolo/gestao-banco.env
+        required: false
+    ports:
+      - '127.0.0.1:15433:5432'
+    volumes:
+      - gestao-dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options: { max-size: '20m', max-file: '5' }
+
+volumes:
+  gestao-dados:

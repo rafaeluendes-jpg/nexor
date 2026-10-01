@@ -20,6 +20,10 @@ set -a
 set +a
 
 echo "publicando: ${DOMINIO_LANDING}, ${DOMINIO_CRM} (motor em ${DOMINIO_API})"
+# O codigo e o que esta aqui no servidor (/opt/jolo): nada e baixado de
+# fora. Sem isto o instalador buscaria a versao do GitHub e apagaria o que
+# foi alterado aqui.
+export SEM_GIT=sim
 if ! bash "$APP/scripts/instalar-vps.sh" > "$LOG" 2>&1; then
   echo "a publicacao falhou; ultimas linhas do registro ($LOG):"
   tail -40 "$LOG"

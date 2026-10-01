@@ -20,7 +20,10 @@ RAMO="${RAMO:-main}"
 RAIZ="/var/www/joia"
 NOVA="$RAIZ/versoes/$(date +%Y-%m-%d_%H%M%S)"
 
-git -C "$REPO" fetch -q origin "+refs/heads/$RAMO:refs/remotes/origin/$RAMO"
+# Busca a main nova se o repositorio de fora responder; se nao responder
+# (ou nao existir mais), publica a ultima main que ja esta aqui na VPS.
+timeout 60 git -C "$REPO" fetch -q origin "+refs/heads/$RAMO:refs/remotes/origin/$RAMO" 2>/dev/null \
+  || echo "repositorio de fora sem resposta: usando a $RAMO que ja esta na VPS"
 COMMIT="$(git -C "$REPO" rev-parse --short "origin/$RAMO")"
 
 FONTE="$(mktemp -d)"
