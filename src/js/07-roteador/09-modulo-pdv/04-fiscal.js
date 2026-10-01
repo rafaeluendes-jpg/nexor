@@ -1569,6 +1569,19 @@ async function imprimirDanfe(cupomId){
     var _dz=(typeof _fsDanfe!=='undefined')?_fsDanfe[cupomId]:null;
     var r=_dz?{ok:true,d:{danfe:_dz}}
       :await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+    /* ==========================================================
+       O XML CHEGA ALGUNS SEGUNDOS DEPOIS DA AUTORIZACAO (01/10/2026)
+       Venda 2584 de Santa Fe: a SEFAZ autorizou, o caixa pediu o cupom
+       no mesmo segundo, o emissor ainda nao tinha o XML ("ainda nao tem
+       o XML autorizado") — e o caixa desistia na primeira. O cupom nunca
+       saia. Agora tenta de novo, em silencio, por ate meio minuto; so
+       avisa se nao vier mesmo. Sessao recusada (401/403) nao insiste. */
+    var _esperas=[1500,3000,5000,8000,12000];
+    for(var _k=0;_k<_esperas.length&&(!r.ok||!r.d||!r.d.danfe)&&
+        (r.status===0||r.status===404||r.status===409||r.status===429||r.status>=500);_k++){
+      await new Promise(function(ok){setTimeout(ok,_esperas[_k]);});
+      r=await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+    }
     if(!r.ok||!r.d||!r.d.danfe){toast((r.d&&r.d.erro)||'Não consegui buscar o cupom fiscal.');return false;}
     /* a mesma bobina da ficha, na letra normal */
     var m=(typeof modeloImp==='function'&&modeloImp('ficha'))||null;

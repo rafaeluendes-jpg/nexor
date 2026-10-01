@@ -98,6 +98,8 @@ console.log('\n── 4. Definições fiscais da planilha (V405, PIS/COFINS 99)\
 t('PIS/COFINS 49 e 99 sem alíquota vão com alíquota 0 explícita, no servidor',
   /Number\(t\.cst\) === 49 \|\| Number\(t\.cst\) === 99\) && t\.rate == null\) t\.rate = 0;/.test(srv) &&
   srv.indexOf('t.rate = 0;') < srv.indexOf('spedy(chave, "POST", "/consumer-invoices", n)'));
+t('o cupom que ainda não tem XML é buscado de novo, em silêncio, até meio minuto',
+  /\[1500,3000,5000,8000,12000\]/.test(im) && /r\.status===0\|\|r\.status===404\|\|r\.status===409\|\|r\.status===429\|\|r\.status>=500/.test(im));
 t('a gravação da planilha está guardada',
   fs.existsSync(path.join(__dirname, '..', 'supabase/migrations/20261001_definicoes_fiscais_santa_fe.sql')));
 

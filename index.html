@@ -14666,7 +14666,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V405.0.0';
+var VERSAO='V406.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17674,10 +17674,18 @@ function setCustoUn(itemId,valor,suc){
    ========================================================== */
 function conferirFilhosRepetidos(){
   var achados=[];
+  /* ==========================================================
+     REPETIDA E A MESMA LINHA, NAO DOIS ITENS IGUAIS (01/10/2026)
+     O aviso "linhas repetidas em 377 registros" era alarme falso: dois
+     Cascao 1 Bola na mesma venda sao duas linhas, cada uma com o seu
+     id — o cliente comprou dois. Na nuvem, 373 dessas 388 vendas fecham
+     o total no centavo. O defeito da V115 repetia a MESMA linha (mesmo
+     id); e isso que se procura. Linha sem id cai na comparacao antiga.
+     E o achado vai para o registro da nuvem, nao para a tela do caixa. */
   function olhar(nomeLista,itens,chave){
     var vistos={},rep=0;
     (itens||[]).forEach(function(o){
-      var k=chave(o);
+      var k=(o&&o.id)?'id:'+o.id:chave(o);
       if(vistos[k])rep++; else vistos[k]=1;
     });
     if(rep)achados.push(nomeLista+': '+rep+' linha(s) repetida(s)');
@@ -17697,10 +17705,6 @@ function conferirFilhosRepetidos(){
   if(!achados.length)return 0;
   logNuvem('ATENCAO — linhas repetidas encontradas: '+achados.slice(0,6).join(' · ')+
     (achados.length>6?' e mais '+(achados.length-6):''),true);
-  try{
-    if(typeof ehMatriz==='function'&&ehMatriz())
-      toast('Encontrei linhas repetidas em '+achados.length+' registro(s). Veja o registro da nuvem.');
-  }catch(e){_quieto(e,'conferirFilhosRepetidos');}
   return achados.length;
 }
 function espelharEstoque(){
@@ -27211,6 +27215,19 @@ async function imprimirDanfe(cupomId){
     var _dz=(typeof _fsDanfe!=='undefined')?_fsDanfe[cupomId]:null;
     var r=_dz?{ok:true,d:{danfe:_dz}}
       :await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+    /* ==========================================================
+       O XML CHEGA ALGUNS SEGUNDOS DEPOIS DA AUTORIZACAO (01/10/2026)
+       Venda 2584 de Santa Fe: a SEFAZ autorizou, o caixa pediu o cupom
+       no mesmo segundo, o emissor ainda nao tinha o XML ("ainda nao tem
+       o XML autorizado") — e o caixa desistia na primeira. O cupom nunca
+       saia. Agora tenta de novo, em silencio, por ate meio minuto; so
+       avisa se nao vier mesmo. Sessao recusada (401/403) nao insiste. */
+    var _esperas=[1500,3000,5000,8000,12000];
+    for(var _k=0;_k<_esperas.length&&(!r.ok||!r.d||!r.d.danfe)&&
+        (r.status===0||r.status===404||r.status===409||r.status===429||r.status>=500);_k++){
+      await new Promise(function(ok){setTimeout(ok,_esperas[_k]);});
+      r=await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+    }
     if(!r.ok||!r.d||!r.d.danfe){toast((r.d&&r.d.erro)||'Não consegui buscar o cupom fiscal.');return false;}
     /* a mesma bobina da ficha, na letra normal */
     var m=(typeof modeloImp==='function'&&modeloImp('ficha'))||null;

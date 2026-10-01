@@ -573,10 +573,18 @@ function setCustoUn(itemId,valor,suc){
    ========================================================== */
 function conferirFilhosRepetidos(){
   var achados=[];
+  /* ==========================================================
+     REPETIDA E A MESMA LINHA, NAO DOIS ITENS IGUAIS (01/10/2026)
+     O aviso "linhas repetidas em 377 registros" era alarme falso: dois
+     Cascao 1 Bola na mesma venda sao duas linhas, cada uma com o seu
+     id — o cliente comprou dois. Na nuvem, 373 dessas 388 vendas fecham
+     o total no centavo. O defeito da V115 repetia a MESMA linha (mesmo
+     id); e isso que se procura. Linha sem id cai na comparacao antiga.
+     E o achado vai para o registro da nuvem, nao para a tela do caixa. */
   function olhar(nomeLista,itens,chave){
     var vistos={},rep=0;
     (itens||[]).forEach(function(o){
-      var k=chave(o);
+      var k=(o&&o.id)?'id:'+o.id:chave(o);
       if(vistos[k])rep++; else vistos[k]=1;
     });
     if(rep)achados.push(nomeLista+': '+rep+' linha(s) repetida(s)');
@@ -596,10 +604,6 @@ function conferirFilhosRepetidos(){
   if(!achados.length)return 0;
   logNuvem('ATENCAO — linhas repetidas encontradas: '+achados.slice(0,6).join(' · ')+
     (achados.length>6?' e mais '+(achados.length-6):''),true);
-  try{
-    if(typeof ehMatriz==='function'&&ehMatriz())
-      toast('Encontrei linhas repetidas em '+achados.length+' registro(s). Veja o registro da nuvem.');
-  }catch(e){_quieto(e,'conferirFilhosRepetidos');}
   return achados.length;
 }
 function espelharEstoque(){

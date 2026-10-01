@@ -250,11 +250,11 @@
    "roda": true
   },
   "testes/fiscal-rapido-e-sefaz-fora.js": {
-   "pontos": 29,
+   "pontos": 30,
    "roda": true
   },
   "testes/fiscal-telas.js": {
-   "pontos": 116,
+   "pontos": 117,
    "roda": true
   },
   "testes/formas-esperam-download.js": {
@@ -483,6 +483,10 @@
   },
   "testes/relatorio-separa-a-unidade.js": {
    "pontos": 28,
+   "roda": true
+  },
+  "testes/repetida-e-mesma-linha.js": {
+   "pontos": 8,
    "roda": true
   },
   "testes/resposta-zap-fecha.js": {

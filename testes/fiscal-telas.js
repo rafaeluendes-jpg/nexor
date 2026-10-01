@@ -390,6 +390,20 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
   await win.imprimirDanfe('cfA');
   t('imprimir busca o cupom no servidor e manda para a bobina', impressos.length === 1 && impressos[0].linhas.some(x => x.tipo === 'qr'));
   impressos.length = 0;
+  /* 01/10/2026, venda 2584: o XML ainda não estava pronto no segundo da
+     autorização — o caixa desistia na primeira e o cupom nunca saía */
+  let tentativasDz = 0;
+  const fcAntes = win.fiscalChamar;
+  win.fiscalChamar = async (acao) => acao !== 'danfe' ? { ok: true, status: 200, d: { ok: true } }
+    : (++tentativasDz === 1 ? { ok: false, status: 502, d: { erro: 'O cupom ainda não tem o XML autorizado.' } }
+                            : { ok: true, status: 200, d: { ok: true, danfe: lido } });
+  win.DB.cupons_f.push({ id: 'cfX', sucursalId: 'suc_sf', status: 'autorizado', spedyId: 's9', querEmitir: true,
+    data: win.hojeISO(), hora: '00:00', numero: 4 });
+  await win.imprimirDanfe('cfX');
+  t('XML ainda não pronto: o caixa tenta de novo sozinho e o cupom sai', tentativasDz === 2 && impressos.length === 1,
+    JSON.stringify({ tentativasDz, n: impressos.length }));
+  impressos.length = 0;
+  win.fiscalChamar = fcAntes;
   win.DB.cupons_f.push({ id: 'cfP', sucursalId: 'suc_sf', status: 'pendente', motivo: 'x' });
   await win.imprimirDanfe('cfP');
   t('cupom que não foi autorizado não imprime', impressos.length === 0);

@@ -7540,3 +7540,26 @@ Guardiões:
 - `testes/liberacao-so-matriz-e-copiar.js` (12);
 - `fiscal-rapido-e-sefaz-fora.js` (29);
 - prova 11f no Chromium.
+
+## V406 — o cupom fiscal imprime mesmo quando o XML atrasa; fim do falso "linhas repetidas" (01/10/2026)
+
+**Cupom não saía.** Os 9 cupons da tarde em Santa Fé foram todos
+autorizados (nº 83 a 91, série 2). Na venda 2584 a SEFAZ autorizou, e o
+caixa pediu o cupom para imprimir no mesmo segundo. O emissor ainda não
+tinha o XML e respondeu 502 "ainda não tem o XML autorizado". O
+`imprimirDanfe` desistia na primeira tentativa, então só a ficha da
+rede de segurança saiu.
+
+Agora a busca tenta de novo, em silêncio, em 1,5, 3, 5, 8 e 12 s. Só
+avisa se o cupom não vier mesmo. Sessão recusada (401/403) não insiste.
+Guardião: `fiscal-telas.js` (com o caso real, falha e depois acerto) e
+`fiscal-rapido-e-sefaz-fora.js`.
+
+**"Encontrei linhas repetidas em 377 registro(s)".** Era alarme falso.
+Dois itens iguais na mesma venda são duas linhas, cada uma com o seu id.
+Na nuvem, 373 das 388 vendas apontadas fecham o total no centavo, e
+nenhuma linha tem o `ref_local` repetido.
+
+`conferirFilhosRepetidos` agora compara pelo id da linha, que era o
+defeito da V115. O achado vai só para o registro da nuvem, nunca para a
+tela do caixa. Guardião: `testes/repetida-e-mesma-linha.js`.
