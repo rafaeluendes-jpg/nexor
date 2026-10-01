@@ -3303,20 +3303,18 @@ function servir() {
   });
   await pg.waitForTimeout(300);
   const aj0 = await pg.evaluate(() => {
-    var c = DB.contas.find(x => x.id === 'ct_itau');
-    return { saldo: saldoConta(c), botoes: document.querySelectorAll('.ctAj').length };
+    var lin = Array.from(document.querySelectorAll('.ctLin'));
+    return { linhas: lin.length, editar: lin.filter(l => l.querySelector('button[title^="Editar"]')).length };
   });
-  t('cada conta tem o botão Ajustar saldo', aj0.botoes >= 1, aj0.botoes);
-  await pg.click('.ctLin:has-text("Itaú") .ctAj');
+  t('toda conta tem o Editar — banco, cofre e caixa', aj0.linhas >= 3 && aj0.editar === aj0.linhas, JSON.stringify(aj0));
+  await pg.click('.ctLin:has-text("Itaú") button[title^="Editar"]');
   await pg.waitForTimeout(200);
-  const aj1 = await pg.evaluate(() => {
-    var m = document.getElementById('mdOv');
-    return m ? m.textContent.replace(/\s+/g, ' ') : '';
-  });
-  t('a janela mostra o saldo do sistema', /Saldo no sistema/.test(aj1) && /1\.000,00/.test(aj1), aj1.slice(0, 160));
-  await pg.fill('#ajV', '1234.56');
+  const aj1 = await pg.evaluate(() => ({ v: (document.getElementById('cbReal') || {}).value,
+    txt: (document.querySelector('.ajEdit') || {}).textContent || '' }));
+  t('o Editar traz o saldo atual, já com o valor do sistema', aj1.v === '1.000,00' && /Saldo atual/.test(aj1.txt), JSON.stringify(aj1));
+  await pg.fill('#cbReal', '1234.56');
   const ajDif = await pg.evaluate(() => (document.querySelector('#ajDif b') || {}).textContent || '');
-  t('e a diferença, enquanto digita', /\+ R\$ 234,56/.test(ajDif), ajDif);
+  t('e mostra a diferença enquanto digita', /\+ R\$ 234,56/.test(ajDif), ajDif);
   await pg.screenshot({ path: FOTOS + '/ajuste-saldo.png' });
   await pg.click('#mdOk');
   await pg.waitForTimeout(400);
@@ -3324,43 +3322,70 @@ function servir() {
     var c = DB.contas.find(x => x.id === 'ct_itau');
     var l = (DB.lancFin || []).filter(x => x.origem === 'ajuste-saldo' && x.contaId === 'ct_itau');
     return { saldo: saldoConta(c), n: l.length, tipo: (l[0] || {}).tipo, valor: (l[0] || {}).valor,
-      pago: (l[0] || {}).pago, data: (l[0] || {}).pagamento, hoje: hojeISO(), ini: c.saldoInicial,
-      tela: (document.querySelector('.ctLin') ? document.getElementById('content').textContent : '') };
+      pago: (l[0] || {}).pago, data: (l[0] || {}).pagamento, hoje: hojeISO(), ini: c.saldoInicial, banco: c.tipo,
+      tela: document.getElementById('content').textContent };
   });
-  t('o saldo passa a ser o valor real', aj2.saldo === 1234.56, aj2.saldo);
+  t('ao salvar, o saldo passa a ser o valor real', aj2.saldo === 1234.56, aj2.saldo);
   t('por UM lançamento de ajuste, já pago, com a data de hoje, no valor da diferença',
     aj2.n === 1 && aj2.tipo === 'receita' && aj2.valor === 234.56 && aj2.pago && aj2.data === aj2.hoje,
     JSON.stringify(aj2).slice(0, 200));
   t('o saldo inicial (o passado) não muda', aj2.ini === 1000, aj2.ini);
   t('a tela de contas mostra o saldo novo', /1\.234,56/.test(aj2.tela));
-  /* o banco tem MENOS que o sistema: o ajuste sai */
-  await pg.click('.ctLin:has-text("Itaú") .ctAj');
+  /* mudar só o nome não gera ajuste */
+  await pg.click('.ctLin:has-text("Itaú") button[title^="Editar"]');
   await pg.waitForTimeout(200);
-  await pg.fill('#ajV', '1200');
+  await pg.fill('#cbN', 'Itaú — conta corrente PJ');
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(300);
+  const ajN = await pg.evaluate(() => (DB.lancFin || []).filter(x => x.origem === 'ajuste-saldo').length);
+  t('salvar sem mexer no saldo não cria ajuste', ajN === 1, ajN);
+  /* o cofre: conta fixa, o banco tem MENOS — o ajuste sai, e ele não vira banco */
+  await pg.evaluate(() => {
+    if (!DB.contas.some(x => x.fixa === 'cofre'))
+      DB.contas.push({ id: 'ct_cofre', nome: 'Cofre', tipo: 'Cofre', fixa: 'cofre', saldoInicial: 500 });
+    salvar(); telaContas();
+  });
+  await pg.click('.ctLin:has-text("Cofre") button[title^="Editar"]');
+  await pg.waitForTimeout(200);
+  const cof0 = await pg.evaluate(() => ({ grade: !!document.getElementById('bcoGrid'),
+    v: moedaValor('cbReal') }));
+  await pg.fill('#cbReal', String(+(cof0.v - 20).toFixed(2)));
   await pg.click('#mdOk');
   await pg.waitForTimeout(400);
-  const aj3 = await pg.evaluate(() => {
-    var c = DB.contas.find(x => x.id === 'ct_itau');
-    var l = (DB.lancFin || []).filter(x => x.origem === 'ajuste-saldo' && x.contaId === 'ct_itau');
-    return { saldo: saldoConta(c), n: l.length, tipo: (l[1] || {}).tipo, valor: (l[1] || {}).valor };
+  const cof = await pg.evaluate((v0) => {
+    var c = DB.contas.find(x => x.fixa === 'cofre');
+    return { saldo: saldoConta(c), esperado: +(v0 - 20).toFixed(2), fixa: c.fixa, banco: c.banco || '',
+      aj: (DB.lancFin || []).filter(x => x.origem === 'ajuste-saldo' && x.contaId === c.id).map(x => x.tipo + ':' + x.valor) };
+  }, cof0.v);
+  t('o cofre: sem grade de bancos, e o ajuste para menos sai', !cof0.grade && cof.saldo === cof.esperado &&
+    cof.aj.join() === 'despesa:20' && cof.fixa === 'cofre' && !cof.banco, JSON.stringify(cof));
+  /* o caixa ABERTO: o campo fica travado e diz para usar o PDV */
+  const cxa = await pg.evaluate(() => {
+    var cx = DB.contas.find(x => x.fixa === 'caixa');
+    if (!cx) return { sem: true };
+    modalConta(cx.id);
+    var i = document.getElementById('cbReal'), d = document.getElementById('ajDif');
+    var r = { aberto: !!caixaAberto(), trav: !!(i && i.disabled), txt: d ? d.textContent : '' };
+    fecharModal();
+    return r;
   });
-  t('banco com menos: o ajuste sai e o saldo bate', aj3.saldo === 1200 && aj3.n === 2 && aj3.tipo === 'despesa' && aj3.valor === 34.56,
-    JSON.stringify(aj3));
-  /* pelo Editar da conta também se chega ao ajuste */
-  await pg.evaluate(() => modalConta('ct_itau'));
-  await pg.waitForTimeout(200);
-  const aj4 = await pg.evaluate(() => {
-    var b = document.querySelector('.ajEdit button');
-    var t0 = document.querySelector('.ajEdit') ? document.querySelector('.ajEdit').textContent : '';
-    if (b) b.click();
-    return { t0: t0, abriu: !!document.getElementById('ajV') };
-  });
-  t('o Editar da conta mostra o saldo e leva ao ajuste', /1\.200,00/.test(aj4.t0) && aj4.abriu, JSON.stringify(aj4));
-  await pg.evaluate(() => fecharModal());
+  t('o caixa aberto: o saldo fica travado e manda para o PDV',
+    cxa.sem || !cxa.aberto || (cxa.trav && /suprimento ou pela sangria/.test(cxa.txt)), JSON.stringify(cxa));
   /* sobrevive a recarga */
   await entrar();
   const aj5 = await pg.evaluate(() => saldoConta(DB.contas.find(x => x.id === 'ct_itau')));
-  t('depois de recarregar, o saldo ajustado continua', aj5 === 1200, aj5);
+  t('depois de recarregar, o saldo ajustado continua', aj5 === 1234.56, aj5);
+
+  /* o caminho que o Rafael vai seguir: Configuração da Loja › Liberação por Unidade */
+  const lib = await pg.evaluate(() => {
+    abrir('loja', 'liberacao');
+    var c = document.getElementById('content').textContent;
+    var cads = Array.from(document.querySelectorAll('.lbCad')).map(b => b.textContent.replace(/\d+/g, '').trim());
+    return { titulo: /Liberação por Unidade/.test(c), ing: cads.some(x => /Ingredientes/.test(x)),
+             fichas: cads.some(x => /Fichas técnicas/.test(x)) };
+  });
+  t('Liberação por Unidade abre, com Ingredientes e Fichas técnicas', lib.titulo && lib.ing && lib.fichas, JSON.stringify(lib));
+  await pg.screenshot({ path: FOTOS + '/liberacao-unidade.png' });
 
   /* pedido de base: com Santa Fé aberta, só Santa Fé; e na loja é sempre a pagar */
   const pb = await pg.evaluate(() => {

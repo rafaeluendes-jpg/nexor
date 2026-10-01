@@ -7346,3 +7346,28 @@ Com o caixa aberto, o acerto continua pelo suprimento ou pela sangria no PDV.
 
 Guardião: `testes/pedido-base-a-pagar-e-ajuste-saldo.js` (25). Prova no
 Chromium: 11d em `ferramentas/provar.js`.
+
+## V401 — o saldo atual mora no Editar da conta (01/10/2026)
+
+Rafael: "pode ser direto lá nas contas do banco: na hora que editar, tem um
+espaço de colocar o valor atual do banco. E a mesma coisa no caixa e no cofre."
+
+O que mudou em relação à V400:
+- sai o botão separado "Ajustar saldo";
+- o Editar de toda conta (banco, cofre e, agora, também o Caixa da loja)
+  tem o campo "Saldo atual", já preenchido com o saldo do sistema;
+- quem digita o valor real vê a diferença na hora;
+- ao salvar, o sistema pergunta e grava o ajuste (`gravarAjusteSaldo`, a
+  mesma regra da V400: um lançamento pago, hoje, fora do DRE, sem mexer
+  no saldo inicial);
+- salvar sem mexer no saldo (só o nome, só o saldo inicial) não cria
+  ajuste;
+- caixa e cofre não mostram a grade de bancos e não viram "Banco" ao
+  salvar;
+- com o caixa aberto, o campo fica travado e manda para o suprimento ou a
+  sangria do PDV.
+
+Prova 11d refeita pelo Editar (Itaú para mais, cofre para menos, caixa
+aberto travado). Ela confere também que Configuração da Loja › Liberação
+por Unidade abre com Ingredientes e Fichas técnicas: é ali que a matriz
+escolhe o que cada loja enxerga.
