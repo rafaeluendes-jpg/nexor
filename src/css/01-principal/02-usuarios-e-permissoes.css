@@ -1827,7 +1827,17 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
   border-color:var(--acc);color:var(--acc-d);font-weight:700}
 .ctTab tbody tr.mais td{background:#F1FAF6}
 .ctTab tbody tr.menos td{background:#FCF0F0}
-.ctTab tbody tr.ok4 td{background:#F7F9FA}
+/* contado = marca verde na borda e no campo, qualquer que seja a diferença */
+.ctTab tbody tr.contado td:first-child{box-shadow:inset 4px 0 0 var(--ok)}
+.ctTab tbody tr.contado .ctIn{border-color:var(--ok);background:var(--ok-soft);color:var(--ok);font-weight:700}
+.ctTab tbody tr.ok4 td{background:var(--ok-soft)}
+/* número digitado errado: vermelho até corrigir, e a finalização trava */
+.ctTab tbody tr.invalido td{background:var(--red-soft)}
+.ctTab tbody tr.invalido td:first-child{box-shadow:inset 4px 0 0 var(--red)}
+.ctTab tbody tr.invalido .ctIn{border-color:var(--red);box-shadow:0 0 0 2px var(--red-soft)}
+/* a linha do histórico abre o relatório com um clique */
+.etTab tbody tr.ctLinhaHist{cursor:pointer}
+.etTab tbody tr.ctLinhaHist:hover td{background:var(--alt)}
 
 .etScroll{flex:1;overflow-y:scroll;overflow-x:hidden;scrollbar-gutter:stable}
 .etScroll::-webkit-scrollbar{width:10px}

@@ -3025,6 +3025,214 @@ function servir() {
   t('e ao reconectar de novo a tela volta a ficar limpa', av.limpou === true);
   t('a marca de sessão caída é apagada', av.marca === false);
 
+  /* recarrega a página antes: a prova começa da tela limpa, como a loja */
+  await entrar();
+  console.log('\n── 11c. A contagem que abre o mês: digitar, sair, recarregar, finalizar e corrigir\n');
+  /* ==========================================================
+     Rafael, 30/09/2026, véspera da contagem de 01/10 (lançada como
+     30/09): "o que eu digitar tem de ficar salvo; saiu da tela e voltou,
+     aparece onde parou; só zera quando finalizar; o relatório salvo abre
+     num clique e tem EDITAR, naquele mesmo dia, e fica anotado que foi
+     modificado, quando e o quê". Aqui é o caminho de verdade, no
+     Chromium, com RECARGA da página no meio.
+     ========================================================== */
+  await pg.evaluate(() => {
+    var e = document.getElementById('mdOv'); if (e) e.remove();
+    fecharModal();
+    try { localStorage.removeItem('nexor_contagem_rascunho'); } catch (x) {}
+    baseMov();
+    DB.contagens = []; DB.movEst = []; DB.estoqueUn = []; DB.saldos = {};
+    DB.fichas = [];
+    DB.insumos = [
+      { id: 'in_copo', nome: 'Copo P', unidade: 'un', custo: 0.5, controlaEstoque: true, codigo: '1' },
+      { id: 'in_leite', nome: 'Leite', unidade: 'kg', custo: 4, controlaEstoque: true, codigo: '2' },
+      { id: 'in_calda', nome: 'Calda', unidade: 'kg', custo: 10, controlaEstoque: true, codigo: '3' }];
+    /* 60 itens a mais: a folha tem de rolar como na loja */
+    for (var k = 0; k < 60; k++) DB.insumos.push({ id: 'in_x' + k, nome: 'Zz item ' + k, unidade: 'un',
+      custo: 1, controlaEstoque: true, codigo: String(100 + k) });
+    var hoje = hojeISO(), d0 = new Date(hoje + 'T12:00:00'); d0.setDate(d0.getDate() - 5);
+    var dEnt = d0.getFullYear() + '-' + String(d0.getMonth() + 1).padStart(2, '0') + '-' + String(d0.getDate()).padStart(2, '0');
+    var mv = { id: 'mv_ent2', data: dEnt, hora: '09:00', sucursalId: lojaAtualId(), motivoId: 'mv_ent',
+      identificacao: 'Compra', origem: 'manual', linhas: [
+        { insumoId: 'in_copo', nome: 'Copo P', unidade: 'un', qtd: 10, custo: 0.5, direcao: 'entrada' },
+        { insumoId: 'in_leite', nome: 'Leite', unidade: 'kg', qtd: 5, custo: 4, direcao: 'entrada' },
+        { insumoId: 'in_calda', nome: 'Calda', unidade: 'kg', qtd: 2, custo: 10, direcao: 'entrada' }] };
+    DB.movEst.push(mv); aplicarMovimento(mv); salvar(); espelharEstoque();
+    CT2.aba = 'hist'; CT2.de = ''; CT2.ate = '';
+    novaContagem(); contagemDeOntem();
+  });
+  /* digitado pelo TECLADO, com vírgula, como a loja digita */
+  await pg.fill('.ctIn[data-id="in_copo"]', '12');
+  await pg.fill('.ctIn[data-id="in_leite"]', '4,5');
+  const rDig = await pg.evaluate(() => ({
+    classeCopo: document.getElementById('lc-in_copo').className,
+    classeLeite: document.getElementById('lc-in_leite').className,
+    difLeite: document.querySelector('#lc-in_leite .cDif2').textContent.trim(),
+    rascunho: JSON.parse(localStorage.getItem('nexor_contagem_rascunho') || '{}'),
+    dataFolha: document.getElementById('ctData').value, ontem: diaAnteriorDaLoja()
+  }));
+  t('digitou 12: a linha fica marcada como contada (verde)', /contado/.test(rDig.classeCopo), rDig.classeCopo);
+  t('"4,5" com vírgula vale 4,5 — e a linha também fica contada', /contado/.test(rDig.classeLeite), rDig.classeLeite);
+  t('e a diferença do leite é −0,5 kg', /^-0[,.]5/.test(rDig.difLeite), rDig.difLeite);
+  t('cada número já está guardado no aparelho, na hora',
+    rDig.rascunho.cont && rDig.rascunho.cont.in_copo === '12' && rDig.rascunho.cont.in_leite === '4,5',
+    JSON.stringify(rDig.rascunho.cont));
+  t('a folha é do dia anterior (a contagem da manhã vale pela noite de ontem)',
+    rDig.dataFolha === rDig.ontem && rDig.rascunho.data === rDig.ontem, rDig.dataFolha);
+  await pg.screenshot({ path: FOTOS + '/contagem-linhas-contadas.png' });
+
+  /* a folha rola com a roda do mouse, e o cabeçalho fica grudado */
+  const rRola = await pg.evaluate(() => {
+    var w = document.querySelector('.etWrap.ctCheia');
+    return { alto: w.scrollHeight, visivel: w.clientHeight, topo: w.scrollTop };
+  });
+  await pg.mouse.move(700, 600);
+  await pg.mouse.wheel(0, 900);
+  await pg.waitForTimeout(250);
+  const rolou = await pg.evaluate(() => document.querySelector('.etWrap.ctCheia').scrollTop);
+  t('com 63 itens a folha rola com a roda do mouse', rRola.alto > rRola.visivel && rolou > rRola.topo,
+    'altura ' + rRola.alto + ', visível ' + rRola.visivel + ', rolou até ' + rolou);
+
+  /* sai da tela, vai para outro módulo, volta */
+  const rVolta = await pg.evaluate(() => {
+    CT2.aba = 'hist'; telaEstoqueTotal(); telaContagem();
+    var faixa = document.getElementById('content').textContent;
+    novaContagem();
+    return { faixa: /contagem em andamento/i.test(faixa),
+      copo: document.querySelector('.ctIn[data-id="in_copo"]').value,
+      leite: document.querySelector('.ctIn[data-id="in_leite"]').value };
+  });
+  t('saindo e voltando, a tela anuncia a contagem em andamento', rVolta.faixa);
+  t('e a folha volta onde parou (12 e 4,5)', rVolta.copo === '12' && rVolta.leite === '4,5',
+    rVolta.copo + ' / ' + rVolta.leite);
+
+  /* RECARREGA A PÁGINA no meio da contagem */
+  await entrar();
+  const rRec = await pg.evaluate(() => {
+    CT2.aba = 'hist'; telaContagem();
+    var faixa = document.getElementById('content').textContent;
+    novaContagem();
+    return { faixa: /contagem em andamento/i.test(faixa),
+      copo: (document.querySelector('.ctIn[data-id="in_copo"]') || {}).value,
+      leite: (document.querySelector('.ctIn[data-id="in_leite"]') || {}).value,
+      data: document.getElementById('ctData').value, ontem: diaAnteriorDaLoja(),
+      verdes: document.querySelectorAll('.ctTab tbody tr.contado').length };
+  });
+  t('DEPOIS DE RECARREGAR, a contagem em andamento continua anunciada', rRec.faixa);
+  t('com os mesmos números', rRec.copo === '12' && rRec.leite === '4,5', rRec.copo + ' / ' + rRec.leite);
+  t('com a mesma data', rRec.data === rRec.ontem, rRec.data);
+  t('e as duas linhas continuam verdes', rRec.verdes === 2, rRec.verdes);
+
+  /* número torto não vira zero nem perda: trava a finalização */
+  await pg.fill('.ctIn[data-id="in_calda"]', '2,,5');
+  const rErr = await pg.evaluate(async () => {
+    window.pergunta = async () => true;
+    await fecharContagem();
+    return { contagens: (DB.contagens || []).length,
+      classe: document.getElementById('lc-in_calda').className };
+  });
+  t('quantidade digitada errado fica vermelha', /invalido/.test(rErr.classe), rErr.classe);
+  t('e NÃO deixa finalizar (nada é gravado)', rErr.contagens === 0, rErr.contagens);
+  await pg.fill('.ctIn[data-id="in_calda"]', '');
+
+  /* dois cliques em Finalizar gravam UMA contagem */
+  const rFim = await pg.evaluate(async () => {
+    window.pergunta = async () => { await new Promise(r => setTimeout(r, 60)); return true; };
+    await Promise.all([fecharContagem(), fecharContagem()]);
+    espelharEstoque();
+    var c = (DB.contagens || [])[0] || {};
+    var raw = localStorage.getItem('nexor_contagem_rascunho');
+    return { n: (DB.contagens || []).length, data: c.data, ontem: diaAnteriorDaLoja(),
+      itens: (c.itens || []).map(x => x.insumoId + ':' + x.sistema + '>' + x.conferido).sort(),
+      perda: c.perda, ganho: c.ganho,
+      copo: itemEstoque('in_copo').estoqueAtual, leite: itemEstoque('in_leite').estoqueAtual,
+      calda: itemEstoque('in_calda').estoqueAtual,
+      rascunho: raw, aba: CT2.aba, ajustes: (DB.movEst || []).filter(m => m.origem === 'contagem').length };
+  });
+  t('dois cliques em Finalizar gravam UMA contagem só', rFim.n === 1 && rFim.ajustes === 1,
+    rFim.n + ' contagem(ns), ' + rFim.ajustes + ' ajuste(s)');
+  t('com a data de ontem', rFim.data === rFim.ontem, rFim.data);
+  t('só os itens contados entram (a calda em branco ficou de fora)',
+    rFim.itens.join(',') === 'in_copo:10>12,in_leite:5>4.5', rFim.itens.join(','));
+  t('o estoque é atualizado: copo 12, leite 4,5, calda intocada 2',
+    rFim.copo === 12 && rFim.leite === 4.5 && rFim.calda === 2, rFim.copo + ' / ' + rFim.leite + ' / ' + rFim.calda);
+  t('perda R$ 2,00 (0,5 kg de leite) e sobra R$ 1,00 (2 copos)', rFim.perda === -2 && rFim.ganho === 1,
+    rFim.perda + ' / ' + rFim.ganho);
+  t('SÓ AGORA a folha zera', rFim.rascunho === null && rFim.aba === 'hist', String(rFim.rascunho));
+
+  /* o relatório abre num clique na linha e tem EDITAR */
+  await pg.click('.etTab tbody tr.ctLinhaHist td:first-child');
+  const rRel = await pg.evaluate(() => {
+    var m = document.getElementById('mdOv');
+    var ed = m ? Array.from(m.querySelectorAll('button')).find(b => /Editar/.test(b.textContent)) : null;
+    return { abriu: !!m, texto: m ? m.textContent.replace(/\s+/g, ' ') : '', editar: !!ed && !ed.disabled };
+  });
+  t('clicar na contagem abre o relatório', rRel.abriu && /Copo P/.test(rRel.texto) && /Leite/.test(rRel.texto));
+  t('com perdas e sobras', /Ver perdas/.test(rRel.texto) && /Ver sobras/.test(rRel.texto));
+  t('e o botão Editar, ativo', rRel.editar);
+  await pg.screenshot({ path: FOTOS + '/contagem-relatorio.png' });
+
+  /* corrige o copo: 12 → 11, no mesmo dia da contagem */
+  const idCt = await pg.evaluate(() => DB.contagens[0].id);
+  await pg.evaluate((id) => editarContagem(id), idCt);
+  const rEd1 = await pg.evaluate(() => ({
+    titulo: document.querySelector('.etTopo h1').textContent,
+    copo: document.querySelector('.ctIn[data-id="in_copo"]').value,
+    leite: document.querySelector('.ctIn[data-id="in_leite"]').value,
+    dataTrava: document.getElementById('ctData').disabled,
+    data: document.getElementById('ctData').value }));
+  t('a edição abre a folha com o que foi contado', rEd1.copo === '12' && rEd1.leite === '4.5',
+    rEd1.copo + ' / ' + rEd1.leite);
+  t('no mesmo dia da contagem, sem deixar trocar a data', rEd1.dataTrava && /Editar a contagem/.test(rEd1.titulo),
+    rEd1.titulo + ' · ' + rEd1.data);
+  await pg.fill('.ctIn[data-id="in_copo"]', '11');
+  const rEd2 = await pg.evaluate(async () => {
+    window.pergunta = async () => true;
+    await fecharContagem();
+    espelharEstoque();
+    var c = DB.contagens[0];
+    var copo = c.itens.find(x => x.insumoId === 'in_copo');
+    var corr = DB.movEst.filter(m => /Correção da contagem/.test(m.identificacao || ''));
+    return { n: DB.contagens.length, conferido: copo.conferido, diferenca: copo.diferenca,
+      edicoes: copo.edicoes || [], ganho: c.ganho, perda: c.perda, data: c.data,
+      estoque: itemEstoque('in_copo').estoqueAtual, leite: itemEstoque('in_leite').estoqueAtual,
+      corr: corr.map(m => m.data + '|' + m.linhas.map(l => l.direcao + l.qtd).join(',')),
+      saldoOntem: saldoNaData('in_copo', c.data, lojaAtualId()) };
+  });
+  t('a correção não cria outra contagem: corrige a mesma', rEd2.n === 1, rEd2.n);
+  t('o copo passa a 11 conferidos, diferença +1', rEd2.conferido === 11 && rEd2.diferenca === 1,
+    rEd2.conferido + ' / ' + rEd2.diferenca);
+  t('e a sobra da contagem é recalculada (R$ 0,50)', rEd2.ganho === 0.5 && rEd2.perda === -2, rEd2.ganho + ' / ' + rEd2.perda);
+  t('fica anotado: de 12 para 11, quando e por quem',
+    rEd2.edicoes.length === 1 && rEd2.edicoes[0].de === 12 && rEd2.edicoes[0].para === 11 && !!rEd2.edicoes[0].em,
+    JSON.stringify(rEd2.edicoes));
+  t('o estoque recebe só a diferença (sai 1 copo), com a data da contagem',
+    rEd2.corr.length === 1 && rEd2.corr[0] === rEd2.data + '|saida1', rEd2.corr.join(' ; '));
+  t('estoque do copo: 11 — e o leite não foi mexido', rEd2.estoque === 11 && rEd2.leite === 4.5,
+    rEd2.estoque + ' / ' + rEd2.leite);
+  t('e o saldo do dia da contagem passa a ser o corrigido', rEd2.saldoOntem === 11, rEd2.saldoOntem);
+
+  const rEd3 = await pg.evaluate(() => {
+    verContagem(DB.contagens[0].id);
+    var m = document.getElementById('mdOv');
+    return m ? m.textContent.replace(/\s+/g, ' ') : '';
+  });
+  t('o relatório mostra a correção feita', /Correções feitas nesta contagem/.test(rEd3) && /12 → 11/.test(rEd3),
+    rEd3.slice(0, 200));
+  await pg.screenshot({ path: FOTOS + '/contagem-corrigida.png' });
+
+  /* e tudo isso sobrevive a uma recarga */
+  await entrar();
+  const rEd4 = await pg.evaluate(() => {
+    var c = (DB.contagens || [])[0] || {};
+    var copo = (c.itens || []).find(x => x.insumoId === 'in_copo') || {};
+    return { n: (DB.contagens || []).length, ed: (copo.edicoes || []).length, conf: copo.conferido,
+      rascunho: localStorage.getItem('nexor_contagem_rascunho') };
+  });
+  t('depois de recarregar, a contagem corrigida continua lá, com a anotação',
+    rEd4.n === 1 && rEd4.ed === 1 && rEd4.conf === 11 && rEd4.rascunho === null, JSON.stringify(rEd4));
+  await pg.evaluate(() => { fecharModal(); CT2.aba = 'hist'; });
+
   console.log('\n── 12. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 

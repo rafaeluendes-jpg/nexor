@@ -7264,3 +7264,26 @@ desce da nuvem não traz o identificador da Spedy.
 - Cupom a caminho que a Receita autorizar depois é cancelado; recusado de
   venda cancelada não é reenviado nem impresso.
 - Guardião: `testes/venda-cancelada-cancela-cupom.js`.
+
+## V398 — a contagem que abre o mês (01/10/2026)
+
+Pedido do Rafael na véspera da contagem de 01/10 (lançada como 30/09):
+tudo o que for digitado fica salvo, sair e voltar retoma onde parou, só
+zera ao finalizar, o relatório abre num clique e tem Editar no mesmo dia,
+com anotação do que mudou.
+
+- O campo da contagem aceita "1,5" (antes, em navegador em português,
+  vírgula virava campo vazio e a linha voltava a "não contada", calada).
+  Texto torto fica vermelho e trava a finalização: nunca vira zero.
+- Toda linha contada fica marcada em verde (borda e campo), qualquer
+  que seja a diferença.
+- A folha é gravada no aparelho na hora, a cada tecla, e ao sair da
+  página (antes havia espera de 250 ms).
+- Dois cliques em Finalizar gravavam a contagem duas vezes: trava.
+- "Preencher com o sistema" só preenche o que está em branco.
+- Correção: só a contagem mais recente da unidade; vale para o dia
+  dela; o estoque recebe só a diferença num movimento "Correção da
+  contagem DD/MM"; cada item guarda em `edicoes` quando, quem, de e
+  para. O relatório lista as correções.
+- Prova no Chromium: provar.js 11c (34 verificações, com recarga da
+  página). Guardião: `testes/contagem-inicio-do-mes.js`.
