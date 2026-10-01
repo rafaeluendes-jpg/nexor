@@ -593,6 +593,7 @@ async function emitirCupom(cupomId){
     salvar();fsChip(c);
     c.integ=m.nota.integrationId;
     var r=await fiscalChamar('emitir',{sucursal:suc,nota:m.nota});
+    if(r.ok&&r.d&&r.d.danfe&&typeof _fsDanfe!=='undefined')_fsDanfe[c.id]=r.d.danfe;   /* já veio pronto para a bobina */
     if(r.ok&&r.d&&r.d.nota)aplicarNotaNoCupom(c,r.d.nota);
     else if(r.status===0||r.status===429||r.status>=500){
       c.status='pendente';c.motivo=(r.d&&r.d.erro)||'O fiscal não respondeu — o cupom será reenviado.';
@@ -603,9 +604,48 @@ async function emitirCupom(cupomId){
   }finally{ _fsEmitindo[c.id]=false; }
   _fsGuardar();fsChip(c);
   if(await fsNumeroRepetido(c))return emitirCupom(c.id);
+  if(typeof fsReenviarPassageira==='function')await fsReenviarPassageira(c);
   fsDepoisDeEmitir(c);
   if(c.status==='enviando')acompanharCupom(c.id);
   return c;
+}
+/* ==========================================================
+   "CUPOM RECUSADO" QUE ERA SÓ A SEFAZ FORA DO AR (V403, 01/10/2026)
+
+   Rafael: "ainda dá cupom recusado na frente de caixa — resolva de uma
+   vez". O de hoje (cupom 76, Santa Fé) voltou com "Erro ao estabelecer
+   comunicação com a SEFAZ": a Spedy marca como recusado, mas a Receita
+   nem chegou a ver a nota. E nada a reenviava — recusado ficava parado
+   esperando alguém.
+
+   Agora: o servidor já reenvia a mesma nota durante a emissão (até duas
+   vezes); se ainda assim voltar assim, o caixa pede o reenvio de novo
+   (até três vezes, espaçadas), e a fila do aparelho tenta de novo
+   depois. Sempre a MESMA nota, o mesmo número — nunca uma nota nova.
+   No balcão, enquanto isso, o aviso é "a Receita não respondeu — o
+   cupom está sendo reenviado", não "recusado".
+   ========================================================== */
+var _fsDanfe={};
+var FS_FALHA_PASSAGEIRA=/comunica[cç][aã]o com a sefaz|erro ao estabelecer|tempo (limite|esgotado)|timeout|time-out|servi[cç]o paralisado|servi[cç]o indispon[ií]vel|sefaz (fora|indispon)|n[aã]o respondeu|falha na conex|connection/i;
+function ehFalhaPassageira(c){
+  return !!(c&&c.status==='rejeitado'&&FS_FALHA_PASSAGEIRA.test(String(c.motivo||'')));
+}
+async function fsReenviarPassageira(c,maxTent){
+  if(!ehFalhaPassageira(c))return false;
+  maxTent=maxTent||3;
+  var esperas=[1500,4000,8000];
+  while(ehFalhaPassageira(c)&&(c.reenvioCom||0)<maxTent){
+    await new Promise(function(ok){setTimeout(ok,esperas[Math.min(c.reenvioCom||0,esperas.length-1)])});
+    c.reenvioCom=(c.reenvioCom||0)+1;
+    var r=await fiscalChamar('reenviar',c.spedyId?{sucursal:c.sucursalId,id:c.spedyId}
+                                                :{sucursal:c.sucursalId,integrationId:c.integ||c.pedidoId});
+    if(r.d&&r.d.nota)aplicarNotaNoCupom(c,r.d.nota);
+    if(r.ok&&r.d&&r.d.danfe)_fsDanfe[c.id]=r.d.danfe;
+    _fsGuardar();fsChip(c);
+    if(!r.ok&&r.status!==409&&r.status!==0&&r.status<500)break;
+  }
+  if(c.status==='enviando')acompanharCupom(c.id);
+  return c.status==='autorizado'||c.status==='contingencia';
 }
 /* ==========================================================
    NÚMERO QUE A RECEITA JÁ TEM: SÉRIE NOVA E REENVIO NA HORA (30/09/2026)
@@ -689,6 +729,7 @@ async function acompanharCupom(cupomId,esperas){
       if(c.status!=='enviando'){
         _fsGuardar();fsChip(c);
         if(await fsNumeroRepetido(c))return emitirCupom(c.id);
+        if(typeof fsReenviarPassageira==='function')await fsReenviarPassageira(c);
         fsDepoisDeEmitir(c);return c;
       }
     }
@@ -707,7 +748,8 @@ async function fiscalReprocessar(){
     if(c.faltaCadastro)return false;
     /* recusado por número repetido na SEFAZ também volta: a causa é nossa
        e se resolve sozinha (fsNumeroRepetido) — os outros recusados não */
-    if(c.status!=='pendente'&&c.status!=='enviando'&&!ehNumeroRepetido(c))return false;
+    var _passa=typeof ehFalhaPassageira==='function'&&ehFalhaPassageira(c);   /* SEFAZ fora do ar volta (V403) */
+    if(c.status!=='pendente'&&c.status!=='enviando'&&!_passa&&!ehNumeroRepetido(c))return false;
     var ped=(DB.pedidos||[]).find(function(p){return p.id===c.pedidoId});
     if(!ped)return false;
     /* venda cancelada nao ganha cupom novo */
@@ -726,6 +768,10 @@ async function fiscalReprocessar(){
       else if(r.ok&&r.d&&r.d.nota===null){c.status='pendente';}
     }else if(ehNumeroRepetido(c)){
       if(await fsNumeroRepetido(c)){await emitirCupom(c.id);n++;}
+    }else if(typeof ehFalhaPassageira==='function'&&ehFalhaPassageira(c)){
+      /* a fila do aparelho dá mais três chances, mais tarde */
+      c.reenvioCom=0;
+      if(await fsReenviarPassageira(c))n++;
     }else{ await emitirCupom(c.id);n++; }
   }
   if(n)_fsGuardar();
@@ -755,6 +801,7 @@ function fsPendenciasDaUnidade(suc){
       if((c.sucursalId||suc)!==suc)return;
       if(c.ambiente&&c.ambiente!=='producao')return;   /* teste não é pendência */
       if(c.precisaCancelar){r.cancelar++;return;}
+      if(typeof ehFalhaPassageira==='function'&&ehFalhaPassageira(c)){r.preso++;return;}   /* não é recusa: é a SEFAZ que não respondeu */
       if(c.status==='rejeitado'||c.status==='denegado'){r.rejeitado++;return;}
       if((c.status==='pendente'||c.status==='enviando')&&!c.faltaCadastro&&!c.naoEmitir)r.preso++;
     });
@@ -787,6 +834,7 @@ function fsChip(c){
   if(c.status==='enviando'){txt='Emitindo o cupom…';cls='';}
   else if(c.status==='autorizado'){txt='Cupom '+(c.numero||'')+' autorizado.';cls='ok';}
   else if(c.status==='contingencia'){txt='A SEFAZ está fora do ar. O cupom foi emitido em contingência: vale como documento e será transmitido sozinho quando ela voltar.';cls='at';}
+  else if(typeof ehFalhaPassageira==='function'&&ehFalhaPassageira(c)){txt='A Receita não respondeu agora — o cupom está sendo reenviado sozinho. A venda está salva.';cls='at';}
   else if(c.status==='rejeitado'){txt='A Receita recusou este cupom: '+(c.motivo||'')+' A venda está salva. Corrija e reenvie em Cupons Gerados.';cls='rd';}
   else if(c.status==='pendente'&&c.motivo){txt=c.motivo+(c.faltaCadastro?' A venda está salva.':'');cls='at';}
   else return;
@@ -1496,7 +1544,9 @@ async function imprimirDanfe(cupomId){
   if(_fsImprimindo[cupomId])return false;
   _fsImprimindo[cupomId]=true;
   try{
-    var r=await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
+    var _dz=(typeof _fsDanfe!=='undefined')?_fsDanfe[cupomId]:null;
+    var r=_dz?{ok:true,d:{danfe:_dz}}
+      :await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
     if(!r.ok||!r.d||!r.d.danfe){toast((r.d&&r.d.erro)||'Não consegui buscar o cupom fiscal.');return false;}
     /* a mesma bobina da ficha, na letra normal */
     var m=(typeof modeloImp==='function'&&modeloImp('ficha'))||null;

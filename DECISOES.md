@@ -7414,3 +7414,51 @@ Filtro Grupo e depois Categoria em:
 
 Guardião: `testes/grupo-categoria-ingredientes.js` (23). Prova no
 Chromium: 11e.
+
+## V403 — cupom rápido, SEFAZ fora do ar reenviada sozinha; grupos em cartão (01/10/2026)
+
+**Fiscal.** Rafael: "ainda dá cupom recusado na frente de caixa, e demora
+demais para imprimir. Resolva de uma vez." O que os registros mostraram:
+- o único recusado de hoje em produção (cupom 76, Santa Fé) era "Erro ao
+  estabelecer comunicação com a SEFAZ". É falha passageira, mas a Spedy
+  devolve como `rejected`, e nada a reenviava;
+- cada venda fazia **4 idas ao servidor em fila**: conferir a loja,
+  emitir, consultar e buscar o DANFE, de 1,3 a 3 s cada (~9 s), antes de
+  imprimir.
+
+O que mudou no servidor (`joia-fiscal` v11):
+- a emissão espera a autorização ali mesmo (até 7 s);
+- na falha de comunicação, reenvia a **mesma nota** (`/issue`, mesmo
+  número), até duas vezes;
+- devolve o DANFE pronto na mesma resposta;
+- ação nova `reenviar`: qualquer um da unidade pode pedir, mas só com
+  prova (o servidor lê a nota e exige falha de comunicação), e nunca cria
+  nota nova.
+
+O que mudou no caixa:
+- usa o DANFE que veio na emissão, sem outra ida ao servidor;
+- reenvia a falha passageira até 3 vezes (1,5 s, 4 s e 8 s), e a fila do
+  aparelho tenta de novo depois;
+- no balcão a mensagem é "a Receita não respondeu — reenviando", não
+  "recusou", e esse caso conta como preso no envio;
+- a venda não espera a conferência da loja quando o aparelho já sabe que
+  ela emite. A conferência roda em segundo plano; quando o aparelho não
+  sabe, confere antes, como sempre.
+
+Resultado: da venda ao papel passa a ser 1 ida, em vez de 4.
+
+**Grupos de ingredientes.** "Ficou muito ruim, e ao clicar na flechinha a
+tela vibra." A árvore redesenhava a tela inteira a cada clique.
+- Agora os grupos são cartões de pasta, e a lista da pasta escolhida fica
+  embaixo.
+- O clique troca só os cartões e a lista (`abreGrupoIng`), sem refazer a
+  tela.
+- "Pôr categorias neste grupo" fica na própria pasta.
+- No celular, a lista vira duas linhas por categoria.
+
+Guardiões:
+- `testes/fiscal-rapido-e-sefaz-fora.js` (20);
+- `grupo-categoria-ingredientes.js` atualizado (24).
+
+Os guardiões trancados do fiscal continuam iguais: o código foi ajustado
+para manter os trechos que eles exigem. Prova no Chromium: 11e refeita.

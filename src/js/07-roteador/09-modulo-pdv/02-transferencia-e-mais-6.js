@@ -1264,7 +1264,19 @@ function registrarCupom(ped){
      que a emissão tinha sido ligada). Em segundo plano: a venda já está
      gravada e nada aqui segura o caixa. */
   setTimeout(function(){
-    fiscalGarantir(suc).then(function(u2){
+    /* ==========================================================
+       NÃO ESPERA A CONFERÊNCIA DA LOJA PARA EMITIR (V403)
+       Conferir a loja no servidor custava 1,5 a 2,5 s a cada venda,
+       ANTES de a emissão começar. Se o aparelho já sabe que a loja
+       emite, emite na hora e confere em segundo plano. Se não sabe (ou
+       sabe que não emite), confere antes, como sempre — assim a emissão
+       ligada agora continua valendo já na próxima venda.
+       ========================================================== */
+    var uC=(typeof baseFiscalUn==='function')?baseFiscalUn()[suc]:null;
+    var jaSabe=!!(uC&&uC.lidoEm&&fiscalEmite(suc));
+    var pega=jaSabe?Promise.resolve(uC):fiscalGarantir(suc);
+    if(jaSabe)fiscalGarantir(suc).catch(function(e){_quieto(e,'fiscalGarantir');});
+    pega.then(function(u2){
       u2=u2||fiscalUn(suc);
       c.ambiente=u2.ambiente;c.serie=u2.serie;
       if(fiscalEmite(suc)&&(u2.modo==='sempre'||ped.fiscal)){

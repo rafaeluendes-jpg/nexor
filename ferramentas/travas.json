@@ -249,6 +249,10 @@
    "pontos": 142,
    "roda": true
   },
+  "testes/fiscal-rapido-e-sefaz-fora.js": {
+   "pontos": 20,
+   "roda": true
+  },
   "testes/fiscal-telas.js": {
    "pontos": 116,
    "roda": true
@@ -278,7 +282,7 @@
    "roda": true
   },
   "testes/grupo-categoria-ingredientes.js": {
-   "pontos": 17,
+   "pontos": 18,
    "roda": true
   },
   "testes/historico-nuvem.js": {

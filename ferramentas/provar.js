@@ -3415,7 +3415,8 @@ function servir() {
 
   console.log('\n── 11e. Grupos em pasta: grupo > categoria, no cadastro e no estoque\n');
   /* Rafael, 01/10/2026: tres grandes grupos, cada um uma pasta com as
-     categorias; no ingrediente escolhe o grupo e aparecem so as categorias
+     categorias; clicar na pasta mostra as categorias embaixo, sem a tela
+     tremer; no ingrediente escolhe o grupo e aparecem so as categorias
      dele; no estoque, filtra pelo grupo e depois pela categoria. */
   await pg.evaluate(() => {
     fecharModal();
@@ -3432,10 +3433,9 @@ function servir() {
   });
   await pg.waitForTimeout(300);
   const gm0 = await pg.evaluate(() => ({ t: document.getElementById('content').textContent,
-    pastas: document.querySelectorAll('.gmPasta').length }));
+    cartoes: document.querySelectorAll('.gmCard').length }));
   t('a tela vira Grupos e Categorias, e sem grupo as categorias aparecem', /Grupos e Categorias de Ingredientes/.test(gm0.t) &&
-    /Sorvete GM/.test(gm0.t) && gm0.pastas === 1, JSON.stringify({ p: gm0.pastas }));
-  /* cria o grupo "Insumos" pelo botão, marcando as categorias */
+    /Sorvete GM/.test(gm0.t) && gm0.cartoes === 1, JSON.stringify({ c: gm0.cartoes }));
   await pg.click('button:has-text("Novo grupo")');
   await pg.waitForTimeout(200);
   await pg.fill('#gmN', 'Insumos');
@@ -3453,27 +3453,30 @@ function servir() {
   const gm1 = await pg.evaluate(() => ({
     gm: gruposMaiores(),
     sorv: grupoMaiorDe(grupoIng('gi_sorv')), limp: grupoMaiorDe(grupoIng('gi_limp')),
-    pastas: Array.from(document.querySelectorAll('.gmPasta b')).map(b => b.textContent),
-    filhos: Array.from(document.querySelectorAll('.gmFilho b')).map(b => b.textContent) }));
+    cartoes: Array.from(document.querySelectorAll('.gmCard b')).map(b => b.textContent),
+    lista: Array.from(document.querySelectorAll('.gmLin .gmNm b')).map(b => b.textContent) }));
   t('os grupos nascem com as categorias marcadas', gm1.gm.indexOf('Insumos') >= 0 && gm1.gm.indexOf('Material') >= 0 &&
     gm1.sorv === 'Insumos' && gm1.limp === 'Material', JSON.stringify(gm1).slice(0, 220));
-  t('cada grupo é uma pasta, e a pasta aberta mostra as categorias dela',
-    gm1.pastas.indexOf('Insumos') >= 0 && gm1.pastas.indexOf('Material') >= 0 && gm1.filhos.indexOf('Faxina GM') >= 0,
-    JSON.stringify(gm1.pastas) + ' ' + JSON.stringify(gm1.filhos));
-  /* fecha e abre a pasta pelo clique */
-  await pg.click('.gmPasta:has-text("Material")');
-  await pg.waitForTimeout(150);
-  const gmF = await pg.evaluate(() => Array.from(document.querySelectorAll('.gmFilho b')).map(b => b.textContent));
-  await pg.click('.gmPasta:has-text("Material")');   /* abre de novo */
+  t('cada grupo é um cartão de pasta, e o recém-criado já mostra as categorias dele',
+    gm1.cartoes.indexOf('Insumos') >= 0 && gm1.cartoes.indexOf('Material') >= 0 && gm1.lista.join() === 'Faxina GM',
+    JSON.stringify(gm1.cartoes) + ' ' + JSON.stringify(gm1.lista));
+  /* clicar na pasta troca a lista SEM refazer a tela (era o "tremer") */
+  const marca = await pg.evaluate(() => { var c = document.getElementById('content'); c.firstElementChild.dataset.marca = 'x'; return 1; });
+  await pg.click('.gmCard:has-text("Insumos")');
   await pg.waitForTimeout(150);
   await pg.screenshot({ path: FOTOS + '/grupos-pastas.png' });
-  const gmA = await pg.evaluate(() => Array.from(document.querySelectorAll('.gmFilho b')).map(b => b.textContent));
-  t('clicar na pasta fecha e abre a árvore', gmF.indexOf('Faxina GM') < 0 && gmA.indexOf('Faxina GM') >= 0, JSON.stringify([gmF, gmA]));
+  const gmA = await pg.evaluate(() => ({
+    lista: Array.from(document.querySelectorAll('.gmLin .gmNm b')).map(b => b.textContent),
+    mesmaTela: document.getElementById('content').firstElementChild.dataset.marca === 'x',
+    on: (document.querySelector('.gmCard.on b') || {}).textContent }));
+  t('clicar na pasta mostra as categorias dela, sem refazer a tela',
+    gmA.lista.join() === 'Embalagem GM,Sorvete GM' && gmA.mesmaTela && gmA.on === 'Insumos', JSON.stringify(gmA));
   /* mandar uma categoria para outro grupo pela coluna Grupo */
-  await pg.selectOption('.gmFilho:has-text("Embalagem GM") .gmSel', 'Material');
+  await pg.selectOption('.gmLin:has-text("Embalagem GM") .gmSel', 'Material');
   await pg.waitForTimeout(250);
-  const gm2 = await pg.evaluate(() => grupoMaiorDe(grupoIng('gi_emb2')));
-  t('a coluna Grupo manda a categoria para outro grupo', gm2 === 'Material', gm2);
+  const gm2 = await pg.evaluate(() => ({ g: grupoMaiorDe(grupoIng('gi_emb2')),
+    lista: Array.from(document.querySelectorAll('.gmLin .gmNm b')).map(b => b.textContent) }));
+  t('a coluna Grupo manda a categoria para outro grupo', gm2.g === 'Material' && gm2.lista.join() === 'Sorvete GM', JSON.stringify(gm2));
 
   /* o ingrediente: escolhe o grupo, aparecem só as categorias dele */
   await pg.evaluate(() => { abrir('estoque', 'insumos'); modalInsumo(); });

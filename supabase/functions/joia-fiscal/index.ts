@@ -161,6 +161,40 @@ Deno.serve(async (req) => {
     try { d = await r.json(); } catch { /* corpo vazio */ }
     return { ok: r.ok, status: r.status, d };
   }
+  /* ======================================================
+     FALHA DE COMUNICACAO NAO E RECUSA (V403, 01/10/2026)
+     "Erro ao estabelecer comunicacao com a SEFAZ" volta da Spedy como
+     `rejected`, mas a SEFAZ nem chegou a ver a nota: e falha passageira.
+     A mesma nota (mesmo numero) e reenviada pelo /issue — nunca uma nota
+     nova, que deixaria buraco na numeracao.
+     ====================================================== */
+  const FALHA_PASSAGEIRA = /comunica[cç][aã]o com a sefaz|erro ao estabelecer|tempo (limite|esgotado)|timeout|time-out|servi[cç]o paralisado|servi[cç]o indispon[ií]vel|sefaz (fora|indispon)|n[aã]o respondeu|falha na conex|connection/i;
+  function ehFalhaPassageira(n: any) {
+    return n?.status === "rejected" && FALHA_PASSAGEIRA.test(String(n?.processingDetail?.message || ""));
+  }
+  /* espera a nota sair de "em processamento", reenviando a falha passageira.
+     Devolve a ultima leitura (a nota da Spedy, crua). */
+  async function aguardarNota(chave: string, id: string, primeira: any, limiteMs = 7000) {
+    const ate = Date.now() + limiteMs;
+    const esperas = [350, 450, 600, 800, 1000, 1200, 1500, 1800];
+    let n = primeira, k = 0, reenvios = 0;
+    while (Date.now() < ate) {
+      const st = n?.status;
+      if (st === "rejected" && ehFalhaPassageira(n) && reenvios < 2) {
+        reenvios++;
+        await new Promise((ok) => setTimeout(ok, reenvios === 1 ? 600 : 1500));
+        await spedy(chave, "POST", `/consumer-invoices/${encodeURIComponent(id)}/issue`, {});
+        n = { ...n, status: "enqueued" };
+        continue;
+      }
+      if (st && !["created", "enqueued", "received"].includes(st)) return { n, reenvios };
+      await new Promise((ok) => setTimeout(ok, esperas[Math.min(k++, esperas.length - 1)]));
+      const g = await spedy(chave, "GET", `/consumer-invoices/${encodeURIComponent(id)}`);
+      if (g.ok) n = g.d;
+    }
+    return { n, reenvios };
+  }
+
   async function registrar(sucursal: string | null, acaoR: string, resultado: string, detalhe: unknown, notaId?: string | null) {
     try {
       await db.from("fiscal_eventos").insert({
@@ -752,7 +786,25 @@ Deno.serve(async (req) => {
         return responde(409, { erro: "A chave desta loja é de outro CNPJ. A emissão foi desligada — fale com a matriz.", status: "pendente" }, h);
       }
       await registrar(ref, "emitir", r.d?.status || "ok", { integ }, r.d?.id);
-      return responde(200, { ok: true, nota: nota(base, r.d) }, h);
+      /* ==================================================
+         UMA CHAMADA SO, DA VENDA AO PAPEL (V403, 01/10/2026)
+         Antes: emitir, depois o navegador perguntava o estado, depois
+         pedia o DANFE — tres idas e voltas de 1,3 a 3 s cada, mais a
+         conferencia da loja. Agora a emissao espera aqui a autorizacao
+         (a SEFAZ responde em 1 a 3 s), reenvia sozinha a falha de
+         comunicacao, e ja devolve o cupom pronto para a bobina.
+         Passou do limite sem resposta: volta "enviando" e o navegador
+         continua acompanhando, como antes.
+         ================================================== */
+      const espera = await aguardarNota(chave, r.d?.id, r.d);
+      const final = espera.n || r.d;
+      if (espera.reenvios) await registrar(ref, "reenvio_comunicacao", final?.status || "?", { integ, reenvios: espera.reenvios }, r.d?.id);
+      let danfe: any = null;
+      if (final?.status === "authorized" || final?.status === "inContingent") {
+        const dz = await danfeDoCupom(base, chave, r.d?.id);
+        if (dz.ok) danfe = dz.danfe;
+      }
+      return responde(200, { ok: true, nota: nota(base, final), danfe }, h);
     }
 
     /* ======================================================
@@ -790,8 +842,15 @@ Deno.serve(async (req) => {
       const chave = await chaveDaUnidade(u);
       if (!chave) return responde(409, { erro: "Esta loja não está ligada à Spedy." }, h);
       const id = String(corpo.id || "");
+      const dz = await danfeDoCupom(base, chave, id);
+      if (!dz.ok) return responde(dz.status, { erro: dz.erro }, h);
+      return responde(200, { ok: true, danfe: dz.danfe }, h);
+    }
+
+    /* a funcao do DANFE (V403): declaracao, vale para o handler inteiro */
+    async function danfeDoCupom(base: string, chave: string, id: string): Promise<any> {
       const rx = await fetch(`${base}/consumer-invoices/${encodeURIComponent(id)}/xml`, { headers: { "X-Api-Key": chave } });
-      if (!rx.ok) return responde(rx.status === 404 ? 404 : 502, { erro: "O cupom ainda não tem o XML autorizado." }, h);
+      if (!rx.ok) return { ok: false, status: rx.status === 404 ? 404 : 502, erro: "O cupom ainda não tem o XML autorizado." };
       const xml = await rx.text();
       const tag = (x: string, n: string) => {
         const m = x.match(new RegExp(`<${n}(?:\\s[^>]*)?>([\\s\\S]*?)</${n}>`));
@@ -807,6 +866,7 @@ Deno.serve(async (req) => {
       const tot = bloco(xml, "ICMSTot"), prot = bloco(xml, "infProt"), dest = bloco(xml, "dest");
       const num = (v: string) => Number(v || 0);
       const saida = {
+        qrCode: tag(xml, "qrCode"), urlChave: tag(xml, "urlChave"),   /* o QR leva o hash do CSC: so daqui */
         emitente: { nome: tag(emit, "xNome"), fantasia: tag(emit, "xFant"), cnpj: tag(emit, "CNPJ"), ie: tag(emit, "IE"),
           rua: tag(ender, "xLgr"), numero: tag(ender, "nro"), bairro: tag(ender, "xBairro"),
           cidade: tag(ender, "xMun"), uf: tag(ender, "UF"), cep: tag(ender, "CEP") },
@@ -824,11 +884,10 @@ Deno.serve(async (req) => {
         consumidor: { doc: tag(dest, "CPF") || tag(dest, "CNPJ"), nome: tag(dest, "xNome") },
         chave: (xml.match(/Id="NFe(\d{44})"/) || [])[1] || "",
         protocolo: tag(prot, "nProt"), autorizadaEm: tag(prot, "dhRecbto"),
-        qrCode: tag(xml, "qrCode"), urlChave: tag(xml, "urlChave"),
         infCpl: tag(bloco(xml, "infAdic"), "infCpl"),
       };
-      if (!saida.chave || !saida.qrCode) return responde(409, { erro: "O cupom ainda não foi autorizado." }, h);
-      return responde(200, { ok: true, danfe: saida }, h);
+      if (!saida.chave || !saida.qrCode) return { ok: false, status: 409, erro: "O cupom ainda não foi autorizado." };
+      return { ok: true, danfe: saida };
     }
 
     /* ======================================================
@@ -929,6 +988,40 @@ Deno.serve(async (req) => {
       }
       await registrar(ref, "numero_repetido", "ok", { serieNota, serie, numero: g.d?.number, motivo: msg.slice(0, 200) }, id);
       return responde(200, { ok: true, serie }, h);
+    }
+
+    /* ======================================================
+       REENVIAR — a falha de comunicacao com a SEFAZ (V403)
+       Qualquer pessoa da unidade (o caixa descobre), mas so com prova:
+       le a nota na Spedy e exige que a recusa seja de comunicacao. A
+       mesma nota, o mesmo numero — nunca uma nota nova.
+       ====================================================== */
+    if (acao === "reenviar") {
+      if (!ref) return responde(400, { erro: "Informe a unidade." }, h);
+      const u = await unidadeFiscal();
+      const chave = await chaveDaUnidade(u);
+      if (!chave) return responde(409, { erro: "Esta loja não está ligada à Spedy." }, h);
+      let id = String(corpo.id || "");
+      if (!id) {
+        const integ = String(corpo.integrationId || "");
+        const l = await spedy(chave, "GET", `/consumer-invoices?integrationId=${encodeURIComponent(integ)}&page=1&pageSize=1`);
+        id = l.d?.items?.[0]?.id || "";
+        if (!id) return responde(404, { erro: "A nota desta venda não foi encontrada." }, h);
+      }
+      const g = await spedy(chave, "GET", `/consumer-invoices/${encodeURIComponent(id)}`);
+      if (!g.ok) return responde(g.status === 404 ? 404 : 502, { erro: erroSpedy(g.d, g.status) }, h);
+      if (!ehFalhaPassageira(g.d))
+        return responde(409, { erro: "Esta nota não foi recusada por falha de comunicação.", nota: nota(base, g.d) }, h);
+      const r = await spedy(chave, "POST", `/consumer-invoices/${encodeURIComponent(id)}/issue`, {});
+      await registrar(ref, "reenviar", r.ok ? "ok" : "recusado", { status: r.status }, id);
+      if (!r.ok) return responde(400, { erro: erroSpedy(r.d, r.status) }, h);
+      const espera = await aguardarNota(chave, id, { ...g.d, status: "enqueued" });
+      let danfe: any = null;
+      if (espera.n?.status === "authorized" || espera.n?.status === "inContingent") {
+        const dz = await danfeDoCupom(base, chave, id);
+        if (dz.ok) danfe = dz.danfe;
+      }
+      return responde(200, { ok: true, nota: nota(base, espera.n), danfe }, h);
     }
 
     /* ======================================================

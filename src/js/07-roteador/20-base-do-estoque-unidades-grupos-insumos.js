@@ -742,72 +742,115 @@ function remUnidade(k){
    Embaixo, a lista de categorias de sempre, com a coluna Grupo: trocar
    ali manda a categoria para outro grupo.
    ========================================================== */
-var GI={grupo:'',abertos:{}};
-/* uma linha de categoria da arvore */
-function linhaCategoriaIng(g,gm,pode){
-  var q=(DB.insumos||[]).filter(function(i){return i.grupoId===g.id}).length;
-  return '<tr class="gmFilho"><td><span class="gmRecuo">'+sv('file2',12)+'</span><b>'+E(g.nome)+'</b></td>'+
-   '<td>'+(pode&&gm.length
-     ?'<select class="gmSel" onchange="moverCategoria(\''+g.id+'\',this.value)" title="Mandar para outro grupo">'+
-       '<option value="">— sem grupo —</option>'+
-       gm.map(function(n){return '<option value="'+E(n)+'"'+(grupoMaiorDe(g)===n?' selected':'')+'>'+E(n)+'</option>'}).join('')+
-      '</select>'
-     :(grupoMaiorDe(g)?E(grupoMaiorDe(g)):'—'))+'</td>'+
-   '<td style="text-align:center">'+(g.compoeCMV!==false
-     ?'<span class="miniTag cm">SIM</span>':'<span class="miniTag off2">NÃO</span>')+'</td>'+
-   '<td style="text-align:center">'+q+'</td>'+
-   '<td><div class="rowAct">'+
-    (pode?'<button class="rBtn" onclick="modalGrupoIng(\''+g.id+'\')" title="Editar categoria">'+sv('edit',12)+'</button>'+
-    '<button class="rBtn rd" onclick="excluirGrupoIng(\''+g.id+'\')" title="Excluir categoria">'+sv('trash',12)+'</button>':'')+
-   '</div></td></tr>';
+var GI={sel:null};
+/* ==========================================================
+   A TELA EM PASTAS, SEM TREMER (V403, 01/10/2026)
+   Rafael: "ficou muito ruim, e ao clicar na flechinha a tela fica
+   vibrando". A arvore redesenhava a tela inteira a cada clique. Agora os
+   grupos sao cartoes de pasta em cima e a lista da pasta escolhida fica
+   embaixo; o clique troca SO a lista, a tela nao se refaz.
+   ========================================================== */
+function pastasIng(){
+  var gm=gruposMaiores();
+  var p=gm.map(function(n){return {chave:n,nome:n,cats:categoriasDoGrupo(n)}});
+  var sem=(DB.gruposIng||[]).filter(function(g){return !grupoMaiorDe(g)})
+    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+  if(sem.length)p.push({chave:'__sem',nome:gm.length?'Sem grupo':'Categorias',cats:sem,sem:true});
+  return p;
 }
-function abreGrupoIng(n){ GI.abertos[n]=!GI.abertos[n]; telaGruposIng(); }
+function qtdInsDe(cats){
+  var ids={};cats.forEach(function(c){ids[c.id]=1});
+  return (DB.insumos||[]).filter(function(i){return ids[i.grupoId]}).length;
+}
+function cartoesGrupoIng(){
+  var pastas=pastasIng();
+  var pode=podeEditarCadastro();
+  return pastas.map(function(p){
+    var on=GI.sel===p.chave;
+    return '<div class="gmCard'+(on?' on':'')+(p.sem?' sem':'')+'" data-g="'+E(p.chave)+'" role="button" tabindex="0">'+
+     '<span class="gmIc">'+sv(on?'folderOpen':'folder',22)+'</span>'+
+     '<span class="gmTx"><b>'+E(p.nome)+'</b>'+
+      '<span>'+p.cats.length+' categoria(s) · '+qtdInsDe(p.cats)+' ingrediente(s)</span></span>'+
+     (pode&&!p.sem?'<button class="rBtn gmEd" data-ed="'+E(p.chave)+'" title="Editar grupo">'+sv('edit',12)+'</button>':'')+
+    '</div>';
+  }).join('');
+}
+function painelGrupoIng(){
+  var pastas=pastasIng();
+  var p=pastas.find(function(x){return x.chave===GI.sel})||pastas[0];
+  if(!p)return '<div class="entVazio"><b>Nenhuma categoria cadastrada</b>'+
+    '<span>Crie categorias como Insumos, Gelato ou Embalagens e marque quais compõem o CMV.</span></div>';
+  var gm=gruposMaiores(), pode=podeEditarCadastro();
+  return '<div class="gmPainelH"><b>'+E(p.nome)+'</b><span>'+p.cats.length+' categoria(s)</span>'+
+    (pode&&!p.sem?'<button class="btnP2" data-ed="'+E(p.chave)+'">'+sv('plus',13)+' Pôr categorias neste grupo</button>':'')+
+   '</div>'+
+   (p.cats.length?'<div class="gmLinhas">'+
+    '<div class="gmLin gmCab"><span>Categoria</span><span>Grupo</span><span>CMV</span><span>Ingredientes</span><span></span></div>'+
+    p.cats.map(function(g){
+      var q=(DB.insumos||[]).filter(function(i){return i.grupoId===g.id}).length;
+      return '<div class="gmLin">'+
+       '<span class="gmNm">'+sv('file2',13)+' <b>'+E(g.nome)+'</b></span>'+
+       '<span>'+(pode&&gm.length
+         ?'<select class="gmSel" data-mv="'+g.id+'" title="Mandar para outro grupo">'+
+           '<option value="">— sem grupo —</option>'+
+           gm.map(function(n){return '<option value="'+E(n)+'"'+(grupoMaiorDe(g)===n?' selected':'')+'>'+E(n)+'</option>'}).join('')+
+          '</select>'
+         :(grupoMaiorDe(g)?E(grupoMaiorDe(g)):'—'))+'</span>'+
+       '<span>'+(g.compoeCMV!==false?'<span class="miniTag cm">SIM</span>':'<span class="miniTag off2">NÃO</span>')+'</span>'+
+       '<span class="gmQtd">'+q+'</span>'+
+       '<span class="rowAct">'+(pode
+         ?'<button class="rBtn" onclick="modalGrupoIng(\''+g.id+'\')" title="Editar categoria">'+sv('edit',12)+'</button>'+
+          '<button class="rBtn rd" onclick="excluirGrupoIng(\''+g.id+'\')" title="Excluir categoria">'+sv('trash',12)+'</button>':'')+
+       '</span></div>';
+    }).join('')+'</div>'
+   :'<div class="hint" style="padding:14px">Nenhuma categoria neste grupo ainda.</div>');
+}
+/* troca a pasta aberta SEM refazer a tela: so os cartoes e a lista */
+function abreGrupoIng(chave){
+  GI.sel=chave;
+  var c=document.getElementById('gmCartoes'), p=document.getElementById('gmPainel');
+  if(!c||!p){telaGruposIng();return;}
+  c.innerHTML=cartoesGrupoIng();
+  p.innerHTML=painelGrupoIng();
+}
+function ligarGruposIng(){
+  var box=document.getElementById('gmTela');
+  if(!box||box._ligado)return;
+  box._ligado=true;
+  box.addEventListener('click',function(ev){
+    var ed=ev.target.closest('[data-ed]');
+    if(ed){ev.stopPropagation();modalGrupoMaior(ed.getAttribute('data-ed'));return;}
+    var cd=ev.target.closest('.gmCard');
+    if(cd)abreGrupoIng(cd.getAttribute('data-g'));
+  });
+  box.addEventListener('keydown',function(ev){
+    var cd=ev.target.closest&&ev.target.closest('.gmCard');
+    if(cd&&(ev.key==='Enter'||ev.key===' ')){ev.preventDefault();abreGrupoIng(cd.getAttribute('data-g'));}
+  });
+  box.addEventListener('change',function(ev){
+    var s=ev.target.closest('[data-mv]');
+    if(s)moverCategoria(s.getAttribute('data-mv'),s.value);
+  });
+}
 function telaGruposIng(){
   baseEstoque();
+  var pastas=pastasIng();
+  if(!pastas.some(function(p){return p.chave===GI.sel}))GI.sel=pastas.length?pastas[0].chave:null;
   var gm=gruposMaiores();
   var pode=podeEditarCadastro();
-  var semGrupo=(DB.gruposIng||[]).filter(function(g){return !grupoMaiorDe(g)})
-    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
-  /* sem grupo nenhum ainda, a lista de categorias aparece aberta, como antes */
-  var pastas=gm.map(function(n){return {chave:n,nome:n,cats:categoriasDoGrupo(n)}});
-  if(semGrupo.length)pastas.push({chave:'__sem',nome:gm.length?'Sem grupo':'Categorias',cats:semGrupo,sem:true});
-  if(!gm.length)GI.abertos.__sem=true;
-  var esc=function(n){return E(n).replace(/'/g,"\\'")};
-  $('content').innerHTML=avisoListaIncompleta('gruposIng','grupo')+'<div class="finWrap">'+
+  $('content').innerHTML=avisoListaIncompleta('gruposIng','grupo')+'<div class="finWrap" id="gmTela">'+
   '<div class="finTop"><div><h1>Grupos e Categorias de Ingredientes</h1>'+
-  '<p>Cada grupo é uma pasta com as suas categorias. A categoria organiza os insumos e define o que entra no CMV.</p></div>'+
+  '<p>Clique no grupo para ver as categorias dele. A categoria organiza os insumos e define o que entra no CMV.</p></div>'+
   (pode?'<div class="finActs">'+
     '<button class="btnP2" onclick="modalGrupoIng()">'+sv('plus',14)+' Nova categoria</button>'+
     '<button class="btnP2 ok" onclick="modalGrupoMaior()">'+sv('plus',14)+' Novo grupo</button></div>':'')+
   '</div>'+
-  (gm.length?'':'<div class="avisoInfo" style="margin-bottom:10px">'+sv('help',15)+'<div>Nenhum grupo ainda. '+
+  (gm.length?'':'<div class="avisoInfo" style="margin-bottom:12px">'+sv('help',15)+'<div>Nenhum grupo ainda. '+
     'Clique em <b>Novo grupo</b>, dê o nome (ex.: Insumos, Produto, Material) e marque as categorias que vão para dentro dele.</div></div>')+
-  '<div class="pnl2"><div class="pnl2H">Grupos <span class="cnt2">'+gm.length+'</span>'+
-   '<span style="margin-left:10px;font-weight:500;color:var(--ink-3)">'+(DB.gruposIng||[]).length+' categoria(s)</span></div>'+
-  '<div class="pnl2B" style="padding:0">'+
-  (pastas.length?'<table class="pTable finTab gmArv"><thead><tr>'+
-   '<th>Grupo / categoria</th>'+
-   '<th style="width:200px">Grupo</th>'+
-   '<th style="width:130px;text-align:center">Compõe CMV</th>'+
-   '<th style="width:110px;text-align:center">Ingredientes</th>'+
-   '<th style="width:110px"></th></tr></thead><tbody>'+
-   pastas.map(function(p){
-     var ab=!!GI.abertos[p.chave];
-     var qIns=(DB.insumos||[]).filter(function(i){
-       return p.cats.some(function(c){return c.id===i.grupoId})}).length;
-     return '<tr class="gmPasta'+(ab?' ab':'')+(p.sem?' sem':'')+'" onclick="abreGrupoIng(\''+esc(p.chave)+'\')">'+
-      '<td colspan="3"><span class="gmPastaNm"><span class="ftSeta'+(ab?' ab':'')+'">'+sv('tri',9)+'</span>'+
-       sv(ab?'folderOpen':'folder',15)+' <b>'+E(p.nome)+'</b>'+
-       '<span class="gmQt">'+p.cats.length+' categoria(s)</span></span></td>'+
-      '<td style="text-align:center">'+qIns+'</td>'+
-      '<td><div class="rowAct">'+(pode&&!p.sem
-        ?'<button class="rBtn" onclick="event.stopPropagation();modalGrupoMaior(\''+esc(p.nome)+'\')" title="Editar grupo">'+sv('edit',12)+'</button>':'')+
-      '</div></td></tr>'+
-      (ab?p.cats.map(function(g){return linhaCategoriaIng(g,gm,pode)}).join(''):'');
-   }).join('')+'</tbody></table>'
-  :'<div class="entVazio"><b>Nenhuma categoria cadastrada</b>'+
-   '<span>Crie categorias como Insumos, Gelato ou Embalagens e marque quais compõem o CMV.</span></div>')+
-  '</div></div></div>';
+  '<div class="gmCartoes" id="gmCartoes">'+cartoesGrupoIng()+'</div>'+
+  '<div class="gmPainel" id="gmPainel">'+painelGrupoIng()+'</div>'+
+  '</div>';
+  ligarGruposIng();
   rodape(gm.length+' grupo(s) · '+(DB.gruposIng||[]).length+' categoria(s)');
 }
 /* troca o grupo de UMA categoria (a coluna da lista) */
@@ -816,8 +859,8 @@ function moverCategoria(id,nome){
   var g=grupoIng(id);
   if(!g)return;
   g.categoria=String(nome||'').trim();
-  salvar();telaGruposIng();
-  conferirConfigNaNuvem('gruposIng',id,'Categoria',telaGruposIng);
+  salvar();abreGrupoIng(GI.sel);
+  conferirConfigNaNuvem('gruposIng',id,'Categoria',function(){abreGrupoIng(GI.sel)});
 }
 /* criar ou editar um GRUPO: o nome e as categorias que ficam nele.
    Renomear leva junto todas as categorias; desmarcar tira a categoria do
@@ -856,8 +899,7 @@ function modalGrupoMaior(nomeAtual){
       if(depois!==antes){ g.categoria=depois; mudou.push(g.id); }
     });
     salvar();
-    if(nomeAtual&&nomeAtual!==nome)delete GI.abertos[nomeAtual];
-    GI.abertos[nome]=true;
+    GI.sel=nome;
     telaGruposIng();
     if(mudou.length)conferirConfigNaNuvem('gruposIng',mudou[0],'Categoria',telaGruposIng);
     else toast('Nada mudou.');
@@ -878,7 +920,7 @@ async function desfazerGrupoMaior(nome){
   var cats=categoriasDoGrupo(nome);
   if(!await pergunta('Desfazer o grupo "'+nome+'"? As '+cats.length+' categoria(s) continuam existindo, só ficam sem grupo.'))return;
   cats.forEach(function(g){g.categoria='';});
-  salvar();fecharModal();delete GI.abertos[nome];telaGruposIng();
+  salvar();fecharModal();GI.sel=null;telaGruposIng();
   if(cats.length)conferirConfigNaNuvem('gruposIng',cats[0].id,'Categoria',telaGruposIng);
 }
 function modalGrupoIng(id){

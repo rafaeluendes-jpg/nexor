@@ -53,7 +53,10 @@ t('categoria sem grupo não entra em grupo nenhum', !f.itemNoGrupoMaior({ grupoI
 
 console.log('\n── 3. As telas\n');
 const tg = semCom(corpoDaFuncao('telaGruposIng', fonte));
-t('a tela é uma árvore de pastas', /gmPasta/.test(tg) && /abreGrupoIng\(/.test(tg) && /linhaCategoriaIng\(/.test(tg));
+t('a tela é de pastas: cartões em cima, lista embaixo', /id="gmCartoes"/.test(tg) && /id="gmPainel"/.test(tg) && /ligarGruposIng\(\)/.test(tg));
+const ab = semCom(corpoDaFuncao('abreGrupoIng', fonte));
+t('clicar na pasta troca só os cartões e a lista — a tela não se refaz (não treme)',
+  /c\.innerHTML=cartoesGrupoIng\(\);/.test(ab) && /p\.innerHTML=painelGrupoIng\(\);/.test(ab) && !/telaGruposIng\(\);\s*\}?\s*$/.test(ab.replace(/if\(!c\|\|!p\)\{telaGruposIng\(\);return;\}/,'')));
 t('tem Novo grupo e Nova categoria', /modalGrupoMaior\(\)/.test(tg) && /modalGrupoIng\(\)/.test(tg));
 const mg = semCom(corpoDaFuncao('modalGrupoMaior', fonte));
 t('grupo novo nasce com ao menos uma categoria', /Marque ao menos uma categoria/.test(mg));
