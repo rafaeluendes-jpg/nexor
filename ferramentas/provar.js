@@ -3517,6 +3517,84 @@ function servir() {
   t('depois de recarregar, os grupos continuam', gm6.gm.indexOf('Insumos') >= 0 && gm6.sorv === 'Insumos', JSON.stringify(gm6));
   await pg.evaluate(() => { ET.grupoMaior = ''; ET.grupo = ''; });
 
+  console.log('\n── 11f. Quem enxerga: só a matriz, e copiar o que uma loja enxerga\n');
+  /* Rafael, 01/10/2026: a ficha técnica da base só a matriz vê — a janela
+     exigia marcar uma loja. E: configurar Santa Fé e copiar o mesmo para as
+     outras lojas. */
+  const sucAntes = await pg.evaluate(() => {
+    fecharModal();
+    var antes = JSON.stringify(DB.sucursais);
+    DB.sucursais = DB.sucursais.concat([
+      { id: 'suc_gmsf', nome: 'Santa Fé GM', ativa: true },
+      { id: 'suc_gmja', nome: 'Jales GM', ativa: true },
+      { id: 'suc_gmal', nome: 'Alphaville GM', ativa: true }]);
+    DB.fichas.push({ id: 'fi_basegm', nome: 'BASE PISTACHE GM', itens: [], sucursais: ['*'] });
+    DB.insumos.push({ id: 'in_lib1', nome: 'Lib Um GM', unidade: 'kg', sucursais: ['suc_gmsf'] });
+    DB.insumos.push({ id: 'in_lib2', nome: 'Lib Dois GM', unidade: 'kg', sucursais: ['suc_gmja'] });
+    DB.insumos.push({ id: 'in_lib3', nome: 'Lib Tres GM', unidade: 'kg', sucursais: ['*'] });
+    salvar();
+    LB.col = 'fichas'; LB.busca = 'BASE PISTACHE GM'; LB.filtro = 'todos';
+    abrir('loja', 'liberacao');
+    return antes;
+  });
+  await pg.waitForTimeout(300);
+  await pg.click('tr:has-text("BASE PISTACHE GM") button.rBtn');
+  await pg.waitForTimeout(200);
+  const lb0 = await pg.evaluate(() => ({ modos: document.querySelectorAll('.lbModo').length,
+    on: (document.querySelector('.lbModo.on b') || {}).textContent,
+    lojasVisiveis: getComputedStyle(document.getElementById('lbLojas')).display !== 'none' }));
+  t('a janela oferece Só a matriz, Todas e Escolher lojas', lb0.modos === 3 && lb0.on === 'Todas as unidades' &&
+    !lb0.lojasVisiveis, JSON.stringify(lb0));
+  await pg.click('.lbModo[data-m="matriz"]');
+  await pg.screenshot({ path: FOTOS + '/liberacao-so-matriz.png' });
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(300);
+  const lb1 = await pg.evaluate(() => ({ suc: (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais,
+    aberta: !!document.getElementById('mdOv'),
+    tag: (document.querySelector('tr .lbTag.so') || {}).textContent,
+    sf: liberadoNa(DB.fichas.find(f => f.id === 'fi_basegm'), 'suc_gmsf') }));
+  t('"Só a matriz" salva sem pedir loja, e as lojas deixam de ver', Array.isArray(lb1.suc) && lb1.suc.length === 0 &&
+    !lb1.aberta && lb1.tag === 'só a matriz' && lb1.sf === false, JSON.stringify(lb1));
+  /* escolher lojas: os cartões aparecem e a escolha vale */
+  await pg.click('tr:has-text("BASE PISTACHE GM") button.rBtn');
+  await pg.waitForTimeout(200);
+  await pg.click('.lbModo[data-m="lojas"]');
+  await pg.click('.lbOp:has-text("Jales GM")');
+  await pg.screenshot({ path: FOTOS + '/liberacao-escolher-lojas.png' });
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(300);
+  const lb2 = await pg.evaluate(() => (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais);
+  t('"Escolher lojas" grava só as marcadas', JSON.stringify(lb2) === '["suc_gmja"]', JSON.stringify(lb2));
+  /* copiar Santa Fé para Jales e Alphaville */
+  await pg.click('button:has-text("Copiar de uma loja")');
+  await pg.waitForTimeout(200);
+  await pg.selectOption('#lbCpModelo', 'suc_gmsf');
+  await pg.click('.lbOp:has-text("Jales GM")');
+  await pg.click('.lbOp:has-text("Alphaville GM")');
+  await pg.screenshot({ path: FOTOS + '/liberacao-copiar.png' });
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(400);
+  const lb3 = await pg.evaluate(() => {
+    var v = id => (DB.insumos.find(i => i.id === id) || {}).sucursais;
+    return { um: v('in_lib1'), dois: v('in_lib2'), tres: v('in_lib3'),
+      base: (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais, aberta: !!document.getElementById('mdOv') };
+  });
+  t('copiar: o que Santa Fé vê, Jales e Alphaville passam a ver', JSON.stringify(lb3.um) === '["suc_gmsf","suc_gmja","suc_gmal"]', JSON.stringify(lb3));
+  t('copiar: o que Santa Fé não vê, as outras deixam de ver', JSON.stringify(lb3.dois) === '[]' &&
+    JSON.stringify(lb3.base) === '[]', JSON.stringify(lb3));
+  t('copiar: item de todas as unidades não muda', JSON.stringify(lb3.tres) === '["*"]' && !lb3.aberta, JSON.stringify(lb3));
+  await entrar();
+  const lb4 = await pg.evaluate(() => ({ um: (DB.insumos.find(i => i.id === 'in_lib1') || {}).sucursais,
+    base: (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais }));
+  t('depois de recarregar, a liberação copiada continua', JSON.stringify(lb4.um) === '["suc_gmsf","suc_gmja","suc_gmal"]' &&
+    JSON.stringify(lb4.base) === '[]', JSON.stringify(lb4));
+  await pg.evaluate((antes) => {
+    DB.sucursais = JSON.parse(antes);
+    DB.fichas = DB.fichas.filter(f => f.id !== 'fi_basegm');
+    DB.insumos = DB.insumos.filter(i => !/^in_lib/.test(i.id));
+    LB.col = 'insumos'; LB.busca = ''; salvar();
+  }, sucAntes);
+
   console.log('\n── 12. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 

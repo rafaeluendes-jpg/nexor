@@ -94,5 +94,12 @@ t('e tenta o cupom de novo em 3, 6, 12 e 20 s', /\[3000,6000,12000,20000\]/.test
 t('o cupom que chega atrasado não repete a ficha que já saiu',
   /_fsViaSo\[ped\.id\]=1;/.test(fonte) && /!\(typeof _fsViaSo!=='undefined'&&_fsViaSo\[ped\.id\]\)/.test(im));
 
+console.log('\n── 4. Definições fiscais da planilha (V405, PIS/COFINS 99)\n');
+t('PIS/COFINS 49 e 99 sem alíquota vão com alíquota 0 explícita, no servidor',
+  /Number\(t\.cst\) === 49 \|\| Number\(t\.cst\) === 99\) && t\.rate == null\) t\.rate = 0;/.test(srv) &&
+  srv.indexOf('t.rate = 0;') < srv.indexOf('spedy(chave, "POST", "/consumer-invoices", n)'));
+t('a gravação da planilha está guardada',
+  fs.existsSync(path.join(__dirname, '..', 'supabase/migrations/20261001_definicoes_fiscais_santa_fe.sql')));
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam' : '✓ ' + testes + ' testes passaram') + '\n');
 process.exit(falhas ? 1 : 0);

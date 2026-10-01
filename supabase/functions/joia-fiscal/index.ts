@@ -807,6 +807,13 @@ Deno.serve(async (req) => {
       n.destination = "internal";
       if (!["presence", "internet", "delivery"].includes(n.presenceType)) n.presenceType = "presence";
       if (!Array.isArray(n.items) || !n.items.length) return responde(400, { erro: "Cupom sem itens." }, h);
+      /* PIS/COFINS 49 e 99 (outras operacoes) levam base e aliquota no
+         XML: sem aliquota, vai 0 explicito — vale para todo caixa, ate o
+         que ainda roda a versao velha (01/10/2026) */
+      for (const it of n.items) for (const k of ["pis", "cofins"]) {
+        const t = it?.taxes?.[k];
+        if (t && (Number(t.cst) === 49 || Number(t.cst) === 99) && t.rate == null) t.rate = 0;
+      }
       const r = await spedy(chave, "POST", "/consumer-invoices", n);
       if (!r.ok) {
         await registrar(ref, "emitir", "recusado", { status: r.status, integ }, integ);

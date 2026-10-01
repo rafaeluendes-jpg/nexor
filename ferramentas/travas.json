@@ -250,7 +250,7 @@
    "roda": true
   },
   "testes/fiscal-rapido-e-sefaz-fora.js": {
-   "pontos": 27,
+   "pontos": 29,
    "roda": true
   },
   "testes/fiscal-telas.js": {
@@ -323,6 +323,10 @@
   },
   "testes/lei-fabrica-no-banco.js": {
    "pontos": 5,
+   "roda": true
+  },
+  "testes/liberacao-so-matriz-e-copiar.js": {
+   "pontos": 12,
    "roda": true
   },
   "testes/ligacoes.js": {

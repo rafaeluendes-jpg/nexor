@@ -2797,6 +2797,36 @@ tr.pbSel td{background:var(--acc-soft)}
 .lbSegm button.on{background:var(--deep);color:#fff;font-weight:600}
 .lbSegm button b{font-variant-numeric:tabular-nums;opacity:.75;font-weight:600}
 .lbTabW{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+/* quem enxerga: tres escolhas e as lojas em cartoes (01/10/2026) */
+.lbTopoAc{display:flex;align-items:center;gap:8px;flex:none}
+.lbModos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.lbModo{display:flex;align-items:flex-start;gap:9px;text-align:left;padding:11px 12px;min-height:44px;
+  border:1.5px solid var(--line-2);border-radius:var(--r);background:var(--panel);cursor:pointer;
+  font-family:inherit;color:var(--ink)}
+.lbModo:hover{border-color:var(--acc-l)}
+.lbModo:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.lbModo i{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid var(--line);margin-top:1px}
+.lbModo b{display:block;font-size:13px}
+.lbModo small{display:block;font-size:11px;color:var(--ink-2);margin-top:2px;line-height:1.3}
+.lbModo.on{border-color:var(--acc);background:var(--acc-soft)}
+.lbModo.on i{border-color:var(--acc);box-shadow:inset 0 0 0 3px var(--panel);background:var(--acc)}
+.lbLojas{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-2)}
+.lbLojasT{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.lbLojasT b{flex:1;font-size:12.5px;color:var(--ink-2)}
+.lbGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.lbOp{display:flex;align-items:center;gap:9px;padding:10px 12px;min-height:44px;cursor:pointer;
+  border:1.5px solid var(--line-2);border-radius:var(--r-s);background:var(--panel);font-size:13px}
+.lbOp:hover{border-color:var(--acc-l)}
+.lbOp input{flex:none;width:16px;height:16px;accent-color:var(--acc);margin:0}
+.lbOp:has(input:checked){border-color:var(--acc);background:var(--acc-soft)}
+.lbLojas .hint{margin-top:9px}
+.lbCampo{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2)}
+.lbCampo select{height:40px;border:1px solid var(--line);border-radius:var(--r-s);padding:0 10px;
+  font-family:inherit;font-size:13.5px;background:var(--panel);color:var(--ink)}
+@media(max-width:600px){
+  .lbModos{grid-template-columns:1fr}
+  .lbGrade{grid-template-columns:1fr 1fr}
+}
 /* ==========================================================
    O CABECALHO DA CENTRAL DE BASES TEM DE GRUDAR — SEM TREMER
 
@@ -14636,7 +14666,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V404.0.0';
+var VERSAO='V405.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18169,7 +18199,10 @@ function telaLiberacao(){
    '<div class="etTopo"><div><h1>Liberação por Unidade</h1>'+
    '<p>O cadastro é feito uma vez na matriz. Aqui você escolhe o que '+
    '<b>não</b> chega em alguma unidade — o estoque nunca vai junto.</p></div>'+
-   '<button class="infoBt" onclick="explicaLiberacao()">'+sv('help',15)+'</button></div>'+
+   '<div class="lbTopoAc">'+
+    (sucAtivas().filter(function(s){return !s.matriz}).length>=2
+      ?'<button class="btnP2" onclick="abrirCopiaLiberacao()">'+sv('copy',13)+' Copiar de uma loja</button>':'')+
+    '<button class="infoBt" onclick="explicaLiberacao()">'+sv('help',15)+'</button></div></div>'+
 
    '<div class="lbGrade2">'+
 
@@ -18263,39 +18296,176 @@ function liberarEmLote(){
   if(!itens.length)return;
   abrirEscolhaUnidades(itens,itens.length+' itens selecionados');
 }
+/* ==========================================================
+   QUEM ENXERGA: SO A MATRIZ, TODAS, OU ESCOLHER (01/10/2026)
+
+   Rafael: "a ficha tecnica da base as lojas nao veem — so o insumo base.
+   Quero a opcao de so a matriz ver, e um jeito melhor de escolher as
+   lojas." A janela exigia ao menos uma loja marcada, e "so a matriz"
+   (lista vazia, que e regra da rede) nao tinha como ser escolhido.
+   Agora sao tres escolhas claras, e as lojas so aparecem quando a
+   escolha e "Escolher lojas".
+   ========================================================== */
+var LB_MODOS=[
+ {id:'matriz',n:'Só a matriz',d:'As lojas não veem este item'},
+ {id:'todas', n:'Todas as unidades',d:'Inclusive as que forem criadas depois'},
+ {id:'lojas', n:'Escolher lojas',d:'Só as lojas que você marcar'}
+];
+function modoLiberacao(item){
+  if(marcadoTodas(item))return 'todas';
+  var l=((item&&item.sucursais)||[]).filter(function(id){return id!==TODAS_UN&&!ehSucMatriz(id)});
+  return l.length?'lojas':'matriz';
+}
+function lbModoTroca(m){
+  document.querySelectorAll('.lbModo').forEach(function(b){
+    var on=b.getAttribute('data-m')===m;
+    b.classList.toggle('on',on);b.setAttribute('aria-checked',on?'true':'false');});
+  var g=$('lbLojas');if(g)g.style.display=(m==='lojas')?'':'none';
+  var mm=$('lbModoV');if(mm)mm.value=m;
+}
+function lbMarcarLojas(v){
+  document.querySelectorAll('.lbSuc').forEach(function(c){c.checked=v;});
+}
 function abrirEscolhaUnidades(itens,titulo){
-  var sucs=sucAtivas();
-  /* marcacao inicial: o que TODOS os itens ja tem em comum */
-  var atual=(itens.length===1)?(itens[0].sucursais||[]):[];
-  var jaTodas=(itens.length===1)&&marcadoTodas(itens[0]);
-  atual=atual.filter(function(x){return x!==TODAS_UN});
-  modal('Quem enxerga: '+E(titulo),
+  var lojas=sucAtivas().filter(function(s){return !s.matriz});
+  /* marcacao inicial: o que os itens ja tem em comum (um item so, ou
+     varios com a mesma liberacao); sem consenso, nada vem escolhido */
+  var modos=itens.map(modoLiberacao);
+  var modo=modos.every(function(m){return m===modos[0]})?modos[0]:'';
+  var atual=[];
+  if(modo==='lojas'){
+    var k0=JSON.stringify((itens[0].sucursais||[]).slice().sort());
+    if(itens.every(function(x){return JSON.stringify((x.sucursais||[]).slice().sort())===k0}))
+      atual=itens[0].sucursais||[];
+  }
+  modal('Quem enxerga: '+titulo,
   '<div class="mdB">'+
-   '<label class="chkL"><input type="checkbox" id="lbTodas" '+(jaTodas?'checked':'')+
-    ' onchange="document.querySelectorAll(\'.lbSuc\').forEach(function(c){c.disabled=this.checked},this)">'+
-    '<span><b>Todas as unidades</b> — inclusive as que forem criadas depois</span></label>'+
-   '<div class="hint" style="margin:6px 0 12px">Desmarque acima para escolher unidade por unidade.</div>'+
-   '<div class="lbGrade">'+sucs.map(function(s){
-     /* a matriz nao entra na escolha: ela ve tudo por regra da rede */
-     if(s.matriz)
-       return '<label class="lbOp fixa"><input type="checkbox" checked disabled>'+
-        '<b>'+E(s.nome)+'</b><span>matriz — vê sempre</span></label>';
-     return '<label class="lbOp"><input type="checkbox" class="lbSuc" value="'+E(s.id)+'"'+
-      (atual.indexOf(s.id)>=0?' checked':'')+(jaTodas?' disabled':'')+'>'+
-      '<b>'+E(s.nome)+'</b></label>';
+   '<input type="hidden" id="lbModoV" value="'+modo+'">'+
+   '<div class="lbModos" role="radiogroup" aria-label="Quem enxerga">'+LB_MODOS.map(function(m){
+     return '<button type="button" class="lbModo'+(modo===m.id?' on':'')+'" data-m="'+m.id+'" '+
+      'role="radio" aria-checked="'+(modo===m.id?'true':'false')+'" onclick="lbModoTroca(\''+m.id+'\')">'+
+      '<i></i><span><b>'+m.n+'</b><small>'+m.d+'</small></span></button>';
    }).join('')+'</div>'+
+   '<div id="lbLojas" class="lbLojas" style="'+(modo==='lojas'?'':'display:none')+'">'+
+    '<div class="lbLojasT"><b>Lojas que enxergam</b>'+
+     '<button type="button" class="btnP2" onclick="lbMarcarLojas(true)">Marcar todas</button>'+
+     '<button type="button" class="btnP2" onclick="lbMarcarLojas(false)">Limpar</button></div>'+
+    '<div class="lbGrade">'+lojas.map(function(s){
+      return '<label class="lbOp"><input type="checkbox" class="lbSuc" value="'+E(s.id)+'"'+
+       (atual.indexOf(s.id)>=0?' checked':'')+'><b>'+E(s.nome)+'</b></label>';
+    }).join('')+'</div>'+
+    '<div class="hint">A matriz enxerga sempre, em qualquer escolha.</div>'+
+   '</div>'+
   '</div>','Salvar',function(){
-    var todas=$('lbTodas').checked;
+    var m=($('lbModoV')||{}).value||'';
+    if(!m){toast('Escolha quem enxerga: só a matriz, todas ou algumas lojas.');return false;}
     var escolhidas=[];
     document.querySelectorAll('.lbSuc').forEach(function(c){if(c.checked)escolhidas.push(c.value)});
-    if(!todas&&!escolhidas.length){
-      toast('Escolha ao menos uma unidade, ou marque Todas.');return false;
+    if(m==='lojas'&&!escolhidas.length){
+      toast('Marque ao menos uma loja, ou escolha "Só a matriz".');return false;
     }
-    itens.forEach(function(x){ x.sucursais=todas?[TODAS_UN]:escolhidas.slice(); });
+    itens.forEach(function(x){
+      x.sucursais=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
+    });
     LB.sel={};salvar();telaLiberacao();
     toast(itens.length+' item(ns) atualizado(s).');
     if(NUVEM.ligada)sincronizar();
     return true;
+  });
+}
+/* ==========================================================
+   COPIAR O QUE UMA LOJA ENXERGA PARA OUTRAS (01/10/2026)
+
+   Rafael: "estou fazendo a configuracao completa de Santa Fe — o que ela
+   ve e o que nao ve. Quero escolher a loja padrao e replicar essa mesma
+   configuracao para as outras lojas."
+
+   Em todos os cadastros da liberacao: o que a loja modelo enxerga, a
+   loja de destino passa a enxergar; o que a modelo nao enxerga, a de
+   destino deixa de enxergar. Item liberado para todas nao muda. Nada e
+   apagado — so a liberacao de cada item. Mostra quanto vai mudar e pede
+   confirmacao antes.
+   ========================================================== */
+function copiaLiberacaoPlano(modelo,destinos){
+  var muda=0,porCad=[];
+  CADASTROS_LIB.forEach(function(c){
+    var n=0;
+    (DB[c.col]||[]).forEach(function(x){
+      var l=x.sucursais||[];
+      if(l.indexOf(TODAS_UN)>=0)return;
+      var mv=l.indexOf(modelo)>=0;
+      destinos.forEach(function(d){ if(mv!==(l.indexOf(d)>=0))n++; });
+    });
+    if(n){muda+=n;porCad.push([c.n,n]);}
+  });
+  return {muda:muda,porCad:porCad};
+}
+function copiarLiberacao(modelo,destinos){
+  var itens=0;
+  CADASTROS_LIB.forEach(function(c){
+    (DB[c.col]||[]).forEach(function(x){
+      var l=(x.sucursais||[]).slice();
+      if(l.indexOf(TODAS_UN)>=0)return;
+      var mv=l.indexOf(modelo)>=0,mexeu=false;
+      destinos.forEach(function(d){
+        var i=l.indexOf(d);
+        if(mv&&i<0){l.push(d);mexeu=true;}
+        else if(!mv&&i>=0){l.splice(i,1);mexeu=true;}
+      });
+      if(mexeu){x.sucursais=l;x.alterado=Date.now();itens++;}
+    });
+  });
+  return itens;
+}
+function abrirCopiaLiberacao(){
+  var lojas=sucAtivas().filter(function(s){return !s.matriz});
+  if(lojas.length<2){toast('É preciso ter ao menos duas lojas para copiar.');return;}
+  var incomp=CADASTROS_LIB.filter(function(c){
+    return typeof colecaoIncompleta==='function'&&colecaoIncompleta(c.col);});
+  if(incomp.length){
+    toast('Os cadastros ainda estão chegando da nuvem — tente de novo em instantes.');return;
+  }
+  modal('Copiar o que uma loja enxerga',
+  '<div class="mdB">'+
+   '<div class="hint" style="margin:0 0 12px">A loja escolhida abaixo fica enxergando exatamente '+
+    'o mesmo que a loja modelo, em todos os cadastros. O estoque e o saldo não mudam.</div>'+
+   '<label class="lbCampo"><b>Loja modelo</b>'+
+    '<select id="lbCpModelo" onchange="lbCopiaModeloMudou()">'+lojas.map(function(s){
+      return '<option value="'+E(s.id)+'">'+E(s.nome)+'</option>';}).join('')+'</select></label>'+
+   '<div class="lbLojasT" style="margin-top:12px"><b>Copiar para</b></div>'+
+   '<div class="lbGrade" id="lbCpDestinos">'+lojas.map(function(s,i){
+      return '<label class="lbOp"'+(i===0?' style="display:none"':'')+'><input type="checkbox" class="lbCpD" value="'+E(s.id)+'"'+
+       (i===0?' disabled':'')+'><b>'+E(s.nome)+'</b></label>';
+   }).join('')+'</div>'+
+  '</div>','Copiar',function(){
+    var modelo=$('lbCpModelo').value;
+    var destinos=[];
+    document.querySelectorAll('.lbCpD').forEach(function(c){
+      if(c.checked&&!c.disabled&&c.value!==modelo)destinos.push(c.value);});
+    if(!destinos.length){toast('Marque a loja que vai receber a mesma configuração.');return false;}
+    var p=copiaLiberacaoPlano(modelo,destinos);
+    var nomes=destinos.map(sucNome).join(', ');
+    if(!p.muda){toast(nomes+' já enxerga exatamente o mesmo que '+sucNome(modelo)+'.');return true;}
+    return confirmar({titulo:'Copiar de '+sucNome(modelo),texto:'Para: '+nomes,
+      linhas:p.porCad.map(function(x){return [x[0],x[1]+' mudança(s)',''];}),
+      aviso:'Depois disto, '+nomes+' passa a enxergar o mesmo que '+sucNome(modelo)+
+        '. Nada é apagado: só muda quem enxerga cada item.',
+      ok:'Copiar',cancelar:'Voltar'}).then(function(sim){
+        if(!sim)return false;
+        var n=copiarLiberacao(modelo,destinos);
+        salvar();telaLiberacao();
+        toast(n+' item(ns) ajustado(s): '+nomes+' agora enxerga o mesmo que '+sucNome(modelo)+'.');
+        if(NUVEM.ligada)sincronizar();
+        return true;
+      });
+  });
+}
+function lbCopiaModeloMudou(){
+  var m=($('lbCpModelo')||{}).value;
+  document.querySelectorAll('.lbCpD').forEach(function(c){
+    var eu=c.value===m;
+    c.disabled=eu;if(eu)c.checked=false;
+    c.parentNode.style.display=eu?'none':'';
   });
 }
 function explicaLiberacao(){

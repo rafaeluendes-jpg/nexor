@@ -271,6 +271,36 @@ tr.pbSel td{background:var(--acc-soft)}
 .lbSegm button.on{background:var(--deep);color:#fff;font-weight:600}
 .lbSegm button b{font-variant-numeric:tabular-nums;opacity:.75;font-weight:600}
 .lbTabW{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+/* quem enxerga: tres escolhas e as lojas em cartoes (01/10/2026) */
+.lbTopoAc{display:flex;align-items:center;gap:8px;flex:none}
+.lbModos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.lbModo{display:flex;align-items:flex-start;gap:9px;text-align:left;padding:11px 12px;min-height:44px;
+  border:1.5px solid var(--line-2);border-radius:var(--r);background:var(--panel);cursor:pointer;
+  font-family:inherit;color:var(--ink)}
+.lbModo:hover{border-color:var(--acc-l)}
+.lbModo:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.lbModo i{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid var(--line);margin-top:1px}
+.lbModo b{display:block;font-size:13px}
+.lbModo small{display:block;font-size:11px;color:var(--ink-2);margin-top:2px;line-height:1.3}
+.lbModo.on{border-color:var(--acc);background:var(--acc-soft)}
+.lbModo.on i{border-color:var(--acc);box-shadow:inset 0 0 0 3px var(--panel);background:var(--acc)}
+.lbLojas{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-2)}
+.lbLojasT{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.lbLojasT b{flex:1;font-size:12.5px;color:var(--ink-2)}
+.lbGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.lbOp{display:flex;align-items:center;gap:9px;padding:10px 12px;min-height:44px;cursor:pointer;
+  border:1.5px solid var(--line-2);border-radius:var(--r-s);background:var(--panel);font-size:13px}
+.lbOp:hover{border-color:var(--acc-l)}
+.lbOp input{flex:none;width:16px;height:16px;accent-color:var(--acc);margin:0}
+.lbOp:has(input:checked){border-color:var(--acc);background:var(--acc-soft)}
+.lbLojas .hint{margin-top:9px}
+.lbCampo{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2)}
+.lbCampo select{height:40px;border:1px solid var(--line);border-radius:var(--r-s);padding:0 10px;
+  font-family:inherit;font-size:13.5px;background:var(--panel);color:var(--ink)}
+@media(max-width:600px){
+  .lbModos{grid-template-columns:1fr}
+  .lbGrade{grid-template-columns:1fr 1fr}
+}
 /* ==========================================================
    O CABECALHO DA CENTRAL DE BASES TEM DE GRUDAR — SEM TREMER
 

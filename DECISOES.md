@@ -7489,3 +7489,54 @@ O que mudou no caixa:
   chega depois imprime sem repetir a ficha.
 
 Guardião: `testes/fiscal-rapido-e-sefaz-fora.js` (27), com a parte V404.
+
+## V405 — definições fiscais da planilha; quem enxerga e copiar de uma loja (01/10/2026)
+
+**Definições fiscais (planilha de 28/09/2026, CNPJ de Santa Fé).**
+- Gravado em `produtos`: NCM, CEST, CFOP e CSOSN de cada produto, igual à
+  planilha. O CST vem do CSOSN: 102 → 00 e 500 → 60. Origem 0 e UN onde
+  estava vazio.
+- Gravado em `fiscal_unidades` de Santa Fé: PIS/COFINS CST 99.
+- Migration: `20261001_definicoes_fiscais_santa_fe.sql`.
+
+Resultado:
+- gelato, copos, cascões e taxa ficam com 2105.00.90 / 5102 / 102;
+- sobremesas, bordas e brindes ficam com 1806.31.10 / 5102 / 102;
+- latas, café e energético ficam com 2202.10.00 / 5405 / 500, CEST
+  03.011.00;
+- as águas ficam com 2201.10.00 / 5102 / 102.
+
+Alinhamentos:
+- "Fanta Lata" da planilha vale para as duas Fantas do cadastro.
+- "Copo Jolo Parceiro" não está na planilha. Ficou igual ao Copo M.
+
+Não aplicado, porque o sistema não tem o campo e o Simples Nacional não é
+obrigado a ele em 2026:
+- IBS/CBS (cClassTrib 200047);
+- EX TIPI;
+- PIS 01 do Fondue (produto inativo).
+
+A planilha põe o Fatiatto com NCM de água (2201.10.00); foi gravado como
+veio.
+
+`joia-fiscal` v13: PIS/COFINS 49 e 99 sem alíquota vão com alíquota 0
+explícita. Assim o XML leva o grupo completo, inclusive de caixa ainda
+na versão velha.
+
+**Quem enxerga.** A janela tem três escolhas: Só a matriz, Todas as
+unidades e Escolher lojas. As lojas aparecem em cartões só na terceira
+escolha. "Só a matriz" grava a lista vazia (a regra da rede) e não pede
+loja; era o que a ficha técnica da base precisava.
+
+**Copiar de uma loja.** Fica na Liberação por Unidade. Em todos os
+cadastros da liberação, a loja de destino passa a enxergar exatamente o
+que a loja modelo enxerga:
+- item de todas as unidades não muda;
+- as demais lojas não mudam;
+- mostra quanto vai mudar e pede confirmação antes;
+- bloqueia enquanto os cadastros ainda chegam da nuvem.
+
+Guardiões:
+- `testes/liberacao-so-matriz-e-copiar.js` (12);
+- `fiscal-rapido-e-sefaz-fora.js` (29);
+- prova 11f no Chromium.
