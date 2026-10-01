@@ -3595,6 +3595,29 @@ function servir() {
     LB.col = 'insumos'; LB.busca = ''; salvar();
   }, sucAntes);
 
+  console.log('\n── 11g. Central de Erros (o vigia)\n');
+  await pg.evaluate(() => {
+    fecharModal();
+    CE.lista = [
+      { id: 'e1', sucursal_ref: '', tipo: 'fiscal', mensagem: 'Cupom recusado pela Receita: NCM inexistente (venda 2590)', vezes: 3,
+        ultimo_em: new Date().toISOString(), status: 'aberto' },
+      { id: 'e2', sucursal_ref: '', tipo: 'nuvem', mensagem: 'Venda não subiu para a nuvem', vezes: 1,
+        ultimo_em: new Date().toISOString(), status: 'resolvido', resolucao: 'O aparelho reenviou sozinho.' }];
+    CE.erro = ''; CE.filtro = 'aberto';
+    abrir('tecnico', 'central-erros');
+  });
+  await pg.waitForTimeout(300);
+  await pg.screenshot({ path: FOTOS + '/central-erros.png' });
+  const ce1 = await pg.evaluate(() => ({ t: document.getElementById('content').textContent,
+    linhas: document.querySelectorAll('.ceTab tbody tr').length }));
+  t('a Central de Erros mostra o que está em aberto', /Central de Erros/.test(ce1.t) && ce1.linhas === 1 &&
+    /NCM inexistente/.test(ce1.t), JSON.stringify({ l: ce1.linhas }));
+  await pg.click('.lbSegm button:has-text("Resolvidos")');
+  await pg.waitForTimeout(150);
+  const ce2 = await pg.evaluate(() => document.getElementById('content').textContent);
+  t('e o que o vigia já resolveu, com o que foi feito', /reenviou sozinho/.test(ce2));
+  await pg.evaluate(() => { CE.lista = null; CE.filtro = 'aberto'; });
+
   console.log('\n── 12. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 
