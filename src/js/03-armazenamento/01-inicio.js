@@ -947,6 +947,8 @@ function registrarFalha(area,onde,msg,extra){
     });
     if(DIAGNOSTICO.length>300)DIAGNOSTICO.pop();
     try{localStorage.setItem('nexor_diag',JSON.stringify(DIAGNOSTICO.slice(0,80)));}catch(e){/* nao registra: e o proprio registrador */}
+    /* e vai para a caixinha do vigia (29-vigia.js), que junta e corrige */
+    if(typeof vigiaDaFalha==='function')vigiaDaFalha(area,onde,msg,extra);
   }catch(x){/* nao registra: e o proprio registrador */}
 }
 try{ DIAGNOSTICO=JSON.parse(localStorage.getItem('nexor_diag')||'[]'); }catch(e){ DIAGNOSTICO=[]; }
@@ -1016,6 +1018,7 @@ function logNuvem(txt,erro){
   NUVEM.log=NUVEM.log||[];
   NUVEM.log.unshift({h:new Date().toLocaleTimeString('pt-BR'),t:txt,e:!!erro});
   if(NUVEM.log.length>60)NUVEM.log.pop();
+  if(erro&&typeof reportarErro==='function')reportarErro('nuvem','registro da nuvem',txt);
 }
 function semear(){
   /* Cliente novo nasce VAZIO. Sem ficha de exemplo, sem insumo de demonstracao,

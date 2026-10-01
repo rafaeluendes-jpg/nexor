@@ -1,5 +1,5 @@
 {
- "gerado": "2026-09-30",
+ "gerado": "2026-10-01",
  "projeto": "cevghkndzpzvnzwifhnm",
  "tabelas": {
   "acertos": {
@@ -877,6 +877,34 @@
     ]
    ]
   },
+  "erros_sistema": {
+   "colunas": {
+    "id": "uuid",
+    "loja_id": "uuid",
+    "sucursal_ref": "text",
+    "aparelho": "text",
+    "usuario": "text",
+    "versao": "text",
+    "tipo": "text",
+    "onde": "text",
+    "mensagem": "text",
+    "detalhe": "jsonb",
+    "pedido_ref": "text",
+    "chave": "text",
+    "vezes": "integer",
+    "primeiro_em": "timestamp with time zone",
+    "ultimo_em": "timestamp with time zone",
+    "status": "text",
+    "resolucao": "text",
+    "resolvido_em": "timestamp with time zone",
+    "resolvido_por": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
   "estoque_unidade": {
    "colunas": {
     "id": "uuid",
@@ -1399,6 +1427,35 @@
     ],
     [
      "empresa_id"
+    ]
+   ]
+  },
+  "lotes_estoque": {
+   "colunas": {
+    "id": "uuid",
+    "loja_id": "uuid",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "item_ref": "text",
+    "item_nome": "text",
+    "lote": "text",
+    "fabricacao": "date",
+    "validade": "date",
+    "quantidade": "numeric",
+    "unidade": "text",
+    "origem": "text",
+    "origem_ref": "text",
+    "documento": "text",
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
     ]
    ]
   },
@@ -2387,35 +2444,6 @@
     [
      "loja_id",
      "chave"
-    ]
-   ]
-  },
-  "lotes_estoque": {
-   "colunas": {
-    "id": "uuid",
-    "loja_id": "uuid",
-    "ref_local": "text",
-    "sucursal_id": "text",
-    "item_ref": "text",
-    "item_nome": "text",
-    "lote": "text",
-    "fabricacao": "date",
-    "validade": "date",
-    "quantidade": "numeric",
-    "unidade": "text",
-    "origem": "text",
-    "origem_ref": "text",
-    "documento": "text",
-    "criado_em": "timestamp with time zone",
-    "alterado_em": "timestamp with time zone"
-   },
-   "unicos": [
-    [
-     "id"
-    ],
-    [
-     "loja_id",
-     "ref_local"
     ]
    ]
   }

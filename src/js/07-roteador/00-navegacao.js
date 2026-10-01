@@ -373,6 +373,7 @@ if(mid==='tecnico'&&iid==='layout-menu')return telaLayoutMenu();
 if(mid==='tecnico'&&iid==='instalacao')return telaInstalacao();
 if(mid==='tecnico'&&iid==='financeiro-nexor')return telaFinanceiroNexor();
 if(mid==='tecnico'&&iid==='diagnostico-sistema')return telaDiagnosticoSistema();
+if(mid==='tecnico'&&iid==='central-erros')return telaCentralErros();
 if(mid==='loja'&&iid==='carga-inicial')return telaCarga();
 if(mid==='teste'&&iid==='gerar-demo')return telaGerarDemo();
 if(mid==='teste'&&iid==='reset-sistema')return telaReset();

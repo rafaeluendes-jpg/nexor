@@ -110,6 +110,7 @@ var MOD=[
  {id:'central-tecnica',n:'Mapa do Sistema'},
  {id:'instalacao',n:'Empresas Clientes'},
  {id:'financeiro-nexor',n:'Mensalidades das Unidades'},
+ {id:'central-erros',n:'Central de Erros'},
  {id:'diagnostico-sistema',n:'Diagnóstico do Sistema'},
  {id:'sincronizacao',n:'Sincronização'},
  {id:'backup',n:'Backup e Restauração'},

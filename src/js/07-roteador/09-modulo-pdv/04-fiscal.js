@@ -760,6 +760,12 @@ async function acompanharCupom(cupomId,esperas){
 }
 /* o que ficou para trás: sai sozinho quando a conexão volta. Só a
    unidade aberta, só o que é desta loja — nunca emite pela vizinha. */
+function fsQuandoDoCupom(c,ped){
+  var d=String((c&&c.data)||(ped&&ped.data)||'').slice(0,10);
+  var h=String((c&&c.hora)||(ped&&ped.hora)||'00:00').slice(0,5);
+  var t=new Date(d+'T'+(/^\d\d:\d\d$/.test(h)?h:'00:00')+':00').getTime();
+  return isNaN(t)?0:t;
+}
 async function fiscalReprocessar(){
   if(!NUVEM.ligada||!NUVEM.token)return 0;
   var suc=lojaAtualId();
@@ -776,7 +782,16 @@ async function fiscalReprocessar(){
     if(!ped)return false;
     /* venda cancelada nao ganha cupom novo */
     if(c.naoEmitir||ehCancelado(ped))return false;
-    if(new Date(ped.data||c.data).getTime()<limite)return false;
+    /* ==========================================================
+       A HORA DA VENDA, NAO A MEIA-NOITE UTC (01/10/2026)
+       `new Date('2026-09-30')` e meia-noite em Londres — 21h da vespera
+       aqui. A venda 2562 de Santa Fe (30/09, 21h) caiu para fora da
+       janela antes de completar 24 h e ficou "presa no envio" sem
+       ninguem reconferir. Agora conta a data E a hora da venda; e o
+       cupom que ja foi enviado ("enviando") ainda e consultado por 72 h
+       — consultar nao emite nada, so descobre como ele terminou. */
+    var _quando=fsQuandoDoCupom(c,ped);
+    if(_quando<(c.status==='enviando'?limite-48*3600*1000:limite))return false;
     /* só o que já tinha sido mandado emitir: venda feita antes de a loja
        ligar a emissão não vira cupom sozinha, horas depois */
     return c.status==='enviando'||c.querEmitir||(c.tentativas||0)>0||!!c.motivo;
@@ -795,6 +810,20 @@ async function fiscalReprocessar(){
       c.reenvioCom=0;
       if(await fsReenviarPassageira(c))n++;
     }else{ await emitirCupom(c.id);n++; }
+  }
+  /* ==========================================================
+     O CUPOM QUE NAO IMPRIMIU SAI SOZINHO DEPOIS (vigia, 01/10/2026)
+     Autorizado, sem impressao, ha menos de 30 minutos: tenta de novo, no
+     maximo a cada 2 minutos, so a via fiscal (a da cozinha ja saiu). */
+  var _agora=Date.now();
+  var _reimp=baseCuponsFiscais().filter(function(c){
+    return (c.sucursalId||suc)===suc&&c.imprimirPendente&&!c.impressoEm&&
+      (c.status==='autorizado'||c.status==='contingencia')&&
+      _agora-c.imprimirPendente<30*60*1000&&_agora-(c.reimpressoEm||0)>=2*60*1000;
+  }).slice(0,3);
+  for(var j=0;j<_reimp.length;j++){
+    _reimp[j].reimpressoEm=_agora;
+    if(await imprimirDanfe(_reimp[j].id,{auto:true,soFiscal:true}))n++;
   }
   if(n)_fsGuardar();
   return n;
@@ -836,9 +865,16 @@ function fsAvisoPendencias(suc){
   var o=document.getElementById('fsPend');if(o)o.remove();
   var p=fsPendenciasDaUnidade(suc);
   if(!p.total)return;
+  /* ==========================================================
+     O CAIXA NAO E QUEM CONSERTA O FISCAL (Rafael, 01/10/2026)
+     "Voces que resolvem esses erros das notas. Pare de aparecer esses
+     erros na tela." Cupom preso no envio se resolve sozinho (a fila do
+     aparelho reconfere) e cupom recusado vai para a caixinha do vigia,
+     que corrige a causa. Na tela do balcao fica so o que so a loja pode
+     fazer: o cancelamento que tem prazo na Receita. */
+  if(typeof vigiaFiscalPendencias==='function')vigiaFiscalPendencias(suc);
+  if(!p.cancelar)return;
   var partes=[];
-  if(p.rejeitado)partes.push(p.rejeitado+' recusado(s) pela Receita');
-  if(p.preso)partes.push(p.preso+' preso(s) no envio');
   if(p.cancelar)partes.push(p.cancelar+' esperando cancelamento');
   var d=document.createElement('div');
   d.id='fsPend';d.className='fsChip at';
@@ -856,9 +892,11 @@ function fsChip(c){
   if(c.status==='enviando'){txt='Emitindo o cupom…';cls='';}
   else if(c.status==='autorizado'){txt='Cupom '+(c.numero||'')+' autorizado.';cls='ok';}
   else if(c.status==='contingencia'){txt='A SEFAZ está fora do ar. O cupom foi emitido em contingência: vale como documento e será transmitido sozinho quando ela voltar.';cls='at';}
-  else if(typeof ehFalhaPassageira==='function'&&ehFalhaPassageira(c)){txt='A Receita não respondeu agora — o cupom está sendo reenviado sozinho. A venda está salva.';cls='at';}
-  else if(c.status==='rejeitado'){txt='A Receita recusou este cupom: '+(c.motivo||'')+' A venda está salva. Corrija e reenvie em Cupons Gerados.';cls='rd';}
-  else if(c.status==='pendente'&&c.motivo){txt=c.motivo+(c.faltaCadastro?' A venda está salva.':'');cls='at';}
+  /* erro de cupom nao aparece no balcao: vai para a caixinha do vigia,
+     que corrige (Rafael, 01/10/2026: "voces que resolvem esses erros") */
+  else if(typeof ehFalhaPassageira==='function'&&ehFalhaPassageira(c)){if(typeof vigiaFiscal==='function')vigiaFiscal(c);return;}
+  else if(c.status==='rejeitado'){if(typeof vigiaFiscal==='function')vigiaFiscal(c);return;}
+  else if(c.status==='pendente'&&c.motivo){if(typeof vigiaFiscal==='function')vigiaFiscal(c);return;}
   else return;
   var d=document.createElement('div');
   d.id='fsChip';d.className='fsChip '+cls;
@@ -1555,7 +1593,13 @@ function montarDanfeNfce(d,cols){
   return L;
 }
 var _fsImprimindo={};
-async function imprimirDanfe(cupomId){
+/* impressao que o sistema disparou sozinho (venda, reimpressao): a falha
+   vai para a caixinha do vigia e para a fila de reimpressao, nao para a
+   tela. Clique de gente continua respondendo na tela. */
+var _fsAuto={};
+async function imprimirDanfe(cupomId,op){
+  op=op||{};
+  var _auto=!!(op.auto||_fsAuto[cupomId]);delete _fsAuto[cupomId];
   var c=baseCuponsFiscais().find(function(x){return x.id===cupomId});
   if(!c)return false;
   if(c.status!=='autorizado'&&c.status!=='contingencia'){
@@ -1582,7 +1626,14 @@ async function imprimirDanfe(cupomId){
       await new Promise(function(ok){setTimeout(ok,_esperas[_k]);});
       r=await fiscalChamar('danfe',{sucursal:c.sucursalId||lojaAtualId(),id:c.spedyId});
     }
-    if(!r.ok||!r.d||!r.d.danfe){toast((r.d&&r.d.erro)||'Não consegui buscar o cupom fiscal.');return false;}
+    if(!r.ok||!r.d||!r.d.danfe){
+      if(_auto){
+        c.imprimirPendente=c.imprimirPendente||Date.now();salvar();
+        if(typeof vigiaFiscal==='function')vigiaFiscal(c,'Cupom autorizado não imprimiu: '+((r.d&&r.d.erro)||'sem resposta do emissor'));
+        return false;
+      }
+      toast((r.d&&r.d.erro)||'Não consegui buscar o cupom fiscal.');return false;
+    }
     /* a mesma bobina da ficha, na letra normal */
     var m=(typeof modeloImp==='function'&&modeloImp('ficha'))||null;
     var mm=typeof papelDoModelo==='function'?papelDoModelo(m):80;
@@ -1599,7 +1650,7 @@ async function imprimirDanfe(cupomId){
     var linhas=montarDanfeNfce(r.d.danfe,cols);
     var ped=(DB.pedidos||[]).find(function(x){return x.id===c.pedidoId});
     var folhas=[{linhas:linhas,cols:cols}];
-    if(ped&&typeof viaDoPedido==='function'&&!(typeof _fsViaSo!=='undefined'&&_fsViaSo[ped.id])){
+    if(ped&&typeof viaDoPedido==='function'&&!(typeof _fsViaSo!=='undefined'&&_fsViaSo[ped.id])&&!op.soFiscal){
       var via=viaDoPedido(ped,cols);
       if(via&&via.linhas&&via.linhas.length)folhas.push({linhas:via.linhas,cols:via.cols});
     }
@@ -1609,6 +1660,7 @@ async function imprimirDanfe(cupomId){
     /* a via saiu junto: a rede de seguranca do PDV nao precisa disparar */
     if(typeof _fsViaJaSaiu==='function')_fsViaJaSaiu(c.pedidoId);
     c.impressoEm=new Date().toISOString();
+    delete c.imprimirPendente;
     salvar();
     return true;
   }finally{ delete _fsImprimindo[cupomId]; }
@@ -1622,6 +1674,7 @@ async function fsDepoisDeEmitir(c){
   var u=fiscalUn(c.sucursalId||lojaAtualId());
   var recente=(Date.now()-new Date(String(c.data||'')+'T'+(c.hora||'00:00')+':00').getTime())<10*60*1000;
   if(!recente)return;
+  if(u.imprime==='sempre')_fsAuto[c.id]=1;
   if(u.imprime==='sempre'){imprimirDanfe(c.id);return;}
   /* "perguntar" não perguntava nada: o cupom fiscal nunca saía e ninguém
      entendia por quê (29/09/2026). Agora ele pergunta mesmo — e só uma

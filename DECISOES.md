@@ -7563,3 +7563,61 @@ nenhuma linha tem o `ref_local` repetido.
 `conferirFilhosRepetidos` agora compara pelo id da linha, que era o
 defeito da V115. O achado vai só para o registro da nuvem, nunca para a
 tela do caixa. Guardião: `testes/repetida-e-mesma-linha.js`.
+
+## V407 — o vigia: caixinha de erros, cupom sem aviso no balcão, reimpressão sozinha (01/10/2026)
+
+Rafael aprovou o roteiro: "pode ligar o vigia" (`VIGIA_PLANO.md`). Depois
+mandou a tela de Santa Fé com "1 cupom preso no envio": "vocês que
+resolvem esses erros das notas, pare de aparecer esses erros na tela".
+
+**Caixinha de erros.** Tabela `erros_sistema` e RPC `registrar_erro`
+(migration `20261001_vigia_caixinha_de_erros.sql`).
+- A loja vem da sessão, nunca do aparelho.
+- O mesmo erro vira uma linha só, com contagem de vezes.
+- Só a matriz lê e marca como resolvido. Anônimo não tem acesso.
+
+O aparelho manda por `fetch` direto (`29-vigia.js`), nunca por `api()`:
+falha ao registrar falha não pode virar laço. Sem internet, a fila espera
+no aparelho.
+
+Fontes ligadas na caixinha:
+- `registrarFalha`, só a falha final e nunca o desempenho;
+- `logNuvem` com aviso;
+- erros soltos de tela e promessas;
+- o fiscal: recusado, preso há mais de 10 minutos, autorizado que não
+  imprimiu.
+
+Tela: Administração › Central de Erros, com Em aberto, Precisa de você e
+Resolvidos.
+
+**Balcão sem erro de cupom.**
+- `fsChip`: recusado, falha passageira e pendente com motivo vão para a
+  caixinha, sem aviso na tela.
+- `fsAvisoPendencias`: o aviso amarelo fica só para o cancelamento com
+  prazo, que só a loja pode fazer.
+
+**Venda 2562, presa desde 30/09 às 21h.** `fiscalReprocessar` comparava
+`new Date(ped.data)`, que é meia-noite UTC (21h da véspera aqui). A venda
+caía fora da janela de 24 h antes da hora, e ninguém mais a reconferia.
+
+Agora `fsQuandoDoCupom` usa a data e a hora da venda. O cupom já enviado
+("enviando") é consultado por 72 h; consultar não emite nada.
+
+**Reimpressão sozinha.** A impressão automática que falha marca
+`imprimirPendente` e avisa a caixinha, sem toast. O reprocesso tenta de
+novo:
+- a cada 2 minutos, por até 30 minutos;
+- só a via fiscal.
+
+O clique de gente continua respondendo na tela.
+
+**O vigia.**
+- Skill: `.claude/skills/vigia/SKILL.md`.
+- Rotina: de hora em hora, das 9h às 23h, horário de Brasília.
+
+Ele lê a caixinha, os cupons, os registros da função fiscal e a bateria;
+acha a causa; e corrige. Defeito de código sobe com o portão inteiro
+verde. O que não pode (configuração, apagar, regra nova) vai para
+"Precisa de você".
+
+Guardião: `testes/vigia-caixinha.js` (21).

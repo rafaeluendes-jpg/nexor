@@ -297,6 +297,16 @@ tr.pbSel td{background:var(--acc-soft)}
 .lbCampo{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2)}
 .lbCampo select{height:40px;border:1px solid var(--line);border-radius:var(--r-s);padding:0 10px;
   font-family:inherit;font-size:13.5px;background:var(--panel);color:var(--ink)}
+/* central de erros (vigia, 01/10/2026) */
+.ceTab td{vertical-align:top}
+.ceTipo{display:inline-block;font-size:11px;font-weight:700;color:var(--ink-2);margin-right:4px}
+.ceRes{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:12px;color:var(--ok)}
+.ceSit{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;
+  background:var(--alt);color:var(--ink-2);white-space:nowrap}
+.ceSit.aberto{background:var(--amber-soft);color:var(--amber)}
+.ceSit.corrigindo{background:var(--blue-soft);color:var(--blue)}
+.ceSit.resolvido{background:var(--ok-soft);color:var(--ok)}
+.ceSit.precisa_voce{background:var(--red-soft);color:var(--red)}
 @media(max-width:600px){
   .lbModos{grid-template-columns:1fr}
   .lbGrade{grid-template-columns:1fr 1fr}

@@ -589,6 +589,10 @@
    "pontos": 0,
    "roda": true
   },
+  "testes/vigia-caixinha.js": {
+   "pontos": 21,
+   "roda": true
+  },
   "testes/vinculo-opcao.js": {
    "pontos": 28,
    "roda": true

@@ -1,6 +1,6 @@
 # Vigia do Joia — como vai funcionar
 
-Roteiro para aprovação do Rafael. Nada disto está ligado ainda.
+Aprovado pelo Rafael em 01/10/2026 ("pode ligar o vigia"). Ligado na V407.
 
 ## 1. A caixinha de erros
 
