@@ -200,6 +200,9 @@ function dataDoFiltro(l){
 }
 function filtrarLanc(){
   return (DB.lancFin||[]).filter(function(l){
+    /* a loja escolhida no topo manda: Santa Fe aberta, so Santa Fe
+       (a mesma regra do fluxo de caixa e do DRE) */
+    if(!daUnidadeAberta(l))return false;
     if(LF.tipo==='pagar'&&l.tipo!=='despesa')return false;
     if(LF.tipo==='receber'&&l.tipo!=='receita')return false;
     if(LF.sit==='pagas'&&!l.pago)return false;

@@ -3286,6 +3286,108 @@ function servir() {
     rEd4.n === 1 && rEd4.ed === 1 && rEd4.conf === 11 && rEd4.rascunho === null, JSON.stringify(rEd4));
   await pg.evaluate(() => { fecharModal(); CT2.aba = 'hist'; });
 
+  console.log('\n── 11d. Ajustar o saldo da conta para o valor real, e pedido de base só a pagar\n');
+  /* Rafael, 01/10/2026: "coloco o valor que esta no banco e e aquele valor
+     que vai valer na conta naquele exato momento". E: com Santa Fe aberta,
+     a tela so mostra Santa Fe; o pedido de base na loja e sempre a pagar. */
+  await pg.evaluate(() => {
+    fecharModal();
+    DB.sucursais = DB.sucursais || [];
+    if (!DB.sucursais.some(x => x.id === 'suc_sf'))
+      DB.sucursais.push({ id: 'suc_sf', nome: 'Santa Fé', matriz: false, ativa: true });
+    DB.contas = DB.contas || [];
+    if (!DB.contas.some(x => x.id === 'ct_itau'))
+      DB.contas.push({ id: 'ct_itau', nome: 'Itaú — conta corrente', tipo: 'Banco', banco: 'itau', saldoInicial: 1000 });
+    salvar();
+    abrir('financeira', 'contas-bancarias');
+  });
+  await pg.waitForTimeout(300);
+  const aj0 = await pg.evaluate(() => {
+    var c = DB.contas.find(x => x.id === 'ct_itau');
+    return { saldo: saldoConta(c), botoes: document.querySelectorAll('.ctAj').length };
+  });
+  t('cada conta tem o botão Ajustar saldo', aj0.botoes >= 1, aj0.botoes);
+  await pg.click('.ctLin:has-text("Itaú") .ctAj');
+  await pg.waitForTimeout(200);
+  const aj1 = await pg.evaluate(() => {
+    var m = document.getElementById('mdOv');
+    return m ? m.textContent.replace(/\s+/g, ' ') : '';
+  });
+  t('a janela mostra o saldo do sistema', /Saldo no sistema/.test(aj1) && /1\.000,00/.test(aj1), aj1.slice(0, 160));
+  await pg.fill('#ajV', '1234.56');
+  const ajDif = await pg.evaluate(() => (document.querySelector('#ajDif b') || {}).textContent || '');
+  t('e a diferença, enquanto digita', /\+ R\$ 234,56/.test(ajDif), ajDif);
+  await pg.screenshot({ path: FOTOS + '/ajuste-saldo.png' });
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(400);
+  const aj2 = await pg.evaluate(() => {
+    var c = DB.contas.find(x => x.id === 'ct_itau');
+    var l = (DB.lancFin || []).filter(x => x.origem === 'ajuste-saldo' && x.contaId === 'ct_itau');
+    return { saldo: saldoConta(c), n: l.length, tipo: (l[0] || {}).tipo, valor: (l[0] || {}).valor,
+      pago: (l[0] || {}).pago, data: (l[0] || {}).pagamento, hoje: hojeISO(), ini: c.saldoInicial,
+      tela: (document.querySelector('.ctLin') ? document.getElementById('content').textContent : '') };
+  });
+  t('o saldo passa a ser o valor real', aj2.saldo === 1234.56, aj2.saldo);
+  t('por UM lançamento de ajuste, já pago, com a data de hoje, no valor da diferença',
+    aj2.n === 1 && aj2.tipo === 'receita' && aj2.valor === 234.56 && aj2.pago && aj2.data === aj2.hoje,
+    JSON.stringify(aj2).slice(0, 200));
+  t('o saldo inicial (o passado) não muda', aj2.ini === 1000, aj2.ini);
+  t('a tela de contas mostra o saldo novo', /1\.234,56/.test(aj2.tela));
+  /* o banco tem MENOS que o sistema: o ajuste sai */
+  await pg.click('.ctLin:has-text("Itaú") .ctAj');
+  await pg.waitForTimeout(200);
+  await pg.fill('#ajV', '1200');
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(400);
+  const aj3 = await pg.evaluate(() => {
+    var c = DB.contas.find(x => x.id === 'ct_itau');
+    var l = (DB.lancFin || []).filter(x => x.origem === 'ajuste-saldo' && x.contaId === 'ct_itau');
+    return { saldo: saldoConta(c), n: l.length, tipo: (l[1] || {}).tipo, valor: (l[1] || {}).valor };
+  });
+  t('banco com menos: o ajuste sai e o saldo bate', aj3.saldo === 1200 && aj3.n === 2 && aj3.tipo === 'despesa' && aj3.valor === 34.56,
+    JSON.stringify(aj3));
+  /* pelo Editar da conta também se chega ao ajuste */
+  await pg.evaluate(() => modalConta('ct_itau'));
+  await pg.waitForTimeout(200);
+  const aj4 = await pg.evaluate(() => {
+    var b = document.querySelector('.ajEdit button');
+    var t0 = document.querySelector('.ajEdit') ? document.querySelector('.ajEdit').textContent : '';
+    if (b) b.click();
+    return { t0: t0, abriu: !!document.getElementById('ajV') };
+  });
+  t('o Editar da conta mostra o saldo e leva ao ajuste', /1\.200,00/.test(aj4.t0) && aj4.abriu, JSON.stringify(aj4));
+  await pg.evaluate(() => fecharModal());
+  /* sobrevive a recarga */
+  await entrar();
+  const aj5 = await pg.evaluate(() => saldoConta(DB.contas.find(x => x.id === 'ct_itau')));
+  t('depois de recarregar, o saldo ajustado continua', aj5 === 1200, aj5);
+
+  /* pedido de base: com Santa Fé aberta, só Santa Fé; e na loja é sempre a pagar */
+  const pb = await pg.evaluate(() => {
+    var h = hojeISO();
+    DB.lancFin.push({ id: 'lf_pb_mat', tipo: 'receita', descricao: 'Pedido de base #0099 — Santa Fé', valor: 50,
+      emissao: h, vencimento: h, pagamento: '', pago: false, origem: 'pedido_base', sucursalRef: 'suc_matriz' });
+    DB.lancFin.push({ id: 'lf_pb_sf', tipo: 'despesa', descricao: 'Pedido de base #0099 — matriz', valor: 50,
+      emissao: h, vencimento: h, pagamento: '', pago: false, origem: 'pedido_base', sucursalRef: 'suc_sf',
+      categoriaTxt: 'Pedido de base', fornecedor: 'Matriz' });
+    salvar();
+    DB.lojaAtual = 'suc_sf'; S.loja = 'suc_sf';
+    LF.de = h; LF.ate = h; LF.tipo = 'todas'; LF.sit = 'todas';
+    var ids = filtrarLanc().map(x => x.id);
+    modalLanc('lf_pb_sf');
+    var rad = document.querySelector('.tipoRad');
+    var fixo = Array.from(document.querySelectorAll('.tipoFixo')).map(x => x.textContent).join(' ');
+    fecharModal();
+    DB.lojaAtual = 'suc_matriz'; S.loja = 'suc_matriz';
+    var idsM = filtrarLanc().map(x => x.id);
+    return { sf: ids, matriz: idsM, radioEscondido: !!rad && rad.style.display === 'none', fixo: fixo };
+  });
+  t('com Santa Fé aberta, a cobrança da matriz não aparece', pb.sf.indexOf('lf_pb_mat') < 0 && pb.sf.indexOf('lf_pb_sf') >= 0,
+    JSON.stringify(pb.sf));
+  t('na matriz, a cobrança aparece', pb.matriz.indexOf('lf_pb_mat') >= 0, JSON.stringify(pb.matriz));
+  t('o lançamento do pedido de base abre travado em conta a pagar',
+    pb.radioEscondido && /sempre conta a pagar/.test(pb.fixo), JSON.stringify(pb));
+
   console.log('\n── 12. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 

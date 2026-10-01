@@ -757,7 +757,11 @@ function volta(linhas,fn,atual,col){
     codigoBarras:x.codigo_barras||'',
     valor:Number(x.valor)||0,emissao:x.emissao,vencimento:x.vencimento,pagamento:x.pagamento,
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
-    origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}},null,'lancFin');
+    origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao,
+    /* a unidade desce junto (01/10/2026): sem ela o filtro por loja deixava
+       passar tudo, e o proximo envio carimbava a loja que estivesse aberta —
+       foi assim que a cobranca da matriz foi parar em Santa Fe */
+    sucursalRef:x.sucursal_id||undefined}},null,'lancFin');
   /* cardápio */
   var rc=await _p07;
   var rp=await _p08;

@@ -4031,6 +4031,21 @@ tbody td small{font-size:10.5px}
 .ctB.rd:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
 .ctB.az{color:var(--blue)}
 .ctB.az:hover{border-color:var(--blue);background:var(--blue-soft)}
+/* ajustar saldo (01/10/2026) */
+.ctAj{height:32px;padding:0 10px;border:1px solid var(--line);background:#fff;border-radius:6px;
+  cursor:pointer;color:var(--ink-2);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap}
+.ctAj:hover{border-color:var(--acc);color:var(--acc-d);background:var(--acc-soft)}
+@media(max-width:600px){.ctAj{width:32px;padding:0;justify-content:center}.ctAj span{display:none}}
+.ajLin{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
+  background:var(--alt);border:1px solid var(--line-2);border-radius:8px;font-size:13px}
+.ajLin b{font-variant-numeric:tabular-nums;font-size:15px}
+.ajDif{margin:10px 0 12px}
+.ajDif.mais b{color:var(--ok)}
+.ajDif.menos b{color:var(--red)}
+.ajEdit{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--alt)}
+.ajEdit b{display:block;font-size:13px}
+.ajEdit span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
 .ctRod{display:flex;align-items:center;padding:9px 14px;background:var(--alt);
   border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
 .ctRod b{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink)}
@@ -12023,7 +12038,11 @@ function volta(linhas,fn,atual,col){
     codigoBarras:x.codigo_barras||'',
     valor:Number(x.valor)||0,emissao:x.emissao,vencimento:x.vencimento,pagamento:x.pagamento,
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
-    origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao}},null,'lancFin');
+    origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao,
+    /* a unidade desce junto (01/10/2026): sem ela o filtro por loja deixava
+       passar tudo, e o proximo envio carimbava a loja que estivesse aberta —
+       foi assim que a cobranca da matriz foi parar em Santa Fe */
+    sucursalRef:x.sucursal_id||undefined}},null,'lancFin');
   /* cardápio */
   var rc=await _p07;
   var rp=await _p08;
@@ -14535,6 +14554,14 @@ function trocarLoja(id){
     toast('Sua conta não opera na unidade '+sucNome(id)+'.');
     fecharSuc();return;
   }
+  /* o lancamento feito nesta loja e que ainda nao subiu leva a loja junto:
+     sem isso ele subia carimbado com a loja aberta na hora do envio */
+  try{
+    var _ant=lojaAtualId();
+    (DB.lancFin||[]).forEach(function(l){
+      if(l&&!l.sucursalRef&&!(DB._uuid&&DB._uuid.lancFin&&DB._uuid.lancFin[l.id]))l.sucursalRef=_ant;
+    });
+  }catch(e){_quieto(e,'trocarLoja')}
   DB.lojaAtual=id;S.loja=id;
   fecharSuc();
   /* o saldo mostrado na tela passa a ser o DESTA unidade */
@@ -14571,7 +14598,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V399.0.0';
+var VERSAO='V400.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -29072,6 +29099,8 @@ function telaContas(){
        (c.fixa?' <span class="badge2 gr">fixa</span>':'')+'</b><span>'+det+'</span></div>'+
      '<div class="ctVal"><b>R$ '+money(saldoConta(c))+'</b><span>saldo atual</span></div>'+
      '<div class="ctAcs">'+
+      '<button class="ctAj" onclick="modalAjusteSaldo(\''+c.id+'\')" title="Acertar com o saldo real">'+
+       sv('cash',14)+'<span>Ajustar saldo</span></button>'+
       (c.fixa==='caixa'
         ?'<button class="ctB az" onclick="abrir(\'pdv\',\'pdv\')" title="Ir ao PDV">'+sv('pos',15)+'</button>'
         :'<button class="ctB" onclick="modalConta(\''+c.id+'\')" title="Editar">'+sv('edit',15)+'</button>')+
@@ -29127,6 +29156,10 @@ function modalConta(id){
   '</div>'+
   '<div class="avisoInfo">'+sv('help',15)+'<div>O <b>saldo inicial</b> é quanto a conta tinha '+
   'quando você começou a usar o sistema. A partir daí os lançamentos somam e subtraem sozinhos.</div></div>'+
+  (c?'<div class="ajEdit"><div><b>Saldo no sistema agora: R$ '+money(saldoConta(c))+'</b>'+
+    '<span>O banco mostra outro valor? Acerte para o saldo real, sem mexer no saldo inicial.</span></div>'+
+    '<button type="button" class="btnP2" onclick="fecharModal();modalAjusteSaldo(\''+c.id+'\')">'+
+    sv('cash',14)+' Ajustar saldo</button></div>':'')+
   '</div></div>';
   modal(c?'Editar conta':'Cadastrar conta',h,'Salvar',function(){
     var nome=$('cbN').value.trim();
@@ -29157,6 +29190,94 @@ function modalConta(id){
     };
   }
   ligaPils();
+}
+/* ==========================================================
+   AJUSTAR O SALDO PARA O VALOR REAL (Rafael, 01/10/2026)
+
+   "Como a gente vai comecar um mes agora, eu preciso atualizar os valores
+   que tem em conta, em caixa, no cofre. Coloco o valor que esta no banco,
+   ele faz o valor real menos o que ja existe no sistema, e e aquele valor
+   que vai valer na conta naquele exato momento."
+
+   O saldo da conta e saldo inicial + o que foi pago. Mexer no saldo
+   inicial reescreveria o passado (todo mes anterior mudaria de valor).
+   O acerto entra como UM lancamento, ja pago, com a data e a hora de
+   agora, no valor da diferenca: sobra no banco vira entrada, falta vira
+   saida. Ele aparece no extrato da conta como "Ajuste de saldo", com o
+   antes e o depois, e fica fora do DRE (nao e venda nem despesa).
+
+   O Caixa da loja com o caixa ABERTO tem o saldo vindo do PDV, ao vivo:
+   ali o acerto e pelo suprimento ou pela sangria, que ja existem.
+   ========================================================== */
+function modalAjusteSaldo(id){
+  baseCat();
+  var c=(DB.contas||[]).find(function(x){return x.id===id});
+  if(!c){toast('Conta não encontrada.');return;}
+  if(c.fixa==='caixa'&&caixaAberto()){
+    toast('O caixa está aberto: acerte pelo suprimento ou pela sangria no PDV.');
+    return;
+  }
+  var sis=saldoConta(c);
+  var onde=c.fixa?'contado agora':'no banco agora';
+  var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
+   '<div class="ajLin"><span>Saldo no sistema</span><b>R$ '+money(sis)+'</b></div>'+
+   '<div class="fld2" style="margin-top:12px"><label>Saldo real '+onde+' *</label><div class="cur"><span>R$</span>'+
+    '<input id="ajV" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div></div>'+
+   '<div class="ajLin ajDif" id="ajDif"><span>Diferença</span><b>—</b></div>'+
+   '<div class="avisoInfo">'+sv('help',15)+'<div>Entra um lançamento <b>Ajuste de saldo</b>, já pago, '+
+    'com a data e a hora de agora, no valor da diferença. A partir daí o saldo de <b>'+E(c.nome)+
+    '</b> é o valor real. O saldo inicial e os meses anteriores não mudam, e o ajuste não entra no DRE.</div></div>'+
+  '</div></div>';
+  modal('Ajustar saldo — '+c.nome,h,'Ajustar saldo',async function(){
+    var raw=String(($('ajV')||{}).value||'').trim();
+    if(raw===''){toast('Informe o saldo real.');var i0=$('ajV');if(i0)i0.focus();return false;}
+    var real=+(parseFloat(raw.replace(',','.'))||0).toFixed(2);
+    var vivo=(DB.contas||[]).find(function(x){return x.id===id});
+    if(!vivo){toast('Esta conta foi excluída em outro aparelho.');telaContas();return true;}
+    var agora=saldoConta(vivo);                /* relido: pode ter mudado com a janela aberta */
+    var dif=+(real-agora).toFixed(2);
+    if(!dif){toast('O saldo de '+vivo.nome+' já é R$ '+money(real)+'. Nada a ajustar.');return true;}
+    var ok=await confirmar({
+      titulo:'Ajustar o saldo de '+vivo.nome+'?',
+      linhas:[['Saldo no sistema','R$ '+money(agora),''],
+              ['Saldo real','R$ '+money(real),''],
+              [dif>0?'Entra (ajuste)':'Sai (ajuste)','R$ '+money(Math.abs(dif)),'']],
+      ok:'Ajustar saldo'});
+    if(!ok)return false;
+    baseLanc();
+    var u=(typeof usuarioLogado==='function'?usuarioLogado():null)||{};
+    var hoje=hojeISO();
+    var l={id:uid('lf'),tipo:dif>0?'receita':'despesa',contaId:vivo.id,metodoId:'',
+      descricao:'Ajuste de saldo — '+vivo.nome+': R$ '+money(agora)+' para R$ '+money(real),
+      valor:Math.abs(dif),emissao:hoje,vencimento:hoje,pagamento:hoje,pago:true,conciliado:false,
+      categoriaId:'',categoriaTxt:'Ajuste de saldo',fornecedor:'',documento:'',
+      origem:'ajuste-saldo',
+      obs:'Ajuste feito às '+agoraHM()+(u.nome||u.login?' por '+(u.nome||u.login):''),
+      sucursalRef:lojaAtualId()};
+    DB.lancFin.push(l);
+    salvar();telaContas();
+    var bate=saldoConta(vivo)===real;
+    if(!bate){toast('O ajuste foi gravado, mas o saldo não bateu. Confira os lançamentos de '+vivo.nome+'.');return true;}
+    conferirLancNaNuvem([l.id]).then(function(subiu){
+      toast(subiu?('Saldo de '+vivo.nome+' ajustado para R$ '+money(real)+' — salvo e conferido na nuvem.')
+                 :('Saldo de '+vivo.nome+' ajustado para R$ '+money(real)+' neste aparelho. Sobe para a nuvem no próximo envio.'));
+      telaContas();
+    });
+    return true;
+  });
+  var inp=$('ajV');
+  if(inp){
+    inp.oninput=function(){
+      var d=$('ajDif');if(!d)return;
+      var v=String(this.value||'').trim();
+      if(v===''){d.className='ajLin ajDif';d.querySelector('b').textContent='—';return;}
+      var dif=+((parseFloat(v.replace(',','.'))||0)-sis).toFixed(2);
+      d.className='ajLin ajDif '+(dif>0?'mais':dif<0?'menos':'');
+      d.querySelector('b').textContent=(dif>0?'+ ':dif<0?'− ':'')+'R$ '+money(Math.abs(dif))+
+        (dif>0?' (entra)':dif<0?' (sai)':' (já bate)');
+    };
+    setTimeout(function(){try{inp.focus()}catch(e){}},60);
+  }
 }
 async function excluirConta(id){
   var c=DB.contas.find(function(x){return x.id===id});
@@ -29586,6 +29707,9 @@ function dataDoFiltro(l){
 }
 function filtrarLanc(){
   return (DB.lancFin||[]).filter(function(l){
+    /* a loja escolhida no topo manda: Santa Fe aberta, so Santa Fe
+       (a mesma regra do fluxo de caixa e do DRE) */
+    if(!daUnidadeAberta(l))return false;
     if(LF.tipo==='pagar'&&l.tipo!=='despesa')return false;
     if(LF.tipo==='receber'&&l.tipo!=='receita')return false;
     if(LF.sit==='pagas'&&!l.pago)return false;
@@ -33257,6 +33381,29 @@ function menuNovo(ev){
    '<span class="mnIc" style="background:#E8F0FC;color:#2C6FD1">'+sv('troca',14)+'</span> Transferência entre contas</button>');
 }
 
+/* ==========================================================
+   PEDIDO DE BASE NA LOJA E SEMPRE CONTA A PAGAR (Rafael, 01/10/2026)
+
+   "As lojas pagam isso para a franqueadora, nao pode ter essa opcao de
+   contas a receber de base." O lancamento que nasceu do pedido de base
+   (pela nota do Franqueador ou por "Recebi as bases") abre na edicao com
+   o tipo travado em despesa, e fora da matriz a categoria "Pedido de
+   base — a receber" nao aparece nem passa no salvar.
+   ========================================================== */
+function lancDePedidoBase(l){
+  if(!l||l.tipo!=='despesa')return false;
+  if(l.origem==='pedido_base')return true;
+  var cp=categoriaDoEvento('pedbase-pagar');
+  if(cp&&l.categoriaId===cp)return true;
+  var n=(typeof notaDoLanc==='function')?notaDoLanc(l):null;
+  return !!(n&&n.pedidoBaseRef);
+}
+/* a categoria "Pedido de base — a receber" e so da matriz */
+function catSoDaMatriz(subId){
+  var cr=categoriaDoEvento('pedbase-receber');
+  return !!(cr&&subId===cr&&!ehSucMatriz(lojaAtualId()));
+}
+
 /* ---------- DESPESA / RECEITA ---------- */
 var _preLanc=null;
 function modalLanc(id,tipoNovo,pre){
@@ -33282,7 +33429,8 @@ function modalLanc(id,tipoNovo,pre){
      ========================================================== */
   var semTopo=!l;
   /* na conciliacao nao se troca receita/despesa: o movimento ja existe no banco */
-  var escondeTipo=(!l&&P.soDespesa)||!!P.deCB;
+  var travaBase=lancDePedidoBase(l);
+  var escondeTipo=(!l&&P.soDespesa)||!!P.deCB||travaBase;
   /* banco e forma de pagamento pertencem ao pagamento, nao ao lancamento:
      so aparecem depois que a conta foi paga */
   var mostraPg=!!(l&&l.pago);
@@ -33300,6 +33448,7 @@ function modalLanc(id,tipoNovo,pre){
   '</div>'+
   /* compra de mercadoria e sempre despesa: nao se escolhe o tipo */
   ((!l&&P.soDespesa)?'<div class="tipoFixo">'+sv('dn',12)+' Compra de mercadoria — lançada como <b>despesa</b></div>':'')+
+  (travaBase?'<div class="tipoFixo">'+sv('dn',12)+' Pedido de base — sempre <b>conta a pagar</b> ao Franqueador</div>':'')+
   (P.deCB?'<div class="tipoFixo">'+sv('nike',12)+' Movimento do extrato — '+
     (tipo==='receita'?'<b>receita</b>':'<b>despesa</b>')+', o tipo não muda por aqui</div>':'')+
   /* ==========================================================
@@ -33433,6 +33582,11 @@ function modalLanc(id,tipoNovo,pre){
     if(jaPago&&$('lnC')&&!$('lnC').value){toast('Selecione o banco / conta.');return false;}
     if(jaPago&&$('lnM')&&!$('lnM').value){toast('Selecione a forma de pagamento.');return false;}
     var tp=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
+    if(travaBase)tp='despesa';
+    if(catSoDaMatriz($('lnCat').value)){
+      toast('Pedido de base na loja é sempre conta a pagar. A receber, só na matriz.');
+      return false;
+    }
     /* a categoria tem de EXISTIR no plano de contas e ser do lado certo —
        um id de categoria apagada aparecia como "—" e passava (28/09/2026) */
     if(!categoriaValida($('lnCat').value,tp)){
@@ -33455,6 +33609,9 @@ function modalLanc(id,tipoNovo,pre){
       categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),
       codigoBarras:soDigitos(($('lnCB')||{}).value),obs:$('lnO').value};
     if(l){Object.assign(l,o);salvar();telaLancamentos();conferirLancNaNuvem([l.id]);return true;}
+    /* o lancamento novo e da loja aberta AGORA — nao da que estiver aberta
+       quando ele subir */
+    o.sucursalRef=lojaAtualId();
     var parc=$('lnParc')&&$('lnParc').checked;
     if(parc){
       var ds=datasParcelas(),vs=valoresParcelas();
@@ -33569,7 +33726,7 @@ function desenhaCatLanc(){
       '<span class="ftSeta'+(ab?' ab':'')+'">'+sv('tri',9)+'</span>'+
       sv(ab?'folderOpen':'folder',13)+' <span class="arvInNm">'+E(p.nome)+'</span>'+
       '<span class="apQt">'+(p.itens||[]).length+'</span></div>'+
-     (ab?'<div class="arvInF">'+((p.itens||[]).length?p.itens.map(function(it){
+     (ab?'<div class="arvInF">'+((p.itens||[]).length?p.itens.filter(function(it){return !catSoDaMatriz(it.id)}).map(function(it){
        return '<div class="arvInIt sub'+(atual===it.id?' on':'')+'" onclick="escolheCatLanc(\''+it.id+'\')">'+
        sv('file2',12)+' '+E(it.nome)+'</div>';}).join('')
        :'<div class="hint" style="padding:5px 26px">sem itens</div>')+'</div>':'')+
@@ -38710,6 +38867,11 @@ function vencimentoPedidoBase(p){
    Sem tela: quem chama e o mesmo clique que marca o pedido como entregue.
    Devolve o lancamento criado, ou null se ja existia — a referencia gravada
    no pedido (finReceberRef) e o que impede a segunda via. */
+/* a unidade marcada como matriz no cadastro de unidades */
+function unidadeMatrizId(){
+  var m = baseSuc().find(function (s) { return s && s.matriz; });
+  return (m && m.id) || 'suc_matriz';
+}
 function gerarReceberPedido(p){
   if (!p || p.finReceberRef) return null;
   /* ATENCAO: DB.lancamentos e a colecao LEGADA — ela nao sobe para a nuvem e
@@ -38731,7 +38893,11 @@ function gerarReceberPedido(p){
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: vencimentoPedidoBase(p), pagamento: '',
     pago: false, conciliado: false,
-    origem: 'pedido_base', origemRef: p.id
+    origem: 'pedido_base', origemRef: p.id,
+    /* a cobranca e da MATRIZ, qualquer que seja a loja aberta no topo
+       (01/10/2026: com Santa Fe aberta, ela nascia em Santa Fe como
+       "a receber") */
+    sucursalRef: (typeof unidadeMatrizId === 'function') ? unidadeMatrizId() : 'suc_matriz'
   };
   DB.lancFin.push(l);
   p.finReceberRef = l.id;
@@ -38981,7 +39147,8 @@ async function receberPedidoBase(id){
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: hojeISO(), pagamento: '',
     pago: false, conciliado: false,
-    origem: 'pedido_base', origemRef: p.id
+    origem: 'pedido_base', origemRef: p.id,
+    sucursalRef: p.sucursalRef || lojaAtualId()   /* a loja que recebeu */
   };
   DB.lancFin.push(l);
   p.finPagarRef = l.id;

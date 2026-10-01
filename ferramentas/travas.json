@@ -397,6 +397,10 @@
    "pontos": 100,
    "roda": true
   },
+  "testes/pedido-base-a-pagar-e-ajuste-saldo.js": {
+   "pontos": 25,
+   "roda": true
+  },
   "testes/pedido-base-sobe-inteiro.js": {
    "pontos": 52,
    "roda": true

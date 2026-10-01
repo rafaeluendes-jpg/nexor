@@ -7301,3 +7301,48 @@ com anotação do que mudou.
   lista, gravação no aparelho e, com internet, a contagem e o ajuste
   LIDOS de volta da nuvem. Sem internet ela diz que sobe depois — nunca
   "no banco de dados" sem ter conferido.
+
+## V400 — pedido de base na loja é sempre a pagar; ajuste de saldo das contas (01/10/2026)
+
+**Pedido de base.** O Raylan entrou com o login da matriz, escolheu Santa Fé
+e viu, em "Contas a receber", as cobranças "Pedido de base #0005/#0006 —
+Jolo Santa Fe do Sul". Quem recebe o pedido de base é só a franqueadora.
+
+Causa:
+- o lançamento perdia a unidade ao descer da nuvem;
+- no envio seguinte, a unidade era carimbada com a loja aberta no topo;
+- as três cobranças da matriz (#0001, #0005, #0006) foram parar em Santa Fé;
+- o filtro por loja (`daUnidadeAberta`), que o fluxo e o DRE já usavam,
+  deixava passar tudo, porque não havia unidade para comparar.
+
+Correção:
+- a unidade desce junto;
+- lançamento novo nasce com a loja de agora;
+- trocar de loja carimba o que ainda não subiu;
+- a tela de lançamentos usa o mesmo filtro do fluxo e do DRE;
+- a cobrança nasce na matriz (`unidadeMatrizId`) e a conta a pagar na loja
+  do pedido;
+- o lançamento do pedido de base abre travado em despesa;
+- fora da matriz, "Pedido de base — a receber" não aparece nem passa;
+- os três lançamentos voltaram para a matriz no banco, com cópia em
+  `arquivo.bkp_lanc_pedbase_20261001`.
+
+A criação pela nota do Franqueador já era só despesa (`soDespesa`).
+
+**Ajuste de saldo.** Para começar o mês com o saldo real de banco, caixa e
+cofre, cada conta tem um botão "Ajustar saldo", que também aparece dentro
+do Editar. Funciona assim:
+- mostra o saldo do sistema e pede o saldo real;
+- calcula a diferença enquanto a pessoa digita;
+- grava um lançamento "Ajuste de saldo", já pago, com a data e a hora de
+  agora, no valor da diferença: entrada se o banco tem mais, saída se
+  tem menos;
+- o saldo inicial (o passado) não muda;
+- o ajuste fica fora do DRE;
+- só diz "ajustado" depois de conferir que o saldo bateu e que a nuvem
+  recebeu.
+
+Com o caixa aberto, o acerto continua pelo suprimento ou pela sangria no PDV.
+
+Guardião: `testes/pedido-base-a-pagar-e-ajuste-saldo.js` (25). Prova no
+Chromium: 11d em `ferramentas/provar.js`.

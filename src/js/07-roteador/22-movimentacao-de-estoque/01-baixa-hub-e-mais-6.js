@@ -643,6 +643,11 @@ function vencimentoPedidoBase(p){
    Sem tela: quem chama e o mesmo clique que marca o pedido como entregue.
    Devolve o lancamento criado, ou null se ja existia — a referencia gravada
    no pedido (finReceberRef) e o que impede a segunda via. */
+/* a unidade marcada como matriz no cadastro de unidades */
+function unidadeMatrizId(){
+  var m = baseSuc().find(function (s) { return s && s.matriz; });
+  return (m && m.id) || 'suc_matriz';
+}
 function gerarReceberPedido(p){
   if (!p || p.finReceberRef) return null;
   /* ATENCAO: DB.lancamentos e a colecao LEGADA — ela nao sobe para a nuvem e
@@ -664,7 +669,11 @@ function gerarReceberPedido(p){
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: vencimentoPedidoBase(p), pagamento: '',
     pago: false, conciliado: false,
-    origem: 'pedido_base', origemRef: p.id
+    origem: 'pedido_base', origemRef: p.id,
+    /* a cobranca e da MATRIZ, qualquer que seja a loja aberta no topo
+       (01/10/2026: com Santa Fe aberta, ela nascia em Santa Fe como
+       "a receber") */
+    sucursalRef: (typeof unidadeMatrizId === 'function') ? unidadeMatrizId() : 'suc_matriz'
   };
   DB.lancFin.push(l);
   p.finReceberRef = l.id;
@@ -914,7 +923,8 @@ async function receberPedidoBase(id){
     valor: Number(p.total) || 0,
     emissao: hojeISO(), vencimento: hojeISO(), pagamento: '',
     pago: false, conciliado: false,
-    origem: 'pedido_base', origemRef: p.id
+    origem: 'pedido_base', origemRef: p.id,
+    sucursalRef: p.sucursalRef || lojaAtualId()   /* a loja que recebeu */
   };
   DB.lancFin.push(l);
   p.finPagarRef = l.id;

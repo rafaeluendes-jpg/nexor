@@ -883,6 +883,29 @@ function menuNovo(ev){
    '<span class="mnIc" style="background:#E8F0FC;color:#2C6FD1">'+sv('troca',14)+'</span> Transferência entre contas</button>');
 }
 
+/* ==========================================================
+   PEDIDO DE BASE NA LOJA E SEMPRE CONTA A PAGAR (Rafael, 01/10/2026)
+
+   "As lojas pagam isso para a franqueadora, nao pode ter essa opcao de
+   contas a receber de base." O lancamento que nasceu do pedido de base
+   (pela nota do Franqueador ou por "Recebi as bases") abre na edicao com
+   o tipo travado em despesa, e fora da matriz a categoria "Pedido de
+   base — a receber" nao aparece nem passa no salvar.
+   ========================================================== */
+function lancDePedidoBase(l){
+  if(!l||l.tipo!=='despesa')return false;
+  if(l.origem==='pedido_base')return true;
+  var cp=categoriaDoEvento('pedbase-pagar');
+  if(cp&&l.categoriaId===cp)return true;
+  var n=(typeof notaDoLanc==='function')?notaDoLanc(l):null;
+  return !!(n&&n.pedidoBaseRef);
+}
+/* a categoria "Pedido de base — a receber" e so da matriz */
+function catSoDaMatriz(subId){
+  var cr=categoriaDoEvento('pedbase-receber');
+  return !!(cr&&subId===cr&&!ehSucMatriz(lojaAtualId()));
+}
+
 /* ---------- DESPESA / RECEITA ---------- */
 var _preLanc=null;
 function modalLanc(id,tipoNovo,pre){
@@ -908,7 +931,8 @@ function modalLanc(id,tipoNovo,pre){
      ========================================================== */
   var semTopo=!l;
   /* na conciliacao nao se troca receita/despesa: o movimento ja existe no banco */
-  var escondeTipo=(!l&&P.soDespesa)||!!P.deCB;
+  var travaBase=lancDePedidoBase(l);
+  var escondeTipo=(!l&&P.soDespesa)||!!P.deCB||travaBase;
   /* banco e forma de pagamento pertencem ao pagamento, nao ao lancamento:
      so aparecem depois que a conta foi paga */
   var mostraPg=!!(l&&l.pago);
@@ -926,6 +950,7 @@ function modalLanc(id,tipoNovo,pre){
   '</div>'+
   /* compra de mercadoria e sempre despesa: nao se escolhe o tipo */
   ((!l&&P.soDespesa)?'<div class="tipoFixo">'+sv('dn',12)+' Compra de mercadoria — lançada como <b>despesa</b></div>':'')+
+  (travaBase?'<div class="tipoFixo">'+sv('dn',12)+' Pedido de base — sempre <b>conta a pagar</b> ao Franqueador</div>':'')+
   (P.deCB?'<div class="tipoFixo">'+sv('nike',12)+' Movimento do extrato — '+
     (tipo==='receita'?'<b>receita</b>':'<b>despesa</b>')+', o tipo não muda por aqui</div>':'')+
   /* ==========================================================
@@ -1059,6 +1084,11 @@ function modalLanc(id,tipoNovo,pre){
     if(jaPago&&$('lnC')&&!$('lnC').value){toast('Selecione o banco / conta.');return false;}
     if(jaPago&&$('lnM')&&!$('lnM').value){toast('Selecione a forma de pagamento.');return false;}
     var tp=(document.querySelector('input[name=lnT]:checked')||{}).value||'despesa';
+    if(travaBase)tp='despesa';
+    if(catSoDaMatriz($('lnCat').value)){
+      toast('Pedido de base na loja é sempre conta a pagar. A receber, só na matriz.');
+      return false;
+    }
     /* a categoria tem de EXISTIR no plano de contas e ser do lado certo —
        um id de categoria apagada aparecia como "—" e passava (28/09/2026) */
     if(!categoriaValida($('lnCat').value,tp)){
@@ -1081,6 +1111,9 @@ function modalLanc(id,tipoNovo,pre){
       categoriaId:$('lnCat').value,fornecedor:forn,fornecedorId:fid,documento:$('lnDoc').value.trim(),
       codigoBarras:soDigitos(($('lnCB')||{}).value),obs:$('lnO').value};
     if(l){Object.assign(l,o);salvar();telaLancamentos();conferirLancNaNuvem([l.id]);return true;}
+    /* o lancamento novo e da loja aberta AGORA — nao da que estiver aberta
+       quando ele subir */
+    o.sucursalRef=lojaAtualId();
     var parc=$('lnParc')&&$('lnParc').checked;
     if(parc){
       var ds=datasParcelas(),vs=valoresParcelas();
@@ -1195,7 +1228,7 @@ function desenhaCatLanc(){
       '<span class="ftSeta'+(ab?' ab':'')+'">'+sv('tri',9)+'</span>'+
       sv(ab?'folderOpen':'folder',13)+' <span class="arvInNm">'+E(p.nome)+'</span>'+
       '<span class="apQt">'+(p.itens||[]).length+'</span></div>'+
-     (ab?'<div class="arvInF">'+((p.itens||[]).length?p.itens.map(function(it){
+     (ab?'<div class="arvInF">'+((p.itens||[]).length?p.itens.filter(function(it){return !catSoDaMatriz(it.id)}).map(function(it){
        return '<div class="arvInIt sub'+(atual===it.id?' on':'')+'" onclick="escolheCatLanc(\''+it.id+'\')">'+
        sv('file2',12)+' '+E(it.nome)+'</div>';}).join('')
        :'<div class="hint" style="padding:5px 26px">sem itens</div>')+'</div>':'')+

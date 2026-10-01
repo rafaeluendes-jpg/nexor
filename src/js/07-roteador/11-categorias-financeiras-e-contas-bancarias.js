@@ -419,6 +419,8 @@ function telaContas(){
        (c.fixa?' <span class="badge2 gr">fixa</span>':'')+'</b><span>'+det+'</span></div>'+
      '<div class="ctVal"><b>R$ '+money(saldoConta(c))+'</b><span>saldo atual</span></div>'+
      '<div class="ctAcs">'+
+      '<button class="ctAj" onclick="modalAjusteSaldo(\''+c.id+'\')" title="Acertar com o saldo real">'+
+       sv('cash',14)+'<span>Ajustar saldo</span></button>'+
       (c.fixa==='caixa'
         ?'<button class="ctB az" onclick="abrir(\'pdv\',\'pdv\')" title="Ir ao PDV">'+sv('pos',15)+'</button>'
         :'<button class="ctB" onclick="modalConta(\''+c.id+'\')" title="Editar">'+sv('edit',15)+'</button>')+
@@ -474,6 +476,10 @@ function modalConta(id){
   '</div>'+
   '<div class="avisoInfo">'+sv('help',15)+'<div>O <b>saldo inicial</b> é quanto a conta tinha '+
   'quando você começou a usar o sistema. A partir daí os lançamentos somam e subtraem sozinhos.</div></div>'+
+  (c?'<div class="ajEdit"><div><b>Saldo no sistema agora: R$ '+money(saldoConta(c))+'</b>'+
+    '<span>O banco mostra outro valor? Acerte para o saldo real, sem mexer no saldo inicial.</span></div>'+
+    '<button type="button" class="btnP2" onclick="fecharModal();modalAjusteSaldo(\''+c.id+'\')">'+
+    sv('cash',14)+' Ajustar saldo</button></div>':'')+
   '</div></div>';
   modal(c?'Editar conta':'Cadastrar conta',h,'Salvar',function(){
     var nome=$('cbN').value.trim();
@@ -504,6 +510,94 @@ function modalConta(id){
     };
   }
   ligaPils();
+}
+/* ==========================================================
+   AJUSTAR O SALDO PARA O VALOR REAL (Rafael, 01/10/2026)
+
+   "Como a gente vai comecar um mes agora, eu preciso atualizar os valores
+   que tem em conta, em caixa, no cofre. Coloco o valor que esta no banco,
+   ele faz o valor real menos o que ja existe no sistema, e e aquele valor
+   que vai valer na conta naquele exato momento."
+
+   O saldo da conta e saldo inicial + o que foi pago. Mexer no saldo
+   inicial reescreveria o passado (todo mes anterior mudaria de valor).
+   O acerto entra como UM lancamento, ja pago, com a data e a hora de
+   agora, no valor da diferenca: sobra no banco vira entrada, falta vira
+   saida. Ele aparece no extrato da conta como "Ajuste de saldo", com o
+   antes e o depois, e fica fora do DRE (nao e venda nem despesa).
+
+   O Caixa da loja com o caixa ABERTO tem o saldo vindo do PDV, ao vivo:
+   ali o acerto e pelo suprimento ou pela sangria, que ja existem.
+   ========================================================== */
+function modalAjusteSaldo(id){
+  baseCat();
+  var c=(DB.contas||[]).find(function(x){return x.id===id});
+  if(!c){toast('Conta não encontrada.');return;}
+  if(c.fixa==='caixa'&&caixaAberto()){
+    toast('O caixa está aberto: acerte pelo suprimento ou pela sangria no PDV.');
+    return;
+  }
+  var sis=saldoConta(c);
+  var onde=c.fixa?'contado agora':'no banco agora';
+  var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
+   '<div class="ajLin"><span>Saldo no sistema</span><b>R$ '+money(sis)+'</b></div>'+
+   '<div class="fld2" style="margin-top:12px"><label>Saldo real '+onde+' *</label><div class="cur"><span>R$</span>'+
+    '<input id="ajV" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div></div>'+
+   '<div class="ajLin ajDif" id="ajDif"><span>Diferença</span><b>—</b></div>'+
+   '<div class="avisoInfo">'+sv('help',15)+'<div>Entra um lançamento <b>Ajuste de saldo</b>, já pago, '+
+    'com a data e a hora de agora, no valor da diferença. A partir daí o saldo de <b>'+E(c.nome)+
+    '</b> é o valor real. O saldo inicial e os meses anteriores não mudam, e o ajuste não entra no DRE.</div></div>'+
+  '</div></div>';
+  modal('Ajustar saldo — '+c.nome,h,'Ajustar saldo',async function(){
+    var raw=String(($('ajV')||{}).value||'').trim();
+    if(raw===''){toast('Informe o saldo real.');var i0=$('ajV');if(i0)i0.focus();return false;}
+    var real=+(parseFloat(raw.replace(',','.'))||0).toFixed(2);
+    var vivo=(DB.contas||[]).find(function(x){return x.id===id});
+    if(!vivo){toast('Esta conta foi excluída em outro aparelho.');telaContas();return true;}
+    var agora=saldoConta(vivo);                /* relido: pode ter mudado com a janela aberta */
+    var dif=+(real-agora).toFixed(2);
+    if(!dif){toast('O saldo de '+vivo.nome+' já é R$ '+money(real)+'. Nada a ajustar.');return true;}
+    var ok=await confirmar({
+      titulo:'Ajustar o saldo de '+vivo.nome+'?',
+      linhas:[['Saldo no sistema','R$ '+money(agora),''],
+              ['Saldo real','R$ '+money(real),''],
+              [dif>0?'Entra (ajuste)':'Sai (ajuste)','R$ '+money(Math.abs(dif)),'']],
+      ok:'Ajustar saldo'});
+    if(!ok)return false;
+    baseLanc();
+    var u=(typeof usuarioLogado==='function'?usuarioLogado():null)||{};
+    var hoje=hojeISO();
+    var l={id:uid('lf'),tipo:dif>0?'receita':'despesa',contaId:vivo.id,metodoId:'',
+      descricao:'Ajuste de saldo — '+vivo.nome+': R$ '+money(agora)+' para R$ '+money(real),
+      valor:Math.abs(dif),emissao:hoje,vencimento:hoje,pagamento:hoje,pago:true,conciliado:false,
+      categoriaId:'',categoriaTxt:'Ajuste de saldo',fornecedor:'',documento:'',
+      origem:'ajuste-saldo',
+      obs:'Ajuste feito às '+agoraHM()+(u.nome||u.login?' por '+(u.nome||u.login):''),
+      sucursalRef:lojaAtualId()};
+    DB.lancFin.push(l);
+    salvar();telaContas();
+    var bate=saldoConta(vivo)===real;
+    if(!bate){toast('O ajuste foi gravado, mas o saldo não bateu. Confira os lançamentos de '+vivo.nome+'.');return true;}
+    conferirLancNaNuvem([l.id]).then(function(subiu){
+      toast(subiu?('Saldo de '+vivo.nome+' ajustado para R$ '+money(real)+' — salvo e conferido na nuvem.')
+                 :('Saldo de '+vivo.nome+' ajustado para R$ '+money(real)+' neste aparelho. Sobe para a nuvem no próximo envio.'));
+      telaContas();
+    });
+    return true;
+  });
+  var inp=$('ajV');
+  if(inp){
+    inp.oninput=function(){
+      var d=$('ajDif');if(!d)return;
+      var v=String(this.value||'').trim();
+      if(v===''){d.className='ajLin ajDif';d.querySelector('b').textContent='—';return;}
+      var dif=+((parseFloat(v.replace(',','.'))||0)-sis).toFixed(2);
+      d.className='ajLin ajDif '+(dif>0?'mais':dif<0?'menos':'');
+      d.querySelector('b').textContent=(dif>0?'+ ':dif<0?'− ':'')+'R$ '+money(Math.abs(dif))+
+        (dif>0?' (entra)':dif<0?' (sai)':' (já bate)');
+    };
+    setTimeout(function(){try{inp.focus()}catch(e){}},60);
+  }
 }
 async function excluirConta(id){
   var c=DB.contas.find(function(x){return x.id===id});
