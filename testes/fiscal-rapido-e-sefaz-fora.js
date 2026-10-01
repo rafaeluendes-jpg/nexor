@@ -81,5 +81,18 @@ const rc = semCom(corpoDaFuncao('registrarCupom', fonte));
 t('a venda não espera a conferência da loja quando já se sabe que ela emite',
   /var jaSabe=!!\(uC&&uC\.lidoEm&&fiscalEmite\(suc\)\);/.test(rc) && /jaSabe\?Promise\.resolve\(uC\):fiscalGarantir\(suc\)/.test(rc));
 
+console.log('\n── 3. Login do Supabase fora do ar (V404, venda 2580)\n');
+t('o servidor dá 5 s ao login, não 90', /comPrazo\(cli\.auth\.getUser\(\), 5000\)/.test(srv));
+t('login fora do ar: quem confere o token é o banco (public.eu)', /cli\.rpc\("eu"\)/.test(srv) &&
+  fs.existsSync(path.join(__dirname, '..', 'supabase/migrations/20261001_fiscal_eu_sem_servico_de_login.sql')));
+t('token inválido de verdade continua barrado', /if \(r && st >= 400 && st < 500\) return null;/.test(srv));
+t('login fora do ar responde 503 "pendente", não "sessão inválida"', /responde\(503, \{ erro: "O login do sistema não respondeu agora/.test(srv));
+const fc = semCom(corpoDaFuncao('fiscalChamar', fonte));
+t('o caixa desiste da chamada em 30 s', /setTimeout\(function\(\)\{try\{_ctl\.abort\(\)\}catch\(e\)\{\}\},30000\)/.test(fc) && /signal:_ctl\?_ctl\.signal:undefined/.test(fc));
+t('e tenta o cupom de novo em 3, 6, 12 e 20 s', /\[3000,6000,12000,20000\]/.test(ec) &&
+  /r\.status===0\|\|r\.status===401\|\|r\.status===429\|\|r\.status>=500/.test(ec));
+t('o cupom que chega atrasado não repete a ficha que já saiu',
+  /_fsViaSo\[ped\.id\]=1;/.test(fonte) && /!\(typeof _fsViaSo!=='undefined'&&_fsViaSo\[ped\.id\]\)/.test(im));
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam' : '✓ ' + testes + ' testes passaram') + '\n');
 process.exit(falhas ? 1 : 0);

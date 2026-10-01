@@ -250,7 +250,7 @@
    "roda": true
   },
   "testes/fiscal-rapido-e-sefaz-fora.js": {
-   "pontos": 20,
+   "pontos": 27,
    "roda": true
   },
   "testes/fiscal-telas.js": {

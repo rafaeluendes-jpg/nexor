@@ -1861,6 +1861,9 @@ function fsViaSaiComOCupom(ped){
    fiscal sai depois, em vez de a producao parar esperando a Receita.
    ========================================================== */
 var _fsViasEsperando={};
+/* a ficha ja saiu sozinha (o cupom atrasou): quando o cupom fiscal chegar,
+   ele sai SEM repetir a ficha da cozinha (V404) */
+var _fsViaSo={};
 var MS_ESPERA_VIA=8000;
 function _fsViaEspera(ped){
   if(_fsViasEsperando[ped.id])return;
@@ -1870,7 +1873,7 @@ function _fsViaEspera(ped){
       .find(function(x){return x.pedidoId===ped.id});
     /* o cupom saiu e ja levou a via junto: nada a fazer */
     if(c&&c.impressoEm)return;
-    imprimirVia(ped);
+    imprimirVia(ped);_fsViaSo[ped.id]=1;
   },MS_ESPERA_VIA);
 }
 /* o cupom fiscal imprimiu e levou a via junto: desarma a espera */

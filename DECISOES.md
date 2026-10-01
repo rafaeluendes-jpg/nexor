@@ -7462,3 +7462,30 @@ Guardiões:
 
 Os guardiões trancados do fiscal continuam iguais: o código foi ajustado
 para manter os trechos que eles exigem. Prova no Chromium: 11e refeita.
+
+## V404 — o cupom não depende mais do login do Supabase (01/10/2026)
+
+Pedido 2580 (Santa Fé, 13:35) saiu só com a ficha, sem DANFE e sem QR.
+
+Causa: o serviço de login do Supabase ficou fora do ar de 13:34 a 13:36
+(respostas 521/522). A função `joia-fiscal` conferia quem estava logado
+por esse serviço. A chamada ficou presa 90 s e voltou "sessão inválida".
+A rede de segurança de 8 s imprimiu a ficha sozinha. O cupom só foi
+autorizado 3 minutos depois (nº 85), e ninguém o imprimiu.
+
+O que mudou no servidor (`joia-fiscal` v12):
+- a conferência do login tem prazo de 5 s;
+- se o serviço de login não responde, a função confere pelo banco
+  (`public.eu()`, que devolve `auth.uid()` do próprio token);
+- se nenhum dos dois responde, a resposta é 503 "o cupom sai em
+  instantes", e não 401;
+- 401 só quando o token é de fato recusado.
+
+O que mudou no caixa:
+- a chamada fiscal desiste em 30 s, em vez de esperar sem fim;
+- falha de comunicação (sem resposta, 401, 429 ou 5xx) é tentada de novo
+  sozinha em 3, 6, 12 e 20 s;
+- quando a ficha já saiu sozinha pela rede de segurança, o DANFE que
+  chega depois imprime sem repetir a ficha.
+
+Guardião: `testes/fiscal-rapido-e-sefaz-fora.js` (27), com a parte V404.

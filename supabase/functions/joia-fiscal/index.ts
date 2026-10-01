@@ -113,6 +113,42 @@ function erroSpedy(d: any, status: number) {
   return msg || `A Spedy recusou o pedido (${status}).`;
 }
 
+/* ==========================================================
+   QUEM ESTA LOGADO, MESMO COM O LOGIN DO SUPABASE FORA DO AR (V404)
+
+   01/10/2026, 13:34 a 13:36: o servico de login respondeu 521/522. Esta
+   funcao perguntava a ele quem estava vendendo, ficou 90 segundos
+   esperando e devolveu "sessao invalida" — o cupom da venda 2580 so saiu
+   tres minutos depois, e a ficha foi para a cozinha sozinha.
+
+   Agora: o login tem 5 s para responder. Se ele estiver fora do ar (nao
+   respondeu, ou respondeu 5xx), quem confere o token e o BANCO — o
+   PostgREST valida a assinatura sozinho, sem o servico de login (funcao
+   public.eu()). Token invalido de verdade continua barrado.
+   ========================================================== */
+async function comPrazo<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let t: number | undefined;
+  const r = await Promise.race([p, new Promise<null>((ok) => { t = setTimeout(() => ok(null), ms); })]);
+  clearTimeout(t);
+  return r;
+}
+async function quemEsta(cli: any): Promise<any> {
+  let fora = false;
+  try {
+    const r: any = await comPrazo(cli.auth.getUser(), 5000);
+    if (r?.data?.user) return { user: r.data.user };
+    const st = Number(r?.error?.status || 0);
+    if (r && st >= 400 && st < 500) return null;      /* token invalido de verdade */
+    fora = true;                                      /* sem resposta, 0 ou 5xx */
+  } catch { fora = true; }
+  try {
+    const r2: any = await comPrazo(cli.rpc("eu"), 5000);
+    const uid = r2?.data;
+    if (typeof uid === "string" && /^[0-9a-f-]{36}$/i.test(uid)) return { user: { id: uid, email: null } };
+  } catch { /* o banco tambem nao respondeu */ }
+  return { user: null, fora };
+}
+
 Deno.serve(async (req) => {
   const h = cors(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: h });
@@ -121,8 +157,10 @@ Deno.serve(async (req) => {
   const auth = req.headers.get("Authorization") || "";
   if (!auth.startsWith("Bearer ")) return responde(401, { erro: "Entre no sistema primeiro." }, h);
   const comoUsuario = createClient(URL, ANON, { global: { headers: { Authorization: auth } } });
-  const { data: quem, error: eU } = await comoUsuario.auth.getUser();
-  if (eU || !quem?.user) return responde(401, { erro: "Sessão inválida ou vencida." }, h);
+  const quem = await quemEsta(comoUsuario);
+  if (!quem?.user) return quem?.fora
+    ? responde(503, { erro: "O login do sistema não respondeu agora — o cupom sai em instantes.", status: "pendente" }, h)
+    : responde(401, { erro: "Sessão inválida ou vencida." }, h);
 
   const db = createClient(URL, ADMIN, { auth: { persistSession: false } });
   const { data: perfil } = await db.from("perfis")

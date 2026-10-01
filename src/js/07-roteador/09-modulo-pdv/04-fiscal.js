@@ -63,16 +63,26 @@ async function fiscalChamar(acao,dados){
   if(!NUVEM.ligada||!NUVEM.token||!NUVEM.url)
     return {ok:false,status:0,d:{erro:'Sem conexão com a nuvem.'}};
   var corpo=Object.assign({acao:acao},dados||{});
+  /* ==========================================================
+     O CAIXA NAO FICA 90 SEGUNDOS ESPERANDO (V404, 01/10/2026)
+     Com o login do Supabase fora do ar, a chamada ficou presa 90 s.
+     Passou de 30 s (a emissao mais lenta, esperando a SEFAZ, leva uns
+     10), desiste e o cupom volta a ser tentado logo em seguida.
+     ========================================================== */
+  var _ctl=(typeof AbortController==='function')?new AbortController():null;
+  var _prazo=_ctl?setTimeout(function(){try{_ctl.abort()}catch(e){}},30000):null;
   try{
     var r=await fetch(NUVEM.url+'/functions/v1/joia-fiscal',{
       method:'POST',
       headers:{'apikey':NUVEM.chave,'Authorization':'Bearer '+NUVEM.token,
                'Content-Type':'application/json'},
-      body:JSON.stringify(corpo)});
+      body:JSON.stringify(corpo),signal:_ctl?_ctl.signal:undefined});
+    if(_prazo)clearTimeout(_prazo);
     var d=null;
     try{ d=await r.json(); }catch(e){_quieto(e,'fiscalChamar')}
     return {ok:r.ok,status:r.status,d:d||{}};
   }catch(e){
+    if(_prazo)clearTimeout(_prazo);
     return {ok:false,status:0,d:{erro:'Sem conexão com o servidor fiscal.'}};
   }
 }
@@ -603,6 +613,18 @@ async function emitirCupom(cupomId){
     }
   }finally{ _fsEmitindo[c.id]=false; }
   _fsGuardar();fsChip(c);
+  /* ==========================================================
+     FALHA DO CAMINHO, NAO DO CUPOM: TENTA DE NOVO EM SEGUNDOS (V404)
+     Servidor sem resposta, login fora do ar (401/503), 5xx: a venda ainda
+     esta no balcao. Em vez de esperar a fila do aparelho (minutos), tenta
+     de novo em 3, 6, 12 e 20 s — e o cupom sai assim que o caminho volta.
+     ========================================================== */
+  if(c.status==='pendente'&&r&&(r.status===0||r.status===401||r.status===429||r.status>=500)&&
+     c.querEmitir&&(c.rapidas||0)<4){
+    var _esp=[3000,6000,12000,20000][c.rapidas||0];
+    c.rapidas=(c.rapidas||0)+1;
+    setTimeout(function(){emitirCupom(c.id).catch(function(e){_quieto(e,'emitirCupom rapida');});},_esp);
+  }
   if(await fsNumeroRepetido(c))return emitirCupom(c.id);
   if(typeof fsReenviarPassageira==='function')await fsReenviarPassageira(c);
   fsDepoisDeEmitir(c);
@@ -1564,7 +1586,7 @@ async function imprimirDanfe(cupomId){
     var linhas=montarDanfeNfce(r.d.danfe,cols);
     var ped=(DB.pedidos||[]).find(function(x){return x.id===c.pedidoId});
     var folhas=[{linhas:linhas,cols:cols}];
-    if(ped&&typeof viaDoPedido==='function'){
+    if(ped&&typeof viaDoPedido==='function'&&!(typeof _fsViaSo!=='undefined'&&_fsViaSo[ped.id])){
       var via=viaDoPedido(ped,cols);
       if(via&&via.linhas&&via.linhas.length)folhas.push({linhas:via.linhas,cols:via.cols});
     }
