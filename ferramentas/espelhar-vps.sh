@@ -10,7 +10,7 @@
 # repositório — todos os ramos, todas as etiquetas, todo o histórico.
 # Não é uma pasta com os arquivos de hoje: é o repositório inteiro. De um
 # espelho desses dá para subir o sistema em qualquer lugar, sem GitHub,
-# com um `git clone /opt/espelho/nexor.git`.
+# com um `git clone /opt/espelho/jolo-central.git`.
 #
 # Ele NÃO apaga nada no GitHub e NÃO mexe em nada que está publicado.
 # Rodar de novo só atualiza o que mudou.
@@ -19,7 +19,7 @@
 #     export GH_TOKEN=ghp_...          # ver abaixo
 #     bash espelhar-vps.sh
 #
-# O token é preciso porque 5 dos repositórios são privados. Ele é usado
+# O token é preciso porque os repositórios são privados. Ele é usado
 # só na hora, não é gravado em disco e não aparece no log (a URL com o
 # token nunca é impressa, e o espelho guarda a URL sem ele).
 # ==========================================================
@@ -28,17 +28,16 @@ set -uo pipefail
 DESTINO="${DESTINO:-/opt/espelho}"
 DONO="rafaeluendes-jpg"
 
+# Ordem do Rafael de 01/10/2026: só os sistemas dele entram no servidor.
+# Os de fora ficam de fora — nexor (Joia), nexor-whatsapp, nexor-app,
+# delivery e sistema-inteligente NÃO são copiados. Acrescentar um aqui sem
+# ele pedir é guardar código que não é dele.
 REPOS=(
-  nexor                       # Joia — ERP das lojas Jolô (em produção)
-  nexor-whatsapp              # robô do WhatsApp do Joia
-  nexor-app                   # aplicativo
-  delivery                    # cardápio digital / delivery
-  painel-rafael-ulian         # painel
-  rafaellos-centro-de-gestao  # Central Rafaello's
-  Rafael-gest-o-              # Dalu
+  jolo-central                # Central Jolô
+  painel-rafael-ulian         # Painel Rafael Ulian
   r2on                        # R2ON (parado, mas guardado)
-  jolo-central                # central Jolô
-  sistema-inteligente         # sistema inteligente
+  Rafael-gest-o-              # Dalu — o projeto da Lu
+  rafaellos-centro-de-gestao  # Central Rafaello's
 )
 
 # 1) o que vier no ambiente; 2) o arquivo guardado; 3) o gh desta máquina
@@ -129,19 +128,26 @@ fi
 
 # Espelho que ninguém conseguiu abrir não é cópia de segurança: é pasta.
 prova=$(mktemp -d)
-if git clone --quiet "$DESTINO/nexor.git" "$prova/nexor" 2>/dev/null \
-   && [ -s "$prova/nexor/index.html" ]; then
-  echo "  prova: o sistema foi reaberto a partir do espelho, sem GitHub (ok)"
-else
-  echo "  PROBLEMA: o espelho existe mas não reabriu o sistema. Não é cópia válida."
-  rm -rf "$prova"; exit 1
-fi
+ruins=0
+for r in "${REPOS[@]}"; do
+  # reabrir de verdade cada espelho: um que ninguém consegue abrir é pasta,
+  # não cópia de segurança. E tem de vir arquivo dentro, não só o .git.
+  if git clone --quiet "$DESTINO/$r.git" "$prova/$r" 2>/dev/null \
+     && [ -n "$(ls -A "$prova/$r" 2>/dev/null | grep -v '^\.git$')" ]; then
+    :
+  else
+    echo "  PROBLEMA: $r não reabriu a partir do espelho. Não é cópia válida."
+    ruins=$((ruins+1))
+  fi
+done
 rm -rf "$prova"
+[ "$ruins" -gt 0 ] && exit 1
+echo "  prova: os ${#REPOS[@]} sistemas foram reabertos a partir do espelho, sem GitHub (ok)"
 
 echo "  cópia completa em $DESTINO"
 echo
 echo "  Para manter em dia sozinho (uma vez por dia, de madrugada):"
 echo "    (crontab -l 2>/dev/null; echo '17 4 * * * DESTINO=$DESTINO bash $(readlink -f "$0") >> /var/log/espelho.log 2>&1') | crontab -"
 echo "  (de madrugada o token vem de $DESTINO/.token — não vai no crontab)"
-echo "  Para subir o sistema a partir do espelho, sem GitHub:"
-echo "    git clone $DESTINO/nexor.git ~/joia && ls ~/joia"
+echo "  Para subir um sistema a partir do espelho, sem GitHub:"
+echo "    git clone $DESTINO/jolo-central.git ~/jolo && ls ~/jolo"

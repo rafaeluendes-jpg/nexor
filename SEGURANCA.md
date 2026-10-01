@@ -210,4 +210,17 @@ O painel mostra 24 + 15 + 56 avisos. Nenhum é brecha:
    clique na conta dele (Settings → General → Danger Zone → Change
    visibility). O `delivery` e o `nexor-app`, se servirem página pelo
    GitHub Pages, param ao virar privados — conferir antes.
-2. Cópia de tudo no servidor, fora do GitHub: `ferramentas/espelhar-vps.sh`.
+2. Cópia no servidor, fora do GitHub: `ferramentas/espelhar-vps.sh`.
+
+## O que entra na cópia do servidor (ordem do Rafael, 01/10/2026)
+
+Só os sistemas dele: **Central Jolô** (`jolo-central`), **Painel Rafael
+Ulian** (`painel-rafael-ulian`), **R2ON** (`r2on`), **Dalu**
+(`Rafael-gest-o-`) e **Central Rafaello's**
+(`rafaellos-centro-de-gestao`).
+
+Ficam **fora** de propósito, porque não são dele: `nexor` (Joia),
+`nexor-whatsapp`, `nexor-app`, `delivery` e `sistema-inteligente`. A
+varredura de senha acima cobriu os dez — guardar cópia é outra coisa, e
+essa lista é curta por ordem dele. Acrescentar um sem ele pedir é guardar
+código que não é dele.
