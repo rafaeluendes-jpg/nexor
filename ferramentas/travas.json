@@ -277,6 +277,10 @@
    "pontos": 10,
    "roda": true
   },
+  "testes/grupo-categoria-ingredientes.js": {
+   "pontos": 17,
+   "roda": true
+  },
   "testes/historico-nuvem.js": {
    "pontos": 7,
    "roda": true

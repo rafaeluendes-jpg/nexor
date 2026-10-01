@@ -398,6 +398,7 @@ function telaItensConsumidos(){
       if(l.direcao!=='saida')return;                 /* consumo = saída */
       var it=itemEstoque(l.insumoId);
       if(IC.grupo&&(!it||(it.grupoId!==IC.grupo&&it.categoriaId!==IC.grupo)))return;
+      if(IC.grupoMaior&&!itemNoGrupoMaior(it,IC.grupoMaior))return;
       if(IC.item&&l.insumoId!==IC.item)return;
       var k=l.insumoId;
       por[k]=por[k]||{nome:l.nome,item:it,qtd:0,valor:0,mov:0,unidade:l.unidade};
@@ -446,17 +447,12 @@ function telaItensConsumidos(){
        '<button class="'+(IC.motivos.length===2&&IC.motivos.indexOf('mv_perdaprod')>=0?'on':'')+'" '+
         'onclick="soPerdas()">'+sv('dn4',12)+' Perdas</button>'+
       '</div>'+
-      '<div class="bfCampo"><label>Grupo</label>'+
-       '<select onchange="IC.grupo=this.value;telaItensConsumidos()">'+
-       '<option value="">Todos</option>'+
-       (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(IC.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
-       gruposFicha().map(function(c){return '<option value="'+c.id+'"'+(IC.grupo===c.id?' selected':'')+'>'+E(c.nome)+'</option>'}).join('')+
-       '</select></div>'+
+      filtroGrupoCat('IC','telaItensConsumidos','bfCampo',gruposFicha())+
       '<div class="bfCampo cresce"><label>Buscar</label>'+
        '<input id="icBusca" value="'+E(IC.busca)+'" placeholder="nome do ingrediente"></div>'+
       '<button class="btnP2 ok" onclick="IC.de=$(\'icDe\').value;IC.ate=$(\'icAte\').value;telaItensConsumidos()">'+
        sv('search',13)+' Buscar</button>'+
-      (IC.motivos.length||IC.grupo?'<button class="btnP2" onclick="limparIC()">Limpar</button>':'')+
+      (IC.motivos.length||IC.grupo||IC.grupoMaior?'<button class="btnP2" onclick="limparIC()">Limpar</button>':'')+
      '</div>';
    })()+
    '<div class="relKpis">'+
@@ -522,7 +518,7 @@ function togTodosIC(){
   IC.motivos=IC.motivos.length?[]:(DB.motivosMov||[]).map(function(m){return m.id});
   telaItensConsumidos();
 }
-function limparIC(){IC.motivos=[];IC.grupo='';IC.busca='';telaItensConsumidos();}
+function limparIC(){IC.motivos=[];IC.grupo='';IC.grupoMaior='';IC.busca='';telaItensConsumidos();}
 function explicaItensConsumidos(){
   explicaRel('Itens Consumidos — como é feito',[
    ['Consumido','soma de todas as saídas de estoque do item no período, convertidas para a unidade de cadastro'],

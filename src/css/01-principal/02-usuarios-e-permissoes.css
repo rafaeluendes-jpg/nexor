@@ -2661,3 +2661,19 @@ th.bsOrd.bsOn[data-dir=desc]:after{content:'\25BC'}
 .fidBt:hover{background:var(--acc-d);border-color:var(--acc-d)}
 .fidFicha{padding:12px 14px 14px}
 .fidFicha .fidCx{margin:0}
+
+/* grupos e categorias de ingredientes — a arvore de pastas (V402) */
+.gmArv tr.gmPasta{cursor:pointer}
+.gmArv tr.gmPasta td{background:var(--alt);font-size:13.5px}
+.gmArv tr.gmPasta:hover td{background:var(--acc-soft)}
+.gmPastaNm{display:flex;align-items:center;gap:7px}
+.gmArv tr.gmPasta.sem td{color:var(--ink-2)}
+.gmQt{margin-left:8px;font-size:11.5px;font-weight:500;color:var(--ink-3)}
+.gmArv tr.gmFilho td:first-child{padding-left:44px}
+.gmRecuo{display:inline-flex;vertical-align:-2px;margin-right:7px;color:var(--ink-3)}
+.gmSel{width:100%;min-height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:0 8px;font-size:12.5px}
+.gmChecks{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;max-height:320px;overflow-y:auto;
+  border:1px solid var(--line-2);border-radius:8px;padding:8px}
+.gmChk{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;min-height:32px}
+.gmChk:hover{background:var(--alt)}
+.gmChk i{font-style:normal;font-size:11px;color:var(--ink-3);margin-left:4px}

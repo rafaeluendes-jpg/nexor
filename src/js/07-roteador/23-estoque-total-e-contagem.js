@@ -60,7 +60,7 @@ function nomeGrupoItem(i){
   var g=ehFicha(i)?catFicha(i.categoriaId):grupoIng(i.grupoId);
   return g?g.nome:'';
 }
-function filtroET(){return !!(ET.busca||ET.grupo||ET.tipo)}
+function filtroET(){return !!(ET.busca||ET.grupo||ET.grupoMaior||ET.tipo)}
 function limparET(){ET={busca:'',grupo:'',tipo:'',ordem:'valor',dir:'desc'};telaEstoqueTotal();}
 function ordenaEstoque(a,b){
   var k=ET.ordem||'valor',d=(ET.dir==='asc'?1:-1),r=0;
@@ -80,6 +80,7 @@ function ordenaEstoque(a,b){
 function listaEstoque(){
   return itensEstoque().filter(function(i){
     if(ET.grupo&&i.grupoId!==ET.grupo)return false;
+    if(!itemNoGrupoMaior(i,ET.grupoMaior))return false;
     if(ET.tipo==='ficha'&&!i.gelatoVenda&&!i.deFicha)return false;
     if(ET.tipo==='insumo'&&(i.gelatoVenda||i.deFicha))return false;
     var _sa=ET.data?saldoNaData(i.id,ET.data):Number(i.estoqueAtual);
@@ -204,9 +205,9 @@ function telaEstoqueTotal(){
      so o desenho e que e parcelado.
      ========================================================== */
   var LOTE=60;
-  if(ET._mostrar===undefined||ET._chave!==(ET.busca+'|'+ET.grupo+'|'+ET.tipo+'|'+ET.ordem+'|'+ET.dir)){
+  if(ET._mostrar===undefined||ET._chave!==(ET.busca+'|'+ET.grupoMaior+'|'+ET.grupo+'|'+ET.tipo+'|'+ET.ordem+'|'+ET.dir)){
     ET._mostrar=LOTE;
-    ET._chave=ET.busca+'|'+ET.grupo+'|'+ET.tipo+'|'+ET.ordem+'|'+ET.dir;
+    ET._chave=ET.busca+'|'+ET.grupoMaior+'|'+ET.grupo+'|'+ET.tipo+'|'+ET.ordem+'|'+ET.dir;
   }
   var visiveis=lista.slice(0, ET._mostrar);
   var total=lista.reduce(function(a,i){return a+valorItem(i)},0);
@@ -241,10 +242,7 @@ function telaEstoqueTotal(){
      '<button class="btnP2" onclick="ET.data=\'\';ET._mostrar=undefined;telaEstoqueTotal()">'+
      'voltar para hoje</button></div>':'')+
     '<div class="f2 gw2"><label>Buscar</label><input id="etB" value="'+E(ET.busca)+'" placeholder="nome ou código"></div>'+
-    '<div class="f2"><label>Grupo</label><select onchange="ET.grupo=this.value;telaEstoqueTotal()">'+
-     '<option value="">Todos</option>'+
-     (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(ET.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
-    '</select></div>'+
+    filtroGrupoCat('ET','telaEstoqueTotal','f2')+
     '<div class="f2"><label>Exibir</label><select onchange="ET.tipo=this.value;telaEstoqueTotal()">'+
      '<option value="">Todos os itens</option>'+
      '<option value="insumo"'+(ET.tipo==='insumo'?' selected':'')+'>Somente insumos</option>'+
@@ -732,7 +730,7 @@ async function descartarRascunhoContagem(){
   toast(n?'Folha apagada. A contagem começa do zero.':'Folha limpa.');
 }
 function novaContagem(){
-  CT2.aba='nova';CT2.busca='';CT2.grupo='';
+  CT2.aba='nova';CT2.busca='';CT2.grupo='';CT2.grupoMaior='';
   /* folha que ficou pela metade volta inteira, em vez de virar pó */
   var r=lerRascunhoContagem();
   if(r){
@@ -827,6 +825,7 @@ function verDivergencias(id,tipo){
 function telaContagemNova(){
   var lista=itensEstoque().filter(function(i){
     if(CT2.grupo&&i.grupoId!==CT2.grupo)return false;
+    if(!itemNoGrupoMaior(i,CT2.grupoMaior))return false;
     if(CT2.busca){
       var q=CT2.busca.toLowerCase();
       if((i.nome||'').toLowerCase().indexOf(q)<0&&String(i.codigo||'').indexOf(q)<0)return false;
@@ -873,10 +872,7 @@ function telaContagemNova(){
      (_ed?'disabled title="A correção vale para o dia da contagem"':'onchange="mudarDataContagem(this.value)"')+'></div>'+
     (contagemRetroativa()||_ed?'':'<button class="btnP2" onclick="contagemDeOntem()">Ontem</button>')+
     '<div class="f2 gw2"><label>Buscar</label><input id="ctB" value="'+E(CT2.busca)+'" placeholder="nome ou código"></div>'+
-    '<div class="f2"><label>Grupo</label><select onchange="CT2.grupo=this.value;telaContagem()">'+
-     '<option value="">Todos</option>'+
-     (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(CT2.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
-    '</select></div>'+
+    filtroGrupoCat('CT2','telaContagem','f2')+
     (_ed?'':'<button class="btnP2" onclick="preencherContagem()">Preencher com o sistema</button>')+
     '<button class="btnP2" onclick="descartarRascunhoContagem()">'+(_ed?'Desistir da correção':'Limpar')+'</button>'+
    '</div>'+
@@ -1304,7 +1300,7 @@ function editarContagem(id){
     return;
   }
   fecharModal();
-  CT2.aba='nova';CT2.busca='';CT2.grupo='';
+  CT2.aba='nova';CT2.busca='';CT2.grupo='';CT2.grupoMaior='';
   CT2.editando=id;CT2.data=c.data;
   if(r&&r.editando===id){
     CT2.cont=r.cont;CT2.custo=r.custo||{};CT2._retomado=r.quando||'';CT2.confirmados=r.confirmados||{};

@@ -160,6 +160,59 @@ function grupoIng(id){
   }
   return _mapaGrp[id]||null;
 }
+/* ==========================================================
+   GRUPO > CATEGORIA (Rafael, 01/10/2026)
+
+   "Essa descricao do grupo, eles nao sao grupos, sao categorias. Preciso
+   criar tres grandes grupos e mandar cada categoria para um deles. No
+   insumo escolho o grupo e aparecem as categorias dele; e no estoque,
+   nos relatorios, escolho o grupo e depois a categoria."
+
+   A lista que ja existia (DB.gruposIng) passa a ser a das CATEGORIAS, e
+   continua sendo o que o ingrediente guarda (grupoId), o que o CMV le e o
+   que a liberacao por unidade controla — nada disso muda. O GRUPO e o
+   nome gravado em cada categoria, na coluna `categoria` que a tabela
+   grupos_ingredientes ja tinha (e que estava vazia): sem tabela nova,
+   sem migracao. Um grupo existe enquanto tiver categoria; por isso ele
+   nasce ja com as categorias escolhidas.
+   ========================================================== */
+function grupoMaiorDe(g){ return String((g&&g.categoria)||'').trim(); }
+function gruposMaiores(){
+  var vistos={};
+  (DB.gruposIng||[]).forEach(function(g){ var n=grupoMaiorDe(g); if(n)vistos[n]=1; });
+  return Object.keys(vistos).sort(function(a,b){return a.localeCompare(b)});
+}
+function categoriasDoGrupo(nome){
+  return (DB.gruposIng||[]).filter(function(g){return !nome||grupoMaiorDe(g)===nome})
+    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+}
+/* o item (ingrediente) esta no grupo escolhido? sem grupo escolhido, sim */
+function itemNoGrupoMaior(item,nome){
+  if(!nome)return true;
+  var g=item?grupoIng(item.grupoId):null;
+  return !!g&&grupoMaiorDe(g)===nome;
+}
+/* os dois filtros, Grupo e Categoria, para as telas de estoque.
+   `est` e o nome do estado da tela (ET, CT2...), `tela` a que redesenha. */
+function filtroGrupoCat(est,tela,cls,extraCat){
+  var S2=window[est]||{};
+  var gm=gruposMaiores();
+  if(S2.grupoMaior&&gm.indexOf(S2.grupoMaior)<0)S2.grupoMaior='';
+  var cats=categoriasDoGrupo(S2.grupoMaior||'');
+  if(S2.grupo&&S2.grupoMaior&&!cats.some(function(g){return g.id===S2.grupo})&&
+     !(extraCat||[]).some(function(c){return c.id===S2.grupo}))S2.grupo='';
+  return (gm.length?'<div class="'+cls+'"><label>Grupo</label>'+
+    '<select onchange="'+est+'.grupoMaior=this.value;'+est+'.grupo=\'\';'+tela+'()">'+
+    '<option value="">Todos</option>'+
+    gm.map(function(n){return '<option value="'+E(n)+'"'+(S2.grupoMaior===n?' selected':'')+'>'+E(n)+'</option>'}).join('')+
+    '</select></div>':'')+
+   '<div class="'+cls+'"><label>'+(gm.length?'Categoria':'Grupo')+'</label>'+
+    '<select onchange="'+est+'.grupo=this.value;'+tela+'()">'+
+    '<option value="">Todas</option>'+
+    cats.map(function(g){return '<option value="'+g.id+'"'+(S2.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
+    (S2.grupoMaior?'':(extraCat||[]).map(function(c){return '<option value="'+c.id+'"'+(S2.grupo===c.id?' selected':'')+'>'+E(c.nome)+'</option>'}).join(''))+
+    '</select></div>';
+}
 /* insumo() e o pior caso: chamada uma vez por INGREDIENTE de cada ficha
    quando o sistema calcula custo. Com 250 insumos e 40 fichas de 8 itens,
    sao 320 varreduras de 250 posicoes a cada recalculo. */
@@ -229,11 +282,12 @@ function semCompra(i){
 /* ==========================================================
    INGREDIENTES E INSUMOS
    ========================================================== */
-var IN={busca:'',grupo:'',so:''};
+var IN={busca:'',grupo:'',grupoMaior:'',so:''};
 function telaInsumos(){
   baseEstoque();
   var lista=(DB.insumos||[]).filter(function(i){
     if(IN.grupo&&i.grupoId!==IN.grupo)return false;
+    if(!itemNoGrupoMaior(i,IN.grupoMaior))return false;
     if(IN.so==='baixo'&&!(i.controlaEstoque&&Number(i.estoqueAtual)<=Number(i.estoqueMin)))return false;
     if(IN.so==='cmv'&&!i.compoeCMV)return false;
     if(IN.busca){
@@ -274,16 +328,13 @@ function telaInsumos(){
      ========================================================== */
   '<div class="filtroCard emCheia">'+
    '<div class="fl gw2"><label>Buscar</label><input id="inB" value="'+E(IN.busca)+'" placeholder="nome ou código"></div>'+
-   '<div class="fl"><label>Grupo</label><select onchange="IN.grupo=this.value;telaInsumos()">'+
-    '<option value="">Todos os grupos</option>'+
-    (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(IN.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
-   '</select></div>'+
+   filtroGrupoCat('IN','telaInsumos','fl')+
    '<div class="fl"><label>Exibir</label><select onchange="IN.so=this.value;telaInsumos()">'+
     '<option value="">Todos</option>'+
     '<option value="baixo"'+(IN.so==='baixo'?' selected':'')+'>Abaixo do mínimo</option>'+
     '<option value="cmv"'+(IN.so==='cmv'?' selected':'')+'>Compõem CMV</option>'+
    '</select></div>'+
-   '<button class="btnP2" onclick="IN={busca:\'\',grupo:\'\',so:\'\'};telaInsumos()">Limpar</button>'+
+   '<button class="btnP2" onclick="IN={busca:\'\',grupo:\'\',grupoMaior:\'\',so:\'\'};telaInsumos()">Limpar</button>'+
    '<div style="flex:1"></div>'+
    '<div class="fcResumo">'+
     '<div><span>Itens</span><b>'+lista.length+'</b></div>'+
@@ -296,7 +347,7 @@ function telaInsumos(){
   (lista.length?'<table class="pTable finTab tabIns"><thead><tr>'+
    '<th style="width:82px">Código</th><th>Descrição</th>'+
    '<th style="width:110px">Un. consumo</th>'+
-   '<th style="width:150px">Grupo</th>'+
+   '<th style="width:150px">Categoria</th>'+
    '<th style="width:92px;text-align:right">Mínimo</th>'+
    '<th style="width:92px;text-align:right">Atual</th>'+
    '<th style="width:118px;text-align:right">Custo médio</th>'+
@@ -309,7 +360,7 @@ function telaInsumos(){
      '<td><b>'+E(i.codigo)+'</b></td>'+
      '<td><b>'+E(i.nome)+'</b>'+(i.descricao?'<small>'+E(i.descricao)+'</small>':'')+'</td>'+
      '<td>'+E(un(i.unidade).n)+'</td>'+
-     '<td>'+(g?'<span class="cidTag">'+E(g.nome)+'</span>':'—')+'</td>'+
+     '<td>'+(g?'<span class="cidTag">'+E(g.nome)+'</span>'+(grupoMaiorDe(g)?'<small>'+E(grupoMaiorDe(g))+'</small>':''):'—')+'</td>'+
      '<td style="text-align:right">'+(i.controlaEstoque?fmtQt(i.estoqueMin)+' '+un(i.unidade).ab:'—')+'</td>'+
      '<td style="text-align:right">'+(i.controlaEstoque?
        '<b class="'+(baixo?'vr':'')+'">'+fmtQt(i.estoqueAtual)+' '+un(i.unidade).ab+'</b>'+
@@ -365,10 +416,13 @@ function modalInsumo(id,copia){
     '</select>'+(podeEditarCadastro()
       ?'<button class="btnP2" onclick="modalUnidades()" title="Cadastrar unidade">'+sv('plus',12)+'</button>'
       :'')+'</div></div>'+
-   '<div class="fld2"><label>Grupo *</label><select id="isG">'+
-    '<option value="">Selecione</option>'+
-    (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(i&&i.grupoId===g.id?' selected':'')+'>'+E(g.nome)+
-      (g.compoeCMV===false?' (sem CMV)':'')+'</option>'}).join('')+
+   (gruposMaiores().length
+     ?'<div class="fld2"><label>Grupo</label><select id="isGM" onchange="trocaGrupoMaiorIns()">'+
+      '<option value="">Todos</option>'+
+      gruposMaiores().map(function(n){return '<option value="'+E(n)+'"'+(grupoMaiorDe(g0)===n?' selected':'')+'>'+E(n)+'</option>'}).join('')+
+      '</select></div>':'')+
+   '<div class="fld2"><label>'+(gruposMaiores().length?'Categoria *':'Grupo *')+'</label><select id="isG">'+
+    opcoesCategoriaIns(grupoMaiorDe(g0),i?i.grupoId:'')+
    '</select></div>'+
   '</div>'+
   '<div class="fld2" style="margin:0"><label>Categoria financeira</label>'+
@@ -545,6 +599,19 @@ function mudaModoCusto(){
   inp.style.background='var(--alt)';
 }
 var _insEditando=null;
+function opcoesCategoriaIns(grupo,atual){
+  return '<option value="">Selecione</option>'+
+    categoriasDoGrupo(grupo).map(function(g){return '<option value="'+g.id+'"'+(atual===g.id?' selected':'')+'>'+E(g.nome)+
+      (g.compoeCMV===false?' (sem CMV)':'')+'</option>'}).join('');
+}
+/* escolher o grupo mostra so as categorias dele; a que ja estava escolhida
+   continua, se for do grupo */
+function trocaGrupoMaiorIns(){
+  var gm=($('isGM')||{}).value||'', s=$('isG');
+  if(!s)return;
+  var atual=s.value;
+  s.innerHTML=opcoesCategoriaIns(gm,atual);
+}
 function salvarInsumo(id,copia){
   if(barraCadastro())return;
   baseEstoque();
@@ -552,7 +619,7 @@ function salvarInsumo(id,copia){
   var alvoUlt=alvoPrev?alvoPrev.custoUltima:undefined;
   var nome=$('isN').value.trim();
   if(!nome){toast('Informe a descrição.');return;}
-  if(!$('isG').value){toast('Selecione o grupo.');return;}
+  if(!$('isG').value){toast(gruposMaiores().length?'Selecione a categoria.':'Selecione o grupo.');return;}
   var o={nome:nome,codigo:$('isC').value.trim()||proxCodInsumo(),unidade:$('isU').value,
     grupoId:$('isG').value,catFinId:$('isCf').value,
     controlaEstoque:$('isCe').checked,compoeCMV:$('isCm').checked,
@@ -608,10 +675,10 @@ async function excluirInsumo(id){
 }
 function exportarInsumos(){
   baseEstoque();
-  var l=[['Codigo','Descricao','Unidade','Grupo','Minimo','Atual','Custo','Valor total','Controla estoque','Compoe CMV']];
+  var l=[['Codigo','Descricao','Unidade','Grupo','Categoria','Minimo','Atual','Custo','Valor total','Controla estoque','Compoe CMV']];
   (DB.insumos||[]).forEach(function(i){
     var g=grupoIng(i.grupoId);
-    l.push([i.codigo,i.nome,un(i.unidade).n,g?g.nome:'',i.estoqueMin,i.estoqueAtual,
+    l.push([i.codigo,i.nome,un(i.unidade).n,grupoMaiorDe(g),g?g.nome:'',i.estoqueMin,i.estoqueAtual,
       String(custoAtual(i)).replace('.',','),
       String(arred((Number(i.estoqueAtual)||0)*custoAtual(i)).toFixed(2)).replace('.',','),
       i.controlaEstoque?'Sim':'Nao',i.compoeCMV?'Sim':'Nao']);
@@ -670,47 +737,163 @@ function remUnidade(k){
 }
 
 /* ==========================================================
-   GRUPO DE INGREDIENTES
+   GRUPOS E CATEGORIAS DE INGREDIENTES
+   Em cima, os grupos (os "tres grandes"), cada um com as suas categorias.
+   Embaixo, a lista de categorias de sempre, com a coluna Grupo: trocar
+   ali manda a categoria para outro grupo.
    ========================================================== */
+var GI={grupo:'',abertos:{}};
+/* uma linha de categoria da arvore */
+function linhaCategoriaIng(g,gm,pode){
+  var q=(DB.insumos||[]).filter(function(i){return i.grupoId===g.id}).length;
+  return '<tr class="gmFilho"><td><span class="gmRecuo">'+sv('file2',12)+'</span><b>'+E(g.nome)+'</b></td>'+
+   '<td>'+(pode&&gm.length
+     ?'<select class="gmSel" onchange="moverCategoria(\''+g.id+'\',this.value)" title="Mandar para outro grupo">'+
+       '<option value="">— sem grupo —</option>'+
+       gm.map(function(n){return '<option value="'+E(n)+'"'+(grupoMaiorDe(g)===n?' selected':'')+'>'+E(n)+'</option>'}).join('')+
+      '</select>'
+     :(grupoMaiorDe(g)?E(grupoMaiorDe(g)):'—'))+'</td>'+
+   '<td style="text-align:center">'+(g.compoeCMV!==false
+     ?'<span class="miniTag cm">SIM</span>':'<span class="miniTag off2">NÃO</span>')+'</td>'+
+   '<td style="text-align:center">'+q+'</td>'+
+   '<td><div class="rowAct">'+
+    (pode?'<button class="rBtn" onclick="modalGrupoIng(\''+g.id+'\')" title="Editar categoria">'+sv('edit',12)+'</button>'+
+    '<button class="rBtn rd" onclick="excluirGrupoIng(\''+g.id+'\')" title="Excluir categoria">'+sv('trash',12)+'</button>':'')+
+   '</div></td></tr>';
+}
+function abreGrupoIng(n){ GI.abertos[n]=!GI.abertos[n]; telaGruposIng(); }
 function telaGruposIng(){
   baseEstoque();
-  var lista=(DB.gruposIng||[]).slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+  var gm=gruposMaiores();
+  var pode=podeEditarCadastro();
+  var semGrupo=(DB.gruposIng||[]).filter(function(g){return !grupoMaiorDe(g)})
+    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+  /* sem grupo nenhum ainda, a lista de categorias aparece aberta, como antes */
+  var pastas=gm.map(function(n){return {chave:n,nome:n,cats:categoriasDoGrupo(n)}});
+  if(semGrupo.length)pastas.push({chave:'__sem',nome:gm.length?'Sem grupo':'Categorias',cats:semGrupo,sem:true});
+  if(!gm.length)GI.abertos.__sem=true;
+  var esc=function(n){return E(n).replace(/'/g,"\\'")};
   $('content').innerHTML=avisoListaIncompleta('gruposIng','grupo')+'<div class="finWrap">'+
-  '<div class="finTop"><div><h1>Grupo de Ingredientes</h1>'+
-  '<p>Organiza os insumos e define o que entra no cálculo do CMV.</p></div>'+
-  '<div class="finActs"><button class="btnP2 ok" onclick="modalGrupoIng()">'+sv('plus',14)+' Novo grupo</button></div></div>'+
-  '<div class="pnl2"><div class="pnl2H">Grupos <span class="cnt2">'+lista.length+'</span></div>'+
+  '<div class="finTop"><div><h1>Grupos e Categorias de Ingredientes</h1>'+
+  '<p>Cada grupo é uma pasta com as suas categorias. A categoria organiza os insumos e define o que entra no CMV.</p></div>'+
+  (pode?'<div class="finActs">'+
+    '<button class="btnP2" onclick="modalGrupoIng()">'+sv('plus',14)+' Nova categoria</button>'+
+    '<button class="btnP2 ok" onclick="modalGrupoMaior()">'+sv('plus',14)+' Novo grupo</button></div>':'')+
+  '</div>'+
+  (gm.length?'':'<div class="avisoInfo" style="margin-bottom:10px">'+sv('help',15)+'<div>Nenhum grupo ainda. '+
+    'Clique em <b>Novo grupo</b>, dê o nome (ex.: Insumos, Produto, Material) e marque as categorias que vão para dentro dele.</div></div>')+
+  '<div class="pnl2"><div class="pnl2H">Grupos <span class="cnt2">'+gm.length+'</span>'+
+   '<span style="margin-left:10px;font-weight:500;color:var(--ink-3)">'+(DB.gruposIng||[]).length+' categoria(s)</span></div>'+
   '<div class="pnl2B" style="padding:0">'+
-  (lista.length?'<table class="pTable finTab"><thead><tr>'+
-   '<th>Descrição do grupo</th>'+
+  (pastas.length?'<table class="pTable finTab gmArv"><thead><tr>'+
+   '<th>Grupo / categoria</th>'+
+   '<th style="width:200px">Grupo</th>'+
    '<th style="width:130px;text-align:center">Compõe CMV</th>'+
    '<th style="width:110px;text-align:center">Ingredientes</th>'+
    '<th style="width:110px"></th></tr></thead><tbody>'+
-   lista.map(function(g){
-     var q=(DB.insumos||[]).filter(function(i){return i.grupoId===g.id}).length;
-     return '<tr><td><b>'+E(g.nome)+'</b></td>'+
-     '<td style="text-align:center">'+(g.compoeCMV!==false
-       ?'<span class="miniTag cm">SIM</span>':'<span class="miniTag off2">NÃO</span>')+'</td>'+
-     '<td style="text-align:center">'+q+'</td>'+
-     '<td><div class="rowAct">'+
-      '<button class="rBtn" onclick="modalGrupoIng(\''+g.id+'\')" title="Editar">'+sv('edit',12)+'</button>'+
-      '<button class="rBtn rd" onclick="excluirGrupoIng(\''+g.id+'\')" title="Excluir">'+sv('trash',12)+'</button>'+
-     '</div></td></tr>';
+   pastas.map(function(p){
+     var ab=!!GI.abertos[p.chave];
+     var qIns=(DB.insumos||[]).filter(function(i){
+       return p.cats.some(function(c){return c.id===i.grupoId})}).length;
+     return '<tr class="gmPasta'+(ab?' ab':'')+(p.sem?' sem':'')+'" onclick="abreGrupoIng(\''+esc(p.chave)+'\')">'+
+      '<td colspan="3"><span class="gmPastaNm"><span class="ftSeta'+(ab?' ab':'')+'">'+sv('tri',9)+'</span>'+
+       sv(ab?'folderOpen':'folder',15)+' <b>'+E(p.nome)+'</b>'+
+       '<span class="gmQt">'+p.cats.length+' categoria(s)</span></span></td>'+
+      '<td style="text-align:center">'+qIns+'</td>'+
+      '<td><div class="rowAct">'+(pode&&!p.sem
+        ?'<button class="rBtn" onclick="event.stopPropagation();modalGrupoMaior(\''+esc(p.nome)+'\')" title="Editar grupo">'+sv('edit',12)+'</button>':'')+
+      '</div></td></tr>'+
+      (ab?p.cats.map(function(g){return linhaCategoriaIng(g,gm,pode)}).join(''):'');
    }).join('')+'</tbody></table>'
-  :'<div class="entVazio"><b>Nenhum grupo cadastrado</b>'+
-   '<span>Crie grupos como Insumos, Gelato ou Embalagens e marque quais compõem o CMV.</span></div>')+
+  :'<div class="entVazio"><b>Nenhuma categoria cadastrada</b>'+
+   '<span>Crie categorias como Insumos, Gelato ou Embalagens e marque quais compõem o CMV.</span></div>')+
   '</div></div></div>';
-  rodape(lista.length+' grupos de ingredientes');
+  rodape(gm.length+' grupo(s) · '+(DB.gruposIng||[]).length+' categoria(s)');
+}
+/* troca o grupo de UMA categoria (a coluna da lista) */
+function moverCategoria(id,nome){
+  if(barraCadastro())return;
+  var g=grupoIng(id);
+  if(!g)return;
+  g.categoria=String(nome||'').trim();
+  salvar();telaGruposIng();
+  conferirConfigNaNuvem('gruposIng',id,'Categoria',telaGruposIng);
+}
+/* criar ou editar um GRUPO: o nome e as categorias que ficam nele.
+   Renomear leva junto todas as categorias; desmarcar tira a categoria do
+   grupo (ela continua existindo, sem grupo). */
+function modalGrupoMaior(nomeAtual){
+  if(barraCadastro())return;
+  baseEstoque();
+  var todas=(DB.gruposIng||[]).slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+  var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
+   '<div class="fld2"><label>Nome do grupo *</label>'+
+   '<input id="gmN" value="'+E(nomeAtual||'')+'" placeholder="ex: Insumos de produção, Revenda, Uso e consumo"></div>'+
+   '<div class="fld2" style="margin:12px 0 0"><label>Categorias deste grupo *</label>'+
+   '<div class="gmChecks">'+
+   todas.map(function(g){
+     var dele=nomeAtual&&grupoMaiorDe(g)===nomeAtual;
+     var outro=grupoMaiorDe(g)&&!dele;
+     return '<label class="gmChk"><input type="checkbox" class="gmC" value="'+g.id+'"'+(dele?' checked':'')+'>'+
+      '<span>'+E(g.nome)+(outro?' <i>hoje em '+E(grupoMaiorDe(g))+'</i>':'')+'</span></label>';
+   }).join('')+
+   '</div><div class="hint">Marcar uma categoria que está em outro grupo muda ela para este.</div></div>'+
+  '</div></div>';
+  modal(nomeAtual?'Editar grupo':'Novo grupo',h,'Salvar',function(){
+    var nome=String(($('gmN')||{}).value||'').trim();
+    if(!nome){toast('Informe o nome do grupo.');return false;}
+    var _cmp=function(x){ return String(x||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); };
+    var igual=gruposMaiores().find(function(n){return n!==nomeAtual&&_cmp(n)===_cmp(nome)});
+    if(igual){toast('Já existe o grupo "'+igual+'".');return false;}
+    var marc={};
+    Array.prototype.forEach.call(document.querySelectorAll('.gmC'),function(c){ if(c.checked)marc[c.value]=1; });
+    if(!Object.keys(marc).length){toast('Marque ao menos uma categoria para o grupo.');return false;}
+    var mudou=[];
+    (DB.gruposIng||[]).forEach(function(g){
+      var antes=grupoMaiorDe(g), depois=antes;
+      if(marc[g.id])depois=nome;
+      else if(nomeAtual&&antes===nomeAtual)depois='';
+      if(depois!==antes){ g.categoria=depois; mudou.push(g.id); }
+    });
+    salvar();
+    if(nomeAtual&&nomeAtual!==nome)delete GI.abertos[nomeAtual];
+    GI.abertos[nome]=true;
+    telaGruposIng();
+    if(mudou.length)conferirConfigNaNuvem('gruposIng',mudou[0],'Categoria',telaGruposIng);
+    else toast('Nada mudou.');
+    return true;
+  },'lg');
+  if(nomeAtual){
+    var f=document.querySelector('#mdOv .mdF');
+    if(f){
+      var b=document.createElement('button');
+      b.className='btn';b.style.marginRight='auto';b.style.color='var(--red)';
+      b.textContent='Desfazer grupo';
+      b.onclick=function(){desfazerGrupoMaior(nomeAtual)};
+      f.insertBefore(b,f.firstChild);
+    }
+  }
+}
+async function desfazerGrupoMaior(nome){
+  var cats=categoriasDoGrupo(nome);
+  if(!await pergunta('Desfazer o grupo "'+nome+'"? As '+cats.length+' categoria(s) continuam existindo, só ficam sem grupo.'))return;
+  cats.forEach(function(g){g.categoria='';});
+  salvar();fecharModal();delete GI.abertos[nome];telaGruposIng();
+  if(cats.length)conferirConfigNaNuvem('gruposIng',cats[0].id,'Categoria',telaGruposIng);
 }
 function modalGrupoIng(id){
   baseEstoque();
   var g=id?grupoIng(id):null;
   var h='<div class="mdB"><div class="blk" style="margin:0;max-width:none">'+
-  '<div class="fld2"><label>Descrição do grupo *</label>'+
+  '<div class="fld2"><label>Nome da categoria *</label>'+
   '<input id="giN" value="'+E(g?g.nome:'')+'" placeholder="ex: Insumos, Gelato, Embalagens"></div>'+
+  (gruposMaiores().length?'<div class="fld2"><label>Grupo</label><select id="giGM">'+
+    '<option value="">— sem grupo —</option>'+
+    gruposMaiores().map(function(n){return '<option value="'+E(n)+'"'+((g?grupoMaiorDe(g):'')===n?' selected':'')+'>'+E(n)+'</option>'}).join('')+
+   '</select></div>':'')+
   '<label class="optCard"><input type="checkbox" id="giC" '+(!g||g.compoeCMV!==false?'checked':'')+'>'+
-  '<span><b>Compõe CMV</b><span>os itens deste grupo entram no custo da mercadoria vendida. '+
-  'Desmarque para grupos como limpeza e escritório.</span></span></label>'+
+  '<span><b>Compõe CMV</b><span>os itens desta categoria entram no custo da mercadoria vendida. '+
+  'Desmarque para categorias como limpeza e escritório.</span></span></label>'+
   '</div>'+
   /* ==========================================================
      O GRUPO NASCIA SEM LIBERACAO E A UNIDADE NUNCA VIA
@@ -731,7 +914,7 @@ function modalGrupoIng(id){
      ========================================================== */
   blocoUnidades(g,'gi')+
   '</div>';
-  modal(g?'Editar grupo':'Novo grupo de ingredientes',h,'Salvar',function(){
+  modal(g?'Editar categoria':'Nova categoria de ingredientes',h,'Salvar',function(){
     if(barraCadastro())return;
     var nome=$('giN').value.trim();
     if(!nome){toast('Informe a descrição.');return false;}
@@ -762,18 +945,19 @@ function modalGrupoIng(id){
     if(g){ g.nome=nome; g.compoeCMV=$('giC').checked; alvo=g; }
     else { alvo={id:uid('gi'),nome:nome,compoeCMV:$('giC').checked,sucursais:[]};
            DB.gruposIng.push(alvo); }
+    if($('giGM'))alvo.categoria=$('giGM').value||'';
     /* le o bloco de unidades; se o bloco nao estiver na tela (loja unica
        ou usuario que nao e matriz), `lerUnidades` nao mexe no que existe */
     lerUnidades('gi',alvo);
-    salvar();telaGruposIng();toast('Grupo salvo.');return true;
+    salvar();telaGruposIng();toast('Categoria salva.');return true;
   },'sm2');
 }
 async function excluirGrupoIng(id){
   if(barraCadastro())return;
   var q=(DB.insumos||[]).filter(function(i){return i.grupoId===id}).length;
-  if(q){toast('Este grupo tem '+q+' ingrediente(s). Mova-os antes de excluir.');return;}
+  if(q){toast('Esta categoria tem '+q+' ingrediente(s). Mova-os antes de excluir.');return;}
   var g=grupoIng(id);
-  if(!await pergunta('Excluir o grupo "'+g.nome+'"?'))return;
+  if(!await pergunta('Excluir a categoria "'+g.nome+'"?'))return;
   DB.gruposIng=DB.gruposIng.filter(function(x){return x.id!==id}); declararExclusao('gruposIng',id); /* exclusao declarada: so isto autoriza apagar da nuvem (V201) */
-  salvar();telaGruposIng();toast('Grupo excluído.');
+  salvar();telaGruposIng();toast('Categoria excluída.');
 }

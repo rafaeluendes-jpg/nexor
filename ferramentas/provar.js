@@ -3413,6 +3413,107 @@ function servir() {
   t('o lançamento do pedido de base abre travado em conta a pagar',
     pb.radioEscondido && /sempre conta a pagar/.test(pb.fixo), JSON.stringify(pb));
 
+  console.log('\n── 11e. Grupos em pasta: grupo > categoria, no cadastro e no estoque\n');
+  /* Rafael, 01/10/2026: tres grandes grupos, cada um uma pasta com as
+     categorias; no ingrediente escolhe o grupo e aparecem so as categorias
+     dele; no estoque, filtra pelo grupo e depois pela categoria. */
+  await pg.evaluate(() => {
+    fecharModal();
+    baseEstoque();
+    [['gi_sorv','Sorvete GM'],['gi_emb2','Embalagem GM'],['gi_limp','Faxina GM']].forEach(function (p) {
+      if (!DB.gruposIng.some(g => g.id === p[0])) DB.gruposIng.push({ id: p[0], nome: p[1], compoeCMV: true, sucursais: ['*'] });
+    });
+    DB.insumos.push({ id: 'in_gm1', nome: 'Leite em pó GM', codigo: '9901', unidade: 'kg', grupoId: 'gi_sorv',
+      controlaEstoque: true, estoqueAtual: 5, estoqueMin: 0, compoeCMV: true, sucursais: ['*'] });
+    DB.insumos.push({ id: 'in_gm2', nome: 'Detergente GM', codigo: '9902', unidade: 'un', grupoId: 'gi_limp',
+      controlaEstoque: true, estoqueAtual: 3, estoqueMin: 0, compoeCMV: false, sucursais: ['*'] });
+    salvar();
+    abrir('estoque', 'grupo-ingredientes');
+  });
+  await pg.waitForTimeout(300);
+  const gm0 = await pg.evaluate(() => ({ t: document.getElementById('content').textContent,
+    pastas: document.querySelectorAll('.gmPasta').length }));
+  t('a tela vira Grupos e Categorias, e sem grupo as categorias aparecem', /Grupos e Categorias de Ingredientes/.test(gm0.t) &&
+    /Sorvete GM/.test(gm0.t) && gm0.pastas === 1, JSON.stringify({ p: gm0.pastas }));
+  /* cria o grupo "Insumos" pelo botão, marcando as categorias */
+  await pg.click('button:has-text("Novo grupo")');
+  await pg.waitForTimeout(200);
+  await pg.fill('#gmN', 'Insumos');
+  await pg.click('.gmC[value="gi_sorv"]');
+  await pg.click('.gmC[value="gi_emb2"]');
+  await pg.screenshot({ path: FOTOS + '/grupo-novo.png' });
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(300);
+  await pg.click('button:has-text("Novo grupo")');
+  await pg.waitForTimeout(200);
+  await pg.fill('#gmN', 'Material');
+  await pg.click('.gmC[value="gi_limp"]');
+  await pg.click('#mdOk');
+  await pg.waitForTimeout(300);
+  const gm1 = await pg.evaluate(() => ({
+    gm: gruposMaiores(),
+    sorv: grupoMaiorDe(grupoIng('gi_sorv')), limp: grupoMaiorDe(grupoIng('gi_limp')),
+    pastas: Array.from(document.querySelectorAll('.gmPasta b')).map(b => b.textContent),
+    filhos: Array.from(document.querySelectorAll('.gmFilho b')).map(b => b.textContent) }));
+  t('os grupos nascem com as categorias marcadas', gm1.gm.indexOf('Insumos') >= 0 && gm1.gm.indexOf('Material') >= 0 &&
+    gm1.sorv === 'Insumos' && gm1.limp === 'Material', JSON.stringify(gm1).slice(0, 220));
+  t('cada grupo é uma pasta, e a pasta aberta mostra as categorias dela',
+    gm1.pastas.indexOf('Insumos') >= 0 && gm1.pastas.indexOf('Material') >= 0 && gm1.filhos.indexOf('Faxina GM') >= 0,
+    JSON.stringify(gm1.pastas) + ' ' + JSON.stringify(gm1.filhos));
+  /* fecha e abre a pasta pelo clique */
+  await pg.click('.gmPasta:has-text("Material")');
+  await pg.waitForTimeout(150);
+  const gmF = await pg.evaluate(() => Array.from(document.querySelectorAll('.gmFilho b')).map(b => b.textContent));
+  await pg.click('.gmPasta:has-text("Material")');   /* abre de novo */
+  await pg.waitForTimeout(150);
+  await pg.screenshot({ path: FOTOS + '/grupos-pastas.png' });
+  const gmA = await pg.evaluate(() => Array.from(document.querySelectorAll('.gmFilho b')).map(b => b.textContent));
+  t('clicar na pasta fecha e abre a árvore', gmF.indexOf('Faxina GM') < 0 && gmA.indexOf('Faxina GM') >= 0, JSON.stringify([gmF, gmA]));
+  /* mandar uma categoria para outro grupo pela coluna Grupo */
+  await pg.selectOption('.gmFilho:has-text("Embalagem GM") .gmSel', 'Material');
+  await pg.waitForTimeout(250);
+  const gm2 = await pg.evaluate(() => grupoMaiorDe(grupoIng('gi_emb2')));
+  t('a coluna Grupo manda a categoria para outro grupo', gm2 === 'Material', gm2);
+
+  /* o ingrediente: escolhe o grupo, aparecem só as categorias dele */
+  await pg.evaluate(() => { abrir('estoque', 'insumos'); modalInsumo(); });
+  await pg.waitForTimeout(250);
+  await pg.selectOption('#isGM', 'Material');
+  const gm3 = await pg.evaluate(() => Array.from(document.querySelectorAll('#isG option')).map(o => o.textContent).filter(x => x !== 'Selecione'));
+  t('no ingrediente, escolher o grupo mostra só as categorias dele',
+    gm3.length === 2 && gm3.some(x => /Faxina GM/.test(x)) && gm3.some(x => /Embalagem GM/.test(x)), JSON.stringify(gm3));
+  await pg.screenshot({ path: FOTOS + '/insumo-grupo-categoria.png' });
+  await pg.evaluate(() => fecharModal());
+
+  /* estoque total: grupo e depois categoria */
+  await pg.evaluate(() => { ET.grupoMaior = ''; ET.grupo = ''; abrir('estoque', 'posicao-estoque'); });
+  await pg.waitForTimeout(300);
+  await pg.selectOption('.f2:has(label:text-is("Grupo")) select', 'Insumos');
+  await pg.waitForTimeout(250);
+  const gm4 = await pg.evaluate(() => {
+    var t2 = document.getElementById('content').textContent;
+    var cats = Array.from(document.querySelectorAll('.f2:has(label) select')).map(s => s.previousElementSibling ? s.previousElementSibling.textContent : '');
+    var catSel = Array.from(document.querySelectorAll('.f2')).find(f => /Categoria/.test((f.querySelector('label') || {}).textContent || ''));
+    var ops = catSel ? Array.from(catSel.querySelectorAll('option')).map(o => o.textContent) : [];
+    return { leite: /Leite em pó GM/.test(t2), deterg: /Detergente GM/.test(t2), ops: ops };
+  });
+  t('estoque total: o grupo mostra só os itens dele', gm4.leite && !gm4.deterg, JSON.stringify(gm4));
+  t('e a categoria lista só as do grupo', gm4.ops.indexOf('Sorvete GM') >= 0 && gm4.ops.indexOf('Faxina GM') < 0, JSON.stringify(gm4.ops));
+  await pg.screenshot({ path: FOTOS + '/estoque-grupo-categoria.png' });
+  /* contagem: o mesmo filtro */
+  const gm5 = await pg.evaluate(() => {
+    CT2.aba = 'nova'; CT2.busca = ''; CT2.grupoMaior = 'Material'; CT2.grupo = ''; abrir('estoque', 'contagem-estoque');
+    var t2 = document.getElementById('content').textContent;
+    var r = { deterg: /Detergente GM/.test(t2), leite: /Leite em pó GM/.test(t2) };
+    CT2.grupoMaior = ''; return r;
+  });
+  t('contagem: o grupo filtra a folha', gm5.deterg && !gm5.leite, JSON.stringify(gm5));
+  /* recarregar: os grupos continuam */
+  await entrar();
+  const gm6 = await pg.evaluate(() => ({ gm: gruposMaiores(), sorv: grupoMaiorDe(grupoIng('gi_sorv')) }));
+  t('depois de recarregar, os grupos continuam', gm6.gm.indexOf('Insumos') >= 0 && gm6.sorv === 'Insumos', JSON.stringify(gm6));
+  await pg.evaluate(() => { ET.grupoMaior = ''; ET.grupo = ''; });
+
   console.log('\n── 12. Nenhum erro de runtime na sessão inteira\n');
   t('zero erro no console durante todas as provas', erros.length === 0, erros[0]);
 

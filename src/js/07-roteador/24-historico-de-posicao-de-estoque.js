@@ -21,6 +21,7 @@ function linhasHist(filtro){
     (m.linhas||[]).forEach(function(l){
       var ins=itemEstoque(l.insumoId);
       if(HP.grupo&&(!ins||(ins.grupoId!==HP.grupo&&ins.categoriaId!==HP.grupo)))return;
+      if(HP.grupoMaior&&!itemNoGrupoMaior(ins,HP.grupoMaior))return;
       if(filtro&&l.insumoId!==filtro)return;
       out.push({m:m,l:l,ins:ins});
     });
@@ -70,10 +71,7 @@ function telaHistPosicao(){
       '</datalist>'+
       (HP.item?'<button class="limpaBusca" onclick="limparItemHP()">'+sv('x2',11)+' ver todos</button>':'')+
       '</div>'
-     :'<div class="f2"><label>Grupo</label><select onchange="HP.grupo=this.value;telaHistPosicao()">'+
-      '<option value="">Todos</option>'+
-      (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(HP.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
-     '</select></div>')+
+     :filtroGrupoCat('HP','telaHistPosicao','f2'))+
     '<div class="f2"><label>Motivo</label><select onchange="HP.motivoId=this.value;telaHistPosicao()">'+
      '<option value="">Todos</option>'+
      (DB.motivosMov||[]).map(function(m){return '<option value="'+m.id+'"'+(HP.motivoId===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+

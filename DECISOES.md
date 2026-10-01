@@ -7371,3 +7371,46 @@ Prova 11d refeita pelo Editar (Itaú para mais, cofre para menos, caixa
 aberto travado). Ela confere também que Configuração da Loja › Liberação
 por Unidade abre com Ingredientes e Fichas técnicas: é ali que a matriz
 escolhe o que cada loja enxerga.
+
+## V402 — grupos de ingredientes em pasta: grupo > categoria (01/10/2026)
+
+Rafael: "a descrição do grupo não é grupo, é categoria. Quero criar três
+grandes grupos (Insumos, Produto, Material), em pasta, e mandar cada
+categoria para dentro deles. No ingrediente escolho o grupo e aparecem só
+as categorias dele; no estoque, escolho o grupo e depois a categoria. Mexa
+só nisso."
+
+Como ficou:
+- a lista que existia (`DB.gruposIng`) passa a ser a das **categorias** e
+  continua sendo o que o ingrediente guarda (`grupoId`), o que o CMV lê e
+  o que a Liberação por Unidade controla; nada disso mudou;
+- o **grupo** é o nome gravado em cada categoria, na coluna `categoria` de
+  `grupos_ingredientes`, que já existia, já subia e estava vazia em todas
+  as 23 linhas. Agora ela também desce;
+- não foi preciso tabela nova nem migration;
+- um grupo existe enquanto tiver categoria; por isso ele nasce já com as
+  categorias marcadas.
+
+A tela:
+- virou "Grupos e Categorias de Ingredientes", uma árvore de pastas: o
+  clique na pasta abre as categorias dela;
+- a coluna Grupo de cada categoria muda a categoria de grupo;
+- "Novo grupo" pede o nome e as categorias;
+- o editar do grupo renomeia o grupo ou o desfaz; as categorias continuam
+  existindo;
+- antes de existir grupo, as categorias aparecem abertas, como antes.
+
+No ingrediente: Grupo, depois Categoria (só as do grupo). Sem grupo
+cadastrado, o campo continua um só, "Grupo".
+
+Filtro Grupo e depois Categoria em:
+- Ingredientes;
+- Estoque Total;
+- Contagem;
+- Histórico de Posição;
+- Movimentação;
+- Itens Consumidos (as categorias de ficha seguem na lista quando nenhum
+  grupo está escolhido).
+
+Guardião: `testes/grupo-categoria-ingredientes.js` (23). Prova no
+Chromium: 11e.

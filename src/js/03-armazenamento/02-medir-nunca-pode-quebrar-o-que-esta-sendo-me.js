@@ -960,7 +960,9 @@ function volta(linhas,fn,atual,col){
   var gi=await _p13;
   var mapaGi={};gi.forEach(function(x){mapaGi[x.id]=x.ref_local||x.id});
   DB.gruposIng=volta(gi,function(x){return {id:x.ref_local||x.id,nome:x.nome,
-    compoeCMV:x.compoe_cmv!==false,sucursais:x.sucursais||[]}},null,'gruposIng');
+    compoeCMV:x.compoe_cmv!==false,sucursais:x.sucursais||[],
+    /* o GRUPO da categoria (V402): sobe na coluna `categoria` e tem de descer */
+    categoria:x.categoria||''}},null,'gruposIng');
 
   var ins=await _p14;
   var mapaIns={};ins.forEach(function(x){mapaIns[x.id]=x.ref_local||x.id});

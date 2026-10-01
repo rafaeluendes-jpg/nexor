@@ -340,6 +340,7 @@ function telaMovimentacao(){
       var ins=itemEstoque(l.insumoId);
       if(MV.insumoId&&l.insumoId!==MV.insumoId)return;
       if(MV.grupo&&(!ins||(ins.grupoId!==MV.grupo&&ins.categoriaId!==MV.grupo)))return;
+      if(MV.grupoMaior&&!itemNoGrupoMaior(ins,MV.grupoMaior))return;
       if(!casaBuscaMov(l,m,ins))return;
       linhas.push({m:m,l:l,ins:ins});
     });
@@ -426,10 +427,7 @@ function telaMovimentacao(){
      '<input id="mvBusca" placeholder="clique ou digite 3 letras" autocomplete="off" '+
      'value="'+E(MV.insumoId?((itemEstoque(MV.insumoId)||{}).nome||''):(MV.busca||''))+'">'+
      '<div class="bxSug" id="mvSug" style="display:none"></div></div>'+
-    '<div class="f2"><label>Grupo</label><select onchange="MV.grupo=this.value;telaMovimentacao()">'+
-     '<option value="">Todos</option>'+
-     (DB.gruposIng||[]).map(function(g){return '<option value="'+g.id+'"'+(MV.grupo===g.id?' selected':'')+'>'+E(g.nome)+'</option>'}).join('')+
-    '</select></div>'+
+    filtroGrupoCat('MV','telaMovimentacao','f2')+
     '<div class="f2"><label>Movimentação</label><select onchange="MV.motivoId=this.value;telaMovimentacao()">'+
      '<option value="">Todas</option>'+
      '<option value="__transf"'+(MV.motivoId==='__transf'?' selected':'')+'>Transferência de mercadoria</option>'+
@@ -637,6 +635,7 @@ function exportarMov(){
       var ins=itemEstoque(x.insumoId);
       if(MV.insumoId&&x.insumoId!==MV.insumoId)return;
       if(MV.grupo&&(!ins||ins.grupoId!==MV.grupo))return;
+      if(MV.grupoMaior&&!itemNoGrupoMaior(ins,MV.grupoMaior))return;
       if(!casaBuscaMov(x,m,ins))return;
       var g=ins?grupoIng(ins.grupoId):null;
       l.push([dataBR(m.data),m.hora||'',x.nome,g?g.nome:'',nomeMotivo(m.motivoId),m.identificacao||'',
