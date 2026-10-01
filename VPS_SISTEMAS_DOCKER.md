@@ -12,14 +12,21 @@ WhatsApp.
 
 ```
 /opt/sistemas/
-  jolo-central/      Central Jolô         Next.js    127.0.0.1:8081
-  painel-ulian/      Painel Rafael Ulian  site       127.0.0.1:8082
-  r2on/              R2ON                 site       127.0.0.1:8083
-  dalu/              Dalu                 site       127.0.0.1:8084
-  rafaellos/         Central Rafaello's   site       127.0.0.1:8085
-  zap-assistente/    Assistente WhatsApp  robô       127.0.0.1:8086
-  espelho/           as cópias completas do git
+  painel-ulian/         Painel Rafael Ulian  site            127.0.0.1:8082
+  r2on/                 R2ON                 site            127.0.0.1:8083
+  dalu/                 Dalu                 site            127.0.0.1:8084
+  rafaellos/            Central Rafaello's   site            127.0.0.1:8085
+  zap-assistente/       Assistente WhatsApp  robô            127.0.0.1:8086
+  sistema-inteligente/  Sistema Inteligente  tela+API+banco  :8087 e :8088
+  espelho/              as cópias completas do git
+  removidos/            o que saiu da lista, guardado com a data
 ```
+
+**A lista é esta e só esta** (ordem do Rafael, 01/10/2026). Ficam de fora,
+de propósito: `nexor` (Joia), `jolo-central` (Central Jolô), `nexor-app` e
+`delivery`. Projeto que sai da lista é **desligado** e a pasta vai para
+`removidos/` com a data — não é apagada, porque pode ter um `.env` com
+chave colada à mão, e isso não se destrói sem alguém pedir.
 
 Dentro de cada pasta, e **só** dentro dela: o código (`repo/`), o
 `docker-compose.yml`, o `Dockerfile` quando precisa construir, o
@@ -34,6 +41,12 @@ o da Central Jolô, nem pelo nome nem pelo IP.
 
 ## Três coisas que ele não faz, de propósito
 
+0. **O Sistema Inteligente usa o compose que vem no próprio repositório**,
+   em vez de um inventado aqui: ele já traz banco, API e tela. O que é
+   trocado: a senha do banco passa a vir do `.env` desta pasta; as portas
+   passam a escutar só em `127.0.0.1`; e a semente de exemplo e o
+   dono-de-teste ficam **desligados**, porque o compose do repositório traz
+   uma senha do Rafael escrita dentro, e ela não sobe para o servidor.
 1. **Não encosta no que já está no ar.** O `/opt/dalu`, o Supabase próprio
    e o nginx do servidor ficam como estão. Nada aqui ocupa a porta 80 nem
    a 443: cada caixa escuta só em `127.0.0.1`, e quem publica para a
@@ -59,11 +72,22 @@ Docker de verdade, as seis caixas construídas e subidas:
 | | |
 |---|---|
 | Painel Rafael Ulian | 200, título "Painel Rafael Ulian", 8.764 bytes |
-| R2ON | 200, título "R2ON · Gestão inteligente de obras" |
+| R2ON | constrói e serve: 200, título "R2ON · Gestão inteligente de obras" |
 | Dalu | 200, título "Dalu — Organize. Simplifique. Viva." |
 | Central Rafaello's | 200, 1.532.746 bytes — o sistema inteiro |
 | Assistente WhatsApp | sobe, responde `{"ok":true,"versao":"R2.3.0"}`, grava a sessão, roda sem ser root |
-| Central Jolô | constrói e sobe; sem a chave do Supabase responde 500, como tem de ser |
+| Sistema Inteligente | banco próprio de pé e saudável, aceitando a senha do `.env` desta pasta, sem porta publicada; volume próprio (`sistema-inteligente_si_dados`) |
+
+**Uma coisa não deu para exercitar nesta sessão:** a construção da API e da
+tela do Sistema Inteligente. O Dockerfile dele instala pacote do sistema
+(`postgresql-client`) e a rede desta sessão bloqueia o repositório do
+Debian — conferido, responde 000. No servidor, com rede aberta, o passo
+roda. Fica dito em vez de ser apresentado como testado.
+
+**Retirada do que saiu da lista, testada:** montei um servidor de mentira
+com o Central Jolô instalado e um `.env` escrito à mão. Ao rodar, ele foi
+desligado e a pasta foi para `removidos/jolo-central-202610010246`, com o
+`.env` intacto lá dentro.
 
 Isolamento: seis pares testados, todos isolados.
 Dalu: `functions/`, `*.md` e `*.mjs` dão 404; o aplicativo dá 200.
@@ -90,6 +114,14 @@ Nenhum destes apareceria em revisão de código — só construindo de verdade:
   do erro à mão. Agora fica em `subida.log`, com as primeiras linhas na
   tela, e há uma segunda tentativa — a primeira falha costuma ser só puxar
   a imagem.
+- **A API e a tela do Sistema Inteligente ficariam abertas para a
+  internet.** O `include` do Compose **soma** a lista de portas em vez de
+  trocar, então o `3000:3000` e o `3001:3001` do compose do repositório
+  continuavam valendo junto com os meus `127.0.0.1:…` — o oposto do que
+  este arquivo promete. Resolvido com `!override`, e agora há uma **trava**
+  no instalador: ele lê o compose de cada projeto e reprova se qualquer
+  porta publicada não estiver em `127.0.0.1`. Contraprova feita: abri uma
+  porta de propósito e a trava acusou.
 - **Sinal de saúde acusava doente contêiner são**: numa máquina com
   `http_proxy` no ambiente, o `wget` tentava sair pela rua para falar com
   ele mesmo. Agora usa `-Y off`; os projetos em Node usam o `fetch` do

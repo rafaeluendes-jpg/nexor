@@ -11,12 +11,12 @@
 # projeto alcanca o outro, e nenhum deles escreve na pasta do vizinho.
 #
 #   /opt/sistemas/
-#     jolo-central/    Central Jolo       (Next.js)      127.0.0.1:8081
-#     painel-ulian/    Painel Rafael U.   (site)         127.0.0.1:8082
-#     r2on/            R2ON               (site)         127.0.0.1:8083
-#     dalu/            Dalu               (site)         127.0.0.1:8084
-#     rafaellos/       Central Rafaellos  (site)         127.0.0.1:8085
-#     zap-assistente/  Assistente WhatsApp (robo)        127.0.0.1:8086
+#     painel-ulian/         Painel Rafael Ulian  (site)       127.0.0.1:8082
+#     r2on/                 R2ON                 (site)       127.0.0.1:8083
+#     dalu/                 Dalu                 (site)       127.0.0.1:8084
+#     rafaellos/            Central Rafaellos    (site)       127.0.0.1:8085
+#     zap-assistente/       Assistente WhatsApp  (robo)       127.0.0.1:8086
+#     sistema-inteligente/  Sistema Inteligente  (tela+API+banco) :8087 e :8088
 #     espelho/         as copias completas do git
 #
 # TRES COISAS QUE ELE NAO FAZ, DE PROPOSITO:
@@ -46,12 +46,12 @@ DONO="rafaeluendes-jpg"
 
 # id|repositorio|porta|modo|nome de gente
 PROJETOS=(
-  "jolo-central|jolo-central|8081|next|Central Jolo"
   "painel-ulian|painel-rafael-ulian|8082|site|Painel Rafael Ulian"
-  "r2on|r2on|8083|vite|R2ON"
   "dalu|Rafael-gest-o-|8084|site|Dalu"
-  "rafaellos|rafaellos-centro-de-gestao|8085|site|Central Rafaellos"
   "zap-assistente|nexor-whatsapp|8086|robo|Assistente WhatsApp"
+  "r2on|r2on|8083|vite|R2ON"
+  "rafaellos|rafaellos-centro-de-gestao|8085|site|Central Rafaellos"
+  "sistema-inteligente|sistema-inteligente|8087|proprio|Sistema Inteligente"
 )
 
 # o assistente do WhatsApp fica montado e PARADO: ver observacao 2 no topo
@@ -63,7 +63,7 @@ campo(){ echo "$1" | cut -d'|' -f"$2"; }
 # "montado, esperando o Rafael colar a chave".
 exigencias(){
   case "$1" in
-    jolo-central)   echo "NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY" ;;
+    sistema-inteligente) echo "SI_DB_SENHA JWT_ACCESS_SECRET JWT_REFRESH_SECRET" ;;
     r2on)           echo "VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY" ;;
     zap-assistente) echo "SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY CHAVE_API" ;;
     *)              echo "" ;;
@@ -192,71 +192,6 @@ networks:
 COMPOSE
 }
 
-escrever_next(){      # Central Jolo: Next.js
-  local id="$1" porta="$2"
-  mkdir -p "$RAIZ/$id"
-  cat > "$RAIZ/$id/Dockerfile" <<'DOCKER'
-# Duas etapas: a primeira constroi, a segunda so roda. A imagem final nao
-# leva compilador nem pasta de desenvolvimento.
-FROM node:22-alpine AS construir
-WORKDIR /app
-COPY repo/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; \
-    else npm install --no-audit --no-fund; fi
-COPY repo/ ./
-# As chaves publicas (NEXT_PUBLIC_) entram no JavaScript na hora de construir
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-ARG NEXT_PUBLIC_SITE_URL
-ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
-    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
-    NEXT_TELEMETRY_DISABLED=1
-RUN npx next build
-
-FROM node:22-alpine
-WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
-COPY --from=construir /app/package*.json ./
-COPY --from=construir /app/node_modules ./node_modules
-COPY --from=construir /app/.next ./.next
-COPY --from=construir /app/public ./public
-COPY --from=construir /app/next.config.ts ./
-# nao roda como root
-USER node
-EXPOSE 3000
-CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
-DOCKER
-
-  cat > "$RAIZ/$id/docker-compose.yml" <<COMPOSE
-# $id — caixa propria
-name: $id
-
-services:
-  app:
-    build:
-      context: .
-      args:
-        NEXT_PUBLIC_SUPABASE_URL: \${NEXT_PUBLIC_SUPABASE_URL:-}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: \${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
-        NEXT_PUBLIC_SITE_URL: \${NEXT_PUBLIC_SITE_URL:-}
-    restart: unless-stopped
-    env_file: [.env]
-    ports: ["127.0.0.1:$porta:3000"]
-    networks: [rede]
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-
-networks:
-  rede:
-    name: ${id}_rede
-COMPOSE
-}
-
 escrever_vite(){      # R2ON: constroi e serve o resultado
   local id="$1" porta="$2"
   mkdir -p "$RAIZ/$id"
@@ -323,6 +258,56 @@ services:
 networks:
   rede:
     name: ${id}_rede
+COMPOSE
+}
+
+escrever_proprio(){   # repositorio que ja traz o seu proprio compose
+  local id="$1" porta="$2"
+  mkdir -p "$RAIZ/$id"
+  # O Sistema Inteligente ja vem com banco + API + tela num compose proprio,
+  # pensado para o computador de quem programa: porta aberta para todo mundo e
+  # segredo de teste escrito dentro. Em vez de inventar outro, o de la e
+  # incluido e as partes perigosas sao trocadas aqui.
+  cat > "$RAIZ/$id/docker-compose.yml" <<COMPOSE
+# $id — caixa propria, a partir do compose que vem no proprio repositorio
+name: $id
+
+include:
+  - repo/docker-compose.yml
+
+services:
+  db:
+    # o compose do repositorio deixa a senha do banco escrita no arquivo;
+    # aqui ela vem do .env desta pasta
+    environment:
+      POSTGRES_PASSWORD: \${SI_DB_SENHA:?falta SI_DB_SENHA no .env}
+    # o banco nao se publica: quem fala com ele e a api, pela rede de dentro
+    ports: !override []
+
+  api:
+    environment:
+      DATABASE_URL_OWNER: postgresql://si_owner:\${SI_DB_SENHA}@db:5432/sistema_inteligente
+      DATABASE_URL: postgresql://si_api:\${SI_DB_SENHA}@db:5432/sistema_inteligente
+      JWT_ACCESS_SECRET: \${JWT_ACCESS_SECRET:?falta JWT_ACCESS_SECRET no .env}
+      JWT_REFRESH_SECRET: \${JWT_REFRESH_SECRET:?falta JWT_REFRESH_SECRET no .env}
+      API_CORS_ORIGIN: \${URL_PUBLICA:-http://127.0.0.1:$porta}
+      COOKIE_SECURE: "true"
+      # A semente de exemplo e o dono-de-teste ficam DESLIGADOS: o compose do
+      # repositorio traz a senha do Rafael escrita, e isso nao sobe para ca.
+      SEED_ALLOW_SAMPLE: "false"
+      SEED_DEV_PASSWORD: ""
+      SEED_OWNER_EMAIL: ""
+      SEED_OWNER_PASSWORD: ""
+    # !override porque o compose do repositorio publica 3001 em 0.0.0.0, e
+    # lista de portas se SOMA quando nao se manda trocar. Sem isto a api
+    # ficaria aberta para a internet.
+    ports: !override ["127.0.0.1:$((porta+1)):3001"]
+
+  web:
+    environment:
+      API_INTERNAL_URL: http://api:3001
+      NEXT_PUBLIC_API_URL: \${URL_API_PUBLICA:-http://127.0.0.1:$((porta+1))}
+    ports: !override ["127.0.0.1:$porta:3000"]
 COMPOSE
 }
 
@@ -400,13 +385,15 @@ molde_env(){          # nunca sobrescreve: chave colada nao se perde
   local id="$1" arq="$RAIZ/$id/.env"
   [ -f "$arq" ] && return 0
   case "$id" in
-    jolo-central) cat > "$arq" <<'ENV'
-# Central Jolo. As duas de cima vao ao navegador; a de baixo, NUNCA.
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-NEXT_PUBLIC_SITE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
-APP_AMBIENTE=producao
+    sistema-inteligente) cat > "$arq" <<'ENV'
+# Sistema Inteligente. O banco dele e desta caixa, nao e compartilhado.
+# Para inventar os valores (no servidor):  openssl rand -hex 24
+SI_DB_SENHA=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+# dominio publico, quando tiver um (entra no CORS e no endereco da API)
+URL_PUBLICA=
+URL_API_PUBLICA=
 ENV
 ;;
     r2on) cat > "$arq" <<'ENV'
@@ -467,6 +454,34 @@ NG
 exigir
 mkdir -p "$RAIZ" || { echo "nao consegui criar $RAIZ (falta sudo?)"; exit 1; }
 
+# Ordem do Rafael: "o resto exclui tudo la de dentro". Projeto que saiu da
+# lista para de rodar e sai do caminho. A pasta nao e APAGADA: ela pode ter um
+# .env com chave colada a mao, e isso nao se destroi sem ninguem pedir — vai
+# para removidos/ com a data, de onde se recupera ou se apaga a vontade.
+limpar_os_que_sairam(){
+  local atuais=" " p d id
+  for p in "${PROJETOS[@]}"; do atuais="$atuais$(campo "$p" 1) "; done
+  [ -d "$RAIZ" ] || return 0
+  for d in "$RAIZ"/*/; do
+    id=$(basename "$d")
+    [ "$id" = "espelho" ] && continue
+    [ "$id" = "removidos" ] && continue
+    case "$atuais" in *" $id "*) continue ;; esac
+    printf '  %-20s nao esta mais na lista: ' "$id"
+    if [ -f "$d/docker-compose.yml" ]; then
+      (cd "$d" && docker compose down --rmi local -v >/dev/null 2>&1)
+    fi
+    mkdir -p "$RAIZ/removidos"
+    if mv "$d" "$RAIZ/removidos/$id-$(date +%Y%m%d%H%M)" 2>/dev/null; then
+      echo "desligado e movido para removidos/"
+    else
+      echo "desligado (nao consegui mover a pasta)"
+    fi
+  done
+}
+
+limpar_os_que_sairam
+
 echo "  ---- codigo de cada projeto ----"
 declare -a problemas=()
 declare -a pendentes=()
@@ -492,7 +507,7 @@ for p in "${PROJETOS[@]}"; do
         *)            raizweb="public"; negar='' ;;
       esac
       escrever_site "$id" "$porta" "$raizweb" "$negar" ;;
-    next) escrever_next "$id" "$porta" ;;
+    proprio) escrever_proprio "$id" "$porta" ;;
     vite) escrever_vite "$id" "$porta" ;;
     robo) escrever_robo "$id" "$porta" ;;
   esac
@@ -548,6 +563,25 @@ for p in "${PROJETOS[@]}"; do
     echo "FALHOU ao subir"
     problemas+=("$id: subir — motivo em $reg")
     grep -m3 -E 'ERR|[Ee]rror|failed' "$reg" | sed 's/^/        /'
+  fi
+done
+
+echo
+echo "  ---- conferencia: nenhuma caixa aberta para a internet ----"
+# Isto e uma trava, nao um enfeite. Uma vez o compose do Sistema Inteligente
+# publicou 3000 e 3001 em 0.0.0.0 porque lista de porta se SOMA em vez de
+# trocar — a api ficou aberta para a internet sem ninguem notar. A promessa
+# deste arquivo e que so o nginx do servidor publica; aqui ela e conferida.
+for p in "${PROJETOS[@]}"; do
+  id=$(campo "$p" 1)
+  [ -f "$RAIZ/$id/docker-compose.yml" ] || continue
+  abertas=$( (cd "$RAIZ/$id" && docker compose config 2>/dev/null) \
+             | awk '/host_ip:/{ip=$2} /published:/{if(ip!="127.0.0.1")print $2; ip=""}' )
+  if [ -n "$abertas" ]; then
+    printf '  %-20s ABERTA PARA A INTERNET nas portas: %s\n' "$id" "$(echo $abertas | tr '\n' ' ')"
+    problemas+=("$id: porta aberta para a internet")
+  else
+    printf '  %-20s so em 127.0.0.1: ok\n' "$id"
   fi
 done
 

@@ -30,16 +30,16 @@ DESTINO="${DESTINO:-/opt/sistemas/espelho}"
 DONO="rafaeluendes-jpg"
 
 # Ordem do Rafael de 01/10/2026: só os sistemas dele entram no servidor.
-# Os de fora ficam de fora — nexor (Joia), nexor-app,
-# delivery e sistema-inteligente NÃO são copiados. Acrescentar um aqui sem
-# ele pedir é guardar código que não é dele.
+# Os de fora ficam de fora — nexor (Joia), jolo-central (Central Jolô),
+# nexor-app e delivery NÃO são copiados. Acrescentar um aqui sem ele pedir é
+# guardar código que não é dele.
 REPOS=(
-  jolo-central                # Central Jolô
   painel-rafael-ulian         # Painel Rafael Ulian
   r2on                        # R2ON (parado, mas guardado)
   Rafael-gest-o-              # Dalu — o projeto da Lu
   rafaellos-centro-de-gestao  # Central Rafaello's
   nexor-whatsapp              # Assistente do WhatsApp
+  sistema-inteligente         # Sistema Inteligente
 )
 
 # 1) o que vier no ambiente; 2) o arquivo guardado; 3) o gh desta máquina

@@ -224,3 +224,103 @@ Ficam **fora** de propósito, porque não são dele: `nexor` (Joia),
 varredura de senha acima cobriu os dez — guardar cópia é outra coisa, e
 essa lista é curta por ordem dele. Acrescentar um sem ele pedir é guardar
 código que não é dele.
+
+---
+
+# Correção da varredura — 01/10/2026 (mesmo dia, mais tarde)
+
+**O que eu disse antes estava incompleto.** A varredura da manhã concluiu
+"nenhuma senha exposta". A conclusão geral se mantém — não há chave de
+servidor, token do GitHub, token de cobrança nem `service_role` em
+repositório nenhum —, mas **o padrão que procurava senha tinha um buraco** e
+três coisas passaram.
+
+## O buraco
+
+O padrão exigia início de palavra antes de `senha`/`password`:
+
+    \b(senha|password|passwd|pwd)\s*[:=]\s*["'][^"'\s]{6,}["']
+
+Em `SEED_OWNER_PASSWORD` o `_` conta como letra, então `\bpassword` não
+casa — e essa é justamente a forma mais comum de escrever senha em arquivo
+de ambiente e de docker. Tudo que se chamava `ALGO_PASSWORD` ou
+`ALGO_SENHA` passou batido.
+
+A primeira tentativa de consertar errou para o outro lado: tirei a trava de
+palavra e virou ruído — 82 acusações falsas num repositório só, porque
+"de**senha**r" contém "senha" e `senha = campo.valor` não é senha gravada.
+O padrão de hoje tem as duas travas: o nome não pode vir logo depois de
+letra, e o valor tem de ser **literal** (entre aspas, ou linha de arquivo de
+ambiente). Valor que aponta para outro lugar (`${VAR}`, `process.env.X`) ou
+que é marcador de molde (`<SUA_SENHA>`, `cole-aqui`) não é acusado.
+
+Também passou a varrer **senha no histórico**, com o **caminho de cada
+achado** — antes o histórico só era varrido em busca de token e chave, e os
+achados vinham sem arquivo, o que não dá para ir consertar.
+
+Provado contra defeito plantado: senha gravada num commit e apagada no
+seguinte, achada com arquivo e linha; e `${DB_PASSWORD}`, `process.env`,
+`<SUA_SENHA>` e `cole-a-senha-aqui` corretamente ignorados.
+
+## As três coisas que passaram
+
+### 1. Central Rafaello's: o login de fábrica está na página (ação)
+
+`public/index.html`, linhas 703 e 711: `USER_PADRAO` (6 caracteres) e
+`SENHA_PADRAO` (7 caracteres). São o usuário e a senha **do aplicativo e do
+gestor** quando ainda não há configuração salva:
+
+    if(!c || !c.appPass) c = {appUser:USER_PADRAO, appPass:SENHA_PADRAO,
+                              gestorUser:USER_PADRAO, gestorPass:SENHA_PADRAO};
+
+O `index.html` é a página que **todo navegador baixa** de `rafaellos.app`.
+Quem abrir "ver código-fonte" lê os dois. Não é falha de programação — é o
+login de fábrica, como o de um roteador novo. O risco é só um: **se nunca
+foi trocado, qualquer pessoa entra como gestor.**
+
+O que fazer: abrir a Central, ir na configuração e trocar a senha do
+aplicativo e a do gestor. Depois disso a configuração salva passa a valer e
+o valor da página deixa de abrir porta. Não dá para conferir daqui se já
+foi trocado: isso está no banco da Central, no servidor dele.
+
+### 2. Sistema Inteligente: uma senha do Rafael escrita no arquivo
+
+`docker-compose.yml`, linha 44: `SEED_OWNER_PASSWORD` com 6 dígitos, ao
+lado de `SEED_OWNER_EMAIL` com o e-mail dele. Serve para criar a conta de
+dono quando se roda o sistema no computador de quem programa. O
+repositório é **privado**, então não está à vista do mundo — mas é uma
+senha dele, em texto, num arquivo; e se for uma senha que ele usa em outro
+lugar, o lugar certo dela não é um arquivo.
+
+Já tratado do lado do servidor: a caixa de Docker desligou essa semente
+(`SEED_OWNER_PASSWORD: ""`), então ela não vai para a VPS. Falta só ele
+decidir se troca a senha e se tira a linha do repositório.
+
+### 3. Joia: operador de fábrica com senha de 4 dígitos (anotado)
+
+`ferramentas/semente-loja.js:52` e `ferramentas/conferir-cadastros.js:210`
+criam operadores de demonstração ("Bia", gerente; "Carla", caixa) com senha
+de 4 dígitos. É dado de semente, não credencial do Rafael. Fica anotado
+porque é da mesma família do item 1: se a semente rodar numa loja de
+verdade, nasce um gerente com senha conhecida por quem lê o código — e o
+`nexor` é público.
+
+## O que foi varrido de novo, e deu limpo
+
+Os 10 repositórios, código de hoje; e o histórico inteiro dos 5 públicos
+(3.870 arquivos de histórico). Fora os três itens acima, o que aparece é:
+
+- **chave `anon` / `sb_publishable_`** — nasce para ir ao navegador.
+- **senha de banco local do Sistema Inteligente** (`si_owner:si_owner`) —
+  sobe no docker de quem programa, não existe fora dali.
+- **senha de mentira em arquivo de teste** — no Dalu, no painel, no
+  jolo-central e no Joia; é a *entrada* do teste.
+- **molde e documentação** — `.env.example`, `<API_DB_PASSWORD>`,
+  `postgresql://jolo:SENHA@...` em `BACKUP_RESTORE.md`.
+- **senha do banco gerada na hora** — `instalar-vps.sh` usa
+  `openssl rand -hex 24`; o que está no arquivo é `${SENHA_BANCO}`. Era
+  acusada por engano até a peneira ser aplicada também a essa regra.
+
+Nenhum token do GitHub, nenhuma chave da AWS, nenhum token de cobrança,
+nenhuma chave privada, nenhuma `service_role` — em nenhum commit, de nenhum
+ramo, de nenhum dos cinco repositórios públicos.
