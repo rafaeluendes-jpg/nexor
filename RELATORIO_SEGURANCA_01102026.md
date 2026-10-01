@@ -26,7 +26,13 @@ lista no fim deste relatório.
 | API RDS | Só leitura, chave guardada só como sha-256, dados pessoais mascarados. |
 | Backups antigos (esquema `arquivo`) | RLS ligada e sem política. Ninguém de fora lê. |
 
-## 2. Falhas encontradas (abertas hoje)
+## 2. Falhas encontradas — CORRIGIDAS em 01/10/2026
+
+A e B fechadas pela migration `20261001_seguranca_anon_e_senha_antiga.sql`
+(cardápio ajustado antes, `delivery` 9826e92). Conferido como anônimo: o
+cardápio lê as 4 unidades e as 5 formas; mensalidade, login do responsável e
+taxa não aparecem mais; a conferência antiga de senha não responde a ninguém.
+
 
 ### A. A ficha da unidade aparece para quem não fez login — **média**
 
