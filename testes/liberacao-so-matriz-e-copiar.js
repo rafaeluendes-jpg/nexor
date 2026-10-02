@@ -69,5 +69,22 @@ t('item de todas e item só da matriz não mudam', v('insumos', 'c') === '["*"]'
 t('loja fora da cópia não muda, e o destino que faltava entra', v('insumos', 'e') === '["sf","al","ou","ja"]', v('insumos', 'e'));
 t('depois de copiar, não sobra diferença', f.copiaLiberacaoPlano('sf', ['ja', 'al']).muda === 0 && n === 4, n);
 
+console.log('\n── 3. Ficha de gelato e ficha de base separadas (02/10/2026)\n');
+const fns2 = ['fichasDoGrupoFicha', 'acertarPastasFicha'];
+const mk2 = new Function('DB', "var TODAS_UN='*';\n" + fns2.map(n => corpoDaFuncao(n, fonte)).join('\n') + '\nreturn {' + fns2.join(',') + '};');
+const DB2 = { fichaCats: [{ id: 'p', nome: 'Produzido', sucursais: [] }, { id: 'b', nome: 'Base', paiId: 'p', sucursais: [] },
+  { id: 'g', nome: 'Artesanal', paiId: 'p', sucursais: ['sf'] }],
+  fichas: [{ id: 'f1', categoriaId: 'p', subgrupoId: 'b', sucursais: [] }, { id: 'f2', categoriaId: 'p', subgrupoId: 'g', sucursais: ['sf'] }] };
+const g2 = mk2(DB2);
+g2.acertarPastasFicha();
+t('a pasta passa a enxergar onde as fichas dela são enxergadas', JSON.stringify(DB2.fichaCats[0].sucursais) === '["sf"]');
+t('e o subgrupo da base, sem ficha liberada, continua só na matriz', JSON.stringify(DB2.fichaCats[1].sucursais) === '[]');
+t('a liberação de pasta leva o subgrupo e todas as fichas dele', /var itens=\[g\]\.concat/.test(corpoDaFuncao('liberarGrupoFicha', fonte)) &&
+  /abrirEscolhaUnidades\(itens,nomeG\+' — '\+nF\+' ficha\(s\)',acertarPastasFicha\)/.test(corpoDaFuncao('liberarGrupoFicha', fonte)));
+t('na unidade, a pasta de uma ficha liberada nunca sai', /if\(c\.col==='fichaCats'\)\{/.test(corpoDaFuncao('filtrarCadastroDaUnidade', fonte)));
+t('a lista de fichas filtra por pasta e subgrupo e mostra a pasta de cada uma',
+  /LB\.pasta\)lista=lista\.filter/.test(corpoDaFuncao('telaLiberacao', fonte)) && /nomePastaFicha\(x\)/.test(corpoDaFuncao('telaLiberacao', fonte)));
+t('ficha nova sem loja segue a liberação do subgrupo', /if\(!f&&!\(o\.sucursais\|\|\[\]\)\.length\)\{/.test(fonte));
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam' : '✓ ' + testes + ' testes passaram') + '\n');
 process.exit(falhas ? 1 : 0);

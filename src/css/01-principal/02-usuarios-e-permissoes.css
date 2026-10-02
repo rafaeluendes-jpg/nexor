@@ -297,6 +297,12 @@ tr.pbSel td{background:var(--acc-soft)}
 .lbCampo{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2)}
 .lbCampo select{height:40px;border:1px solid var(--line);border-radius:var(--r-s);padding:0 10px;
   font-family:inherit;font-size:13.5px;background:var(--panel);color:var(--ink)}
+/* liberação de fichas por pasta e subgrupo (02/10/2026) */
+.lbPastas{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:-2px 0 12px}
+.lbPastas .lbCampo{min-width:180px;flex:0 1 220px}
+.lbPastaAc{display:flex;align-items:center;gap:10px;flex:1 1 280px;justify-content:flex-end;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.lbPastaAc b{color:var(--ink)}
+.lbPastaNome{font-size:11.5px;color:var(--ink-3);margin-top:2px}
 /* central de erros (vigia, 01/10/2026) */
 .ceTab td{vertical-align:top}
 .ceTipo{display:inline-block;font-size:11px;font-weight:700;color:var(--ink-2);margin-right:4px}

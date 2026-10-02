@@ -2823,6 +2823,12 @@ tr.pbSel td{background:var(--acc-soft)}
 .lbCampo{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2)}
 .lbCampo select{height:40px;border:1px solid var(--line);border-radius:var(--r-s);padding:0 10px;
   font-family:inherit;font-size:13.5px;background:var(--panel);color:var(--ink)}
+/* liberação de fichas por pasta e subgrupo (02/10/2026) */
+.lbPastas{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:-2px 0 12px}
+.lbPastas .lbCampo{min-width:180px;flex:0 1 220px}
+.lbPastaAc{display:flex;align-items:center;gap:10px;flex:1 1 280px;justify-content:flex-end;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.lbPastaAc b{color:var(--ink)}
+.lbPastaNome{font-size:11.5px;color:var(--ink-3);margin-top:2px}
 /* central de erros (vigia, 01/10/2026) */
 .ceTab td{vertical-align:top}
 .ceTipo{display:inline-block;font-size:11px;font-weight:700;color:var(--ink-2);margin-right:4px}
@@ -14680,7 +14686,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V407.0.0';
+var VERSAO='V408.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -17790,7 +17796,7 @@ var CADASTROS_LIB=[
  {col:'fichas',     n:'Fichas técnicas',        ic:'book'},
  {col:'produtos',   n:'Produtos',               ic:'cart'},
  {col:'categorias', n:'Categorias do cardápio', ic:'folder'},
- {col:'fichaCats',  n:'Categorias de ficha',    ic:'folder'},
+ {col:'fichaCats',  n:'Pastas de fichas',       ic:'folder'},
  {col:'gruposIng',  n:'Grupos de ingredientes', ic:'folder'},
  {col:'grupos',     n:'Grupos de opções',       ic:'plu'},
  {col:'motivosMov', n:'Motivos de baixa manual',ic:'dn4'},
@@ -18158,6 +18164,15 @@ function filtrarCadastroDaUnidade(){
     /* passa a coluna: e por ela que se sabe o que a nuvem ja conhece */
     var _antes=DB[c.col];
     DB[c.col]=soLiberados(DB[c.col],suc,c.col);
+    /* a pasta e o subgrupo de uma ficha que a unidade enxerga nunca saem:
+       sem eles a ficha liberada sumia da produção (02/10/2026) */
+    if(c.col==='fichaCats'){
+      var _usadas={};
+      (DB.fichas||[]).forEach(function(f){if(f.categoriaId)_usadas[f.categoriaId]=1;if(f.subgrupoId)_usadas[f.subgrupoId]=1;});
+      _antes.forEach(function(g){if(g&&g.paiId&&_usadas[g.id])_usadas[g.paiId]=1;});
+      var _fica={};DB[c.col].forEach(function(g){_fica[g.id]=1;});
+      _antes.forEach(function(g){if(g&&_usadas[g.id]&&!_fica[g.id]){DB[c.col].push(g);_fica[g.id]=1;}});
+    }
     registrarSumico(c.col,_antes,DB[c.col],'filtro de liberação por unidade');
     n+=antes-DB[c.col].length;
   });
@@ -18181,7 +18196,56 @@ function filtrarCadastroDaUnidade(){
    está restrito entre centenas, e a barra de ação em lote aparecendo apenas
    quando há seleção.
    ========================================================== */
-var LB={col:'insumos',busca:'',sel:{},grupo:'',filtro:'todos'};
+var LB={col:'insumos',busca:'',sel:{},grupo:'',filtro:'todos',pasta:'',sub:''};
+/* ==========================================================
+   FICHA DE GELATO E FICHA DE BASE, SEPARADAS (Rafael, 02/10/2026)
+   "Na liberação não vejo a pasta Produzido, e a ficha da base e a do
+   gelato têm de estar separadas para eu escolher qual loja vê. Uma vez
+   selecionado, vira lei."
+   Na lista de fichas: filtro por pasta e subgrupo, a pasta de cada ficha
+   à vista, e "quem vê a pasta inteira" — que vale para a pasta, para o
+   subgrupo e para todas as fichas dele de uma vez. A pasta passa a seguir
+   as fichas: ficha liberada nunca some porque a pasta dela ficou de fora.
+   ========================================================== */
+function nomePastaFicha(f){
+  var c=(typeof catFicha==='function')?catFicha(f&&f.categoriaId):null;
+  var sg=(typeof subFicha==='function')?subFicha(f&&f.subgrupoId):null;
+  return (c?c.nome:'Sem pasta')+(sg?' › '+sg.nome:'');
+}
+function fichasDoGrupoFicha(gid){
+  return (DB.fichas||[]).filter(function(f){return f.subgrupoId===gid||f.categoriaId===gid});
+}
+/* a pasta e o subgrupo enxergam onde ao menos uma ficha deles é enxergada */
+function acertarPastasFicha(){
+  var n=0;
+  (DB.fichaCats||[]).forEach(function(c){
+    var l=(c.sucursais||[]).slice();
+    if(l.indexOf(TODAS_UN)>=0)return;
+    var precisa={};
+    fichasDoGrupoFicha(c.id).forEach(function(f){(f.sucursais||[]).forEach(function(s){precisa[s]=1});});
+    (DB.fichaCats||[]).forEach(function(sub){
+      if(sub.paiId!==c.id)return;
+      fichasDoGrupoFicha(sub.id).forEach(function(f){(f.sucursais||[]).forEach(function(s){precisa[s]=1});});
+    });
+    if(precisa[TODAS_UN]){c.sucursais=[TODAS_UN];c.alterado=Date.now();n++;return;}
+    var mexeu=false;
+    Object.keys(precisa).forEach(function(s){if(l.indexOf(s)<0){l.push(s);mexeu=true;}});
+    if(mexeu){c.sucursais=l;c.alterado=Date.now();n++;}
+  });
+  return n;
+}
+function liberarGrupoFicha(gid){
+  var g=(typeof catFicha==='function')?catFicha(gid):null;
+  if(!g)return;
+  var itens=[g].concat((DB.fichaCats||[]).filter(function(x){return x.paiId===gid}))
+    .concat(fichasDoGrupoFicha(gid));
+  (DB.fichaCats||[]).forEach(function(x){
+    if(x.paiId===gid)fichasDoGrupoFicha(x.id).forEach(function(f){if(itens.indexOf(f)<0)itens.push(f);});
+  });
+  var nomeG=(g.paiId&&catFicha(g.paiId)?catFicha(g.paiId).nome+' › ':'')+g.nome;
+  var nF=itens.filter(function(x){return DB.fichas.indexOf(x)>=0}).length;
+  abrirEscolhaUnidades(itens,nomeG+' — '+nF+' ficha(s)',acertarPastasFicha);
+}
 
 /* restrito = nao esta com a marca de todas. Inclui o item que ainda nao
    foi liberado para ninguem, que e o estado natural de item novo. */
@@ -18208,6 +18272,13 @@ function telaLiberacao(){
   var q=(LB.busca||'').toLowerCase();
   if(q)lista=lista.filter(function(x){
     return nomeDoCad(x,LB.col).toLowerCase().indexOf(q)>=0;});
+  var ehFichas=(LB.col==='fichas');
+  if(ehFichas&&LB.pasta)lista=lista.filter(function(f){return f.categoriaId===LB.pasta});
+  if(ehFichas&&LB.sub)lista=lista.filter(function(f){return f.subgrupoId===LB.sub});
+  var pastasF=ehFichas?(DB.fichaCats||[]).filter(function(c){return !c.paiId})
+    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')}):[];
+  var subsF=(ehFichas&&LB.pasta)?(DB.fichaCats||[]).filter(function(c){return c.paiId===LB.pasta})
+    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')}):[];
   lista.sort(function(a,b){
     return nomeDoCad(a,LB.col).localeCompare(nomeDoCad(b,LB.col));});
 
@@ -18230,7 +18301,7 @@ function telaLiberacao(){
     CADASTROS_LIB.map(function(c){
       var qt=(DB[c.col]||[]).length, rs=libRestritos(c.col);
       return '<button class="lbCad'+(LB.col===c.col?' on':'')+'" '+
-       'onclick="LB.col=\''+c.col+'\';LB.sel={};LB.busca=\'\';LB.filtro=\'todos\';telaLiberacao()">'+
+       'onclick="LB.col=\''+c.col+'\';LB.sel={};LB.busca=\'\';LB.filtro=\'todos\';LB.pasta=\'\';LB.sub=\'\';telaLiberacao()">'+
        sv(c.ic,14)+'<span class="lbCadN">'+E(c.n)+'</span>'+
        (rs?'<span class="lbCadR">'+rs+'</span>':'')+
        '<span class="lbCadQ">'+qt+'</span></button>';
@@ -18254,6 +18325,25 @@ function telaLiberacao(){
        }).join('')+'</div>'+
       (lista.length?'<button class="btnP2" onclick="marcarTodosLib()">Selecionar tudo</button>':'')+
      '</div>'+
+     (ehFichas?'<div class="lbPastas">'+
+       '<label class="lbCampo"><b>Pasta</b><select onchange="LB.pasta=this.value;LB.sub=\'\';LB.sel={};telaLiberacao()">'+
+        '<option value="">Todas as pastas</option>'+pastasF.map(function(c){
+          return '<option value="'+E(c.id)+'"'+(LB.pasta===c.id?' selected':'')+'>'+E(c.nome)+'</option>';}).join('')+
+       '</select></label>'+
+       '<label class="lbCampo"><b>Subgrupo</b><select'+(LB.pasta?'':' disabled')+' onchange="LB.sub=this.value;LB.sel={};telaLiberacao()">'+
+        '<option value="">'+(LB.pasta?'Todos os subgrupos':'Escolha a pasta')+'</option>'+subsF.map(function(c){
+          return '<option value="'+E(c.id)+'"'+(LB.sub===c.id?' selected':'')+'>'+E(c.nome)+'</option>';}).join('')+
+       '</select></label>'+
+       ((LB.sub||LB.pasta)?(function(){
+         var g=catFicha(LB.sub||LB.pasta)||{};
+         var gl=g.sucursais||[];
+         var quem=marcadoTodas(g)?'todas as unidades':(gl.filter(function(id){return !ehSucMatriz(id)}).length
+           ?gl.filter(function(id){return !ehSucMatriz(id)}).map(sucNome).join(', '):'só a matriz');
+         return '<div class="lbPastaAc"><span>'+E(g.nome||'')+': <b>'+E(quem)+'</b></span>'+
+           '<button class="btnP2 ok" onclick="liberarGrupoFicha(\''+E(LB.sub||LB.pasta)+'\')">Quem vê '+
+           (LB.sub?'este subgrupo':'esta pasta')+' inteira</button></div>';
+       })():'')+
+      '</div>':'')+
 
      (lista.length
       ?'<div class="lbTabW"><table class="pTable"><thead><tr>'+
@@ -18265,7 +18355,9 @@ function telaLiberacao(){
          return '<tr>'+
           '<td><label class="flagBox"><input type="checkbox" '+(LB.sel[x.id]?'checked':'')+
            ' onchange="LB.sel[\''+x.id+'\']=this.checked;semPular(telaLiberacao)"></label></td>'+
-          '<td><b>'+E(nomeDoCad(x,LB.col))+'</b></td>'+
+          '<td><b>'+E(nomeDoCad(x,LB.col))+'</b>'+
+           (LB.col==='fichas'?'<div class="lbPastaNome">'+E(nomePastaFicha(x))+'</div>'
+            :(LB.col==='fichaCats'&&x.paiId&&catFicha(x.paiId)?'<div class="lbPastaNome">subgrupo de '+E(catFicha(x.paiId).nome)+'</div>':''))+'</td>'+
           '<td>'+(marcadoTodas(x)
             ?'<span class="lbTodas">todas as unidades</span>'
             :(l.length
@@ -18300,6 +18392,7 @@ function telaLiberacao(){
 function editarLiberacao(id){
   var x=(DB[LB.col]||[]).find(function(i){return i.id===id});
   if(!x)return;
+  if(LB.col==='fichaCats'){liberarGrupoFicha(id);return;}
   abrirEscolhaUnidades([x],nomeDoCad(x,LB.col));
 }
 function marcarTodosLib(){
@@ -18345,7 +18438,7 @@ function lbModoTroca(m){
 function lbMarcarLojas(v){
   document.querySelectorAll('.lbSuc').forEach(function(c){c.checked=v;});
 }
-function abrirEscolhaUnidades(itens,titulo){
+function abrirEscolhaUnidades(itens,titulo,depois){
   var lojas=sucAtivas().filter(function(s){return !s.matriz});
   /* marcacao inicial: o que os itens ja tem em comum (um item so, ou
      varios com a mesma liberacao); sem consenso, nada vem escolhido */
@@ -18385,7 +18478,10 @@ function abrirEscolhaUnidades(itens,titulo){
     }
     itens.forEach(function(x){
       x.sucursais=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
+      x.alterado=Date.now();
     });
+    if(typeof depois==='function')depois();
+    else if(LB.col==='fichas'&&typeof acertarPastasFicha==='function')acertarPastasFicha();
     LB.sel={};salvar();telaLiberacao();
     toast(itens.length+' item(ns) atualizado(s).');
     if(NUVEM.ligada)sincronizar();
@@ -38302,6 +38398,14 @@ function modalFicha(id){
          nasceu uma ficha. */
       if(typeof baseDeFichaNova==='function')_novaBase=baseDeFichaNova(o);}
     lerUnidades('ftUn',f||o);        /* quem enxerga esta ficha */
+    /* ficha NOVA sem loja marcada segue a liberação do subgrupo (ou da
+       pasta): o que a matriz decidiu para a pasta vale para o que entra
+       nela depois (Rafael, 02/10/2026: "uma vez selecionado, vira lei") */
+    if(!f&&!(o.sucursais||[]).length){
+      var _gl=(subFicha(o.subgrupoId)||catFicha(o.categoriaId)||{}).sucursais||[];
+      if(_gl.length)o.sucursais=_gl.slice();
+    }
+    if(typeof acertarPastasFicha==='function')acertarPastasFicha();
     FT.mostrar=true;FT.cat=o.categoriaId;FT.sub=o.subgrupoId||'';
     if(FT.cat)FT.abertas[FT.cat]=true;
     salvar();telaFichaTecnica();

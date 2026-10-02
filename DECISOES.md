@@ -7650,3 +7650,31 @@ ontem".
   conciliação do Itaú.
 
 Guardião: `testes/sangria-entra-no-financeiro.js` (8).
+
+## V408 — liberação de fichas por pasta: gelato para a loja, base só para a matriz (02/10/2026)
+
+Rafael: "na Liberação não vejo a pasta Produzido; a ficha de base e a de
+gelato têm de estar separadas para eu escolher qual loja vê. A base só a
+matriz vê. Uma vez selecionado, vira lei."
+
+O que estava errado: a pasta "Produzido" estava só para a matriz. A tela
+de produção só lista fichas da pasta "Produzido", então Santa Fé não via
+nenhum sabor, mesmo com as fichas liberadas. Hoje à tarde a pasta foi
+liberada para Santa Fé pelo banco.
+
+O que mudou:
+- A lista de fichas tem filtro de **Pasta** e **Subgrupo**, e cada ficha
+  mostra "Pasta › Subgrupo".
+- O botão **"Quem vê este subgrupo/esta pasta inteira"** aplica a escolha
+  à pasta, aos subgrupos e a todas as fichas de uma vez.
+- "Categorias de ficha" virou **"Pastas de fichas"**. Editar uma pasta ali
+  também leva junto as fichas dela.
+- A pasta segue as fichas (`acertarPastasFicha`). Na unidade, a pasta de
+  uma ficha liberada nunca é filtrada: ficha liberada não some mais por
+  causa da pasta.
+- "Lei": ficha nova, criada sem loja marcada, nasce com a liberação do
+  subgrupo (ou da pasta).
+
+Guardiões:
+- `liberacao-so-matriz-e-copiar.js` (18);
+- prova 11h no Chromium.

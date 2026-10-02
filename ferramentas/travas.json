@@ -326,7 +326,7 @@
    "roda": true
   },
   "testes/liberacao-so-matriz-e-copiar.js": {
-   "pontos": 12,
+   "pontos": 18,
    "roda": true
   },
   "testes/ligacoes.js": {

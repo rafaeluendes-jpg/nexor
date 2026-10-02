@@ -668,6 +668,14 @@ function modalFicha(id){
          nasceu uma ficha. */
       if(typeof baseDeFichaNova==='function')_novaBase=baseDeFichaNova(o);}
     lerUnidades('ftUn',f||o);        /* quem enxerga esta ficha */
+    /* ficha NOVA sem loja marcada segue a liberação do subgrupo (ou da
+       pasta): o que a matriz decidiu para a pasta vale para o que entra
+       nela depois (Rafael, 02/10/2026: "uma vez selecionado, vira lei") */
+    if(!f&&!(o.sucursais||[]).length){
+      var _gl=(subFicha(o.subgrupoId)||catFicha(o.categoriaId)||{}).sucursais||[];
+      if(_gl.length)o.sucursais=_gl.slice();
+    }
+    if(typeof acertarPastasFicha==='function')acertarPastasFicha();
     FT.mostrar=true;FT.cat=o.categoriaId;FT.sub=o.subgrupoId||'';
     if(FT.cat)FT.abertas[FT.cat]=true;
     salvar();telaFichaTecnica();
