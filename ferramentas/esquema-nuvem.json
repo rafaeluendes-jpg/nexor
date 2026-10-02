@@ -966,7 +966,8 @@
     "ref_local": "text",
     "destino_id": "uuid",
     "sucursais": "jsonb",
-    "pai_id": "uuid"
+    "pai_id": "uuid",
+    "sucursais_vista": "jsonb"
    },
    "unicos": [
     [
@@ -1047,7 +1048,8 @@
     "replicado_em": "timestamp with time zone",
     "sucursais": "jsonb",
     "na_producao": "boolean",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "sucursais_vista": "jsonb"
    },
    "unicos": [
     [

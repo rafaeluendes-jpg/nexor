@@ -81,6 +81,66 @@ Nunca `ALTERAR → PUBLICAR → DESCOBRIR NA LOJA O QUE QUEBROU`.
 
 ---
 
+## ORDEM DO RAFAEL, 02/10/2026 — o que a loja enxerga não muda sem a loja saber
+
+*"O bloco de produção sempre estava liberado… Santa Fé estava fazendo a
+produção todo dia… alguma atualização quebrou isso. Qualquer atualização
+feita não pode desconfigurar e não pode quebrar nenhum código a não ser o
+que foi feito de novo. Toda vez que for fazer algo, tem que verificar isso."*
+
+O caso, em 01/10/2026, logo depois da V405:
+- a pasta "Produzido" ficou só da matriz;
+- 45 fichas mudaram de liberação;
+- dois aparelhos atrasados subiram a lista antiga por cima.
+
+Santa Fé abriu a produção sem nenhum sabor. A tela abria, porque Usuários e
+Permissões libera a tela. O que sumiu foi o dado, porque a Liberação por
+unidade decide o que cada loja vê dentro dela.
+
+### As regras
+
+1. **Liberação é configuração da loja, e configuração é dado.** Nenhuma
+   versão nova, semente, cópia, limpeza ou "acerto" muda o que uma loja
+   enxerga. Só muda quando o Rafael (ou quem ele autorizou) escolhe isso
+   numa tela, item por item ou grupo por grupo.
+2. **Esconder nunca é silencioso.** Toda tela que pode tirar algo de uma
+   loja mostra antes qual loja e quantos itens, e só grava com o "sim"
+   (`abrirEscolhaUnidades`). Tela nova que mexe em `sucursais` usa essa
+   janela; não escreve a sua.
+3. **Aparelho atrasado não grava por cima.** Fichas e pastas: o banco só
+   aceita troca de liberação de quem viu a de hoje (`sucursais_vista`,
+   migration `20261002_liberacao_so_muda_quem_viu`). Bancos e taxas: a lei
+   de versão (`versao_vista`, 29/09). Tabela nova com liberação entra na
+   mesma regra.
+4. **Pasta não esconde ficha liberada.** Na loja, a pasta de uma ficha
+   liberada sempre aparece (`filtrarCadastroDaUnidade`).
+5. **Tudo o que mexe em liberação deixa rastro.** As tabelas com
+   `sucursais` têm auditoria (`tg_auditar`), para saber quem mudou, quando
+   e de onde.
+
+### A conferência obrigatória antes de publicar
+
+Antes de toda publicação, além do portão:
+- **O que muda para cada loja?** Se a mudança toca em `sucursais`,
+  `liberadoNa`, `soLiberados`, `filtrarCadastroDaUnidade`, semente ou
+  download, escreva no `DECISOES.md` o que cada loja via antes e o que vê
+  depois. A resposta certa é "nada muda", a menos que o pedido cite aquilo.
+- **Fluxo da loja, no aparelho da loja.** Para mudanças que tocam a loja:
+  - entrar como a loja (Santa Fé);
+  - abrir Produção, PDV e Estoque;
+  - conferir que os sabores, produtos e insumos de antes continuam lá.
+
+  A prova 11h faz isso no Chromium.
+- **Depois de publicar, conferir no banco** que a liberação das pastas e das
+  fichas da produção de cada loja é a mesma de antes da publicação.
+
+Guardiões:
+- `testes/liberacao-so-muda-quem-viu.js`;
+- `testes/liberacao-so-matriz-e-copiar.js`;
+- prova 11h em `ferramentas/provar.js`.
+
+---
+
 ## Como cada exigência do protocolo já vive no repositório
 
 O Joia não é um projeto novo: a infraestrutura de proteção **já existe**.

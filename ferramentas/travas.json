@@ -329,6 +329,10 @@
    "pontos": 23,
    "roda": true
   },
+  "testes/liberacao-so-muda-quem-viu.js": {
+   "pontos": 26,
+   "roda": true
+  },
   "testes/ligacoes.js": {
    "pontos": 32,
    "roda": true

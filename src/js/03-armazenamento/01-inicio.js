@@ -1319,7 +1319,7 @@ var MAPA=[
     custo_ajustado_origem:x.custoAjustadoOrigem||null,
     gelato_venda:!!x.gelatoVenda,sucursais:x.sucursais||[]}}},
 
- {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
+ {col:'fichaCats', espelha:false,   tab:'ficha_grupos', sucVista:true,
   campos:function(x){var o={nome:x.nome,
     destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null,sucursais:x.sucursais||[]};
     /* O subgrupo virou linha de verdade em ficha_grupos, com pai_id apontando
@@ -1330,7 +1330,7 @@ var MAPA=[
     if(x.paiId&&_ids[x.paiId])o.pai_id=_ids[x.paiId];
     return o;}},
 
- {col:'fichas', espelha:false,      tab:'fichas_tecnicas',
+ {col:'fichas', espelha:false,      tab:'fichas_tecnicas', sucVista:true,
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,grupo_id:fk('fichaCats',x.categoriaId),
     subcategoria_id:fkSub(x.contaId),subgrupo_id:x.subgrupoId||null,unidade:x.unidade||'un',estocavel:x.estocavel!==false,
     na_producao:x.naProducao!==false,
@@ -2301,7 +2301,7 @@ function linhaAceitaPelaNuvem(o,r){
   if(!o||!r)return false;
   function nada(v){ return v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length); }
   for(var k in o){
-    if(k==='versao_vista'||k==='ref_local'||k==='loja_id'||k==='sucursal_id')continue;
+    if(k==='versao_vista'||k==='sucursais_vista'||k==='ref_local'||k==='loja_id'||k==='sucursal_id')continue;
     var a=o[k],b=r[k];
     if(nada(a)&&nada(b))continue;
     if(nada(a)||nada(b))return false;
@@ -3458,6 +3458,10 @@ async function sincronizar(){
              gravação se a nuvem tiver uma mais nova (20260929_versao_vista).
              Vai DEPOIS da impressão: trocar de versão não é alteração. */
           if(E2.versao)o.versao_vista=x._alt||null;
+          /* a liberação que este aparelho viu por último: o banco só deixa
+             trocar quem viu a de hoje (20261002_liberacao_so_muda_quem_viu).
+             Aparelho atrasado não devolve a liberação antiga por cima. */
+          if(E2.sucVista)o.sucursais_vista=Array.isArray(x._sucVista)?x._sucVista:null;
           /* ==========================================================
              O PAI COM FILHO PRESO PRECISA SUBIR DE NOVO — E LEVAR O FILHO
 
@@ -3509,6 +3513,25 @@ async function sincronizar(){
            nuvem devolveu o que ja estava salvo. O aparelho nao insiste (a
            impressao fica como enviada) e baixa a nuvem em seguida, para a
            tela mostrar o que vale. */
+        /* A LIBERAÇÃO QUE A NUVEM GUARDOU (02/10/2026): vira a "vista" deste
+           aparelho. Se ela não é a que subiu, outro aparelho mudou antes —
+           baixa de novo para a tela mostrar a que vale. */
+        if(E2.sucVista&&salvos.length){
+          var _subS={},_velS=0;
+          envio.forEach(function(o){_subS[o.ref_local]=o;});
+          salvos.forEach(function(r){
+            var o=_subS[r.ref_local];
+            var x=o?lista.find(function(y){return y.id===r.ref_local}):null;
+            if(!x)return;
+            if(Array.isArray(r.sucursais))x._sucVista=r.sucursais;
+            if(JSON.stringify(r.sucursais||[])!==JSON.stringify(o.sucursais||[]))_velS++;
+          });
+          if(_velS){
+            NUVEM._rebaixar=true;
+            logNuvem(E2.tab+': '+_velS+' liberação(ões) deste aparelho estavam desatualizadas '+
+              '— a nuvem manteve a que já estava salva',true);
+          }
+        }
         if(E2.versao&&salvos.length){
           var _subiu={},_velhas=0;
           envio.forEach(function(o){_subiu[o.ref_local]=o;});

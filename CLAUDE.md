@@ -54,6 +54,13 @@ um bug seu para uma loja de vender.
    sobem juntas.** Se só uma subir, o navegador da loja continua servindo
    o sistema velho do cache — foi o defeito da V195. `testes/versao.js`
    reprova a publicação quando não batem.
+8. **O que a loja enxerga não muda sem a loja saber** (Rafael, 02/10/2026).
+   Em 01/10 Santa Fé perdeu os sabores da produção porque a liberação da
+   pasta e das fichas mudou e aparelhos atrasados gravaram por cima.
+   Atualização nenhuma desconfigura a loja. Esconder algo de uma loja só
+   com aviso e "sim". Antes de publicar, confira o que cada loja via antes e
+   o que vê depois. A lei inteira está em
+   `JOIA_PROTOCOLO_PERMANENTE_DE_ENGENHARIA.md`.
 
 ## Por que este arquivo existe
 

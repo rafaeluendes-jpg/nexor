@@ -8667,7 +8667,7 @@ var MAPA=[
     custo_ajustado_origem:x.custoAjustadoOrigem||null,
     gelato_venda:!!x.gelatoVenda,sucursais:x.sucursais||[]}}},
 
- {col:'fichaCats', espelha:false,   tab:'ficha_grupos',
+ {col:'fichaCats', espelha:false,   tab:'ficha_grupos', sucVista:true,
   campos:function(x){var o={nome:x.nome,
     destino_id:fk('insumos',x.destinoId)||fk('fichas',x.destinoId)||null,sucursais:x.sucursais||[]};
     /* O subgrupo virou linha de verdade em ficha_grupos, com pai_id apontando
@@ -8678,7 +8678,7 @@ var MAPA=[
     if(x.paiId&&_ids[x.paiId])o.pai_id=_ids[x.paiId];
     return o;}},
 
- {col:'fichas', espelha:false,      tab:'fichas_tecnicas',
+ {col:'fichas', espelha:false,      tab:'fichas_tecnicas', sucVista:true,
   campos:function(x){return {nome:x.nome,codigo:x.codigo||null,grupo_id:fk('fichaCats',x.categoriaId),
     subcategoria_id:fkSub(x.contaId),subgrupo_id:x.subgrupoId||null,unidade:x.unidade||'un',estocavel:x.estocavel!==false,
     na_producao:x.naProducao!==false,
@@ -9649,7 +9649,7 @@ function linhaAceitaPelaNuvem(o,r){
   if(!o||!r)return false;
   function nada(v){ return v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length); }
   for(var k in o){
-    if(k==='versao_vista'||k==='ref_local'||k==='loja_id'||k==='sucursal_id')continue;
+    if(k==='versao_vista'||k==='sucursais_vista'||k==='ref_local'||k==='loja_id'||k==='sucursal_id')continue;
     var a=o[k],b=r[k];
     if(nada(a)&&nada(b))continue;
     if(nada(a)||nada(b))return false;
@@ -10806,6 +10806,10 @@ async function sincronizar(){
              gravação se a nuvem tiver uma mais nova (20260929_versao_vista).
              Vai DEPOIS da impressão: trocar de versão não é alteração. */
           if(E2.versao)o.versao_vista=x._alt||null;
+          /* a liberação que este aparelho viu por último: o banco só deixa
+             trocar quem viu a de hoje (20261002_liberacao_so_muda_quem_viu).
+             Aparelho atrasado não devolve a liberação antiga por cima. */
+          if(E2.sucVista)o.sucursais_vista=Array.isArray(x._sucVista)?x._sucVista:null;
           /* ==========================================================
              O PAI COM FILHO PRESO PRECISA SUBIR DE NOVO — E LEVAR O FILHO
 
@@ -10857,6 +10861,25 @@ async function sincronizar(){
            nuvem devolveu o que ja estava salvo. O aparelho nao insiste (a
            impressao fica como enviada) e baixa a nuvem em seguida, para a
            tela mostrar o que vale. */
+        /* A LIBERAÇÃO QUE A NUVEM GUARDOU (02/10/2026): vira a "vista" deste
+           aparelho. Se ela não é a que subiu, outro aparelho mudou antes —
+           baixa de novo para a tela mostrar a que vale. */
+        if(E2.sucVista&&salvos.length){
+          var _subS={},_velS=0;
+          envio.forEach(function(o){_subS[o.ref_local]=o;});
+          salvos.forEach(function(r){
+            var o=_subS[r.ref_local];
+            var x=o?lista.find(function(y){return y.id===r.ref_local}):null;
+            if(!x)return;
+            if(Array.isArray(r.sucursais))x._sucVista=r.sucursais;
+            if(JSON.stringify(r.sucursais||[])!==JSON.stringify(o.sucursais||[]))_velS++;
+          });
+          if(_velS){
+            NUVEM._rebaixar=true;
+            logNuvem(E2.tab+': '+_velS+' liberação(ões) deste aparelho estavam desatualizadas '+
+              '— a nuvem manteve a que já estava salva',true);
+          }
+        }
         if(E2.versao&&salvos.length){
           var _subiu={},_velhas=0;
           envio.forEach(function(o){_subiu[o.ref_local]=o;});
@@ -12374,7 +12397,9 @@ function volta(linhas,fn,atual,col){
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
     paiId:mapaFg[x.pai_id]||'',
-    destinoId:x.destino_id||'',sucursais:x.sucursais||[]}},null,'fichaCats');
+    destinoId:x.destino_id||'',sucursais:x.sucursais||[],
+    /* a liberação que desceu: é ela que o envio apresenta ao banco (02/10/2026) */
+    _sucVista:x.sucursais||[]}},null,'fichaCats');
 
   /* ==========================================================
      DUAS LEITURAS SIMPLES NO LUGAR DE UMA COM EMBED
@@ -12432,7 +12457,9 @@ function volta(linhas,fn,atual,col){
       ? (((DB.fichas||[]).find(function(v){return v.id===(x.ref_local||x.id)})||{}).itens||[])
       : (x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
       insumoId:mapaIns[i2.insumo_id]||mapaFiRef[i2.ficha_ref]||'',
-      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},_ANT('fichas'),'fichas');
+      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[],
+      /* a liberação que desceu: é ela que o envio apresenta ao banco (02/10/2026) */
+      _sucVista:x.sucursais||[]}},_ANT('fichas'),'fichas');
   /* O subgrupo nao e mais reconstruido a partir das fichas: ele e linha de
      ficha_grupos com pai_id. Esta chamada cobre so a heranca — ficha que
      aponta para um subgrupo que nunca chegou a ter linha. */
@@ -14692,7 +14719,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V408.0.0';
+var VERSAO='V409.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18351,7 +18378,10 @@ function telaLiberacao(){
 
     /* ---------- lista de itens ---------- */
     '<div class="lbCorpo">'+
-     '<div class="lbBarra">'+
+     /* fichas: só os dois quadros (Rafael, 02/10/2026: "tira aquele monte
+        de base, deixa só os dois quadradinhos" — ficha por ficha é na
+        própria ficha técnica) */
+     (ehFichas?'':'<div class="lbBarra">'+
       '<div class="lbBusca">'+sv('search',14)+
        '<input id="lbQ" value="'+E(LB.busca)+'" placeholder="Buscar entre '+
        todos.length+' '+E(def.n.toLowerCase())+'" '+
@@ -18366,7 +18396,7 @@ function telaLiberacao(){
           ' <b>'+n+'</b></button>';
        }).join('')+'</div>'+
       (lista.length?'<button class="btnP2" onclick="marcarTodosLib()">Selecionar tudo</button>':'')+
-     '</div>'+
+     '</div>')+
      (ehFichas?'<div class="lbTipos">'+['base','gelato'].map(function(t){
         var n=fichasDoTipo(t).length,lib=liberacaoDoTipo(t);
         var dif=fichasDoTipo(t).some(function(f){return JSON.stringify((f.sucursais||[]).slice().sort())!==JSON.stringify(lib)});
@@ -18376,6 +18406,8 @@ function telaLiberacao(){
           '<button class="btnP2 ok"'+(n?'':' disabled')+' onclick="liberarTipoFicha(\''+t+'\')">Definir quem vê</button></div>';
       }).join('')+'</div>':'')+
 
+     (ehFichas?'<div class="hint">Para liberar uma ficha só, abra a ficha em Gestão de Estoque › '+
+       'Ficha Técnica, com a loja Matriz selecionada, e marque as lojas em "Quem enxerga este item".</div>':
      (lista.length
       ?'<div class="lbTabW"><table class="pTable"><thead><tr>'+
        '<th style="width:36px"></th><th>Item</th>'+
@@ -18409,7 +18441,7 @@ function telaLiberacao(){
         (LB.filtro==='restritos'
           ?'Nenhum item deste cadastro foi limitado a unidades específicas.'
           :(q?'Tente outro nome.':'Cadastre primeiro na tela do módulo.'))+
-        '</span></div>')+
+        '</span></div>'))+
 
      (selN?'<div class="lbLote">'+
        '<b>'+selN+' item(ns) selecionado(s)</b><div style="flex:1"></div>'+
@@ -18507,16 +18539,37 @@ function abrirEscolhaUnidades(itens,titulo,depois){
     if(m==='lojas'&&!escolhidas.length){
       toast('Marque ao menos uma loja, ou escolha "Só a matriz".');return false;
     }
-    itens.forEach(function(x){
-      x.sucursais=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
-      x.alterado=Date.now();
+    var novo=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
+    /* ==========================================================
+       ESCONDER DE UMA LOJA SÓ COM O EFEITO À VISTA (Rafael, 02/10/2026)
+       Em 01/10 a pasta "Produzido" ficou só para a matriz e Santa Fé
+       perdeu todos os sabores da produção sem ninguém perceber. Agora,
+       se alguma loja vai deixar de ver algo que vê hoje, a tela diz
+       qual loja e quantos itens — e só grava com o "sim". */
+    var perde={};
+    lojas.forEach(function(s){
+      var n=itens.filter(function(x){return liberadoNa(x,s.id)&&!liberadoNa({sucursais:novo},s.id)}).length;
+      if(n)perde[s.nome]=n;
     });
-    if(typeof depois==='function')depois();
-    else if(LB.col==='fichas'&&typeof acertarPastasFicha==='function')acertarPastasFicha();
-    LB.sel={};salvar();telaLiberacao();
-    toast(itens.length+' item(ns) atualizado(s).');
-    if(NUVEM.ligada)sincronizar();
-    return true;
+    var aplicar=function(){
+      itens.forEach(function(x){
+        x.sucursais=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
+        x.alterado=Date.now();
+      });
+      if(typeof depois==='function')depois();
+      else if(LB.col==='fichas'&&typeof acertarPastasFicha==='function')acertarPastasFicha();
+      LB.sel={};salvar();telaLiberacao();
+      toast(itens.length+' item(ns) atualizado(s).');
+      if(NUVEM.ligada)sincronizar();
+      return true;
+    };
+    var nomesPerde=Object.keys(perde);
+    if(!nomesPerde.length)return aplicar();
+    return confirmar({titulo:'Esconder de '+(nomesPerde.length===1?'uma loja':nomesPerde.length+' lojas')+'?',
+      texto:'Estas lojas deixam de ver o que veem hoje:',tipo:'perigo',
+      linhas:nomesPerde.map(function(n){return [n,perde[n]+' item(ns) deixam de aparecer',''];}),
+      aviso:'Na loja, esses itens somem das telas (produção, estoque, cardápio). Confira antes de confirmar.',
+      ok:'Esconder',cancelar:'Voltar'}).then(function(sim){return sim?aplicar():false;});
   });
 }
 /* ==========================================================

@@ -1223,7 +1223,10 @@ function telaLiberacao(){
 
     /* ---------- lista de itens ---------- */
     '<div class="lbCorpo">'+
-     '<div class="lbBarra">'+
+     /* fichas: só os dois quadros (Rafael, 02/10/2026: "tira aquele monte
+        de base, deixa só os dois quadradinhos" — ficha por ficha é na
+        própria ficha técnica) */
+     (ehFichas?'':'<div class="lbBarra">'+
       '<div class="lbBusca">'+sv('search',14)+
        '<input id="lbQ" value="'+E(LB.busca)+'" placeholder="Buscar entre '+
        todos.length+' '+E(def.n.toLowerCase())+'" '+
@@ -1238,7 +1241,7 @@ function telaLiberacao(){
           ' <b>'+n+'</b></button>';
        }).join('')+'</div>'+
       (lista.length?'<button class="btnP2" onclick="marcarTodosLib()">Selecionar tudo</button>':'')+
-     '</div>'+
+     '</div>')+
      (ehFichas?'<div class="lbTipos">'+['base','gelato'].map(function(t){
         var n=fichasDoTipo(t).length,lib=liberacaoDoTipo(t);
         var dif=fichasDoTipo(t).some(function(f){return JSON.stringify((f.sucursais||[]).slice().sort())!==JSON.stringify(lib)});
@@ -1248,6 +1251,8 @@ function telaLiberacao(){
           '<button class="btnP2 ok"'+(n?'':' disabled')+' onclick="liberarTipoFicha(\''+t+'\')">Definir quem vê</button></div>';
       }).join('')+'</div>':'')+
 
+     (ehFichas?'<div class="hint">Para liberar uma ficha só, abra a ficha em Gestão de Estoque › '+
+       'Ficha Técnica, com a loja Matriz selecionada, e marque as lojas em "Quem enxerga este item".</div>':
      (lista.length
       ?'<div class="lbTabW"><table class="pTable"><thead><tr>'+
        '<th style="width:36px"></th><th>Item</th>'+
@@ -1281,7 +1286,7 @@ function telaLiberacao(){
         (LB.filtro==='restritos'
           ?'Nenhum item deste cadastro foi limitado a unidades específicas.'
           :(q?'Tente outro nome.':'Cadastre primeiro na tela do módulo.'))+
-        '</span></div>')+
+        '</span></div>'))+
 
      (selN?'<div class="lbLote">'+
        '<b>'+selN+' item(ns) selecionado(s)</b><div style="flex:1"></div>'+
@@ -1379,16 +1384,37 @@ function abrirEscolhaUnidades(itens,titulo,depois){
     if(m==='lojas'&&!escolhidas.length){
       toast('Marque ao menos uma loja, ou escolha "Só a matriz".');return false;
     }
-    itens.forEach(function(x){
-      x.sucursais=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
-      x.alterado=Date.now();
+    var novo=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
+    /* ==========================================================
+       ESCONDER DE UMA LOJA SÓ COM O EFEITO À VISTA (Rafael, 02/10/2026)
+       Em 01/10 a pasta "Produzido" ficou só para a matriz e Santa Fé
+       perdeu todos os sabores da produção sem ninguém perceber. Agora,
+       se alguma loja vai deixar de ver algo que vê hoje, a tela diz
+       qual loja e quantos itens — e só grava com o "sim". */
+    var perde={};
+    lojas.forEach(function(s){
+      var n=itens.filter(function(x){return liberadoNa(x,s.id)&&!liberadoNa({sucursais:novo},s.id)}).length;
+      if(n)perde[s.nome]=n;
     });
-    if(typeof depois==='function')depois();
-    else if(LB.col==='fichas'&&typeof acertarPastasFicha==='function')acertarPastasFicha();
-    LB.sel={};salvar();telaLiberacao();
-    toast(itens.length+' item(ns) atualizado(s).');
-    if(NUVEM.ligada)sincronizar();
-    return true;
+    var aplicar=function(){
+      itens.forEach(function(x){
+        x.sucursais=m==='todas'?[TODAS_UN]:(m==='lojas'?escolhidas.slice():[]);
+        x.alterado=Date.now();
+      });
+      if(typeof depois==='function')depois();
+      else if(LB.col==='fichas'&&typeof acertarPastasFicha==='function')acertarPastasFicha();
+      LB.sel={};salvar();telaLiberacao();
+      toast(itens.length+' item(ns) atualizado(s).');
+      if(NUVEM.ligada)sincronizar();
+      return true;
+    };
+    var nomesPerde=Object.keys(perde);
+    if(!nomesPerde.length)return aplicar();
+    return confirmar({titulo:'Esconder de '+(nomesPerde.length===1?'uma loja':nomesPerde.length+' lojas')+'?',
+      texto:'Estas lojas deixam de ver o que veem hoje:',tipo:'perigo',
+      linhas:nomesPerde.map(function(n){return [n,perde[n]+' item(ns) deixam de aparecer',''];}),
+      aviso:'Na loja, esses itens somem das telas (produção, estoque, cardápio). Confira antes de confirmar.',
+      ok:'Esconder',cancelar:'Voltar'}).then(function(sim){return sim?aplicar():false;});
   });
 }
 /* ==========================================================

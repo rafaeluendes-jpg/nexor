@@ -1001,7 +1001,9 @@ function volta(linhas,fn,atual,col){
   var mapaFg={};fg.forEach(function(x){mapaFg[x.id]=x.ref_local||x.id});
   DB.fichaCats=volta(fg,function(x){return {id:x.ref_local||x.id,nome:x.nome,subs:[],
     paiId:mapaFg[x.pai_id]||'',
-    destinoId:x.destino_id||'',sucursais:x.sucursais||[]}},null,'fichaCats');
+    destinoId:x.destino_id||'',sucursais:x.sucursais||[],
+    /* a liberação que desceu: é ela que o envio apresenta ao banco (02/10/2026) */
+    _sucVista:x.sucursais||[]}},null,'fichaCats');
 
   /* ==========================================================
      DUAS LEITURAS SIMPLES NO LUGAR DE UMA COM EMBED
@@ -1059,7 +1061,9 @@ function volta(linhas,fn,atual,col){
       ? (((DB.fichas||[]).find(function(v){return v.id===(x.ref_local||x.id)})||{}).itens||[])
       : (x.ficha_itens||[]).map(function(i2){return {id:i2.ref_local||i2.id,
       insumoId:mapaIns[i2.insumo_id]||mapaFiRef[i2.ficha_ref]||'',
-      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[]}},_ANT('fichas'),'fichas');
+      qtd:Number(i2.quantidade)||0,unidade:i2.unidade||'un',perda:Number(i2.perda)||0}}),sucursais:x.sucursais||[],
+      /* a liberação que desceu: é ela que o envio apresenta ao banco (02/10/2026) */
+      _sucVista:x.sucursais||[]}},_ANT('fichas'),'fichas');
   /* O subgrupo nao e mais reconstruido a partir das fichas: ele e linha de
      ficha_grupos com pai_id. Esta chamada cobre so a heranca — ficha que
      aponta para um subgrupo que nunca chegou a ter linha. */

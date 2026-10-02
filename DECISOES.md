@@ -7687,3 +7687,57 @@ O que mudou:
 Guardiões:
 - `liberacao-so-matriz-e-copiar.js` (18);
 - prova 11h no Chromium.
+
+## V409 — a liberação da loja não se desconfigura sozinha (02/10/2026)
+
+Rafael: "o bloco de produção sempre estava liberado, Santa Fé fazia a
+produção todo dia. Alguma atualização escondeu os sabores. Qualquer
+atualização feita não pode desconfigurar e não pode quebrar nada a não ser
+o que foi feito de novo. Isso vira lei."
+
+O que o histórico do banco mostrou (`audit_log`, 01/10/2026, hora local):
+- 14h43: publicada a V405, com a escolha "Só a matriz" na Liberação.
+- 14h53: pelo login da matriz, 45 fichas (44 bases e BANANA ZERO WHEY
+  GELATO) passaram de Santa Fé para "só a matriz".
+- No mesmo minuto, dois aparelhos que ainda tinham a lista antiga subiram a
+  cópia deles por cima: 40 + 5 fichas voltaram para Santa Fé. A liberação
+  ficava trocando a cada envio.
+- A pasta "Produzido" ficou só da matriz. A tela de produção só lista fichas
+  dessa pasta, então Santa Fé perdeu todos os sabores. A tabela das pastas
+  não tinha auditoria, então não há como saber por qual tela.
+
+Nenhuma publicação de código mudou a liberação: quem mudou foi uma tela
+de configuração. Ela gravava sem dizer o efeito, e nada barrava um aparelho
+atrasado de gravar por cima.
+
+O que mudou:
+- **Banco** (`20261002_liberacao_so_muda_quem_viu.sql`): a liberação das
+  fichas e das pastas só muda por quem viu a de hoje. O aparelho manda a
+  liberação que baixou por último (`sucursais_vista`). Se a da nuvem é
+  outra, a liberação salva fica, e o resto da linha (estoque, custo) grava
+  normalmente. Testado no banco, dentro de uma transação desfeita, nos
+  quatro casos: aparelho atrasado, aparelho em dia, versão antiga e rotina
+  interna.
+- **Banco:** aparelho em versão antiga, que não manda o recibo, pode
+  ampliar a liberação, mas nunca esconder. Em 02/10, à tarde, as pastas
+  "Produzido" e "Vendas" estavam de novo só da matriz, depois de corrigidas,
+  quando ainda não havia auditoria delas. As duas voltaram a seguir as
+  fichas delas (Santa Fé).
+- **Banco:** as pastas (`ficha_grupos`) ganharam o registro de auditoria.
+- **Aparelho:** quando a nuvem mantém outra liberação, o aparelho adota a
+  dela e baixa de novo. Não insiste e avisa a Central de Erros.
+- **Tela:** esconder algo de uma loja só depois de um aviso dizendo qual
+  loja e quantos itens. Só grava com "Esconder". Ampliar não pergunta.
+- Liberação de fichas: só os dois quadros, "Fichas de base" e "Fichas de
+  gelato". Sabor por sabor fica na ficha técnica.
+- Dado, por ordem do Rafael: as 36 fichas de base ficaram só da matriz. Antes
+  disso foi conferido que nenhuma ficha de gelato usa ficha de base como
+  ingrediente.
+
+Lei escrita em `JOIA_PROTOCOLO_PERMANENTE_DE_ENGENHARIA.md`, na seção
+"O que a loja enxerga não muda sem a loja saber".
+
+Guardiões:
+- `liberacao-so-muda-quem-viu.js` (25);
+- `liberacao-so-matriz-e-copiar.js` (23);
+- prova 11h no Chromium.

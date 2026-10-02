@@ -3528,12 +3528,12 @@ function servir() {
       { id: 'suc_gmsf', nome: 'Santa Fé GM', ativa: true },
       { id: 'suc_gmja', nome: 'Jales GM', ativa: true },
       { id: 'suc_gmal', nome: 'Alphaville GM', ativa: true }]);
-    DB.fichas.push({ id: 'fi_basegm', nome: 'BASE PISTACHE GM', itens: [], sucursais: ['*'] });
+    DB.insumos.push({ id: 'in_basegm', nome: 'BASE PISTACHE GM', unidade: 'kg', sucursais: ['*'] });
     DB.insumos.push({ id: 'in_lib1', nome: 'Lib Um GM', unidade: 'kg', sucursais: ['suc_gmsf'] });
     DB.insumos.push({ id: 'in_lib2', nome: 'Lib Dois GM', unidade: 'kg', sucursais: ['suc_gmja'] });
     DB.insumos.push({ id: 'in_lib3', nome: 'Lib Tres GM', unidade: 'kg', sucursais: ['*'] });
     salvar();
-    LB.col = 'fichas'; LB.busca = 'BASE PISTACHE GM'; LB.filtro = 'todos';
+    LB.col = 'insumos'; LB.busca = 'BASE PISTACHE GM'; LB.filtro = 'todos';
     abrir('loja', 'liberacao');
     return antes;
   });
@@ -3549,10 +3549,10 @@ function servir() {
   await pg.screenshot({ path: FOTOS + '/liberacao-so-matriz.png' });
   await pg.click('#mdOk');
   await pg.waitForTimeout(300);
-  const lb1 = await pg.evaluate(() => ({ suc: (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais,
+  const lb1 = await pg.evaluate(() => ({ suc: (DB.insumos.find(f => f.id === 'in_basegm') || {}).sucursais,
     aberta: !!document.getElementById('mdOv'),
     tag: (document.querySelector('tr .lbTag.so') || {}).textContent,
-    sf: liberadoNa(DB.fichas.find(f => f.id === 'fi_basegm'), 'suc_gmsf') }));
+    sf: liberadoNa(DB.insumos.find(f => f.id === 'in_basegm'), 'suc_gmsf') }));
   t('"Só a matriz" salva sem pedir loja, e as lojas deixam de ver', Array.isArray(lb1.suc) && lb1.suc.length === 0 &&
     !lb1.aberta && lb1.tag === 'só a matriz' && lb1.sf === false, JSON.stringify(lb1));
   /* escolher lojas: os cartões aparecem e a escolha vale */
@@ -3563,7 +3563,7 @@ function servir() {
   await pg.screenshot({ path: FOTOS + '/liberacao-escolher-lojas.png' });
   await pg.click('#mdOk');
   await pg.waitForTimeout(300);
-  const lb2 = await pg.evaluate(() => (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais);
+  const lb2 = await pg.evaluate(() => (DB.insumos.find(f => f.id === 'in_basegm') || {}).sucursais);
   t('"Escolher lojas" grava só as marcadas', JSON.stringify(lb2) === '["suc_gmja"]', JSON.stringify(lb2));
   /* copiar Santa Fé para Jales e Alphaville */
   await pg.click('button:has-text("Copiar de uma loja")');
@@ -3577,7 +3577,7 @@ function servir() {
   const lb3 = await pg.evaluate(() => {
     var v = id => (DB.insumos.find(i => i.id === id) || {}).sucursais;
     return { um: v('in_lib1'), dois: v('in_lib2'), tres: v('in_lib3'),
-      base: (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais, aberta: !!document.getElementById('mdOv') };
+      base: (DB.insumos.find(f => f.id === 'in_basegm') || {}).sucursais, aberta: !!document.getElementById('mdOv') };
   });
   t('copiar: o que Santa Fé vê, Jales e Alphaville passam a ver', JSON.stringify(lb3.um) === '["suc_gmsf","suc_gmja","suc_gmal"]', JSON.stringify(lb3));
   t('copiar: o que Santa Fé não vê, as outras deixam de ver', JSON.stringify(lb3.dois) === '[]' &&
@@ -3585,13 +3585,13 @@ function servir() {
   t('copiar: item de todas as unidades não muda', JSON.stringify(lb3.tres) === '["*"]' && !lb3.aberta, JSON.stringify(lb3));
   await entrar();
   const lb4 = await pg.evaluate(() => ({ um: (DB.insumos.find(i => i.id === 'in_lib1') || {}).sucursais,
-    base: (DB.fichas.find(f => f.id === 'fi_basegm') || {}).sucursais }));
+    base: (DB.insumos.find(f => f.id === 'in_basegm') || {}).sucursais }));
   t('depois de recarregar, a liberação copiada continua', JSON.stringify(lb4.um) === '["suc_gmsf","suc_gmja","suc_gmal"]' &&
     JSON.stringify(lb4.base) === '[]', JSON.stringify(lb4));
   await pg.evaluate((antes) => {
     DB.sucursais = JSON.parse(antes);
-    DB.fichas = DB.fichas.filter(f => f.id !== 'fi_basegm');
-    DB.insumos = DB.insumos.filter(i => !/^in_lib/.test(i.id));
+    DB.insumos = DB.insumos.filter(f => f.id !== 'in_basegm');
+    DB.insumos = DB.insumos.filter(i => !/^in_lib/.test(i.id) && i.id !== 'in_basegm');
     LB.col = 'insumos'; LB.busca = ''; salvar();
   }, sucAntes);
 
@@ -3640,6 +3640,36 @@ function servir() {
   t('na loja: só o gelato aparece, a base não', lg1.vis.join() === 'MORANGO GELATO TESTE', JSON.stringify(lg1.vis));
   t('ficha nova segue o grupo pelo nome (base: só a matriz; gelato: a loja)',
     JSON.stringify(lg1.novaBase) === '[]' && JSON.stringify(lg1.novoGelato) === '["suc_tst2"]', JSON.stringify(lg1));
+  const lg2 = await pg.evaluate(() => ({ tabela: document.querySelectorAll('.lbTabW tbody tr').length,
+    quadros: document.querySelectorAll('.lbTipo').length }));
+  t('nas fichas, a Liberação mostra só os dois quadros (sem a lista de fichas)', lg2.tabela === 0 && lg2.quadros === 2, JSON.stringify(lg2));
+  /* a ficha técnica: tira a loja de uma base, confere; põe de volta, confere */
+  async function marcarLojaNaFicha(id, marcar) {
+    await pg.evaluate((fid) => { fecharModal(); modalFicha(fid); }, id);
+    await pg.waitForTimeout(250);
+    const cx = await pg.$('.ftUnSuc[value="suc_tst2"]');
+    if (!cx) return 'sem caixa';
+    const tem = await cx.isChecked();
+    const todas = await pg.$('#ftUnTodas');
+    if (todas && await todas.isChecked()) await todas.click();
+    if (tem !== marcar) await cx.click();
+    await pg.click('#mdOk');
+    await pg.waitForTimeout(300);
+    return await pg.evaluate((fid) => {
+      var f = DB.fichas.find(x => x.id === fid);
+      return { suc: f.sucursais, ve: liberadoNa(f, 'suc_tst2') };
+    }, id);
+  }
+  const fA = await marcarLojaNaFicha('fi_btst1', true);
+  t('ficha técnica: marcou a loja na base → a loja vê', fA && fA.ve === true, JSON.stringify(fA));
+  const fB = await marcarLojaNaFicha('fi_btst1', false);
+  t('ficha técnica: desmarcou a loja → a loja deixa de ver', fB && fB.ve === false, JSON.stringify(fB));
+  const fC = await marcarLojaNaFicha('fi_btst1', true);
+  const fD = await marcarLojaNaFicha('fi_btst1', false);
+  t('marcar e desmarcar de novo continua certo (não volta sozinho)', fC.ve === true && fD.ve === false, JSON.stringify([fC, fD]));
+  await entrar();
+  const fE = await pg.evaluate(() => { var f = DB.fichas.find(x => x.id === 'fi_btst1'); return f ? liberadoNa(f, 'suc_tst2') : 'sumiu'; });
+  t('depois de recarregar, a escolha da ficha técnica continua', fE === false, JSON.stringify(fE));
   await pg.evaluate((antes) => {
     DB.sucursais = JSON.parse(antes);
     DB.fichas = DB.fichas.filter(f => !/^fi_[bg]tst/.test(f.id));
