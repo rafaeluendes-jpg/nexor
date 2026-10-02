@@ -521,6 +521,10 @@
    "pontos": 13,
    "roda": true
   },
+  "testes/sangria-entra-no-financeiro.js": {
+   "pontos": 8,
+   "roda": true
+  },
   "testes/sangria-nao-some.js": {
    "pontos": 22,
    "roda": true

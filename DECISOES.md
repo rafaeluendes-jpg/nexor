@@ -7621,3 +7621,32 @@ verde. O que não pode (configuração, apagar, regra nova) vai para
 "Precisa de você".
 
 Guardião: `testes/vigia-caixinha.js` (21).
+
+## Sangria entra no financeiro pelo login da loja (02/10/2026)
+
+Santa Fé, 01/10 às 23:01: sangria de R$ 350,00 para o Itaú. Saiu da
+gaveta, mas o lançamento de transferência (`lancarTransferenciaCaixa`,
+origem `mov-caixa`) foi recusado pelo banco. A regra de gravação de
+`lancamentos_financeiros` exige `posso('financeira/lancamentos-financeiros')`,
+e o login do caixa não tem essa permissão. O aparelho tirou o registro da
+fila (recusa por permissão não se repete), e a sangria não chegou ao
+Itaú, à conciliação nem ao saldo do Caixa da loja.
+
+Quem achou foi a caixinha do vigia: "o banco recusou lancamentos_financeiros
+por regra de acesso", 13 vezes.
+
+Rafael: "todos os logins têm permissão de fazer sangria; quero só a de
+ontem".
+- Migration `20261002_sangria_entra_no_financeiro.sql`: duas políticas
+  novas (gravar e reenviar) liberam só o que o caixa gera. São origem
+  `mov-caixa`, tipo `transferencia`, da própria unidade, com pagamento a
+  partir de 01/10/2026.
+- O corte de data é de propósito. Em 01/10 de manhã os saldos foram
+  acertados pelo valor real, e as 9 sangrias recusadas de 24/09 a 30/09
+  (R$ 1.775) desacertariam o acerto se subissem. Elas continuam no
+  aparelho e o banco continua recusando.
+- A sangria de 01/10 foi gravada na nuvem com o mesmo identificador que
+  o PDV gerou (`lf_muqbh0pbs9aj`). Caixa da loja −350, Itaú +350, já na
+  conciliação do Itaú.
+
+Guardião: `testes/sangria-entra-no-financeiro.js` (8).
