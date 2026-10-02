@@ -3595,64 +3595,56 @@ function servir() {
     LB.col = 'insumos'; LB.busca = ''; salvar();
   }, sucAntes);
 
-  console.log('\n── 11h. Liberação: ficha de gelato e ficha de base separadas\n');
-  /* Rafael, 02/10/2026: "a ficha da base só a matriz vê; a do gelato a
-     loja vê — tem de estar separado na liberação, e virar lei". */
+  console.log('\n── 11h. Liberação em lote: fichas de base e fichas de gelato\n');
+  /* Rafael, 02/10/2026: "quando estiver escrito BASE é base; MORANGO
+     GELATO é gelato. Libero tudo de uma vez; sabor por sabor, na ficha." */
   const lbG = await pg.evaluate(() => {
     fecharModal();
     var antes = JSON.stringify(DB.sucursais);
-    DB.sucursais = DB.sucursais.concat([{ id: 'suc_gmsf2', nome: 'Santa Fé GM2', ativa: true }]);
-    DB.fichaCats.push({ id: 'fc_prodgm', nome: 'Produzido GM', sucursais: [] });
-    DB.fichaCats.push({ id: 'fs_basegm', nome: 'Base GM', paiId: 'fc_prodgm', sucursais: ['suc_gmsf2'] });
-    DB.fichaCats.push({ id: 'fs_artgm', nome: 'Artesanal GM', paiId: 'fc_prodgm', sucursais: [] });
-    DB.fichas.push({ id: 'fi_bgm1', nome: 'BASE MORANGO GM', categoriaId: 'fc_prodgm', subgrupoId: 'fs_basegm', itens: [{ insumoId: 'x', qtd: 1 }], sucursais: ['suc_gmsf2'] });
-    DB.fichas.push({ id: 'fi_bgm2', nome: 'BASE LIMAO GM', categoriaId: 'fc_prodgm', subgrupoId: 'fs_basegm', itens: [{ insumoId: 'x', qtd: 1 }], sucursais: ['suc_gmsf2'] });
-    DB.fichas.push({ id: 'fi_agm1', nome: 'MORANGO GELATO GM', categoriaId: 'fc_prodgm', subgrupoId: 'fs_artgm', itens: [{ insumoId: 'x', qtd: 1 }], sucursais: [] });
+    DB.sucursais = DB.sucursais.concat([{ id: 'suc_tst2', nome: 'Loja Teste Dois', ativa: true }]);
+    DB.fichaCats.push({ id: 'fc_prodtst', nome: 'Produzido Teste', sucursais: [] });
+    DB.fichas.push({ id: 'fi_btst1', nome: 'BASE MORANGO TESTE', categoriaId: 'fc_prodtst', itens: [{ insumoId: 'x', qtd: 1 }], sucursais: ['suc_tst2'] });
+    DB.fichas.push({ id: 'fi_btst2', nome: 'BASE LIMAO TESTE', categoriaId: 'fc_prodtst', itens: [{ insumoId: 'x', qtd: 1 }], sucursais: ['suc_tst2'] });
+    DB.fichas.push({ id: 'fi_gtst1', nome: 'MORANGO GELATO TESTE', categoriaId: 'fc_prodtst', itens: [{ insumoId: 'x', qtd: 1 }], sucursais: [] });
     salvar();
-    LB.col = 'fichas'; LB.busca = ''; LB.filtro = 'todos'; LB.pasta = 'fc_prodgm'; LB.sub = 'fs_basegm';
+    LB.col = 'fichas'; LB.busca = ''; LB.filtro = 'todos'; LB.pasta = ''; LB.sub = '';
     abrir('loja', 'liberacao');
     return antes;
   });
   await pg.waitForTimeout(300);
-  const lg0 = await pg.evaluate(() => ({ linhas: Array.from(document.querySelectorAll('.lbTabW tbody tr b')).map(b => b.textContent),
-    pasta: (document.querySelector('.lbPastaNome') || {}).textContent, botao: !!document.querySelector('.lbPastaAc button') }));
-  t('a lista mostra a pasta de cada ficha e filtra pelo subgrupo', lg0.linhas.length === 2 && lg0.linhas.every(n => /^BASE/.test(n)) &&
-    /Produzido GM › Base GM/.test(lg0.pasta || '') && lg0.botao, JSON.stringify(lg0));
-  await pg.screenshot({ path: FOTOS + '/liberacao-pasta-subgrupo.png' });
-  await pg.click('.lbPastaAc button');
+  const lg0 = await pg.evaluate(() => Array.from(document.querySelectorAll('.lbTipo b')).map(b => b.textContent));
+  t('a Liberação mostra os dois grupos: fichas de base e fichas de gelato',
+    lg0.indexOf('Fichas de base') >= 0 && lg0.indexOf('Fichas de gelato') >= 0, JSON.stringify(lg0));
+  await pg.screenshot({ path: FOTOS + '/liberacao-base-gelato.png' });
+  await pg.click('.lbTipo:has-text("Fichas de base") button');
   await pg.waitForTimeout(200);
   await pg.click('.lbModo[data-m="matriz"]');
   await pg.click('#mdOk');
   await pg.waitForTimeout(300);
-  await pg.evaluate(() => { LB.sub = 'fs_artgm'; telaLiberacao(); });
-  await pg.click('.lbPastaAc button');
+  await pg.click('.lbTipo:has-text("Fichas de gelato") button');
   await pg.waitForTimeout(200);
   await pg.click('.lbModo[data-m="lojas"]');
-  await pg.click('.lbOp:has-text("Santa Fé GM2")');
+  await pg.click('.lbOp:has-text("Loja Teste Dois")');
   await pg.click('#mdOk');
   await pg.waitForTimeout(300);
   const lg1 = await pg.evaluate(() => {
-    var f = id => (DB.fichas.find(x => x.id === id) || {}).sucursais, c = id => (DB.fichaCats.find(x => x.id === id) || {}).sucursais;
-    return { b1: f('fi_bgm1'), b2: f('fi_bgm2'), a1: f('fi_agm1'), base: c('fs_basegm'), art: c('fs_artgm'), pasta: c('fc_prodgm') };
+    var f = id => (DB.fichas.find(x => x.id === id) || {}).sucursais;
+    return { b1: f('fi_btst1'), b2: f('fi_btst2'), g1: f('fi_gtst1'),
+      pasta: (DB.fichaCats.find(c => c.id === 'fc_prodtst') || {}).sucursais,
+      vis: DB.fichas.filter(x => /TESTE$/.test(x.nome) && liberadoNa(x, 'suc_tst2')).map(x => x.nome),
+      novaBase: liberacaoDoTipo('base'), novoGelato: liberacaoDoTipo('gelato') };
   });
-  t('base: o subgrupo inteiro e as fichas dele ficam só na matriz', JSON.stringify(lg1.b1) === '[]' && JSON.stringify(lg1.b2) === '[]' &&
-    JSON.stringify(lg1.base) === '[]', JSON.stringify(lg1));
-  t('gelato: o subgrupo e as fichas dele vão para a loja escolhida', JSON.stringify(lg1.a1) === '["suc_gmsf2"]' && JSON.stringify(lg1.art) === '["suc_gmsf2"]', JSON.stringify(lg1));
-  t('a pasta segue as fichas: a loja passa a enxergar a pasta Produzido', (lg1.pasta || []).indexOf('suc_gmsf2') >= 0, JSON.stringify(lg1));
-  const lg2 = await pg.evaluate(() => {
-    var copia = { fichas: DB.fichas.slice(), fichaCats: DB.fichaCats.slice() };
-    /* a regra de quem enxerga (liberadoNa): a ficha recém-criada aqui, que a
-       nuvem ainda não conhece, é protegida de sumir pelo soLiberados — por isso
-       a prova olha a regra, que é o que vale para as fichas que já subiram */
-    var vis = DB.fichas.filter(f => /GM$/.test(f.nome) && liberadoNa(f, 'suc_gmsf2')).map(f => f.nome);
-    return { vis: vis, copia: copia.fichas.length };
-  });
-  t('na loja: só a ficha do gelato aparece, a da base não', lg2.vis.join() === 'MORANGO GELATO GM', JSON.stringify(lg2));
+  t('todas as fichas de base de uma vez: só a matriz', JSON.stringify(lg1.b1) === '[]' && JSON.stringify(lg1.b2) === '[]', JSON.stringify(lg1));
+  t('todas as fichas de gelato de uma vez: a loja escolhida', JSON.stringify(lg1.g1) === '["suc_tst2"]', JSON.stringify(lg1));
+  t('a pasta segue: a loja enxerga a pasta da ficha de gelato', (lg1.pasta || []).indexOf('suc_tst2') >= 0, JSON.stringify(lg1));
+  t('na loja: só o gelato aparece, a base não', lg1.vis.join() === 'MORANGO GELATO TESTE', JSON.stringify(lg1.vis));
+  t('ficha nova segue o grupo pelo nome (base: só a matriz; gelato: a loja)',
+    JSON.stringify(lg1.novaBase) === '[]' && JSON.stringify(lg1.novoGelato) === '["suc_tst2"]', JSON.stringify(lg1));
   await pg.evaluate((antes) => {
     DB.sucursais = JSON.parse(antes);
-    DB.fichas = DB.fichas.filter(f => !/^fi_[ab]gm/.test(f.id));
-    DB.fichaCats = DB.fichaCats.filter(c => !/gm$/.test(c.id));
-    LB.col = 'insumos'; LB.pasta = ''; LB.sub = ''; salvar();
+    DB.fichas = DB.fichas.filter(f => !/^fi_[bg]tst/.test(f.id));
+    DB.fichaCats = DB.fichaCats.filter(c => c.id !== 'fc_prodtst');
+    LB.col = 'insumos'; salvar();
   }, lbG);
 
   console.log('\n── 11g. Central de Erros (o vigia)\n');

@@ -1090,6 +1090,42 @@ function nomePastaFicha(f){
   var sg=(typeof subFicha==='function')?subFicha(f&&f.subgrupoId):null;
   return (c?c.nome:'Sem pasta')+(sg?' › '+sg.nome:'');
 }
+/* ==========================================================
+   FICHAS DE BASE E FICHAS DE GELATO, EM LOTE (Rafael, 02/10/2026)
+   "Quando estiver escrito BASE, é base. MORANGO GELATO, é gelato. Libero
+   tudo de uma vez na Liberação; sabor por sabor, na ficha técnica."
+   O tipo vem do nome — ficha nova cai sozinha no grupo certo.
+   ========================================================== */
+function tipoFicha(f){
+  var n=String((f&&f.nome)||'').trim();
+  if(/^base\b/i.test(n))return 'base';
+  if(/gelato/i.test(n))return 'gelato';
+  return '';
+}
+var TIPOS_FICHA={base:'Fichas de base',gelato:'Fichas de gelato'};
+function fichasDoTipo(t){return (DB.fichas||[]).filter(function(f){return tipoFicha(f)===t});}
+/* a liberação que o grupo tem hoje: a da maioria das fichas dele */
+function liberacaoDoTipo(t,exceto){
+  var conta={},melhor=null,mx=0;
+  fichasDoTipo(t).forEach(function(f){
+    if(f===exceto)return;
+    var k=JSON.stringify((f.sucursais||[]).slice().sort());
+    conta[k]=(conta[k]||0)+1;
+    if(conta[k]>mx){mx=conta[k];melhor=k;}
+  });
+  return melhor===null?null:JSON.parse(melhor);
+}
+function liberarTipoFicha(t){
+  var l=fichasDoTipo(t);
+  if(!l.length){toast('Nenhuma ficha de '+(t==='base'?'base':'gelato')+' cadastrada.');return;}
+  abrirEscolhaUnidades(l,TIPOS_FICHA[t]+' — '+l.length+' ficha(s)',acertarPastasFicha);
+}
+function textoQuemVe(l){
+  if(!l)return '—';
+  if(l.indexOf(TODAS_UN)>=0)return 'todas as unidades';
+  var lojas=l.filter(function(id){return !ehSucMatriz(id)});
+  return lojas.length?lojas.map(sucNome).join(', '):'só a matriz';
+}
 function fichasDoGrupoFicha(gid){
   return (DB.fichas||[]).filter(function(f){return f.subgrupoId===gid||f.categoriaId===gid});
 }
@@ -1203,25 +1239,14 @@ function telaLiberacao(){
        }).join('')+'</div>'+
       (lista.length?'<button class="btnP2" onclick="marcarTodosLib()">Selecionar tudo</button>':'')+
      '</div>'+
-     (ehFichas?'<div class="lbPastas">'+
-       '<label class="lbCampo"><b>Pasta</b><select onchange="LB.pasta=this.value;LB.sub=\'\';LB.sel={};telaLiberacao()">'+
-        '<option value="">Todas as pastas</option>'+pastasF.map(function(c){
-          return '<option value="'+E(c.id)+'"'+(LB.pasta===c.id?' selected':'')+'>'+E(c.nome)+'</option>';}).join('')+
-       '</select></label>'+
-       '<label class="lbCampo"><b>Subgrupo</b><select'+(LB.pasta?'':' disabled')+' onchange="LB.sub=this.value;LB.sel={};telaLiberacao()">'+
-        '<option value="">'+(LB.pasta?'Todos os subgrupos':'Escolha a pasta')+'</option>'+subsF.map(function(c){
-          return '<option value="'+E(c.id)+'"'+(LB.sub===c.id?' selected':'')+'>'+E(c.nome)+'</option>';}).join('')+
-       '</select></label>'+
-       ((LB.sub||LB.pasta)?(function(){
-         var g=catFicha(LB.sub||LB.pasta)||{};
-         var gl=g.sucursais||[];
-         var quem=marcadoTodas(g)?'todas as unidades':(gl.filter(function(id){return !ehSucMatriz(id)}).length
-           ?gl.filter(function(id){return !ehSucMatriz(id)}).map(sucNome).join(', '):'só a matriz');
-         return '<div class="lbPastaAc"><span>'+E(g.nome||'')+': <b>'+E(quem)+'</b></span>'+
-           '<button class="btnP2 ok" onclick="liberarGrupoFicha(\''+E(LB.sub||LB.pasta)+'\')">Quem vê '+
-           (LB.sub?'este subgrupo':'esta pasta')+' inteira</button></div>';
-       })():'')+
-      '</div>':'')+
+     (ehFichas?'<div class="lbTipos">'+['base','gelato'].map(function(t){
+        var n=fichasDoTipo(t).length,lib=liberacaoDoTipo(t);
+        var dif=fichasDoTipo(t).some(function(f){return JSON.stringify((f.sucursais||[]).slice().sort())!==JSON.stringify(lib)});
+        return '<div class="lbTipo"><div><b>'+TIPOS_FICHA[t]+'</b>'+
+          '<span>'+n+' ficha(s) · '+(t==='base'?'nome começa com BASE':'nome tem GELATO')+'</span>'+
+          '<span>Quem vê: <b>'+E(textoQuemVe(lib))+'</b>'+(dif?' (algumas fichas estão diferentes)':'')+'</span></div>'+
+          '<button class="btnP2 ok"'+(n?'':' disabled')+' onclick="liberarTipoFicha(\''+t+'\')">Definir quem vê</button></div>';
+      }).join('')+'</div>':'')+
 
      (lista.length
       ?'<div class="lbTabW"><table class="pTable"><thead><tr>'+

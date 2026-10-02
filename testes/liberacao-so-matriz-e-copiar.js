@@ -86,5 +86,15 @@ t('a lista de fichas filtra por pasta e subgrupo e mostra a pasta de cada uma',
   /LB\.pasta\)lista=lista\.filter/.test(corpoDaFuncao('telaLiberacao', fonte)) && /nomePastaFicha\(x\)/.test(corpoDaFuncao('telaLiberacao', fonte)));
 t('ficha nova sem loja segue a liberação do subgrupo', /if\(!f&&!\(o\.sucursais\|\|\[\]\)\.length\)\{/.test(fonte));
 
+console.log('\n── 4. Fichas de base e de gelato em lote, pelo nome (02/10/2026)\n');
+const tf = new Function(corpoDaFuncao('tipoFicha', fonte) + '\nreturn tipoFicha;')();
+t('BASE no começo do nome é ficha de base', tf({ nome: 'BASE MORANGO' }) === 'base' && tf({ nome: '  base limão' }) === 'base');
+t('GELATO no nome é ficha de gelato', tf({ nome: 'MORANGO GELATO' }) === 'gelato' && tf({ nome: 'Gelato de Pistache' }) === 'gelato');
+t('o resto não entra em grupo nenhum', tf({ nome: 'CALDA DE CHOCOLATE' }) === '' && tf({ nome: 'BASEADO' }) === '');
+t('a Liberação de fichas mostra os dois quadros e libera o grupo inteiro',
+  /\['base','gelato'\]\.map/.test(corpoDaFuncao('telaLiberacao', fonte)) &&
+  /abrirEscolhaUnidades\(l,TIPOS_FICHA\[t\]/.test(corpoDaFuncao('liberarTipoFicha', fonte)));
+t('ficha nova segue a liberação do grupo dela pelo nome', /liberacaoDoTipo\(_tp,o\)/.test(fonte));
+
 console.log('\n' + (falhas ? '✗ ' + falhas + ' de ' + testes + ' falharam' : '✓ ' + testes + ' testes passaram') + '\n');
 process.exit(falhas ? 1 : 0);

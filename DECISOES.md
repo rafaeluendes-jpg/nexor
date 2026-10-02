@@ -7662,9 +7662,18 @@ de produção só lista fichas da pasta "Produzido", então Santa Fé não via
 nenhum sabor, mesmo com as fichas liberadas. Hoje à tarde a pasta foi
 liberada para Santa Fé pelo banco.
 
+Rafael escolheu o desenho, no mesmo dia: dois grupos fixos na Liberação,
+pelo nome da ficha.
+- **Fichas de base**: o nome começa com BASE.
+- **Fichas de gelato**: o nome tem GELATO.
+- "Definir quem vê" libera o grupo inteiro de uma vez. Sabor por sabor
+  continua na própria ficha técnica, que grava no mesmo lugar.
+- Ficha nova segue o grupo pelo nome (`liberacaoDoTipo`, a liberação da
+  maioria das fichas do grupo).
+
 O que mudou:
-- A lista de fichas tem filtro de **Pasta** e **Subgrupo**, e cada ficha
-  mostra "Pasta › Subgrupo".
+- A lista de fichas mostra a pasta de cada ficha (os seletores de pasta e
+  de subgrupo foram trocados pelos dois quadros acima).
 - O botão **"Quem vê este subgrupo/esta pasta inteira"** aplica a escolha
   à pasta, aos subgrupos e a todas as fichas de uma vez.
 - "Categorias de ficha" virou **"Pastas de fichas"**. Editar uma pasta ali

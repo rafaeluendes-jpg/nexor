@@ -672,7 +672,9 @@ function modalFicha(id){
        pasta): o que a matriz decidiu para a pasta vale para o que entra
        nela depois (Rafael, 02/10/2026: "uma vez selecionado, vira lei") */
     if(!f&&!(o.sucursais||[]).length){
-      var _gl=(subFicha(o.subgrupoId)||catFicha(o.categoriaId)||{}).sucursais||[];
+      var _tp=(typeof tipoFicha==='function')?tipoFicha(o):'';
+      var _lt=_tp&&typeof liberacaoDoTipo==='function'?liberacaoDoTipo(_tp,o):null;
+      var _gl=_lt||(subFicha(o.subgrupoId)||catFicha(o.categoriaId)||{}).sucursais||[];
       if(_gl.length)o.sucursais=_gl.slice();
     }
     if(typeof acertarPastasFicha==='function')acertarPastasFicha();

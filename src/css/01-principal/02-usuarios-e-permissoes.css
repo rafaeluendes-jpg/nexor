@@ -303,6 +303,12 @@ tr.pbSel td{background:var(--acc-soft)}
 .lbPastaAc{display:flex;align-items:center;gap:10px;flex:1 1 280px;justify-content:flex-end;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
 .lbPastaAc b{color:var(--ink)}
 .lbPastaNome{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.lbTipos{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:0 0 12px}
+.lbTipo{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 14px;
+  border:1.5px solid var(--line-2);border-radius:var(--r);background:var(--panel)}
+.lbTipo b{font-size:13.5px;color:var(--ink)}
+.lbTipo span{display:block;font-size:12px;color:var(--ink-2);margin-top:2px}
+.lbTipo span b{font-size:12px}
 /* central de erros (vigia, 01/10/2026) */
 .ceTab td{vertical-align:top}
 .ceTipo{display:inline-block;font-size:11px;font-weight:700;color:var(--ink-2);margin-right:4px}
