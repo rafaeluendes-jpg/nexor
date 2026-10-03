@@ -616,6 +616,7 @@ function hMaisAntiga(){
   if(min<1440)return quando+' (há '+Math.floor(min/60)+' h)';
   return quando+' (há '+Math.floor(min/1440)+' dia(s))';
 }
+var AVISO_REDE_NA_TELA=false;
 function caiuARede(){
   if(!NET.online)return;
   NET.online=false;NET.caiuEm=new Date().toISOString();
@@ -638,6 +639,10 @@ function voltouARede(){
     (offline?' <b>'+offline+' venda'+(offline>1?'s':'')+'</b> feita'+(offline>1?'s':'')+
      ' sem conexão':' o que ficou para trás')+'...','on',true);
   setTimeout(async function(){
+    /* a nuvem religa sozinha a cada 8 s: 1,2 s depois da volta ela quase
+       sempre ainda está religando. Era daí o "nuvem desligada" falso
+       (03/10/2026). Só conta como problema se ela não voltar em 30 s. */
+    for(var _t=0;_t<30&&!NUVEM.ligada;_t++)await new Promise(function(r){setTimeout(r,1000)});
     if(!NUVEM.ligada){
       avisoRede('Internet de volta, mas a nuvem está desligada. '+
         'Entre em <b>Banco de dados</b> para enviar.','off');
@@ -660,7 +665,23 @@ function voltouARede(){
     pintarRede();
   },1200);
 }
+/* ==========================================================
+   AVISO DE REDE NÃO VAI MAIS PARA A TELA (Rafael, 03/10/2026)
+
+   "Esses avisos não poderiam nem aparecer, ainda mais se for falso. Só
+   geram confusão, achando que é erro. Tudo para a caixinha de erros."
+
+   O estado da internet e da nuvem continua no rodapé, como sempre. O que
+   é problema de verdade (a nuvem que não voltou, o envio que falhou, o
+   que ficou para enviar) vai para a Central de Erros; o resto (caiu,
+   voltou, enviado) fica só no registro do aparelho. */
 function avisoRede(txt,tipo,segurar){
+  if(typeof AVISO_REDE_NA_TELA==='undefined'||!AVISO_REDE_NA_TELA){
+    var _limpo=String(txt||'').replace(/<[^>]*>/g,'').replace(/&rsaquo;/g,'›').replace(/\s+/g,' ').trim();
+    if(tipo==='off'&&!/^A internet caiu/.test(_limpo)&&typeof reportarErro==='function')
+      reportarErro('rede','conexão',_limpo);
+    return;
+  }
   var v=document.getElementById('avisoNet');
   if(v)v.remove();
   var d=document.createElement('div');

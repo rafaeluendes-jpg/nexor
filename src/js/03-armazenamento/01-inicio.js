@@ -3495,7 +3495,8 @@ async function sincronizar(){
             NUVEM.erros.push({tab:E2.tab,
               motivo:faltou+' registro(s) não foram aceitos'});
           }
-          if(faltou>0)toast('Atenção: '+faltou+' registro(s) de '+E2.tab+' não foram aceitos pela nuvem.');
+          /* sem aviso na tela (Rafael, 03/10/2026): o logNuvem acima já leva
+             a recusa para a Central de Erros, e o envio tenta de novo */
         }
         salvos.forEach(function(r){
           if(!r.ref_local)return;

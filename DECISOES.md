@@ -7741,3 +7741,31 @@ Guardiões:
 - `liberacao-so-muda-quem-viu.js` (25);
 - `liberacao-so-matriz-e-copiar.js` (23);
 - prova 11h no Chromium.
+
+## V410 — aviso de rede não aparece mais na tela: vai para a Central de Erros (03/10/2026)
+
+Rafael mandou a foto do celular. Em vermelho estava "Internet de volta, mas a
+nuvem está desligada. Entre em Banco de dados para enviar". No rodapé, ao
+mesmo tempo, estava "Nuvem ligada · tempo real". Ele disse: "esses avisos não
+poderiam nem aparecer, ainda mais se for falso. Só geram confusão. Tudo para a
+caixinha de erros."
+
+A causa do aviso falso: a internet do celular piscou. O sistema conferia a
+nuvem 1,2 s depois da volta, mas ela religa sozinha a cada 8 s. Na conferência
+ela ainda estava religando, e o aviso vermelho não some sozinho.
+
+O que mudou:
+- Nenhum aviso de rede aparece mais na tela: internet caiu, voltou, nuvem
+  desligada, envio que falhou, coisa para enviar. O rodapé continua mostrando o
+  estado da conexão, como sempre.
+- O que é problema de verdade vai para a Central de Erros:
+  - a nuvem que não voltou;
+  - o envio que falhou;
+  - o que ficou para enviar.
+- "Caiu", "voltou" e "enviado" não são erro e ficam só no registro do
+  aparelho.
+- A nuvem tem 30 s para religar antes de contar como problema.
+- A recusa de envio deixou de virar aviso na tela, que mostrava o nome da
+  tabela. Ela já ia para a Central de Erros.
+
+Guardião: `aviso-de-rede-vai-para-caixinha.js` (8).

@@ -25,6 +25,10 @@
    "pontos": 23,
    "roda": true
   },
+  "testes/aviso-de-rede-vai-para-caixinha.js": {
+   "pontos": 8,
+   "roda": true
+  },
   "testes/aviso-em-portugues.js": {
    "pontos": 11,
    "roda": true
