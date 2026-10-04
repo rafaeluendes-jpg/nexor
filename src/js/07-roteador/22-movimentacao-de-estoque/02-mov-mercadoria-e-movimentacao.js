@@ -164,11 +164,14 @@ function telaMovMercadoria(){
       '<input type="date" id="mmDe" value="'+E(MM.de)+'"></div>'+
      '<div class="f2" style="flex:0 0 150px"><label>Data final</label>'+
       '<input type="date" id="mmAte" value="'+E(MM.ate)+'"></div>'+
-     '<div class="f2" style="flex:1 1 260px"><label>Ingrediente</label>'+
-      '<select id="mmItem"><option value="">todos os ingredientes</option>'+
-      itens.map(function(i){
-        return '<option value="'+E(i.id)+'"'+(MM.item===i.id?' selected':'')+'>'+
-          E(i.nome)+'</option>';}).join('')+'</select></div>'+
+     /* digita à vontade e a lista vai filtrando embaixo; só escolhe quem
+        clica na lista (04/10/2026: "o select puxava sozinho o que eu
+        estava escrevendo e não deixava escrever") */
+     '<div class="f2" style="flex:1 1 260px;position:relative"><label>Ingrediente</label>'+
+      '<input type="hidden" id="mmItem" value="'+E(MM.item||'')+'">'+
+      '<input id="mmItemTxt" autocomplete="off" placeholder="todos os ingredientes — digite para procurar" '+
+       'value="'+E(MM.item?((itemEstoque(MM.item)||{}).nome||''):'')+'">'+
+      '<div class="bxSug" id="mmSug" style="display:none"></div></div>'+
      '<button class="btnP2 ok" onclick="mmBuscar()">'+sv('search',13)+' Buscar</button>'+
      '<button class="btnP2" onclick="mmLimpar()">Limpar</button>'+
     '</div>';
@@ -177,7 +180,7 @@ function telaMovMercadoria(){
     html+='<div class="mvTabW"><div class="mvVazio">'+sv('box',26)+
       '<b>Nenhuma movimentação no período</b>'+
       '<span>Ajuste as datas ou escolha outro ingrediente.</span></div></div></div>';
-    $('content').innerHTML=html; rodape('0 registros'); return;
+    $('content').innerHTML=html; mmLigarBusca(); rodape('0 registros'); return;
   }
 
   html+='<div class="mvTabW">'+
@@ -206,10 +209,61 @@ function telaMovMercadoria(){
   });
   html+='</tbody></table></div></div>';
   $('content').innerHTML=html;
+  mmLigarBusca();
   rodape(lista.length+' dia(s) com movimento');
 }
+function mmSugestoes(txt){
+  var t=String(txt||'').trim().toLowerCase();
+  var l=itensEstoque().slice().sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')});
+  if(t)l=l.filter(function(i){return (i.nome||'').toLowerCase().indexOf(t)>=0||
+    String(i.codigo||'').toLowerCase().indexOf(t)>=0;});
+  return l.slice(0,40);
+}
+function mmLigarBusca(){
+  var tx=$('mmItemTxt'), hid=$('mmItem'), cx=$('mmSug');
+  if(!tx||!hid||!cx)return;
+  function pinta(){
+    var l=mmSugestoes(tx.value);
+    if(!l.length){cx.style.display='none';cx.innerHTML='';return;}
+    cx.innerHTML=l.map(function(i){
+      return '<div data-id="'+E(i.id)+'">'+E(i.nome)+
+        '<span class="bxTg'+(ehFicha(i)?' f':'')+'">'+(ehFicha(i)?'ficha':'insumo')+'</span></div>';
+    }).join('');
+    cx.style.display='';
+    var ds=cx.querySelectorAll('div[data-id]');
+    for(var k=0;k<ds.length;k++)ds[k].onmousedown=function(ev){
+      ev.preventDefault();
+      var it=itemEstoque(this.getAttribute('data-id'));
+      hid.value=this.getAttribute('data-id'); tx.value=(it&&it.nome)||tx.value;
+      cx.style.display='none';
+      mmBuscar();
+    };
+  }
+  tx.onfocus=pinta;
+  /* digitar só filtra a lista: não escolhe nada sozinho */
+  tx.oninput=function(){ hid.value=''; pinta(); };
+  tx.onblur=function(){ setTimeout(function(){ if(cx)cx.style.display='none'; },150); };
+  tx.onkeydown=function(e){
+    if(e.key==='Escape'){cx.style.display='none';return;}
+    if(e.key==='Enter'){ e.preventDefault(); mmBuscar(); }
+  };
+}
 function mmBuscar(){
-  MM.de=$('mmDe').value; MM.ate=$('mmAte').value; MM.item=$('mmItem').value;
+  MM.de=$('mmDe').value; MM.ate=$('mmAte').value;
+  var tx=$('mmItemTxt'), hid=$('mmItem');
+  var esc=hid?hid.value:'';
+  if(tx&&!esc){
+    var t=String(tx.value||'').trim();
+    if(t){
+      /* escreveu o nome inteiro, ou só sobrou um item com esse texto */
+      var exato=itensEstoque().find(function(i){return (i.nome||'').toLowerCase()===t.toLowerCase()});
+      var l=mmSugestoes(t);
+      var achou=exato||(l.length===1?l[0]:null);
+      if(!achou){toast('Escolha o ingrediente na lista que aparece embaixo do campo.');return;}
+      esc=achou.id;
+    }
+  }
+  MM.item=esc;
   MM.abertos={}; telaMovMercadoria();
 }
 function mmLimpar(){
@@ -597,17 +651,29 @@ function telaMovimentacao(){
         ev.preventDefault();
         MV.insumoId=this.getAttribute('data-id'); MV.busca='';
         _focoBusca=''; cxSug.style.display='none';
+        /* o redesenho tira este campo da tela, e o navegador dispara nele
+           "change" e "blur" com o texto digitado ("massa") NO MEIO do
+           redesenho — era isso que desfazia a escolha. Antes de redesenhar,
+           o campo recebe o nome escolhido e para de ouvir (04/10/2026). */
+        var _esc=itemEstoque(MV.insumoId);
+        mb.onchange=null; mb.onblur=null; mb.oninput=null;
+        if(_esc)mb.value=_esc.nome||mb.value;
+        mb.blur();
         telaMovimentacao();
       };
     }
     mb.onfocus=function(){ _focoBusca='mvBusca'; _pintaSugMov(this.value); };
     mb.oninput=function(){ _focoBusca='mvBusca'; _pintaSugMov(this.value);
       _aplicaBuscaMov(this.value,false); };
-    mb.onchange=function(){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,true); };
+    /* o campo antigo, trocado pelo redesenho de quem escolheu na lista,
+       ainda dispara "change" com o texto digitado ("MASSA") — e desfazia
+       a escolha. Campo que já saiu da tela não decide nada (04/10/2026) */
+    mb.onchange=function(){ if(!this.isConnected)return; _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,true); };
     /* lê o campo DEPOIS da pausa, não o texto de quando saiu do campo:
        escolher na lista redesenha a tela com o nome inteiro, e o texto
        digitado ("massa") voltava por cima da escolha (04/10/2026) */
     mb.onblur=function(){ var v=this.value;
+      if(!this.isConnected)return;
       if(cxSug)cxSug.style.display='none';
       setTimeout(function(){ var cur=document.getElementById('mvBusca');
         _aplicaBuscaMov(cur?cur.value:v,true); },180); };
@@ -724,7 +790,8 @@ function linhasComMassa(m){
     }
     q=+q.toFixed(4);
     if(!(q>0))return;
-    var base={insumoId:f.id,nome:f.nome,unidade:unM,qtd:q,custo:0,fichaNome:f.nome,transito:true,deduzida:true};
+    var custoM=(typeof custoMassaDasLinhas==='function')?custoMassaDasLinhas(ls,f,q,unM):0;
+    var base={insumoId:f.id,nome:f.nome,unidade:unM,qtd:q,custo:custoM,fichaNome:f.nome,transito:true,deduzida:true};
     extra.push(Object.assign({},base,{direcao:'entrada',origem:'massa:'+fid}));
     extra.push(Object.assign({},base,{direcao:'saida',origem:'transformacao:'+fid,destinoNome:l.nome}));
   });

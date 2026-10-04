@@ -209,6 +209,10 @@
    "pontos": 11,
    "roda": true
   },
+  "testes/estoque-busca-e-custo-da-massa.js": {
+   "pontos": 13,
+   "roda": true
+  },
   "testes/estoque-contagem-massa-e-saldo.js": {
    "pontos": 27,
    "roda": true

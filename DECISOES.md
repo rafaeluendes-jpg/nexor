@@ -7927,3 +7927,43 @@ O que mudou no filtro "Movimentação" da Movimentação de Estoque:
 - O período da tela continua filtrando por data.
 - O guardião da V412 mudou nesse ponto por esta ordem do Rafael, que cita o
   filtro: a escolha é pelo destino, não pela ficha. Ele ganhou 2 conferências.
+
+## V415 — busca de item que não desfaz a escolha, ingrediente digitável e custo da massa (04/10/2026)
+
+Rafael, com as fotos:
+1. "Em Item, clico em MASSA CASCAO TRADICIONAL e fica só MASSA."
+2. "Na Movimentação de Mercadoria, começo a escrever e ele puxa sozinho, não
+   deixa eu escrever."
+3. "A massa tem custo: custo por quilo e custo total pela quantidade. O
+   custo não está puxando."
+
+As causas:
+1. Escolher na lista redesenha a tela, e o redesenho tira o campo antigo.
+   No Chromium, o navegador disparava nesse campo "change" e "blur" com o
+   texto digitado, no meio do redesenho. Isso desfazia a escolha e ainda
+   dava erro de tela. Foi reproduzido no Chromium antes da correção.
+2. O campo era um `<select>`. Ele salta para a opção que começa com o que
+   se digita.
+3. As linhas da massa (V412/V413) saíam com custo 0.
+
+O que mudou:
+1. **Campo Item (Movimentação de Estoque):** ao escolher na lista, o campo
+   recebe o nome inteiro e para de ouvir antes do redesenho. Campo que já
+   saiu da tela não decide nada.
+2. **Campo Ingrediente (Movimentação de Mercadoria):** virou campo de
+   digitar com lista embaixo, igual à Movimentação de Estoque. Digitar só
+   filtra a lista. Escolhe-se clicando na lista ou com Buscar, quando o nome
+   está inteiro ou só sobra um resultado.
+3. **Custo da massa:** é o que os ingredientes dela custaram naquela ordem,
+   dividido pelo que foi produzido. Fica em custo por kg, e o custo total é
+   a quantidade × esse custo. Vale para as ordens novas e para as linhas
+   deduzidas das ordens antigas.
+4. **Indicadores do mês:** passam a ignorar as linhas da massa, para não
+   somar o sabor por cima do Gelato Venda.
+
+Provado no Chromium:
+- digitar "massa", clicar em MASSA CASCAO TRADICIONAL, e o campo fica com o
+  nome inteiro;
+- digitar "massa cascao tr" e a lista filtrar.
+
+Guardião: `estoque-busca-e-custo-da-massa.js` (13).

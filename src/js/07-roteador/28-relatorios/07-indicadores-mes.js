@@ -170,6 +170,7 @@ function imEstoque(mes,suc){
     if(suc&&m.sucursalId&&m.sucursalId!==suc)return;
     var tipo=tipoMotivo(m.motivoId),org=String(m.origem||''),nome=nomeMotivo(m.motivoId);
     (m.linhas||[]).forEach(function(l){
+      if(l.transito)return;   /* a massa (ou o sabor) que virou o destino: o destino já conta (04/10/2026) */
       var ins=itemEstoque(l.insumoId);if(!ins)return;
       var q=convUnid(l.qtd,l.unidade,ins.unidade);if(q===null)q=Number(l.qtd)||0;
       var v=Math.abs(q*(Number(l.custo)||0));

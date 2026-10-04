@@ -679,6 +679,16 @@ async function confirmarProducao(){
    antes, e o relatório mostra o caminho inteiro. As duas linhas levam
    `transito:true`: não são consumo nem compra, e os relatórios de consumo
    e de custo não as somam. */
+function custoMassaDasLinhas(linhas,f,q,un){
+  var tot=0;
+  (linhas||[]).forEach(function(l){
+    if(l.direcao==='saida'&&l.fichaId===f.id&&!l.transito)tot+=(Number(l.qtd)||0)*(Number(l.custo)||0);
+  });
+  if(tot>0&&q>0)return +(tot/q).toFixed(6);
+  var base=Number(custoPorUnidade(f))||0;
+  var fat=(typeof convUnid==='function')?convUnid(1,un,f.rendUnidade||f.unidade):null;
+  return +(fat===null?base:base*fat).toFixed(6);
+}
 function registrarMassaNaOP(linhas,itensMov){
   (itensMov||[]).forEach(function(it){
     var f=(DB.fichas||[]).find(function(x){return x.id===it.refId});
@@ -687,7 +697,10 @@ function registrarMassaNaOP(linhas,itensMov){
     if(!dest||dest.id===f.id)return;
     var q=+(Number(it.qtd)||0).toFixed(4);
     if(!(q>0))return;
-    var custo=+(Number(custoPorUnidade(f))||0).toFixed(6);
+    /* o custo da massa é o que os ingredientes dela custaram NESTA ordem,
+       dividido pelo que foi produzido — o mesmo número que o relatório
+       mostra por kg (04/10/2026: "o custo não está puxando") */
+    var custo=custoMassaDasLinhas(linhas,f,q,it.unidade);
     var par=[
       {insumoId:f.id,nome:f.nome,unidade:it.unidade,qtd:q,custo:custo,direcao:'entrada',
        origem:'massa:'+f.id,fichaNome:f.nome,transito:true},
