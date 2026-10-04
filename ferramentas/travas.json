@@ -329,6 +329,10 @@
    "pontos": 5,
    "roda": true
   },
+  "testes/liberacao-conferida-na-nuvem.js": {
+   "pontos": 12,
+   "roda": true
+  },
   "testes/liberacao-so-matriz-e-copiar.js": {
    "pontos": 23,
    "roda": true

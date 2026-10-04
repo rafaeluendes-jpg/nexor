@@ -7769,3 +7769,35 @@ O que mudou:
   tabela. Ela já ia para a Central de Erros.
 
 Guardião: `aviso-de-rede-vai-para-caixinha.js` (8).
+
+## V411 — liberação só está feita quando chegou na nuvem (04/10/2026)
+
+Rafael liberou o FELICITÁ GELATO para Santa Fé pela ficha técnica, com a
+produção em andamento. A tela disse "Produto salvo", mas Santa Fé não via a
+receita. "Você colocou lá para Santa Fé ver, tem que estar funcionando."
+
+O que o banco mostrou:
+- A alteração nunca chegou à nuvem: não há registro de auditoria dela, e a
+  ficha continuava "só a matriz" desde 26/09.
+- Às 13h45 a nuvem ficou lenta por cerca de 1 minuto (4 consultas canceladas
+  por tempo).
+- O envio do aparelho dele parou ("parou de responder há 64s", "sem conexão
+  com a nuvem") e às 13h47 terminou sem concluir. A liberação ficou só no
+  aparelho, e a tela já tinha dito "salvo".
+
+Na hora, pelo banco, a pedido do Rafael: o FELICITÁ GELATO foi liberado para
+Santa Fé. Os 4 ingredientes da receita já eram visíveis para a loja.
+
+O que mudou:
+- Depois de mudar quem enxerga, na ficha técnica ou na janela "Quem
+  enxerga", o aparelho envia, lê de volta da nuvem e diz a verdade:
+  - **conferida:** "as lojas marcadas já enxergam";
+  - **ainda subindo:** "enviando…". Tenta de novo sozinho a cada 5 s por
+    até 2 minutos. Se não chegar, avisa que a loja ainda não vê e registra
+    na Central de Erros;
+  - **a nuvem manteve outra:** avisa, registra e baixa de novo.
+- Sem nuvem, diz que está só neste aparelho.
+- Vale para fichas, pastas, ingredientes, produtos, categorias e grupos de
+  ingredientes.
+
+Guardião: `liberacao-conferida-na-nuvem.js` (12).

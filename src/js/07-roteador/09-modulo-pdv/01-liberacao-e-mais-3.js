@@ -827,6 +827,80 @@ function lerUnidades(pref,item){
      Mas nao se apaga em silencio o vinculo de quem criou. */
   item.sucursais=l;
 }
+/* ==========================================================
+   A LIBERAÇÃO SÓ ESTÁ FEITA QUANDO CHEGOU NA NUVEM (Rafael, 04/10/2026)
+
+   Rafael liberou o Felicitá para Santa Fé pela ficha técnica, a tela disse
+   "salvo", e Santa Fé não via: o envio do aparelho dele travou (a nuvem
+   ficou lenta por 1 minuto às 13h45) e a alteração ficou só no aparelho.
+   "Você colocou lá para Santa Fé ver, tem que estar funcionando."
+
+   Agora, depois de mudar quem enxerga, o aparelho envia, lê de volta da
+   nuvem o que ficou gravado e diz a verdade: conferido (a loja já vê),
+   ainda subindo (tenta de novo sozinho por até 2 minutos e avisa quando
+   chegar), ou a nuvem manteve outra (baixa de novo e mostra a que vale). */
+/* os cadastros cuja liberação é conferida na volta (tabela com sucursais e ref_local) */
+var LIB_CONFERE=['fichas','fichaCats','insumos','produtos','categorias','gruposIng'];
+function _mesmaLiberacao(a,b){
+  return JSON.stringify((a||[]).slice().sort())===JSON.stringify((b||[]).slice().sort());
+}
+async function conferirLiberacaoNaNuvem(col,ids,rotulo){
+  ids=(ids||[]).filter(Boolean);
+  if(!ids.length||typeof NUVEM==='undefined')return 'nada';
+  if(LIB_CONFERE.indexOf(col)<0)return 'nada';
+  var E2=(typeof MAPA!=='undefined'?MAPA:[]).find(function(e){return e.col===col});
+  if(!E2)return 'nada';
+  rotulo=rotulo||'Liberação';
+  if(!NUVEM.ligada){
+    toast(rotulo+' salva neste aparelho. As lojas só enxergam depois que o sistema enviar para a nuvem.');
+    return 'offline';
+  }
+  var ate=Date.now()+120000, avisouSubindo=false;
+  while(true){
+    if(NUVEM.ligada){
+      try{ await sincronizar(); }catch(e){ _quieto(e,'conferirLiberacaoNaNuvem'); }
+      var _w=Date.now()+20000;
+      while(Date.now()<_w&&NUVEM.sincronizando)await new Promise(function(r){setTimeout(r,400)});
+      var linhas=null;
+      try{
+        linhas=await api(E2.tab+'?loja_id=eq.'+NUVEM.loja+'&ref_local=in.('+
+          ids.map(encodeURIComponent).join(',')+')&select=ref_local,sucursais');
+      }catch(e){ linhas=null; }
+      if(Array.isArray(linhas)){
+        var naNuvem={};linhas.forEach(function(r){naNuvem[r.ref_local]=r.sucursais||[];});
+        var faltam=0,outra=0;
+        ids.forEach(function(id){
+          var x=(DB[col]||[]).find(function(y){return y&&y.id===id});
+          if(!x)return;
+          if(!(id in naNuvem))faltam++;
+          else if(!_mesmaLiberacao(naNuvem[id],x.sucursais))outra++;
+        });
+        if(!faltam&&!outra){
+          toast(rotulo+' conferida na nuvem — as lojas marcadas já enxergam.');
+          return 'ok';
+        }
+        if(outra&&!faltam){
+          if(typeof reportarErro==='function')
+            reportarErro('nuvem','liberação',rotulo+': a nuvem manteve outra liberação em '+outra+' item(ns)');
+          toast(rotulo+': a nuvem manteve a liberação que já estava salva. A tela foi atualizada — confira e altere de novo, se precisar.');
+          try{ await baixarDaNuvem(true); }catch(e){ _quieto(e,'conferirLiberacaoNaNuvem'); }
+          return 'outra';
+        }
+      }
+    }
+    if(Date.now()>ate){
+      if(typeof reportarErro==='function')
+        reportarErro('nuvem','liberação',rotulo+': não chegou à nuvem em 2 minutos — segue tentando');
+      toast(rotulo+' salva neste aparelho, mas ainda não chegou à nuvem. As lojas só enxergam depois que chegar — deixe o sistema aberto com internet.');
+      return 'subindo';
+    }
+    if(!avisouSubindo){
+      avisouSubindo=true;
+      toast(rotulo+' salva — enviando para a nuvem…');
+    }
+    await new Promise(function(r){setTimeout(r,5000)});
+  }
+}
 function liberadoNa(item,suc){
   if(!item)return false;
   suc=suc||lojaAtualId();
@@ -1405,7 +1479,13 @@ function abrirEscolhaUnidades(itens,titulo,depois){
       else if(LB.col==='fichas'&&typeof acertarPastasFicha==='function')acertarPastasFicha();
       LB.sel={};salvar();telaLiberacao();
       toast(itens.length+' item(ns) atualizado(s).');
-      if(NUVEM.ligada)sincronizar();
+      /* só está feito quando chegou na nuvem (04/10/2026) */
+      var _porCol={};
+      itens.forEach(function(x){
+        var c=LIB_CONFERE.find(function(k){return (DB[k]||[]).indexOf(x)>=0});
+        if(c)(_porCol[c]=_porCol[c]||[]).push(x.id);
+      });
+      Object.keys(_porCol).forEach(function(c){conferirLiberacaoNaNuvem(c,_porCol[c],'Liberação');});
       return true;
     };
     var nomesPerde=Object.keys(perde);

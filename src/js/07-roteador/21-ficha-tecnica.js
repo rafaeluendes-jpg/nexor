@@ -667,6 +667,7 @@ function modalFicha(id){
          Mora no bloco 22 porque o catalogo e de la; aqui so se avisa que
          nasceu uma ficha. */
       if(typeof baseDeFichaNova==='function')_novaBase=baseDeFichaNova(o);}
+    var _sucAntes=JSON.stringify(((f||{}).sucursais||[]).slice().sort());
     lerUnidades('ftUn',f||o);        /* quem enxerga esta ficha */
     /* ficha NOVA sem loja marcada segue a liberação do subgrupo (ou da
        pasta): o que a matriz decidiu para a pasta vale para o que entra
@@ -683,6 +684,10 @@ function modalFicha(id){
     salvar();telaFichaTecnica();
     toast('Produto salvo em "'+E((catFicha(o.categoriaId)||{}).nome||'')+'".'+
       (_novaBase?' Base criada no pedido — falta pôr o preço.':''));
+    /* mudou quem enxerga: só está feito quando chegou na nuvem (04/10/2026) */
+    var _fx=f||o;
+    if(JSON.stringify((_fx.sucursais||[]).slice().sort())!==_sucAntes&&typeof conferirLiberacaoNaNuvem==='function')
+      conferirLiberacaoNaNuvem('fichas',[_fx.id],'Liberação da ficha');
     return true;
   },'lg');
 }
