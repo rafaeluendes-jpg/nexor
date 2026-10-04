@@ -42691,7 +42691,8 @@ function telaMovimentacao(){
   (DB.movEst||[]).forEach(function(m){
     if(MV.de&&m.data<MV.de)return;
     if(MV.ate&&m.data>MV.ate)return;
-    if(!movCasaMotivo(m))return;
+    if(MV.motivoId==='__transf'||String(MV.motivoId||'').indexOf('__prod:')===0){ if(!movCasaMotivo(m))return; }
+    else if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
     linhasComMassa(m).forEach(function(l){
       var ins=itemEstoque(l.insumoId);
       if(!movCasaLinhaProd(l))return;
@@ -43060,7 +43061,8 @@ function exportarMov(){
   (DB.movEst||[]).forEach(function(m){
     if(MV.de&&m.data<MV.de)return;
     if(MV.ate&&m.data>MV.ate)return;
-    if(!movCasaMotivo(m))return;
+    if(MV.motivoId==='__transf'||String(MV.motivoId||'').indexOf('__prod:')===0){ if(!movCasaMotivo(m))return; }
+    else if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
     linhasComMassa(m).forEach(function(x){
       var ins=itemEstoque(x.insumoId);
       if(!movCasaLinhaProd(x))return;

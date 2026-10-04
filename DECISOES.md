@@ -7855,3 +7855,9 @@ O que mudou:
   hora do banco e passa normalmente.
 
 Guardião: `estoque-contagem-massa-e-saldo.js` (25).
+
+Nota, no mesmo dia: logo depois da primeira correção dos saldos, o caixa de
+Santa Fé ainda gravou a cópia antiga de 6 itens por cima. Isso aconteceu antes
+de a trava do banco existir. O Gelato Venda, por exemplo, voltou de 79,9 para
+32,9 kg. A correção foi refeita com a trava já ligada, e o saldo ficou em
+79,17 kg.
