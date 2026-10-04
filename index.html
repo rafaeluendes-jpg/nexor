@@ -43192,22 +43192,50 @@ function fichaDaLinhaProd(l){
   }
   return '';
 }
+/* ==========================================================
+   UMA ESCOLHA POR PRODUÇÃO, NÃO POR SABOR (Rafael, 04/10/2026)
+
+   "Aparece um monte de sabor. Eu só queria Produção Gelato — e clicando,
+   aparecem todos os sabores. Produção massa cascão tradicional, massa
+   cascão chocolate, massa bolacha, massa cestinha."
+
+   As fichas se juntam pelo que produzem (o destino): todos os sabores
+   que viram Gelato Venda são uma escolha só; cada massa, que vira o seu
+   cascão, é uma escolha. O período da tela continua filtrando por data. */
+function destinoProdDaFicha(fid){
+  var f=(DB.fichas||[]).find(function(x){return x.id===fid});
+  var d=f&&typeof destinoDaFicha==='function'?destinoDaFicha(f):null;
+  return d?d.id:('ficha:'+fid);
+}
 function movCasaLinhaProd(l){
   var v=String(MV.motivoId||'');
   if(v.indexOf('__prod:')!==0)return true;
-  return fichaDaLinhaProd(l)===v.slice(7);
+  var fid=fichaDaLinhaProd(l);
+  return !!fid&&destinoProdDaFicha(fid)===v.slice(7);
 }
 function opcoesProducaoMov(){
   var vistas={};
   (DB.movEst||[]).forEach(function(m){
     if(m.origem!=='producao')return;
-    (m.linhas||[]).forEach(function(l){ var id=fichaDaLinhaProd(l); if(id)vistas[id]=true; });
+    linhasComMassa(m).forEach(function(l){ var id=fichaDaLinhaProd(l); if(id)vistas[id]=true; });
   });
-  return (DB.fichas||[]).filter(function(f){return vistas[f.id]})
-    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
-    .map(function(f){
-      return '<option value="__prod:'+E(f.id)+'"'+(MV.motivoId==='__prod:'+f.id?' selected':'')+'>Produção — '+E(f.nome)+'</option>';
-    }).join('');
+  var grupos={};
+  (DB.fichas||[]).forEach(function(f){
+    if(!vistas[f.id])return;
+    var k=destinoProdDaFicha(f.id);
+    (grupos[k]=grupos[k]||[]).push(f);
+  });
+  return Object.keys(grupos).map(function(k){
+    var fs=grupos[k], d=itemEstoque(k);
+    var nome=fs.length===1?fs[0].nome:
+      (/gelato/i.test((d&&d.nome)||'')?'Gelato — todos os sabores ('+fs.length+')':((d&&d.nome)||fs[0].nome)+' ('+fs.length+' fichas)');
+    return {k:k,nome:nome};
+  }).sort(function(a,b){
+    var ga=/^Gelato/.test(a.nome)?0:1, gb=/^Gelato/.test(b.nome)?0:1;
+    return ga!==gb?ga-gb:a.nome.localeCompare(b.nome);
+  }).map(function(o){
+    return '<option value="__prod:'+E(o.k)+'"'+(MV.motivoId==='__prod:'+o.k?' selected':'')+'>Produção — '+E(o.nome)+'</option>';
+  }).join('');
 }
 function exportarMov(){
   baseMov();

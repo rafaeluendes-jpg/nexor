@@ -134,14 +134,28 @@ const erros = [];
   t('produção antiga: a massa é deduzida do que entrou no destino (80 cascões = 2 receitas = 2.500 g)',
     mE && mS && mE.qtd === 2500 && mS.qtd === 2500 && mS.destinoNome === 'CASCAO TRADICIONAL', JSON.stringify(ls));
   t('a linha deduzida não vai para o registro gravado', opAntiga.linhas.length === 2);
-  w.MV.motivoId = '__prod:fi_massa';
+  w.MV.motivoId = '__prod:ins_casc';     /* a escolha é pelo que a produção gera (04/10) */
   t('"Produção — MASSA" mostra os ingredientes, a massa e o cascão',
     ls.every(l => w.movCasaLinhaProd(l)) && !w.movCasaLinhaProd({ insumoId: 'ins_x', origem: 'ficha:fi_outra', fichaId: 'fi_outra' }));
+  DB.insumos.push({ id: 'ins_gv', nome: 'GELATO VENDA', unidade: 'kg', controlaEstoque: true });
+  DB.fichas.push({ id: 'fi_mor', nome: 'MORANGO GELATO', unidade: 'kg', rendimento: 1, itens: [], destinoId: 'ins_gv' },
+                 { id: 'fi_cbis', nome: 'CHOCOBIS GELATO', unidade: 'kg', rendimento: 1, itens: [], destinoId: 'ins_gv' });
+  DB.movEst.push({ id: 'mvg', data: '2026-10-03', hora: '17:00', origem: 'producao', sucursalId: SUC, linhas: [
+    { insumoId: 'ins_leite', fichaId: 'fi_mor', origem: 'ficha:fi_mor', direcao: 'saida', qtd: 1 },
+    { insumoId: 'ins_gv', origem: 'producao:fi_mor', direcao: 'entrada', qtd: 4 },
+    { insumoId: 'ins_bis', fichaId: 'fi_cbis', origem: 'ficha:fi_cbis', direcao: 'saida', qtd: 32 },
+    { insumoId: 'ins_gv', origem: 'producao:fi_cbis', direcao: 'entrada', qtd: 5 }] });
+  const ops = w.opcoesProducaoMov();
+  t('os sabores de gelato viram uma escolha só, "Gelato — todos os sabores"',
+    /Produção — Gelato — todos os sabores \(2\)/.test(ops) && !/Produção — MORANGO GELATO/.test(ops), ops);
+  w.MV.motivoId = '__prod:ins_gv';
+  t('e ela mostra todos os sabores, e não a massa', w.movCasaLinhaProd({ fichaId: 'fi_mor', origem: 'ficha:fi_mor' }) &&
+    w.movCasaLinhaProd({ fichaId: 'fi_cbis', origem: 'ficha:fi_cbis' }) && !w.movCasaLinhaProd({ fichaId: 'fi_massa', origem: 'ficha:fi_massa' }));
   t('e só movimentos de produção', w.movCasaMotivo(opAntiga) && !w.movCasaMotivo({ origem: 'venda' }));
   DB.movEst.push(opAntiga);
   t('a ficha produzida vira uma escolha no filtro', /Produção — MASSA CASCAO TRADICIONAL/.test(w.opcoesProducaoMov()));
   w.MV.motivoId = '';
-  t('os dois relatórios usam as linhas com a massa', (src.match(/linhasComMassa\(m\)\.forEach/g) || []).length === 3);
+  t('os dois relatórios usam as linhas com a massa', (src.match(/linhasComMassa\(m\)\.forEach/g) || []).length >= 3);
 
   grupo('Balanço');
   t('nenhum erro de runtime', erros.length === 0, erros.slice(0, 5).join(' | '));

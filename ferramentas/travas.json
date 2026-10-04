@@ -210,7 +210,7 @@
    "roda": true
   },
   "testes/estoque-contagem-massa-e-saldo.js": {
-   "pontos": 25,
+   "pontos": 27,
    "roda": true
   },
   "testes/estoque-nao-guerra.js": {

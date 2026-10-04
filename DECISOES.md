@@ -7896,3 +7896,34 @@ Provado no Chromium, no computador e no celular:
   mãe e o bairro.
 
 Guardião: `entrega-endereco-no-pagamento.js` (19).
+
+## V414 — massa de cascão é ficha, e a produção se escolhe por grupo (04/10/2026)
+
+Rafael, com as fotos:
+- "Por que a massa de cascão está como insumo? Ela é ficha técnica. E
+  filtrando a MASSA CASCAO TRADICIONAL não aparece a movimentação."
+- "No filtro aparece um monte de sabor. Eu só queria Produção Gelato, e
+  clicando aparecem todos os sabores; Produção massa cascão tradicional,
+  chocolate, bolacha, cestinha. E por data."
+
+A causa: existiam dois itens com o mesmo nome.
+- O insumo antigo "MASSA CASCAO TRADICIONAL" (e o CHOCOLATE), da importação
+  de agosto. Ele ainda está na receita de 4 fichas de cascão, mas não tem
+  movimento desde 30/08.
+- A ficha técnica de verdade, que é a que a produção usa. Ela estava como
+  "não controla estoque" e por isso não aparecia na lista. As outras massas,
+  bolacha e cestinha, estavam certas.
+
+Dado, por ordem do Rafael ("ela é uma ficha técnica"):
+- As fichas MASSA CASCAO TRADICIONAL e CHOCOLATE passam a controlar estoque.
+- Os dois insumos antigos deixam de controlar estoque e saem das listas de
+  estoque. Continuam nas receitas antigas, sem mudança nelas.
+
+O que mudou no filtro "Movimentação" da Movimentação de Estoque:
+- As fichas se juntam pelo que produzem.
+  - Todos os sabores que viram Gelato Venda são uma escolha só: "Produção —
+    Gelato — todos os sabores".
+  - Cada massa, que vira o seu cascão, é uma escolha.
+- O período da tela continua filtrando por data.
+- O guardião da V412 mudou nesse ponto por esta ordem do Rafael, que cita o
+  filtro: a escolha é pelo destino, não pela ficha. Ele ganhou 2 conferências.
