@@ -22,6 +22,10 @@ function mmRotulo(m,l){
   if(o==='cardapio')return 'Saída por pedido do cardápio';
   if(o==='totem')  return 'Saída por pedido no totem';
   if(o==='fiado')  return 'Saída por venda fiado';
+  /* a massa da ordem de produção: produzida e transformada no destino (04/10/2026) */
+  var lo=String(l.origem||'');
+  if(lo.indexOf('massa:')===0)return 'Produzida na ordem de produção';
+  if(lo.indexOf('transformacao:')===0)return 'Transformada em '+(l.destinoNome||'produto acabado');
   if(o==='producao')return ent?'Entrada por produção':'Consumo na produção';
   if(o==='nota')   return 'Entrada por nota de entrada';
   if(o==='transferencia')return ent?'Entrada por transferência':'Saída por transferência';
@@ -32,6 +36,60 @@ function mmRotulo(m,l){
   return ent?'Entrada manual':'Saída manual';
 }
 
+/* ==========================================================
+   O DIA COMEÇA COM O QUE FOI CONTADO (Rafael, 04/10/2026)
+
+   "Se eu finalizei meu dia 30 com 50 canudos, eu comecei meu dia 1 com 50
+   canudos. A partir das vendas do dia 1 para frente, desconta desses 50."
+
+   O saldo vinha do estoque de HOJE desfazendo os movimentos para trás
+   (saldoNaData). Se o estoque de hoje estivesse descolado dos movimentos,
+   o erro voltava para todos os dias do relatório — foram os 52 canudos
+   no início do dia 1, com 50 contados.
+
+   Agora a âncora é a última contagem do item, até aquele dia: o que foi
+   contado, mais as entradas e menos as saídas registradas depois dela.
+   Contagem retroativa ("fim do dia 30") vale para o dia inteiro; contagem
+   no meio do dia vale a partir da hora dela. Item sem contagem continua
+   pelo caminho antigo. */
+function mmUltimaContagem(itemId,dataISO,suc){
+  var melhor=null;
+  (DB.contagens||[]).forEach(function(c){
+    if(!c||!c.data||c.data>dataISO)return;
+    if((c.sucursalId||lojaAtualId())!==suc)return;
+    var it=(c.itens||[]).find(function(x){return x&&x.insumoId===itemId&&x.conferido!=null&&x.conferido!==''});
+    if(!it)return;
+    var chave=c.data+'|'+(c.retroativa?'99:99':(c.hora||''));
+    if(!melhor||chave>melhor.chave)melhor={c:c,it:it,chave:chave};
+  });
+  return melhor;
+}
+function mmSaldoFimDia(itemId,dataISO,suc){
+  suc=suc||lojaAtualId();
+  var item=itemEstoque(itemId);
+  var a=item?mmUltimaContagem(itemId,dataISO,suc):null;
+  if(!a)return saldoNaData(itemId,dataISO,suc);
+  var c=a.c;
+  var saldo=convUnid(Number(a.it.conferido)||0,a.it.unidade||item.unidade,item.unidade);
+  if(saldo===null)saldo=Number(a.it.conferido)||0;
+  (DB.movEst||[]).forEach(function(m){
+    var d=String(m.data||'');
+    if(!d||d>dataISO||d<c.data)return;
+    if((m.sucursalId||lojaAtualId())!==suc)return;
+    if(d===c.data){
+      if(c.retroativa)return;                          /* contou o fim do dia */
+      if(m.origem==='contagem')return;                 /* o ajuste da própria contagem */
+      if(String(m.hora||'')<=String(c.hora||''))return;/* antes da hora da contagem */
+    }
+    (m.linhas||[]).forEach(function(l){
+      if(l.insumoId!==itemId)return;
+      var q=convUnid(l.qtd,l.unidade,item.unidade);
+      if(q===null)q=Number(l.qtd)||0;
+      saldo+=(l.direcao==='entrada'?1:-1)*q;
+    });
+  });
+  return +saldo.toFixed(6);
+}
 /* todos os lancamentos de um item, no periodo, ja com data e direcao */
 function mmLancamentos(){
   baseMov();
@@ -42,7 +100,7 @@ function mmLancamentos(){
     var d=String(m.data||'');
     if(!d||(de&&d<de)||(ate&&d>ate))return;
     if((m.sucursalId||loja)!==loja)return;
-    (m.linhas||[]).forEach(function(l){
+    linhasComMassa(m).forEach(function(l){
       if(alvo&&l.insumoId!==alvo)return;
       out.push({data:d,hora:m.hora||'',mov:m,l:l,
         id:l.insumoId,nome:l.nome||(itemEstoque(l.insumoId)||{}).nome||'—',
@@ -136,7 +194,7 @@ function telaMovMercadoria(){
   lista.forEach(function(g,i){
     MM._grupos[i]=g;
     var k=g.data+'|'+g.id, aberto=!!MM.abertos[k];
-    var saldoFim=saldoNaData(g.id,g.data);
+    var saldoFim=mmSaldoFimDia(g.id,g.data);
     var qE=qtdLegivel(g.ent,g.un), qS=qtdLegivel(g.sai,g.un), qF=qtdLegivel(saldoFim,g.un);
     html+='<tr id="mmr'+i+'" style="cursor:pointer" onclick="mmAbrir('+i+')">'+
       '<td>'+dataBR(g.data)+'</td>'+
@@ -163,7 +221,7 @@ function mmLimpar(){
 function mmDetalheHTML(g){
   /* saldo corrido: comeca no fim do dia anterior e caminha lancamento a lancamento */
   var ini=new Date(g.data+'T12:00:00'); ini.setDate(ini.getDate()-1);
-  var saldo=saldoNaData(g.id, ini.toISOString().slice(0,10));
+  var saldo=mmSaldoFimDia(g.id, ini.toISOString().slice(0,10));
   var _qi=qtdLegivel(saldo,g.un);
   var det=g.itens.slice().sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'')});
   /* o detalhe tem as MESMAS 5 colunas de fora, para cada valor cair na sua */
@@ -274,7 +332,9 @@ function linhaMovHTML(x){
       '<td class="mvHora">'+E(m.hora||'')+'</td>'+
       '<td class="mvIng"><b>'+E(l.nome)+'</b>'+
        (l.direcao==='entrada'?'<span class="tagGerou">gerado</span>':'')+
-       (l.fichaNome?'<small>'+(l.direcao==='entrada'?'produzido a partir de ':'usado em ')+E(l.fichaNome)+'</small>':'')+'</td>'+
+       (String(l.origem||'').indexOf('massa:')===0?'<small>produzida na ordem de produção</small>'
+        :String(l.origem||'').indexOf('transformacao:')===0?'<small>transformada em '+E(l.destinoNome||'produto acabado')+'</small>'
+        :l.fichaNome?'<small>'+(l.direcao==='entrada'?'produzido a partir de ':'usado em ')+E(l.fichaNome)+'</small>':'')+'</td>'+
       '<td>'+E(g?g.nome:'—')+'</td>'+
       '<td>'+E(nomeMotivo(m.motivoId))+'</td>'+
       '<td>'+E(m.identificacao||'—')+'</td>'+
@@ -334,10 +394,10 @@ function telaMovimentacao(){
   (DB.movEst||[]).forEach(function(m){
     if(MV.de&&m.data<MV.de)return;
     if(MV.ate&&m.data>MV.ate)return;
-    if(MV.motivoId==='__transf'){ if(!movCasaMotivo(m))return; }
-    else if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
-    (m.linhas||[]).forEach(function(l){
+    if(!movCasaMotivo(m))return;
+    linhasComMassa(m).forEach(function(l){
       var ins=itemEstoque(l.insumoId);
+      if(!movCasaLinhaProd(l))return;
       if(MV.insumoId&&l.insumoId!==MV.insumoId)return;
       if(MV.grupo&&(!ins||(ins.grupoId!==MV.grupo&&ins.categoriaId!==MV.grupo)))return;
       if(MV.grupoMaior&&!itemNoGrupoMaior(ins,MV.grupoMaior))return;
@@ -431,6 +491,7 @@ function telaMovimentacao(){
     '<div class="f2"><label>Movimentação</label><select onchange="MV.motivoId=this.value;telaMovimentacao()">'+
      '<option value="">Todas</option>'+
      '<option value="__transf"'+(MV.motivoId==='__transf'?' selected':'')+'>Transferência de mercadoria</option>'+
+     (function(){var o=opcoesProducaoMov();return o?'<optgroup label="Produção de uma ficha">'+o+'</optgroup>':'';})()+
      (DB.motivosMov||[]).map(function(m){return '<option value="'+m.id+'"'+(MV.motivoId===m.id?' selected':'')+'>'+E(m.nome)+'</option>'}).join('')+
     '</select></div>'+
     '<button class="btnP2 ok" onclick="buscarMov()">'+sv('search',13)+' Buscar</button>'+
@@ -542,9 +603,13 @@ function telaMovimentacao(){
     mb.oninput=function(){ _focoBusca='mvBusca'; _pintaSugMov(this.value);
       _aplicaBuscaMov(this.value,false); };
     mb.onchange=function(){ _focoBusca='mvBusca'; _aplicaBuscaMov(this.value,true); };
+    /* lê o campo DEPOIS da pausa, não o texto de quando saiu do campo:
+       escolher na lista redesenha a tela com o nome inteiro, e o texto
+       digitado ("massa") voltava por cima da escolha (04/10/2026) */
     mb.onblur=function(){ var v=this.value;
       if(cxSug)cxSug.style.display='none';
-      setTimeout(function(){_aplicaBuscaMov(v,true)},180); };
+      setTimeout(function(){ var cur=document.getElementById('mvBusca');
+        _aplicaBuscaMov(cur?cur.value:v,true); },180); };
     mb.onkeydown=function(e){
       if(e.key==='Escape'&&cxSug){cxSug.style.display='none';return;}
       if(e.key==='Enter'){ _focoBusca='mvBusca';
@@ -621,7 +686,76 @@ function movCasaMotivo(m){
   if(!MV.motivoId)return true;
   if(MV.motivoId==='__transf')
     return m.origem==='transferencia'||/^mv_transf_/.test(String(m.motivoId||''));
+  if(String(MV.motivoId).indexOf('__prod:')===0)return m.origem==='producao';
   return m.motivoId===MV.motivoId;
+}
+/* ==========================================================
+   PRODUÇÃO DE UMA FICHA, INTEIRA (Rafael, 04/10/2026)
+
+   "Na Movimentação precisaria ter a opção: produção de massa de cascão
+   tradicional, produção de cascão de chocolate… E aparecer: saiu a massa
+   de cascão e se tornou tantos cascões. E todos os itens da ficha técnica
+   dando baixa. Mesma coisa do gelato: saiu tanto de morango e se tornou
+   Gelato Venda."
+
+   Cada ficha que já foi produzida vira uma escolha "Produção — <ficha>".
+   Escolhida, a tela mostra só as linhas daquela produção: a massa (ou o
+   sabor) produzida e transformada, o destino que entrou, a perda ou ganho
+   de pesagem e cada ingrediente baixado. */
+/* produção registrada antes de 04/10 não tinha as linhas da massa: para os
+   relatórios, elas são deduzidas do que entrou no destino. Só para mostrar
+   — não mexem em saldo nenhum (entram e saem juntas). */
+function linhasComMassa(m){
+  var ls=(m&&m.linhas)||[];
+  if(!m||m.origem!=='producao')return ls;
+  var extra=[];
+  ls.forEach(function(l){
+    var mm=/^producao:(.+)$/.exec(String(l.origem||''));
+    if(!mm||l.direcao!=='entrada')return;
+    var fid=mm[1];
+    if(ls.some(function(x){return String(x.origem||'')==='massa:'+fid}))return;
+    var f=(DB.fichas||[]).find(function(x){return x.id===fid});
+    if(!f)return;
+    var q=Number(l.qtd)||0, unM=l.unidade;
+    if(typeof modoDestino==='function'&&modoDestino(f)==='receita'){
+      q=q/(Number(f.destinoFator)||1)*(Number(f.rendimento)||1);
+      unM=f.rendUnidade||f.unidade||l.unidade;
+    }
+    q=+q.toFixed(4);
+    if(!(q>0))return;
+    var base={insumoId:f.id,nome:f.nome,unidade:unM,qtd:q,custo:0,fichaNome:f.nome,transito:true,deduzida:true};
+    extra.push(Object.assign({},base,{direcao:'entrada',origem:'massa:'+fid}));
+    extra.push(Object.assign({},base,{direcao:'saida',origem:'transformacao:'+fid,destinoNome:l.nome}));
+  });
+  return extra.length?extra.concat(ls):ls;
+}
+function fichaDaLinhaProd(l){
+  if(!l)return '';
+  if(l.fichaId)return l.fichaId;
+  var mm=/^(ficha|producao|massa|transformacao):(.+)$/.exec(String(l.origem||''));
+  if(mm)return mm[2];
+  if(l.fichaNome){
+    var f=(DB.fichas||[]).find(function(x){return x.nome===l.fichaNome});
+    if(f)return f.id;
+  }
+  return '';
+}
+function movCasaLinhaProd(l){
+  var v=String(MV.motivoId||'');
+  if(v.indexOf('__prod:')!==0)return true;
+  return fichaDaLinhaProd(l)===v.slice(7);
+}
+function opcoesProducaoMov(){
+  var vistas={};
+  (DB.movEst||[]).forEach(function(m){
+    if(m.origem!=='producao')return;
+    (m.linhas||[]).forEach(function(l){ var id=fichaDaLinhaProd(l); if(id)vistas[id]=true; });
+  });
+  return (DB.fichas||[]).filter(function(f){return vistas[f.id]})
+    .sort(function(a,b){return (a.nome||'').localeCompare(b.nome||'')})
+    .map(function(f){
+      return '<option value="__prod:'+E(f.id)+'"'+(MV.motivoId==='__prod:'+f.id?' selected':'')+'>Produção — '+E(f.nome)+'</option>';
+    }).join('');
 }
 function exportarMov(){
   baseMov();
@@ -629,10 +763,10 @@ function exportarMov(){
   (DB.movEst||[]).forEach(function(m){
     if(MV.de&&m.data<MV.de)return;
     if(MV.ate&&m.data>MV.ate)return;
-    if(MV.motivoId==='__transf'){ if(!movCasaMotivo(m))return; }
-    else if(MV.motivoId&&m.motivoId!==MV.motivoId)return;
-    (m.linhas||[]).forEach(function(x){
+    if(!movCasaMotivo(m))return;
+    linhasComMassa(m).forEach(function(x){
       var ins=itemEstoque(x.insumoId);
+      if(!movCasaLinhaProd(x))return;
       if(MV.insumoId&&x.insumoId!==MV.insumoId)return;
       if(MV.grupo&&(!ins||ins.grupoId!==MV.grupo))return;
       if(MV.grupoMaior&&!itemNoGrupoMaior(ins,MV.grupoMaior))return;

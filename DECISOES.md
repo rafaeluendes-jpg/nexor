@@ -7801,3 +7801,57 @@ O que mudou:
   ingredientes.
 
 Guardião: `liberacao-conferida-na-nuvem.js` (12).
+
+## V412 — estoque: o dia começa na contagem, a massa aparece, o saldo da produção sobe (04/10/2026)
+
+Rafael, com as fotos:
+1. "Se eu finalizei o dia 30 com 50 canudos, comecei o dia 1 com 50."
+   O relatório mostrava 52.
+2. "A massa de cascão não aparece saindo. Tem de aparecer que saiu a massa
+   e se tornou tantos cascões, e todos os itens da ficha dando baixa. Mesma
+   coisa do gelato."
+3. "Na Movimentação de Estoque, digito massa, escolho, e fica só MASSA."
+
+A causa, achada no banco:
+- O aparelho da produção de Santa Fé marcava os saldos de estoque como
+  "sem empresa identificada" e não os enviava. Foram 495 saldos de uma vez
+  em 04/10, e o mesmo erro aparece desde 01/10.
+- Por isso o que a produção mexia ficava só no aparelho:
+  - o Bis ficou em 156 com 32 saídas registradas;
+  - 48 kg de Gelato Venda produzidos não entraram no saldo.
+- A nuvem aceitava cópia antiga de saldo por cima da mais nova.
+- O relatório partia do saldo de hoje desfazendo os movimentos, então
+  qualquer diferença aparecia em todos os dias.
+
+Dado, por ordem do Rafael ("corrija e coloque o saldo corretamente"):
+- 32 itens de Santa Fé voltaram a ser a contagem de 30/09 mais os
+  movimentos de 01/10 em diante. O Canudo, por exemplo, foi para 50 − 45 = 5.
+- Os saldos anteriores ficaram copiados na tabela `_backup_saldo_20261004`,
+  fechada para o sistema.
+
+O que mudou:
+- **Relatório:** o saldo do dia parte da última contagem do item e soma os
+  movimentos depois dela (`mmSaldoFimDia`).
+  - A contagem retroativa ("fim do dia") vale para o dia inteiro.
+  - A contagem feita no meio do dia vale a partir da hora dela.
+  - O item sem contagem continua pelo caminho antigo.
+- **Ordem de produção:** a massa (ou o sabor) agora entra como produzida e
+  sai como "transformada em CASCAO TRADICIONAL" ou "em GELATO VENDA". O
+  saldo da massa não muda, porque entra e sai junto. As duas linhas são
+  marcadas `transito`, e "Itens consumidos" não as soma.
+- **Produções antigas:** os dois relatórios mostram a massa deduzida do que
+  entrou no destino, sem mexer em saldo nenhum.
+- **Movimentação de Estoque:** cada ficha já produzida virou uma escolha
+  "Produção — <ficha>". Ela mostra:
+  - a massa;
+  - o destino;
+  - a perda ou o ganho de pesagem;
+  - cada ingrediente baixado.
+- **Campo Item:** escolher na lista não é mais desfeito pelo texto digitado.
+- **Envio:** o saldo de uma unidade desta empresa não fica mais retido como
+  "sem dono".
+- **Banco** (`20261004_saldo_antigo_nao_grava_por_cima.sql`): o saldo que
+  mudou antes do que está salvo é recusado. A venda feita pelo banco usa a
+  hora do banco e passa normalmente.
+
+Guardião: `estoque-contagem-massa-e-saldo.js` (25).

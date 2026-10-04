@@ -609,6 +609,7 @@ async function confirmarProducao(){
       unidade:it.unReceita||it.unidade,custo:0};
   });
   var linhas=montarLinhas(itensMov,'producao');
+  registrarMassaNaOP(linhas,itensMov);
   var mv=null;
   if(linhas.length){
     mv={id:uid('mv'),data:OP.data||hojeISO(),hora:agoraHM(),motivoId:motivoProduzir(),
@@ -661,6 +662,41 @@ async function confirmarProducao(){
   telaProducao();
   toast('Produção registrada — ordem '+op.numero+'.');
   setTimeout(function(){verOP(op.id)},400);
+}
+/* ==========================================================
+   A MASSA APARECE NA MOVIMENTAÇÃO (Rafael, 04/10/2026)
+
+   "Rodou a massa de cascão na produção, ela vira cascão. Mas quando eu
+   filtro a massa de cascão na Movimentação de Mercadoria, não tem nenhuma
+   saída. Tem de aparecer: foram produzidas tantas massas, que se
+   transformaram em cascão."
+
+   A ordem baixava os ingredientes da receita e já dava entrada no destino
+   (o cascão, o Gelato Venda) — a própria ficha nunca passava pelo
+   estoque. Agora ela passa: entra o que foi produzido da massa e, no mesmo
+   lançamento, sai o mesmo tanto, transformado no destino. O saldo da massa
+   não muda (entra e sai junto), os ingredientes continuam baixando como
+   antes, e o relatório mostra o caminho inteiro. As duas linhas levam
+   `transito:true`: não são consumo nem compra, e os relatórios de consumo
+   e de custo não as somam. */
+function registrarMassaNaOP(linhas,itensMov){
+  (itensMov||[]).forEach(function(it){
+    var f=(DB.fichas||[]).find(function(x){return x.id===it.refId});
+    if(!f)return;
+    var dest=destinoDaFicha(f);
+    if(!dest||dest.id===f.id)return;
+    var q=+(Number(it.qtd)||0).toFixed(4);
+    if(!(q>0))return;
+    var custo=+(Number(custoPorUnidade(f))||0).toFixed(6);
+    var par=[
+      {insumoId:f.id,nome:f.nome,unidade:it.unidade,qtd:q,custo:custo,direcao:'entrada',
+       origem:'massa:'+f.id,fichaNome:f.nome,transito:true},
+      {insumoId:f.id,nome:f.nome,unidade:it.unidade,qtd:q,custo:custo,direcao:'saida',
+       origem:'transformacao:'+f.id,fichaNome:f.nome,destinoNome:dest.nome,transito:true}];
+    var k=linhas.findIndex(function(l){return l.origem==='producao:'+f.id;});
+    if(k<0)linhas.push.apply(linhas,par); else linhas.splice.apply(linhas,[k,0].concat(par));
+  });
+  return linhas;
 }
 function motivoProduzir(){
   var m=(DB.motivosMov||[]).find(function(x){return x.tipo==='producao'&&x.ativo!==false});

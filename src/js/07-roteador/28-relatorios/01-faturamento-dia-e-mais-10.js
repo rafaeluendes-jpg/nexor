@@ -396,6 +396,7 @@ function telaItensConsumidos(){
     if(IC.motivos.length&&IC.motivos.indexOf(m.motivoId)<0)return;
     (m.linhas||[]).forEach(function(l){
       if(l.direcao!=='saida')return;                 /* consumo = saída */
+      if(l.transito)return;                          /* massa que virou o destino não é consumo */
       var it=itemEstoque(l.insumoId);
       if(IC.grupo&&(!it||(it.grupoId!==IC.grupo&&it.categoriaId!==IC.grupo)))return;
       if(IC.grupoMaior&&!itemNoGrupoMaior(it,IC.grupoMaior))return;

@@ -3427,8 +3427,27 @@ async function sincronizar(){
            de quem esta logado agora.
            ------------------------------------------------------------ */
         var _retidos=0,_orfaos=0;
+        /* ==========================================================
+           O SALDO DA PRODUÇÃO FICAVA PRESO NO APARELHO (04/10/2026)
+
+           O aparelho da produção de Santa Fé marcava os saldos de estoque
+           como "sem empresa identificada" (495 de uma vez) e não os
+           enviava: a ordem de produção baixava o Bis, a massa, o Gelato
+           Venda — e a nuvem nunca soube. O saldo da loja descolou dos
+           movimentos (Bis 156 com 32 saídas registradas; 48 kg de Gelato
+           Venda produzidos que não entraram).
+
+           Linha de uma unidade DESTA empresa não é órfã: a unidade diz de
+           quem ela é. Só ela é adotada aqui; linha sem unidade, ou de
+           unidade que esta empresa não tem, continua retida como antes. */
+        var _sucDaEmpresa={};
+        (DB.sucursais||[]).forEach(function(su){ if(su&&su.id&&(!su._loja||su._loja===l))_sucDaEmpresa[su.id]=true; });
         lista=lista.filter(function(x){
           if(!x||typeof x!=='object')return true;
+          if(!x._loja&&l){
+            var _sx=x.sucursalId||x._suc||'';
+            if(_sx&&_sucDaEmpresa[_sx]){ x._loja=l; x._suc=x._suc||_sx; delete x._tenantDesconhecido; }
+          }
           if(!x._loja){
             if(x._tenantDesconhecido!==true){x._tenantDesconhecido=true;_orfaos++;}
             return false;
