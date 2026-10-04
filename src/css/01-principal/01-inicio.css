@@ -707,6 +707,25 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 
 /* pagamento */
 .pgGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:8px}
+/* entregar para: nome, telefone e endereço na tela de pagamento (04/10/2026) */
+.pgCliTopo{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px;margin-bottom:10px}
+.pgCliTopo b{font-size:16px;font-weight:700;color:var(--ink)}
+.pgCliTopo span{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-2)}
+.pgEnds{display:grid;gap:8px;margin-bottom:10px}
+.pgEnd{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border:1px solid var(--line-2);
+  border-radius:10px;cursor:pointer;background:var(--card)}
+.pgEnd:hover{background:var(--alt);border-color:var(--line)}
+.pgEnd.on{border-color:var(--acc);background:var(--acc-soft)}
+.pgEnd input{width:17px;height:17px;margin-top:2px;accent-color:var(--acc);flex:none}
+.pgEnd>span{flex:1;min-width:0}
+.pgEnd small{display:block;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.pgEnd b{display:block;font-size:14px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.pgEnd em{display:block;font-style:normal;font-size:12.5px;color:var(--ink-2);overflow-wrap:anywhere}
+.pgEndX{flex:none;width:44px;height:44px;margin:-8px -8px -8px 0;border:none;background:none;border-radius:8px;
+  color:var(--ink-3);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pgEndX:hover{background:var(--red-soft);color:var(--red)}
+.pgNovoEnd{margin-top:10px;padding:12px;border:1px dashed var(--line);border-radius:10px;background:var(--alt)}
+.pgNovoEndBt{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
 .pgBtn{border:1px solid var(--line);border-radius:9px;background:#fff;padding:13px 10px;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .pgBtn:hover{border-color:var(--acc);color:var(--acc-d);background:var(--acc-soft)}

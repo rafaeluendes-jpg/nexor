@@ -545,7 +545,8 @@
     "observacao": "text",
     "zona_id": "text",
     "zona": "text",
-    "fidelidade_resgates": "jsonb"
+    "fidelidade_resgates": "jsonb",
+    "enderecos": "jsonb"
    },
    "unicos": [
     [

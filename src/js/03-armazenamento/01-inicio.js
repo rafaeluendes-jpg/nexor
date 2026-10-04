@@ -1652,7 +1652,11 @@ var MAPA=[
     /* o cartão fidelidade viaja com o cliente: o resgate feito em Santa
        Fé precisa aparecer na ficha dele em qualquer aparelho */
     fidelidade_resgates:x.resgates||[],
-    limite_fiado:n(x.limiteFiado),saldo_fiado:n(x.saldoFiado),observacao:x.obs||null}}},
+    limite_fiado:n(x.limiteFiado),saldo_fiado:n(x.saldoFiado),observacao:x.obs||null,
+    /* outros endereços de entrega. Sem a lista (aparelho que ainda não
+       baixou), não sobe nada: o banco mantém a que está salva
+       (20261004_cliente_outros_enderecos) */
+    enderecos:Array.isArray(x.enderecos)?x.enderecos:undefined}}},
 
  {col:'entregadores', espelha:true,tab:'entregadores',
   campos:function(x){return {nome:x.nome,telefone:x.tel||null,cpf:x.cpf||null,pix:x.pix||null,

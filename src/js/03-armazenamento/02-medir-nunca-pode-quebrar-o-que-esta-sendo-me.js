@@ -703,6 +703,8 @@ function volta(linhas,fn,atual,col){
     /* o que sobe tem de descer: sem isto, o resgate feito no caixa
        sumiria no primeiro download e o cartão voltaria cheio */
     resgates:x.fidelidade_resgates||[],
+    /* outros endereços de entrega (casa da mãe, do trabalho) — 04/10/2026 */
+    enderecos:Array.isArray(x.enderecos)?x.enderecos:[],
     ultima:x.ultima_compra||''}},null,'clientes');
   var en=await _p05;
   DB.entregadores=volta(en,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tel:x.telefone,cpf:x.cpf,

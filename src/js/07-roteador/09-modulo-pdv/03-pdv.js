@@ -973,6 +973,122 @@ function formCliente(id,telPre){
   });
 }
 
+/* ==========================================================
+   ENTREGAR PARA: NOME, TELEFONE E ENDEREÇO NA TELA DE PAGAMENTO
+   (Rafael, 04/10/2026)
+
+   "O pedido por telefone: na tela de pagamento não aparece o endereço.
+   Quero o nome em cima, o telefone e o endereço embaixo — o do cadastro e
+   um + para adicionar outro, porque às vezes é para entregar na casa do
+   pai, da mãe. E poder excluir."
+
+   O endereço do cadastro vem primeiro. Os outros ficam guardados no
+   cliente (`enderecos`) para os próximos pedidos e podem ser excluídos
+   aqui. O escolhido vai no pedido e sai no papel da entrega. */
+var _endVenda=null;
+function enderecosDoCliente(c){
+  if(!c)return [];
+  var l=[];
+  if(c.rua||c.bairro||c.numero)
+    l.push({id:'cad',apelido:'Endereço do cadastro',rua:c.rua||'',numero:c.numero||'',
+      bairro:c.bairro||'',cidade:c.cidade||'',ref:c.ref||'',cadastro:true});
+  (Array.isArray(c.enderecos)?c.enderecos:[]).forEach(function(e){ if(e&&e.id)l.push(e); });
+  return l;
+}
+function textoEnderecoPg(e){
+  var l1=[e.rua,e.numero].filter(Boolean).join(', ');
+  var l2=[e.bairro,e.cidade].filter(Boolean).join(' · ');
+  return {l1:l1||'(sem rua)',l2:l2,ref:e.ref||''};
+}
+function listaEnderecosPg(){
+  var c=PDV.cliente; if(!c)return '';
+  var l=enderecosDoCliente(c);
+  if(!l.length)return '<div class="hint">Este cliente ainda não tem endereço. Use “+ Novo endereço”.</div>';
+  var sel=(_endVenda&&_endVenda.id)||l[0].id;
+  return l.map(function(e){
+    var t=textoEnderecoPg(e);
+    return '<label class="pgEnd'+(e.id===sel?' on':'')+'">'+
+      '<input type="radio" name="pgEndSel" value="'+E(e.id)+'"'+(e.id===sel?' checked':'')+
+      ' onchange="pgEscolheEnd(this.value)">'+
+      '<span><small>'+E(e.apelido||'Outro endereço')+'</small>'+
+      '<b>'+E(t.l1)+'</b>'+(t.l2?'<em>'+E(t.l2)+'</em>':'')+
+      (t.ref?'<em>Ref.: '+E(t.ref)+'</em>':'')+'</span>'+
+      (e.cadastro?'':'<button type="button" class="pgEndX" title="Excluir este endereço" '+
+        'onclick="event.preventDefault();event.stopPropagation();pgExcluirEnd(\''+E(e.id)+'\')">'+sv('x2',12)+'</button>')+
+      '</label>';
+  }).join('');
+}
+function blocoEntregaPara(){
+  var c=PDV.cliente||{};
+  var areas=(typeof cidadesEntrega==='function')?cidadesEntrega():[];
+  return '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Entregar para</h3>'+
+   '<div class="pgCliTopo"><b>'+E(c.nome||'Cliente')+'</b>'+
+    (c.tel?'<span>'+sv('phone',12)+' '+E(c.tel)+'</span>':'<span class="hint">sem telefone</span>')+'</div>'+
+   '<div class="pgEnds" id="pgEnds">'+listaEnderecosPg()+'</div>'+
+   '<button type="button" class="btnP2" id="pgNovoEndBt" onclick="pgNovoEnd(true)">+ Novo endereço</button>'+
+   '<div class="pgNovoEnd" id="pgNovoEnd" style="display:none">'+
+    '<div class="row2"><div class="fld2"><label>Rua *</label><input id="neRua" autocomplete="off"></div>'+
+    '<div class="fld2"><label>Número *</label><input id="neNum" autocomplete="off"></div></div>'+
+    '<div class="row2"><div class="fld2"><label>Bairro *</label><input id="neBai" autocomplete="off"></div>'+
+    '<div class="fld2"><label>Cidade</label>'+
+     (areas.length?'<select id="neCid">'+areas.map(function(a){
+        return '<option value="'+E(a.cidade)+'"'+((c.cidade||'').toLowerCase()===String(a.cidade).toLowerCase()?' selected':'')+'>'+E(a.cidade)+'</option>';}).join('')+'</select>'
+      :'<input id="neCid" value="'+E(c.cidade||'')+'">')+'</div></div>'+
+    '<div class="row2"><div class="fld2"><label>Referência</label><input id="neRef" autocomplete="off"></div>'+
+    '<div class="fld2"><label>Nome do endereço</label><input id="neApe" placeholder="ex.: Casa da mãe" autocomplete="off"></div></div>'+
+    '<div class="pgNovoEndBt"><button type="button" class="btnP2" onclick="pgNovoEnd(false)">Cancelar</button>'+
+    '<button type="button" class="btnP2 ok" onclick="pgSalvarEnd()">Salvar endereço</button></div>'+
+   '</div></div>';
+}
+function pgRepintaEnds(){ var b=$('pgEnds'); if(b)b.innerHTML=listaEnderecosPg(); }
+function pgEscolheEnd(id){
+  var e=enderecosDoCliente(PDV.cliente).find(function(x){return x.id===id});
+  if(!e)return;
+  _endVenda=e;
+  /* a cidade do endereço escolhido puxa a taxa da cidade, como na escolha manual */
+  var pc=$('pgCidade');
+  if(pc&&e.cidade){
+    for(var i=0;i<pc.options.length;i++){
+      if(String(pc.options[i].value).toLowerCase()===String(e.cidade).toLowerCase()){
+        if(pc.selectedIndex!==i){pc.selectedIndex=i; if(pc.onchange)pc.onchange();}
+        break;
+      }
+    }
+  }
+  pgRepintaEnds();
+}
+function pgNovoEnd(abrir){
+  var f=$('pgNovoEnd'), b=$('pgNovoEndBt');
+  if(f)f.style.display=abrir?'':'none';
+  if(b)b.style.display=abrir?'none':'';
+  if(abrir&&$('neRua'))$('neRua').focus();
+}
+function pgSalvarEnd(){
+  var c=PDV.cliente; if(!c)return;
+  var v=function(id){return String((($(id)||{}).value)||'').trim();};
+  var e={id:uid('end'),apelido:v('neApe')||'Outro endereço',rua:v('neRua'),numero:v('neNum'),
+    bairro:v('neBai'),cidade:v('neCid'),ref:v('neRef'),criadoEm:new Date().toISOString()};
+  if(!e.rua||!e.numero||!e.bairro){toast('Informe rua, número e bairro do novo endereço.');return;}
+  c.enderecos=(Array.isArray(c.enderecos)?c.enderecos:[]).concat([e]);
+  salvar();
+  pgNovoEnd(false);
+  ['neRua','neNum','neBai','neRef','neApe'].forEach(function(id){ if($(id))$(id).value=''; });
+  pgEscolheEnd(e.id);
+  toast('Endereço salvo no cadastro de '+(c.nome||'cliente')+'.');
+}
+async function pgExcluirEnd(id){
+  var c=PDV.cliente; if(!c)return;
+  var e=(c.enderecos||[]).find(function(x){return x.id===id}); if(!e)return;
+  var t=textoEnderecoPg(e);
+  if(!await confirmar({titulo:'Excluir este endereço?',texto:(e.apelido||'Outro endereço')+': '+t.l1,
+    tipo:'perigo',ok:'Excluir',cancelar:'Voltar'}))return;
+  c.enderecos=(c.enderecos||[]).filter(function(x){return x.id!==id});
+  salvar();
+  if(_endVenda&&_endVenda.id===id)_endVenda=enderecosDoCliente(c)[0]||null;
+  pgRepintaEnds();
+  toast('Endereço excluído.');
+}
+
 /* ---------- PAGAMENTO ---------- */
 var _pagos=[],_totPag=0,_cidadeVenda='',_cupomAtivo=null;
 function aplicarCupom(){
@@ -1100,7 +1216,9 @@ function irPagamento(){
   if(PDV.tipo==='entrega'&&!PDV.cliente){toast('Entrega exige cliente identificado com endereço.');return buscarCliente();}
   var tot=PDV.comanda.reduce(function(a,i){return a+i.total},0);
   _pagos=[];_totPag=tot;_tpDesc='rs';_cupomAtivo=null;
+  _endVenda=null;
   var h='<div class="mdB">'+
+  (PDV.tipo==='entrega'&&PDV.cliente?blocoEntregaPara():'')+
   '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Resumo</h3>'+
   '<div class="linha"><span>Subtotal</span><b>R$ '+money(tot)+'</b></div>'+
   '<div class="row2" style="margin-top:11px">'+
@@ -1331,6 +1449,10 @@ function irPagamento(){
     return true;
   },'lg');
   $('pgTaxa').oninput=recalcPag;$('pgDesc').oninput=recalcPag;
+  if(PDV.tipo==='entrega'&&PDV.cliente){
+    var _l0=enderecosDoCliente(PDV.cliente);
+    if(_l0.length)_endVenda=_l0[0];
+  }
   var pc=$('pgCidade');
   if(pc)pc.onchange=function(){
     var op=this.options[this.selectedIndex];
@@ -1559,6 +1681,13 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
           outra.
        ========================================================== */
     sucursalId:lojaAtualId(),
+    /* o endereço escolhido na tela de pagamento e o telefone saem no papel
+       da entrega (dadosImp lê ped.endereco, ped.bairro e ped.clienteFone) */
+    endereco:(PDV.tipo==='entrega'&&_endVenda)?{rua:_endVenda.rua||'',numero:_endVenda.numero||'',
+      bairro:_endVenda.bairro||'',cidade:_endVenda.cidade||'',referencia:_endVenda.ref||'',
+      apelido:_endVenda.apelido||''}:undefined,
+    bairro:(PDV.tipo==='entrega'&&_endVenda&&_endVenda.bairro)?_endVenda.bairro:undefined,
+    clienteFone:(PDV.tipo==='entrega'&&PDV.cliente&&PDV.cliente.tel)?PDV.cliente.tel:undefined,
     canal:(PDV.tipo==='entrega'?'entrega':(PDV.mesaPag?'mesa':'pdv')),
     origem:'pdv',
     troco:_trocoVenda>0.009?_trocoVenda:0

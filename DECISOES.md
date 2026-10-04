@@ -7861,3 +7861,38 @@ Santa Fé ainda gravou a cópia antiga de 6 itens por cima. Isso aconteceu antes
 de a trava do banco existir. O Gelato Venda, por exemplo, voltou de 79,9 para
 32,9 kg. A correção foi refeita com a trava já ligada, e o saldo ficou em
 79,17 kg.
+
+## V413 — entrega: nome, telefone e endereço na tela de pagamento (04/10/2026)
+
+Rafael: "pedido por telefone — na tela de pagamento não aparece o endereço.
+Quero o nome em cima, o telefone e o endereço embaixo; o do cadastro e um +
+para adicionar outro (casa do pai, da mãe), e poder excluir. Tudo certinho na
+impressão. Não mexa em mais nada."
+
+O que mudou:
+- Na entrega, o pagamento abre com o quadro **"Entregar para"**:
+  - o nome e o telefone do cliente;
+  - o endereço do cadastro, que vem escolhido;
+  - os outros endereços guardados, cada um com um "×" para excluir;
+  - **"+ Novo endereço"**: rua, número, bairro, cidade, referência e um nome
+    para o endereço ("Casa da mãe"). Ele fica guardado no cliente e já vem
+    escolhido.
+- Escolher um endereço puxa a taxa da cidade dele, como a escolha manual. O
+  endereço do cadastro continua sendo alterado na ficha do cliente.
+- O pedido leva o endereço escolhido, o bairro e o telefone. O papel da
+  entrega já lia esses campos (`dadosImp`) e passa a imprimir o endereço
+  escolhido em vez do endereço do cadastro.
+- **Banco** (`20261004_cliente_outros_enderecos.sql`): coluna
+  `clientes.enderecos`. Aparelho que ainda não conhece a lista manda nulo, e
+  nulo nunca apaga a lista que está salva.
+- Limite que fica: o pedido não tem coluna de endereço na nuvem. A segunda via
+  impressa em outro aparelho sai com o endereço do cadastro.
+- Nada mais da tela de pagamento mudou.
+
+Provado no Chromium, no computador e no celular:
+- casa da mãe escolhida;
+- novo endereço salvo e depois excluído;
+- venda finalizada, com o papel saindo com o nome, o telefone, o endereço da
+  mãe e o bairro.
+
+Guardião: `entrega-endereco-no-pagamento.js` (19).

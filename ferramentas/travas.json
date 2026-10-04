@@ -197,6 +197,10 @@
    "pontos": 93,
    "roda": true
   },
+  "testes/entrega-endereco-no-pagamento.js": {
+   "pontos": 19,
+   "roda": true
+  },
   "testes/envio-concorrente.js": {
    "pontos": 14,
    "roda": true
