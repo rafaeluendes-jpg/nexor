@@ -624,6 +624,10 @@
   "testes/vinculo-opcao.js": {
    "pontos": 28,
    "roda": true
+  },
+  "testes/vinculo-so-sobe-quando-muda.js": {
+   "pontos": 5,
+   "roda": true
   }
  },
  "etapasDoPortao": [
