@@ -3918,11 +3918,25 @@ async function sincronizar(){
       if(c.paiId&&_ids[c.paiId])
         pend.push({tab:'ficha_grupos',ref:c.id,campo:'pai_id',uid:_ids[c.paiId]});
     });
+    /* ==========================================================
+       O VÍNCULO SÓ SOBE QUANDO MUDA (04/10/2026)
+
+       Todo envio regravava o vínculo de produção de TODAS as fichas e
+       pastas — mesmo sem mudança nenhuma. Cada regravação virava versão
+       nova da loja, a versão nova acordava os outros aparelhos, e eles
+       enviavam de novo: 3.571 gravações em 20 minutos, o banco lento e o
+       sistema demorando a entrar. Agora o aparelho lembra o que já
+       gravou e só manda o que mudou. */
+    DB._vinc=DB._vinc||{};
+    pend=pend.filter(function(pv){
+      return DB._vinc[pv.tab+'|'+pv.ref+'|'+(pv.campo||'destino_id')]!==pv.uid;
+    });
     for(var pz=0;pz<pend.length;pz++){
       try{
         var _pt={};_pt[pend[pz].campo||'destino_id']=pend[pz].uid;
         await api(pend[pz].tab+'?ref_local=eq.'+encodeURIComponent(pend[pz].ref),
           'PATCH',_pt);
+        DB._vinc[pend[pz].tab+'|'+pend[pz].ref+'|'+(pend[pz].campo||'destino_id')]=pend[pz].uid;
       }catch(e){console.error('vinculo',e);}
     }
     if(pend.length)logNuvem(pend.length+' vínculo(s) de produção gravado(s)');

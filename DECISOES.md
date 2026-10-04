@@ -7967,3 +7967,30 @@ Provado no Chromium:
 - digitar "massa cascao tr" e a lista filtrar.
 
 Guardião: `estoque-busca-e-custo-da-massa.js` (13).
+
+## V416 — sistema lento para entrar: o vínculo de produção só sobe quando muda (04/10/2026)
+
+Rafael: "está demorando para entrar no sistema. Urgente."
+
+O que o banco mostrou (16h35–16h45):
+- consultas canceladas por tempo e conexões caindo;
+- em 20 minutos, 3.571 PATCH em `fichas_tecnicas` e 736 em `ficha_grupos`.
+
+A causa: todo envio, de todo aparelho, regravava o vínculo de produção
+(`destino_id`, `pai_id`) de todas as fichas e pastas, mesmo sem mudança.
+- Cada regravação disparava `bump_loja_versao`.
+- A versão nova acordava os outros aparelhos, que enviavam de novo.
+- Era um ciclo que se alimentava sozinho. É o mesmo ponto quente das 109
+  mil versões de 02/10.
+
+O que mudou:
+- **Banco, na hora** (`20261004_versao_so_quando_muda.sql`): gravação que
+  não muda nada não vira versão nova. O tráfego caiu de 655 para 216
+  pedidos por minuto no mesmo minuto.
+- **Aparelho:** lembra o vínculo que já gravou (`DB._vinc`) e só manda o
+  que mudou.
+
+Fica para investigar: `pedido_pagamentos` e `pedido_itens` também sobem
+centenas de vezes (POST aceito). É o reenvio já anotado em 02/10.
+
+Guardião: `vinculo-so-sobe-quando-muda.js` (5).
