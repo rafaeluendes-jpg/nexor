@@ -357,6 +357,10 @@
    "pontos": 17,
    "roda": true
   },
+  "testes/lei-de-versao-financeiro-e-caixa.js": {
+   "pontos": 14,
+   "roda": true
+  },
   "testes/lei-fabrica-no-banco.js": {
    "pontos": 5,
    "roda": true

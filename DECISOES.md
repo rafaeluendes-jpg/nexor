@@ -8317,3 +8317,53 @@ O que mudou:
 Nada mais mudou.
 
 Guardião: `testes/recebimentos-dinheiro-vendido.js`.
+
+## V426 — editou o caixa, muda no financeiro; cópia velha não desfaz mais (05/10/2026)
+
+Rafael: "Sangria de R$ 400 no caixa e R$ 200 na conciliação. Qualquer
+edição de caixa tem que levar a atualização para a conciliação e para o
+lançamento financeiro. Que vire lei."
+
+**O que o `audit_log` mostrou:**
+1. A sangria de 03/10 foi corrigida de 200 para 400 às 08:13, e o
+   lançamento foi a 400.
+   - O movimento do caixa nunca chegou na nuvem: a trava "caixa fechado não
+     aceita novo movimento" barrava o envio (o upsert dispara o gatilho de
+     INSERT antes de achar a linha), e o valor em caixa fechado era
+     imutável.
+   - Deu erro 400 a cada envio desde a manhã.
+2. Às 13:46–13:47, o aparelho de Santa Fé (santafe@) regravou a partir de
+   cópias velhas:
+   - 13 lançamentos: conciliações do dia desfeitas, pagamentos desmarcados,
+     sangria 400→200, dinheiro 537→336,95;
+   - 13 baixas de estoque, que voltaram de lançada para pendente;
+   - 1 pedido de base;
+   - o caixa de 02/10, já devolvido antes.
+
+**Correção:**
+- **Banco** (`20261005_lei_de_versao_financeiro_e_caixa.sql`):
+  - Movimento de caixa fechado que já existe pode ser corrigido no valor;
+    o tipo não. Movimento novo e exclusão continuam barrados.
+  - `caixa_movimentos` passou a ser auditado.
+  - **Lei de versão** em `lancamentos_financeiros` e `baixas_pendentes`, a
+    mesma das contas e formas: cópia velha não grava por cima do mais novo.
+- **Aparelho:**
+  - Lançamentos e baixas descem com a versão e sobem apresentando a versão.
+  - A conferência da linha aceita o mesmo instante escrito de dois jeitos.
+- **Dados devolvidos** do `audit_log`:
+  - o movimento da sangria = R$ 400;
+  - os 13 lançamentos. Os 4 de cartão que o Raylan pagou de novo pela
+    operação em lote mantêm o lote; voltam só a conciliação e o valor
+    original;
+  - as 13 baixas, de volta a lançada;
+  - o pedido de base.
+- Provado no banco, com a loja logada: a cópia velha tentou voltar a
+  sangria para 200 e ficou 400 conciliada. A correção do movimento passou.
+
+**Visto e não mexido:** às 13:31 o aparelho da matriz (rafael@) e às 13:46
+o de Santa Fé regravaram, um depois do outro, os códigos, os custos e os
+saldos antigos de cerca de 220 insumos e 100 fichas, cada um com a sua
+cópia. Não dá para saber pelo histórico qual dos dois está certo. Fica
+para conferir com o Rafael.
+
+Guardião: `testes/lei-de-versao-financeiro-e-caixa.js`.

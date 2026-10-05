@@ -273,7 +273,8 @@
     "mov_ref": "text",
     "lancada_em": "timestamp with time zone",
     "criado_em": "timestamp with time zone",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone"
    },
    "unicos": [
     [
@@ -1391,7 +1392,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "lote_ref": "text",
-    "lote_numero": "text"
+    "lote_numero": "text",
+    "versao_vista": "timestamp with time zone"
    },
    "unicos": [
     [

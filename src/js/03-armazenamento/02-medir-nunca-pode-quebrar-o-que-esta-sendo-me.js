@@ -763,6 +763,8 @@ function volta(linhas,fn,atual,col){
     origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao,
     /* o lote em que foi pago (05/10/2026) */
     loteRef:x.lote_ref||undefined,loteNum:x.lote_numero||undefined,
+    /* a versão que desceu: é ela que o envio apresenta ao banco (lei de versão) */
+    _alt:x.alterado_em||null,
     /* a unidade desce junto (01/10/2026): sem ela o filtro por loja deixava
        passar tudo, e o proximo envio carimbava a loja que estivesse aberta —
        foi assim que a cobranca da matriz foi parar em Santa Fe */
@@ -1143,7 +1145,9 @@ function volta(linhas,fn,atual,col){
     custo:Number(x.custo_unit)||0,motivoRef:x.motivo_ref,motivoNome:x.motivo_nome,
     quem:x.quem_registrou,registradoPor:x.registrado_por,data:x.data,hora:x.hora,
     obs:x.observacao,situacao:x.situacao||'pendente',movRef:x.mov_ref,
-    lancadaEm:x.lancada_em}},DB.baixasPend,'baixasPend');
+    lancadaEm:x.lancada_em,
+    /* a versão que desceu (lei de versão, 05/10/2026) */
+    _alt:x.alterado_em||null}},DB.baixasPend,'baixasPend');
 
   var mv=await _p20;
   var mapaMt={};mv.forEach(function(x){mapaMt[x.id]=x.ref_local||x.id});

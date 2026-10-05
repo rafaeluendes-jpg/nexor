@@ -1391,7 +1391,9 @@ var MAPA=[
   campos:function(x){return {nome:x.nome,qtd_caixa:n(x.qtdCaixa),
     valor_unit:n(x.valorUnit),ficha_ref:x.fichaRef||null,
     ativo:x.ativo!==false,ordem:x.ordem||0};}},
- {col:'baixasPend', espelha:true, tab:'baixas_pendentes',
+ /* lei de versão (05/10/2026): baixa lançada não volta a pendente por uma
+    cópia velha — voltaria a ser lançada, e o estoque sairia duas vezes */
+ {col:'baixasPend', espelha:true, tab:'baixas_pendentes', versao:true,
   campos:function(x){return {
     sucursal_id:x.sucursalRef||null, item_ref:x.itemRef, item_nome:x.itemNome,
     item_tipo:x.itemTipo||'insumo', quantidade:n(x.qtd), unidade:x.unidade||null,
@@ -1930,7 +1932,10 @@ var MAPA=[
     excluido_por:x.excluidoPor||null,excluido_em:x.excluidoEm||null,
     dados:{itens:x.itens||[],lanc:x.lanc||null}}}},
 
- {col:'lancFin',     tab:'lancamentos_financeiros',
+ /* lei de versão (05/10/2026): cópia velha de um aparelho não grava por
+    cima do lançamento mais novo — foi assim que a sangria de R$ 400 voltou
+    a R$ 200 e as conciliações do dia se desfizeram */
+ {col:'lancFin',     tab:'lancamentos_financeiros', versao:true,
   campos:function(x){return {tipo:x.tipo,conta_id:fk('contas',x.contaId),
     conta_destino_id:fk('contas',x.contaDestinoId),forma_id:fk('formasPag',x.metodoId),
     subcategoria_id:fkSub(x.categoriaId),categoria_texto:x.categoriaTxt||null,
@@ -2332,6 +2337,11 @@ function linhaAceitaPelaNuvem(o,r){
     var a=o[k],b=r[k];
     if(nada(a)&&nada(b))continue;
     if(nada(a)||nada(b))return false;
+    /* data e hora: o mesmo instante escrito de dois jeitos ("…000Z" e "…+00:00") */
+    if(typeof a==='string'&&typeof b==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(a)&&/^\d{4}-\d{2}-\d{2}T/.test(b)){
+      if(Date.parse(a)!==Date.parse(b))return false;
+      continue;
+    }
     if(typeof a==='number'||typeof b==='number'){
       if(!(Math.abs(Number(a)-Number(b))<1e-9))return false;
       continue;
