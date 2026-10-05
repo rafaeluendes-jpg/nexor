@@ -8363,7 +8363,10 @@ lançamento financeiro. Que vire lei."
 **Visto e não mexido:** às 13:31 o aparelho da matriz (rafael@) e às 13:46
 o de Santa Fé regravaram, um depois do outro, os códigos, os custos e os
 saldos antigos de cerca de 220 insumos e 100 fichas, cada um com a sua
-cópia. Não dá para saber pelo histórico qual dos dois está certo. Fica
-para conferir com o Rafael.
+cópia. Não dá para saber pelo histórico qual dos dois está certo.
+**Decisão do Rafael (05/10/2026):** "A única loja em operação é Santa Fé.
+Tudo está certo em Santa Fé. Não mexe em nada: conciliação, ficha técnica,
+insumo — mantém tudo." Os insumos e as fichas ficam como estão, que é a
+cópia de Santa Fé, a última gravada. Nada foi alterado neles.
 
 Guardião: `testes/lei-de-versao-financeiro-e-caixa.js`.
