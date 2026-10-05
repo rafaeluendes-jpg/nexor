@@ -923,6 +923,7 @@ function volta(linhas,fn,atual,col){
           whatsapp:x.whatsapp||'',instagram:x.instagram||'',endereco:x.endereco||'',
           pedidoMinimo:Number(x.pedido_minimo)||0,
           tempoEntrega:x.tempo_entrega||'',tempoRetirada:x.tempo_retirada||'',
+          temposEm:x.tempos_em||'',
           aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false,
           /* ==========================================================
              ESTA DESCIDA ESQUECIA O HORARIO — E ERA POR ISSO QUE ELE VOLTAVA
@@ -1315,6 +1316,7 @@ function volta(linhas,fn,atual,col){
       corFundo:x.cor_fundo||'#F7F3EA',whatsapp:x.whatsapp||'',instagram:x.instagram||'',
       endereco:x.endereco||'',pedidoMinimo:Number(x.pedido_minimo)||0,
       tempoEntrega:x.tempo_entrega||'',tempoRetirada:x.tempo_retirada||'',
+      temposEm:x.tempos_em||'',
       aceitaEntrega:x.aceita_entrega!==false,aceitaRetirada:x.aceita_retirada!==false,
       pedeCpf:!!x.pede_cpf,formas:x.formas_aceitas||[],pixChave:x.pix_chave||'',
       aviso:x.aviso||'',

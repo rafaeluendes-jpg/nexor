@@ -80,8 +80,9 @@ function telaPDV(){
                     :'A loja está desligada: o cardápio digital não recebe pedido e o robô não atende. Clique para ligar.')+'">'+
       '<span class="swT"><i></i></span>'+(_ab?'LOJA LIGADA':'LOJA DESLIGADA')+'</button>';})()+
    '<div class="pdvSep"></div>'+
-   '<div class="pdvFld"><label>Entrega</label><input type="number" id="tEnt" value="'+c.tempoEntrega+'"><i>min</i></div>'+
-   '<div class="pdvFld"><label>Retirada</label><input type="number" id="tRet" value="'+c.tempoRetirada+'"><i>min</i></div>'+
+   /* o tempo é DA UNIDADE: o mesmo que o cardápio e o robô mostram (05/10/2026) */
+   '<div class="pdvFld"><label>Entrega</label><input type="number" min="1" id="tEnt" value="'+tempoDaUnidade('tempoEntrega')+'"><i>min</i></div>'+
+   '<div class="pdvFld"><label>Retirada</label><input type="number" min="1" id="tRet" value="'+tempoDaUnidade('tempoRetirada')+'"><i>min</i></div>'+
    '<div class="pdvGrow"></div>'+
    (cx?'<button class="cxTag" data-pop="1" onclick="menuCaixa(event)">'+sv('cash',14)+
        '<div><b>Caixa aberto'+(caixaDeOutroDia(cx)?' <em style="color:var(--red);font-style:normal">de '+E(String(cx.aberto).slice(0,10))+'</em>':'')+'</b><span>'+
@@ -184,14 +185,8 @@ function telaPDV(){
   '</div>'+
   '<div class="pdvBody" id="pdvBody"></div>';
 
-  $('tEnt').onchange=function(){
-    c.tempoEntrega=parseInt(this.value)||0;
-    aplicarTempos();
-    toast('Entrega: '+c.tempoEntrega+' min — já valendo no cardápio e no WhatsApp.');};
-  $('tRet').onchange=function(){
-    c.tempoRetirada=parseInt(this.value)||0;
-    aplicarTempos();
-    toast('Retirada: '+c.tempoRetirada+' min — já valendo no cardápio.');};
+  $('tEnt').onchange=function(){ mudarTempoPDV('entrega',this); };
+  $('tRet').onchange=function(){ mudarTempoPDV('retirada',this); };
 
   conferirZapPdv();
   if(PDV.aba==='venda')renderVenda();
@@ -235,12 +230,60 @@ function sucursalNaNuvem(suc){
   }catch(e){ _quieto(e,'sucursalNaNuvem'); }
   return null;
 }
+/* ==========================================================
+   O TEMPO DIGITADO NO PDV É LEI (Rafael, 05/10/2026)
+
+   *"Quando a gente muda o tempo de entrega manual, ele tem que mudar no
+   cardápio, e quando o cliente pergunta. Uma vez digitado, ele não muda
+   mais. A gente está colocando e ele está voltando automático, e
+   zerando."*
+
+   Por que voltava: o campo do PDV lia e gravava o tempo da EMPRESA
+   (`config_loja`, uma linha para a rede inteira). Santa Fé punha 50, o
+   aparelho de outra loja sincronizava com 30 e gravava por cima — e o
+   download trazia o 30 de volta para Santa Fé. Por que zerava: campo
+   vazio virava 0, e o envio mandava nulo para o cardápio.
+
+   Agora o tempo é da UNIDADE — o do cardápio dela, que é o que o
+   cardápio digital mostra e o que o robô responde. Digitar carimba a
+   hora (`temposEm`), e o banco só aceita tempo novo com carimbo mais
+   novo (20261005_tempo_digitado_e_lei.sql): aparelho atrasado não grava
+   por cima, e vazio nunca apaga. Campo vazio ou zero não é aceito.
+   ========================================================== */
+function minutosDoTempo(t){
+  var m=String(t==null?'':t).match(/\d+/);
+  return m?parseInt(m[0],10):0;
+}
+function tempoDaUnidade(campo){
+  baseCard();
+  var cd=(DB.cardapio||{})[lojaAtualId()];
+  var m=cd?minutosDoTempo(cd[campo]):0;
+  return m||Number(cfg()[campo])||'';
+}
+async function mudarTempoPDV(qual,el){
+  var campo=qual==='entrega'?'tempoEntrega':'tempoRetirada';
+  var min=parseInt(el.value,10)||0;
+  if(min<=0){
+    el.value=tempoDaUnidade(campo);
+    toast('Digite os minutos da '+qual+'. O tempo não pode ficar vazio nem zero.');
+    return;
+  }
+  el.disabled=true;
+  var r=await aplicarTempos(qual,min);
+  el.disabled=false;
+  if(r&&r.ok)toast((qual==='entrega'?'Entrega':'Retirada')+': '+min+' min — salvo e valendo no cardápio'+
+    (qual==='entrega'?' e no WhatsApp.':'.'));
+  else if(r&&r.offline)toast((qual==='entrega'?'Entrega':'Retirada')+': '+min+
+    ' min salvo neste aparelho. Vale no cardápio assim que a internet voltar.');
+  else painelErro('O tempo de '+qual+' não chegou ao cardápio.',(r&&r.motivo)||'Tente de novo em instantes.');
+}
 /* leva os tempos do PDV para o cardápio digital e para o robô */
-async function aplicarTempos(){
+async function aplicarTempos(qual,min){
   var c=cfg();
   baseCard();
   var suc=lojaAtualId();
   var cd=(DB.cardapio||{})[suc];
+  var mudouTempo=(qual==='entrega'||qual==='retirada')&&min>0;
   /* ==========================================================
      MUDAR O TEMPO DE ENTREGA NAO PODE ABRIR NEM FECHAR A LOJA
 
@@ -251,21 +294,34 @@ async function aplicarTempos(){
      unidade que esta sendo alterada.
      ========================================================== */
   var _lig=lojaLigada(suc);
+  if(mudouTempo&&!cd)return {ok:false,motivo:'Esta unidade ainda não tem o cardápio configurado.'};
   if(cd){
-    cd.tempoEntrega=c.tempoEntrega?c.tempoEntrega+' min':'';
-    cd.tempoRetirada=c.tempoRetirada?c.tempoRetirada+' min':'';
+    /* só muda o tempo que foi digitado — o outro fica como está */
+    if(qual==='entrega'&&mudouTempo){cd.tempoEntrega=min+' min';c.tempoEntrega=min;}
+    if(qual==='retirada'&&mudouTempo){cd.tempoRetirada=min+' min';c.tempoRetirada=min;}
+    if(mudouTempo)cd.temposEm=new Date().toISOString();
     cd.ativo=_lig;
   }
   salvar();
   var _uu=sucursalNaNuvem(suc);
+  if(!(NUVEM.ligada&&_uu))return {ok:!mudouTempo,offline:mudouTempo};
   if(NUVEM.ligada&&_uu){
     try{
-      await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(_uu),'PATCH',{
-        tempo_entrega:cd?cd.tempoEntrega:null,
-        tempo_retirada:cd?cd.tempoRetirada:null,
-        ativo:_lig
-      });
-    }catch(e){_quieto(e,'aplicarTempos')}
+      var corpo={ativo:_lig};
+      if(mudouTempo){
+        corpo.tempo_entrega=cd.tempoEntrega||null;
+        corpo.tempo_retirada=cd.tempoRetirada||null;
+        corpo.tempos_em=cd.temposEm;
+      }
+      var r=await api('cardapio_config?sucursal_id=eq.'+encodeURIComponent(_uu),'PATCH',corpo,
+        {'Prefer':'return=representation'});
+      if(!mudouTempo)return {ok:true};
+      if(!Array.isArray(r)||!r.length)return {ok:false,motivo:'Não achei o cardápio desta unidade na nuvem.'};
+      var campoN=qual==='entrega'?'tempo_entrega':'tempo_retirada';
+      if(String(r[0][campoN]||'')!==String(corpo[campoN]||''))
+        return {ok:false,motivo:'A nuvem manteve '+(r[0][campoN]||'o tempo anterior')+'. Digite de novo.'};
+      return {ok:true};
+    }catch(e){_quieto(e,'aplicarTempos');return {ok:false,motivo:(e&&e.message)||'sem conexão com a nuvem'};}
   }
 }
 function lojaAtualId(){

@@ -2257,8 +2257,10 @@ function lerCardapio(silencioso){
   if($('cdRet'))c.aceitaRetirada=$('cdRet').checked;
   if($('cdCpf'))c.pedeCpf=$('cdCpf').checked;
   if($('cdMin'))c.pedidoMinimo=parseFloat($('cdMin').value)||0;
+  var _tAntes=(c.tempoEntrega||'')+'|'+(c.tempoRetirada||'');
   if($('cdTE'))c.tempoEntrega=$('cdTE').value.trim();
   if($('cdTR'))c.tempoRetirada=$('cdTR').value.trim();
+  if((c.tempoEntrega||'')+'|'+(c.tempoRetirada||'')!==_tAntes)c.temposEm=new Date().toISOString();   /* digitado: vale */
   if($('cdPix'))c.pixChave=$('cdPix').value.trim();
   if(!silencioso)salvar();
 }
@@ -2346,7 +2348,9 @@ async function salvarCardapio(avisar){
   var c=cardapioAtual();
   var txt={cdTitulo:'titulo',cdSlogan:'slogan',cdZap:'whatsapp',cdInsta:'instagram',
     cdEnd:'endereco',cdAviso:'aviso',cdPix:'pixChave',cdTE:'tempoEntrega',cdTR:'tempoRetirada'};
+  var _tAntes=(c.tempoEntrega||'')+'|'+(c.tempoRetirada||'');
   Object.keys(txt).forEach(function(id){ if($(id))c[txt[id]]=$(id).value.trim(); });
+  if((c.tempoEntrega||'')+'|'+(c.tempoRetirada||'')!==_tAntes)c.temposEm=new Date().toISOString();   /* digitado: vale */
   if($('cdCor1'))c.corPrincipal=$('cdCor1').value;
   if($('cdCor2'))c.corFundo=$('cdCor2').value;
   if($('cdMin'))c.pedidoMinimo=Number($('cdMin').value)||0;

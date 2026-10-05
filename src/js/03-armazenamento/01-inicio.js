@@ -1839,7 +1839,10 @@ var MAPA=[
     cor_principal:x.corPrincipal||'#2F4A32',cor_fundo:x.corFundo||'#F7F3EA',
     whatsapp:x.whatsapp||null,instagram:x.instagram||null,endereco:x.endereco||null,
     pedido_minimo:n(x.pedidoMinimo),tempo_entrega:x.tempoEntrega||null,
-    tempo_retirada:x.tempoRetirada||null,aceita_entrega:x.aceitaEntrega!==false,
+    tempo_retirada:x.tempoRetirada||null,
+    /* a hora em que o tempo foi DIGITADO: sem ela, o banco não troca o
+       tempo — aparelho atrasado não grava por cima (05/10/2026) */
+    tempos_em:x.temposEm||null,aceita_entrega:x.aceitaEntrega!==false,
     aceita_retirada:x.aceitaRetirada!==false,pede_cpf:!!x.pedeCpf,
     formas_aceitas:x.formas||[],pix_chave:x.pixChave||null,
     aviso:x.aviso||null,horarios:x.horarios||[],

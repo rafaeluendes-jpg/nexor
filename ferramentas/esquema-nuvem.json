@@ -445,7 +445,8 @@
     "mostra_esgotado": "boolean",
     "pede_cpf": "boolean",
     "formas_aceitas": "jsonb",
-    "pix_chave": "text"
+    "pix_chave": "text",
+    "tempos_em": "timestamp with time zone"
    },
    "unicos": [
     [

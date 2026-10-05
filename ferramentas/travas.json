@@ -593,6 +593,10 @@
    "pontos": 0,
    "roda": true
   },
+  "testes/tempo-de-entrega-e-lei.js": {
+   "pontos": 20,
+   "roda": true
+  },
   "testes/tenant.js": {
    "pontos": 111,
    "roda": true

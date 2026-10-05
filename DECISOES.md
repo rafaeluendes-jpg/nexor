@@ -8194,3 +8194,36 @@ A janela da operação em lote mostra o tipo em dois lugares:
   vermelho, "Contas a receber" em verde.
 
 O tipo continua vindo do que foi selecionado. Nada mais mudou.
+
+## V423 — o tempo de entrega digitado no PDV é lei (05/10/2026)
+
+Rafael: "Quando a gente muda o tempo de entrega manual, ele tem que mudar no
+cardápio e quando o cliente pergunta. Uma vez digitado, ele não muda mais.
+A gente está colocando e ele está voltando automático, e zerando."
+
+**Causa:**
+- O campo do PDV lia e gravava o tempo da empresa (`config_loja`). É uma
+  linha só para a rede inteira.
+- Santa Fé punha 50. O aparelho de outra loja, que tinha 30, sincronizava e
+  gravava por cima. O download trazia o 30 de volta para Santa Fé.
+- Campo vazio virava 0, e o envio mandava nulo para o cardápio.
+
+**O que mudou:**
+1. Os campos Entrega e Retirada do PDV mostram e gravam o tempo da própria
+   unidade. É o tempo do cardápio dela, que o cardápio digital mostra e o
+   robô responde.
+   - Só muda o campo digitado.
+   - Vazio ou zero não é aceito: o campo volta ao tempo salvo.
+   - "Salvo" só aparece depois que a nuvem devolveu o tempo novo.
+   - Ligar ou desligar a loja não mexe no tempo.
+2. Digitar carimba a hora (`temposEm`), no PDV e na tela de configuração do
+   cardápio. O carimbo sobe e desce com o cardápio.
+3. **Banco** (`20261005_tempo_digitado_e_lei.sql`):
+   - O tempo só troca com um carimbo mais novo do que o salvo.
+   - Aparelho atrasado, aparelho de versão antiga e envio vazio não mexem
+     no tempo.
+   - Provado no banco, com a transação desfeita no fim: um envio de 30 sem
+     carimbo ficou 50; com carimbo, virou 45; vazio não apagou.
+
+Guardião: `testes/tempo-de-entrega-e-lei.js`. Prova no Chromium: digitar
+55, dar F5, continua 55; apagar o campo volta para 55.
