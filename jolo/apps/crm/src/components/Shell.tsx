@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { api, clearSession, getToken, getUser, type SessionUser } from '../lib/api';
 import { Icone, type NomeDeIcone } from './icones';
+import { desligarAvisos } from '../lib/avisosCelular';
 
 interface Link {
   href: string;
@@ -156,10 +157,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
               type="button"
               className="sair"
               onClick={() => {
-                void api('/auth/logout', { method: 'POST' }).finally(() => {
-                  clearSession();
-                  router.replace('/login');
-                });
+                // quem sai deixa de receber aviso neste aparelho
+                void desligarAvisos()
+                  .catch(() => undefined)
+                  .then(() => api('/auth/logout', { method: 'POST' }))
+                  .finally(() => {
+                    clearSession();
+                    router.replace('/login');
+                  });
               }}
             >
               Sair

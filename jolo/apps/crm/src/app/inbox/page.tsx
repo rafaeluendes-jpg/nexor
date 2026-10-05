@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Shell } from '../../components/Shell';
+import { AvisosCelular } from '../../components/AvisosCelular';
 import { api, can, getUser } from '../../lib/api';
 import { usarTempoReal } from '../../lib/tempoReal';
 import { quandoFoi, sinalDeEntrega } from '../../lib/formato';
@@ -71,6 +72,12 @@ export default function InboxPage() {
       .catch((e: Error) => setErro(e.message));
   }, []);
 
+  // O aviso do celular abre direto na conversa: /inbox?c=<id>
+  useEffect(() => {
+    const pedida = new URLSearchParams(window.location.search).get('c');
+    if (pedida) setAtiva(pedida);
+  }, []);
+
   useEffect(() => {
     carregarLista();
   }, [carregarLista]);
@@ -132,6 +139,7 @@ export default function InboxPage() {
           {ligado ? 'atualizando sozinho' : 'reconectando…'}
         </span>
       </p>
+      <AvisosCelular />
       {erro ? <div className="painel" style={{ marginBottom: 12 }}>{erro}</div> : null}
       <div className="inbox">
         <div className="coluna">

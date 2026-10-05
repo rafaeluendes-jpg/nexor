@@ -465,6 +465,19 @@ else
   escrever_env "$ENV_ARQ"
   echo "    .env criado com senha de banco e JWT proprios."
 fi
+# Chaves do aviso de mensagem nova no celular (Web Push). Geradas aqui, uma
+# vez so; a privada fica no .env e nunca aparece na tela nem no registro.
+if ! grep -q '^VAPID_PRIVATE_KEY=.\+' "$ENV_ARQ"; then
+  sed -i '/^VAPID_PUBLIC_KEY=/d;/^VAPID_PRIVATE_KEY=/d' "$ENV_ARQ"
+  node -e '
+    const c = require("crypto");
+    const k = c.generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ format: "jwk" });
+    const pub = Buffer.concat([Buffer.from([4]), Buffer.from(k.x, "base64url"), Buffer.from(k.y, "base64url")]);
+    console.log("VAPID_PUBLIC_KEY=" + pub.toString("base64url"));
+    console.log("VAPID_PRIVATE_KEY=" + k.d);
+  ' >> "$ENV_ARQ"
+  echo "    chaves do aviso no celular criadas."
+fi
 chmod 600 "$ENV_ARQ"
 chown root:root "$ENV_ARQ"
 

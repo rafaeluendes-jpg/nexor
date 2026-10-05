@@ -17,6 +17,7 @@ import {
 import { parseMetaWebhook } from '@jolo/whatsapp';
 import { CONFIRMACAO_DE_PARADA, ehPedidoParaParar, TIPOS_DE_AVISO } from '@jolo/shared';
 import { publicarAviso } from './avisos.js';
+import { avisarNoCelular } from './push.js';
 import type { WorkerContext } from './context.js';
 
 const TRACKING_RE = /\[ref:\s*(jl_[a-z0-9]+)\s*\]/i;
@@ -207,6 +208,13 @@ export function startInboundWorker(ctx: WorkerContext): Worker {
           leadId: lead.id,
           dados: { de: contact.name ?? 'sem nome' },
         });
+        // E no celular de quem acompanha, como o WhatsApp.
+        await avisarNoCelular(ctx, {
+          organizationId: org.id,
+          conversaId: conversation.id,
+          titulo: contact.name ?? contact.phoneE164,
+          corpo: msg.text ?? (msg.type === 'text' ? 'Nova mensagem' : `Enviou ${msg.type === 'image' ? 'uma foto' : msg.type === 'audio' ? 'um áudio' : 'um arquivo'}`),
+        }).catch((err: Error) => logger.warn({ erro: err.message }, 'aviso no celular falhou'));
         if (created) {
           await publicarAviso(ctx.redis, {
             tipo: TIPOS_DE_AVISO.LEAD_NOVO,

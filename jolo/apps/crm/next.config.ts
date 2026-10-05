@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // o aviso no celular precisa sempre da versao nova deste arquivo
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
+      {
         source: '/(.*)',
         headers: [
           { key: 'X-Robots-Tag', value: 'noindex, nofollow' },

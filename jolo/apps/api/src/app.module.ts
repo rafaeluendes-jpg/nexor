@@ -9,6 +9,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard.js';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { TermoGuard } from './common/guards/termo.guard.js';
 import { TermoModule } from './modules/termo/termo.module.js';
+import { AvisosCelularModule } from './modules/avisos-celular/avisos-celular.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -62,6 +63,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     RealtimeModule,
     ImportacaoModule,
     TermoModule,
+    AvisosCelularModule,
   ],
   providers: [
     PrismaService,

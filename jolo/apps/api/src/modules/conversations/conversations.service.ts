@@ -152,6 +152,9 @@ export class ConversationsService {
     if (conversa.ownerId && conversa.ownerId !== user.id) {
       throw new DomainError('Outro atendente esta com esta conversa.', 'CONVERSATION_LOCKED', 409);
     }
+    // Quem responde pelo CRM assumiu a conversa: o robo para ali na hora,
+    // igual a quando o socio responde pelo celular.
+    if (conversa.mode === 'AI') await this.takeOver(user, conversationId, 'Respondeu pelo CRM');
 
     const mensagem = await this.prisma.client.message.create({
       data: {

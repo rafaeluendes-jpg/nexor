@@ -17,6 +17,14 @@ do socio e no CRM (recurso de coexistencia da Meta). O fluxo:
    pronta ou na fila e descartada, nao sai.
 4. Para devolver a conversa ao robo: botao "Devolver para a IA" no CRM.
 
+Enquanto o numero nao estiver no celular, o socio acompanha pelo **CRM
+instalado como aplicativo**: em Conversas, botao "Ligar avisos". Cada
+mensagem nova vira um aviso no celular (como o WhatsApp) que abre direto
+na conversa. Responder pelo CRM faz o robo parar naquela conversa, igual a
+responder pelo celular. No iPhone o aviso so funciona com o CRM adicionado
+a Tela de Inicio. As chaves do aviso (VAPID) sao geradas pelo instalador
+no `.env` do servidor.
+
 Condicoes: o numero precisa estar no **WhatsApp Business** (nao no
 WhatsApp comum) e o cadastro na Meta e feito pelo fluxo de cadastro
 incorporado com a opcao de usar o numero do app. Ninguem apaga conta.

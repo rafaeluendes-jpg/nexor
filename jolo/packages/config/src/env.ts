@@ -45,6 +45,12 @@ export const serverEnvSchema = z.object({
   META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
   META_GRAPH_VERSION: z.string().default('v21.0'),
 
+  // Aviso de mensagem nova no celular (Web Push). Gerados no servidor pelo
+  // instalador; a privada nunca sai de la. Vazios: o CRM so nao avisa.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default('mailto:contato@jologelato.com.br'),
+
   AI_PROVIDER: z.enum(['disabled', 'openai']).default('disabled'),
   AI_MODEL: z.string().default('gpt-4.1-mini'),
   OPENAI_API_KEY: z.string().optional(),
