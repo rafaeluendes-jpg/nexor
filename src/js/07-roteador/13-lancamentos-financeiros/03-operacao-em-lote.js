@@ -108,6 +108,9 @@ function modalLote(ls,deFora){
   var mSel=ls[0].metodoId||(formas.length===1?formas[0].id:'');
   var h='<div class="mdB">'+
    '<div class="ltCab"><div><div class="ltL">Número do lote</div><div class="ltN" id="ltNum">'+E(num)+'</div></div>'+
+    /* o lado do lote escrito, para quem confere ter certeza (Rafael, 05/10/2026) */
+    '<div><div class="ltL">Tipo</div><span class="ltTipo '+(pagar?'pagar':'receber')+'" id="ltTipo">'+
+     (pagar?'Contas a pagar':'Contas a receber')+'</span></div>'+
     '<div><div class="ltL">Criado em</div><b>'+dataBR(hoje)+' · '+agoraHM()+'</b></div>'+
     (quem?'<div><div class="ltL">Por</div><b>'+E(quem)+'</b></div>':'')+
     '<div class="ltSp"></div><small>o número nasce sozinho:<br>data de hoje + sequência do dia</small></div>'+
@@ -144,7 +147,7 @@ function modalLote(ls,deFora){
     '<div class="ltTot"><span>Total do lote</span><b id="ltTot"></b></div>'+
     '<div class="ltAviso" id="ltAviso"></div></div></div>';
   _ltLancs=ls;
-  modal('Nova operação em lote',h,'Confirmar lote',function(){return confirmarLote(ls,suc);},'lg');
+  modal('Nova operação em lote — '+(pagar?'contas a pagar':'contas a receber'),h,'Confirmar lote',function(){return confirmarLote(ls,suc);},'lg');
   recalcLote();
 }
 var _ltLancs=[];

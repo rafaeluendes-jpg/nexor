@@ -6772,6 +6772,9 @@ select.impIn{padding-right:2px}
 .ltCab .ltL{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
 .ltCab .ltSp{flex:1}
 .ltCab small{color:var(--ink-2);font-size:12px}
+.ltTipo{display:inline-block;margin-top:3px;font-size:13px;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap}
+.ltTipo.pagar{background:var(--red-soft);color:var(--red)}
+.ltTipo.receber{background:var(--ok-soft);color:var(--ok)}
 .ltSub{font-size:11.5px;color:var(--ink-2)}
 .ltTabW{overflow-x:auto}
 .ltTabW .ltJ{width:88px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 7px;font:inherit;min-height:32px}
@@ -14880,7 +14883,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V421.0.0';
+var VERSAO='V422.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -35172,6 +35175,9 @@ function modalLote(ls,deFora){
   var mSel=ls[0].metodoId||(formas.length===1?formas[0].id:'');
   var h='<div class="mdB">'+
    '<div class="ltCab"><div><div class="ltL">Número do lote</div><div class="ltN" id="ltNum">'+E(num)+'</div></div>'+
+    /* o lado do lote escrito, para quem confere ter certeza (Rafael, 05/10/2026) */
+    '<div><div class="ltL">Tipo</div><span class="ltTipo '+(pagar?'pagar':'receber')+'" id="ltTipo">'+
+     (pagar?'Contas a pagar':'Contas a receber')+'</span></div>'+
     '<div><div class="ltL">Criado em</div><b>'+dataBR(hoje)+' · '+agoraHM()+'</b></div>'+
     (quem?'<div><div class="ltL">Por</div><b>'+E(quem)+'</b></div>':'')+
     '<div class="ltSp"></div><small>o número nasce sozinho:<br>data de hoje + sequência do dia</small></div>'+
@@ -35208,7 +35214,7 @@ function modalLote(ls,deFora){
     '<div class="ltTot"><span>Total do lote</span><b id="ltTot"></b></div>'+
     '<div class="ltAviso" id="ltAviso"></div></div></div>';
   _ltLancs=ls;
-  modal('Nova operação em lote',h,'Confirmar lote',function(){return confirmarLote(ls,suc);},'lg');
+  modal('Nova operação em lote — '+(pagar?'contas a pagar':'contas a receber'),h,'Confirmar lote',function(){return confirmarLote(ls,suc);},'lg');
   recalcLote();
 }
 var _ltLancs=[];

@@ -8180,3 +8180,17 @@ Conciliação Bancária ficam por baixo do painel de filtros.
 Guardião: `testes/operacao-em-lote.js`, com 58 pontos. Prova no Chromium:
 marcar, criar, F5, Lotes, conciliar e desfazer, no computador e no
 celular.
+
+## V422 — a janela do lote diz se são contas a pagar ou a receber (05/10/2026)
+
+Rafael: "Eu sei que você identifica, mas seria legal aparecer escrito: se
+selecionou contas a pagar, aparecer contas a pagar; se selecionou contas a
+receber, aparecer contas a receber."
+
+A janela da operação em lote mostra o tipo em dois lugares:
+- no título: "Nova operação em lote — contas a pagar" ou "… — contas a
+  receber";
+- em destaque no topo, ao lado do número do lote: "Contas a pagar" em
+  vermelho, "Contas a receber" em verde.
+
+O tipo continua vindo do que foi selecionado. Nada mais mudou.

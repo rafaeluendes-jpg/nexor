@@ -462,6 +462,9 @@ select.impIn{padding-right:2px}
 .ltCab .ltL{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
 .ltCab .ltSp{flex:1}
 .ltCab small{color:var(--ink-2);font-size:12px}
+.ltTipo{display:inline-block;margin-top:3px;font-size:13px;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap}
+.ltTipo.pagar{background:var(--red-soft);color:var(--red)}
+.ltTipo.receber{background:var(--ok-soft);color:var(--ok)}
 .ltSub{font-size:11.5px;color:var(--ink-2)}
 .ltTabW{overflow-x:auto}
 .ltTabW .ltJ{width:88px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 7px;font:inherit;min-height:32px}

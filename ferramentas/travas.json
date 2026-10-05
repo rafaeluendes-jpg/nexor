@@ -426,7 +426,7 @@
    "roda": true
   },
   "testes/operacao-em-lote.js": {
-   "pontos": 58,
+   "pontos": 60,
    "roda": true
   },
   "testes/pagamento-tem-estado.js": {

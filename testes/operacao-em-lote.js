@@ -106,6 +106,8 @@ const erros = [];
   tela(['lf1', 'lf2', 'lf3', 'lpg']); avisos = []; w.abrirLote(); await esp(20);
   t('abre a janela', !!$('mdOv') && /Nova operação em lote/.test($('mdOv').innerHTML));
   t('o número nasce com a data de hoje: ' + PRE + '-01', ($('ltNum') || {}).textContent === PRE + '-01', ($('ltNum') || {}).textContent);
+  t('a janela diz, escrito, que são contas a pagar', ($('ltTipo') || {}).textContent === 'Contas a pagar' &&
+    /Nova operação em lote — contas a pagar/.test($('mdOv').innerHTML));
   t('avisa quem ficou de fora', /1 dos selecionados ficaram de fora/.test($('mdOv').innerHTML));
   t('três lançamentos na lista', $('mdOv').querySelectorAll('.ltJ').length === 3);
   $('ltC').value = 'ct_itau'; $('ltM').value = 'fp_bol'; $('ltD').value = '2026-10-05'; $('ltO').value = 'Fornecedores da semana';
@@ -126,6 +128,14 @@ const erros = [];
     perto(lanc('lf3').juros, 12.5) && lanc('lf1').valorOriginal === undefined && perto(lanc('lf1').valor, 1840));
   t('o "antes" de cada um ficou guardado', (lt.itens || []).every(it => it.antes && it.antes.pago === false && it.antes.pagamento === ''));
   t('o que estava pago fora do lote não foi tocado', lanc('lpg').loteRef === undefined && lanc('lpg').pagamento === '2026-10-04');
+
+  grupo('2b. Contas a receber');
+  w.DB.lancFin.push(L('lr2', '2026-10-07', 'Festa', 320, { tipo: 'receita', categoriaTxt: 'Encomendas' }));
+  tela(['lr1', 'lr2']); avisos = []; w.abrirLote(); await esp(20);
+  t('marcando contas a receber, a janela diz "Contas a receber"', ($('ltTipo') || {}).textContent === 'Contas a receber' &&
+    /Nova operação em lote — contas a receber/.test($('mdOv').innerHTML) && /Conta de entrada/.test($('mdOv').innerHTML));
+  w.fecharModal();
+  w.DB.lancFin = w.DB.lancFin.filter(x => x.id !== 'lr2');
 
   grupo('3. Sem categoria não paga');
   tela(['lf5', 'lsc']); avisos = []; w.abrirLote(); await esp(20);
