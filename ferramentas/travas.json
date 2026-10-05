@@ -325,6 +325,10 @@
    "pontos": 10,
    "roda": true
   },
+  "testes/lancamento-apagado-nao-volta.js": {
+   "pontos": 11,
+   "roda": true
+  },
   "testes/lancamento-automatico-entra-no-dre.js": {
    "pontos": 22,
    "roda": true

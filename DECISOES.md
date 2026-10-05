@@ -8059,3 +8059,35 @@ Provado no Chromium:
   mostrando R$ 25 de R$ 65.
 
 Guardião: `opcao-insumo-e-filtro-forma.js` (14).
+
+## V419 — lançamento apagado não volta (05/10/2026)
+
+Rafael: "Essa transação de R$ 350 já foi apagada várias vezes, porém ela
+volta automático. Uma vez apagado, não tem que voltar. Retire ela e
+atualize o valor do caixa."
+
+**Causa:**
+- A transferência "Itaú → Caixa da loja" de 02/10 (Santa Fé) nunca saiu do
+  banco.
+- O banco só deixava admin apagar lançamento. O usuário da loja tem a
+  permissão do financeiro, então a tela oferecia o Excluir.
+- O banco recusava sem erro: respondia "ok" com zero linhas apagadas.
+- A tela tirava a linha do aparelho e o download seguinte a trazia de
+  volta. No `audit_log` aparecem só o INSERT e duas conciliações, nenhum
+  DELETE. Os quatro DELETE de 05/10 15:49–15:51 responderam 204.
+
+**O que mudou:**
+1. **Banco** (`20261005_financeiro_apaga_quem_tem_o_financeiro.sql`):
+   - Quem tem a permissão do financeiro pode apagar lançamento. É a mesma
+     permissão que já grava e altera.
+   - Vale só para a própria unidade e nunca para lançamento conciliado.
+   - A regra de admin continua valendo.
+2. **Tela de Lançamentos:**
+   - A exclusão pede ao banco o que foi apagado.
+   - Se nada foi apagado e a linha continua lá, a tela avisa "A nuvem não
+     deixou excluir" e não tira a linha.
+   - Nunca mais "excluído" sem ter saído.
+
+Nada mais mudou.
+
+Guardião: `testes/lancamento-apagado-nao-volta.js`.

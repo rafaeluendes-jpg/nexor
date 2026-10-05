@@ -705,11 +705,31 @@ function modalPagamento(ids){
    boleto NAO some daqui: mentir que apagou e pior do que avisar que nao
    deu.
    ========================================================== */
+/* ==========================================================
+   APAGADO TEM DE TER SAIDO DA NUVEM (Santa Fe, 05/10/2026)
+
+   A transferencia de R$ 350 (Itau → Caixa da loja) foi excluida varias
+   vezes e sempre voltava. O banco so deixava admin apagar lancamento e,
+   quando recusa por regra, o DELETE responde "ok" sem apagar nada. A
+   tela acreditava, tirava a linha, e o download a trazia de volta.
+
+   Agora a nuvem devolve o que apagou. Se nao devolveu nada e a linha
+   continua la, NAO e exclusao: avisa e nao tira daqui.
+   ========================================================== */
 async function apagarLancNaNuvem(id){
   if(!(NUVEM.ligada&&NUVEM.loja))return true;
   try{
-    await api('lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
-              '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+    var filtro='lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
+              '&ref_local=eq.'+encodeURIComponent(id);
+    var foi=await api(filtro,'DELETE',null,{'Prefer':'return=representation'});
+    if(Array.isArray(foi)&&!foi.length){
+      var ficou=await api(filtro+'&select=id');
+      if(Array.isArray(ficou)&&ficou.length){
+        painelErro('A nuvem não deixou excluir este lançamento.',
+          'Seu usuário não tem permissão para excluir no financeiro. Nada foi apagado.');
+        return false;
+      }
+    }
     return true;
   }catch(e){
     painelErro('Não consegui excluir na nuvem.',detalheErro(e));
