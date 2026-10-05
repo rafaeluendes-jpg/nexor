@@ -7994,3 +7994,29 @@ Fica para investigar: `pedido_pagamentos` e `pedido_itens` também sobem
 centenas de vezes (POST aceito). É o reenvio já anotado em 02/10.
 
 Guardião: `vinculo-so-sobe-quando-muda.js` (5).
+
+## V417 — editar a sangria no fechamento do caixa (05/10/2026)
+
+Rafael: "aqui na frente de caixa deixar a opção de editar a sangria, e
+atualizar valores de caixa. Mexer apenas nisso."
+
+O que mudou, só na janela **Editar fechamento de caixa** (Frente de Caixa):
+- Novo quadro **"Sangrias e suprimentos"**: cada movimento do caixa aparece
+  com a hora, o tipo, o motivo, o destino e o **valor editável**.
+- Embaixo, o **dinheiro esperado na gaveta** se refaz enquanto se digita. O
+  fundo de troco entra na conta também.
+- Ao salvar:
+  - o valor novo vale para o caixa;
+  - o anterior fica guardado no movimento (`edicoes`: quem, quando, de, para);
+  - a transferência que a sangria gerou no financeiro passa a ter o valor
+    novo;
+  - o esperado e a diferença do caixa são refeitos pelo caminho que já
+    existia.
+- Valor zero não grava. O movimento cujo lançamento já foi conciliado no
+  banco fica travado, com o aviso para desconciliar.
+- Nada mais da janela mudou.
+
+Provado no Chromium: sangria de R$ 350 corrigida para R$ 300. O esperado
+subiu R$ 50 e a transferência no financeiro ficou em R$ 300.
+
+Guardião: `editar-sangria-no-fechamento.js` (11).

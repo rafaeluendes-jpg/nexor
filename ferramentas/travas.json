@@ -197,6 +197,10 @@
    "pontos": 93,
    "roda": true
   },
+  "testes/editar-sangria-no-fechamento.js": {
+   "pontos": 11,
+   "roda": true
+  },
   "testes/entrega-endereco-no-pagamento.js": {
    "pontos": 19,
    "roda": true

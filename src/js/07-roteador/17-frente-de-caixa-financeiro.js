@@ -717,6 +717,67 @@ function imprimirRelatorioCaixa(id){
 }
 
 /* ---------- EDITAR FECHAMENTO ---------- */
+function lancDoMovCaixa(m){
+  return (DB.lancFin||[]).find(function(l){
+    return (m.lancRef&&l.id===m.lancRef)||(l.ref===m.id&&l.origem==='mov-caixa');});
+}
+function blocoMovsEditarCaixa(c,mov){
+  var ms=(c.movimentos||[]).filter(function(m){return m&&(m.tipo==='sangria'||m.tipo==='suprimento')});
+  var corpo=ms.length?'<table class="fpgTab"><thead><tr><th style="text-align:left">Hora</th>'+
+    '<th style="text-align:left">Tipo</th><th style="text-align:left">Motivo / destino</th>'+
+    '<th style="text-align:right">Valor</th></tr></thead><tbody>'+
+    ms.map(function(m){
+      var l=lancDoMovCaixa(m), trava=!!(l&&l.conciliado);
+      return '<tr><td>'+E(m.hora||'')+'</td>'+
+        '<td><b>'+(m.tipo==='sangria'?'Sangria':'Suprimento')+'</b></td>'+
+        '<td>'+E(m.motivoNome||m.motivo||'')+(m.destino?' <small style="color:var(--ink-3)">→ '+E(m.destino)+'</small>':'')+
+          (trava?'<small style="display:block;color:var(--ink-3)">conciliado no banco — desconcilie para alterar</small>':'')+'</td>'+
+        '<td style="width:150px"><div class="cur"><span>R$</span>'+
+        '<input type="text" inputmode="decimal" autocomplete="off" class="moeda ecMov" data-m="'+E(m.id)+'" '+
+        'value="'+money(Number(m.valor)||0)+'"'+(trava?' disabled':'')+' oninput="ecRecalcEsperado()"></div></td></tr>';
+    }).join('')+'</tbody></table>'
+    :'<div class="hint">Nenhuma sangria ou suprimento neste caixa.</div>';
+  return '<div class="blk" style="margin:0 0 11px;max-width:none"><h3>Sangrias e suprimentos</h3>'+corpo+
+    '<div class="linha" style="margin-top:10px"><span>Dinheiro esperado na gaveta</span>'+
+    '<b id="ecEsperado" data-din="'+(Number(mov.dinheiro)||0)+'">R$ '+money(esperadoCaixa(c))+'</b></div></div>';
+}
+function ecRecalcEsperado(){
+  var el=$('ecEsperado'); if(!el)return;
+  var c=null, ins=document.querySelectorAll('.ecMov');
+  var din=Number(el.getAttribute('data-din'))||0;
+  var ini=$('ecIni')?moedaValor('ecIni'):0;
+  var tot=ini+din;
+  var porId={};
+  for(var i=0;i<ins.length;i++)porId[ins[i].getAttribute('data-m')]=moedaValor(ins[i]);
+  (DB.caixas||[]).some(function(x){ if((x.movimentos||[]).some(function(m){return m.id in porId}))c=x; return !!c; });
+  ((c&&c.movimentos)||[]).forEach(function(m){
+    var v=(m.id in porId)?porId[m.id]:(Number(m.valor)||0);
+    if(m.tipo==='suprimento')tot+=v; else if(m.tipo==='sangria')tot-=v;
+  });
+  el.textContent='R$ '+money(tot);
+}
+/* grava os valores novos de sangria e suprimento; devolve false quando
+   algum valor não serve (e nada foi gravado) */
+function aplicarMovsEditarCaixa(c){
+  var ins=document.querySelectorAll('.ecMov'), novos=[];
+  for(var i=0;i<ins.length;i++){
+    if(ins[i].disabled)continue;
+    var m=(c.movimentos||[]).find(function(x){return x.id===ins[i].getAttribute('data-m')});
+    if(!m)continue;
+    var v=moedaValor(ins[i]);
+    if(!(v>0)){toast('O valor da '+(m.tipo==='sangria'?'sangria':'do suprimento')+' das '+(m.hora||'')+' precisa ser maior que zero.');return false;}
+    if(Math.abs(v-(Number(m.valor)||0))>0.004)novos.push({m:m,v:v});
+  }
+  var quem=((typeof usuarioLogado==='function'&&usuarioLogado())||{}).nome||SESSAO.login||'—';
+  novos.forEach(function(x){
+    var antes=Number(x.m.valor)||0;
+    x.m.edicoes=(x.m.edicoes||[]).concat([{em:new Date().toLocaleString('pt-BR'),por:quem,de:antes,para:x.v}]);
+    x.m.valor=+x.v.toFixed(2);
+    var l=lancDoMovCaixa(x.m);
+    if(l&&!l.conciliado){ l.valor=x.m.valor; l.alterado=Date.now(); }
+  });
+  return true;
+}
 function editarCaixa(id){
   fecharModal();
   var c=(DB.caixas||[]).find(function(x){return x.id===id});
@@ -743,6 +804,16 @@ function editarCaixa(id){
     '<td style="width:150px"><div class="cur"><span>R$</span>'+
     '<input type="text" inputmode="decimal" autocomplete="off" class="moeda ecV" data-f="'+f.id+'" value="'+(inf===''?'':money(inf))+'" placeholder="0,00"></div></td></tr>';
   }).join('')+'</tbody></table></div>'+
+  /* ==========================================================
+     SANGRIA E SUPRIMENTO TAMBÉM SE CORRIGEM AQUI (Rafael, 05/10/2026)
+
+     "Deixar a opção de editar a sangria e atualizar os valores do caixa."
+     O valor digitado errado na sangria deixava o esperado da gaveta
+     errado para sempre. Agora cada movimento do caixa aparece aqui com o
+     valor editável; o dinheiro esperado se refaz na hora, e ao salvar a
+     transferência que a sangria gerou no financeiro passa a ter o valor
+     novo. O valor anterior fica guardado no movimento. */
+  blocoMovsEditarCaixa(c,mov)+
   '<div class="blk" style="margin:0;max-width:none">'+
   '<div class="fld2" style="margin:0"><label>Observação do fechamento</label>'+
   '<input id="ecObs" value="'+E(c.obs||'')+'"></div>'+
@@ -751,6 +822,7 @@ function editarCaixa(id){
   '</div></div>';
 
   modal('Editar fechamento de caixa',h,'Salvar alterações',function(){
+    if(!aplicarMovsEditarCaixa(c))return false;
     c.inicial=moedaValor('ecIni');
     c.operador=$('ecOp').value.trim();
     c.obs=$('ecObs').value;
@@ -803,4 +875,6 @@ function editarCaixa(id){
     toast('Fechamento atualizado. '+n2+' lançamento(s) refeitos no financeiro.');
     return true;
   },'lg');
+  /* o fundo de troco também muda o dinheiro esperado na gaveta */
+  if($('ecIni'))$('ecIni').addEventListener('input',ecRecalcEsperado);
 }
