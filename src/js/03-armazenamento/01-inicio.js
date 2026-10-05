@@ -1642,7 +1642,10 @@ var MAPA=[
     origem_fiscal:x.origemFiscal||null,cest:x.cest||null,gtin:x.gtin||null,
     unidade_tributavel:x.unTrib||null,
     ficha_id:fk('fichas',x.fichaId),insumo_id:fk('insumos',x.insumoId),
-    insumo_qtd:n(x.insumoQtd),insumo_un:x.insumoUn||null,sucursais:x.sucursais||[]}},
+    insumo_qtd:n(x.insumoQtd),insumo_un:x.insumoUn||null,sucursais:x.sucursais||[],
+    /* brinde do cartão fidelidade (05/10/2026): quem ainda não conhece o
+       campo manda nulo, e nulo nunca apaga a marcação salva */
+    brinde_fidelidade:x.brindeFidelidade===true?true:(x.brindeFidelidade===false?false:null)}},
   vinculo:{tab:'produto_grupos',pai:'produto_id',campo:'grupo_id',lista:'grupos',ref:'grupos'}},
 
  {col:'clientes', espelha:true,    tab:'clientes',

@@ -882,7 +882,8 @@ function volta(linhas,fn,atual,col){
          por cima do que tinha sido cadastrado.
          ========================================================== */
       ncm:x.ncm||'',cfop:x.cfop||'',csosn:x.csosn||'',cst:x.cst||'',cest:x.cest||'',
-      origemFiscal:x.origem_fiscal||'',gtin:x.gtin||'',unTrib:x.unidade_tributavel||''};},null,'produtos');
+      origemFiscal:x.origem_fiscal||'',gtin:x.gtin||'',unTrib:x.unidade_tributavel||'',
+      brindeFidelidade:x.brinde_fidelidade===true};},null,'produtos');
   var cfgS=await api('config_loja?loja_id=eq.'+l+'&select=*');
   if(cfgS&&cfgS[0]){var c3=cfg();
     c3.lojaAberta=cfgS[0].loja_aberta!==false;c3.tempoEntrega=cfgS[0].tempo_entrega;

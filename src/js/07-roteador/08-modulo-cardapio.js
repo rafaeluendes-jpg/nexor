@@ -547,6 +547,11 @@ function abaDados(){
   '</div>'+
   '<label class="chkL"><input type="checkbox" id="pPesado" '+(p.pesado?'checked':'')+'>'+
   '<span>Este produto é pesado em balança ou vendido em meia porção</span></label>'+
+  /* o brinde do cartão fidelidade (Rafael, 05/10/2026) */
+  '<label class="chkL"><input type="checkbox" id="pBrinde" '+(p.brindeFidelidade?'checked':'')+'>'+
+  '<span>Este produto é o brinde do cartão fidelidade '+
+  '<small style="display:block;color:var(--ink-3)">sai no resgate por R$ 0,00 e dá baixa pela ficha técnica dele; '+
+  'os grupos de opções do produto aparecem no resgate</small></span></label>'+
   '<div class="fld2" style="margin-top:14px"><label>Produto possui variação de tamanho?</label>'+
   '<label class="radL"><input type="radio" name="pvar" value="nao" '+(!p.variacao?'checked':'')+'> Não</label>'+
   '<label class="radL"><input type="radio" name="pvar" value="sim" '+(p.variacao?'checked':'')+'> Sim</label></div>'+
@@ -709,6 +714,7 @@ function lerFormProduto(){
   if($('pNome'))p.nome=$('pNome').value;
   if($('pPreco'))p.preco=moedaValor('pPreco');
   if($('pPesado'))p.pesado=$('pPesado').checked;
+  if($('pBrinde'))p.brindeFidelidade=$('pBrinde').checked;
   var rv=document.querySelector('input[name=pvar]:checked');
   if(rv)p.variacao=rv.value==='sim';
   if($('pCat'))p.categoriaId=$('pCat').value;

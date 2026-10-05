@@ -462,7 +462,23 @@ var FID_BRINDE = 'cascão 1 bola';        /* o produto do brinde, pelo nome */
 /* o produto do brinde no cardápio desta loja. Pelo nome, sem acento e
    sem caixa: "Cascão 1 Bola", "CASCAO 1 BOLA" e "cascao 1 bola" são o
    mesmo produto para quem digitou o cardápio. */
+/* ==========================================================
+   O BRINDE É O PRODUTO MARCADO NO CARDÁPIO (Rafael, 05/10/2026)
+
+   *"Quero vincular a Experiência Jolô ao programa de fidelidade: quando
+   a pessoa ganhar, aparece no caixa para resgatar e dá baixa na ficha
+   técnica dela."* O produto marcado como "brinde do cartão fidelidade"
+   em Gestão de Cardápio é o brinde da unidade em que está liberado. A
+   loja que não marcou nenhum continua com o "Cascão 1 Bola", pelo nome,
+   como sempre foi.
+   ========================================================== */
 function produtoDoBrinde(){
+  var suc=lojaAtualId();
+  var marcados=(DB.produtos||[]).filter(function(p){return p.ativo!==false&&p.brindeFidelidade===true});
+  var daqui=marcados.find(function(p){
+    var l=p.sucursais||[];return l.indexOf(suc)>=0||l.indexOf(TODAS_UN)>=0;})||
+    marcados.find(function(p){return liberadoNa(p,suc)});
+  if(daqui)return daqui;
   var alvo=_semAcento(FID_BRINDE).trim();
   return (DB.produtos||[]).find(function(p){
     return p.ativo!==false&&_semAcento(p.nome).trim()===alvo;
@@ -487,8 +503,21 @@ function comprasDoCartao(c,suc){
     if(p.clienteId!==c.id||ehCancelado(p))return false;
     if((p.sucursalId||'')!==suc)return false;
     if(!(Number(p.total)>0))return false;        /* a venda só do brinde não conta */
+    /* o que foi acrescentado ao brinde (mais uma bola) é cobrado, mas não
+       transforma o resgate em compra do cartão */
+    if(!((Number(p.total)||0)-valorDoBrinde(p)>0.004))return false;
     return !desde||String(p.data||'')>desde;
   });
+}
+/* o item do brinde no pedido — marcado na comanda, e pela observação
+   no pedido que voltou da nuvem */
+var OBS_BRINDE='Brinde do programa de fidelidade';
+function ehItemBrinde(it){
+  return !!(it&&(it.brindeFidelidade||String(it.obs||'').indexOf(OBS_BRINDE)===0));
+}
+function valorDoBrinde(p){
+  return ((p&&p.itens)||[]).reduce(function(a,it){
+    return a+(ehItemBrinde(it)?(Number(it.total)||0):0);},0);
 }
 /* tudo o que a tela precisa saber, numa leitura só */
 function fidelidadeDoCliente(c,suc){

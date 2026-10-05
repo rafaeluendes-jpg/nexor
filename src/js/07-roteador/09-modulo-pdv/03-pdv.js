@@ -634,7 +634,7 @@ async function limparComanda(){
 }
 
 /* ---------- PERGUNTA FORÇADA ---------- */
-function modalOpcoes(p,grupos){
+function modalOpcoes(p,grupos,aoConfirmar){
   var h='<div class="mdB">';
   grupos.forEach(function(g,gi){
     h+='<div class="blk" style="margin:0 0 11px;max-width:none">'+
@@ -710,9 +710,14 @@ function modalOpcoes(p,grupos){
       if((G.min||0)>qtd&&qtd>0){toast('"'+G.nome+'" exige no mínimo '+G.min+'.');return false;}
       if(qtd>(G.max||1)){toast('"'+G.nome+'" permite no máximo '+G.max+'.');return false;}
     }
+    /* o resgate do brinde: uma unidade, e quem lança é o resgate */
+    if(typeof aoConfirmar==='function')return aoConfirmar(esc,$('obsIt').value)!==false;
     lancar(p,esc,parseInt($('qtIt').value)||1,$('obsIt').value);
     return true;
   },'lg');
+  if(typeof aoConfirmar==='function'){
+    var qt=$('qtIt');if(qt&&qt.parentNode)qt.parentNode.style.display='none';
+  }
 }
 
 /* ---------- CLIENTE ---------- */
@@ -822,6 +827,24 @@ function buscarCliente(){
 function usarCliente(id){
   PDV.cliente=DB.clientes.find(function(x){return x.id===id});
   fecharModal();renderVenda();
+  oferecerBrinde();
+}
+/* ==========================================================
+   GANHOU? O CAIXA FICA SABENDO NA HORA (Rafael, 05/10/2026)
+
+   *"Quando a pessoa ganhar, automático vai aparecer que ela vai
+   resgatar."* Identificado o cliente com o cartão completo, o resgate
+   abre sozinho. "Agora não" fecha sem perder nada: o brinde continua
+   guardado no cartão para a próxima vez, e o botão Resgatar segue na
+   comanda.
+   ========================================================== */
+function oferecerBrinde(){
+  var c=PDV.cliente;
+  if(!c||PDV.brindeResgate||PDV.brindeAgoraNao===c.id)return;
+  if(typeof fidelidadeDoCliente!=='function'||!fidelidadeDoCliente(c,lojaAtualId()).temBrinde)return;
+  setTimeout(function(){
+    if(PDV.cliente===c&&!PDV.brindeResgate)resgatarBrinde();
+  },0);
 }
 /* ==========================================================
    O CARTÃO FIDELIDADE NA COMANDA (Rafael, 25/09/2026)
@@ -866,26 +889,39 @@ async function resgatarBrinde(){
   if(!c)return;
   var f=fidelidadeDoCliente(c,lojaAtualId());
   var pb=produtoDoBrinde();
-  if(!pb){toast('O produto "Cascão 1 Bola" não está no cardápio desta loja.');return;}
-  var ok=await confirmar({titulo:'Resgatar o brinde de '+E(c.nome)+'?',
-    texto:'O '+pb.nome+' entra na comanda por R$ 0,00 e sai do estoque agora.',
+  if(!pb){toast('O brinde do cartão fidelidade não está no cardápio desta loja.');return;}
+  var gruposB=(pb.grupos||[]).map(function(g){return (DB.grupos||[]).find(function(x){return x.id===g})})
+    .filter(function(g){return g&&grupoValeEm(g,'pdv')});
+  var ok=await confirmar({titulo:E(c.nome)+' ganhou o brinde! Resgatar agora?',
+    texto:'O '+pb.nome+' entra na comanda por R$ 0,00 e sai do estoque agora.'+
+      (gruposB.length?' Em seguida vem a pergunta do produto; o que for acrescentado é cobrado.':''),
     linhas:[['Brinde',pb.nome,''],['Sai do estoque','pela ficha técnica',''],
             ['Motivo da baixa','Programa de fidelidade',''],
             ['Cartão','recomeça do zero','']],
     aviso:'Fica registrado que '+E(c.nome)+' resgatou hoje, '+dataBR(hojeISO())+
       ' — dá para consultar na ficha do cliente.',
-    ok:'Resgatar',cancelar:'Voltar',tipo:'check'});
-  if(!ok)return;
+    ok:'Resgatar',cancelar:'Agora não',tipo:'check'});
+  if(!ok){PDV.brindeAgoraNao=c.id;return;}
+  /* o produto tem pergunta (ex.: "mais uma bola por R$ X")? ela vem antes:
+     só resgata quem confirmou a comanda — cancelar não tira nada do estoque */
+  if(gruposB.length)return modalOpcoes(pb,gruposB,function(esc,obs){
+    return lancarBrinde(c,pb,esc,obs);});
+  lancarBrinde(c,pb,[],'');
+}
+function lancarBrinde(c,pb,esc,obs){
   var r=resgatarFidelidade(c);
-  if(r.erro){painelErro('Não consegui resgatar o brinde.',r.erro);return;}
+  if(r.erro){painelErro('Não consegui resgatar o brinde.',r.erro);return false;}
   PDV.brindeResgate=r.resgate;
   /* o brinde entra na comanda por R$ 0,00, marcado: a venda NÃO baixa
-     este item de novo — ele já saiu do estoque no resgate */
-  PDV.comanda.push({id:uid('it'),produtoId:pb.id,nome:pb.nome,qtd:1,unit:0,unitario:0,
-    total:0,opcoes:[],obs:'Brinde do programa de fidelidade',
+     este item de novo — ele já saiu do estoque no resgate. O que foi
+     acrescentado na pergunta é cobrado e baixa como venda. */
+  var extra=(esc||[]).reduce(function(a,o){return a+(Number(o.preco)||0)},0);
+  PDV.comanda.push({id:uid('it'),produtoId:pb.id,nome:pb.nome,qtd:1,unit:extra,unitario:extra,
+    total:extra,opcoes:esc||[],obs:OBS_BRINDE+(obs?' · '+obs:''),
     brindeFidelidade:true,resgateId:r.resgate.id});
   renderVenda();
   toast('Brinde resgatado. '+pb.nome+' saiu do estoque pelo programa de fidelidade.');
+  return true;
 }
 /* o que não saiu da loja não pode ter saído do estoque: tirar o brinde
    da comanda devolve o item e o cartão do cliente */
@@ -1765,6 +1801,7 @@ function finalizarVenda(total,taxa,desc,pagos,fiscal,imprimir,entregadorId,fiado
   }
   PDV.comanda=[];PDV.cliente=null;PDV.tipo='loja';_cidadeVenda='';
   PDV.brindeResgate=null;          /* a venda fechou: o brinde foi entregue */
+  PDV.brindeAgoraNao=null;         /* na próxima venda o caixa é avisado de novo */
   /* ==========================================================
      QUANDO A LOJA EMITE CUPOM FISCAL, A VIA SAI JUNTO COM ELE
 

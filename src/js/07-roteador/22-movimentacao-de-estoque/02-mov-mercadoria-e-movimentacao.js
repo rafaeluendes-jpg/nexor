@@ -1382,7 +1382,8 @@ function baixarEstoqueVenda(ped){
        de fidelidade"), que é o que o Rafael pediu para enxergar. Baixar
        de novo aqui tiraria dois cascões do estoque por um entregue.
        ========================================================== */
-    if(it.brindeFidelidade)return;
+    /* o que foi acrescentado no resgate (mais uma bola) sai como venda */
+    if(it.brindeFidelidade){baixarOpcoes(it,Number(it.qtd)||1);return;}
     baixarOpcoes(it,Number(it.qtd)||1);
     var p=(DB.produtos||[]).find(function(x){return x.id===it.produtoId});
     if(!p||!p.vinculaEstoque)return;
