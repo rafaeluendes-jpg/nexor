@@ -14892,7 +14892,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V424.0.0';
+var VERSAO='V425.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -36648,12 +36648,34 @@ function desenharVerCaixa(){
 
   /* ---------- RECEBIMENTOS (itens 16, 17 e 18) ---------- */
   if(VC.aba==='receb'){
+    /* ==========================================================
+       DINHEIRO = O QUE FOI VENDIDO EM DINHEIRO (Rafael, 05/10/2026)
+
+       *"Esse valor físico está descontado a sangria. Aqui tem que ser o
+       valor de venda de dinheiro: quantos vendeu de dinheiro."* A linha
+       Dinheiro mostrava a GAVETA (fundo + vendas − sangrias), e as outras
+       formas mostram VENDA. Agora o Dinheiro também é venda: no Sistema,
+       as vendas em dinheiro; no Físico, a contagem da gaveta sem o fundo
+       e com as sangrias de volta. A diferença é a mesma de antes, e a
+       conferência geral do caixa não muda — só a régua da linha.
+       É o mesmo valor real que o fechamento lança no financeiro
+       (valorFisicoDaForma): no caixa de 02/10 de Santa Fé, R$ 306,00
+       vendidos contra R$ 303,00 do sistema, + R$ 3,00. */
+    var ajSis=0,ajFis=0;
+    var linhaReceb=function(f){
+      if(!f.troco)return f;
+      var sis=+(Number(d.vendasDinheiro)||0).toFixed(2);
+      var fis=f.fisico===null?null:+(f.fisico-d.fundo-d.suprimentos+d.sangrias).toFixed(2);
+      ajSis+=sis-f.sistema; ajFis+=(fis===null?0:fis-(f.fisico||0));
+      return Object.assign({},f,{sistema:sis,fisico:fis,gaveta:f.sistema,gavetaFis:f.fisico});
+    };
     corpo='<table class="vcTab"><thead><tr><th>Forma</th>'+
-      '<th class="num">Sistema</th><th class="num">Físico</th><th class="num">Diferença</th></tr></thead><tbody>'+
-      d.formas.map(function(f){
+      '<th class="num">Sistema</th><th class="num">Físico (valor real)</th><th class="num">Diferença</th></tr></thead><tbody>'+
+      d.formas.map(function(f0){
+        var f=linhaReceb(f0);
         var linha='<tr'+(f.troco?' class="vcExp" onclick="vcDinheiro()"':'')+'>'+
           '<td>'+(f.troco?'<span class="vcSeta'+(VC.dinAberto?' ab':'')+'">▸</span> ':'')+E(f.nome)+
-          (f.troco?'<small>toque para ver a composição</small>':'')+'</td>'+
+          (f.troco?'<small>vendido em dinheiro · toque para ver a gaveta</small>':'')+'</td>'+
           '<td class="num">R$ '+money(f.sistema)+'</td>'+
           '<td class="num">'+(f.fisico===null?'<span class="vcNulo">não informado</span>':'R$ '+money(f.fisico))+'</td>'+
           '<td class="num">'+sinalRS(f.diferenca)+'</td></tr>';
@@ -36664,14 +36686,16 @@ function desenharVerCaixa(){
             '<div><span>+ vendas em dinheiro</span><b>R$ '+money(d.vendasDinheiro)+'</b></div>'+
             '<div><span>+ suprimentos</span><b>R$ '+money(d.suprimentos)+'</b></div>'+
             '<div><span>− sangrias</span><b>R$ '+money(d.sangrias)+'</b></div>'+
-            '<div class="tot"><span>= dinheiro esperado</span><b>R$ '+money(f.sistema)+'</b></div>'+
+            '<div class="tot"><span>= dinheiro esperado na gaveta</span><b>R$ '+money(f.gaveta)+'</b></div>'+
+            '<div><span>Dinheiro contado na gaveta</span><b>'+
+              (f.gavetaFis===null?'não informado':'R$ '+money(f.gavetaFis))+'</b></div>'+
           '</div></td></tr>';
         }
         return linha;
       }).join('')+
       '</tbody><tfoot><tr><td><b>TOTAL</b></td>'+
-      '<td class="num"><b>R$ '+money(d.totSis)+'</b></td>'+
-      '<td class="num"><b>R$ '+money(d.totFis)+'</b></td>'+
+      '<td class="num"><b>R$ '+money(d.totSis+ajSis)+'</b></td>'+
+      '<td class="num"><b>R$ '+money(d.totFis+ajFis)+'</b></td>'+
       '<td class="num"><b>'+sinalRS(d.difGeral)+'</b></td></tr></tfoot></table>'+
       (d.divergeForma?avisoDivergencia():'');
   }

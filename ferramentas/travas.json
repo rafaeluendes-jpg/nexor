@@ -517,6 +517,10 @@
    "pontos": 12,
    "roda": true
   },
+  "testes/recebimentos-dinheiro-vendido.js": {
+   "pontos": 10,
+   "roda": true
+  },
   "testes/reconciliacao.js": {
    "pontos": 108,
    "roda": true

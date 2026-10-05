@@ -8291,3 +8291,29 @@ fechado. Depois das correções foi quebrado e sumiu. Corrige agora."
    - Provado no banco: a cópia vazia tentou zerar e o caixa ficou intacto.
 
 Guardião: `testes/fechamento-nao-se-apaga.js`.
+
+## V425 — Recebimentos: o Físico do dinheiro é o valor real vendido (05/10/2026)
+
+Rafael, com a foto do caixa de 02/10: "Onde está o físico, eu preciso que
+seja o valor de venda, o valor real. Esse valor aí está menos a sangria. O
+valor real é o que vai para a conciliação e para os lançamentos
+financeiros. Menos a sangria, dá o valor para abrir o caixa no outro dia."
+
+A linha Dinheiro da aba Recebimentos mostrava a gaveta: fundo + vendas −
+sangrias. As outras formas mostram venda.
+
+O que mudou:
+- **Sistema:** o vendido em dinheiro.
+- **Físico (valor real):** a contagem sem o fundo e com as sangrias de
+  volta.
+- É o mesmo valor que o fechamento já lançava no financeiro
+  (`valorFisicoDaForma`).
+- No caixa de 02/10: sistema R$ 303,00, valor real R$ 306,00, + R$ 3,00.
+  Totais R$ 2.215,00 × R$ 2.218,00.
+- A diferença e a conferência do caixa não mudam.
+- A composição ("toque para ver a gaveta") continua mostrando o esperado e
+  o contado na gaveta: o contado é o fundo do dia seguinte.
+
+Nada mais mudou.
+
+Guardião: `testes/recebimentos-dinheiro-vendido.js`.
