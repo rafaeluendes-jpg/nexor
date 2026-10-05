@@ -1388,7 +1388,9 @@
     "origem_ref": "text",
     "codigo_barras": "text",
     "sucursal_id": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "lote_ref": "text",
+    "lote_numero": "text"
    },
    "unicos": [
     [
@@ -2451,6 +2453,40 @@
     [
      "loja_id",
      "chave"
+    ]
+   ]
+  },
+  "lotes_financeiros": {
+   "colunas": {
+    "id": "uuid",
+    "loja_id": "uuid",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "numero": "text",
+    "tipo": "text",
+    "data": "date",
+    "conta_id": "uuid",
+    "forma_id": "uuid",
+    "observacao": "text",
+    "criado_por": "text",
+    "criado_local": "timestamp with time zone",
+    "total": "numeric",
+    "quantidade": "integer",
+    "itens": "jsonb",
+    "desfeito": "boolean",
+    "desfeito_em": "timestamp with time zone",
+    "desfeito_por": "text",
+    "motivo": "text",
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "loja_id",
+     "ref_local"
     ]
    ]
   }

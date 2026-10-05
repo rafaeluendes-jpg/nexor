@@ -14,7 +14,8 @@ function telaConciliacao(){
     if(!l.pago)return false;
     var d=l.pagamento||l.vencimento;
     return d>=CB.de&&d<=CB.ate;
-  }).sort(function(a,b){return (a.pagamento||'').localeCompare(b.pagamento||'')});
+  }).sort(function(a,b){return (a.pagamento||'').localeCompare(b.pagamento||'')||
+    String(a.loteRef||'').localeCompare(String(b.loteRef||''))});   /* o lote fica junto */
 
   function sinal(l){
     if(l.tipo==='transferencia')return l.contaDestinoId===CB.conta?1:-1;
@@ -107,7 +108,9 @@ function telaConciliacao(){
       movs.map(function(l){
         var v=sinal(l)*l.valor;saldo+=v;
         var marc=CB.marcadas[l.id]!==undefined?CB.marcadas[l.id]:!!l.conciliado;
-        return '<tr class="'+(l.conciliado?'conc':'')+(CB.sel===l.id?' sel2':'')+'" onclick="CB.sel=\''+l.id+'\';telaConciliacao()">'+
+        /* o lote é UMA linha, com o valor do débito do extrato (05/10/2026) */
+        var cabLote=linhaDoLoteCB(l,movs,sinal);
+        return cabLote+'<tr class="'+(l.conciliado?'conc':'')+(CB.sel===l.id?' sel2':'')+(l.loteRef?' ltFilho':'')+'" onclick="CB.sel=\''+l.id+'\';telaConciliacao()">'+
         '<td><input type="radio" name="cbSel" class="chk" '+(CB.sel===l.id?'checked':'')+'></td>'+
         '<td>'+dataBR(l.pagamento||l.vencimento)+'</td>'+
         '<td><b>'+E(l.descricao)+'</b>'+
@@ -141,6 +144,42 @@ function telaConciliacao(){
     '</div>'+
    '</div></div>';
   rodape(jaConc+' de '+movs.length+' conciliados');
+}
+/* ==========================================================
+   O LOTE NA CONCILIAÇÃO (05/10/2026)
+
+   O banco que paga um lote mostra UM débito. Aqui o lote vira uma linha
+   com esse total, logo antes dos lançamentos dele; marcar a linha marca
+   todos, e o "Confirmar conciliação" de sempre concilia.
+   ========================================================== */
+var _cbLoteVisto={};
+function linhaDoLoteCB(l,movs,sinal){
+  if(movs[0]===l)_cbLoteVisto={};
+  if(!l.loteRef||_cbLoteVisto[l.loteRef])return '';
+  _cbLoteVisto[l.loteRef]=true;
+  var dele=movs.filter(function(x){return x.loteRef===l.loteRef});
+  var tot=dele.reduce(function(a,x){return a+sinal(x)*x.valor},0);
+  var todosConc=dele.every(function(x){return x.conciliado});
+  var todosMarc=dele.every(function(x){return CB.marcadas[x.id]!==undefined?CB.marcadas[x.id]:!!x.conciliado});
+  var lt=loteDoLanc(l);
+  return '<tr class="ltLinhaCB'+(todosConc?' conc':'')+'">'+
+   '<td></td><td>'+dataBR(l.pagamento||l.vencimento)+'</td>'+
+   '<td><b>'+sv('folder',12)+' Lote '+E(l.loteNum||'')+' — '+dele.length+' lançamento'+(dele.length>1?'s':'')+'</b>'+
+    '<small>'+E(metodoNome(l.metodoId))+(lt&&lt.obs?' · '+E(lt.obs):'')+'</small></td>'+
+   '<td style="text-align:right"><span class="vBol">'+(tot<0?'- ':'')+'R$ '+money(Math.abs(tot))+'</span></td>'+
+   '<td style="text-align:right"><b class="'+(tot<0?'vr':'vg')+'">'+(tot<0?'- ':'')+'R$ '+money(Math.abs(tot))+'</b></td>'+
+   '<td></td>'+
+   '<td style="text-align:center" onclick="event.stopPropagation()">'+
+    (todosConc?'<span class="okConc" title="lote conciliado">'+sv('nike',18)+'</span>'
+      :'<input type="checkbox" class="chk" title="Marcar o lote inteiro"'+(todosMarc?' checked':'')+
+       ' onchange="marcarLoteCB(\''+l.loteRef+'\',this.checked)">')+
+   '</td></tr>';
+}
+function marcarLoteCB(ref,v){
+  (DB.lancFin||[]).forEach(function(x){
+    if(x.loteRef===ref&&!x.conciliado&&(x.contaId===CB.conta||x.contaDestinoId===CB.conta))CB.marcadas[x.id]=v;
+  });
+  telaConciliacao();
 }
 function atualizaCB(){
   var n=Object.keys(CB.marcadas).filter(function(k){return CB.marcadas[k]}).length;

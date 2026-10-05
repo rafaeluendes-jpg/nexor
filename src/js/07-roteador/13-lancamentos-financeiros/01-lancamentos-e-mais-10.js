@@ -216,6 +216,8 @@ function filtrarLanc(){
       var q=LF.forn.toLowerCase();
       if(((l.fornecedor||'')+' '+(l.documento||'')).toLowerCase().indexOf(q)<0)return false;
     }
+    /* filtro "Lote": mostra o lote inteiro, mesmo o que vence fora do período */
+    if(LF.lote)return l.loteRef===LF.lote;
     var d=dataDoFiltro(l);
     if(LF.de&&d&&d<LF.de)return false;
     if(LF.ate&&d&&d>LF.ate)return false;
@@ -257,6 +259,7 @@ function rotuloPeriodo(){
 /* ---------- TELA ---------- */
 function telaLancamentos(){
   baseLanc();
+  if(LF.aba==='lotes')return telaLotes();     /* a tela dos lotes (operação em lote) */
   if(!LF.de){var d=new Date();var a=new Date(d);a.setDate(d.getDate()-d.getDay());
     var b=new Date(a);b.setDate(a.getDate()+6);
     LF.de=a.toISOString().slice(0,10);LF.ate=b.toISOString().slice(0,10);}
@@ -295,6 +298,7 @@ function telaLancamentos(){
      '<button class="btnP2" onclick="imprimirLanc()">'+sv('print2',14)+' Imprimir</button>'+
      '<button class="btnP2" onclick="exportarLanc()">'+sv('down2',14)+' Exportar</button>'+
      '<button class="btnP2" onclick="abrir(\'financeira\',\'formas-pagamento\')">'+sv('cash',14)+' Métodos</button>'+
+     '<button class="btnP2" onclick="abrirLotes()">'+sv('folder',14)+' Lotes</button>'+
     '</div>'+
     '<div class="selInfo" id="selInfo"><span>0 selecionados</span><b>R$ 0,00</b></div>'+
    '</div>'+
@@ -326,6 +330,8 @@ function telaLancamentos(){
      '<span>'+E(LF.categoria||LF.subcatNome||'Todas')+'</span>'+sv('dn',13)+'</button></div>'+
     '<div class="f2"><label>Descrição</label><input id="lfD" value="'+E(LF.desc)+'" placeholder="buscar..."></div>'+
     '<div class="f2"><label>Fornecedor ou documento</label><input id="lfF" value="'+E(LF.forn)+'" placeholder="buscar..."></div>'+
+    '<div class="f2"><label>Lote</label><select onchange="LF.lote=this.value;telaLancamentos()">'+
+     opcoesFiltroLote()+'</select></div>'+
     '<button class="btnLimpar" onclick="limparLF()">Limpar</button>'+
    '</div>'+
 
@@ -349,6 +355,7 @@ function telaLancamentos(){
        '<div><b>'+E(l.descricao||'—')+'</b>'+
        (l.tipo==='transferencia'?'<small>transferência → '+E(contaNome(l.contaDestinoId))+'</small>'
         :(l.fornecedor?'<small>'+E(l.fornecedor)+(l.documento?' · doc '+E(l.documento):'')+'</small>':''))+
+       etiquetaLote(l)+
        '</div></div></td>'+
       '<td>'+E(l.metodoId?metodoNome(l.metodoId):'—')+'</td>'+
       '<td>'+(lancSemCategoria(l)
@@ -465,6 +472,7 @@ function telaLancFiltro(){
 }
 function limparLF(){
   LF.tipo='todas';LF.sit='todas';LF.conta='';LF.metodo='';LF.categoria='';LF.subcat='';LF.subcatNome='';LF.desc='';LF.forn='';
+  LF.lote='';
   telaLancamentos();
 }
 function periodoCustom(){
@@ -513,6 +521,8 @@ function atualizaSelecao(){
    '<b class="'+(tot<0?'vr':'vg')+'">R$ '+money(Math.abs(tot))+'</b>'+
    (det&&rec?'<small>despesas R$ '+money(det)+' · receitas R$ '+money(rec)+'</small>':'')+
    '<div class="selAcoes">'+
+    /* vários juntos como uma operação, com número (05/10/2026) */
+    '<button class="lote" onclick="abrirLote()">'+sv('folder',12)+' Operação em lote</button>'+
     '<button class="ok" onclick="mudarPago(true)">'+sv('cash',12)+' Marcar pago</button>'+
     '<button onclick="mudarPago(false)">Desmarcar</button>'+
    '</div>';
@@ -526,6 +536,7 @@ function togglePago(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(!l)return;
   if(l.conciliado){toast('Movimento conciliado. Desconcilie na Conciliação Bancária para alterar.');return;}
+  if(noLote(l)){avisoNoLote(l);return;}
   /* pagar pede banco e forma no meio da tela; despagar e direto */
   if(!l.pago){modalPagamento([id]);return;}
   l.pago=false;l.pagamento='';
@@ -538,14 +549,16 @@ function mudarPago(v){
   var ids=[];
   for(var i=0;i<c.length;i++)ids.push(c[i].getAttribute('data-id'));
   if(v){modalPagamento(ids);return;}
-  var n=0;
+  var n=0,nLote=0;
   ids.forEach(function(id){
     var l=DB.lancFin.find(function(x){return x.id===id});
     if(!l||l.conciliado)return;
+    if(noLote(l)){nLote++;return;}       /* sai do lote só desfazendo o lote */
     l.pago=false;l.pagamento='';n++;
   });
   salvar();telaLancamentos();
-  toast(n+' lançamento(s) marcado(s) como não pago.');
+  toast(n+' lançamento(s) marcado(s) como não pago.'+
+    (nLote?' '+nLote+' de lote ficaram como estão: para mexer neles, desfaça o lote.':''));
 }
 /* Dois valores diferentes que nao podem ser confundidos:
    o do boleto (o que foi combinado) e o que realmente saiu do banco. */
@@ -581,7 +594,11 @@ function modalPagamento(ids){
     .filter(function(l){return !!l});
   var travados=ls.filter(function(l){return l.conciliado}).length;
   ls=ls.filter(function(l){return !l.conciliado});
+  /* o que está num lote foi pago pelo lote: pagar de novo trocaria a conta */
+  var emLote=ls.filter(function(l){return noLote(l)});
+  ls=ls.filter(function(l){return !noLote(l)});
   if(!ls.length){
+    if(emLote.length){avisoNoLote(emLote[0]);return;}
     toast(travados?'Movimento conciliado. Desconcilie na Conciliação Bancária para alterar.'
                   :'Nada para pagar.');
     return;
@@ -745,6 +762,7 @@ function esquecerLanc(id){
 async function excluirLanc(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(l.conciliado){toast('Movimento conciliado — não pode ser excluído. Desconcilie primeiro.');return;}
+  if(noLote(l)){avisoNoLote(l);return;}
   /* lancamento de nota de entrada cuja nota ainda existe:
      nao some — vai para Compras sem Vinculo, com quem e quando */
   var nota=(l.origem==='nota-entrada'&&l.ref)

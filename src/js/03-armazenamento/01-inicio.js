@@ -1948,7 +1948,22 @@ var MAPA=[
        sempre opera a própria unidade, então carimba lojaAtualId() (o
        `suc_...` que o RLS compara). Um lançamento que já saiba a sua
        unidade (fechamento de caixa) usa a dele. */
-    sucursal_id:x.sucursalRef||lojaAtualId()||null}}}
+    sucursal_id:x.sucursalRef||lojaAtualId()||null,
+    /* o lote em que foi pago (05/10/2026). Fora de lote o campo nem vai —
+       a impressão dos milhares de lançamentos não muda e nada sobe à toa;
+       o lote desfeito manda nulo, que é o que limpa na nuvem. */
+    lote_ref:(x.loteRef===undefined?undefined:(x.loteRef||null)),
+    lote_numero:(x.loteNum===undefined?undefined:(x.loteNum||null))}}},
+
+ /* Operação em lote (05/10/2026): o número, quem fez, o "antes" de cada
+    lançamento para o desfazer, e o lote desfeito continua guardado */
+ {col:'lotesFin',    tab:'lotes_financeiros',
+  campos:function(x){return {sucursal_id:x.sucursalId||lojaAtualId()||null,numero:x.numero,
+    tipo:x.tipo||null,data:x.data||null,conta_id:fk('contas',x.contaId),forma_id:fk('formasPag',x.metodoId),
+    observacao:x.obs||null,criado_por:x.criadoPor||null,criado_local:x.criadoEm||null,
+    total:n(x.total),quantidade:n(x.qtd),itens:x.itens||[],
+    desfeito:!!x.desfeito,desfeito_em:x.desfeitoEm||null,desfeito_por:x.desfeitoPor||null,
+    motivo:x.motivo||null}}}
 ];
 
 function n(v){var x=Number(v);return isNaN(x)?0:x}

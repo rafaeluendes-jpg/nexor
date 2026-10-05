@@ -8125,3 +8125,58 @@ O que mudou:
    pedido voltar da nuvem.
 
 Guardião: `testes/fidelidade-brinde-vinculado.js`.
+
+## V421 — operação em lote no financeiro (05/10/2026)
+
+Rafael: "Eu preciso criar uma operação em lote, com número do lote e a data
+em que está sendo feita." Ele aprovou as telas-modelo
+(`PROPOSTA_OPERACAO_EM_LOTE.md`): "pode estar fazendo, precisa funcionar,
+não pode quebrar nada".
+
+Sem resposta às 3 perguntas, ficou o que estava no desenho:
+- o número é no formato `20261005-01`;
+- tem pagar e receber em lote;
+- cria e desfaz quem já tem acesso aos Lançamentos.
+
+O que mudou:
+1. **Lançamentos Financeiros:**
+   - Ao marcar lançamentos, a barra verde ganha **Operação em lote**.
+   - A janela do lote mostra:
+     - o número;
+     - a data, a conta (com o saldo), a forma e a observação;
+     - os lançamentos, com juros/multa por item, e o total;
+     - como fica o saldo da conta.
+   - Ao confirmar, todos são pagos (ou recebidos) juntos, e cada um guarda
+     o "antes" dele.
+   - Cada linha do lote mostra a etiqueta **Lote N**; clicar nela abre o
+     lote.
+   - O filtro **Lote** mostra o lote inteiro, mesmo o que vence fora do
+     período.
+2. **Botão Lotes** (no topo dos Lançamentos):
+   - Lista os lotes do mês, com a situação: falta conciliar, conciliado ou
+     desfeito.
+   - O lote aberto tem três botões: imprimir o comprovante, conciliar o
+     lote inteiro e desfazer o lote (o desfazer pede o motivo).
+3. **Conciliação Bancária:**
+   - O lote aparece como uma linha só, com o total, e os lançamentos dele
+     embaixo.
+   - Marcar a linha marca todos.
+4. **Travas:** um lançamento do lote só sai do lote desfazendo o lote. Pagar
+   de novo, desmarcar, editar e excluir ficam travados, com aviso.
+   - Lote conciliado não se desfaz.
+   - O número nunca se repete, nem depois de desfeito.
+5. **Banco** (`20261005_operacao_em_lote.sql`):
+   - Tabela nova `lotes_financeiros`, com o mesmo acesso dos lançamentos e
+     sem regra de apagar.
+   - `lancamentos_financeiros` ganhou `lote_ref` e `lote_numero`.
+   - Fora de lote, o lançamento sobe exatamente como antes: a impressão não
+     muda e nada sobe à toa.
+
+"Marcar pago" com vários selecionados continua igual.
+
+**Visto e não mexido (já era assim antes):** no celular, as caixinhas da
+Conciliação Bancária ficam por baixo do painel de filtros.
+
+Guardião: `testes/operacao-em-lote.js`, com 58 pontos. Prova no Chromium:
+marcar, criar, F5, Lotes, conciliar e desfazer, no computador e no
+celular.

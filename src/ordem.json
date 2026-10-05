@@ -52,6 +52,7 @@
       "js/07-roteador/12-formas-de-pagamento.js",
       "js/07-roteador/13-lancamentos-financeiros/01-lancamentos-e-mais-10.js",
       "js/07-roteador/13-lancamentos-financeiros/02-carga-e-mais-2.js",
+      "js/07-roteador/13-lancamentos-financeiros/03-operacao-em-lote.js",
       "js/07-roteador/14-fluxo-de-caixa.js",
       "js/07-roteador/15-conciliacao-bancaria.js",
       "js/07-roteador/16-fornecedores.js",

@@ -914,6 +914,7 @@ function modalLanc(id,tipoNovo,pre){
   var l=id?DB.lancFin.find(function(x){return x.id===id}):null;
   var P=_preLanc||{};
   if(l&&l.conciliado){toast('Movimento conciliado — desconcilie na Conciliação Bancária para editar.');return;}
+  if(l&&noLote(l)){avisoNoLote(l);return;}
   var tipo=l?l.tipo:(tipoNovo||'despesa');
   /* ==========================================================
      UM VENCIMENTO SO, NUM LUGAR SO (Rafael, 17/09/2026)

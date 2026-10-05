@@ -647,6 +647,7 @@ function volta(linhas,fn,atual,col){
   var _p46=baixarTab('cupom_usos', 'cupom_usos'+qJanD+'&select=*&order=data.desc&limit=2000');
   var _p47=baixarTab('fiado_movimentos', 'fiado_movimentos'+qs+'&order=data.desc&limit=2000');
   var _p48=baixarTab('indicadores_manuais', 'indicadores_manuais'+qs+'&limit=2000');
+  var _p49=baixarTab('lotes_financeiros', 'lotes_financeiros'+qs+'&order=criado_local.desc&limit=2000');
   var cont=await _p00;
   DB.contas=volta(cont,function(x){return {sucursais:x.sucursais||[], /* desce junto: o que sobe tem de descer (V188) */ id:x.ref_local||x.id,nome:x.nome,tipo:x.tipo,banco:x.banco,
     agencia:x.agencia,numero:x.numero,saldoInicial:Number(x.saldo_inicial)||0,fixa:x.fixa,
@@ -760,6 +761,8 @@ function volta(linhas,fn,atual,col){
     valor:Number(x.valor)||0,emissao:x.emissao,vencimento:x.vencimento,pagamento:x.pagamento,
     pago:!!x.pago,conciliado:!!x.conciliado,dataConc:x.data_conciliacao,
     origem:x.origem,ref:x.origem_ref||undefined,obs:x.observacao,
+    /* o lote em que foi pago (05/10/2026) */
+    loteRef:x.lote_ref||undefined,loteNum:x.lote_numero||undefined,
     /* a unidade desce junto (01/10/2026): sem ela o filtro por loja deixava
        passar tudo, e o proximo envio carimbava a loja que estivesse aberta —
        foi assim que a cobranca da matriz foi parar em Santa Fe */
@@ -1624,6 +1627,15 @@ function volta(linhas,fn,atual,col){
   DB.indManuais=volta(imn,function(x){return {id:x.ref_local||x.id,sucursalId:x.sucursal_id||'',
     mes:x.mes||'',funcionarios:(x.funcionarios==null?null:Number(x.funcionarios)),
     energiaKwh:(x.energia_kwh==null?null:Number(x.energia_kwh))}},null,'indManuais');
+
+  /* Operação em lote no financeiro (05/10/2026) */
+  var ltf=await _p49;
+  DB.lotesFin=volta(ltf,function(x){return {id:x.ref_local||x.id,sucursalId:x.sucursal_id||'',
+    numero:x.numero||'',tipo:x.tipo||'pagar',data:x.data||'',contaId:mapaConta[x.conta_id]||'',
+    metodoId:mapaFP[x.forma_id]||'',obs:x.observacao||'',criadoPor:x.criado_por||'',
+    criadoEm:x.criado_local||x.criado_em||'',total:Number(x.total)||0,qtd:Number(x.quantidade)||0,
+    itens:x.itens||[],desfeito:!!x.desfeito,desfeitoEm:x.desfeito_em||'',desfeitoPor:x.desfeito_por||'',
+    motivo:x.motivo||''}},null,'lotesFin');
 
   }catch(e){ _falhou=e; }
 
