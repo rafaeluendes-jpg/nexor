@@ -578,6 +578,15 @@ if [ -n "$DOMINIO_CRM" ]; then
   echo "    enderecos definitivos: ${DOMINIO_LANDING}, ${DOMINIO_CRM}, motor em ${ENDERECO_MOTOR}"
 fi
 
+# Numero oficial do botao "Fale com o dono" da landing. E publico (aparece
+# no proprio botao), por isso mora no dominios.env. So preenche se o .env
+# ainda estiver vazio: numero que alguem ja ajustou no servidor fica.
+if [ -n "${WHATSAPP_NUMERO_PUBLICO:-}" ] && grep -q '^NEXT_PUBLIC_WHATSAPP_NUMBER=$' "$ENV_ARQ"; then
+  sed -i "s#^NEXT_PUBLIC_WHATSAPP_NUMBER=\$#NEXT_PUBLIC_WHATSAPP_NUMBER=${WHATSAPP_NUMERO_PUBLICO}#" "$ENV_ARQ"
+  set -a; . "$ENV_ARQ"; set +a
+  echo "    botao do WhatsApp da landing: ${WHATSAPP_NUMERO_PUBLICO}"
+fi
+
 # ------------------------------------------------------------
 passo "7/10 Instalar dependencias e compilar"
 cd "$APP"
