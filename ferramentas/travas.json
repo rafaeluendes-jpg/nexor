@@ -257,6 +257,10 @@
    "pontos": 20,
    "roda": true
   },
+  "testes/fidelidade-brinde-vinculado.js": {
+   "pontos": 27,
+   "roda": true
+  },
   "testes/fidelidade-e-telefone.js": {
    "pontos": 42,
    "roda": true

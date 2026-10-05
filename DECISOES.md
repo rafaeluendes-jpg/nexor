@@ -8091,3 +8091,37 @@ atualize o valor do caixa."
 Nada mais mudou.
 
 Guardião: `testes/lancamento-apagado-nao-volta.js`.
+
+## V420 — o brinde do cartão fidelidade é o produto marcado no cardápio (05/10/2026)
+
+Rafael: "Quero vincular a Experiência Jolô ao programa de fidelidade.
+Quando a pessoa ganhar, no caixa aparece automático para resgatar, dá baixa
+na ficha técnica dela, e vem a pergunta forçada do grupo — mais uma bola
+por R$ 5. E ter a opção de descartar."
+
+O que mudou:
+1. **Gestão de Cardápio › Editar produto › Dados do produto:**
+   - Nova marcação "Este produto é o brinde do cartão fidelidade".
+   - O produto marcado e liberado na unidade é o brinde dela.
+   - A loja que não marcou nenhum continua com o "Cascão 1 Bola", pelo
+     nome, como sempre.
+   - **Banco** (`20261005_brinde_do_cartao_fidelidade.sql`): `produtos`
+     ganhou `brinde_fidelidade`. Aparelho antigo manda nulo e nulo não
+     apaga a marcação.
+   - A EXPERIENCIA JOLO de Santa Fé já foi marcada no banco.
+2. **Frente de caixa:**
+   - Identificado o cliente com o cartão completo, o resgate abre sozinho.
+   - O botão "Agora não" não tira nada e não pergunta de novo naquela
+     venda. O brinde fica guardado no cartão e o botão Resgatar continua
+     na comanda.
+   - Se o produto tem grupo de opções, a pergunta vem no resgate.
+     Cancelar não resgata.
+   - Ao confirmar, a ficha técnica do brinde sai do estoque, com o motivo
+     "Programa de fidelidade", e o brinde entra por R$ 0,00.
+   - O que for acrescentado (mais uma bola, R$ 5) é cobrado e sai do
+     estoque na venda.
+3. **Cartão fidelidade:** a venda do resgate não conta como compra do
+   próximo cartão, mesmo com a bola a mais paga. Vale também depois de o
+   pedido voltar da nuvem.
+
+Guardião: `testes/fidelidade-brinde-vinculado.js`.

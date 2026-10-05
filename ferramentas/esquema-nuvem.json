@@ -2050,6 +2050,7 @@
     "gtin": "text",
     "unidade_tributavel": "text",
     "sucursais": "jsonb",
+    "brinde_fidelidade": "boolean",
     "alterado_em": "timestamp with time zone"
    },
    "unicos": [
