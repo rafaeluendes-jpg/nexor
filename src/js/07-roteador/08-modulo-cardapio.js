@@ -883,7 +883,8 @@ function abrirGrupos(){
         (off?' title="desligada — não aparece na venda"':'')+'>'+E(o.nome)+
         (off?' (desligada)':'')+
         (o.preco?' +R$ '+money(o.preco):'')+
-        (fn?'<i>'+E(fn)+'</i>':'<i class="sem">sem ficha</i>')+'</span>'}).join(''):
+        (fn?'<i>'+E(fn)+'</i>':o.insumoId?'<i>'+E(nomeInsumoDe(o.insumoId))+' · '+
+          String(o.insumoQtd||0).replace('.',',')+' '+E(o.insumoUn||'')+'</i>':'<i class="sem">sem ficha</i>')+'</span>'}).join(''):
       '<span class="grpMeta">sem opções</span>')+'</div></div>';
   });
   h+='</div>';
@@ -1041,7 +1042,8 @@ function perguntaCopiarOpcoes(origem,novas){
    sv('check',13)+' Cadastrar nos marcados</button></div></div>';
   document.body.appendChild(o);
   _COPIA_OPS=novas.map(function(x){return {nome:x.nome,preco:x.preco,
-    fichaId:x.fichaId,ativo:x.ativo!==false}; });
+    fichaId:x.fichaId,insumoId:x.insumoId||'',insumoQtd:x.insumoQtd||0,insumoUn:x.insumoUn||'',
+    ativo:x.ativo!==false}; });
 }
 var _COPIA_OPS=null;
 function copiarOpcoesEscolhidas(origemId){
@@ -1058,7 +1060,8 @@ function copiarOpcoesEscolhidas(origemId){
     _COPIA_OPS.forEach(function(o){
       if(g.opcoes.some(function(x){return chaveOp(x)===chaveOp(o)}))return;
       /* sem `id`: a opcao nasce nova NESTE grupo e ganha o dela ao subir */
-      g.opcoes.push({nome:o.nome,preco:o.preco,fichaId:o.fichaId,ativo:o.ativo!==false});
+      g.opcoes.push({nome:o.nome,preco:o.preco,fichaId:o.fichaId,
+        insumoId:o.insumoId||'',insumoQtd:o.insumoQtd||0,insumoUn:o.insumoUn||'',ativo:o.ativo!==false});
       postos++;
     });
     if(g.opcoes.length>antes)gruposMex++;
@@ -1079,8 +1082,35 @@ function fichaPeloNome(txt){
   var f=(DB.fichas||[]).find(function(x){return String(x.nome||'').trim().toLowerCase()===t});
   return f?f.id:'';
 }
+function nomeInsumoDe(id){
+  if(!id)return '';
+  var i=(DB.insumos||[]).find(function(x){return x.id===id});
+  return i?i.nome:'';
+}
+function insumoPeloNome(txt){
+  var t=String(txt||'').trim().toLowerCase();
+  if(!t)return '';
+  var i=(DB.insumos||[]).find(function(x){return String(x.nome||'').trim().toLowerCase()===t});
+  return i?i.id:'';
+}
+/* troca o campo da linha sem redesenhar a lista (não perde o que foi digitado) */
+function trocaTipoOp(sel){
+  var lig=sel.closest('.goLig'); if(!lig)return;
+  var ins=sel.value==='insumo';
+  var f=lig.querySelector('.goF'), bx=lig.querySelector('.goInsBox');
+  if(f)f.style.display=ins?'none':'';
+  if(bx)bx.style.display=ins?'':'none';
+}
 function renderOps(){
   var b=$('gopsBox');if(!b)return;
+  if(!document.getElementById('listaInsumosOp')){
+    var dli=document.createElement('datalist');
+    dli.id='listaInsumosOp';
+    dli.innerHTML=(DB.insumos||[]).slice()
+      .sort(function(a,b2){return (a.nome||'').localeCompare(b2.nome||'')})
+      .map(function(i){return '<option value="'+E(i.nome)+'">'}).join('');
+    document.body.appendChild(dli);
+  }
   /* a lista de sugestoes fica fora das linhas, uma so para todas */
   if(!document.getElementById('listaFichasOp')){
     var dl=document.createElement('datalist');
@@ -1113,8 +1143,26 @@ function renderOps(){
        Agora e um campo de texto com sugestao: digita parte do nome e a
        lista filtra. O vinculo e resolvido pelo nome na hora de salvar.
        ========================================================== */
-    '<input class="goF" list="listaFichasOp" placeholder="digite para achar a ficha" '+
-      'value="'+E(nomeFichaDe(o.fichaId))+'">'+
+    /* ==========================================================
+       FICHA TÉCNICA OU INSUMO (Rafael, 05/10/2026)
+
+       "Além de vincular a ficha técnica, ter a opção de vincular apenas o
+       insumo, com a quantidade que vai ser debitada — para eu não
+       precisar criar uma ficha técnica só para dar baixa quando vender."
+       Cada opção escolhe o que sai do estoque: a ficha (como sempre) ou
+       um insumo direto, com quantidade e unidade por opção vendida. */
+    '<div class="goLig">'+
+     '<select class="goT" onchange="trocaTipoOp(this)" title="O que sai do estoque">'+
+      '<option value="ficha"'+(o.insumoId?'':' selected')+'>Ficha técnica</option>'+
+      '<option value="insumo"'+(o.insumoId?' selected':'')+'>Insumo</option></select>'+
+     '<input class="goF" list="listaFichasOp" placeholder="digite para achar a ficha" '+
+      'value="'+E(nomeFichaDe(o.fichaId))+'"'+(o.insumoId?' style="display:none"':'')+'>'+
+     '<span class="goInsBox"'+(o.insumoId?'':' style="display:none"')+'>'+
+      '<input class="goI" list="listaInsumosOp" placeholder="digite para achar o insumo" value="'+E(nomeInsumoDe(o.insumoId))+'">'+
+      '<input class="goQ" type="text" inputmode="decimal" autocomplete="off" placeholder="qtd" title="Quantidade que sai a cada opção vendida" value="'+(o.insumoQtd?String(o.insumoQtd).replace('.',','):'')+'">'+
+      '<select class="goU" title="Unidade da quantidade">'+['g','kg','ml','l','un'].map(function(u){
+        return '<option value="'+u+'"'+((o.insumoUn||'')===u?' selected':'')+'>'+u+'</option>';}).join('')+'</select>'+
+     '</span></div>'+
     /* ==========================================================
        DESLIGAR EM VEZ DE APAGAR
 
@@ -1135,19 +1183,34 @@ function renderOps(){
 }
 function lerOps(){
   var n=document.querySelectorAll('.goN'),p=document.querySelectorAll('.goP'),
-      f=document.querySelectorAll('.goF'),a=document.querySelectorAll('.goA');
+      f=document.querySelectorAll('.goF'),a=document.querySelectorAll('.goA'),
+      tp=document.querySelectorAll('.goT'),ii=document.querySelectorAll('.goI'),
+      qq=document.querySelectorAll('.goQ'),uu=document.querySelectorAll('.goU');
   var antes=_gops.slice();
   _gops=[];
   for(var i=0;i<n.length;i++){
-    var txt=f[i]?f[i].value:'';
-    var fid=fichaPeloNome(txt);
-    /* digitou algo que nao e ficha: avisa em vez de descartar em silencio */
-    if(txt.trim()&&!fid)toast('Não achei a ficha "'+txt.trim()+'" — a opção ficou sem baixa de estoque.');
+    var porInsumo=!!(tp[i]&&tp[i].value==='insumo');
+    var fid='',iid='',qtdI=0,unI='';
+    if(porInsumo){
+      var txtI=ii[i]?ii[i].value:'';
+      iid=insumoPeloNome(txtI);
+      qtdI=parseFloat(String((qq[i]&&qq[i].value)||'').replace(/\./g,'').replace(',','.'))||0;
+      if(qq[i]&&/^\d+(\.\d+)?$/.test(String(qq[i].value).trim()))qtdI=parseFloat(qq[i].value)||0;
+      unI=(uu[i]&&uu[i].value)||'';
+      if(txtI.trim()&&!iid)toast('Não achei o insumo "'+txtI.trim()+'" — a opção ficou sem baixa de estoque.');
+      else if(iid&&!(qtdI>0))toast('Informe a quantidade do insumo da opção "'+(n[i].value||'')+'".');
+    }else{
+      var txt=f[i]?f[i].value:'';
+      fid=fichaPeloNome(txt);
+      /* digitou algo que nao e ficha: avisa em vez de descartar em silencio */
+      if(txt.trim()&&!fid)toast('Não achei a ficha "'+txt.trim()+'" — a opção ficou sem baixa de estoque.');
+    }
     _gops.push({
       id:(antes[i]&&antes[i].id)||undefined,
       nome:n[i].value,preco:moedaValor(p[i]),
       ativo:!a[i]||a[i].checked,
-      fichaId:fid});
+      fichaId:fid,
+      insumoId:iid,insumoQtd:iid?qtdI:0,insumoUn:iid?unI:''});
   }
 }
 /* pinta a linha na hora, sem redesenhar a lista inteira — redesenhar

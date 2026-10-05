@@ -8020,3 +8020,42 @@ Provado no Chromium: sangria de R$ 350 corrigida para R$ 300. O esperado
 subiu R$ 50 e a transferência no financeiro ficou em R$ 300.
 
 Guardião: `editar-sangria-no-fechamento.js` (11).
+
+## V418 — opção do grupo ligada a insumo, e vendas do caixa por forma de pagamento (05/10/2026)
+
+Rafael:
+1. "No grupo de opções, além de vincular a ficha técnica, ter a opção de
+   vincular apenas o insumo, com a quantidade que vai ser debitada — para eu
+   não precisar criar uma ficha técnica só para dar baixa quando vender."
+2. "Na frente de caixa, ter o filtro: só dinheiro, só Pix, só crédito."
+
+O que mudou:
+1. **Editar grupo de opções:** cada opção escolhe o que sai do estoque.
+   - **Ficha técnica**, como sempre.
+   - **Insumo**: o insumo, a quantidade e a unidade (g, kg, ml, l, un) por
+     opção vendida.
+   - Na venda sai o insumo × unidades vendidas.
+   - O pedido do cardápio digital e do totem, que chega só com o nome da
+     opção, acha o cadastro pelo nome. É o mesmo plano B que a ficha já
+     usava.
+   - A lista de grupos mostra o vínculo, por exemplo "Nutella · 30 g".
+   - Copiar a opção para outros grupos leva o vínculo junto.
+   - **Banco** (`20261005_opcao_vinculada_a_insumo.sql`): `opcoes` ganhou
+     `insumo_id`, `insumo_qtd` e `insumo_un`, as mesmas colunas que o
+     produto já tem. Aparelho antigo não manda e não toca.
+2. **Relatório do caixa, aba Vendas:**
+   - Novo filtro **Forma de pagamento**, com as formas que aparecem no
+     turno.
+   - Filtrado, mostra só os pedidos com aquela forma e o valor pago nela.
+     O pedido dividido mostra "de R$ X" embaixo.
+   - O rodapé mostra o total da forma.
+
+Nada mais mudou nas duas telas.
+
+Provado no Chromium:
+- a borda ligada a 30 g de Nutella baixou 60 g na venda de 2 e 30 g no
+  pedido do cardápio;
+- o filtro Dinheiro mostrou 2 pedidos e R$ 30,00, com o pedido dividido
+  mostrando R$ 25 de R$ 65.
+
+Guardião: `opcao-insumo-e-filtro-forma.js` (14).

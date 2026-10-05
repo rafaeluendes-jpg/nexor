@@ -791,10 +791,11 @@ function volta(linhas,fn,atual,col){
      que vem da nuvem SEM ficha continua sem ficha — desvincular tem de
      continuar funcionando.
      ========================================================== */
-  var _fichaAntes={},_fichaSalvas=0;
+  var _fichaAntes={},_fichaSalvas=0,_opInsAntes={};
   (_ANT('grupos')||[]).forEach(function(g){
     (g&&g.opcoes||[]).forEach(function(op){
       if(op&&op.id&&op.fichaId)_fichaAntes[op.id]=op.fichaId;
+      if(op&&op.id&&op.insumoId)_opInsAntes[op.id]=op.insumoId;
     });
   });
   function _fichaDaOpcao(op){
@@ -827,7 +828,9 @@ function volta(linhas,fn,atual,col){
         /* o que sobe tem de descer: sem isto o sabor desligado voltava
            ligado no download seguinte */
         ativo:o.ativo!==false,
-        fichaId:_fichaDaOpcao(o)}})}},_ANT('grupos'),'grupos');
+        fichaId:_fichaDaOpcao(o),
+        /* o insumo direto: o identificador local sai depois que os insumos descem */
+        _insumoUid:o.insumo_id||'',insumoQtd:Number(o.insumo_qtd)||0,insumoUn:o.insumo_un||''}})}},_ANT('grupos'),'grupos');
   if(_fichaSalvas)
     logNuvem('vínculo com ficha técnica preservado do aparelho em '+_fichaSalvas+
       ' opção(ões) — a nuvem não soube traduzir'+(_mapaFichaOk?'':' (a consulta de fichas falhou)'),true);
@@ -1095,6 +1098,15 @@ function volta(linhas,fn,atual,col){
     }
     delete p._fichaUid;delete p._insumoUid;
   });
+  /* a opção do grupo ligada direto a um insumo: mesma regra do produto —
+     nuvem sem vínculo é sem vínculo; vínculo que não se traduz mantém o
+     que o aparelho sabia (05/10/2026) */
+  (DB.grupos||[]).forEach(function(g){ (g.opcoes||[]).forEach(function(op){
+    if(op._insumoUid===undefined)return;
+    var uid=op._insumoUid; delete op._insumoUid;
+    if(!uid){ op.insumoId=''; return; }
+    op.insumoId=mapaIns[uid]||_opInsAntes[op.id]||op.insumoId||'';
+  }); });
   if(_vincSalvos)
     logNuvem('vínculo de estoque preservado do aparelho em '+_vincSalvos+
       ' produto(s) — a nuvem não trouxe a ficha; sobe de novo no próximo envio',true);

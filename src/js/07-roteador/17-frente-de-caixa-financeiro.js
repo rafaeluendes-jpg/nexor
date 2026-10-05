@@ -307,7 +307,7 @@ function sinalRS(v){
   return '<span class="'+(v>0?'vcMais':'vcMenos')+'">'+(v>0?'+ ':'− ')+'R$ '+money(Math.abs(v))+'</span>';
 }
 function verCaixa(id){
-  VC.id=id; VC.aba='resumo'; VC.dinAberto=false;
+  VC.id=id; VC.aba='resumo'; VC.dinAberto=false; VC.forma='';
   var c=(DB.caixas||[]).find(function(x){return x.id===id});
   if(!c)return;
   var o=document.getElementById('mdOv');
@@ -319,6 +319,32 @@ function verCaixa(id){
   fecharSoForaDeVerdade(document.getElementById('mdOv'));
 }
 function vcAba(a){ VC.aba=a; desenharVerCaixa(); }
+/* ==========================================================
+   VENDAS DO CAIXA FILTRADAS POR FORMA (Rafael, 05/10/2026)
+   "Se eu quiser selecionar só dinheiro, aparecer só as de dinheiro; só
+   Pix, só Pix; só crédito, só crédito." A lista mostra os pedidos que
+   tiveram aquela forma, o valor pago NELA (o pedido dividido mostra o
+   total embaixo) e o total da forma no rodapé. */
+function nomeFormaVC(id){ return (FORMAS.find(function(f){return f.id===id})||{}).n||'sem forma'; }
+function valorNaFormaVC(p,fid){
+  return (p.pagamentos||[]).reduce(function(a,g){
+    return a+(formaDoPagamento(g)===fid?(Number(g.valor)||0):0);},0);
+}
+function vcPedidosFiltrados(d){
+  if(!VC.forma)return d.ok;
+  return d.ok.filter(function(p){
+    return (p.pagamentos||[]).some(function(g){return formaDoPagamento(g)===VC.forma});});
+}
+function vcFiltroForma(d){
+  var vistas={};
+  d.ok.forEach(function(p){ (p.pagamentos||[]).forEach(function(g){ var f=formaDoPagamento(g); if(f)vistas[f]=true; }); });
+  var ids=Object.keys(vistas);
+  return '<div class="vcFiltroForma"><label>Forma de pagamento</label>'+
+    '<select onchange="VC.forma=this.value;desenharVerCaixa()">'+
+    '<option value="">Todas</option>'+
+    ids.map(function(id){return '<option value="'+E(id)+'"'+(VC.forma===id?' selected':'')+'>'+E(nomeFormaVC(id))+'</option>';}).join('')+
+    '</select></div>';
+}
 function vcDinheiro(){ VC.dinAberto=!VC.dinAberto; desenharVerCaixa(); }
 function desenharVerCaixa(){
   var c=(DB.caixas||[]).find(function(x){return x.id===VC.id});
@@ -502,19 +528,26 @@ function desenharVerCaixa(){
       '<div class="vcL tot"><span>Faturamento líquido</span><b>R$ '+money(d.liquido)+'</b></div>'+
       '<div class="vcL"><span>Ticket médio</span><b>R$ '+money(d.ticket)+'</b></div>'+
       '</div></div>'+
-      (d.ok.length
+      (d.ok.length?vcFiltroForma(d):'')+
+      (vcPedidosFiltrados(d).length
         ?'<table class="vcTab" style="margin-top:14px"><thead><tr><th>Pedido</th><th>Hora</th>'+
-         '<th>Canal</th><th>Formas</th><th class="num">Valor</th></tr></thead><tbody>'+
-         d.ok.slice().sort(function(a,b){return (b.hora||'').localeCompare(a.hora||'')})
+         '<th>Canal</th><th>Formas</th><th class="num">'+(VC.forma?'Em '+E(nomeFormaVC(VC.forma)):'Valor')+'</th></tr></thead><tbody>'+
+         vcPedidosFiltrados(d).slice().sort(function(a,b){return (b.hora||'').localeCompare(a.hora||'')})
           .map(function(p){
             var fs=(p.pagamentos||[]).map(function(g){
               return (FORMAS.find(function(f){return f.id===formaDoPagamento(g)})||{}).n||'sem forma';
             }).join(' + ');
             return '<tr><td>#'+E(String(p.numero||''))+'</td><td>'+E(p.hora||'')+'</td>'+
               '<td>'+E(p.canal||'pdv')+'</td><td>'+E(fs||'—')+'</td>'+
-              '<td class="num">R$ '+money(p.total)+'</td></tr>';
-          }).join('')+'</tbody></table>'
-        :vcVazio('Nenhuma venda neste turno.'));
+              '<td class="num">R$ '+money(VC.forma?valorNaFormaVC(p,VC.forma):p.total)+
+               (VC.forma&&Math.abs(valorNaFormaVC(p,VC.forma)-(Number(p.total)||0))>0.004
+                 ?'<small>de R$ '+money(p.total)+'</small>':'')+'</td></tr>';
+          }).join('')+'</tbody>'+
+          (VC.forma?'<tfoot><tr><td colspan="4"><b>Total em '+E(nomeFormaVC(VC.forma))+' — '+
+            vcPedidosFiltrados(d).length+' pedido(s)</b></td><td class="num"><b>R$ '+
+            money(vcPedidosFiltrados(d).reduce(function(a,p){return a+valorNaFormaVC(p,VC.forma)},0))+
+            '</b></td></tr></tfoot>':'')+'</table>'
+        :vcVazio(VC.forma?'Nenhuma venda em '+nomeFormaVC(VC.forma)+' neste turno.':'Nenhuma venda neste turno.'));
   }
 
   /* ---------- OPERADORES (item 23) ---------- */

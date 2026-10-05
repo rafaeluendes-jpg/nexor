@@ -1627,7 +1627,9 @@ var MAPA=[
   filhos:[{lista:'opcoes',tab:'opcoes',pai:'grupo_id',
     campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k,
       ativo:o.ativo!==false,
-      ficha_id:fk('fichas',o.fichaId)}}}]},
+      ficha_id:fk('fichas',o.fichaId),
+      /* a opção ligada direto a um insumo (05/10/2026) */
+      insumo_id:fk('insumos',o.insumoId),insumo_qtd:n(o.insumoQtd),insumo_un:o.insumoUn||null}}}]},
 
  {col:'produtos', espelha:true,    tab:'produtos',
   campos:function(x,i){return {nome:x.nome,preco:n(x.preco),codigo:x.codigo||null,

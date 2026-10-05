@@ -1684,7 +1684,10 @@
     "ordem": "integer",
     "ativo": "boolean",
     "ref_local": "text",
-    "ficha_id": "uuid"
+    "ficha_id": "uuid",
+    "insumo_id": "uuid",
+    "insumo_qtd": "numeric",
+    "insumo_un": "text"
    },
    "unicos": [
     [

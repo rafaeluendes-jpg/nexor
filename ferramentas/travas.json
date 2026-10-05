@@ -413,6 +413,10 @@
    "pontos": 19,
    "roda": true
   },
+  "testes/opcao-insumo-e-filtro-forma.js": {
+   "pontos": 14,
+   "roda": true
+  },
   "testes/pagamento-tem-estado.js": {
    "pontos": 27,
    "roda": true

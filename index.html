@@ -802,6 +802,20 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 
 /* pagamento */
 .pgGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:8px}
+/* opção do grupo: o que sai do estoque — ficha técnica ou insumo (05/10/2026) */
+.opRow2{grid-auto-flow:row dense}
+.opRow2 .goLig{grid-column:1/-1}
+.goLig{display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1 1 260px;min-width:0}
+.goLig .goT{flex:0 0 132px}
+/* vendas do caixa filtradas por forma (05/10/2026) */
+.vcFiltroForma{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.vcFiltroForma label{font-size:12px;font-weight:600;color:var(--ink-2)}
+.vcFiltroForma select{min-height:36px;min-width:200px}
+.goLig .goF{flex:1 1 180px;min-width:0}
+.goInsBox{display:flex;gap:6px;flex:1 1 260px;min-width:0}
+.goInsBox .goI{flex:1 1 150px;min-width:0}
+.goInsBox .goQ{flex:0 0 76px;text-align:right}
+.goInsBox .goU{flex:0 0 64px}
 /* entregar para: nome, telefone e endereço na tela de pagamento (04/10/2026) */
 .pgCliTopo{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px;margin-bottom:10px}
 .pgCliTopo b{font-size:16px;font-weight:700;color:var(--ink)}
@@ -8994,7 +9008,9 @@ var MAPA=[
   filhos:[{lista:'opcoes',tab:'opcoes',pai:'grupo_id',
     campos:function(o,k){return {nome:o.nome,preco_adicional:n(o.preco),ordem:k,
       ativo:o.ativo!==false,
-      ficha_id:fk('fichas',o.fichaId)}}}]},
+      ficha_id:fk('fichas',o.fichaId),
+      /* a opção ligada direto a um insumo (05/10/2026) */
+      insumo_id:fk('insumos',o.insumoId),insumo_qtd:n(o.insumoQtd),insumo_un:o.insumoUn||null}}}]},
 
  {col:'produtos', espelha:true,    tab:'produtos',
   campos:function(x,i){return {nome:x.nome,preco:n(x.preco),codigo:x.codigo||null,
@@ -12244,10 +12260,11 @@ function volta(linhas,fn,atual,col){
      que vem da nuvem SEM ficha continua sem ficha — desvincular tem de
      continuar funcionando.
      ========================================================== */
-  var _fichaAntes={},_fichaSalvas=0;
+  var _fichaAntes={},_fichaSalvas=0,_opInsAntes={};
   (_ANT('grupos')||[]).forEach(function(g){
     (g&&g.opcoes||[]).forEach(function(op){
       if(op&&op.id&&op.fichaId)_fichaAntes[op.id]=op.fichaId;
+      if(op&&op.id&&op.insumoId)_opInsAntes[op.id]=op.insumoId;
     });
   });
   function _fichaDaOpcao(op){
@@ -12280,7 +12297,9 @@ function volta(linhas,fn,atual,col){
         /* o que sobe tem de descer: sem isto o sabor desligado voltava
            ligado no download seguinte */
         ativo:o.ativo!==false,
-        fichaId:_fichaDaOpcao(o)}})}},_ANT('grupos'),'grupos');
+        fichaId:_fichaDaOpcao(o),
+        /* o insumo direto: o identificador local sai depois que os insumos descem */
+        _insumoUid:o.insumo_id||'',insumoQtd:Number(o.insumo_qtd)||0,insumoUn:o.insumo_un||''}})}},_ANT('grupos'),'grupos');
   if(_fichaSalvas)
     logNuvem('vínculo com ficha técnica preservado do aparelho em '+_fichaSalvas+
       ' opção(ões) — a nuvem não soube traduzir'+(_mapaFichaOk?'':' (a consulta de fichas falhou)'),true);
@@ -12548,6 +12567,15 @@ function volta(linhas,fn,atual,col){
     }
     delete p._fichaUid;delete p._insumoUid;
   });
+  /* a opção do grupo ligada direto a um insumo: mesma regra do produto —
+     nuvem sem vínculo é sem vínculo; vínculo que não se traduz mantém o
+     que o aparelho sabia (05/10/2026) */
+  (DB.grupos||[]).forEach(function(g){ (g.opcoes||[]).forEach(function(op){
+    if(op._insumoUid===undefined)return;
+    var uid=op._insumoUid; delete op._insumoUid;
+    if(!uid){ op.insumoId=''; return; }
+    op.insumoId=mapaIns[uid]||_opInsAntes[op.id]||op.insumoId||'';
+  }); });
   if(_vincSalvos)
     logNuvem('vínculo de estoque preservado do aparelho em '+_vincSalvos+
       ' produto(s) — a nuvem não trouxe a ficha; sobe de novo no próximo envio',true);
@@ -14778,7 +14806,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V417.0.0';
+var VERSAO='V418.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -16260,7 +16288,8 @@ function abrirGrupos(){
         (off?' title="desligada — não aparece na venda"':'')+'>'+E(o.nome)+
         (off?' (desligada)':'')+
         (o.preco?' +R$ '+money(o.preco):'')+
-        (fn?'<i>'+E(fn)+'</i>':'<i class="sem">sem ficha</i>')+'</span>'}).join(''):
+        (fn?'<i>'+E(fn)+'</i>':o.insumoId?'<i>'+E(nomeInsumoDe(o.insumoId))+' · '+
+          String(o.insumoQtd||0).replace('.',',')+' '+E(o.insumoUn||'')+'</i>':'<i class="sem">sem ficha</i>')+'</span>'}).join(''):
       '<span class="grpMeta">sem opções</span>')+'</div></div>';
   });
   h+='</div>';
@@ -16418,7 +16447,8 @@ function perguntaCopiarOpcoes(origem,novas){
    sv('check',13)+' Cadastrar nos marcados</button></div></div>';
   document.body.appendChild(o);
   _COPIA_OPS=novas.map(function(x){return {nome:x.nome,preco:x.preco,
-    fichaId:x.fichaId,ativo:x.ativo!==false}; });
+    fichaId:x.fichaId,insumoId:x.insumoId||'',insumoQtd:x.insumoQtd||0,insumoUn:x.insumoUn||'',
+    ativo:x.ativo!==false}; });
 }
 var _COPIA_OPS=null;
 function copiarOpcoesEscolhidas(origemId){
@@ -16435,7 +16465,8 @@ function copiarOpcoesEscolhidas(origemId){
     _COPIA_OPS.forEach(function(o){
       if(g.opcoes.some(function(x){return chaveOp(x)===chaveOp(o)}))return;
       /* sem `id`: a opcao nasce nova NESTE grupo e ganha o dela ao subir */
-      g.opcoes.push({nome:o.nome,preco:o.preco,fichaId:o.fichaId,ativo:o.ativo!==false});
+      g.opcoes.push({nome:o.nome,preco:o.preco,fichaId:o.fichaId,
+        insumoId:o.insumoId||'',insumoQtd:o.insumoQtd||0,insumoUn:o.insumoUn||'',ativo:o.ativo!==false});
       postos++;
     });
     if(g.opcoes.length>antes)gruposMex++;
@@ -16456,8 +16487,35 @@ function fichaPeloNome(txt){
   var f=(DB.fichas||[]).find(function(x){return String(x.nome||'').trim().toLowerCase()===t});
   return f?f.id:'';
 }
+function nomeInsumoDe(id){
+  if(!id)return '';
+  var i=(DB.insumos||[]).find(function(x){return x.id===id});
+  return i?i.nome:'';
+}
+function insumoPeloNome(txt){
+  var t=String(txt||'').trim().toLowerCase();
+  if(!t)return '';
+  var i=(DB.insumos||[]).find(function(x){return String(x.nome||'').trim().toLowerCase()===t});
+  return i?i.id:'';
+}
+/* troca o campo da linha sem redesenhar a lista (não perde o que foi digitado) */
+function trocaTipoOp(sel){
+  var lig=sel.closest('.goLig'); if(!lig)return;
+  var ins=sel.value==='insumo';
+  var f=lig.querySelector('.goF'), bx=lig.querySelector('.goInsBox');
+  if(f)f.style.display=ins?'none':'';
+  if(bx)bx.style.display=ins?'':'none';
+}
 function renderOps(){
   var b=$('gopsBox');if(!b)return;
+  if(!document.getElementById('listaInsumosOp')){
+    var dli=document.createElement('datalist');
+    dli.id='listaInsumosOp';
+    dli.innerHTML=(DB.insumos||[]).slice()
+      .sort(function(a,b2){return (a.nome||'').localeCompare(b2.nome||'')})
+      .map(function(i){return '<option value="'+E(i.nome)+'">'}).join('');
+    document.body.appendChild(dli);
+  }
   /* a lista de sugestoes fica fora das linhas, uma so para todas */
   if(!document.getElementById('listaFichasOp')){
     var dl=document.createElement('datalist');
@@ -16490,8 +16548,26 @@ function renderOps(){
        Agora e um campo de texto com sugestao: digita parte do nome e a
        lista filtra. O vinculo e resolvido pelo nome na hora de salvar.
        ========================================================== */
-    '<input class="goF" list="listaFichasOp" placeholder="digite para achar a ficha" '+
-      'value="'+E(nomeFichaDe(o.fichaId))+'">'+
+    /* ==========================================================
+       FICHA TÉCNICA OU INSUMO (Rafael, 05/10/2026)
+
+       "Além de vincular a ficha técnica, ter a opção de vincular apenas o
+       insumo, com a quantidade que vai ser debitada — para eu não
+       precisar criar uma ficha técnica só para dar baixa quando vender."
+       Cada opção escolhe o que sai do estoque: a ficha (como sempre) ou
+       um insumo direto, com quantidade e unidade por opção vendida. */
+    '<div class="goLig">'+
+     '<select class="goT" onchange="trocaTipoOp(this)" title="O que sai do estoque">'+
+      '<option value="ficha"'+(o.insumoId?'':' selected')+'>Ficha técnica</option>'+
+      '<option value="insumo"'+(o.insumoId?' selected':'')+'>Insumo</option></select>'+
+     '<input class="goF" list="listaFichasOp" placeholder="digite para achar a ficha" '+
+      'value="'+E(nomeFichaDe(o.fichaId))+'"'+(o.insumoId?' style="display:none"':'')+'>'+
+     '<span class="goInsBox"'+(o.insumoId?'':' style="display:none"')+'>'+
+      '<input class="goI" list="listaInsumosOp" placeholder="digite para achar o insumo" value="'+E(nomeInsumoDe(o.insumoId))+'">'+
+      '<input class="goQ" type="text" inputmode="decimal" autocomplete="off" placeholder="qtd" title="Quantidade que sai a cada opção vendida" value="'+(o.insumoQtd?String(o.insumoQtd).replace('.',','):'')+'">'+
+      '<select class="goU" title="Unidade da quantidade">'+['g','kg','ml','l','un'].map(function(u){
+        return '<option value="'+u+'"'+((o.insumoUn||'')===u?' selected':'')+'>'+u+'</option>';}).join('')+'</select>'+
+     '</span></div>'+
     /* ==========================================================
        DESLIGAR EM VEZ DE APAGAR
 
@@ -16512,19 +16588,34 @@ function renderOps(){
 }
 function lerOps(){
   var n=document.querySelectorAll('.goN'),p=document.querySelectorAll('.goP'),
-      f=document.querySelectorAll('.goF'),a=document.querySelectorAll('.goA');
+      f=document.querySelectorAll('.goF'),a=document.querySelectorAll('.goA'),
+      tp=document.querySelectorAll('.goT'),ii=document.querySelectorAll('.goI'),
+      qq=document.querySelectorAll('.goQ'),uu=document.querySelectorAll('.goU');
   var antes=_gops.slice();
   _gops=[];
   for(var i=0;i<n.length;i++){
-    var txt=f[i]?f[i].value:'';
-    var fid=fichaPeloNome(txt);
-    /* digitou algo que nao e ficha: avisa em vez de descartar em silencio */
-    if(txt.trim()&&!fid)toast('Não achei a ficha "'+txt.trim()+'" — a opção ficou sem baixa de estoque.');
+    var porInsumo=!!(tp[i]&&tp[i].value==='insumo');
+    var fid='',iid='',qtdI=0,unI='';
+    if(porInsumo){
+      var txtI=ii[i]?ii[i].value:'';
+      iid=insumoPeloNome(txtI);
+      qtdI=parseFloat(String((qq[i]&&qq[i].value)||'').replace(/\./g,'').replace(',','.'))||0;
+      if(qq[i]&&/^\d+(\.\d+)?$/.test(String(qq[i].value).trim()))qtdI=parseFloat(qq[i].value)||0;
+      unI=(uu[i]&&uu[i].value)||'';
+      if(txtI.trim()&&!iid)toast('Não achei o insumo "'+txtI.trim()+'" — a opção ficou sem baixa de estoque.');
+      else if(iid&&!(qtdI>0))toast('Informe a quantidade do insumo da opção "'+(n[i].value||'')+'".');
+    }else{
+      var txt=f[i]?f[i].value:'';
+      fid=fichaPeloNome(txt);
+      /* digitou algo que nao e ficha: avisa em vez de descartar em silencio */
+      if(txt.trim()&&!fid)toast('Não achei a ficha "'+txt.trim()+'" — a opção ficou sem baixa de estoque.');
+    }
     _gops.push({
       id:(antes[i]&&antes[i].id)||undefined,
       nome:n[i].value,preco:moedaValor(p[i]),
       ativo:!a[i]||a[i].checked,
-      fichaId:fid});
+      fichaId:fid,
+      insumoId:iid,insumoQtd:iid?qtdI:0,insumoUn:iid?unI:''});
   }
 }
 /* pinta a linha na hora, sem redesenhar a lista inteira — redesenhar
@@ -23071,7 +23162,9 @@ function modalOpcoes(p,grupos){
          Agora vai o identificador, que nao depende de como cada uma foi
          escrita. O plano B fica para as comandas antigas.
          ========================================================== */
-      esc.push({grupo:g.id,nome:o.nome,preco:o.preco,fichaId:o.fichaId||''});
+      esc.push({grupo:g.id,nome:o.nome,preco:o.preco,fichaId:o.fichaId||'',
+        /* ou o insumo direto, com a quantidade por opção (05/10/2026) */
+        insumoId:o.insumoId||'',insumoQtd:Number(o.insumoQtd)||0,insumoUn:o.insumoUn||''});
     }
     for(var k=0;k<grupos.length;k++){
       var G=grupos[k];
@@ -35758,7 +35851,7 @@ function sinalRS(v){
   return '<span class="'+(v>0?'vcMais':'vcMenos')+'">'+(v>0?'+ ':'− ')+'R$ '+money(Math.abs(v))+'</span>';
 }
 function verCaixa(id){
-  VC.id=id; VC.aba='resumo'; VC.dinAberto=false;
+  VC.id=id; VC.aba='resumo'; VC.dinAberto=false; VC.forma='';
   var c=(DB.caixas||[]).find(function(x){return x.id===id});
   if(!c)return;
   var o=document.getElementById('mdOv');
@@ -35770,6 +35863,32 @@ function verCaixa(id){
   fecharSoForaDeVerdade(document.getElementById('mdOv'));
 }
 function vcAba(a){ VC.aba=a; desenharVerCaixa(); }
+/* ==========================================================
+   VENDAS DO CAIXA FILTRADAS POR FORMA (Rafael, 05/10/2026)
+   "Se eu quiser selecionar só dinheiro, aparecer só as de dinheiro; só
+   Pix, só Pix; só crédito, só crédito." A lista mostra os pedidos que
+   tiveram aquela forma, o valor pago NELA (o pedido dividido mostra o
+   total embaixo) e o total da forma no rodapé. */
+function nomeFormaVC(id){ return (FORMAS.find(function(f){return f.id===id})||{}).n||'sem forma'; }
+function valorNaFormaVC(p,fid){
+  return (p.pagamentos||[]).reduce(function(a,g){
+    return a+(formaDoPagamento(g)===fid?(Number(g.valor)||0):0);},0);
+}
+function vcPedidosFiltrados(d){
+  if(!VC.forma)return d.ok;
+  return d.ok.filter(function(p){
+    return (p.pagamentos||[]).some(function(g){return formaDoPagamento(g)===VC.forma});});
+}
+function vcFiltroForma(d){
+  var vistas={};
+  d.ok.forEach(function(p){ (p.pagamentos||[]).forEach(function(g){ var f=formaDoPagamento(g); if(f)vistas[f]=true; }); });
+  var ids=Object.keys(vistas);
+  return '<div class="vcFiltroForma"><label>Forma de pagamento</label>'+
+    '<select onchange="VC.forma=this.value;desenharVerCaixa()">'+
+    '<option value="">Todas</option>'+
+    ids.map(function(id){return '<option value="'+E(id)+'"'+(VC.forma===id?' selected':'')+'>'+E(nomeFormaVC(id))+'</option>';}).join('')+
+    '</select></div>';
+}
 function vcDinheiro(){ VC.dinAberto=!VC.dinAberto; desenharVerCaixa(); }
 function desenharVerCaixa(){
   var c=(DB.caixas||[]).find(function(x){return x.id===VC.id});
@@ -35953,19 +36072,26 @@ function desenharVerCaixa(){
       '<div class="vcL tot"><span>Faturamento líquido</span><b>R$ '+money(d.liquido)+'</b></div>'+
       '<div class="vcL"><span>Ticket médio</span><b>R$ '+money(d.ticket)+'</b></div>'+
       '</div></div>'+
-      (d.ok.length
+      (d.ok.length?vcFiltroForma(d):'')+
+      (vcPedidosFiltrados(d).length
         ?'<table class="vcTab" style="margin-top:14px"><thead><tr><th>Pedido</th><th>Hora</th>'+
-         '<th>Canal</th><th>Formas</th><th class="num">Valor</th></tr></thead><tbody>'+
-         d.ok.slice().sort(function(a,b){return (b.hora||'').localeCompare(a.hora||'')})
+         '<th>Canal</th><th>Formas</th><th class="num">'+(VC.forma?'Em '+E(nomeFormaVC(VC.forma)):'Valor')+'</th></tr></thead><tbody>'+
+         vcPedidosFiltrados(d).slice().sort(function(a,b){return (b.hora||'').localeCompare(a.hora||'')})
           .map(function(p){
             var fs=(p.pagamentos||[]).map(function(g){
               return (FORMAS.find(function(f){return f.id===formaDoPagamento(g)})||{}).n||'sem forma';
             }).join(' + ');
             return '<tr><td>#'+E(String(p.numero||''))+'</td><td>'+E(p.hora||'')+'</td>'+
               '<td>'+E(p.canal||'pdv')+'</td><td>'+E(fs||'—')+'</td>'+
-              '<td class="num">R$ '+money(p.total)+'</td></tr>';
-          }).join('')+'</tbody></table>'
-        :vcVazio('Nenhuma venda neste turno.'));
+              '<td class="num">R$ '+money(VC.forma?valorNaFormaVC(p,VC.forma):p.total)+
+               (VC.forma&&Math.abs(valorNaFormaVC(p,VC.forma)-(Number(p.total)||0))>0.004
+                 ?'<small>de R$ '+money(p.total)+'</small>':'')+'</td></tr>';
+          }).join('')+'</tbody>'+
+          (VC.forma?'<tfoot><tr><td colspan="4"><b>Total em '+E(nomeFormaVC(VC.forma))+' — '+
+            vcPedidosFiltrados(d).length+' pedido(s)</b></td><td class="num"><b>R$ '+
+            money(vcPedidosFiltrados(d).reduce(function(a,p){return a+valorNaFormaVC(p,VC.forma)},0))+
+            '</b></td></tr></tfoot>':'')+'</table>'
+        :vcVazio(VC.forma?'Nenhuma venda em '+nomeFormaVC(VC.forma)+' neste turno.':'Nenhuma venda neste turno.'));
   }
 
   /* ---------- OPERADORES (item 23) ---------- */
@@ -43831,8 +43957,35 @@ function baixarEstoqueVenda(ped){
      Agora cada opcao com ficha ligada baixa o que ela consome, na
      quantidade do item.
      ========================================================== */
+  function opcaoCadastrada(o){
+    var nm=String((o&&o.nome)||'').trim().toLowerCase(); if(!nm)return null;
+    var gs=DB.grupos||[], achou=null;
+    if(o.grupo){ var g0=gs.find(function(g){return g.id===o.grupo});
+      if(g0)achou=(g0.opcoes||[]).find(function(x){return String(x.nome||'').trim().toLowerCase()===nm}); }
+    if(!achou)gs.some(function(g){ achou=(g.opcoes||[]).find(function(x){
+      return String(x.nome||'').trim().toLowerCase()===nm&&(x.insumoId||x.fichaId);}); return !!achou; });
+    return achou||null;
+  }
   function baixarOpcoes(it,q){
     (it.opcoes||[]).forEach(function(o){
+      /* ==========================================================
+         OPÇÃO LIGADA DIRETO A UM INSUMO (05/10/2026)
+         Sai o insumo, na quantidade cadastrada por opção, vezes as
+         unidades vendidas. A opção que chegou sem o vínculo (cardápio
+         digital, totem, comanda antiga) busca o cadastro do grupo pelo
+         nome — o mesmo plano B que a ficha já usa. */
+      var _def=(!o.fichaId&&!o.ficha_id&&!o.insumoId)?opcaoCadastrada(o):null;
+      var iid=o.insumoId||(_def&&!_def.fichaId&&_def.insumoId)||'';
+      if(iid&&!o.fichaId&&!o.ficha_id){
+        var iOp=insumo(iid);
+        var qOp=Number(o.insumoQtd)||(_def&&Number(_def.insumoQtd))||0;
+        if(!iOp||!(qOp>0))return;
+        var uOp=o.insumoUn||(_def&&_def.insumoUn)||iOp.unidade;
+        linhas.push({insumoId:iOp.id,nome:iOp.nome,unidade:uOp,
+          qtd:+(qOp*(Number(o.qtd)||1)*q).toFixed(4),
+          custo:custoNaUnidade(iOp,uOp),direcao:'saida',origem:'venda',fichaNome:o.nome});
+        return;
+      }
       var fid=o.fichaId||o.ficha_id;
       if(!fid){
         /* opcao antiga, sem vinculo gravado: tenta pelo nome */

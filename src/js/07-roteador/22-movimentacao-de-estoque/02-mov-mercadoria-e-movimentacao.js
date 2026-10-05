@@ -1292,8 +1292,35 @@ function baixarEstoqueVenda(ped){
      Agora cada opcao com ficha ligada baixa o que ela consome, na
      quantidade do item.
      ========================================================== */
+  function opcaoCadastrada(o){
+    var nm=String((o&&o.nome)||'').trim().toLowerCase(); if(!nm)return null;
+    var gs=DB.grupos||[], achou=null;
+    if(o.grupo){ var g0=gs.find(function(g){return g.id===o.grupo});
+      if(g0)achou=(g0.opcoes||[]).find(function(x){return String(x.nome||'').trim().toLowerCase()===nm}); }
+    if(!achou)gs.some(function(g){ achou=(g.opcoes||[]).find(function(x){
+      return String(x.nome||'').trim().toLowerCase()===nm&&(x.insumoId||x.fichaId);}); return !!achou; });
+    return achou||null;
+  }
   function baixarOpcoes(it,q){
     (it.opcoes||[]).forEach(function(o){
+      /* ==========================================================
+         OPÇÃO LIGADA DIRETO A UM INSUMO (05/10/2026)
+         Sai o insumo, na quantidade cadastrada por opção, vezes as
+         unidades vendidas. A opção que chegou sem o vínculo (cardápio
+         digital, totem, comanda antiga) busca o cadastro do grupo pelo
+         nome — o mesmo plano B que a ficha já usa. */
+      var _def=(!o.fichaId&&!o.ficha_id&&!o.insumoId)?opcaoCadastrada(o):null;
+      var iid=o.insumoId||(_def&&!_def.fichaId&&_def.insumoId)||'';
+      if(iid&&!o.fichaId&&!o.ficha_id){
+        var iOp=insumo(iid);
+        var qOp=Number(o.insumoQtd)||(_def&&Number(_def.insumoQtd))||0;
+        if(!iOp||!(qOp>0))return;
+        var uOp=o.insumoUn||(_def&&_def.insumoUn)||iOp.unidade;
+        linhas.push({insumoId:iOp.id,nome:iOp.nome,unidade:uOp,
+          qtd:+(qOp*(Number(o.qtd)||1)*q).toFixed(4),
+          custo:custoNaUnidade(iOp,uOp),direcao:'saida',origem:'venda',fichaNome:o.nome});
+        return;
+      }
       var fid=o.fichaId||o.ficha_id;
       if(!fid){
         /* opcao antiga, sem vinculo gravado: tenta pelo nome */
