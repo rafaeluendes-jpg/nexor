@@ -8260,3 +8260,34 @@ O que mudou:
    O lote continua junto.
 
 Guardião: `testes/caixa-editado-e-conciliacao.js`.
+
+## 05/10/2026 — o fechamento do caixa de 02/10 sumiu e voltou; a trava no banco
+
+Rafael, com a foto do caixa de 02/10 de Santa Fé, com o Físico "não
+informado": "Do dia 2 para frente não tem nenhum, e está tudo lançado e
+fechado. Depois das correções foi quebrado e sumiu. Corrige agora."
+
+**Causa** (pelo `audit_log`):
+- O caixa de 02/10 foi fechado em outro aparelho (caixa@) em 03/10 às
+  02:15, com a conferência completa.
+- Em 05/10, às 13:47 de Brasília, o aparelho de Santa Fé (santafe@)
+  reenviou esse caixa a partir de uma cópia velha: fechado, mas sem a
+  conferência.
+- O envio gravou por cima e zerou na nuvem: valores informados,
+  fotografia, quem fechou, contado, esperado, vendas e diferença.
+- Foi o único caixa atingido: o de 28/08 tinha sido refeito na época, e os
+  de 03/10 e 04/10 estão inteiros.
+
+**Correção:**
+1. O caixa de 02/10 foi devolvido do "antes" do `audit_log`:
+   - dinheiro R$ 368,05, débito R$ 553, crédito R$ 929, Pix R$ 430;
+   - fechado pelo Administrador;
+   - diferença + R$ 3,00.
+2. **Trava no banco** (`20261005_fechamento_nao_se_apaga.sql`):
+   - caixa fechado não reabre;
+   - conferência, fotografia, quem fechou e totais não voltam a vazio;
+   - editar o fechamento continua valendo, porque a edição manda a
+     conferência preenchida.
+   - Provado no banco: a cópia vazia tentou zerar e o caixa ficou intacto.
+
+Guardião: `testes/fechamento-nao-se-apaga.js`.

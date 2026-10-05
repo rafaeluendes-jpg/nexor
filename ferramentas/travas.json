@@ -253,6 +253,10 @@
    "pontos": 9,
    "roda": true
   },
+  "testes/fechamento-nao-se-apaga.js": {
+   "pontos": 7,
+   "roda": true
+  },
   "testes/fechamento-nao-some.js": {
    "pontos": 16,
    "roda": true
