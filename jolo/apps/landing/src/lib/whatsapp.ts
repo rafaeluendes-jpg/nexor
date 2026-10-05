@@ -2,6 +2,7 @@
 
 import { captureAttribution, toPayload, trackingSuffix } from '@jolo/attribution';
 import { readWhatsAppConfig, whatsappUrl } from '@jolo/config';
+import { avisarContato } from './rastreio';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
 
@@ -39,6 +40,7 @@ export async function openFranchiseWhatsApp(origem: string): Promise<void> {
     /* segue o clique mesmo sem registrar */
   }
 
+  avisarContato(atribuicao.trackingId, origem);
   const url = whatsappUrl(WHATSAPP, trackingSuffix(atribuicao));
   window.open(url, '_blank', 'noopener,noreferrer');
 }
