@@ -15,6 +15,8 @@ function telaConciliacao(){
     var d=l.pagamento||l.vencimento;
     return d>=CB.de&&d<=CB.ate;
   }).sort(function(a,b){return (a.pagamento||'').localeCompare(b.pagamento||'')||
+    /* no mesmo dia, primeiro o que entrou, depois o que saiu (Rafael, 05/10/2026) */
+    (sinal(b)-sinal(a))||
     String(a.loteRef||'').localeCompare(String(b.loteRef||''))});   /* o lote fica junto */
 
   function sinal(l){

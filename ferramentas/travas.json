@@ -85,6 +85,10 @@
    "pontos": 13,
    "roda": true
   },
+  "testes/caixa-editado-e-conciliacao.js": {
+   "pontos": 13,
+   "roda": true
+  },
   "testes/caixa-nao-fecha-com-pedido-aberto.js": {
    "pontos": 17,
    "roda": true

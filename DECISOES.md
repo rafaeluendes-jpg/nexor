@@ -8227,3 +8227,36 @@ A gente está colocando e ele está voltando automático, e zerando."
 
 Guardião: `testes/tempo-de-entrega-e-lei.js`. Prova no Chromium: digitar
 55, dar F5, continua 55; apagar o campo volta para 55.
+
+## V424 — caixa editado aparece em cima; conciliação com entrada antes de saída (05/10/2026)
+
+Rafael:
+- "Quando editar o caixa, ao visualizar, aparecer em cima: caixa editado,
+  tanto valor."
+- "Quando atualizar a sangria na frente de caixa, os lançamentos
+  financeiros e a conciliação têm que ter o mesmo valor."
+- "Na conciliação: primeiro entrada, depois saída."
+
+O que mudou:
+1. **Editar fechamento:**
+   - Cada edição guarda o que mudou, de → para: fundo de troco, operador,
+     valor informado por forma, observação, cada sangria e suprimento, e a
+     diferença geral.
+   - Guarda também quem editou e quando.
+   - Tudo fica na fotografia do fechamento, que sobe com o caixa.
+2. **Relatório do caixa:**
+   - Em cima, antes das abas, aparece **"Caixa editado — data por quem"**,
+     com a lista de valores.
+   - A aba Auditoria lista cada edição com os valores.
+3. **Sangria editada:**
+   - O lançamento da transferência continua passando ao valor novo. A
+     conciliação lê dele, então mostra o mesmo valor.
+   - Agora a nuvem é conferida depois de salvar.
+   - Se a sangria não tem lançamento neste aparelho, a tela avisa em vez de
+     ficar calada.
+   - Lançamento já conciliado continua travado: desconcilia primeiro, como
+     sempre.
+4. **Conciliação Bancária:** no mesmo dia, as entradas vêm antes das saídas.
+   O lote continua junto.
+
+Guardião: `testes/caixa-editado-e-conciliacao.js`.

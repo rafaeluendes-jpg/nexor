@@ -491,3 +491,7 @@ select.impIn{padding-right:2px}
   .ltCab .ltN{font-size:17px}
   .ltCab{gap:10px}
 }
+
+/* caixa editado: o que mudou, em cima do relatório (05/10/2026) */
+.vcEditado{margin:0 0 12px}
+.vcEditado ul{margin:6px 0 0 18px;padding:0;font-size:12.5px;line-height:1.55}

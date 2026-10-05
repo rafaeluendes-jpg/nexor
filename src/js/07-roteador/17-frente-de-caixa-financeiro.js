@@ -598,9 +598,11 @@ function desenharVerCaixa(){
         :(d.difGeral>0?'+ ':'− ')+'R$ '+money(Math.abs(d.difGeral)))+
         (d.doSnapshot?' · fotografia gravada':''),
       quem:c.fechadoPor||'—'});
-    var ed=c.snapshot&&c.snapshot.editado;
-    if(ed)ev.push({q:ed.em||'',e:'Edição administrativa do fechamento',
-      det:'Valores refeitos; fotografia anterior preservada',quem:ed.por||'—'});
+    edicoesDoCaixa(c).forEach(function(ed){
+      var det=(ed.mudancas||[]).map(textoMudanca).join(' · ');
+      ev.push({q:ed.em||'',e:'Edição administrativa do fechamento',
+        det:det||'Valores refeitos; fotografia anterior preservada',quem:ed.por||'—'});
+    });
     corpo='<table class="vcTab"><thead><tr><th>Quando</th><th>Evento</th>'+
       '<th>Detalhe</th><th>Responsável</th></tr></thead><tbody>'+
       ev.map(function(x){
@@ -617,7 +619,7 @@ function desenharVerCaixa(){
   var o=document.getElementById('mdOv');
   o.innerHTML='<div class="mdBox xl vcBox"><div class="mdH"><b>Relatório de frente de caixa</b>'+
     '<button onclick="fecharModal()">&times;</button></div>'+
-    '<div class="mdB vcWrap">'+cab+nav+'<div class="vcCorpo">'+corpo+'</div></div>'+
+    '<div class="mdB vcWrap">'+cab+blocoCaixaEditado(c)+nav+'<div class="vcCorpo">'+corpo+'</div></div>'+
     '<div class="mdF"><button class="btnP2" onclick="fecharModal()">Fechar</button>'+
     '<button class="btnP2" onclick="imprimirAbertura(\''+c.id+'\')">'+
       sv('print2',13)+' Abertura</button>'+
@@ -791,7 +793,8 @@ function ecRecalcEsperado(){
 }
 /* grava os valores novos de sangria e suprimento; devolve false quando
    algum valor não serve (e nada foi gravado) */
-function aplicarMovsEditarCaixa(c){
+function aplicarMovsEditarCaixa(c,mud){
+  mud=mud||{itens:[],lancs:[],semLanc:[]};
   var ins=document.querySelectorAll('.ecMov'), novos=[];
   for(var i=0;i<ins.length;i++){
     if(ins[i].disabled)continue;
@@ -806,10 +809,58 @@ function aplicarMovsEditarCaixa(c){
     var antes=Number(x.m.valor)||0;
     x.m.edicoes=(x.m.edicoes||[]).concat([{em:new Date().toLocaleString('pt-BR'),por:quem,de:antes,para:x.v}]);
     x.m.valor=+x.v.toFixed(2);
+    var rot=(x.m.tipo==='sangria'?'Sangria':'Suprimento')+(x.m.hora?' das '+x.m.hora:'');
+    mud.itens.push({o:rot,de:antes,para:x.m.valor});
     var l=lancDoMovCaixa(x.m);
-    if(l&&!l.conciliado){ l.valor=x.m.valor; l.alterado=Date.now(); }
+    if(l&&!l.conciliado){ l.valor=x.m.valor; l.alterado=Date.now(); mud.lancs.push(l.id); }
+    /* sem o lançamento aqui, o financeiro e a conciliação ficariam com o
+       valor antigo sem ninguém saber: avisa (05/10/2026) */
+    else if(!l)mud.semLanc.push(rot);
   });
   return true;
+}
+/* ==========================================================
+   CAIXA EDITADO APARECE EM CIMA (Rafael, 05/10/2026)
+
+   *"Quando a gente editar o caixa, clicando para visualizar o caixa,
+   aparecer em cima: caixa editado, tanto valor, tal, tal."* Cada edição
+   guarda a lista do que mudou (de → para), quem e quando, dentro da
+   fotografia do fechamento — que sobe para a nuvem com o caixa. */
+function mudancasDoCaixa(c,antes,mov){
+  var l=[];
+  var din=function(a,b){return Math.abs((Number(a)||0)-(Number(b)||0))>0.004;};
+  if(din(antes.inicial,c.inicial))l.push({o:'Fundo de troco',de:antes.inicial,para:c.inicial});
+  if(String(antes.operador||'')!==String(c.operador||''))l.push({o:'Operador',de:antes.operador||'—',para:c.operador||'—',txt:true});
+  (DB.formasPag||[]).forEach(function(f){
+    var a=(antes.conferencia||{})[f.id],b=(c.conferencia||{})[f.id];
+    if(din(a,b))l.push({o:'Informado em '+f.nome,de:Number(a)||0,para:Number(b)||0});
+  });
+  if(String(antes.obs||'')!==String(c.obs||''))l.push({o:'Observação',de:antes.obs||'—',para:c.obs||'—',txt:true});
+  return l;
+}
+function textoMudanca(x){
+  return x.o+': '+(x.txt?(x.de+' → '+x.para):('R$ '+money(x.de)+' → R$ '+money(x.para)));
+}
+function edicoesDoCaixa(c){
+  var s=c&&c.snapshot;
+  if(!s)return [];
+  if(s.edicoes&&s.edicoes.length)return s.edicoes;
+  /* edição feita antes desta versão: só quem e quando */
+  return s.editado?[{em:s.editado.em,por:s.editado.por,mudancas:[],
+    difDe:s.editado.anterior?s.editado.anterior.diferencaTotal:null,difPara:s.diferencaTotal}]:[];
+}
+function blocoCaixaEditado(c){
+  var eds=edicoesDoCaixa(c);
+  if(!eds.length)return '';
+  var u=eds[eds.length-1];
+  var linhas=(u.mudancas||[]).map(textoMudanca);
+  if(u.difDe!==null&&u.difDe!==undefined&&Math.abs((Number(u.difDe)||0)-(Number(u.difPara)||0))>0.004)
+    linhas.push('Diferença geral: '+sinalRS(Number(u.difDe)||0)+' → '+sinalRS(Number(u.difPara)||0));
+  return '<div class="vcAviso am vcEditado">'+sv('edit',15)+'<div><b>Caixa editado'+
+    (eds.length>1?' ('+eds.length+' vezes)':'')+' — '+E(u.em||'')+' por '+E(u.por||'—')+'</b>'+
+    (linhas.length?'<ul>'+linhas.map(function(t){return '<li>'+E(t)+'</li>';}).join('')+'</ul>'
+      :'<small>Valores refeitos; a fotografia anterior ficou guardada.</small>')+
+    (eds.length>1?'<small>As edições anteriores estão na aba Auditoria.</small>':'')+'</div></div>';
 }
 function editarCaixa(id){
   fecharModal();
@@ -855,7 +906,10 @@ function editarCaixa(id){
   '</div></div>';
 
   modal('Editar fechamento de caixa',h,'Salvar alterações',function(){
-    if(!aplicarMovsEditarCaixa(c))return false;
+    var antesEd={inicial:c.inicial,operador:c.operador,obs:c.obs,
+      conferencia:Object.assign({},c.conferencia||{}),dif:c.diferencaTotal};
+    var mud={itens:[],lancs:[],semLanc:[]};
+    if(!aplicarMovsEditarCaixa(c,mud))return false;
     c.inicial=moedaValor('ecIni');
     c.operador=$('ecOp').value.trim();
     c.obs=$('ecObs').value;
@@ -898,6 +952,12 @@ function editarCaixa(id){
     };
     c.diferencaTotal=c.snapshot.diferencaTotal;
     c.conciliado=c.snapshot.conciliado;
+    /* o que mudou nesta edição, para aparecer em cima do caixa */
+    c.snapshot.edicoes=((anterior&&anterior.edicoes)||
+      (anterior&&anterior.editado?[{em:anterior.editado.em,por:anterior.editado.por,mudancas:[]}]:[])).concat([{
+      em:c.snapshot.editado.em,por:c.snapshot.editado.por,
+      mudancas:mudancasDoCaixa(c,antesEd,mov).concat(mud.itens),
+      difDe:(antesEd.dif===undefined?null:antesEd.dif),difPara:c.diferencaTotal}]);
     /* refaz os lançamentos deste caixa. Não se apaga nada aqui: apagar só
        neste aparelho deixava os antigos na nuvem e o refazer somava outro
        conjunto — o Pix em dobro de 27/09. `lancarFechamento` regrava os
@@ -906,6 +966,13 @@ function editarCaixa(id){
     var n2=lancarFechamento(c,mov);
     salvar();telaFrenteCaixa();
     toast('Fechamento atualizado. '+n2+' lançamento(s) refeitos no financeiro.');
+    if(mud.semLanc.length)
+      painelErro('A '+mud.semLanc.join(' e a ')+' não tem lançamento no financeiro neste aparelho.',
+        'O caixa foi corrigido, mas a conciliação não tem o que acertar. Confira em Lançamentos Financeiros.');
+    /* a sangria corrigida no financeiro (e na conciliação, que lê dele):
+       "salvo" só depois que a nuvem confirmou */
+    if(mud.lancs.length&&typeof conferirLancNaNuvem==='function')
+      setTimeout(function(){ conferirLancNaNuvem(mud.lancs); },300);
     return true;
   },'lg');
   /* o fundo de troco também muda o dinheiro esperado na gaveta */
