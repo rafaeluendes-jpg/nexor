@@ -156,10 +156,10 @@ nada do sistema.
 
 | Para que | Comando na VPS |
 |---|---|
-| Ver se esta tudo de pe | `systemctl status jolo-api jolo-workers jolo-landing jolo-crm` |
-| Ler o que a API registrou | `journalctl -u jolo-api -f` |
-| Reiniciar depois de mexer no `.env` | `systemctl restart jolo-api jolo-workers` |
-| Atualizar para a versao nova | `bash /opt/jolo/jolo/scripts/instalar-vps.sh` |
+| Ver se esta tudo de pe | `docker ps` (jolo-landing, jolo-crm, jolo-api, jolo-workers, jolo-central, gestao-app) |
+| Ler o que a API registrou | `docker logs -f jolo-api` |
+| Reiniciar depois de mexer no `.env` | `docker restart jolo-api jolo-workers` |
+| Atualizar para a versao nova | `bash /opt/jolo/jolo/scripts/publicar.sh` |
 | Backup do banco | `bash /opt/jolo/jolo/scripts/backup.sh` |
 
 Quando as credenciais da Meta estiverem no `.env`, trocar

@@ -18,6 +18,7 @@ import { parseMetaWebhook } from '@jolo/whatsapp';
 import { CONFIRMACAO_DE_PARADA, ehPedidoParaParar, TIPOS_DE_AVISO } from '@jolo/shared';
 import { publicarAviso } from './avisos.js';
 import { avisarNoCelular } from './push.js';
+import { origemDoAnuncio } from './origem-anuncio.js';
 import type { WorkerContext } from './context.js';
 
 const TRACKING_RE = /\[ref:\s*(jl_[a-z0-9]+)\s*\]/i;
@@ -72,6 +73,11 @@ export function startInboundWorker(ctx: WorkerContext): Worker {
             const sessao = await prisma.attributionSession.findUnique({ where: { trackingId: marca[1] } });
             attributionId = sessao?.id ?? null;
           }
+        }
+        // Anuncio que abre o WhatsApp direto (sem passar pela landing): a
+        // origem vem da propria Meta. Sem isto o lead apareceria como "direto".
+        if (!attributionId && msg.referral) {
+          attributionId = await origemDoAnuncio(prisma, org.id, msg.referral);
         }
 
         const { lead, created } = await ensureLead(prisma, {

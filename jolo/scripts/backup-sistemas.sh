@@ -39,10 +39,21 @@ if docker inspect -f '{{.State.Running}}' central-db 2>/dev/null | grep -q true;
   tar -C /opt/supabase-central -czf "$PASTA/central-arquivos.tar.gz" volumes/storage volumes/functions .env docker-compose.central.yml
 fi
 
+# a Gestao de Franquias (gestao.jologelato.com.br): banco (container
+# gestao-postgres, desde 01/10/2026) e a pasta do sistema com os documentos
+# enviados, sem as dependencias que a compilacao refaz.
+if docker inspect -f '{{.State.Running}}' gestao-postgres 2>/dev/null | grep -q true; then
+  docker exec gestao-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$PASTA/gestao-banco.dump"
+  docker exec -i gestao-postgres pg_restore -l < "$PASTA/gestao-banco.dump" > /dev/null
+fi
+[[ -d /var/www/jolo-gestao ]] && tar -C /var/www -czf "$PASTA/gestao-arquivos.tar.gz" \
+  --exclude='jolo-gestao/node_modules' --exclude='jolo-gestao/.next/cache' jolo-gestao
+
 tar -czf "$PASTA/configuracao.tar.gz" \
   --ignore-failed-read \
   /etc/nginx/sites-available /etc/nginx/jolo-proxy.conf \
   /etc/systemd/system/jolo-*.service /etc/systemd/system/jolo-*.timer \
+  /opt/jolo/jolo/infra/docker /opt/supabase-central/docker-compose.central.yml \
   /etc/jolo /etc/fail2ban/jail.d 2>/dev/null
 
 # confere que cada arquivo abre antes de apagar os antigos

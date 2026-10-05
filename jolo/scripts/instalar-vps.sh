@@ -436,7 +436,7 @@ echo "    node $(node --version), pnpm $(pnpm --version)"
 # ------------------------------------------------------------
 passo "4/10 Codigo em ${RAIZ}"
 if [ "${SEM_GIT:-}" = "sim" ]; then
-  # o codigo ja foi entregue por fora (copia do GitHub Actions): nao baixa nada
+  # o codigo e o que ja esta no servidor (publicar.sh usa sempre assim): nao baixa nada
   echo "    codigo ja entregue em ${RAIZ}"
 elif [ -d "${RAIZ}/.git" ]; then
   # sem BRANCH explicito, continua na branch que o servidor ja usa: trocar
@@ -524,6 +524,7 @@ for PAR in "API_PORT 3333" "PORTA_LANDING 3000" "PORTA_CRM 3001"; do
     DONO_NOSSO=""
     for SVC in jolo-api jolo-landing jolo-crm; do
       systemctl is-active --quiet "$SVC" 2>/dev/null && DONO_NOSSO="sim"
+      [ "$(docker inspect -f '{{.State.Running}}' "$SVC" 2>/dev/null)" = "true" ] && DONO_NOSSO="sim"
     done
     if [ -z "$DONO_NOSSO" ]; then
       NOVA="$(porta_livre $((VALOR + 10000)))"
@@ -627,29 +628,28 @@ else
 fi
 
 # ------------------------------------------------------------
-passo "9/10 Servicos que sobem junto com o servidor"
+passo "9/10 Containers que sobem junto com o servidor"
 
-NODE_BIN="$(command -v node)"
-PNPM_BIN="$(command -v pnpm)"
-criar_servico jolo-api     "Jolo Franquias - API"     "${APP}/apps/api"  "${NODE_BIN} dist/main.js"
-criar_servico jolo-workers "Jolo Franquias - workers" "${APP}/workers"   "${NODE_BIN} dist/main.js"
-# o Next reclama de NODE_ENV fora do padrao; para ele e sempre production
-# -H 127.0.0.1: quem atende a internet e o nginx, nao o Next direto
-criar_servico jolo-landing "Jolo Franquias - landing" "${APP}/apps/landing" \
-  "${PNPM_BIN} exec next start -p ${PORTA_LANDING} -H 127.0.0.1" "Environment=NODE_ENV=production"
-criar_servico jolo-crm     "Jolo Franquias - CRM"     "${APP}/apps/crm" \
-  "${PNPM_BIN} exec next start -p ${PORTA_CRM} -H 127.0.0.1" "Environment=NODE_ENV=production"
-systemctl daemon-reload
-systemctl enable jolo-api jolo-workers jolo-landing jolo-crm >/dev/null
-# RESTART, nao so "start": servico que ja estava rodando seguiria com a
+# Cada sistema roda no seu container (infra/docker/docker-compose.sistemas.yml).
+# A instalacao antiga usava servicos do systemd: se ainda estiverem ligados,
+# saem (as unidades ficam no disco, para voltar se for preciso).
+for s in jolo-api jolo-workers jolo-landing jolo-crm; do
+  if systemctl is-enabled --quiet "$s" 2>/dev/null || systemctl is-active --quiet "$s" 2>/dev/null; then
+    systemctl disable --now "$s" >/dev/null 2>&1 || true
+    echo "    ${s}: servico antigo do systemd desligado"
+  fi
+done
+SISTEMAS="docker compose -f ${APP}/infra/docker/docker-compose.sistemas.yml -p jolo-sistemas"
+$SISTEMAS build -q jolo-api
+# RECRIAR, nao so "start": container que ja estava rodando seguiria com a
 # versao velha na memoria, apontando para arquivos que a compilacao nova
 # ja trocou - a tela abria sem o visual (29/09/2026).
-systemctl restart jolo-api jolo-workers jolo-landing jolo-crm
+$SISTEMAS up -d --no-deps --force-recreate jolo-api jolo-workers jolo-landing jolo-crm
 sleep 8
 for s in jolo-api jolo-workers jolo-landing jolo-crm; do
-  systemctl is-active --quiet "$s" \
+  [ "$(docker inspect -f '{{.State.Running}} {{.RestartCount}}' "$s" 2>/dev/null)" = "true 0" ] \
     && echo "    ${s}: rodando" \
-    || { journalctl -u "$s" -n 30 --no-pager; erro "${s} nao subiu (registro acima)."; }
+    || { docker logs --tail 30 "$s"; erro "${s} nao subiu (registro acima)."; }
 done
 curl -fsS --max-time 10 "http://127.0.0.1:${API_PORT:-3333}/health" >/dev/null \
   && echo "    /health respondeu" \
@@ -723,14 +723,14 @@ Instalado.
   Endereco:   ${ENDERECO_FINAL}
   Codigo:     ${APP}
   Config:     ${ENV_ARQ}  (somente root, 600 - nao abra em publico)
-  Servicos:   systemctl status jolo-api jolo-workers jolo-landing jolo-crm
-  Registro:   journalctl -u jolo-api -f
+  Sistemas:   docker ps   (jolo-landing, jolo-crm, jolo-api, jolo-workers)
+  Registro:   docker logs -f jolo-api
   Backup:     automatico, todo dia (ls -lh /var/backups/jolo)
   1o acesso:  bash ${APP}/scripts/link-de-acesso.sh  (link de uso unico para o administrador criar a senha)
 
 Falta ligar o WhatsApp: as linhas [OPERADOR] do .env (token e segredo
 da Meta). Depois de preencher, trocar NODE_ENV=staging por
 NODE_ENV=production e reiniciar:
-  systemctl restart jolo-api jolo-workers
+  docker restart jolo-api jolo-workers
 ============================================================
 FIM

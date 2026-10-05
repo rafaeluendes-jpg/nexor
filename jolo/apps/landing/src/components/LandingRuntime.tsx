@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { captureAttribution } from '@jolo/attribution';
 
 /**
  * Comportamentos da pagina aprovada, no mesmo formato do original:
@@ -9,6 +10,14 @@ import { useEffect } from 'react';
  */
 export function LandingRuntime() {
   useEffect(() => {
+    // A origem e guardada na chegada, nao so no clique: quem veio do anuncio,
+    // saiu e voltou depois direto continua com o credito do anuncio.
+    try {
+      captureAttribution();
+    } catch {
+      /* origem nunca derruba a pagina */
+    }
+
     const nav = document.getElementById('nav');
     const aoRolar = () => nav?.classList.toggle('scrolled', window.scrollY > 40);
     aoRolar();

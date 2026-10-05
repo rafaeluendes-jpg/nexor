@@ -18,6 +18,7 @@ import { FinalCta } from '../components/FinalCta';
 import { Footer } from '../components/Footer';
 import { FloatingWhatsApp } from '../components/FloatingWhatsApp';
 import { LandingRuntime } from '../components/LandingRuntime';
+import { Consentimento } from '../components/Consentimento';
 
 /** Mesma ordem de secoes da pagina aprovada. Nao reordenar sem pedido do Rafael. */
 export default function Page() {
@@ -45,6 +46,7 @@ export default function Page() {
       <Footer />
       <FloatingWhatsApp />
       <LandingRuntime />
+      <Consentimento />
     </>
   );
 }

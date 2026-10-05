@@ -10,7 +10,8 @@ const CTAS = [
   'Fale com o dono',
   'Quero entender o investimento',
   'Fale com o dono no WhatsApp',
-  'W',
+  // o flutuante mostra o simbolo do WhatsApp (desenho, sem texto)
+  '',
 ];
 
 test.describe('landing aprovada', () => {
@@ -87,7 +88,14 @@ test.describe('landing aprovada', () => {
 
   test('o botao flutuante tem nome acessivel', async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
-    // e o unico CTA sem texto legivel: sem rotulo, leitor de tela le so "W"
+    // e o unico CTA sem texto: sem rotulo, leitor de tela nao le nada
     await expect(page.getByLabel('Fale com o dono no WhatsApp')).toHaveCount(1);
+  });
+
+  test('o botao flutuante mostra o simbolo do WhatsApp, nao uma letra', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
+    const flutuante = page.getByLabel('Fale com o dono no WhatsApp');
+    await expect(flutuante.locator('svg path')).toHaveCount(1);
+    expect((await flutuante.textContent())?.trim()).toBe('');
   });
 });

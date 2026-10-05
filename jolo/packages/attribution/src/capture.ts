@@ -40,6 +40,49 @@ function hasTouch(t: TouchData): boolean {
   return Boolean(t.source || t.medium || t.campaign || t.content || t.term);
 }
 
+/** Sites conhecidos: o dominio de quem mandou o visitante vira a origem. */
+const REFERENCIAS: Array<[RegExp, string, string]> = [
+  [/(^|\.)instagram\.com$/, 'instagram', 'social'],
+  [/(^|\.)(facebook\.com|fb\.com|fb\.me|messenger\.com)$/, 'facebook', 'social'],
+  [/(^|\.)google\.[a-z.]+$/, 'google', 'organic'],
+  [/(^|\.)bing\.com$/, 'bing', 'organic'],
+  [/(^|\.)(yahoo\.com|search\.yahoo\.com)$/, 'yahoo', 'organic'],
+  [/(^|\.)duckduckgo\.com$/, 'duckduckgo', 'organic'],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, 'youtube', 'social'],
+  [/(^|\.)tiktok\.com$/, 'tiktok', 'social'],
+  [/(^|\.)linkedin\.com$|(^|\.)lnkd\.in$/, 'linkedin', 'social'],
+  [/(^|\.)(t\.co|twitter\.com|x\.com)$/, 'x', 'social'],
+  [/(^|\.)(whatsapp\.com|wa\.me)$/, 'whatsapp', 'social'],
+];
+
+/**
+ * Quem chega sem utm_ (link da bio, busca no Google, anuncio sem etiqueta)
+ * ainda tem origem: o identificador de clique do anuncio ou o site anterior.
+ * So vale quando nao ha utm_: etiqueta escrita a mao sempre manda.
+ */
+function inferTouch(params: URLSearchParams, referrer: string, origin: string, at: string): TouchData {
+  if (params.get('gclid') || params.get('gbraid') || params.get('wbraid')) {
+    return { source: 'google', medium: 'cpc', at };
+  }
+  if (params.get('msclkid')) return { source: 'bing', medium: 'cpc', at };
+  if (params.get('ttclid')) return { source: 'tiktok', medium: 'cpc', at };
+
+  let host = '';
+  try {
+    const ref = new URL(referrer);
+    if (ref.origin !== origin) host = ref.hostname.toLowerCase();
+  } catch {
+    host = '';
+  }
+  if (!host) {
+    // fbclid sem site anterior: clique num link do Facebook/Instagram.
+    return params.get('fbclid') ? { source: 'facebook', medium: 'social', at } : { at };
+  }
+  const conhecido = REFERENCIAS.find(([re]) => re.test(host));
+  if (conhecido) return { source: conhecido[1], medium: conhecido[2], at };
+  return { source: host.replace(/^www\./, ''), medium: 'referral', at };
+}
+
 function randomId(): string {
   const bytes = new Uint8Array(16);
   (globalThis.crypto ?? ({} as Crypto)).getRandomValues?.(bytes);
@@ -52,7 +95,10 @@ function randomId(): string {
  */
 export function captureAttribution(win: Window = window): StoredAttribution {
   const agora = new Date().toISOString();
-  const atual = readParams(win.location.search);
+  const etiquetado = readParams(win.location.search);
+  const atual = hasTouch(etiquetado)
+    ? etiquetado
+    : inferTouch(new URLSearchParams(win.location.search), win.document.referrer, win.location.origin, agora);
   let stored: StoredAttribution | null = null;
 
   try {
@@ -69,7 +115,9 @@ export function captureAttribution(win: Window = window): StoredAttribution {
   const dados: StoredAttribution = stored
     ? {
         ...stored,
-        // first-touch preservado; last-touch so muda quando ha nova origem
+        // first-touch preservado; last-touch so muda quando ha nova origem.
+        // Visita direta nao e origem: a primeira origem de verdade ocupa o lugar dela.
+        first: hasTouch(stored.first) || !hasTouch(atual) ? stored.first : atual,
         last: hasTouch(atual) ? atual : stored.last,
         fbclid,
         gclid,

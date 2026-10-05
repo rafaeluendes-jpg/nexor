@@ -72,4 +72,41 @@ describe('atribuicao de origem', () => {
     // o worker le exatamente este formato para casar o lead com a campanha
     expect(/\[ref:\s*(jl_[a-z0-9]+)\s*\]/i.exec(sufixo)?.[1]).toBe(dados.trackingId);
   });
+  describe('origem sem utm_ (link da bio, busca, anuncio sem etiqueta)', () => {
+    const casos: Array<[string, string, string | undefined, string | undefined]> = [
+      ['https://jologelato.com.br/?gclid=AB1', '', 'google', 'cpc'],
+      ['https://jologelato.com.br/?gbraid=AB1', 'https://www.google.com/', 'google', 'cpc'],
+      ['https://jologelato.com.br/', 'https://www.google.com.br/', 'google', 'organic'],
+      ['https://jologelato.com.br/?fbclid=X', 'https://l.instagram.com/', 'instagram', 'social'],
+      ['https://jologelato.com.br/?fbclid=X', 'https://lm.facebook.com/', 'facebook', 'social'],
+      ['https://jologelato.com.br/?fbclid=X', '', 'facebook', 'social'],
+      ['https://jologelato.com.br/?ttclid=X', '', 'tiktok', 'cpc'],
+      ['https://jologelato.com.br/', 'https://www.portaldofranchising.com.br/lista', 'portaldofranchising.com.br', 'referral'],
+      ['https://jologelato.com.br/', '', undefined, undefined],
+      ['https://jologelato.com.br/', 'https://jologelato.com.br/termos', undefined, undefined],
+    ];
+    for (const [url, referrer, fonte, meio] of casos) {
+      it(`${url} vindo de "${referrer || 'nenhum site'}" -> ${fonte ?? 'direto'}`, () => {
+        const dados = captureAttribution(janela(url, new Map(), referrer));
+        expect(dados.first.source).toBe(fonte);
+        expect(dados.first.medium).toBe(meio);
+      });
+    }
+
+    it('utm_ escrito a mao sempre vence a origem deduzida', () => {
+      const dados = captureAttribution(
+        janela('https://jologelato.com.br/?utm_source=parceiro&gclid=AB1', new Map(), 'https://www.google.com/'),
+      );
+      expect(dados.first.source).toBe('parceiro');
+      expect(dados.first.medium).toBeUndefined();
+    });
+
+    it('primeira visita direta nao tira o credito do anuncio que veio depois', () => {
+      const storage = new Map<string, string>();
+      captureAttribution(janela('https://jologelato.com.br/', storage));
+      const depois = captureAttribution(janela('https://jologelato.com.br/', storage, 'https://l.instagram.com/'));
+      expect(depois.first.source).toBe('instagram');
+      expect(toPayload(depois).utmSource).toBe('instagram');
+    });
+  });
 });
