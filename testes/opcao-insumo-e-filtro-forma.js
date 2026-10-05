@@ -64,7 +64,7 @@ function t(nome, ok, det) {
   t('e desce de volta (insumo traduzido depois que os insumos chegam)',
     /_insumoUid:o\.insumo_id\|\|'',insumoQtd:Number\(o\.insumo_qtd\)\|\|0,insumoUn:o\.insumo_un\|\|''/.test(src) &&
     /op\.insumoId=mapaIns\[uid\]\|\|_opInsAntes\[op\.id\]\|\|op\.insumoId\|\|'';/.test(src));
-  t('o caixa leva o insumo junto da escolha', /insumoId:o\.insumoId\|\|'',insumoQtd:Number\(o\.insumoQtd\)\|\|0,insumoUn:o\.insumoUn\|\|''\}\);/.test(src));
+  t('o caixa leva o insumo junto da escolha', /if\(o\.insumoId\)Object\.assign\(esc\[esc\.length-1\],\{insumoId:o\.insumoId,insumoQtd:Number\(o\.insumoQtd\)\|\|0,insumoUn:o\.insumoUn\|\|''\}\);/.test(src));
   DB.grupos[0].opcoes = [Object.assign({}, o)];
   console.log('\n── 2. A venda baixa o insumo\n');
   DB.movEst = []; DB.produtos = [];

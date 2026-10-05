@@ -693,9 +693,9 @@ function modalOpcoes(p,grupos){
          Agora vai o identificador, que nao depende de como cada uma foi
          escrita. O plano B fica para as comandas antigas.
          ========================================================== */
-      esc.push({grupo:g.id,nome:o.nome,preco:o.preco,fichaId:o.fichaId||'',
-        /* ou o insumo direto, com a quantidade por opção (05/10/2026) */
-        insumoId:o.insumoId||'',insumoQtd:Number(o.insumoQtd)||0,insumoUn:o.insumoUn||''});
+      esc.push({grupo:g.id,nome:o.nome,preco:o.preco,fichaId:o.fichaId||''});
+      /* ou o insumo direto, com a quantidade por opção (05/10/2026) */
+      if(o.insumoId)Object.assign(esc[esc.length-1],{insumoId:o.insumoId,insumoQtd:Number(o.insumoQtd)||0,insumoUn:o.insumoUn||''});
     }
     for(var k=0;k<grupos.length;k++){
       var G=grupos[k];
