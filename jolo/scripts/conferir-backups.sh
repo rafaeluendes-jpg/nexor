@@ -20,6 +20,7 @@ abre_dump() { # prova que o .dump abre, sem restaurar
     docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null | grep -q true || continue
     docker exec -i "$c" pg_restore -l < "$f" >/dev/null 2>&1 && { echo sim; return; }
   done
+  command -v pg_restore >/dev/null && pg_restore -l "$f" >/dev/null 2>&1 && { echo sim; return; }
   echo NAO
 }
 linha() { printf '%-24s | %-17s | %-8s | %-6s | %s\n' "$@"; }
@@ -67,6 +68,8 @@ if [ -n "$P" ]; then
     [ "$OK" = NAO ] && PROBLEMAS=$((PROBLEMAS + 1))
     linha "$(basename "$F" | sed 's/\..*//')" "$(date -r "$F" '+%d/%m %H:%M')" "$(du -h "$F" | cut -f1)" "$OK" "$(idade "$F")"
   done
+  [ -e "$P/gestao-arquivos.tar.gz" ] && [ ! -e "$P/gestao-banco.dump" ] \
+    && { linha "gestao-banco" "FALTANDO" "-" "-" "-"; PROBLEMAS=$((PROBLEMAS + 1)); }
 else linha "demais sistemas" "NENHUMA" "-" "-" "-"; PROBLEMAS=$((PROBLEMAS + 1)); fi
 
 echo

@@ -45,6 +45,10 @@ fi
 if docker inspect -f '{{.State.Running}}' gestao-postgres 2>/dev/null | grep -q true; then
   docker exec gestao-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$PASTA/gestao-banco.dump"
   docker exec -i gestao-postgres pg_restore -l < "$PASTA/gestao-banco.dump" > /dev/null
+elif systemctl is-active -q postgresql && sudo -u postgres psql -Atc 'select 1' -d jolo_gestao >/dev/null 2>&1; then
+  # ainda no Postgres instalado na maquina (antes da mudanca para container)
+  sudo -u postgres pg_dump -Fc -d jolo_gestao > "$PASTA/gestao-banco.dump"
+  sudo -u postgres pg_restore -l "$PASTA/gestao-banco.dump" > /dev/null
 fi
 [[ -d /var/www/jolo-gestao ]] && tar -C /var/www -czf "$PASTA/gestao-arquivos.tar.gz" \
   --exclude='jolo-gestao/node_modules' --exclude='jolo-gestao/.next/cache' jolo-gestao

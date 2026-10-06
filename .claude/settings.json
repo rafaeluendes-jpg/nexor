@@ -6,7 +6,8 @@
       "Bash(cd /opt/jolo && git pull)",
       "Bash(bash /opt/jolo/jolo/scripts/bloquear-senha-padrao.sh)",
       "Bash(bash /opt/jolo/jolo/scripts/link-de-acesso.sh)",
-      "Bash(bash /opt/jolo/jolo/scripts/conferir-backups.sh)"
+      "Bash(bash /opt/jolo/jolo/scripts/conferir-backups.sh)",
+      "Bash(bash /opt/jolo/jolo/scripts/backup-sistemas.sh)"
     ]
   }
 }
