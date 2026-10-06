@@ -79,6 +79,22 @@ t('trava dos guardiões (ferramentas/travar.js)', runs.some(r => /ferramentas\/t
 t('conferir-nuvem (ferramentas/conferir-nuvem.js)', runs.some(r => /ferramentas\/conferir-nuvem\.js/.test(r)));
 t('instala as ferramentas da bateria (npm ci)', runs.some(r => /^npm ci\b/.test(r)));
 
+/* 06/10/2026: com node-version '20' o jsdom da bateria nem carrega
+   (webidl.util.markAsUncloneable), e a trava bloquearia TODA publicação.
+   A versão mínima sai do package-lock — o que o npm ci vai instalar. */
+const nv = /node-version:\s*'?(\d+)/.exec((J.bateria && J.bateria.texto) || '');
+let minimo = 0;
+try {
+  const lock = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package-lock.json'), 'utf8'));
+  Object.keys(lock.packages || {}).forEach(k => {
+    const e = ((lock.packages[k] || {}).engines || {}).node;
+    if (!/node_modules\/(jsdom|undici)$/.test(k) || !e) return;
+    const m = /(\d+)/.exec(e); if (m && +m[1] > minimo) minimo = +m[1];
+  });
+} catch (e) { /* sem lock: vira falha abaixo */ }
+t('o Node da bateria atende ao que o jsdom/undici exigem (Node ' + minimo + '+)',
+  !!nv && minimo > 0 && +nv[1] >= minimo, (nv ? nv[1] : 'sem node-version') + ' × ' + minimo);
+
 grupo('4. Nada é dispensado');
 t('nenhum passo da bateria com continue-on-error', !!(J.bateria && !J.bateria.ignora));
 t('nenhum `|| true` escondendo reprovação na bateria', !runs.some(r => /\|\|\s*true/.test(r)));

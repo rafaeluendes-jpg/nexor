@@ -522,7 +522,7 @@
    "roda": true
   },
   "testes/publicacao-espera-a-bateria.js": {
-   "pontos": 12,
+   "pontos": 13,
    "roda": true
   },
   "testes/recebimentos-dinheiro-vendido.js": {

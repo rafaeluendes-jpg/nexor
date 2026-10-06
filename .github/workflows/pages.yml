@@ -40,7 +40,8 @@ jobs:
       - name: Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # o jsdom da bateria exige Node 22.22+ (com o 20 ele nem carrega)
+          node-version: '22'
 
       - name: Ferramentas da bateria
         run: npm ci --no-audit --no-fund
