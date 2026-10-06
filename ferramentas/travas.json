@@ -137,6 +137,10 @@
    "pontos": 9,
    "roda": true
   },
+  "testes/cerca-do-pedido.js": {
+   "pontos": 10,
+   "roda": true
+  },
   "testes/compra-sem-vinculo.js": {
    "pontos": 63,
    "roda": true
@@ -234,7 +238,7 @@
    "roda": true
   },
   "testes/exclusao-vale.js": {
-   "pontos": 19,
+   "pontos": 21,
    "roda": true
   },
   "testes/extrair.js": {
@@ -405,6 +409,10 @@
    "pontos": 33,
    "roda": true
   },
+  "testes/mao-unica-e-cadastro-da-rede.js": {
+   "pontos": 17,
+   "roda": true
+  },
   "testes/montagem.js": {
    "pontos": 0,
    "roda": true
@@ -414,7 +422,7 @@
    "roda": true
   },
   "testes/motor-respeita-a-versao.js": {
-   "pontos": 43,
+   "pontos": 46,
    "roda": true
   },
   "testes/movimentacao-nao-se-apaga.js": {
@@ -677,6 +685,10 @@
    "pontos": 21,
    "roda": true
   },
+  "testes/vigia-dos-dados.js": {
+   "pontos": 31,
+   "roda": true
+  },
   "testes/vinculo-opcao.js": {
    "pontos": 28,
    "roda": true
@@ -697,7 +709,8 @@
   "Auditoria visual — computador e celular, no Chromium",
   "Provas — os fluxos da loja, no Chromium",
   "Persistência — a configuração sobrevive a tudo",
-  "Trava das correções — nenhum guardião apagado, desligado ou enfraquecido"
+  "Trava das correções — nenhum guardião apagado, desligado ou enfraquecido",
+  "Cerca do pedido — só mudou o que o pedido declarou (CERCA.json)"
  ],
  "liberacoes": []
 }

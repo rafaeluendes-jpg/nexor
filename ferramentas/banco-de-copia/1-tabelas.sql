@@ -65,3 +65,17 @@ create table public.transferencias (id uuid default gen_random_uuid() not null, 
 create table public.turnos (id uuid default gen_random_uuid() not null, loja_id uuid not null, ref_local text, nome text not null, hora_inicio text, hora_fim text, ativo boolean default true, ordem integer default 0, criado_em timestamp with time zone default now(), sucursais jsonb default '[]'::jsonb not null, alterado_em timestamp with time zone);
 create table public.unidades_medida (id uuid default uuid_generate_v4() not null, loja_id uuid, nome text not null, sigla text, base text, fator numeric(12,4) default 1, ref_local text, sucursais jsonb default '[]'::jsonb not null, alterado_em timestamp with time zone);
 create table public.usuarios_sistema (id uuid default gen_random_uuid() not null, loja_id uuid, ref_local text, nome text, login text, senha text, ativo boolean default true, tudo boolean default false, mestre boolean default false, sucursais jsonb default '[]'::jsonb, permissoes jsonb default '{}'::jsonb, criado_em timestamp with time zone default now(), excluido_em timestamp with time zone, excluido_por text, senha_caixa text, login_app text, alterado_em timestamp with time zone);
+
+-- a caixinha de erros (Central de Erros), como está na produção em 06/10/2026
+CREATE TABLE public.erros_sistema (
+  id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+  loja_id uuid, sucursal_ref text, aparelho text, usuario text, versao text,
+  tipo text, onde text, mensagem text, detalhe jsonb, pedido_ref text, chave text,
+  vezes integer DEFAULT 1, primeiro_em timestamp with time zone DEFAULT now(),
+  ultimo_em timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'aberto'::text
+    CONSTRAINT erros_sistema_status_check CHECK ((status = ANY (ARRAY['aberto'::text, 'corrigindo'::text, 'resolvido'::text, 'precisa_voce'::text]))),
+  resolucao text, resolvido_em timestamp with time zone, resolvido_por text
+);
+CREATE INDEX erros_sistema_loja_status ON public.erros_sistema USING btree (loja_id, status, ultimo_em DESC);
+CREATE INDEX erros_sistema_chave ON public.erros_sistema USING btree (loja_id, chave);

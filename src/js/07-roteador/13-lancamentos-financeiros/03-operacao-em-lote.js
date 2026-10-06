@@ -368,6 +368,7 @@ async function desfazerLote(id){
     ls.forEach(function(l){
       var it=(lt.itens||[]).find(function(x){return x.id===l.id});
       var a=(it&&it.antes)||{};
+      marcarDesfazer(l,'Lote '+lt.numero+' desfeito: '+mot);
       l.pago=!!a.pago;l.pagamento=a.pagamento||'';l.contaId=a.contaId||'';l.metodoId=a.metodoId||'';
       if(a.valor!==undefined)l.valor=Number(a.valor)||0;
       l.juros=Number(a.juros)||0;l.multa=Number(a.multa)||0;

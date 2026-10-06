@@ -1,0 +1,24 @@
+{
+  "pedido": "Missão integridade, fases 2 a 5: o banco vira juiz em todas as tabelas, o que anda para frente não volta, a loja não grava o cadastro da rede, e a cerca do pedido no portão",
+  "arquivos": [
+    "src/js/03-armazenamento/*",
+    "src/js/06-interface.js",
+    "src/js/07-roteador/09-modulo-pdv/01-liberacao-e-mais-3.js",
+    "src/js/07-roteador/13-lancamentos-financeiros/*",
+    "src/js/07-roteador/15-conciliacao-bancaria.js",
+    "src/js/07-roteador/20-base-do-estoque-unidades-grupos-insumos.js",
+    "src/js/07-roteador/21-ficha-tecnica.js",
+    "src/js/07-roteador/22-movimentacao-de-estoque/01-baixa-hub-e-mais-6.js",
+    "src/js/07-roteador/28-relatorios/04-status-vendas-e-mais-6.js",
+    "src/js/07-roteador/29-vigia.js",
+    "sw.js",
+    "package.json",
+    "package-lock.json",
+    "supabase/migrations/20261006_*",
+    "ferramentas/**"
+  ],
+  "tabelas": [
+    "*"
+  ],
+  "mexe_no_motor": true
+}

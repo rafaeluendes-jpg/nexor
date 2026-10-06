@@ -63,6 +63,48 @@ as unidades com `fiscal_unidades.modo='sempre'` e `ambiente='producao'`.
 **f) Bateria.** Rode `npm test` no repositório. Vermelho na `main` é erro
 de primeira prioridade.
 
+**g) Dados que voltaram sozinhos (Missão integridade, fase 4).** O
+estrago que mais custou não dá erro nenhum: fica só no `audit_log`. Uma
+consulta acusa e já põe na Central de Erros, como "precisa de você", com
+o quê, qual loja, qual aparelho e quando (a matriz decide lá, no botão
+"Devolver como estava"):
+
+```sql
+select vigia_registrar_dados(now() - interval '70 minutes');   -- quantos achados novos
+select tipo, tabela, ref_local, sucursal, aparelho, usuario_email,
+       quando at time zone 'America/Sao_Paulo' quando, resumo
+  from vigia_dos_dados(now() - interval '70 minutes');
+```
+
+Os tipos: `mao_unica` (pago, conciliado, baixa lançada… voltou sem
+desfazer pela tela), `voltou` (campo que um aparelho devolveu ao valor
+anterior — a régua, `ferramentas/regua.sql`), `loja` (ficha, ingrediente,
+insumo, grupo ou liberação mudados por login de loja), `rajada` (muitas
+linhas no mesmo minuto pelo mesmo aparelho) e `exclusao` (exclusão em
+massa). Achado de dado NUNCA é corrigido pelo vigia: quem devolve é a
+matriz, pela tela. O vigia avisa o Rafael (seção 5) quando houver achado.
+
+Fila de conflitos (a lei de versão recusou ou anotou):
+
+```sql
+select tabela, operacao, situacao, count(*), max(ultimo_em) at time zone 'America/Sao_Paulo'
+  from conflitos_sincronizacao where situacao in ('aberto','observado') group by 1,2,3 order by 4 desc;
+```
+
+**h) Fotografia depois de cada publicação.** Se saiu versão nova há mais
+de uma hora e ainda não há a fotografia "depois" dela:
+
+```sql
+select versao, momento, quando from fotografias_dados order by quando desc limit 4;
+select fotografar_dados('<versão>', 'depois');
+select * from fotografia_diferencas('<versão>');   -- vazio = nada das lojas mudou
+```
+
+Diferença em contas pagas, conciliações, caixas fechados, fichas,
+ingredientes, insumos ou liberação de alguma loja vai para a Central de
+Erros como "precisa de você", com a lista do que mudou. (A fotografia
+"antes" é tirada por quem publica, antes de empurrar para a `main`.)
+
 ## 2. Decidir
 
 Para cada erro, ache a **causa**, não o sintoma. Leia o código em `src/`
@@ -119,7 +161,10 @@ Esses casos vão para `status='precisa_voce'`, com o passo a passo na
 - mudar configuração da loja: taxas, contas, preços, liberação, cadastro
   fiscal;
 - apagar venda, caixa, lançamento ou cupom;
-- migration, ou SQL de escrita fora da tabela `erros_sistema`;
+- migration, ou SQL de escrita fora da tabela `erros_sistema` (as
+  únicas exceções são `vigia_registrar_dados`, que só escreve na
+  caixinha, e `fotografar_dados`, que só guarda a fotografia);
+- devolver dado: quem devolve é a matriz, pelo botão da Central de Erros;
 - regra de negócio nova ou recurso novo;
 - publicar com qualquer etapa do portão vermelha;
 - enfraquecer ou desligar guardião.

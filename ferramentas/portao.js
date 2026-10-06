@@ -25,6 +25,8 @@ const ETAPAS = [
     cmd: 'npm', args: ['run', 'montar'], mudo: true },
   { n: 'Trava das correções — nenhum guardião apagado, desligado ou enfraquecido',
     cmd: 'node', args: ['ferramentas/travar.js'] },
+  { n: 'Cerca do pedido — só mudou o que o pedido declarou (CERCA.json)',
+    cmd: 'node', args: ['ferramentas/cerca.js'] },
   { n: 'Vistoria — o código chama só o que existe (nada novo aponta pro vazio)',
     cmd: 'node', args: ['ferramentas/vistoriar.js'] },
   { n: 'Estrutura e versão — VERSAO e VERSAO_SW sobem juntas',

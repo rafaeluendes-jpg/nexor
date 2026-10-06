@@ -381,6 +381,7 @@ async function desconciliar(id){
   l.desconc.push({de:l.dataConc||'',em:new Date().toISOString(),
     por:(quem&&quem.nome)||'',porId:(quem&&quem.id)||'',
     motivo:motivo,dias:dias,foraDoPrazo:fora});
+  marcarDesfazer(l,'Desconciliou: '+motivo);
   l.conciliado=false;l.dataConc='';
   salvar();telaConciliacao();
   toast('Movimento desconciliado'+(fora?' FORA DO PRAZO':'')+' — registrado.');

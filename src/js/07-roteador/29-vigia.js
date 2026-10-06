@@ -204,7 +204,8 @@ function telaCentralErros(){
         '<td style="font-variant-numeric:tabular-nums">'+E(String(x.vezes||1))+'</td>'+
         '<td><span class="ceSit '+E(x.status)+'">'+E(CE_SITUACAO[x.status]||x.status)+'</span></td>'+
         '<td>'+(x.status!=='resolvido'
-          ?'<button class="btnP2" onclick="resolverErro(\''+E(x.id)+'\')">Resolvido</button>':'')+'</td>'+
+          ?(podeDevolver(x)?'<button class="btnP2" style="margin-bottom:6px" onclick="devolverComoEstava(\''+E(x.id)+'\')">Devolver como estava</button>':'')+
+           '<button class="btnP2" onclick="resolverErro(\''+E(x.id)+'\')">Resolvido</button>':'')+'</td>'+
        '</tr>';
      }).join('')+'</tbody></table></div>';
   }
@@ -221,6 +222,46 @@ function telaCentralErros(){
     }).join('')+'</div></div>'+
    corpo+'</div></div>';
   rodape(vis.length+' de '+l.length+' registro(s)');
+}
+/* ==========================================================
+   DEVOLVER COMO ESTAVA (Missão integridade, fase 4 — 06/10/2026)
+
+   O vigia acusa aqui o dado que voltou sozinho, o estado que andou para
+   trás sem desfazer e o cadastro da rede mexido por login de loja. A
+   matriz decide: devolver põe de volta o "antes" da auditoria — só se a
+   linha não mudou de novo desde então — e a devolução fica registrada
+   com o motivo (devolver_como_estava, 20261006_vigia_dos_dados).
+   ========================================================== */
+function podeDevolver(x){
+  var d=x&&x.detalhe;
+  return !!(x&&x.tipo==='dado'&&d&&d.audit_id&&['mao_unica','voltou','loja'].indexOf(d.achado)>=0);
+}
+async function devolverComoEstava(id){
+  var x=(CE.lista||[]).find(function(e){return e.id===id});
+  if(!x||!podeDevolver(x))return;
+  var r=await confirmar({titulo:'Devolver como estava',texto:x.mensagem||'',
+    campo:{id:'dvMotivo',rotulo:'Por que está devolvendo? *',dica:'ex.: a loja não edita o cadastro da rede · voltou sozinho'},
+    aviso:'O que está na nuvem volta a ser o que era antes desta mudança. Fica registrado quem devolveu, quando e por quê.',
+    ok:'Devolver'});
+  if(!r)return;
+  var motivo=String(window._cfCampo||'').trim();
+  if(!motivo){toast('Diga por que está devolvendo.');return;}
+  var quem=((NUVEM&&NUVEM.perfil)||{}).nome||'matriz';
+  try{
+    await api('rpc/devolver_como_estava','POST',{p_audit_id:x.detalhe.audit_id,p_motivo:motivo});
+  }catch(e){
+    painelErro('Não foi devolvido.',detalheErro(e));
+    return;
+  }
+  var res='Devolvido como estava por '+quem+': '+motivo;
+  try{
+    await api('erros_sistema?id=eq.'+encodeURIComponent(id),'PATCH',
+      {status:'resolvido',resolvido_em:new Date().toISOString(),resolvido_por:quem,resolucao:res},{'Prefer':'return=minimal'});
+  }catch(e2){ _quieto(e2,'devolverComoEstava'); }
+  x.status='resolvido';x.resolucao=res;
+  toast('Devolvido como estava.');
+  if(NUVEM.ligada)sincronizar();
+  telaCentralErros();
 }
 async function resolverErro(id){
   var x=(CE.lista||[]).find(function(e){return e.id===id});

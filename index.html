@@ -10315,6 +10315,23 @@ function avisoListaIncompleta(col,oQue){
     '<b>Não cadastre de novo</b>: tente de novo em Sincronização — o que está '+
     'guardado volta sozinho.</div></div>';
 }
+/* o motivo do desfazer, com quem e quando: cada desfazer é um texto novo,
+   e é isso que o banco confere (tg_mao_unica) */
+function marcarDesfazer(x,motivo){
+  if(!x)return;
+  var q=null; try{ q=usuarioLogado(); }catch(e){ q=null; }
+  x._desfazer=String(motivo||'').trim()+' — '+((q&&q.nome)||'sem usuário')+', '+new Date().toISOString();
+}
+/* pergunta o porquê de um desfazer; devolve o texto, ou '' se desistiu */
+async function motivoDoDesfazer(titulo,dica){
+  var r=await confirmar({titulo:titulo,
+    campo:{id:'dfMotivo',rotulo:'Por que está desfazendo? *',dica:dica||''},
+    aviso:'Fica registrado quem desfez, quando e por quê.',ok:'Desfazer'});
+  if(!r)return '';
+  var m=String(window._cfCampo||'').trim();
+  if(!m){toast('Diga por que está desfazendo.');return '';}
+  return m;
+}
 function declararExclusao(col,id){
   if(!col||!id)return;
   DB._apagados=DB._apagados||{};
@@ -11222,6 +11239,17 @@ async function sincronizar(){
              auditoria mostram (20261006_lei_de_versao_em_todas). */
           o.versao_vista=x._alt||null;
           o.versao_aparelho=idDoAparelho();
+          /* ==========================================================
+             DESFAZER PELA TELA LEVA O MOTIVO (fase 3, 06/10/2026)
+
+             Pago, conciliado, baixa lançada, pagamento estornado… só
+             andam para frente. O banco (20261006_mao_unica_e_cadastro_da_
+             rede) recusa a volta que não traz um motivo NOVO: é assim que
+             ele separa a pessoa que desfez, pela tela, do aparelho que
+             regravou uma cópia antiga. A tela pergunta o porquê e marca a
+             linha (`marcarDesfazer`); o motivo fica na linha e na auditoria.
+             ========================================================== */
+          if(x._desfazer)o.desfazer_motivo=x._desfazer;
           /* a liberação que este aparelho viu por último: o banco só deixa
              trocar quem viu a de hoje (20261002_liberacao_so_muda_quem_viu).
              Aparelho atrasado não devolve a liberação antiga por cima. */
@@ -11319,7 +11347,7 @@ async function sincronizar(){
             var o=_subiu[r.ref_local];
             var x=o?_porId[r.ref_local]:null;
             if(!x)return;
-            if(!recusadaPelaNuvem(E2,o,r)){ x._alt=r.alterado_em||x._alt||null; lembrarVersao(E2.col,x.id,x._alt); return; }
+            if(!recusadaPelaNuvem(E2,o,r)){ x._alt=r.alterado_em||x._alt||null; lembrarVersao(E2.col,x.id,x._alt); delete x._desfazer; return; }
             _recusados[r.ref_local]=true;
             _velhas++;
           });
@@ -11423,6 +11451,8 @@ async function sincronizar(){
               /* o filho também apresenta a versão que viu (06/10/2026) */
               y.versao_vista=o._alt||null;
               y.versao_aparelho=idDoAparelho();
+              /* desfazer pela tela: o motivo vai junto (mão única, fase 3) */
+              if(o._desfazer)y.desfazer_motivo=o._desfazer;
               return y;
             });
             var sf=await enviar(F.tab,lf);
@@ -11437,6 +11467,7 @@ async function sincronizar(){
                 if(!o)return;
                 if(recusadaPelaNuvem(null,null,r)){ _recF++; return; }
                 o._alt=r.alterado_em||o._alt||null;
+                delete o._desfazer;
               });
               if(_recF){
                 NUVEM._rebaixar=true;
@@ -31658,30 +31689,42 @@ function selTodasLF(el){
   for(var i=0;i<c.length;i++)c[i].checked=el.checked;
   atualizaSelecao();
 }
-function togglePago(id){
+async function togglePago(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(!l)return;
   if(l.conciliado){toast('Movimento conciliado. Desconcilie na Conciliação Bancária para alterar.');return;}
   if(noLote(l)){avisoNoLote(l);return;}
-  /* pagar pede banco e forma no meio da tela; despagar e direto */
+  /* pagar pede banco e forma no meio da tela; despagar pede o porquê
+     (06/10/2026: pago só volta a não pago pela tela, com motivo) */
   if(!l.pago){modalPagamento([id]);return;}
+  var mot=await motivoDoDesfazer('Marcar "'+(l.descricao||'lançamento')+'" como não pago',
+    'ex.: marquei por engano · o pagamento não saiu');
+  if(!mot)return;
+  marcarDesfazer(l,'Desmarcou pago: '+mot);
   l.pago=false;l.pagamento='';
   salvar();telaLancamentos();
   toast('Marcado como não pago.');
 }
-function mudarPago(v){
+async function mudarPago(v){
   var c=document.querySelectorAll('.chkLF:checked');
   if(!c.length){toast('Selecione os lançamentos na lista.');return;}
   var ids=[];
   for(var i=0;i<c.length;i++)ids.push(c[i].getAttribute('data-id'));
   if(v){modalPagamento(ids);return;}
-  var n=0,nLote=0;
+  var n=0,nLote=0,alvo=[];
   ids.forEach(function(id){
     var l=DB.lancFin.find(function(x){return x.id===id});
     if(!l||l.conciliado)return;
     if(noLote(l)){nLote++;return;}       /* sai do lote só desfazendo o lote */
-    l.pago=false;l.pagamento='';n++;
+    if(l.pago)alvo.push(l);else n++;
   });
+  /* pago só volta a não pago com motivo (06/10/2026) */
+  if(alvo.length){
+    var mot=await motivoDoDesfazer('Marcar '+alvo.length+' lançamento(s) como não pago',
+      'ex.: marquei por engano · o pagamento não saiu');
+    if(!mot)return;
+    alvo.forEach(function(l){ marcarDesfazer(l,'Desmarcou pago: '+mot); l.pago=false;l.pagamento='';n++; });
+  }
   salvar();telaLancamentos();
   toast(n+' lançamento(s) marcado(s) como não pago.'+
     (nLote?' '+nLote+' de lote ficaram como estão: para mexer neles, desfaça o lote.':''));
@@ -35973,6 +36016,7 @@ async function desfazerLote(id){
     ls.forEach(function(l){
       var it=(lt.itens||[]).find(function(x){return x.id===l.id});
       var a=(it&&it.antes)||{};
+      marcarDesfazer(l,'Lote '+lt.numero+' desfeito: '+mot);
       l.pago=!!a.pago;l.pagamento=a.pagamento||'';l.contaId=a.contaId||'';l.metodoId=a.metodoId||'';
       if(a.valor!==undefined)l.valor=Number(a.valor)||0;
       l.juros=Number(a.juros)||0;l.multa=Number(a.multa)||0;
@@ -36562,6 +36606,7 @@ async function desconciliar(id){
   l.desconc.push({de:l.dataConc||'',em:new Date().toISOString(),
     por:(quem&&quem.nome)||'',porId:(quem&&quem.id)||'',
     motivo:motivo,dias:dias,foraDoPrazo:fora});
+  marcarDesfazer(l,'Desconciliou: '+motivo);
   l.conciliado=false;l.dataConc='';
   salvar();telaConciliacao();
   toast('Movimento desconciliado'+(fora?' FORA DO PRAZO':'')+' — registrado.');
@@ -59115,6 +59160,7 @@ function reporEfeitosDaVenda(p,reg){
   /* o pagamento volta a valer: a venda voltou */
   (p.pagamentos||[]).forEach(function(g){
     if(!g||g.cancelamentoId!==reg.id)return;
+    if(typeof marcarDesfazer==='function')marcarDesfazer(g,'Voltou a venda cancelada'+(reg.desfeitoMotivo?': '+reg.desfeitoMotivo:''));
     g.situacao='recebido';
     delete g.estornadoEm; delete g.estornadoPor; delete g.cancelamentoId;
   });
@@ -64056,7 +64102,8 @@ function telaCentralErros(){
         '<td style="font-variant-numeric:tabular-nums">'+E(String(x.vezes||1))+'</td>'+
         '<td><span class="ceSit '+E(x.status)+'">'+E(CE_SITUACAO[x.status]||x.status)+'</span></td>'+
         '<td>'+(x.status!=='resolvido'
-          ?'<button class="btnP2" onclick="resolverErro(\''+E(x.id)+'\')">Resolvido</button>':'')+'</td>'+
+          ?(podeDevolver(x)?'<button class="btnP2" style="margin-bottom:6px" onclick="devolverComoEstava(\''+E(x.id)+'\')">Devolver como estava</button>':'')+
+           '<button class="btnP2" onclick="resolverErro(\''+E(x.id)+'\')">Resolvido</button>':'')+'</td>'+
        '</tr>';
      }).join('')+'</tbody></table></div>';
   }
@@ -64073,6 +64120,46 @@ function telaCentralErros(){
     }).join('')+'</div></div>'+
    corpo+'</div></div>';
   rodape(vis.length+' de '+l.length+' registro(s)');
+}
+/* ==========================================================
+   DEVOLVER COMO ESTAVA (Missão integridade, fase 4 — 06/10/2026)
+
+   O vigia acusa aqui o dado que voltou sozinho, o estado que andou para
+   trás sem desfazer e o cadastro da rede mexido por login de loja. A
+   matriz decide: devolver põe de volta o "antes" da auditoria — só se a
+   linha não mudou de novo desde então — e a devolução fica registrada
+   com o motivo (devolver_como_estava, 20261006_vigia_dos_dados).
+   ========================================================== */
+function podeDevolver(x){
+  var d=x&&x.detalhe;
+  return !!(x&&x.tipo==='dado'&&d&&d.audit_id&&['mao_unica','voltou','loja'].indexOf(d.achado)>=0);
+}
+async function devolverComoEstava(id){
+  var x=(CE.lista||[]).find(function(e){return e.id===id});
+  if(!x||!podeDevolver(x))return;
+  var r=await confirmar({titulo:'Devolver como estava',texto:x.mensagem||'',
+    campo:{id:'dvMotivo',rotulo:'Por que está devolvendo? *',dica:'ex.: a loja não edita o cadastro da rede · voltou sozinho'},
+    aviso:'O que está na nuvem volta a ser o que era antes desta mudança. Fica registrado quem devolveu, quando e por quê.',
+    ok:'Devolver'});
+  if(!r)return;
+  var motivo=String(window._cfCampo||'').trim();
+  if(!motivo){toast('Diga por que está devolvendo.');return;}
+  var quem=((NUVEM&&NUVEM.perfil)||{}).nome||'matriz';
+  try{
+    await api('rpc/devolver_como_estava','POST',{p_audit_id:x.detalhe.audit_id,p_motivo:motivo});
+  }catch(e){
+    painelErro('Não foi devolvido.',detalheErro(e));
+    return;
+  }
+  var res='Devolvido como estava por '+quem+': '+motivo;
+  try{
+    await api('erros_sistema?id=eq.'+encodeURIComponent(id),'PATCH',
+      {status:'resolvido',resolvido_em:new Date().toISOString(),resolvido_por:quem,resolucao:res},{'Prefer':'return=minimal'});
+  }catch(e2){ _quieto(e2,'devolverComoEstava'); }
+  x.status='resolvido';x.resolucao=res;
+  toast('Devolvido como estava.');
+  if(NUVEM.ligada)sincronizar();
+  telaCentralErros();
 }
 async function resolverErro(id){
   var x=(CE.lista||[]).find(function(e){return e.id===id});

@@ -25,7 +25,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -141,7 +142,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -180,7 +182,8 @@
     "ref_local": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -323,7 +326,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -337,6 +341,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "zz_carimbar_alteracao"
@@ -360,7 +365,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -386,6 +392,18 @@
     "exclusao": "observar"
    }
   },
+  "cadastro_da_rede": {
+   "colunas": {
+    "tabela": "text",
+    "modo": "text",
+    "desde": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "tabela"
+    ]
+   ]
+  },
   "caixa_movimentos": {
    "colunas": {
     "id": "uuid",
@@ -405,7 +423,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -458,7 +477,8 @@
     "conciliado": "boolean",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -477,6 +497,7 @@
     "ab_exclusao_vista",
     "ab_fechamento_nao_se_apaga",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "trg_versao_caixas",
@@ -509,7 +530,8 @@
     "estoque_voltou": "boolean",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -566,7 +588,8 @@
     "tempos_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -611,7 +634,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -646,7 +670,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -713,7 +738,8 @@
     "enderecos": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -767,7 +793,8 @@
     "nome_fantasia": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -810,7 +837,8 @@
     "itens": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -851,7 +879,8 @@
     "cfg_totem": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -883,7 +912,8 @@
     "atualizado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -961,7 +991,8 @@
     "precos": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -975,6 +1006,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "trg_versao_contagens_estoque",
@@ -1001,7 +1033,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1041,7 +1074,8 @@
     "ref_local": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1087,7 +1121,8 @@
     "canais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1152,7 +1187,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1166,6 +1202,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "zz_carimbar_alteracao"
@@ -1196,7 +1233,8 @@
     "ref_local": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1233,7 +1271,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1285,6 +1324,22 @@
     ]
    ]
   },
+  "estados_mao_unica": {
+   "colunas": {
+    "tabela": "text",
+    "coluna": "text",
+    "regra": "text",
+    "ordem": "ARRAY",
+    "modo": "text",
+    "desde": "timestamp with time zone"
+   },
+   "unicos": [
+    [
+     "tabela",
+     "coluna"
+    ]
+   ]
+  },
   "estoque_unidade": {
    "colunas": {
     "id": "uuid",
@@ -1299,7 +1354,8 @@
     "alterado_em": "timestamp with time zone",
     "ultimo_custo_medio_com_saldo": "numeric",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1343,7 +1399,8 @@
     "ref_local": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1379,7 +1436,8 @@
     "sucursais_vista": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1391,6 +1449,7 @@
     ]
    ],
    "gatilhos": [
+    "aa_cadastro_da_rede",
     "ab_exclusao_vista",
     "ab_sucursais_vista",
     "ab_versao_vista",
@@ -1416,7 +1475,8 @@
     "ficha_ref": "uuid",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1431,6 +1491,7 @@
     ]
    ],
    "gatilhos": [
+    "aa_cadastro_da_rede",
     "ab_exclusao_vista",
     "ab_versao_vista",
     "tg_auditar",
@@ -1488,7 +1549,8 @@
     "alterado_em": "timestamp with time zone",
     "sucursais_vista": "jsonb",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1506,6 +1568,7 @@
     ]
    ],
    "gatilhos": [
+    "aa_cadastro_da_rede",
     "ab_exclusao_vista",
     "ab_sucursais_vista",
     "ab_versao_vista",
@@ -1644,7 +1707,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1684,7 +1748,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1708,6 +1773,20 @@
     "exclusao": "observar"
    }
   },
+  "fotografias_dados": {
+   "colunas": {
+    "id": "bigint",
+    "quando": "timestamp with time zone",
+    "versao": "text",
+    "momento": "text",
+    "foto": "jsonb"
+   },
+   "unicos": [
+    [
+     "id"
+    ]
+   ]
+  },
   "grupos_ingredientes": {
    "colunas": {
     "id": "uuid",
@@ -1719,7 +1798,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1731,6 +1811,7 @@
     ]
    ],
    "gatilhos": [
+    "aa_cadastro_da_rede",
     "ab_exclusao_vista",
     "ab_versao_vista",
     "tg_auditar",
@@ -1760,7 +1841,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1796,7 +1878,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1863,7 +1946,8 @@
     "controla_lote": "boolean",
     "controla_validade": "boolean",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1878,6 +1962,7 @@
     ]
    ],
    "gatilhos": [
+    "aa_cadastro_da_rede",
     "ab_exclusao_vista",
     "ab_versao_vista",
     "tg_auditar",
@@ -1928,7 +2013,8 @@
     "lote_ref": "text",
     "lote_numero": "text",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -1942,6 +2028,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "trg_versao_lancamentos_financeiros",
@@ -2024,7 +2111,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2071,7 +2159,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2085,6 +2174,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "trg_versao_lotes_financeiros",
@@ -2124,7 +2214,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2160,7 +2251,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2217,7 +2309,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2256,7 +2349,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2295,7 +2389,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2335,7 +2430,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2382,7 +2478,8 @@
     "excluida_por": "text",
     "excluida_motivo": "text",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2396,6 +2493,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "trg_versao_notas_entrada",
@@ -2421,7 +2519,8 @@
     "insumo_un": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2494,7 +2593,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2548,7 +2648,8 @@
     "total": "numeric",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2587,7 +2688,8 @@
     "ref_local": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2626,7 +2728,8 @@
     "estornado_em": "timestamp with time zone",
     "estornado_por": "text",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2643,6 +2746,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_pagamento_nao_duplica",
     "tg_pagamento_repetido",
@@ -2692,7 +2796,8 @@
     "senha_totem": "integer",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2744,7 +2849,8 @@
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2758,6 +2864,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "zz_carimbar_alteracao"
@@ -2832,7 +2939,8 @@
     "ref_local": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2898,7 +3006,8 @@
     "alterado_em": "timestamp with time zone",
     "brinde_fidelidade": "boolean",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -2967,7 +3076,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -3002,7 +3112,8 @@
     "ref_local": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -3058,7 +3169,8 @@
     "login_responsavel": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -3126,7 +3238,8 @@
     "sucursal_id": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -3140,6 +3253,7 @@
    "gatilhos": [
     "ab_exclusao_vista",
     "ab_versao_vista",
+    "ac_mao_unica",
     "tg_auditar",
     "tg_forcar_loja",
     "zz_carimbar_alteracao"
@@ -3163,7 +3277,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -3201,7 +3316,8 @@
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [
@@ -3245,7 +3361,8 @@
     "login_app": "text",
     "alterado_em": "timestamp with time zone",
     "versao_vista": "timestamp with time zone",
-    "versao_aparelho": "text"
+    "versao_aparelho": "text",
+    "desfazer_motivo": "text"
    },
    "unicos": [
     [

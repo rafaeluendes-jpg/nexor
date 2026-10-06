@@ -24,7 +24,9 @@
         saber até quando viu, não apaga — e a ordem fica guardada;
      7. as rotinas que mudavam dado sozinhas pararam: a renumeração
         automática de códigos saiu; o espelho do saldo da unidade não gera
-        envio; o login de loja não sobe o cadastro da rede.
+        envio; o login de loja não sobe o cadastro da rede;
+     8. desfazer pela tela (pago, conciliado, lote…) sobe com o motivo —
+        é o que o banco exige para deixar um estado de mão única voltar.
    ========================================================== */
 const { JSDOM, VirtualConsole } = require('jsdom');
 const fs = require('fs');
@@ -290,6 +292,24 @@ async function enviar(w) { w.NUVEM.sujo = true; w.DB._sujo = true; await w.sincr
   DB.insumos[0].nome = 'Leite semi';
   await enviar(w);
   t('sem usuário identificado, o motor segue como sempre (não corta a matriz por engano)', w.__posts.some(p => p.tab === 'insumos'));
+
+  grupo('8. Desfazer pela tela leva o motivo (fase 3)');
+  w.usuarioLogado = () => ({ login: 'rafael@x', nome: 'Rafael', tudo: true, sucursais: [] });
+  w.__posts.length = 0;
+  DB._uuid = { lancFin: { lf_d: 'u-lfd', lf_n: 'u-lfn' } }; DB._hash = {}; ids(w);
+  DB.lancFin = [
+    { id: 'lf_d', tipo: 'despesa', descricao: 'Desfeito', valor: 5, pago: true, _loja: L, _alt: T0 },
+    { id: 'lf_n', tipo: 'despesa', descricao: 'Normal', valor: 6, pago: false, _loja: L, _alt: T0 }];
+  w.anotarImpressoes();
+  w.marcarDesfazer(DB.lancFin[0], 'Desmarcou pago: marquei por engano');
+  DB.lancFin[0].pago = false; DB.lancFin[1].descricao = 'Normal editado';
+  await enviar(w);
+  const pd = [].concat(...w.__posts.filter(p => p.tab === 'lancamentos_financeiros').map(p => p.linhas));
+  const ld = pd.find(o => o.ref_local === 'lf_d'), ln = pd.find(o => o.ref_local === 'lf_n');
+  t('a linha desfeita sobe com o motivo, quem e quando', !!ld && /^Desmarcou pago: marquei por engano — Rafael, 20\d\d-/.test(ld.desfazer_motivo || ''),
+    ld && ld.desfazer_motivo);
+  t('a linha que não foi desfeita não leva motivo nenhum', !!ln && !('desfazer_motivo' in ln), ln && JSON.stringify(ln.desfazer_motivo));
+  t('aceito, o motivo sai do aparelho (o próximo envio não repete o desfazer)', DB.lancFin[0]._desfazer === undefined);
 
   console.log('\n' + '═'.repeat(52));
   console.log('Joia · o motor respeita a versão em toda tabela');

@@ -456,6 +456,7 @@ function reporEfeitosDaVenda(p,reg){
   /* o pagamento volta a valer: a venda voltou */
   (p.pagamentos||[]).forEach(function(g){
     if(!g||g.cancelamentoId!==reg.id)return;
+    if(typeof marcarDesfazer==='function')marcarDesfazer(g,'Voltou a venda cancelada'+(reg.desfeitoMotivo?': '+reg.desfeitoMotivo:''));
     g.situacao='recebido';
     delete g.estornadoEm; delete g.estornadoPor; delete g.cancelamentoId;
   });

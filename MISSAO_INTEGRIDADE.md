@@ -16,10 +16,44 @@ lista de tabelas sai do MAPA e do banco, nunca escrita à mão.
 |---|---|
 | 0 — publicação só com bateria verde; regras do pedido automáticas | feita e publicada (06/10/2026) |
 | 1 — inventário e régua | feita (06/10/2026) |
-| 2 — banco vira juiz em todas as tabelas | no ar em observação (06/10/2026); falta virar 'recusar' bloco a bloco |
-| 3 — o que anda para frente não volta | não começou |
-| 4 — vigia confere os dados | não começou |
-| 5 — cerca do pedido | não começou |
+| 2 — banco vira juiz em todas as tabelas | pronta e provada; **espera a aplicação no banco** (ver "Para pôr no ar") |
+| 3 — o que anda para frente não volta | pronta e provada; espera a aplicação no banco |
+| 4 — vigia confere os dados | pronta e provada; espera a aplicação no banco |
+| 5 — cerca do pedido | pronta: etapa do portão |
+
+### Para pôr no ar (o que falta, em ordem)
+
+O código das fases 2 a 5 está no ramo `missao-integridade` (V427.0.0) e
+NÃO foi para a `main`: a V427 manda colunas que só existem depois das
+três migrations, então publicar antes seria quebrar o envio das lojas.
+
+Em 06/10/2026, 09h45 UTC, a aplicação foi tentada e **o próprio Claude
+Code bloqueou**: comando no banco de produção com exclusão (as funções
+`apagar_vistos` e `devolver_como_estava` têm `delete`/`drop` no corpo)
+exige que o Rafael aprove na hora, e ele não estava. O bloqueio não foi
+contornado. Nada mudou no banco (conferido).
+
+1. Fotografia antes (`ferramentas/fotografia-dos-dados.sql`) — guardar em
+   `ferramentas/fotografias/`.
+2. Backup: `node ferramentas/backup-antes-da-migration.js <prefixo>` e
+   rodar o SQL (a última linha confere: tabelas iguais = 60).
+3. Aplicar, nesta ordem, cada uma numa chamada (Rafael aprova):
+   `20261006_lei_de_versao_em_todas.sql`,
+   `20261006_mao_unica_e_cadastro_da_rede.sql`,
+   `20261006_vigia_dos_dados.sql`.
+4. `node ferramentas/conferir-esquema.js --sql` → rodar na produção; as
+   quatro impressões têm de ser iguais às de `node ferramentas/conferir-esquema.js`
+   (a referência prevista pelo banco de cópia). Se igual, trocar a
+   "origem" do `esquema-nuvem.json` para produção.
+5. Fotografia depois — igual à de antes, linha a linha.
+6. `select fotografar_dados('V427.0.0','antes')`; portão; `git push origin
+   HEAD:main`; conferir a publicação no GitHub; uma hora depois o vigia
+   tira a "depois" e compara.
+7. Depois que os aparelhos estiverem na V427 (`sincronizacao_aparelhos`),
+   virar 'recusar' bloco a bloco: dinheiro → estoque/produção → cadastros
+   → resto (`lei_de_versao.modo`, `modo_exclusao`, `estados_mao_unica.modo`,
+   `cadastro_da_rede.modo`), cada bloco com backup e prova no banco de
+   cópia, olhando antes a fila de conflitos daquele bloco.
 
 ---
 
@@ -246,3 +280,76 @@ produto ↔ grupos é apagado inteiro e regravado.
 - A fotografia da cópia bate com a produção: colunas e gatilhos das 65
   tabelas idênticos (impressão), funções iguais a menos de comentário
   (faltava o gatilho de `loja_versao`; posto).
+
+---
+
+## Fase 3 — o que anda para frente não volta (06/10/2026)
+
+`supabase/migrations/20261006_mao_unica_e_cadastro_da_rede.sql`
+
+- **Estados de mão única** (`estados_mao_unica`, 20 regras lidas pelo
+  gatilho `ac_mao_unica`): pago, conciliado e cancelado do lançamento;
+  baixa pendente → lançada; caixa conciliado; pagamento recebido →
+  estornado; as datas do pedido de base; nota excluída; lote desfeito;
+  transferência enviada → recebida; contagem lançada; cupom pendente →
+  autorizado e as datas dele. (O fechamento do caixa já tinha trava
+  própria, mais forte.) Voltar só vale com um **motivo novo** em
+  `desfazer_motivo` — é o que a tela manda quando a pessoa desfaz. O
+  motivo fica na linha e na auditoria.
+- **Cadastro da rede** (`cadastro_da_rede`, gatilho `aa_cadastro_da_rede`):
+  insumos, fichas, grupos de ficha, grupos de ingredientes e ingredientes
+  das fichas — login de loja não cria, não altera, não apaga.
+- Tudo nasce em **observação** (passa, e a fila de conflitos anota
+  `VOLTA` ou `CADASTRO`): aparelho de versão antiga ainda desfaz sem
+  motivo e ainda sobe cadastro por login de loja.
+- No aparelho (V427): desconciliar, desmarcar pago (um ou vários —
+  agora pergunta o porquê), desfazer lote e voltar a venda cancelada
+  marcam a linha (`marcarDesfazer`), e o motor sobe o motivo junto.
+
+Como se prova: `node testes/mao-unica-e-cadastro-da-rede.js` — 117
+pontos no banco de cópia, uma volta por regra (lida do banco), com e sem
+motivo, em 'recusar' e em 'observar'; o cadastro da rede por login de
+loja e pela matriz. `node testes/motor-respeita-a-versao.js` grupo 8: o
+motivo sobe só com a linha desfeita e sai do aparelho depois de aceito.
+
+---
+
+## Fase 4 — o vigia confere os dados (06/10/2026)
+
+`supabase/migrations/20261006_vigia_dos_dados.sql`
+
+- `vigia_dos_dados()` lê o `audit_log` e acusa: estado de mão única que
+  voltou sem desfazer; campo que voltou ao valor anterior (a régua); ficha,
+  ingrediente, insumo, grupo ou liberação mudados por login de loja;
+  rajada (30+ linhas no mesmo minuto pelo mesmo aparelho); exclusão em
+  massa (10+ em 5 minutos).
+- `vigia_registrar_dados()` põe cada achado na Central de Erros como
+  "precisa de você" (o quê, qual loja, qual aparelho, quando), sem repetir.
+- **Devolver como estava**: botão na Central de Erros (só a matriz, com
+  motivo). Põe de volta o "antes" do audit_log só se a linha não mudou de
+  novo desde então; linha excluída volta inteira; a devolução entra na
+  auditoria como "devolvido pela matriz" e não é acusada como volta.
+- **Fotografia antes e depois de cada publicação**, guardada no banco
+  (`fotografar_dados`, `fotografia_diferencas`), por empresa e por loja.
+- O roteiro do vigia (`.claude/skills/vigia/SKILL.md`, itens g e h)
+  roda tudo isso de hora em hora. A meta da régua — zero por duas semanas
+  — é medida por ele.
+
+Como se prova: `node testes/vigia-dos-dados.js` — 31 pontos: cada
+detector com o caso real, a caixinha sem repetição, a devolução (quem
+pode, sem motivo, linha que mudou de novo, linha excluída), a fotografia e
+o botão na tela. Afrouxando um detector, ele reprova (provado).
+
+---
+
+## Fase 5 — a cerca do pedido (06/10/2026)
+
+`ferramentas/cerca.js` + `CERCA.json`, etapa do portão ("Cerca do pedido").
+Todo pedido declara arquivos, tabelas e se mexe no motor. O portão
+compara com o que mudou desde a `main` e reprova: arquivo fora da cerca;
+motor (armazenamento, núcleo, sw.js, migrations, workflows, o próprio
+portão) mexido sem `"mexe_no_motor": true`; migration que cita tabela fora
+da cerca; mudança sem `CERCA.json`. Já pegou um caso real na primeira
+rodada (a tela do vigia, mexida e não declarada).
+
+Como se prova: `node testes/cerca-do-pedido.js` — 16 pontos.

@@ -551,3 +551,8 @@ grant usage on schema public to anon, authenticated, service_role;
 grant all on all tables in schema public to authenticated, service_role;
 grant all on all sequences in schema public to authenticated, service_role;
 grant execute on all functions in schema public to authenticated, service_role;
+
+-- a caixinha de erros
+ALTER TABLE public.erros_sistema ENABLE ROW LEVEL SECURITY;
+CREATE POLICY erros_resolver ON public.erros_sistema FOR UPDATE USING (((sou_admin() OR sou_plataforma()) AND (loja_id = minha_loja()))) WITH CHECK (((sou_admin() OR sou_plataforma()) AND (loja_id = minha_loja())));
+CREATE POLICY erros_ver ON public.erros_sistema FOR SELECT USING (((sou_admin() OR sou_plataforma()) AND (loja_id = minha_loja())));

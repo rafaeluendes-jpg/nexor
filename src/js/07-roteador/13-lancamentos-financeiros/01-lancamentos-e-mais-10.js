@@ -532,30 +532,42 @@ function selTodasLF(el){
   for(var i=0;i<c.length;i++)c[i].checked=el.checked;
   atualizaSelecao();
 }
-function togglePago(id){
+async function togglePago(id){
   var l=DB.lancFin.find(function(x){return x.id===id});
   if(!l)return;
   if(l.conciliado){toast('Movimento conciliado. Desconcilie na Conciliação Bancária para alterar.');return;}
   if(noLote(l)){avisoNoLote(l);return;}
-  /* pagar pede banco e forma no meio da tela; despagar e direto */
+  /* pagar pede banco e forma no meio da tela; despagar pede o porquê
+     (06/10/2026: pago só volta a não pago pela tela, com motivo) */
   if(!l.pago){modalPagamento([id]);return;}
+  var mot=await motivoDoDesfazer('Marcar "'+(l.descricao||'lançamento')+'" como não pago',
+    'ex.: marquei por engano · o pagamento não saiu');
+  if(!mot)return;
+  marcarDesfazer(l,'Desmarcou pago: '+mot);
   l.pago=false;l.pagamento='';
   salvar();telaLancamentos();
   toast('Marcado como não pago.');
 }
-function mudarPago(v){
+async function mudarPago(v){
   var c=document.querySelectorAll('.chkLF:checked');
   if(!c.length){toast('Selecione os lançamentos na lista.');return;}
   var ids=[];
   for(var i=0;i<c.length;i++)ids.push(c[i].getAttribute('data-id'));
   if(v){modalPagamento(ids);return;}
-  var n=0,nLote=0;
+  var n=0,nLote=0,alvo=[];
   ids.forEach(function(id){
     var l=DB.lancFin.find(function(x){return x.id===id});
     if(!l||l.conciliado)return;
     if(noLote(l)){nLote++;return;}       /* sai do lote só desfazendo o lote */
-    l.pago=false;l.pagamento='';n++;
+    if(l.pago)alvo.push(l);else n++;
   });
+  /* pago só volta a não pago com motivo (06/10/2026) */
+  if(alvo.length){
+    var mot=await motivoDoDesfazer('Marcar '+alvo.length+' lançamento(s) como não pago',
+      'ex.: marquei por engano · o pagamento não saiu');
+    if(!mot)return;
+    alvo.forEach(function(l){ marcarDesfazer(l,'Desmarcou pago: '+mot); l.pago=false;l.pagamento='';n++; });
+  }
   salvar();telaLancamentos();
   toast(n+' lançamento(s) marcado(s) como não pago.'+
     (nLote?' '+nLote+' de lote ficaram como estão: para mexer neles, desfaça o lote.':''));

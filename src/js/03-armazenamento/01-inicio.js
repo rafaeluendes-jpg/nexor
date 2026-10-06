@@ -2884,6 +2884,23 @@ function avisoListaIncompleta(col,oQue){
     '<b>Não cadastre de novo</b>: tente de novo em Sincronização — o que está '+
     'guardado volta sozinho.</div></div>';
 }
+/* o motivo do desfazer, com quem e quando: cada desfazer é um texto novo,
+   e é isso que o banco confere (tg_mao_unica) */
+function marcarDesfazer(x,motivo){
+  if(!x)return;
+  var q=null; try{ q=usuarioLogado(); }catch(e){ q=null; }
+  x._desfazer=String(motivo||'').trim()+' — '+((q&&q.nome)||'sem usuário')+', '+new Date().toISOString();
+}
+/* pergunta o porquê de um desfazer; devolve o texto, ou '' se desistiu */
+async function motivoDoDesfazer(titulo,dica){
+  var r=await confirmar({titulo:titulo,
+    campo:{id:'dfMotivo',rotulo:'Por que está desfazendo? *',dica:dica||''},
+    aviso:'Fica registrado quem desfez, quando e por quê.',ok:'Desfazer'});
+  if(!r)return '';
+  var m=String(window._cfCampo||'').trim();
+  if(!m){toast('Diga por que está desfazendo.');return '';}
+  return m;
+}
 function declararExclusao(col,id){
   if(!col||!id)return;
   DB._apagados=DB._apagados||{};
@@ -3791,6 +3808,17 @@ async function sincronizar(){
              auditoria mostram (20261006_lei_de_versao_em_todas). */
           o.versao_vista=x._alt||null;
           o.versao_aparelho=idDoAparelho();
+          /* ==========================================================
+             DESFAZER PELA TELA LEVA O MOTIVO (fase 3, 06/10/2026)
+
+             Pago, conciliado, baixa lançada, pagamento estornado… só
+             andam para frente. O banco (20261006_mao_unica_e_cadastro_da_
+             rede) recusa a volta que não traz um motivo NOVO: é assim que
+             ele separa a pessoa que desfez, pela tela, do aparelho que
+             regravou uma cópia antiga. A tela pergunta o porquê e marca a
+             linha (`marcarDesfazer`); o motivo fica na linha e na auditoria.
+             ========================================================== */
+          if(x._desfazer)o.desfazer_motivo=x._desfazer;
           /* a liberação que este aparelho viu por último: o banco só deixa
              trocar quem viu a de hoje (20261002_liberacao_so_muda_quem_viu).
              Aparelho atrasado não devolve a liberação antiga por cima. */
@@ -3888,7 +3916,7 @@ async function sincronizar(){
             var o=_subiu[r.ref_local];
             var x=o?_porId[r.ref_local]:null;
             if(!x)return;
-            if(!recusadaPelaNuvem(E2,o,r)){ x._alt=r.alterado_em||x._alt||null; lembrarVersao(E2.col,x.id,x._alt); return; }
+            if(!recusadaPelaNuvem(E2,o,r)){ x._alt=r.alterado_em||x._alt||null; lembrarVersao(E2.col,x.id,x._alt); delete x._desfazer; return; }
             _recusados[r.ref_local]=true;
             _velhas++;
           });
@@ -3992,6 +4020,8 @@ async function sincronizar(){
               /* o filho também apresenta a versão que viu (06/10/2026) */
               y.versao_vista=o._alt||null;
               y.versao_aparelho=idDoAparelho();
+              /* desfazer pela tela: o motivo vai junto (mão única, fase 3) */
+              if(o._desfazer)y.desfazer_motivo=o._desfazer;
               return y;
             });
             var sf=await enviar(F.tab,lf);
@@ -4006,6 +4036,7 @@ async function sincronizar(){
                 if(!o)return;
                 if(recusadaPelaNuvem(null,null,r)){ _recF++; return; }
                 o._alt=r.alterado_em||o._alt||null;
+                delete o._desfazer;
               });
               if(_recF){
                 NUVEM._rebaixar=true;
