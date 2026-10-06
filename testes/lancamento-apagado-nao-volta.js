@@ -11,7 +11,8 @@
    com zero linhas, a tela tirava a linha e o download a trazia de volta.
 
    Prende:
-     1. a tela só tira o lançamento quando a nuvem confirma que ele saiu;
+     1. a tela só tira o lançamento quando a nuvem confirma que ele saiu
+        (pelo banco, com a versão vista — apagar_vistos, 06/10/2026);
         se a nuvem respondeu "ok" e a linha continua lá, avisa e mantém;
      2. o que nunca chegou à nuvem sai normalmente;
      3. no banco, quem tem o financeiro apaga (na própria unidade, nunca
@@ -53,25 +54,42 @@ const erros = [];
   const lanc = () => ({ id: 'lf_350', tipo: 'transferencia', descricao: 'Transferência: Itaú → Caixa da loja',
     valor: 350, pago: true, conciliado: false, contaId: 'c1', contaDestinoId: 'c2' });
 
+  /* (06/10/2026) a exclusão vai pelo banco com a versão vista — apagar_vistos,
+     que devolve o que apagou; o DELETE direto saiu (lei de versão em todas) */
+  const VISTA = '2026-10-06T05:00:00.000001+00:00';
+  w.NUVEM._vistaTab = { lancamentos_financeiros: VISTA };
+  const ehApagar = (cam, met) => met === 'POST' && cam === 'rpc/apagar_vistos';
+
   grupo('1. A nuvem recusou em silêncio');
   let chamadas = [];
   w.api = async (cam, met, corpo, extra) => {
-    chamadas.push({ cam, met, extra });
-    if (met === 'DELETE') return [];                 /* "ok", zero linhas */
+    chamadas.push({ cam, met, corpo, extra });
+    if (ehApagar(cam, met)) return { apagados: [] };  /* "ok", nada apagado */
     return [{ id: 'b9470dc4' }];                       /* e a linha continua lá */
   };
   DB.lancFin = [lanc()]; DB._apagados = {};
   await w.excluirLanc('lf_350');
-  t('o DELETE pede de volta o que foi apagado',
-    chamadas[0] && chamadas[0].met === 'DELETE' && chamadas[0].extra && chamadas[0].extra.Prefer === 'return=representation');
+  t('a exclusão pede de volta o que foi apagado (pelo banco, com a versão vista)',
+    chamadas[0] && ehApagar(chamadas[0].cam, chamadas[0].met) && chamadas[0].corpo.p_tabela === 'lancamentos_financeiros' &&
+    chamadas[0].corpo.p_refs[0] === 'lf_350' && chamadas[0].corpo.p_vista === VISTA);
   t('confere se a linha continua na nuvem', chamadas.some(c => !c.met && /ref_local=eq\.lf_350/.test(c.cam)));
   t('o lançamento NÃO sai do aparelho', DB.lancFin.length === 1);
   t('nem vira exclusão declarada', !(DB._apagados.lancFin && DB._apagados.lancFin.lf_350));
-  t('e a loja é avisada', /não deixou excluir/.test(painel.join('|')), painel.join('|'));
+  t('e a loja é avisada', /não excluiu/.test(painel.join('|')), painel.join('|'));
+  t('nenhum DELETE direto', !chamadas.some(c => c.met === 'DELETE'));
+
+  grupo('1b. Este aparelho ainda não recebeu a nuvem');
+  painel = []; chamadas = [];
+  w.NUVEM._vistaTab = {}; w.NUVEM._altVisto = {};
+  DB.lancFin = [lanc()];
+  await w.excluirLanc('lf_350');
+  t('sem saber o que viu, não apaga e não tira daqui', DB.lancFin.length === 1 && !chamadas.some(c => ehApagar(c.cam, c.met)));
+  t('e diz para aguardar a sincronização', /Ainda não dá para excluir/.test(painel.join('|')), painel.join('|'));
+  w.NUVEM._vistaTab = { lancamentos_financeiros: VISTA };
 
   grupo('2. A nuvem apagou');
   painel = []; chamadas = [];
-  w.api = async (cam, met) => { chamadas.push({ cam, met }); return met === 'DELETE' ? [{ id: 'b9470dc4' }] : []; };
+  w.api = async (cam, met) => { chamadas.push({ cam, met }); return ehApagar(cam, met) ? { apagados: ['lf_350'] } : []; };
   DB.lancFin = [lanc()];
   await w.excluirLanc('lf_350');
   t('sai do aparelho', DB.lancFin.length === 0);

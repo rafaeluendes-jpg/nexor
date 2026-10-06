@@ -407,10 +407,18 @@ async function excluirSel(){
                        '&ref_local=eq.'+alvo+'&select=id');
       /* todas as linhas, nao so a primeira: se a ficha chegou a duplicar na
          nuvem, apagar uma so deixava a outra voltando no download */
+      /* pelo banco, com a versao vista (06/10/2026): se outro aparelho
+         mudou a ficha depois que este a viu, a nuvem nao apaga — o pedido
+         vai para a fila de conflitos e a ficha continua aqui */
       for(var _q=0;_q<((fc&&fc.length)||0);_q++){
-        await api('ficha_itens?ficha_id=eq.'+fc[_q].id,'DELETE');
-        await api('fichas_tecnicas?id=eq.'+fc[_q].id,'DELETE');
+        if(await apagarComVersao('ficha_itens',{paiColuna:'ficha_id',pai:fc[_q].id,manter:[]})===null){
+          /* adiada só importa se a ficha tem ingrediente na nuvem */
+          var _tem=await api('ficha_itens?ficha_id=eq.'+fc[_q].id+'&select=id&limit=1');
+          if(Array.isArray(_tem)&&_tem.length){ avisoDeExclusao('adiada','esta ficha'); return; }
+        }
       }
+      var _res=fc&&fc.length?await excluirNaNuvemComVersao('fichas_tecnicas','fichas',f.id):'ok';
+      if(_res!=='ok'){ avisoDeExclusao(_res,'esta ficha'); return; }
     }catch(e){
       painelErro('Não consegui excluir na nuvem.',detalheErro(e));
       return;                       /* nao apaga aqui: continuaria voltando */
@@ -505,8 +513,9 @@ async function delSubFicha(sid){
 async function excluirLinhaGrupoFicha(id){
   if(NUVEM.ligada&&NUVEM.loja){
     try{
-      await api('ficha_grupos?loja_id=eq.'+NUVEM.loja+
-                '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+      /* pela porta da versão (06/10/2026) */
+      var _res=await excluirNaNuvemComVersao('ficha_grupos','fichaCats',id);
+      if(_res!=='ok'){ avisoDeExclusao(_res,'este grupo'); return false; }
     }catch(e){
       painelErro('Não consegui excluir na nuvem.',detalheErro(e));
       return false;
@@ -1130,7 +1139,9 @@ async function gravarItensFichaAgora(f){
       insumo_id:ehF?null:(_ids[o.insumoId]||null),
       ficha_ref:ehF?(_ids[o.insumoId]||null):null,
       quantidade:Number(o.qtd)||0,unidade:o.unidade||'un',
-      perda:Number(o.perda)||0};
+      perda:Number(o.perda)||0,
+      /* o recibo: a versão deste ingrediente que este aparelho viu (06/10/2026) */
+      versao_vista:o._alt||null,versao_aparelho:idDoAparelho()};
   });
   var semVinculo=linhas.filter(function(y){return !y.insumo_id&&!y.ficha_ref});
   if(semVinculo.length)
@@ -1143,12 +1154,35 @@ async function gravarItensFichaAgora(f){
     if(!Array.isArray(gravadas)||gravadas.length!==linhas.length)
       return {ok:false,motivo:'a nuvem aceitou '+
         ((gravadas&&gravadas.length)||0)+' de '+linhas.length+' ingrediente(s)'};
+    /* ==========================================================
+       INGREDIENTE QUE OUTRO APARELHO MUDOU NÃO É ATROPELADO (06/10/2026)
+
+       A nuvem só grava o ingrediente de quem viu a versão de hoje dele.
+       Se outro aparelho mudou o ingrediente depois que este abriu a ficha,
+       a nuvem mantém o que está lá e guarda este pedido na fila de
+       conflitos. A tela diz isso — e não "salvo".
+       ========================================================== */
+    var porRef={},recusados=0;
+    itens.forEach(function(o){ porRef[String(o.id)]=o; });
+    gravadas.forEach(function(r){
+      var o=r&&porRef[r.ref_local];
+      if(!o)return;
+      if(recusadaPelaNuvem(null,null,r)){ recusados++; return; }
+      o._alt=r.alterado_em||o._alt||null;
+    });
+    if(recusados){
+      NUVEM._rebaixar=true;
+      return {ok:false,motivo:recusados+' ingrediente(s) foram alterados em outro aparelho depois '+
+        'que este abriu a ficha. A nuvem manteve o que estava lá e guardou o seu pedido para a '+
+        'matriz decidir. Atualize a tela para ver o que vale.'};
+    }
   }
-  /* 3. o que nao esta na tela sai da nuvem */
-  var qDel='ficha_itens?ficha_id=eq.'+pai;
-  if(refs.length)qDel+='&ref_local=not.in.('+refs.map(function(r){
-    return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')';
-  await api(qDel,'DELETE');
+  /* 3. o que nao esta na tela sai da nuvem — pelo banco, com a versao vista:
+        ingrediente que outro aparelho pos depois que este viu a ficha fica */
+  var sobra=await apagarComVersao('ficha_itens',{paiColuna:'ficha_id',pai:pai,manter:refs});
+  if(sobra===null)
+    logNuvem('ficha_itens: a limpeza dos ingredientes tirados de "'+(f.nome||'')+
+      '" fica para depois do próximo download',true);
   /* 4. o retrato passa a bater com a nuvem, senao o motor de sincronizacao
         acha que estes itens sumiram e os apaga na proxima passagem */
   try{ DB._snap=DB._snap||{}; DB._snap['fichas.itens.'+f.id]=refs.slice(); }

@@ -70,6 +70,17 @@ console.log('\n── E cada defeito real é reprovado\n');
     r.reprovou && /ativo/.test(r.saida), r.saida.slice(-400));
 }
 
+/* 5 — o aparelho grava numa tabela que o banco não julga (06/10/2026):
+   tabela sem a lei de versão e sem a auditoria não se publica */
+{
+  const alvo = "enviarConfig('config_operacao'";
+  t('o alvo 5 existe no arquivo', fonte.indexOf(alvo) >= 0);
+  const r = rodar(fonte.replace(alvo, "enviarConfig('erros_sistema'"));
+  t('pega tabela gravada pelo aparelho sem a lei de versão e sem a auditoria',
+    r.reprovou && /erros_sistema/.test(r.saida) && /sem a lei de versão/.test(r.saida),
+    r.saida.slice(-500));
+}
+
 /* 4 — filtro de coluna uuid com o id local do aparelho (o interruptor) */
 {
   const r = rodar(fonte.replace(/'cardapio_config\?sucursal_id=eq\.'\+[A-Za-z_$][\w$]*\(?/,

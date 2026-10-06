@@ -736,17 +736,10 @@ function modalPagamento(ids){
 async function apagarLancNaNuvem(id){
   if(!(NUVEM.ligada&&NUVEM.loja))return true;
   try{
-    var filtro='lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
-              '&ref_local=eq.'+encodeURIComponent(id);
-    var foi=await api(filtro,'DELETE',null,{'Prefer':'return=representation'});
-    if(Array.isArray(foi)&&!foi.length){
-      var ficou=await api(filtro+'&select=id');
-      if(Array.isArray(ficou)&&ficou.length){
-        painelErro('A nuvem não deixou excluir este lançamento.',
-          'Seu usuário não tem permissão para excluir no financeiro. Nada foi apagado.');
-        return false;
-      }
-    }
+    /* pela porta da versão (06/10/2026): o lançamento que outro aparelho
+       mudou depois que este o viu não é apagado por este */
+    var res=await excluirNaNuvemComVersao('lancamentos_financeiros','lancFin',id);
+    if(res!=='ok'){ avisoDeExclusao(res,'este lançamento'); return false; }
     return true;
   }catch(e){
     painelErro('Não consegui excluir na nuvem.',detalheErro(e));

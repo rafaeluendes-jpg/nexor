@@ -9464,7 +9464,32 @@ function fk(col,ref){
   /* o registro aponta para algo que a nuvem ainda não conhece: avisa em vez de
      gravar um vínculo vazio que ninguém percebe */
   _fkPerdido[col+':'+ref]=true;
-  return null;
+  return _FK_DETECTOR;
+}
+/* ==========================================================
+   VÍNCULO NÃO RESOLVIDO NÃO SOBE VAZIO (06/10/2026)
+
+   Quando o aparelho não traduz um vínculo (fk/fkSub devolvem nulo), a
+   linha subia com o campo NULO por cima do valor salvo na nuvem — e no
+   envio seguinte, com o mapa refeito, subia o valor de novo. A categoria
+   de "COMPRA PELICULA TABLET" alternou nulo ↔ categoria 16 vezes numa
+   noite; foram ~800 voltas em 30 dias só nos lançamentos de Santa Fé.
+
+   fk() e fkSub() continuam devolvendo nulo (é o que o resto do sistema e
+   os guardiões esperam). Para saber QUAIS campos vieram de vínculo não
+   resolvido, o envio monta a linha uma segunda vez com o detector ligado:
+   nessa passada, o vínculo perdido devolve um marcador em vez de nulo. O
+   campo marcado sai do envio — o banco mantém o que tem — e sobe certo
+   quando o vínculo resolver. */
+var _FK_DETECTOR=null;
+function semVinculoPerdido(campos,x,i,o){
+  var M={_vinculoPerdido:true};
+  var p=null;
+  _FK_DETECTOR=M;
+  try{ p=campos(x,i); }catch(e){ p=null; }
+  finally{ _FK_DETECTOR=null; }
+  if(p&&o)Object.keys(p).forEach(function(k){ if(p[k]===M&&o[k]===null)delete o[k]; });
+  return o;
 }
 var _fkPerdido={};
 /* ==========================================================
@@ -9480,7 +9505,7 @@ function _ehFichaLocal(ref){
 function refIngInsumo(ref){ return _ehFichaLocal(ref)?null:fk('insumos',ref); }
 function refIngFicha(ref){  return _ehFichaLocal(ref)?fk('fichas',ref):null; }
 var _AVISOU_PERM={};
-function fkSub(ref){return ref&&_ids[ref]?_ids[ref]:null}
+function fkSub(ref){return ref&&_ids[ref]?_ids[ref]:(ref?_FK_DETECTOR:null)}
 
 /* ---- chamada direta ao banco (sem depender de biblioteca externa) ---- */
 /* pega sempre a credencial vigente — ela expira e precisa ser renovada */
@@ -9748,8 +9773,12 @@ function impressaoDaLinha(E,x,i){
   o.loja_id=x._loja;
   o.ref_local=x.id;
   var extra='';
-  (E.filhos||[]).forEach(function(F9){extra+=JSON.stringify(x[F9.lista]||[])});
-  if(E.vinculo)extra+=JSON.stringify(x[E.vinculo.lista]||[]);
+  /* a versao guardada de cada filho (`_alt`, 06/10/2026) nao e conteudo:
+     ela muda quando a nuvem confirma, e o pai nao pode virar "alteracao nao
+     enviada" por isso. Sem ela, a impressao e a mesma de antes da lei. */
+  var semVersao=function(k,v){ return k==='_alt'?undefined:v; };
+  (E.filhos||[]).forEach(function(F9){extra+=JSON.stringify(x[F9.lista]||[],semVersao)});
+  if(E.vinculo)extra+=JSON.stringify(x[E.vinculo.lista]||[],semVersao);
   return hashTexto(JSON.stringify(o)+extra);
 }
 /* ==========================================================
@@ -9784,6 +9813,20 @@ function linhaAceitaPelaNuvem(o,r){
     if(String(a)!==String(b))return false;
   }
   return true;
+}
+/* ==========================================================
+   A NUVEM RECUSOU ESTA LINHA? (06/10/2026)
+
+   O banco marca a recusa: a linha volta com `versao_vista` igual ao
+   `alterado_em` (o recibo da recusa, 20261006_lei_de_versao_em_todas).
+   Aceita, volta com `versao_vista` nula. Nas quatro tabelas que já tinham
+   a lei antes do recibo existir (E.versao), a comparação campo a campo
+   continua valendo junto — para um banco que ainda não marque. */
+function recusadaPelaNuvem(E,o,r){
+  if(!r)return false;
+  if(r.versao_vista&&r.alterado_em&&Date.parse(r.versao_vista)===Date.parse(r.alterado_em))return true;
+  if(E&&E.versao&&!linhaAceitaPelaNuvem(o,r))return true;
+  return false;
 }
 /* ==========================================================
    "SALVO" SO DEPOIS QUE A NUVEM CONFIRMOU — BANCO E TAXA (29/09/2026)
@@ -9932,6 +9975,7 @@ function anotarImpressoes(){
     var uu=DB._uuid[E.col]||{};
     for(var i=0;i<lista.length;i++){
       var x=lista[i];
+      if(x._alt)lembrarVersao(E.col,x.id,x._alt);
       if(x._novoAqui===true)continue;    /* nunca confirmado: tem de subir */
       if(x._filhoPendente===true)continue;/* tem filho que a nuvem nao tem */
       if(x._fechamentoPendente===true)continue;/* fechado aqui, aberto na nuvem */
@@ -10079,12 +10123,37 @@ function tirarRepetidos(tab,linhas){
    Nao e o tempo total do envio: envio grande demora minutos e esta certo.
    E o tempo em SILENCIO — sem nada chegar na nuvem. */
 var PARADO_DEMAIS=45000;
+/* ==========================================================
+   CAMPO QUE A LINHA NÃO MANDA NÃO SOBE VAZIO (06/10/2026)
+
+   O banco exige que as linhas de UM lote tenham as mesmas chaves, e
+   igualarChaves completava com nulo o campo que uma linha não mandou.
+   Só que vários campos são omitidos DE PROPÓSITO — "não sobe = o banco
+   mantém": o lote do lançamento fora de lote, a data de exclusão da
+   unidade inativa, o login responsável, os endereços do cliente, o
+   vínculo não resolvido. Bastava uma vizinha de lote ter o campo para a
+   omissão virar nulo e apagar o valor salvo.
+   Agora o lote é separado pelos campos que cada linha tem: linhas iguais
+   sobem juntas, a diferente sobe no seu próprio lote, e nada é inventado. */
+function gruposPorChaves(linhas){
+  var g={}, ordem=[];
+  linhas.forEach(function(o){
+    var limpo={};
+    Object.keys(o).forEach(function(k){ if(o[k]!==undefined)limpo[k]=o[k]; });
+    var ch=Object.keys(limpo).sort().join(',');
+    if(!g[ch]){ g[ch]=[]; ordem.push(ch); }
+    g[ch].push(limpo);
+  });
+  return ordem.map(function(ch){ return g[ch]; });
+}
 async function enviar(tab,linhas){
   if(!linhas.length)return [];
   linhas=tirarRepetidos(tab,linhas);
   var out=[];
-  for(var i=0;i<linhas.length;i+=200){
-    var lote=igualarChaves(linhas.slice(i,i+200));
+  var grupos=gruposPorChaves(linhas);
+  for(var gI=0;gI<grupos.length;gI++)
+  for(var i=0;i<grupos[gI].length;i+=200){
+    var lote=igualarChaves(grupos[gI].slice(i,i+200));
     var r=await api(tab+'?on_conflict='+chaveConflito(tab,lote),'POST',lote,
       {'Prefer':'resolution=merge-duplicates,return=representation'});
     out=out.concat(r||[]);
@@ -10111,6 +10180,14 @@ async function enviar(tab,linhas){
    uma tabela inteira é intenção, e não falha. Fora delas, a trava segura. */
 function autorizarEsvaziar(){NUVEM.podeEsvaziar=Date.now()+120000;}
 function podeEsvaziarAgora(){return !!(NUVEM.podeEsvaziar&&Date.now()<NUVEM.podeEsvaziar)}
+/* cadastro da rede que a unidade só consulta: ela nem sobe (06/10/2026) —
+   ingrediente e ficha técnica, as mesmas telas que barraCadastro() fecha */
+var TABS_SO_A_MATRIZ_GRAVA=['insumos','fichas_tecnicas','ficha_grupos','grupos_ingredientes'];
+/* só corta quando SABE que é login de unidade: sem usuário identificado o
+   motor segue como sempre — cortar o envio da matriz por engano seria pior */
+function cadastroSoConsulta(){
+  try{ var u=usuarioLogado(); return !!u&&!podeEditarCadastro(u); }catch(e){ return false; }
+}
 /* tabelas de cadastro da rede: so a matriz manda nelas */
 var TABS_CADASTRO_REDE=['insumos','fichas_tecnicas','produtos','categorias','ficha_grupos',
  'grupos_ingredientes','grupos_opcoes','motivos_movimentacao','motivos_cancelamento',
@@ -10244,6 +10321,113 @@ function declararExclusao(col,id){
   DB._apagados[col]=DB._apagados[col]||{};
   DB._apagados[col][id]=true;
 }
+/* ==========================================================
+   APAGAR NA NUVEM SÓ O QUE ESTE APARELHO VIU (06/10/2026)
+
+   Exclusão também respeita a versão: o banco só apaga a linha que não
+   mudou depois que este aparelho a viu (apagar_vistos,
+   20261006_lei_de_versao_em_todas). O aparelho diz até quando viu a
+   tabela (`NUVEM._vistaTab`, anotado em cada download); linha mais nova
+   que isso fica, e o pedido de exclusão vai para a fila de conflitos.
+   Sem saber até quando viu (nunca baixou esta tabela), não apaga: fica
+   para depois do próximo download. Devolve os ref_local apagados, ou null
+   quando adiou. */
+/* ==========================================================
+   A VERSÃO DE CADA LINHA, PARA A EXCLUSÃO (06/10/2026)
+
+   "Até quando vi a tabela" é a hora do último download. Uma linha que
+   este aparelho mesmo gravou depois disso é mais nova que essa hora — e
+   a exclusão dela seria recusada como se outro aparelho a tivesse mudado:
+   apagar o lançamento que acabou de lançar não valeria até o próximo
+   download. Por isso a versão de cada linha (a que desceu, ou a que a
+   nuvem devolveu quando este aparelho gravou) fica lembrada, inclusive
+   depois que a linha sai da lista — a exclusão declarada precisa dela.
+   Só na memória: depois de recarregar, o primeiro download repõe.
+   ========================================================== */
+function lembrarVersao(col,id,alt){
+  if(!col||!id||!alt||typeof NUVEM==='undefined')return;
+  NUVEM._altVisto=NUVEM._altVisto||{};
+  (NUVEM._altVisto[col]=NUVEM._altVisto[col]||{})[id]=alt;
+}
+function versaoVistaDaLinha(tab,col,ref){
+  var a=(NUVEM._vistaTab||{})[tab]||null;
+  var b=(col&&NUVEM._altVisto&&NUVEM._altVisto[col]&&NUVEM._altVisto[col][ref])||null;
+  if(!a)return b;
+  if(!b)return a;
+  return Date.parse(b)>Date.parse(a)?b:a;
+}
+async function apagarComVersao(tab,opc){
+  opc=opc||{};
+  /* exclusão por linha: cada uma vale pela versão que este aparelho viu
+     DELA — linhas com a mesma versão vão juntas */
+  if(opc.refs&&opc.col){
+    var porVista={},semVista=0;
+    opc.refs.forEach(function(ref){
+      var v=versaoVistaDaLinha(tab,opc.col,ref);
+      if(!v){ semVista++; return; }
+      (porVista[v]=porVista[v]||[]).push(ref);
+    });
+    var chaves=Object.keys(porVista);
+    if(!chaves.length){
+      logNuvem(tab+': exclusão adiada — este aparelho ainda não sabe até quando viu esta tabela',true);
+      return null;
+    }
+    var feitos=[],adiados=[];
+    opc.refs.forEach(function(ref){ if(!versaoVistaDaLinha(tab,opc.col,ref))adiados.push(ref); });
+    for(var q=0;q<chaves.length;q++){
+      var parte=await apagarComVersao(tab,{refs:porVista[chaves[q]],vista:chaves[q]});
+      feitos=feitos.concat(parte||[]);
+    }
+    /* quem chamou guarda a ordem destes para o próximo ciclo */
+    feitos.adiados=adiados;
+    if(semVista)logNuvem(tab+': '+semVista+' exclusão(ões) sem versão conhecida — ficam para depois do próximo download',true);
+    return feitos;
+  }
+  var vista=opc.vista||(NUVEM._vistaTab||{})[tab];
+  if(!vista){
+    logNuvem(tab+': exclusão adiada — este aparelho ainda não sabe até quando viu esta tabela',true);
+    return null;
+  }
+  var corpo={p_tabela:tab,p_vista:vista,p_aparelho:idDoAparelho(),p_loja:NUVEM.loja||null};
+  if(opc.refs)corpo.p_refs=opc.refs;
+  if(opc.paiColuna){ corpo.p_pai_coluna=opc.paiColuna; corpo.p_pai=opc.pai; corpo.p_manter=opc.manter||[]; }
+  var r=await api('rpc/apagar_vistos','POST',corpo);
+  var apagados=(r&&r.apagados)||[];
+  var pedidos=(opc.refs||[]).length;
+  if(pedidos&&apagados.length<pedidos)
+    logNuvem(tab+': '+(pedidos-apagados.length)+' exclusão(ões) não feitas — a linha mudou depois que '+
+      'este aparelho a viu; o pedido está na fila de conflitos',true);
+  return apagados;
+}
+/* ==========================================================
+   EXCLUIR UMA LINHA PELA TELA (06/10/2026)
+
+   As telas que apagavam direto na nuvem (ingrediente, grupo de ficha,
+   ficha, lançamento) passam pela mesma porta da versão. Três respostas:
+   'ok' (apagou, ou a nuvem nunca teve a linha), 'adiada' (este aparelho
+   ainda não recebeu a nuvem) e 'recusada' (a linha continua lá: mudou em
+   outro aparelho depois que este a viu, ou falta permissão). Só com 'ok'
+   a tela tira a linha daqui — mentir que apagou faz ela voltar no download.
+   ========================================================== */
+async function excluirNaNuvemComVersao(tab,col,ref){
+  if(!(NUVEM.ligada&&NUVEM.loja))return 'ok';
+  var feitos=await apagarComVersao(tab,{refs:[ref],col:col});
+  if(feitos&&feitos.indexOf(ref)>=0)return 'ok';
+  var ficou=await api(tab+'?loja_id=eq.'+NUVEM.loja+'&ref_local=eq.'+encodeURIComponent(ref)+'&select=id');
+  if(!(Array.isArray(ficou)&&ficou.length))return 'ok';
+  if(feitos===null)return 'adiada';
+  NUVEM._rebaixar=true;
+  return 'recusada';
+}
+function avisoDeExclusao(res,oque){
+  if(res==='adiada')
+    painelErro('Ainda não dá para excluir '+oque+'.',
+      'Este aparelho precisa receber a nuvem antes. Aguarde a sincronização terminar e tente de novo. Nada foi apagado.');
+  else if(res==='recusada')
+    painelErro('A nuvem não excluiu '+oque+'.',
+      'Foi alterado em outro aparelho depois que este o abriu, ou o seu usuário não tem permissão para excluir. '+
+      'Nada foi apagado. Se foi outro aparelho, o seu pedido ficou guardado para a matriz decidir.');
+}
 async function apagarRemovidos(tab,chave,idsAgora,soOrdem){
   try{
     /* A unidade so BAIXA o cadastro que foi liberado para ela — entao a lista
@@ -10342,11 +10526,15 @@ async function apagarRemovidos(tab,chave,idsAgora,soOrdem){
         logNuvem('BLOQUEADO: '+tab+' — '+deVerdade.length+
           ' exclusões declaradas de uma vez. Nada foi apagado.',true);
       }else{
-        await api(tab+'?ref_local=in.('+deVerdade.map(function(r){
-          return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')','DELETE');
-        deVerdade.forEach(function(r){ delete declarados0[r]; });
-        DB._apagados[chave]=declarados0;
-        logNuvem(tab+': '+deVerdade.length+' exclusão(ões) enviada(s) para a nuvem');
+        var _feitos0=await apagarComVersao(tab,{refs:deVerdade,col:chave});
+        /* adiada (sem versão vista): a declaração fica para o próximo ciclo.
+           Feita ou recusada pela versão: a ordem foi entregue — a recusa
+           está na fila de conflitos, e insistir só repetiria o pedido. */
+        if(_feitos0!==null){
+          deVerdade.forEach(function(r){ if((_feitos0.adiados||[]).indexOf(r)<0)delete declarados0[r]; });
+          DB._apagados[chave]=declarados0;
+          logNuvem(tab+': '+_feitos0.length+' exclusão(ões) feita(s) na nuvem');
+        }
       }
     }
     if(_soOrdem)return;                 /* a ordem ja foi cumprida acima */
@@ -10412,6 +10600,9 @@ async function apagarRemovidos(tab,chave,idsAgora,soOrdem){
        ========================================================== */
     DB._apagados=DB._apagados||{};
     var declarados=DB._apagados[chave]||{};
+    /* a ordem já cumprida lá em cima saiu da declaração: não se pede de novo
+       (06/10/2026 — com a versão, o segundo pedido apareceria como recusado) */
+    deVerdade=deVerdade.filter(function(r){ return declarados[r]===true; });
     var semDeclaracao=sumiram.filter(function(r){ return declarados[r]!==true; }).length;
     if(semDeclaracao)
       logNuvem(tab+': '+semDeclaracao+' registro(s) sumiram da lista sem terem sido '+
@@ -10434,21 +10625,77 @@ async function apagarRemovidos(tab,chave,idsAgora,soOrdem){
         ' exclusões declaradas de uma vez. Nada foi apagado.',true);
       return;
     }
-    await api(tab+'?ref_local=in.('+deVerdade.map(function(r){
-      return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')','DELETE');
-    deVerdade.forEach(function(r){ delete declarados[r]; });
+    var _feitos=await apagarComVersao(tab,{refs:deVerdade,col:chave});
+    if(_feitos===null)return;              /* adiada: tudo fica como estava */
+    deVerdade.forEach(function(r){ if((_feitos.adiados||[]).indexOf(r)<0)delete declarados[r]; });
     DB._apagados[chave]=declarados;
     DB._snap[chave]=idsAgora.slice();      /* só depois de apagar de verdade */
-    logNuvem(tab+': '+deVerdade.length+' excluído(s) por você');
+    logNuvem(tab+': '+_feitos.length+' excluído(s) por você');
   }catch(e){console.error('apagarRemovidos',tab,e);logNuvem('aviso ao excluir em '+tab,true);}
 }
 
 /* apaga os itens de um pai que não existem mais neste aparelho */
-async function apagar(tab,campo,valor){
-  try{ await api(tab+'?'+campo+'=eq.'+encodeURIComponent(valor),'DELETE'); }
-  catch(e){ console.error('apagar',tab,e); }
-}
 
+/* ==========================================================
+   A CONFIGURAÇÃO DA LOJA SÓ SOBE QUANDO MUDA, E COM O RECIBO (06/10/2026)
+
+   config_loja e config_operacao subiam INTEIRAS em todo envio, de todo
+   aparelho, mudasse ou não. O aparelho que ficou sem baixar regravava a
+   configuração antiga por cima da nova a cada sincronização: a loja
+   mudava o tempo de entrega, o gerente, o zap, e um tablet esquecido
+   devolvia o valor de antes minutos depois.
+
+   Agora a configuração sobe só quando o que está aqui é diferente do que
+   foi baixado ou confirmado por último (a impressão fica em
+   DB._hashCfg), e leva a versão que este aparelho viu (DB._cfgVista).
+   Sem nunca ter baixado a configuração, não sobe: o aparelho primeiro
+   recebe a da nuvem. Recusada (cópia velha), a nuvem manteve a dela, o
+   pedido vai para a fila de conflitos e a tela baixa o que vale.
+   ========================================================== */
+function cargaConfigLoja(l){
+  var c=cfg();
+  return {loja_id:l,
+    loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
+    tempo_retirada:n(c.tempoRetirada),caixa_cego:!!c.caixaCego,
+    layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},cfg_fiscal:fiscalSemSegredo(c.fiscal),cfg_totem:c.totem||{},
+    cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
+      mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}};
+}
+function cargaConfigOperacao(l){
+  return {loja_id:l,
+    gerente:DB.gerente||{}, zap:DB.zap||{}, canais:DB.canais||{},
+    ass_plat:DB.assPlat||{}, redes:DB.redes||[], operadores:DB.operadores||[]};
+}
+function impressaoDaConfig(o){ return hashTexto(JSON.stringify(o)); }
+/* chamada no download, depois de aplicar a configuração que desceu */
+function anotarConfigVista(tab,linha,carga){
+  try{
+    DB._cfgVista=DB._cfgVista||{}; DB._hashCfg=DB._hashCfg||{};
+    if(linha&&linha.alterado_em)DB._cfgVista[tab]=linha.alterado_em;
+    DB._hashCfg[tab]=impressaoDaConfig(carga);
+  }catch(e){ _quieto(e,'anotarConfigVista'); }
+}
+async function enviarConfig(tab,l,carga){
+  DB._cfgVista=DB._cfgVista||{}; DB._hashCfg=DB._hashCfg||{};
+  var h=impressaoDaConfig(carga);
+  if(DB._hashCfg[tab]===h)return 'igual';
+  if(!DB._cfgVista[tab]&&!NUVEM.baixou)return 'espera';   /* primeiro recebe a da nuvem */
+  var o=Object.assign({},carga,{versao_vista:DB._cfgVista[tab]||null,versao_aparelho:idDoAparelho()});
+  if(tab==='config_operacao')o.atualizado_em=new Date().toISOString();
+  var r=await api(tab+'?on_conflict=loja_id','POST',[o],
+    {'Prefer':'resolution=merge-duplicates,return=representation'});
+  var x=Array.isArray(r)?r[0]:null;
+  if(x&&recusadaPelaNuvem(null,null,x)){
+    NUVEM._rebaixar=true;
+    DB._cfgVista[tab]=x.alterado_em||DB._cfgVista[tab];
+    logNuvem(tab+': a configuração deste aparelho era de uma versão antiga — a nuvem manteve a dela '+
+      'e guardou o pedido na fila de conflitos',true);
+    return 'recusada';
+  }
+  if(x&&x.alterado_em)DB._cfgVista[tab]=x.alterado_em;
+  DB._hashCfg[tab]=h;
+  return 'ok';
+}
 /* ---- sincronização completa ---- */
 var RETIDOS={},ORFAOS={},RECUSADAS={};
 /* ==========================================================
@@ -10845,6 +11092,7 @@ async function sincronizar(){
     gravarLocal();
 
     NUVEM.erros=[];
+    var _recusados={};                 /* pais recusados pela lei de versão nesta tabela */
     for(var m=0;m<MAPA.length;m++){
       var E2=MAPA[m];
       etapa=E2.tab;
@@ -10860,6 +11108,31 @@ async function sincronizar(){
       /* mesma razão, outra tabela: usuário é administrado pela matriz.
          A unidade tomava 403 a cada ciclo por tentar o que a regra proíbe. */
       if(E2.soGestor&&!ehMatriz())continue;
+      /* ==========================================================
+         CADASTRO DA REDE: A UNIDADE CONSULTA, SÓ A MATRIZ GRAVA (06/10/2026)
+
+         Desde 17/09 a tela da unidade não deixa editar ingrediente nem
+         ficha técnica (barraCadastro / podeEditarCadastro). Mas o motor
+         continuava subindo essas tabelas de todo aparelho — e o que subia
+         da loja era só o que as rotinas automáticas mudavam aqui: o código
+         renumerado, o saldo da unidade aberta, o vínculo religado pelo
+         nome. Em 30 dias, santafe@ e caixa@ gravaram 13.500 alterações em
+         insumos e fichas sem ninguém editar nada.
+         Agora a unidade não sobe essas tabelas. O que mudou aqui é
+         descartado (a impressão vira a de agora, e o próximo download traz
+         o cadastro da matriz por cima). A pergunta é a mesma da tela —
+         podeEditarCadastro() —, uma regra só para as duas portas. */
+      if(TABS_SO_A_MATRIZ_GRAVA.indexOf(E2.tab)>=0&&cadastroSoConsulta()){
+        try{
+          var _hD={},_lD=(DB[E2.col]||[]).filter(function(x){return x&&x._loja===l;});
+          _lD.forEach(function(x,i){
+            delete x._novoAqui; delete x._filhoPendente; delete x._manteveLocal;
+            _hD[x.id]=impressaoDaLinha(E2,x,i);
+          });
+          DB._hash[E2.col]=_hD;
+        }catch(eD){ _quieto(eD,'cadastroDaRede'); }
+        continue;
+      }
       /* Cada tabela é enviada por conta própria. Antes, um único registro
          recusado pelo banco parava a fila inteira e as 40 tabelas seguintes
          nunca subiam — o aparelho ficava "travado" sem dizer onde. */
@@ -10936,15 +11209,19 @@ async function sincronizar(){
         }
         if(!lista.length){DB._hash[E2.col]=hAnt;continue;}
         var linhas=lista.map(function(x,i){
-          var o=E2.campos(x,i);
+          var o=semVinculoPerdido(E2.campos,x,i,E2.campos(x,i));
           o.loja_id=x._loja;          /* a empresa de ORIGEM, nunca a da sessao */
           o.ref_local=x.id;
           /* a mesma conta que a volta da nuvem usa — impressaoDaLinha */
           hNovo[x.id]=impressaoDaLinha(E2,x,i);
           /* a versão que este aparelho viu por último: o banco recusa a
              gravação se a nuvem tiver uma mais nova (20260929_versao_vista).
-             Vai DEPOIS da impressão: trocar de versão não é alteração. */
-          if(E2.versao)o.versao_vista=x._alt||null;
+             Vai DEPOIS da impressão: trocar de versão não é alteração.
+             Desde 06/10/2026 vale para TODA tabela do MAPA, e leva junto
+             qual aparelho mandou — é o que a fila de conflitos e a
+             auditoria mostram (20261006_lei_de_versao_em_todas). */
+          o.versao_vista=x._alt||null;
+          o.versao_aparelho=idDoAparelho();
           /* a liberação que este aparelho viu por último: o banco só deixa
              trocar quem viu a de hoje (20261002_liberacao_so_muda_quem_viu).
              Aparelho atrasado não devolve a liberação antiga por cima. */
@@ -11020,20 +11297,37 @@ async function sincronizar(){
               '— a nuvem manteve a que já estava salva',true);
           }
         }
-        if(E2.versao&&salvos.length){
-          var _subiu={},_velhas=0;
+        /* ==========================================================
+           A RECUSA AGORA VALE EM TODA TABELA, E O BANCO DIZ QUAL FOI
+           (06/10/2026)
+
+           A linha recusada volta com `versao_vista` igual ao `alterado_em`
+           da nuvem — o recibo da recusa (20261006_lei_de_versao_em_todas).
+           Não é mais preciso adivinhar comparando campo a campo, o que
+           falhava em toda tabela com jsonb ou com gatilho que conserta
+           valor. A comparação antiga continua só para as quatro tabelas
+           que já tinham a lei, como rede de segurança.
+           Linha recusada: o aparelho não insiste, não manda os filhos dela
+           (`_recusados`) e baixa a nuvem em seguida. O que ele queria
+           gravar está na fila de conflitos, para a matriz decidir. */
+        _recusados={};
+        if(salvos.length){
+          var _subiu={},_velhas=0,_porId={};
           envio.forEach(function(o){_subiu[o.ref_local]=o;});
+          lista.forEach(function(y){ if(y&&y.id)_porId[y.id]=y; });
           salvos.forEach(function(r){
             var o=_subiu[r.ref_local];
-            var x=o?lista.find(function(y){return y.id===r.ref_local}):null;
+            var x=o?_porId[r.ref_local]:null;
             if(!x)return;
-            if(linhaAceitaPelaNuvem(o,r)){ x._alt=r.alterado_em||x._alt||null; return; }
+            if(!recusadaPelaNuvem(E2,o,r)){ x._alt=r.alterado_em||x._alt||null; lembrarVersao(E2.col,x.id,x._alt); return; }
+            _recusados[r.ref_local]=true;
             _velhas++;
           });
           if(_velhas){
             NUVEM._rebaixar=true;
             logNuvem(E2.tab+': '+_velhas+' registro(s) deste aparelho estavam numa versão '+
-              'antiga — a nuvem manteve o que já estava salvo',true);
+              'antiga — a nuvem manteve o que já estava salvo e guardou o pedido na fila de '+
+              'conflitos, para a matriz decidir',true);
           }
         }
         /* so marca como enviado o que a nuvem confirmou; o que falhou tenta de novo */
@@ -11067,6 +11361,22 @@ async function sincronizar(){
           var paiId=_ids[lista[k].id];
           if(!paiId)continue;
           var filhos=lista[k][F.lista]||[];
+          /* ==========================================================
+             FILHOS SEGUEM O PAI (06/10/2026)
+
+             Se a nuvem recusou a ficha (cópia velha), os ingredientes dela
+             também não sobem: a receita nunca troca por baixo de uma ficha
+             que não mudou. O que este aparelho queria para os filhos vai
+             junto do conflito do pai, para a matriz ver inteiro. */
+          if(_recusados[lista[k].id]){
+            try{
+              await api('rpc/anexar_filhos_ao_conflito','POST',{p_tabela:E2.tab,
+                p_ref_local:lista[k].id,p_aparelho:idDoAparelho(),
+                p_filhos:{tabela:F.tab,itens:filhos.map(function(o,j){
+                  var y=F.campos(o,j); y.ref_local=o.id||null; return y; })}});
+            }catch(eA){ _quieto(eA,'anexarFilhos'); }
+            continue;
+          }
           /* ==========================================================
              IDENTIFICADOR DO FILHO PRECISA SER ESTAVEL
              Era montado como pai + '_' + (o.id || posicao). Quando o item
@@ -11108,10 +11418,32 @@ async function sincronizar(){
               var y=F.campos(o,j);
               y[F.pai]=paiId;
               y.ref_local=refs[j];
+              /* vínculo não resolvido não sobe nulo por cima do salvo */
+              y=semVinculoPerdido(F.campos,o,j,y);
+              /* o filho também apresenta a versão que viu (06/10/2026) */
+              y.versao_vista=o._alt||null;
+              y.versao_aparelho=idDoAparelho();
               return y;
             });
             var sf=await enviar(F.tab,lf);
             var conf=(sf||[]).length;
+            /* a versão nova de cada filho aceito fica guardada; filho recusado
+               (cópia velha) faz a tela baixar a nuvem e mostrar o que vale */
+            (function(){
+              var porRef={},_recF=0;
+              filhos.forEach(function(o){ if(o&&o.id)porRef[o.id]=o; });
+              (sf||[]).forEach(function(r){
+                var o=r&&porRef[r.ref_local];
+                if(!o)return;
+                if(recusadaPelaNuvem(null,null,r)){ _recF++; return; }
+                o._alt=r.alterado_em||o._alt||null;
+              });
+              if(_recF){
+                NUVEM._rebaixar=true;
+                logNuvem(F.tab+' em "'+(lista[k].nome||'')+'": '+_recF+' item(ns) numa versão antiga — '+
+                  'a nuvem manteve o que estava e guardou o pedido na fila de conflitos',true);
+              }
+            })();
             logNuvem(F.tab+': '+lf.length+' item(ns), '+conf+' confirmado(s)',
               conf!==lf.length);
             /* ==========================================================
@@ -11203,11 +11535,9 @@ async function sincronizar(){
              ========================================================== */
           if(F.tab==='ficha_itens'&&NUVEM.baixou&&!_falhouFilho){
             try{
-              var qDel='ficha_itens?ficha_id=eq.'+paiId;
-              if(refs.length)qDel+='&ref_local=not.in.('+refs.map(function(r){
-                return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')';
-              var sobra=await api(qDel,'DELETE',null,
-                {'Prefer':'return=representation'});
+              /* com versão (06/10/2026): ingrediente que outro aparelho pôs
+                 depois que este viu a ficha NÃO é apagado por este */
+              var sobra=await apagarComVersao('ficha_itens',{paiColuna:'ficha_id',pai:paiId,manter:refs});
               if(sobra&&sobra.length)
                 logNuvem('ficha_itens: '+sobra.length+' item(ns) que não estão '+
                   'na ficha "'+(lista[k].nome||'')+'" foram removidos da nuvem');
@@ -11323,13 +11653,18 @@ async function sincronizar(){
         etapa=V.tab;
         for(var v=0;v<lista.length;v++){
           if(!mudou[lista[v].id])continue;      /* vinculo igual: nao mexe */
+          if(_recusados[lista[v].id])continue;  /* pai recusado: o vínculo também fica */
           var pid=_ids[lista[v].id];
           if(!pid)continue;
-          await apagar(V.tab,V.pai,pid);
+          /* com versão (06/10/2026): vínculo que outro aparelho pôs depois
+             que este viu o produto fica; e o que ficou não duplica */
+          if(await apagarComVersao(V.tab,{paiColuna:V.pai,pai:pid,manter:[]})===null)continue;
           var refs=(lista[v][V.lista]||[]).map(function(r){return _ids[r]}).filter(Boolean);
           if(!refs.length)continue;
-          var lv=refs.map(function(g,j){var o={};o[V.pai]=pid;o[V.campo]=g;o.ordem=j;return o});
-          await api(V.tab,'POST',lv,{'Prefer':'return=minimal'});
+          var lv=refs.map(function(g,j){var o={};o[V.pai]=pid;o[V.campo]=g;o.ordem=j;
+            o.versao_aparelho=idDoAparelho();return o});
+          await api(V.tab+'?on_conflict='+V.pai+','+V.campo,'POST',lv,
+            {'Prefer':'return=minimal,resolution=ignore-duplicates'});
         }
       }
     }
@@ -11337,14 +11672,7 @@ async function sincronizar(){
     /* configuração da loja — também isolada: se ela falhar, o resto já subiu */
     etapa='config_loja';
     try{
-    var c=cfg();
-    await api('config_loja?on_conflict=loja_id','POST',[{loja_id:l,
-      loja_aberta:c.lojaAberta!==false,tempo_entrega:n(c.tempoEntrega),
-      tempo_retirada:n(c.tempoRetirada),caixa_cego:!!c.caixaCego,
-      layout:c.layout||'foto',fases:c.fases||[],cfg_dre:DB.cfgDre||{},cfg_mesa:c.mesa||{},cfg_modos:c.modos||{},cfg_fiscal:fiscalSemSegredo(c.fiscal),cfg_totem:c.totem||{},
-    cfg_pdv:{colunas:c.colunas,mostraPreco:c.mostraPreco,
-      mostraDesc:c.mostraDesc,botaoGrande:c.botaoGrande}}],
-      {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    await enviarConfig('config_loja',l,cargaConfigLoja(l));
     }catch(eC){
       NUVEM.erros.push({tab:'config_loja',msg:(eC&&eC.message)||'falha'});
       logNuvem('ERRO em config_loja: '+((eC&&eC.message)||'falha'),true);
@@ -11356,11 +11684,7 @@ async function sincronizar(){
        operadores de caixa — sem nenhum aviso. */
     etapa='config_operacao';
     try{
-      await api('config_operacao?on_conflict=loja_id','POST',[{loja_id:l,
-        gerente:DB.gerente||{}, zap:DB.zap||{}, canais:DB.canais||{},
-        ass_plat:DB.assPlat||{}, redes:DB.redes||[], operadores:DB.operadores||[],
-        atualizado_em:new Date().toISOString()}],
-        {'Prefer':'resolution=merge-duplicates,return=minimal'});
+      await enviarConfig('config_operacao',l,cargaConfigOperacao(l));
     }catch(eO){
       NUVEM.erros.push({tab:'config_operacao',msg:(eO&&eO.message)||'falha'});
       logNuvem('ERRO em config_operacao: '+((eO&&eO.message)||'falha'),true);
@@ -11369,13 +11693,16 @@ async function sincronizar(){
     /* vínculo de produção que aponta para outra ficha só existe depois
        que todas as fichas subiram — por isso é gravado agora, no fim */
     var pend=[];
-    (DB.fichas||[]).forEach(function(f){
+    /* vínculo de produção é da ficha — cadastro da rede: só a matriz grava
+       (06/10/2026; destino_id trocou 647 vezes em 30 dias, 521 delas por
+       login de loja) */
+    if(!cadastroSoConsulta())(DB.fichas||[]).forEach(function(f){
       if(!f.destinoId||f.destinoId==='__nenhum')return;
       var alvo=_ids[f.destinoId];
       if(!alvo)return;
       pend.push({tab:'fichas_tecnicas',ref:f.id,campo:'destino_id',uid:alvo});
     });
-    (DB.fichaCats||[]).forEach(function(c){
+    if(!cadastroSoConsulta())(DB.fichaCats||[]).forEach(function(c){
       if(c.destinoId&&_ids[c.destinoId])
         pend.push({tab:'ficha_grupos',ref:c.id,campo:'destino_id',uid:_ids[c.destinoId]});
       /* o subgrupo aponta para a pasta, que pode ter subido na mesma rodada */
@@ -11596,6 +11923,36 @@ function adiantarTab(nome,url){
   if(!_EMVOO[k])_EMVOO[k]=baixarTab(nome,url);
   return _EMVOO[k];
 }
+/* ==========================================================
+   ATÉ QUANDO ESTE APARELHO VIU CADA TABELA (06/10/2026)
+
+   A exclusão também respeita a versão: o aparelho só apaga a linha que
+   não mudou depois que ele a viu (apagar_vistos, no banco). "Até quando
+   viu" é a versão mais nova que desceu de cada tabela — linha alterada
+   depois disso não estava no download, logo ninguém aqui a viu. Os
+   filhos que vêm embutidos no pai (itens, pagamentos, movimentos…)
+   contam pela tabela deles. Só anda para frente.
+   ========================================================== */
+function anotarVistaDaTabela(nome,linhas){
+  try{
+    if(!Array.isArray(linhas)||!linhas.length||typeof NUVEM==='undefined')return;
+    NUVEM._vistaTab=NUVEM._vistaTab||{};
+    var marca=function(tab,t){
+      if(!t)return;
+      var a=NUVEM._vistaTab[tab];
+      if(!a||Date.parse(t)>Date.parse(a))NUVEM._vistaTab[tab]=t;
+    };
+    linhas.forEach(function(x){
+      if(!x||typeof x!=='object')return;
+      marca(nome,x.alterado_em);
+      Object.keys(x).forEach(function(k){
+        var v=x[k];
+        if(Array.isArray(v)&&v.length&&v[0]&&typeof v[0]==='object'&&('alterado_em' in v[0]))
+          v.forEach(function(f){ if(f)marca(k,f.alterado_em); });
+      });
+    });
+  }catch(e){ _quieto(e,'anotarVistaDaTabela'); }
+}
 async function baixarTab(nome,url){
   var k=nome+'|'+url;
   if(_EMVOO[k]){ var p=_EMVOO[k]; delete _EMVOO[k]; return await p; }
@@ -11626,6 +11983,7 @@ async function baixarTab(nome,url){
       if(nome==='pedidos')PED_COBERTO_DESDE='';
     }
     _medir(nome,_tt);
+    anotarVistaDaTabela(nome,r);
     return r;
   }catch(e){
     _medir(nome,_tt);
@@ -11866,6 +12224,37 @@ function volta(linhas,fn,atual,col){
     if(col)guardarIds(col,linhas);
     var r=(linhas||[]).map(fn);
     /* ==========================================================
+       A VERSÃO DE CADA LINHA DESCE JUNTO — EM TODAS AS TABELAS (06/10/2026)
+
+       A lei de versão (20261006_lei_de_versao_em_todas) recusa a gravação
+       de quem não viu a versão de hoje da linha. O aparelho prova que viu
+       mandando `versao_vista` = o `alterado_em` que desceu. Até aqui só
+       quatro tabelas guardavam esse recibo, cada uma no seu tradutor
+       (`_alt:x.alterado_em`). Agora é aqui, uma vez, para toda tabela — e
+       para os filhos (ingrediente, item, pagamento, opção…), casados pelo
+       ref_local com a lista que veio embutida no pai.
+       Tabela nova nasce com recibo, sem ninguém lembrar de nada.
+       ========================================================== */
+    try{
+      var _filhosV=[];
+      try{
+        var _EV=((typeof MAPA!=='undefined'&&MAPA)||[]).find(function(e){return e.col===col});
+        _filhosV=(_EV&&_EV.filhos)||[];
+      }catch(eV){ _filhosV=[]; }
+      (linhas||[]).forEach(function(cru,i){
+        var x=r[i];
+        if(!cru||!x||typeof x!=='object')return;
+        if(cru.alterado_em!==undefined)x._alt=cru.alterado_em||null;
+        _filhosV.forEach(function(F){
+          var cf=cru[F.tab], lf=x[F.lista];
+          if(!Array.isArray(cf)||!Array.isArray(lf))return;
+          var porRef={};
+          cf.forEach(function(c){ if(c&&c.ref_local)porRef[c.ref_local]=c.alterado_em||null; });
+          lf.forEach(function(o){ if(o&&o.id&&porRef[o.id]!==undefined)o._alt=porRef[o.id]; });
+        });
+      });
+    }catch(eV2){}
+    /* ==========================================================
        DOWNLOAD VAZIO NAO E "A NUVEM ESTA VAZIA"
 
        `baixarTab()` devolve `[]` quando a consulta FALHA — e escreve no
@@ -11976,6 +12365,40 @@ function volta(linhas,fn,atual,col){
         logNuvem(col+': download começou antes do último envio — mantido o que '+
           'está no aparelho, a nuvem reconcilia no próximo ciclo',true);
       var _fic=0;
+      /* ==========================================================
+         A ALTERAÇÃO QUE FICOU AQUI SÓ GANHA O RECIBO SE NASCEU DA VERSÃO
+         QUE ESTÁ NA NUVEM (06/10/2026)
+
+         A linha mantida aqui sobe no próximo envio. Se ela não tem recibo
+         (`_alt` — alteração feita antes da lei, ou por código antigo), a
+         nuvem a recusa e ela vai para a fila de conflitos. Quase sempre sem
+         motivo: ninguém mexeu na nuvem desde que este aparelho baixou.
+         A prova é a impressão guardada do último envio confirmado
+         (`DB._hash`): se a linha da nuvem, hoje, tem a MESMA impressão, a
+         alteração daqui nasceu da versão de hoje — e ganha o recibo dela.
+         Se a nuvem mudou desde então, fica sem recibo e a matriz decide.
+         ========================================================== */
+      var _EK=null;
+      try{ _EK=((typeof MAPA!=='undefined'&&MAPA)||[]).find(function(e){return e.col===col})||null; }catch(eK){ _EK=null; }
+      r.forEach(function(x,i){
+        if(x&&x.id&&meus[x.id]){
+          var loc=meus[x.id];
+          try{
+            if(loc!==x&&loc._alt==null&&x._alt&&_EK&&typeof impressaoDaLinha==='function'&&
+               typeof DB!=='undefined'&&DB._hash&&DB._hash[col]&&DB._hash[col][loc.id]&&
+               impressaoDaLinha(_EK,x,i)===DB._hash[col][loc.id]){
+              loc._alt=x._alt;
+              (_EK.filhos||[]).forEach(function(F){
+                var daNuvem={};
+                (x[F.lista]||[]).forEach(function(o){ if(o&&o.id)daNuvem[o.id]=o._alt; });
+                (loc[F.lista]||[]).forEach(function(o){
+                  if(o&&o.id&&o._alt==null&&daNuvem[o.id])o._alt=daNuvem[o.id];
+                });
+              });
+            }
+          }catch(eK2){}
+        }
+      });
       r=r.map(function(x){
         if(x&&x.id&&meus[x.id]){ _fic++; return meus[x.id]; }
         return x;
@@ -12362,7 +12785,10 @@ function volta(linhas,fn,atual,col){
     return '';
   }
   var rg=await _p09;
-  var rv=await api('produto_grupos?select=produto_id,grupo_id');
+  /* alterado_em vem junto: é por ele que o aparelho sabe até quando viu os
+     vínculos — e só apaga o que viu (06/10/2026) */
+  var rv=await api('produto_grupos?select=produto_id,grupo_id,alterado_em');
+  anotarVistaDaTabela('produto_grupos',rv);
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
   var mapaGr={};rg.forEach(function(x){mapaGr[x.id]=x.ref_local||x.id});
   DB.categorias=volta(rc,function(x){return {id:x.ref_local||x.id,nome:x.nome,impressao:x.impressao,
@@ -12455,6 +12881,11 @@ function volta(linhas,fn,atual,col){
     if(cfgS[0].cfg_pdv){var cp=cfgS[0].cfg_pdv;
       c3.colunas=cp.colunas;c3.mostraPreco=cp.mostraPreco;
       c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}
+    /* a versão que desceu e a impressão do que ficou aqui: o envio só
+       sobe a configuração quando ela mudar (enviarConfig, 06/10/2026) */
+    /* caixa_cego não desce: a impressão leva o da nuvem, para o daqui subir se for outro */
+    if(typeof anotarConfigVista==='function')
+      anotarConfigVista('config_loja',cfgS[0],Object.assign(cargaConfigLoja(l),{caixa_cego:!!cfgS[0].caixa_cego}));
   }
   /* As seis que viviam so no navegador. Objeto vazio nao sobrescreve o que
      ja existe aqui: aparelho novo recebe tudo, aparelho antigo nao perde
@@ -12512,6 +12943,11 @@ function volta(linhas,fn,atual,col){
       if(o.ass_plat&&Object.keys(o.ass_plat).length)DB.assPlat=o.ass_plat;
       if(o.redes&&o.redes.length)DB.redes=o.redes;
       if(o.operadores&&o.operadores.length)DB.operadores=o.operadores;
+      /* a impressão é a do que está na NUVEM: o que só existe aqui (nuvem em
+         branco) continua subindo; o igual não sobe mais (06/10/2026) */
+      if(typeof anotarConfigVista==='function')
+        anotarConfigVista('config_operacao',o,{loja_id:l,gerente:o.gerente||{},zap:o.zap||{},canais:o.canais||{},
+          ass_plat:o.ass_plat||{},redes:o.redes||[],operadores:o.operadores||[]});
     }
   }catch(eo){ logNuvem('não consegui baixar a configuração de operação',true); }
   /* ---------- ESTOQUE ---------- */
@@ -14906,7 +15342,7 @@ var DIAS_JANELA=90;   /* movimentacoes/cupons: janela baixada no login */
 /* pedidos guardam uma janela mais curta no aparelho — o histórico mais antigo
    vem da nuvem no relatório (Etapa 2, 05/09/2026), para o aparelho ficar leve */
 var DIAS_JANELA_PEDIDOS=30;
-var VERSAO='V426.0.0';
+var VERSAO='V427.0.0';
 /* confere se há versão nova publicada e avisa, sem forçar nada */
 /* location.reload(true) não força mais nada nos navegadores atuais:
    o arquivo antigo continua vindo do cache. Recarregar com um endereço
@@ -18027,15 +18463,45 @@ function espelharEstoque(){
   var mapa={};
   (DB.estoqueUn||[]).forEach(function(x){ if(x&&x.id)mapa[x.id]=x; });
   function achar(itemId){ return mapa[chaveEst(suc,itemId)]||null; }
-  (DB.insumos||[]).forEach(function(i){
+  /* ==========================================================
+     O ESPELHO É DA TELA, NÃO SOBE PARA A REDE (06/10/2026)
+
+     O saldo e o custo copiados aqui são os da UNIDADE ABERTA neste
+     aparelho — é o que a tela precisa mostrar. Mas eles moram no cadastro
+     único do insumo (que é da rede), e a cópia mudava a impressão da
+     linha: o envio seguinte subia o saldo de Santa Fé, o da matriz, o da
+     unidade que o administrador estivesse olhando… um por cima do outro.
+     Foram ~6.500 voltas de estoque e custo em 30 dias.
+     O saldo de verdade mora em estoque_unidade, uma linha por unidade.
+     Aqui, a linha que não tinha alteração pendente continua sem: a
+     impressão é refeita junto com o espelho, e nada sobe por causa dele.
+     Os campos do insumo e da ficha, no MAPA, não usam a posição da linha,
+     então a impressão é a mesma que o envio e o download calculam. */
+  var _EI=null,_EF=null;
+  try{
+    _EI=MAPA.find(function(e){return e.col==='insumos'});
+    _EF=MAPA.find(function(e){return e.col==='fichas'});
+  }catch(e){ _quieto(e,'espelharEstoque'); }
+  function espelha(col,E,x,idx,muda){
+    var limpa=false;
+    try{ limpa=!!(E&&DB._hash&&DB._hash[col]&&DB._hash[col][x.id]&&!temMudancaNaoEnviada(col,x,idx)); }
+    catch(e){ limpa=false; }
+    muda();
+    if(limpa){ try{ DB._hash[col][x.id]=impressaoDaLinha(E,x,idx); }catch(e){ _quieto(e,'espelharEstoque'); } }
+  }
+  (DB.insumos||[]).forEach(function(i,idx){
     var r=achar(i.id);
-    i.estoqueAtual=r?(Number(r.estoque)||0):0;
-    i.custo=r?(Number(r.custoMedio)||0):0;
+    espelha('insumos',_EI,i,idx,function(){
+      i.estoqueAtual=r?(Number(r.estoque)||0):0;
+      i.custo=r?(Number(r.custoMedio)||0):0;
+    });
   });
-  (DB.fichas||[]).forEach(function(f){
+  (DB.fichas||[]).forEach(function(f,idx){
     if(f.estocavel===false)return;
     var r=achar(f.id);
-    f.estoqueAtual=r?(Number(r.estoque)||0):0;
+    espelha('fichas',_EF,f,idx,function(){
+      f.estoqueAtual=r?(Number(r.estoque)||0):0;
+    });
   });
 }
 /* Traz o saldo antigo — que era da rede — para a unidade matriz.
@@ -31396,17 +31862,10 @@ function modalPagamento(ids){
 async function apagarLancNaNuvem(id){
   if(!(NUVEM.ligada&&NUVEM.loja))return true;
   try{
-    var filtro='lancamentos_financeiros?loja_id=eq.'+NUVEM.loja+
-              '&ref_local=eq.'+encodeURIComponent(id);
-    var foi=await api(filtro,'DELETE',null,{'Prefer':'return=representation'});
-    if(Array.isArray(foi)&&!foi.length){
-      var ficou=await api(filtro+'&select=id');
-      if(Array.isArray(ficou)&&ficou.length){
-        painelErro('A nuvem não deixou excluir este lançamento.',
-          'Seu usuário não tem permissão para excluir no financeiro. Nada foi apagado.');
-        return false;
-      }
-    }
+    /* pela porta da versão (06/10/2026): o lançamento que outro aparelho
+       mudou depois que este o viu não é apagado por este */
+    var res=await excluirNaNuvemComVersao('lancamentos_financeiros','lancFin',id);
+    if(res!=='ok'){ avisoDeExclusao(res,'este lançamento'); return false; }
     return true;
   }catch(e){
     painelErro('Não consegui excluir na nuvem.',detalheErro(e));
@@ -38239,15 +38698,8 @@ function arrumarEspelhoCardapio(){
   try{ if(DB._snap)delete DB._snap.cardapioL; }catch(e){_quieto(e,'arrumarEspelhoCardapio')}
   DB._espelhoOk=true;
 }
-function arrumarCodigos(){
-  if(DB._codOk)return;
-  var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
-  if(!q)return;
-  renumerarCodigos();
-  DB._codOk=true;
-  try{ salvar(); }catch(e){ try{gravarLocal()}catch(e2){_quieto(e2,'arrumarCodigos')} }
-  try{ logNuvem(q+' códigos arrumados: 1 a '+q+' em ordem alfabética'); }catch(e){_quieto(e,'arrumarCodigos')}
-}
+/* arrumarCodigos() — a renumeração automática — foi retirada em 06/10/2026:
+   renumerar só pelo botão (pedirRenumerar). Ver 01-baixa-hub-e-mais-6.js. */
 async function pedirRenumerar(){
   var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
   var ok=await confirmar({
@@ -38777,8 +39229,9 @@ async function excluirInsumo(id){
      so aqui fazia o ingrediente voltar no download seguinte */
   if(NUVEM.ligada&&NUVEM.loja){
     try{
-      await api('insumos?loja_id=eq.'+NUVEM.loja+
-                '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+      /* pela porta da versão (06/10/2026) */
+      var _res=await excluirNaNuvemComVersao('insumos','insumos',id);
+      if(_res!=='ok'){ avisoDeExclusao(_res,'este ingrediente'); return; }
     }catch(e){
       painelErro('Não consegui excluir na nuvem.',detalheErro(e));
       return;
@@ -39529,10 +39982,18 @@ async function excluirSel(){
                        '&ref_local=eq.'+alvo+'&select=id');
       /* todas as linhas, nao so a primeira: se a ficha chegou a duplicar na
          nuvem, apagar uma so deixava a outra voltando no download */
+      /* pelo banco, com a versao vista (06/10/2026): se outro aparelho
+         mudou a ficha depois que este a viu, a nuvem nao apaga — o pedido
+         vai para a fila de conflitos e a ficha continua aqui */
       for(var _q=0;_q<((fc&&fc.length)||0);_q++){
-        await api('ficha_itens?ficha_id=eq.'+fc[_q].id,'DELETE');
-        await api('fichas_tecnicas?id=eq.'+fc[_q].id,'DELETE');
+        if(await apagarComVersao('ficha_itens',{paiColuna:'ficha_id',pai:fc[_q].id,manter:[]})===null){
+          /* adiada só importa se a ficha tem ingrediente na nuvem */
+          var _tem=await api('ficha_itens?ficha_id=eq.'+fc[_q].id+'&select=id&limit=1');
+          if(Array.isArray(_tem)&&_tem.length){ avisoDeExclusao('adiada','esta ficha'); return; }
+        }
       }
+      var _res=fc&&fc.length?await excluirNaNuvemComVersao('fichas_tecnicas','fichas',f.id):'ok';
+      if(_res!=='ok'){ avisoDeExclusao(_res,'esta ficha'); return; }
     }catch(e){
       painelErro('Não consegui excluir na nuvem.',detalheErro(e));
       return;                       /* nao apaga aqui: continuaria voltando */
@@ -39627,8 +40088,9 @@ async function delSubFicha(sid){
 async function excluirLinhaGrupoFicha(id){
   if(NUVEM.ligada&&NUVEM.loja){
     try{
-      await api('ficha_grupos?loja_id=eq.'+NUVEM.loja+
-                '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+      /* pela porta da versão (06/10/2026) */
+      var _res=await excluirNaNuvemComVersao('ficha_grupos','fichaCats',id);
+      if(_res!=='ok'){ avisoDeExclusao(_res,'este grupo'); return false; }
     }catch(e){
       painelErro('Não consegui excluir na nuvem.',detalheErro(e));
       return false;
@@ -40252,7 +40714,9 @@ async function gravarItensFichaAgora(f){
       insumo_id:ehF?null:(_ids[o.insumoId]||null),
       ficha_ref:ehF?(_ids[o.insumoId]||null):null,
       quantidade:Number(o.qtd)||0,unidade:o.unidade||'un',
-      perda:Number(o.perda)||0};
+      perda:Number(o.perda)||0,
+      /* o recibo: a versão deste ingrediente que este aparelho viu (06/10/2026) */
+      versao_vista:o._alt||null,versao_aparelho:idDoAparelho()};
   });
   var semVinculo=linhas.filter(function(y){return !y.insumo_id&&!y.ficha_ref});
   if(semVinculo.length)
@@ -40265,12 +40729,35 @@ async function gravarItensFichaAgora(f){
     if(!Array.isArray(gravadas)||gravadas.length!==linhas.length)
       return {ok:false,motivo:'a nuvem aceitou '+
         ((gravadas&&gravadas.length)||0)+' de '+linhas.length+' ingrediente(s)'};
+    /* ==========================================================
+       INGREDIENTE QUE OUTRO APARELHO MUDOU NÃO É ATROPELADO (06/10/2026)
+
+       A nuvem só grava o ingrediente de quem viu a versão de hoje dele.
+       Se outro aparelho mudou o ingrediente depois que este abriu a ficha,
+       a nuvem mantém o que está lá e guarda este pedido na fila de
+       conflitos. A tela diz isso — e não "salvo".
+       ========================================================== */
+    var porRef={},recusados=0;
+    itens.forEach(function(o){ porRef[String(o.id)]=o; });
+    gravadas.forEach(function(r){
+      var o=r&&porRef[r.ref_local];
+      if(!o)return;
+      if(recusadaPelaNuvem(null,null,r)){ recusados++; return; }
+      o._alt=r.alterado_em||o._alt||null;
+    });
+    if(recusados){
+      NUVEM._rebaixar=true;
+      return {ok:false,motivo:recusados+' ingrediente(s) foram alterados em outro aparelho depois '+
+        'que este abriu a ficha. A nuvem manteve o que estava lá e guardou o seu pedido para a '+
+        'matriz decidir. Atualize a tela para ver o que vale.'};
+    }
   }
-  /* 3. o que nao esta na tela sai da nuvem */
-  var qDel='ficha_itens?ficha_id=eq.'+pai;
-  if(refs.length)qDel+='&ref_local=not.in.('+refs.map(function(r){
-    return '"'+String(r).replace(/"/g,'')+'"'}).join(',')+')';
-  await api(qDel,'DELETE');
+  /* 3. o que nao esta na tela sai da nuvem — pelo banco, com a versao vista:
+        ingrediente que outro aparelho pos depois que este viu a ficha fica */
+  var sobra=await apagarComVersao('ficha_itens',{paiColuna:'ficha_id',pai:pai,manter:refs});
+  if(sobra===null)
+    logNuvem('ficha_itens: a limpeza dos ingredientes tirados de "'+(f.nome||'')+
+      '" fica para depois do próximo download',true);
   /* 4. o retrato passa a bater com a nuvem, senao o motor de sincronizacao
         acha que estes itens sumiram e os apaga na proxima passagem */
   try{ DB._snap=DB._snap||{}; DB._snap['fichas.itens.'+f.id]=refs.slice(); }
@@ -40362,7 +40849,12 @@ function baseMov(){
   setTimeout(function(){DB._baseMovOk=false},0);
   baseFicha();
   if(typeof baseCat==='function')baseCat();
-  arrumarCodigos();
+  /* arrumarCodigos() saiu daqui (06/10/2026): ela renumerava TODOS os
+     insumos e fichas sozinha, ao abrir a tela — e cada aparelho, vendo uma
+     lista diferente, gravava uma numeração diferente (o Chocotone foi 129,
+     186, 128 e 185 em dois dias; 8.008 trocas de código em 30 dias).
+     Renumerar é decisão de quem usa: o botão "Renumerar os códigos"
+     (pedirRenumerar) continua lá, com a confirmação. */
   arrumarEspelhoCardapio();
   DB.motivosMov=DB.motivosMov||[
     {id:'mv_ent',  nome:'Entrada manual',        tipo:'entrada', sistema:false,ativo:true,lojas:[]},

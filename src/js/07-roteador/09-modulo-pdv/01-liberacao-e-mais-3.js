@@ -616,15 +616,45 @@ function espelharEstoque(){
   var mapa={};
   (DB.estoqueUn||[]).forEach(function(x){ if(x&&x.id)mapa[x.id]=x; });
   function achar(itemId){ return mapa[chaveEst(suc,itemId)]||null; }
-  (DB.insumos||[]).forEach(function(i){
+  /* ==========================================================
+     O ESPELHO É DA TELA, NÃO SOBE PARA A REDE (06/10/2026)
+
+     O saldo e o custo copiados aqui são os da UNIDADE ABERTA neste
+     aparelho — é o que a tela precisa mostrar. Mas eles moram no cadastro
+     único do insumo (que é da rede), e a cópia mudava a impressão da
+     linha: o envio seguinte subia o saldo de Santa Fé, o da matriz, o da
+     unidade que o administrador estivesse olhando… um por cima do outro.
+     Foram ~6.500 voltas de estoque e custo em 30 dias.
+     O saldo de verdade mora em estoque_unidade, uma linha por unidade.
+     Aqui, a linha que não tinha alteração pendente continua sem: a
+     impressão é refeita junto com o espelho, e nada sobe por causa dele.
+     Os campos do insumo e da ficha, no MAPA, não usam a posição da linha,
+     então a impressão é a mesma que o envio e o download calculam. */
+  var _EI=null,_EF=null;
+  try{
+    _EI=MAPA.find(function(e){return e.col==='insumos'});
+    _EF=MAPA.find(function(e){return e.col==='fichas'});
+  }catch(e){ _quieto(e,'espelharEstoque'); }
+  function espelha(col,E,x,idx,muda){
+    var limpa=false;
+    try{ limpa=!!(E&&DB._hash&&DB._hash[col]&&DB._hash[col][x.id]&&!temMudancaNaoEnviada(col,x,idx)); }
+    catch(e){ limpa=false; }
+    muda();
+    if(limpa){ try{ DB._hash[col][x.id]=impressaoDaLinha(E,x,idx); }catch(e){ _quieto(e,'espelharEstoque'); } }
+  }
+  (DB.insumos||[]).forEach(function(i,idx){
     var r=achar(i.id);
-    i.estoqueAtual=r?(Number(r.estoque)||0):0;
-    i.custo=r?(Number(r.custoMedio)||0):0;
+    espelha('insumos',_EI,i,idx,function(){
+      i.estoqueAtual=r?(Number(r.estoque)||0):0;
+      i.custo=r?(Number(r.custoMedio)||0):0;
+    });
   });
-  (DB.fichas||[]).forEach(function(f){
+  (DB.fichas||[]).forEach(function(f,idx){
     if(f.estocavel===false)return;
     var r=achar(f.id);
-    f.estoqueAtual=r?(Number(r.estoque)||0):0;
+    espelha('fichas',_EF,f,idx,function(){
+      f.estoqueAtual=r?(Number(r.estoque)||0):0;
+    });
   });
 }
 /* Traz o saldo antigo — que era da rede — para a unidade matriz.

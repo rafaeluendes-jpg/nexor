@@ -42,7 +42,7 @@ function t(nome, ok, det) {
 function motor(estado) {
   const chamadas = [], logs = [];
   const ctx = {
-    DB: estado.DB, NUVEM: estado.NUVEM || { baixou: true },
+    DB: estado.DB, NUVEM: estado.NUVEM || viu(),
     cortadas: estado.cortadas || {}, matriz: estado.matriz !== false,
     podeEsvaziar: !!estado.podeEsvaziar, chamadas, logs
   };
@@ -55,13 +55,27 @@ function motor(estado) {
     var logNuvem=function(m){ctx.logs.push(String(m))};
     var avisoSinc=function(m){ctx.logs.push('AVISO '+m)};
     var _quieto=function(){};
-    var api=async function(url,metodo){ ctx.chamadas.push((metodo||'GET')+' '+url); return []; };
+    var idDoAparelho=function(){return 'ap_teste'};
+    /* (06/10/2026) a exclusão vai pelo banco, com a versão vista: apagar_vistos */
+    var api=async function(url,metodo,corpo){
+      if(url==='rpc/apagar_vistos'){
+        ctx.chamadas.push('APAGAR '+corpo.p_tabela+' '+JSON.stringify(corpo.p_refs)+' vista='+corpo.p_vista);
+        return {apagados:corpo.p_refs||[]};
+      }
+      ctx.chamadas.push((metodo||'GET')+' '+url); return [];
+    };
+    ${corpoDaFuncao('lembrarVersao', fonte)}
+    ${corpoDaFuncao('versaoVistaDaLinha', fonte)}
+    ${corpoDaFuncao('apagarComVersao', fonte)}
     ${corpoDaFuncao('apagarRemovidos', fonte)}
     return apagarRemovidos;
   `)(ctx);
   return { rodar: (ids) => fn('produtos', 'produtos', ids), chamadas, logs };
 }
-const apagou = m => m.chamadas.some(c => c.indexOf('DELETE') === 0);
+/* o aparelho sabe até quando viu a tabela (o download anota) */
+const VISTA = '2026-10-06T05:00:00.000001+00:00';
+const viu = () => ({ baixou: true, _vistaTab: { produtos: VISTA } });
+const apagou = m => m.chamadas.some(c => c.indexOf('APAGAR ') === 0 || c.indexOf('DELETE') === 0);
 const base = (extra) => Object.assign({
   _snap: { produtos: ['p1', 'p2', 'p3'] },
   _apagados: { produtos: { p2: true } }
@@ -73,8 +87,9 @@ console.log('\n── 1. Apagar apaga — em qualquer estado do aparelho\n');
   let m = motor({ DB: base() });
   await m.rodar(['p1', 'p3']);
   t('o caso normal continua funcionando', apagou(m), m.chamadas.join(' | '));
-  t('e apaga exatamente o que foi declarado',
-    /DELETE produtos\?ref_local=in\.\("p2"\)/.test(m.chamadas.join('')), m.chamadas.join(''));
+  t('e apaga exatamente o que foi declarado (pelo banco, com a versão vista)',
+    m.chamadas.join('|') === 'APAGAR produtos ["p2"] vista=' + VISTA, m.chamadas.join(''));
+  t('e nenhum DELETE direto', !m.chamadas.some(c => c.indexOf('DELETE') === 0), m.chamadas.join(' | '));
 
   m = motor({ DB: base({ _snap: {} }) });
   await m.rodar(['p1', 'p3']);
@@ -88,9 +103,17 @@ console.log('\n── 1. Apagar apaga — em qualquer estado do aparelho\n');
   await m.rodar(['p1', 'p3']);
   t('com o download cortado pelo limite, também', apagou(m));
 
-  m = motor({ DB: base(), NUVEM: { baixou: false } });
+  /* aparelho que ainda não baixou não sabe o que viu: a ordem NÃO se
+     perde — fica guardada e vale assim que o download disser até quando viu */
+  const stNb = base(); const nb = { baixou: false };
+  m = motor({ DB: stNb, NUVEM: nb });
   await m.rodar(['p1', 'p3']);
-  t('e no aparelho que ainda não baixou, também', apagou(m));
+  t('no aparelho que ainda não baixou, a ordem fica guardada (não se perde)',
+    !apagou(m) && stNb._apagados.produtos.p2 === true, JSON.stringify(stNb._apagados));
+  nb.baixou = true; nb._vistaTab = { produtos: VISTA };
+  m = motor({ DB: stNb, NUVEM: nb });
+  await m.rodar(['p1', 'p3']);
+  t('e no aparelho que ainda não baixou, também — vale depois do download', apagou(m));
 
   const st = base(); const m2 = motor({ DB: st });
   await m2.rodar(['p1', 'p3']);

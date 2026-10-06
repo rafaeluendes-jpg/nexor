@@ -123,15 +123,8 @@ function arrumarEspelhoCardapio(){
   try{ if(DB._snap)delete DB._snap.cardapioL; }catch(e){_quieto(e,'arrumarEspelhoCardapio')}
   DB._espelhoOk=true;
 }
-function arrumarCodigos(){
-  if(DB._codOk)return;
-  var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
-  if(!q)return;
-  renumerarCodigos();
-  DB._codOk=true;
-  try{ salvar(); }catch(e){ try{gravarLocal()}catch(e2){_quieto(e2,'arrumarCodigos')} }
-  try{ logNuvem(q+' códigos arrumados: 1 a '+q+' em ordem alfabética'); }catch(e){_quieto(e,'arrumarCodigos')}
-}
+/* arrumarCodigos() — a renumeração automática — foi retirada em 06/10/2026:
+   renumerar só pelo botão (pedirRenumerar). Ver 01-baixa-hub-e-mais-6.js. */
 async function pedirRenumerar(){
   var q=(DB.insumos||[]).length+(DB.fichas||[]).length;
   var ok=await confirmar({
@@ -661,8 +654,9 @@ async function excluirInsumo(id){
      so aqui fazia o ingrediente voltar no download seguinte */
   if(NUVEM.ligada&&NUVEM.loja){
     try{
-      await api('insumos?loja_id=eq.'+NUVEM.loja+
-                '&ref_local=eq.'+encodeURIComponent(id),'DELETE');
+      /* pela porta da versão (06/10/2026) */
+      var _res=await excluirNaNuvemComVersao('insumos','insumos',id);
+      if(_res!=='ok'){ avisoDeExclusao(_res,'este ingrediente'); return; }
     }catch(e){
       painelErro('Não consegui excluir na nuvem.',detalheErro(e));
       return;

@@ -142,7 +142,7 @@
    "roda": true
   },
   "testes/conferir-nuvem.js": {
-   "pontos": 11,
+   "pontos": 13,
    "roda": true
   },
   "testes/conta-do-banco-nao-some.js": {
@@ -338,7 +338,7 @@
    "roda": true
   },
   "testes/lancamento-apagado-nao-volta.js": {
-   "pontos": 11,
+   "pontos": 14,
    "roda": true
   },
   "testes/lancamento-automatico-entra-no-dre.js": {
@@ -355,6 +355,10 @@
   },
   "testes/lancamento-nao-vira-nota.js": {
    "pontos": 17,
+   "roda": true
+  },
+  "testes/lei-de-versao-em-todas.js": {
+   "pontos": 22,
    "roda": true
   },
   "testes/lei-de-versao-financeiro-e-caixa.js": {
@@ -407,6 +411,10 @@
   },
   "testes/motivo-nasce-visivel.js": {
    "pontos": 6,
+   "roda": true
+  },
+  "testes/motor-respeita-a-versao.js": {
+   "pontos": 43,
    "roda": true
   },
   "testes/movimentacao-nao-se-apaga.js": {

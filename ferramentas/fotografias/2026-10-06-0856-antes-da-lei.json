@@ -1,0 +1,117 @@
+{
+ "quando": "2026-10-06 08:56:55.412201+00",
+ "o_que": "antes da migration 20261006_lei_de_versao_em_todas (consulta: ferramentas/fotografia-dos-dados.sql, por empresa)",
+ "foto": [
+  {
+   "o": "caixas fechados",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 48,
+   "h": "76a72d29a9d4192a47c5fd97f8266efd"
+  },
+  {
+   "o": "conciliações",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 37,
+   "h": "fe3ab19ead5c859f8ff94b3d6d9ac74c"
+  },
+  {
+   "o": "contas pagas",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 255,
+   "h": "446ed065bc39f534e3021068a1a919cd"
+  },
+  {
+   "o": "fichas",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 139,
+   "h": "665b7374f87b435a06bd93d713b362db"
+  },
+  {
+   "o": "grupos de ficha (com a liberação)",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 14,
+   "h": "1c2fa5459c6bc6c506f280c5116dea83"
+  },
+  {
+   "o": "ingredientes das fichas",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 709,
+   "h": "075070fb13c8551393582a3a6479be50"
+  },
+  {
+   "o": "insumos",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 279,
+   "h": "0077c83b940cd368a478f8a11f90794d"
+  },
+  {
+   "o": "produtos (com a liberação)",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 45,
+   "h": "eaa3b7daa2cab10a023ffe743f1b2c9c"
+  },
+  {
+   "o": "unidades",
+   "l": "6001c62e-26f3-4d81-8b6c-fa367c14146c",
+   "n": 4,
+   "h": "799ccfb90ced624ffe89815be84c3429"
+  }
+ ],
+ "por_unidade_quando": "2026-10-06 08:58:26.60311+00",
+ "por_unidade": [
+  {
+   "o": "caixas fechados · unidade",
+   "l": "suc_mt1npcg7b3m3",
+   "n": 1,
+   "h": "b316374aea57cbf93bafe41d9a7621b6"
+  },
+  {
+   "o": "caixas fechados · unidade",
+   "l": "suc_mt1unhbx2xrb",
+   "n": 47,
+   "h": "2feb9a1b6f65c4a620de7c6b6ff3d2c6"
+  },
+  {
+   "o": "conciliações · unidade",
+   "l": "suc_mt1unhbx2xrb",
+   "n": 37,
+   "h": "fe3ab19ead5c859f8ff94b3d6d9ac74c"
+  },
+  {
+   "o": "contas pagas · unidade",
+   "l": "suc_matriz",
+   "n": 1,
+   "h": "ef3dae08b533fa9c16cc397cb1eda041"
+  },
+  {
+   "o": "contas pagas · unidade",
+   "l": "suc_mt1unhbx2xrb",
+   "n": 254,
+   "h": "cb54f13a31c6f145e9b45162c4a4d0a1"
+  },
+  {
+   "o": "liberação de fichas · unidade",
+   "l": "suc_mt1unhbx2xrb",
+   "n": 101,
+   "h": "0b0f0e715495440d797d6ec6a61edbfd"
+  },
+  {
+   "o": "liberação de grupos de ficha · unidade",
+   "l": "suc_mt1unhbx2xrb",
+   "n": 12,
+   "h": "2208d871f4a963f304b64c61752a4f62"
+  },
+  {
+   "o": "liberação de insumos · unidade",
+   "l": "suc_mt1unhbx2xrb",
+   "n": 236,
+   "h": "1a345df2c9d3ef7593314859ddc763f5"
+  },
+  {
+   "o": "liberação de produtos · unidade",
+   "l": "suc_mt1unhbx2xrb",
+   "n": 45,
+   "h": "df0c27c78c41f0dee47a0fcf5385fe3c"
+  }
+ ]
+}

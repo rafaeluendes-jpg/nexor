@@ -161,6 +161,41 @@ function conferirTabela(onde, tab, linha) {
       (((esquema[tab] || {}).unicos || []).map(u => u.join(',')).join(' | ') || 'nenhum'));
 }
 
+/* ----------------------------------------------------------
+   0 — toda tabela que o aparelho grava está sob a lei de versão
+       (Missão integridade, 06/10/2026)
+
+   A lei de versão e a auditoria valiam em poucas tabelas, postas uma a
+   uma depois de cada estrago. Agora a regra é do banco para TODA tabela
+   que o motor grava — e a lista vem do próprio MAPA, não de uma lista
+   escrita aqui. Tabela nova no MAPA sem a lei (as colunas do recibo, os
+   gatilhos da versão, da exclusão, do carimbo e da auditoria, e o modo
+   na lei_de_versao) reprova: não se publica tabela que o aparelho grava
+   sem o banco ser juiz dela.
+   ---------------------------------------------------------- */
+console.log('\n══ 0. Toda tabela que o aparelho grava está sob a lei de versão?');
+{
+  const { tabelasDoMapa } = require('./tabelas-do-mapa.js');
+  const daLei = tabelasDoMapa(fonte).todas;
+  const COLS = ['alterado_em', 'versao_vista', 'versao_aparelho'];
+  const GATS = ['ab_versao_vista', 'ab_exclusao_vista', 'zz_carimbar_alteracao', 'tg_auditar'];
+  daLei.forEach(function (t) {
+    const e = esquema[t];
+    if (!e) { erro(t, 'o motor grava nesta tabela e ela não existe no banco.'); return; }
+    const faltaC = COLS.filter(c => !(e.colunas || {})[c]);
+    if (faltaC.length) erro(t, 'sem a lei de versão: faltam as colunas ' + faltaC.join(', ') + '.',
+      'instale com instalar_lei_de_versao(\'' + t + '\') numa migration');
+    if (!e.gatilhos) { erro(t, 'a referência não sabe os gatilhos desta tabela.',
+      'regrave ferramentas/esquema-nuvem.json com ferramentas/gravar-esquema.js'); return; }
+    const faltaG = GATS.filter(g => e.gatilhos.indexOf(g) < 0);
+    if (faltaG.length) erro(t, 'sem ' + faltaG.join(', ') + ' — o banco não é juiz desta tabela' +
+      (faltaG.indexOf('tg_auditar') >= 0 ? ' e o estrago não teria o "antes" para devolver' : '') + '.',
+      'instale com instalar_lei_de_versao(\'' + t + '\') numa migration');
+    if (!e.lei) erro(t, 'fora da lei_de_versao (sem modo): a fila de conflitos não sabe o que fazer com ela.');
+    if (!faltaC.length && !faltaG.length && e.lei) ok(t + ' sob a lei (' + e.lei.modo + ')');
+  });
+}
+
 console.log('\n══ 1. O que o MAPA manda existe no banco?');
 const MAPA = lerMAPA();
 MAPA.forEach(E => {
@@ -374,6 +409,10 @@ process.exit(problemas ? 1 : 0);
 
 /* ==========================================================
    PARA REGRAVAR ferramentas/esquema-nuvem.json APOS UMA MIGRATION
+
+   Desde 06/10/2026: use ferramentas/gravar-esquema.js — a consulta de lá
+   traz também os gatilhos e a lei de versão, que a conferência 0 exige.
+   A consulta abaixo é a antiga (só colunas e índices).
 
    select json_build_object(
      'colunas', (select json_agg(json_build_object('t',table_name,'c',column_name,

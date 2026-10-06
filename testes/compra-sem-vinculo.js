@@ -155,11 +155,19 @@ async function carregar() {
   /* a pessoa apaga a parcela 1 pelo botão da lixeira */
   const apagadosNaNuvem = [];
   win.NUVEM.ligada = true; win.NUVEM.loja = 'loja1';
-  win.api = async (rota, metodo) => { apagadosNaNuvem.push(metodo + ' ' + rota); return []; };
+  /* (06/10/2026) a exclusão vai pelo banco com a versão vista — apagar_vistos */
+  win.NUVEM._vistaTab = { lancamentos_financeiros: '2026-10-06T05:00:00.000001+00:00' };
+  win.api = async (rota, metodo, corpo) => {
+    if (rota === 'rpc/apagar_vistos') {
+      apagadosNaNuvem.push('APAGAR ' + corpo.p_tabela + ' ' + JSON.stringify(corpo.p_refs));
+      return { apagados: corpo.p_refs || [] };
+    }
+    apagadosNaNuvem.push(metodo + ' ' + rota); return [];
+  };
   win.telaLancamentos = () => {};
   await win.excluirLanc('lf4a');
   t('a exclusão do boleto vai para a NUVEM (era só local: voltava no download)',
-    apagadosNaNuvem.some(x => /^DELETE lancamentos_financeiros\?/.test(x) && /lf4a/.test(x)), apagadosNaNuvem.join(' | '));
+    apagadosNaNuvem.some(x => /^(DELETE lancamentos_financeiros\?|APAGAR lancamentos_financeiros )/.test(x) && /lf4a/.test(x)), apagadosNaNuvem.join(' | '));
   t('a exclusão fica declarada', !!(win.DB._apagados.lancFin || {})['lf4a']);
   t('o boleto saiu do financeiro', !win.DB.lancFin.some(l => l.id === 'lf4a'));
   const csv4 = win.DB.comprasSemVinc.find(c => c.notaId === n4.id);

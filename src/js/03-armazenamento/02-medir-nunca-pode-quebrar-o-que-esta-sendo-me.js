@@ -46,6 +46,36 @@ function adiantarTab(nome,url){
   if(!_EMVOO[k])_EMVOO[k]=baixarTab(nome,url);
   return _EMVOO[k];
 }
+/* ==========================================================
+   ATÉ QUANDO ESTE APARELHO VIU CADA TABELA (06/10/2026)
+
+   A exclusão também respeita a versão: o aparelho só apaga a linha que
+   não mudou depois que ele a viu (apagar_vistos, no banco). "Até quando
+   viu" é a versão mais nova que desceu de cada tabela — linha alterada
+   depois disso não estava no download, logo ninguém aqui a viu. Os
+   filhos que vêm embutidos no pai (itens, pagamentos, movimentos…)
+   contam pela tabela deles. Só anda para frente.
+   ========================================================== */
+function anotarVistaDaTabela(nome,linhas){
+  try{
+    if(!Array.isArray(linhas)||!linhas.length||typeof NUVEM==='undefined')return;
+    NUVEM._vistaTab=NUVEM._vistaTab||{};
+    var marca=function(tab,t){
+      if(!t)return;
+      var a=NUVEM._vistaTab[tab];
+      if(!a||Date.parse(t)>Date.parse(a))NUVEM._vistaTab[tab]=t;
+    };
+    linhas.forEach(function(x){
+      if(!x||typeof x!=='object')return;
+      marca(nome,x.alterado_em);
+      Object.keys(x).forEach(function(k){
+        var v=x[k];
+        if(Array.isArray(v)&&v.length&&v[0]&&typeof v[0]==='object'&&('alterado_em' in v[0]))
+          v.forEach(function(f){ if(f)marca(k,f.alterado_em); });
+      });
+    });
+  }catch(e){ _quieto(e,'anotarVistaDaTabela'); }
+}
 async function baixarTab(nome,url){
   var k=nome+'|'+url;
   if(_EMVOO[k]){ var p=_EMVOO[k]; delete _EMVOO[k]; return await p; }
@@ -76,6 +106,7 @@ async function baixarTab(nome,url){
       if(nome==='pedidos')PED_COBERTO_DESDE='';
     }
     _medir(nome,_tt);
+    anotarVistaDaTabela(nome,r);
     return r;
   }catch(e){
     _medir(nome,_tt);
@@ -316,6 +347,37 @@ function volta(linhas,fn,atual,col){
     if(col)guardarIds(col,linhas);
     var r=(linhas||[]).map(fn);
     /* ==========================================================
+       A VERSÃO DE CADA LINHA DESCE JUNTO — EM TODAS AS TABELAS (06/10/2026)
+
+       A lei de versão (20261006_lei_de_versao_em_todas) recusa a gravação
+       de quem não viu a versão de hoje da linha. O aparelho prova que viu
+       mandando `versao_vista` = o `alterado_em` que desceu. Até aqui só
+       quatro tabelas guardavam esse recibo, cada uma no seu tradutor
+       (`_alt:x.alterado_em`). Agora é aqui, uma vez, para toda tabela — e
+       para os filhos (ingrediente, item, pagamento, opção…), casados pelo
+       ref_local com a lista que veio embutida no pai.
+       Tabela nova nasce com recibo, sem ninguém lembrar de nada.
+       ========================================================== */
+    try{
+      var _filhosV=[];
+      try{
+        var _EV=((typeof MAPA!=='undefined'&&MAPA)||[]).find(function(e){return e.col===col});
+        _filhosV=(_EV&&_EV.filhos)||[];
+      }catch(eV){ _filhosV=[]; }
+      (linhas||[]).forEach(function(cru,i){
+        var x=r[i];
+        if(!cru||!x||typeof x!=='object')return;
+        if(cru.alterado_em!==undefined)x._alt=cru.alterado_em||null;
+        _filhosV.forEach(function(F){
+          var cf=cru[F.tab], lf=x[F.lista];
+          if(!Array.isArray(cf)||!Array.isArray(lf))return;
+          var porRef={};
+          cf.forEach(function(c){ if(c&&c.ref_local)porRef[c.ref_local]=c.alterado_em||null; });
+          lf.forEach(function(o){ if(o&&o.id&&porRef[o.id]!==undefined)o._alt=porRef[o.id]; });
+        });
+      });
+    }catch(eV2){}
+    /* ==========================================================
        DOWNLOAD VAZIO NAO E "A NUVEM ESTA VAZIA"
 
        `baixarTab()` devolve `[]` quando a consulta FALHA — e escreve no
@@ -426,6 +488,40 @@ function volta(linhas,fn,atual,col){
         logNuvem(col+': download começou antes do último envio — mantido o que '+
           'está no aparelho, a nuvem reconcilia no próximo ciclo',true);
       var _fic=0;
+      /* ==========================================================
+         A ALTERAÇÃO QUE FICOU AQUI SÓ GANHA O RECIBO SE NASCEU DA VERSÃO
+         QUE ESTÁ NA NUVEM (06/10/2026)
+
+         A linha mantida aqui sobe no próximo envio. Se ela não tem recibo
+         (`_alt` — alteração feita antes da lei, ou por código antigo), a
+         nuvem a recusa e ela vai para a fila de conflitos. Quase sempre sem
+         motivo: ninguém mexeu na nuvem desde que este aparelho baixou.
+         A prova é a impressão guardada do último envio confirmado
+         (`DB._hash`): se a linha da nuvem, hoje, tem a MESMA impressão, a
+         alteração daqui nasceu da versão de hoje — e ganha o recibo dela.
+         Se a nuvem mudou desde então, fica sem recibo e a matriz decide.
+         ========================================================== */
+      var _EK=null;
+      try{ _EK=((typeof MAPA!=='undefined'&&MAPA)||[]).find(function(e){return e.col===col})||null; }catch(eK){ _EK=null; }
+      r.forEach(function(x,i){
+        if(x&&x.id&&meus[x.id]){
+          var loc=meus[x.id];
+          try{
+            if(loc!==x&&loc._alt==null&&x._alt&&_EK&&typeof impressaoDaLinha==='function'&&
+               typeof DB!=='undefined'&&DB._hash&&DB._hash[col]&&DB._hash[col][loc.id]&&
+               impressaoDaLinha(_EK,x,i)===DB._hash[col][loc.id]){
+              loc._alt=x._alt;
+              (_EK.filhos||[]).forEach(function(F){
+                var daNuvem={};
+                (x[F.lista]||[]).forEach(function(o){ if(o&&o.id)daNuvem[o.id]=o._alt; });
+                (loc[F.lista]||[]).forEach(function(o){
+                  if(o&&o.id&&o._alt==null&&daNuvem[o.id])o._alt=daNuvem[o.id];
+                });
+              });
+            }
+          }catch(eK2){}
+        }
+      });
       r=r.map(function(x){
         if(x&&x.id&&meus[x.id]){ _fic++; return meus[x.id]; }
         return x;
@@ -812,7 +908,10 @@ function volta(linhas,fn,atual,col){
     return '';
   }
   var rg=await _p09;
-  var rv=await api('produto_grupos?select=produto_id,grupo_id');
+  /* alterado_em vem junto: é por ele que o aparelho sabe até quando viu os
+     vínculos — e só apaga o que viu (06/10/2026) */
+  var rv=await api('produto_grupos?select=produto_id,grupo_id,alterado_em');
+  anotarVistaDaTabela('produto_grupos',rv);
   var mapaCat={};rc.forEach(function(x){mapaCat[x.id]=x.ref_local||x.id});
   var mapaGr={};rg.forEach(function(x){mapaGr[x.id]=x.ref_local||x.id});
   DB.categorias=volta(rc,function(x){return {id:x.ref_local||x.id,nome:x.nome,impressao:x.impressao,
@@ -905,6 +1004,11 @@ function volta(linhas,fn,atual,col){
     if(cfgS[0].cfg_pdv){var cp=cfgS[0].cfg_pdv;
       c3.colunas=cp.colunas;c3.mostraPreco=cp.mostraPreco;
       c3.mostraDesc=cp.mostraDesc;c3.botaoGrande=cp.botaoGrande;}
+    /* a versão que desceu e a impressão do que ficou aqui: o envio só
+       sobe a configuração quando ela mudar (enviarConfig, 06/10/2026) */
+    /* caixa_cego não desce: a impressão leva o da nuvem, para o daqui subir se for outro */
+    if(typeof anotarConfigVista==='function')
+      anotarConfigVista('config_loja',cfgS[0],Object.assign(cargaConfigLoja(l),{caixa_cego:!!cfgS[0].caixa_cego}));
   }
   /* As seis que viviam so no navegador. Objeto vazio nao sobrescreve o que
      ja existe aqui: aparelho novo recebe tudo, aparelho antigo nao perde
@@ -962,6 +1066,11 @@ function volta(linhas,fn,atual,col){
       if(o.ass_plat&&Object.keys(o.ass_plat).length)DB.assPlat=o.ass_plat;
       if(o.redes&&o.redes.length)DB.redes=o.redes;
       if(o.operadores&&o.operadores.length)DB.operadores=o.operadores;
+      /* a impressão é a do que está na NUVEM: o que só existe aqui (nuvem em
+         branco) continua subindo; o igual não sobe mais (06/10/2026) */
+      if(typeof anotarConfigVista==='function')
+        anotarConfigVista('config_operacao',o,{loja_id:l,gerente:o.gerente||{},zap:o.zap||{},canais:o.canais||{},
+          ass_plat:o.ass_plat||{},redes:o.redes||[],operadores:o.operadores||[]});
     }
   }catch(eo){ logNuvem('não consegui baixar a configuração de operação',true); }
   /* ---------- ESTOQUE ---------- */

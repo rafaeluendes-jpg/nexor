@@ -15,8 +15,8 @@ lista de tabelas sai do MAPA e do banco, nunca escrita à mão.
 | Fase | Situação |
 |---|---|
 | 0 — publicação só com bateria verde; regras do pedido automáticas | feita e publicada (06/10/2026) |
-| 1 — inventário e régua | em andamento |
-| 2 — banco vira juiz em todas as tabelas | não começou |
+| 1 — inventário e régua | feita (06/10/2026) |
+| 2 — banco vira juiz em todas as tabelas | no ar em observação (06/10/2026); falta virar 'recusar' bloco a bloco |
 | 3 — o que anda para frente não volta | não começou |
 | 4 — vigia confere os dados | não começou |
 | 5 — cerca do pedido | não começou |
@@ -180,3 +180,69 @@ inclusive ingrediente que outro aparelho acabou de pôr. E o vínculo
 produto ↔ grupos é apagado inteiro e regravado.
 
 **Exclusão:** nenhuma tabela confere versão antes de apagar.
+
+---
+
+## Fase 2 — o banco vira juiz em todas as tabelas (06/10/2026)
+
+### O que mudou no banco (`supabase/migrations/20261006_lei_de_versao_em_todas.sql`)
+
+- **Lei de versão nas 60 tabelas** que o aparelho grava (as 58 do MAPA +
+  `config_loja` e `config_operacao`). Uma função só (`tg_versao_vista`)
+  e um instalador só (`instalar_lei_de_versao`), sem regra por tabela.
+  Cada tabela tem o recibo (`versao_vista`), o aparelho
+  (`versao_aparelho`), o carimbo (`alterado_em`), o gatilho da exclusão
+  (`ab_exclusao_vista`) e a auditoria (`tg_auditar`) — antes 27 das 60
+  não tinham auditoria.
+- **Fila de conflitos** (`conflitos_sincronizacao`): o que a lei recusa
+  fica guardado com o que o aparelho queria, o que estava, quem, qual
+  aparelho e quando. A matriz decide (`decidir_conflito`: aplicar ou
+  descartar, com motivo obrigatório; a decisão entra na auditoria como
+  "decisão da matriz"). A unidade vê só os pedidos dela; ninguém escreve
+  na fila direto, nem o visitante sem login chama as funções.
+- **Filhos seguem o pai**: aparelho cujo pai foi recusado não manda os
+  filhos e anexa ao conflito o que queria gravar neles
+  (`anexar_filhos_ao_conflito`).
+- **Exclusão respeita a versão**: `apagar_vistos` só apaga a linha que
+  não mudou depois que o aparelho a viu. O corte dos ingredientes e o
+  vínculo produto ↔ grupos deixaram de ser DELETE direto.
+- **Gravação feita por outro gatilho** (o cancelamento marca o pedido, o
+  estorno mexe no saldo) não é julgada de novo.
+- **Modo de cada tabela** (`lei_de_versao`): a gravação recusa nas quatro
+  que já recusavam (contas, formas, lançamentos, baixas) e fica em
+  observação nas outras 56; a exclusão nasce em observação em todas
+  (aparelho de versão antiga apaga direto, e recusar isso hoje faria o
+  apagado voltar). Em observação a gravação passa e o que a lei recusaria
+  fica na fila como "observado".
+
+### O que mudou no aparelho (V427.0.0)
+
+- Toda tabela sobe com o recibo e o aparelho — sem lista de tabelas.
+- O download guarda a versão de cada linha e de cada filho (`volta`).
+- Recusa: o aparelho não avança a versão, não manda os filhos, anexa o
+  pedido ao conflito e baixa a nuvem. Não insiste.
+- Vínculo não resolvido não sobe vazio por cima do salvo; campo que uma
+  linha não manda não vira nulo por causa da vizinha de lote.
+- Exclusão vai pelo banco com a versão de cada linha (a que desceu ou a
+  que este aparelho gravou). As telas que apagavam direto — ficha,
+  ingrediente, grupo de ficha, lançamento — também.
+- `config_loja` e `config_operacao` sobem só quando mudam, com o recibo
+  (antes subiam inteiras em todo envio, de todo aparelho).
+- Saíram as rotinas que mudavam dado sozinhas: a renumeração automática
+  de códigos (só pelo botão) e o espelho do saldo da unidade como
+  "alteração" do cadastro; login de loja não sobe o cadastro da rede.
+
+### Como se prova
+
+- `node testes/lei-de-versao-em-todas.js` — no **banco de cópia** (PGlite,
+  a fotografia da produção em `ferramentas/banco-de-copia/`), dois
+  aparelhos por tabela, para as 60 tabelas lidas do MAPA: 674 pontos.
+  Tirando a regra dos gatilhos aninhados ele reprova (provado).
+- `node testes/motor-respeita-a-versao.js` — o motor de verdade (jsdom)
+  contra uma nuvem falsa: 43 pontos.
+- `node ferramentas/conferir-nuvem.js` — conferência 0: tabela que o
+  aparelho grava sem a lei e a auditoria reprova o portão
+  (`testes/conferir-nuvem.js` caso 5 prova que reprova).
+- A fotografia da cópia bate com a produção: colunas e gatilhos das 65
+  tabelas idênticos (impressão), funções iguais a menos de comentário
+  (faltava o gatilho de `loja_versao`; posto).

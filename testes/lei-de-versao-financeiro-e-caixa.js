@@ -48,7 +48,11 @@ function t(nome, ok, det) {
   t('lançamentos financeiros têm a lei de versão', E('lancFin').versao === true);
   t('baixas de estoque têm a lei de versão', E('baixasPend').versao === true);
   t('contas e formas continuam com ela', E('contas').versao === true && E('formasPag').versao === true);
-  t('o envio apresenta a versão que o aparelho viu', /if\(E2\.versao\)o\.versao_vista=x\._alt\|\|null;/.test(src));
+  /* 06/10/2026 (ordem do Rafael, missão integridade): o recibo vale para
+     TODA tabela do MAPA, sem condição — a forma antiga, só nas tabelas
+     marcadas (if(E2.versao)…), deixa de ser aceita */
+  t('o envio apresenta a versão que o aparelho viu', /\n\s*o\.versao_vista=x\._alt\|\|null;/.test(src) &&
+    !/if\(E2\.versao\)o\.versao_vista=/.test(src));
   t('o lançamento desce com a versão da nuvem', /loteRef:x\.lote_ref\|\|undefined,loteNum:x\.lote_numero\|\|undefined,\s*\/\*[^*]*\*\/\s*_alt:x\.alterado_em\|\|null,/.test(src));
   t('a baixa desce com a versão da nuvem', /lancadaEm:x\.lancada_em,\s*\/\*[^*]*\*\/\s*_alt:x\.alterado_em\|\|null\}\},DB\.baixasPend,'baixasPend'\)/.test(src));
   t('o mesmo instante escrito de dois jeitos é a mesma versão',

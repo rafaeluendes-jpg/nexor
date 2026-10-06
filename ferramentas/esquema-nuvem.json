@@ -1,5 +1,6 @@
 {
- "gerado": "2026-10-01",
+ "gerado": "2026-10-06",
+ "origem": "PREVISTA: banco de cópia com as migrations novas (regravar com a produção depois de aplicar)",
  "projeto": "cevghkndzpzvnzwifhnm",
  "tabelas": {
   "acertos": {
@@ -21,7 +22,10 @@
     "observacao": "text",
     "data": "date",
     "ref_local": "text",
-    "sucursal_id": "text"
+    "sucursal_id": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -31,7 +35,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_acertos",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "api_chaves": {
    "colunas": {
@@ -122,7 +138,10 @@
     "taxa_padrao": "numeric",
     "tempo": "integer",
     "ref_local": "text",
-    "criado_em": "timestamp with time zone"
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -132,7 +151,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_areas_entrega",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "areas_zonas": {
    "colunas": {
@@ -146,16 +177,29 @@
     "observacao": "text",
     "ativa": "boolean",
     "ordem": "integer",
-    "ref_local": "text"
+    "ref_local": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
-     "ref_local"
+     "id"
     ],
     [
-     "id"
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "assistente_conversas": {
    "colunas": {
@@ -223,12 +267,16 @@
     "registro_id": "uuid",
     "ref_local": "text",
     "antes": "jsonb",
-    "depois": "jsonb"
+    "depois": "jsonb",
+    "aparelho": "text"
    },
    "unicos": [
     [
      "id"
     ]
+   ],
+   "gatilhos": [
+    "tg_audit_imutavel"
    ]
   },
   "backups": {
@@ -274,7 +322,8 @@
     "lancada_em": "timestamp with time zone",
     "criado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
-    "versao_vista": "timestamp with time zone"
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -284,7 +333,18 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "recusar",
+    "exclusao": "observar"
+   }
   },
   "bases_catalogo": {
    "colunas": {
@@ -297,20 +357,34 @@
     "ficha_ref": "text",
     "ativo": "boolean",
     "ordem": "integer",
-    "criado_em": "timestamp with time zone"
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
      "id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "caixa_movimentos": {
    "colunas": {
@@ -329,16 +403,29 @@
     "hora": "text",
     "data_hora": "timestamp with time zone",
     "sucursal_id": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
-     "ref_local"
+     "id"
     ],
     [
-     "id"
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_caixa_fechado_trava_movimento",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "caixas": {
    "colunas": {
@@ -369,7 +456,9 @@
     "fechado_por_id": "text",
     "diferenca_total": "numeric",
     "conciliado": "boolean",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -383,7 +472,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_fechamento_nao_se_apaga",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_caixas",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "cancelamentos": {
    "colunas": {
@@ -405,7 +507,9 @@
     "criado_em": "timestamp with time zone",
     "produzido": "boolean",
     "estoque_voltou": "boolean",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -415,7 +519,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_cancelamento_estorna",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "cardapio_config": {
    "colunas": {
@@ -447,7 +563,10 @@
     "pede_cpf": "boolean",
     "formas_aceitas": "jsonb",
     "pix_chave": "text",
-    "tempos_em": "timestamp with time zone"
+    "tempos_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -457,7 +576,21 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_tempo_digitado_e_lei",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "tg_trava_horario",
+    "trg_versao_cardapio_config",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "categorias": {
    "colunas": {
@@ -475,7 +608,10 @@
     "ref_local": "text",
     "replicado_de": "uuid",
     "replicado_em": "timestamp with time zone",
-    "sucursais": "jsonb"
+    "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -485,7 +621,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_categorias",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "categorias_financeiras": {
    "colunas": {
@@ -496,7 +644,9 @@
     "ref_local": "text",
     "tipo": "text",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -506,7 +656,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_categorias_financeiras",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "categorias_removidas_duplicadas": {
    "colunas": {
@@ -548,7 +710,10 @@
     "zona_id": "text",
     "zona": "text",
     "fidelidade_resgates": "jsonb",
-    "enderecos": "jsonb"
+    "enderecos": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -562,7 +727,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_enderecos_nulo_nao_apaga",
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_clientes",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "clientes_nexor": {
    "colunas": {
@@ -586,7 +764,10 @@
     "criado_em": "timestamp with time zone",
     "loja_id": "uuid",
     "modulos": "jsonb",
-    "nome_fantasia": "text"
+    "nome_fantasia": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -596,7 +777,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_clientes_nexor",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "compras_sem_vinculo": {
    "colunas": {
@@ -615,7 +808,9 @@
     "dados": "jsonb",
     "criado_em": "timestamp with time zone",
     "itens": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -625,7 +820,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_compras_sem_vinculo",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "config_loja": {
    "colunas": {
@@ -641,13 +848,28 @@
     "cfg_mesa": "jsonb",
     "cfg_modos": "jsonb",
     "cfg_fiscal": "jsonb",
-    "cfg_totem": "jsonb"
+    "cfg_totem": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
      "loja_id"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_config_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "config_operacao": {
    "colunas": {
@@ -658,12 +880,67 @@
     "ass_plat": "jsonb",
     "redes": "jsonb",
     "operadores": "jsonb",
-    "atualizado_em": "timestamp with time zone"
+    "atualizado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
      "loja_id"
     ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
+  },
+  "conflitos_sincronizacao": {
+   "colunas": {
+    "id": "bigint",
+    "criado_em": "timestamp with time zone",
+    "ultimo_em": "timestamp with time zone",
+    "vezes": "integer",
+    "loja_id": "uuid",
+    "sucursal": "text",
+    "tabela": "text",
+    "ref_local": "text",
+    "registro_id": "uuid",
+    "operacao": "text",
+    "usuario": "uuid",
+    "usuario_email": "text",
+    "cargo": "text",
+    "aparelho": "text",
+    "versao_vista": "timestamp with time zone",
+    "versao_nuvem": "timestamp with time zone",
+    "queria": "jsonb",
+    "estava": "jsonb",
+    "filhos": "jsonb",
+    "modo": "text",
+    "situacao": "text",
+    "decidido_por": "text",
+    "decidido_em": "timestamp with time zone",
+    "motivo": "text",
+    "impressao": "text"
+   },
+   "unicos": [
+    [
+     "id"
+    ],
+    [
+     "tabela",
+     "impressao"
+    ]
+   ],
+   "gatilhos": [
+    "tg_auditar"
    ]
   },
   "contagens_estoque": {
@@ -682,7 +959,9 @@
     "lancada_em": "date",
     "mov_ref": "text",
     "precos": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -692,7 +971,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_contagens_estoque",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "contas_capital": {
    "colunas": {
@@ -709,7 +1000,8 @@
     "ref_local": "text",
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
-    "versao_vista": "timestamp with time zone"
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -719,7 +1011,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "aa_fabrica_nao_sobrescreve",
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_contas_capital",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "recusar",
+    "exclusao": "observar"
+   }
   },
   "cupom_usos": {
    "colunas": {
@@ -733,7 +1038,10 @@
     "valor": "numeric",
     "total_pedido": "numeric",
     "data": "date",
-    "ref_local": "text"
+    "ref_local": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -743,7 +1051,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_cupom_usos",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "cupons": {
    "colunas": {
@@ -764,7 +1084,10 @@
     "ativo": "boolean",
     "ref_local": "text",
     "criado_em": "timestamp with time zone",
-    "canais": "jsonb"
+    "canais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -778,7 +1101,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_cupons",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "cupons_fiscais": {
    "colunas": {
@@ -814,7 +1149,10 @@
     "nfe_agrupada_ref": "text",
     "contingencia": "boolean",
     "criado_em": "timestamp with time zone",
-    "sucursal_id": "text"
+    "sucursal_id": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -824,7 +1162,18 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "empresas": {
    "colunas": {
@@ -844,16 +1193,29 @@
     "entregador_id": "uuid",
     "cidade": "text",
     "valor": "numeric",
-    "ref_local": "text"
+    "ref_local": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
-     "ref_local"
+     "id"
     ],
     [
-     "id"
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "entregadores": {
    "colunas": {
@@ -868,7 +1230,10 @@
     "ativo": "boolean",
     "criado_em": "timestamp with time zone",
     "ref_local": "text",
-    "sucursais": "jsonb"
+    "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -878,7 +1243,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_entregadores",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "erros_sistema": {
    "colunas": {
@@ -920,22 +1297,36 @@
     "custo_medio": "numeric",
     "atualizado_em": "timestamp with time zone",
     "alterado_em": "timestamp with time zone",
-    "ultimo_custo_medio_com_saldo": "numeric"
+    "ultimo_custo_medio_com_saldo": "numeric",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
+    [
+     "id"
+    ],
     [
      "loja_id",
      "sucursal_id",
      "item_ref"
     ],
     [
-     "id"
-    ],
-    [
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_saldo_mais_novo_vence",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "fiado_movimentos": {
    "colunas": {
@@ -949,7 +1340,10 @@
     "forma_id": "uuid",
     "conta_id": "uuid",
     "observacao": "text",
-    "ref_local": "text"
+    "ref_local": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -959,7 +1353,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_fiado_movimentos",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "ficha_grupos": {
    "colunas": {
@@ -970,7 +1376,10 @@
     "destino_id": "uuid",
     "sucursais": "jsonb",
     "pai_id": "uuid",
-    "sucursais_vista": "jsonb"
+    "sucursais_vista": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -980,7 +1389,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_sucursais_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_ficha_grupos",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "ficha_itens": {
    "colunas": {
@@ -992,20 +1414,32 @@
     "unidade": "text",
     "perda": "numeric",
     "ficha_ref": "uuid",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
-    [
-     "ref_local"
-    ],
     [
      "id"
     ],
     [
      "ficha_id",
      "insumo_id"
+    ],
+    [
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "fichas_tecnicas": {
    "colunas": {
@@ -1052,7 +1486,9 @@
     "sucursais": "jsonb",
     "na_producao": "boolean",
     "alterado_em": "timestamp with time zone",
-    "sucursais_vista": "jsonb"
+    "sucursais_vista": "jsonb",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1068,7 +1504,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_sucursais_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_fichas_tecnicas",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "fiscal_config": {
    "colunas": {
@@ -1194,7 +1643,8 @@
     "ref_local": "text",
     "sucursais": "jsonb",
     "alterado_em": "timestamp with time zone",
-    "versao_vista": "timestamp with time zone"
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1204,7 +1654,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "aa_fabrica_nao_sobrescreve",
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_formas_pagamento",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "recusar",
+    "exclusao": "observar"
+   }
   },
   "fornecedores": {
    "colunas": {
@@ -1219,7 +1682,9 @@
     "criado_em": "timestamp with time zone",
     "ref_local": "text",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1229,7 +1694,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_fornecedores",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "grupos_ingredientes": {
    "colunas": {
@@ -1239,7 +1716,10 @@
     "compoe_cmv": "boolean",
     "ref_local": "text",
     "categoria": "text",
-    "sucursais": "jsonb"
+    "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1249,7 +1729,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_grupos_ingredientes",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "grupos_opcoes": {
    "colunas": {
@@ -1265,7 +1757,10 @@
     "forcado": "boolean",
     "ref_local": "text",
     "canais": "jsonb",
-    "sucursais": "jsonb"
+    "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1275,7 +1770,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_grupos_opcoes",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "indicadores_manuais": {
    "colunas": {
@@ -1287,17 +1794,30 @@
     "funcionarios": "integer",
     "energia_kwh": "numeric",
     "criado_em": "timestamp with time zone",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
-     "id"
-    ],
-    [
      "loja_id",
      "ref_local"
+    ],
+    [
+     "id"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "insumos": {
    "colunas": {
@@ -1341,7 +1861,9 @@
     "custo_ajustado_de": "numeric",
     "custo_ajustado_origem": "text",
     "controla_lote": "boolean",
-    "controla_validade": "boolean"
+    "controla_validade": "boolean",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1354,7 +1876,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_insumos",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "lancamentos_financeiros": {
    "colunas": {
@@ -1393,7 +1927,8 @@
     "alterado_em": "timestamp with time zone",
     "lote_ref": "text",
     "lote_numero": "text",
-    "versao_vista": "timestamp with time zone"
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1402,6 +1937,32 @@
     [
      "loja_id",
      "ref_local"
+    ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_lancamentos_financeiros",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "recusar",
+    "exclusao": "observar"
+   }
+  },
+  "lei_de_versao": {
+   "colunas": {
+    "tabela": "text",
+    "modo": "text",
+    "desde": "timestamp with time zone",
+    "motivo": "text",
+    "modo_exclusao": "text"
+   },
+   "unicos": [
+    [
+     "tabela"
     ]
    ]
   },
@@ -1415,6 +1976,9 @@
     [
      "loja_id"
     ]
+   ],
+   "gatilhos": [
+    "tg_forcar_loja"
    ]
   },
   "lojas": {
@@ -1436,6 +2000,9 @@
     [
      "empresa_id"
     ]
+   ],
+   "gatilhos": [
+    "tg_auditar"
    ]
   },
   "lotes_estoque": {
@@ -1455,7 +2022,9 @@
     "origem_ref": "text",
     "documento": "text",
     "criado_em": "timestamp with time zone",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1465,7 +2034,66 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
+  },
+  "lotes_financeiros": {
+   "colunas": {
+    "id": "uuid",
+    "loja_id": "uuid",
+    "ref_local": "text",
+    "sucursal_id": "text",
+    "numero": "text",
+    "tipo": "text",
+    "data": "date",
+    "conta_id": "uuid",
+    "forma_id": "uuid",
+    "observacao": "text",
+    "criado_por": "text",
+    "criado_local": "timestamp with time zone",
+    "total": "numeric",
+    "quantidade": "integer",
+    "itens": "jsonb",
+    "desfeito": "boolean",
+    "desfeito_em": "timestamp with time zone",
+    "desfeito_por": "text",
+    "motivo": "text",
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
+   },
+   "unicos": [
+    [
+     "loja_id",
+     "ref_local"
+    ],
+    [
+     "id"
+    ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_lotes_financeiros",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "menu_layout": {
    "colunas": {
@@ -1493,7 +2121,10 @@
     "aberta_em": "timestamp with time zone",
     "fechada_em": "timestamp with time zone",
     "pedido_ref": "text",
-    "sucursal_id": "text"
+    "sucursal_id": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1503,7 +2134,18 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "mesas": {
    "colunas": {
@@ -1515,7 +2157,10 @@
     "lugares": "integer",
     "ativa": "boolean",
     "sucursal_id": "text",
-    "criado_em": "timestamp with time zone"
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1525,7 +2170,18 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "migracao_sucursal_loja": {
    "colunas": {
@@ -1558,7 +2214,10 @@
     "criado_em": "timestamp with time zone",
     "blocos": "jsonb",
     "manual": "boolean",
-    "sucursais": "jsonb"
+    "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1566,13 +2225,24 @@
     ],
     [
      "loja_id",
-     "ref_local"
+     "tipo"
     ],
     [
      "loja_id",
-     "tipo"
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "motivos_cancelamento": {
    "colunas": {
@@ -1583,20 +2253,34 @@
     "ativo": "boolean",
     "ordem": "integer",
     "criado_em": "timestamp with time zone",
-    "sucursais": "jsonb"
+    "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
      "id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "motivos_movimentacao": {
    "colunas": {
@@ -1609,7 +2293,9 @@
     "lojas_visiveis": "jsonb",
     "ref_local": "text",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1619,7 +2305,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_motivos_movimentacao",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "movimentacoes_estoque": {
    "colunas": {
@@ -1635,7 +2333,9 @@
     "ref_local": "text",
     "criado_em": "timestamp with time zone",
     "sucursal_id": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1645,7 +2345,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_movimentacoes_estoque",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "notas_entrada": {
    "colunas": {
@@ -1668,7 +2380,9 @@
     "alterado_em": "timestamp with time zone",
     "excluida_em": "timestamp with time zone",
     "excluida_por": "text",
-    "excluida_motivo": "text"
+    "excluida_motivo": "text",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1678,7 +2392,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_notas_entrada",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "opcoes": {
    "colunas": {
@@ -1692,19 +2418,32 @@
     "ficha_id": "uuid",
     "insumo_id": "uuid",
     "insumo_qtd": "numeric",
-    "insumo_un": "text"
+    "insumo_un": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
-    [
-     "ref_local"
-    ],
     [
      "id"
     ],
     [
      "grupo_id"
+    ],
+    [
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "operador_senhas": {
    "colunas": {
@@ -1753,7 +2492,9 @@
     "ref_local": "text",
     "criado_em": "timestamp with time zone",
     "sucursal_id": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1763,7 +2504,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_ordens_producao",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "pagamentos_zerados_removidos": {
    "colunas": {
@@ -1792,7 +2545,10 @@
     "ficha_ref": "text",
     "quantidade": "numeric",
     "valor_unit": "numeric",
-    "total": "numeric"
+    "total": "numeric",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1805,7 +2561,17 @@
     [
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "pedido_itens": {
    "colunas": {
@@ -1819,20 +2585,32 @@
     "opcoes": "jsonb",
     "observacao": "text",
     "ref_local": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
+    [
+     "id"
+    ],
     [
      "pedido_id",
      "ref_local"
     ],
     [
      "ref_local"
-    ],
-    [
-     "id"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "pedido_pagamentos": {
    "colunas": {
@@ -1846,20 +2624,36 @@
     "alterado_em": "timestamp with time zone",
     "situacao": "text",
     "estornado_em": "timestamp with time zone",
-    "estornado_por": "text"
+    "estornado_por": "text",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
-     "ref_local"
+     "id"
     ],
     [
-     "id"
+     "ref_local"
     ],
     [
      "pedido_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_pagamento_nao_duplica",
+    "tg_pagamento_repetido",
+    "tg_pagamento_sem_valor",
+    "tg_resolve_forma",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "pedidos": {
    "colunas": {
@@ -1896,7 +2690,9 @@
     "origem_venda": "text",
     "equipamento": "text",
     "senha_totem": "integer",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1906,7 +2702,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_pedido_preenche_sucursal",
+    "trg_versao_pedidos",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "pedidos_base": {
    "colunas": {
@@ -1932,7 +2741,10 @@
     "entregue_em": "timestamp with time zone",
     "pago_em": "timestamp with time zone",
     "motivo_rejeicao": "text",
-    "criado_em": "timestamp with time zone"
+    "criado_em": "timestamp with time zone",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -1942,7 +2754,18 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "pedidos_online": {
    "colunas": {
@@ -1994,6 +2817,10 @@
     [
      "id"
     ]
+   ],
+   "gatilhos": [
+    "tg_auditar",
+    "trg_versao_perfis"
    ]
   },
   "produto_grupos": {
@@ -2002,20 +2829,33 @@
     "produto_id": "uuid",
     "grupo_id": "uuid",
     "ordem": "integer",
-    "ref_local": "text"
+    "ref_local": "text",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
-    [
-     "ref_local"
-    ],
     [
      "id"
     ],
     [
      "produto_id",
      "grupo_id"
+    ],
+    [
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "produtos": {
    "colunas": {
@@ -2055,8 +2895,10 @@
     "gtin": "text",
     "unidade_tributavel": "text",
     "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
     "brinde_fidelidade": "boolean",
-    "alterado_em": "timestamp with time zone"
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -2069,7 +2911,20 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_brinde_nulo_nao_apaga",
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_produtos",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "sincronizacao_aparelhos": {
    "colunas": {
@@ -2109,20 +2964,34 @@
     "som": "boolean",
     "confere_pagamento": "boolean",
     "criado_em": "timestamp with time zone",
-    "sucursais": "jsonb"
+    "sucursais": "jsonb",
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
      "id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "subcategorias_financeiras": {
    "colunas": {
@@ -2131,16 +3000,28 @@
     "nome": "text",
     "ordem": "integer",
     "ref_local": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
-     "ref_local"
+     "id"
     ],
     [
-     "id"
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "sucursais": {
    "colunas": {
@@ -2175,7 +3056,9 @@
     "cobrancas": "jsonb",
     "excluida_em": "timestamp with time zone",
     "login_responsavel": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -2185,7 +3068,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_sucursais",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "sucursal_permissoes": {
    "colunas": {
@@ -2229,7 +3124,9 @@
     "divergencia": "boolean",
     "data_envio": "date",
     "sucursal_id": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -2239,7 +3136,18 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "turnos": {
    "colunas": {
@@ -2253,20 +3161,33 @@
     "ordem": "integer",
     "criado_em": "timestamp with time zone",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
      "id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "unidades_medida": {
    "colunas": {
@@ -2278,7 +3199,9 @@
     "fator": "numeric",
     "ref_local": "text",
     "sucursais": "jsonb",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
@@ -2288,7 +3211,19 @@
      "loja_id",
      "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "trg_versao_unidades_medida",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "usuarios_sistema": {
    "colunas": {
@@ -2308,20 +3243,36 @@
     "excluido_por": "text",
     "senha_caixa": "text",
     "login_app": "text",
-    "alterado_em": "timestamp with time zone"
+    "alterado_em": "timestamp with time zone",
+    "versao_vista": "timestamp with time zone",
+    "versao_aparelho": "text"
    },
    "unicos": [
     [
      "id"
     ],
     [
-     "loja_id",
-     "ref_local"
+     "loja_id"
     ],
     [
-     "loja_id"
+     "loja_id",
+     "ref_local"
     ]
-   ]
+   ],
+   "gatilhos": [
+    "ab_exclusao_vista",
+    "ab_versao_vista",
+    "tg_auditar",
+    "tg_forcar_loja",
+    "tg_limitar_gerente_unidade",
+    "tg_senha_nunca_em_claro",
+    "trg_versao_usuarios_sistema",
+    "zz_carimbar_alteracao"
+   ],
+   "lei": {
+    "modo": "observar",
+    "exclusao": "observar"
+   }
   },
   "vw_vendas_sem_pagamento": {
    "colunas": {
@@ -2456,40 +3407,6 @@
     [
      "loja_id",
      "chave"
-    ]
-   ]
-  },
-  "lotes_financeiros": {
-   "colunas": {
-    "id": "uuid",
-    "loja_id": "uuid",
-    "ref_local": "text",
-    "sucursal_id": "text",
-    "numero": "text",
-    "tipo": "text",
-    "data": "date",
-    "conta_id": "uuid",
-    "forma_id": "uuid",
-    "observacao": "text",
-    "criado_por": "text",
-    "criado_local": "timestamp with time zone",
-    "total": "numeric",
-    "quantidade": "integer",
-    "itens": "jsonb",
-    "desfeito": "boolean",
-    "desfeito_em": "timestamp with time zone",
-    "desfeito_por": "text",
-    "motivo": "text",
-    "criado_em": "timestamp with time zone",
-    "alterado_em": "timestamp with time zone"
-   },
-   "unicos": [
-    [
-     "id"
-    ],
-    [
-     "loja_id",
-     "ref_local"
     ]
    ]
   }

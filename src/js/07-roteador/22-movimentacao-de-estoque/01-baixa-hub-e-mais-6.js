@@ -17,7 +17,12 @@ function baseMov(){
   setTimeout(function(){DB._baseMovOk=false},0);
   baseFicha();
   if(typeof baseCat==='function')baseCat();
-  arrumarCodigos();
+  /* arrumarCodigos() saiu daqui (06/10/2026): ela renumerava TODOS os
+     insumos e fichas sozinha, ao abrir a tela — e cada aparelho, vendo uma
+     lista diferente, gravava uma numeração diferente (o Chocotone foi 129,
+     186, 128 e 185 em dois dias; 8.008 trocas de código em 30 dias).
+     Renumerar é decisão de quem usa: o botão "Renumerar os códigos"
+     (pedirRenumerar) continua lá, com a confirmação. */
   arrumarEspelhoCardapio();
   DB.motivosMov=DB.motivosMov||[
     {id:'mv_ent',  nome:'Entrada manual',        tipo:'entrada', sistema:false,ativo:true,lojas:[]},
