@@ -1,5 +1,30 @@
 # Mudança do Joia para a VPS — roteiro
 
+> **Atualização de 06/10/2026 (Rafael: "vou mudar o Joia para a
+> Hostinger, urgente; o que estava indo para o GitHub vai direto para lá").**
+> Para o Claude Code que roda dentro da VPS:
+>
+> 1. Use o ramo **`missao-integridade`** (V427), não a `main`:
+>    `git clone -b missao-integridade https://github.com/rafaeluendes-jpg/nexor`.
+>    Ele traz a Missão integridade (fases 2 a 5), pronta e com o portão
+>    verde, que não chegou a ser aplicada no Supabase da nuvem (o
+>    Supabase pede um clique de confirmação que a conversa não mostrava).
+> 2. Logo depois de copiar o banco (passo 6, `copiar-banco.sh`), aplique no
+>    banco **da VPS**: `psql "$DESTINO_DB_URL" -v ON_ERROR_STOP=1 -f
+>    supabase/aplicar-missao-integridade.sql`. A última linha tem de dar
+>    60 · 20 · 5 · 1. É tudo ou nada; rodar duas vezes não estraga.
+> 3. Antes e depois de aplicar, a fotografia dos dados
+>    (`ferramentas/fotografia-dos-dados.sql`) tem de bater com a da nuvem;
+>    a última da nuvem está em `ferramentas/fotografias/` (impressão
+>    `b9a4ff67ca0dabf79bc96429de68d10c`, 06/10 10h14 UTC).
+> 4. O site também pode sair do GitHub Pages: o nginx da VPS serve a pasta
+>    do repositório (index.html, sw.js, ícones, `santafe/`, `jales/`…) em
+>    `joiagest.com.br` — [RAFAEL] trocar o registro A do domínio para o IP
+>    da VPS. Até lá, o passo 9 (apontar para `api.joiagest.com.br`) vale.
+> 5. As regras não mudam: portão verde antes de publicar, backup antes de
+>    mudar o banco, e a virada com as lojas fechadas (as vendas começam
+>    por volta de 12h40).
+
 Preparado em 02/10/2026, depois da queda do Supabase de 12h24 às 13h58.
 Este roteiro é para o **Claude Code que roda dentro da VPS**. Ele cobre
 tudo; o que só o Rafael pode fazer está marcado com **[RAFAEL]**.
