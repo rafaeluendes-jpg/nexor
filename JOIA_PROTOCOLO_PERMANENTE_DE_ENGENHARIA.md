@@ -157,7 +157,7 @@ alteração mínima, e o próprio protocolo proíbe reescrever o que funciona).
 | Persistência (8) | `ferramentas/persistir.js` — taxa de cartão como sentinela, no Chromium: salva → F5 → sai/entra → troca de tela → versão nova → semente |
 | Unitários (9) | `testes/*.js` extraem as funções reais do `index.html` e as rodam (cálculo, troco, fechamento, sangria, totais, estoque, permissão) |
 | Integração (10) | `ferramentas/provar.js` cobre PDV→estoque, PDV→financeiro, PDV→caixa; `conferir-nuvem.js` cobre configuração→nuvem |
-| Produção não destrutiva (12) | Regra 2 do `CLAUDE.md`: nada de `DROP/DELETE/TRUNCATE`/migration em produção sem ordem explícita |
+| Produção não destrutiva (12) | Regra 2 do `CLAUDE.md`: migration em produção só com as três provas — portão verde, backup antes, e prova num banco de cópia (06/10/2026) |
 | Multi-tenant (19) | `testes/tenant*`, isolamento por `minha_loja()`/`minha_rede()` — auditado em `SEGURANCA.md` |
 | Baseline de segurança (20) | `SEGURANCA.md` — RLS nas 87 tabelas, segredo fora do navegador, XSS, permissões |
 | Banco (18) | `ferramentas/conferir-nuvem.js` + `esquema-nuvem.json` — campo a campo contra o banco de produção |
@@ -231,10 +231,9 @@ Nove etapas, na ordem, parando na primeira reprovação:
 
 **Sai com 0 só quando tudo passou. Qualquer outro resultado: não publique.**
 
-Publicar continua sendo decisão do Rafael (regra 1 do `CLAUDE.md`). A
-exceção que ele autorizou: correção de defeito do que já está publicado,
-com o portão verde, sobe direto; regra de negócio nova ou recurso novo
-espera ordem.
+Publicar não precisa de ordem (regra 1 do `CLAUDE.md`, 06/10/2026):
+portão verde, publica. O GitHub confere de novo e não publica com a
+bateria vermelha (`pages.yml`, guardião `testes/publicacao-espera-a-bateria.js`).
 
 ---
 

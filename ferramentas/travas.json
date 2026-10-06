@@ -521,6 +521,10 @@
    "pontos": 12,
    "roda": true
   },
+  "testes/publicacao-espera-a-bateria.js": {
+   "pontos": 12,
+   "roda": true
+  },
   "testes/recebimentos-dinheiro-vendido.js": {
    "pontos": 10,
    "roda": true
@@ -531,6 +535,10 @@
   },
   "testes/reconexao.js": {
    "pontos": 24,
+   "roda": true
+  },
+  "testes/regras-do-pedido.js": {
+   "pontos": 10,
    "roda": true
   },
   "testes/relatorio-historico-liga.js": {

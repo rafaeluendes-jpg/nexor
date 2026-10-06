@@ -30,10 +30,18 @@ um bug seu para uma loja de vender.
 
 ## As regras que não se quebram
 
-1. **Não publicar sem ordem explícita.** Empurrar para a `main` é publicar
-   na loja, na hora. Trabalhe na branch; o merge é decisão do Rafael.
-2. **Não rodar migration nem SQL de escrita no Supabase de produção** sem
-   ordem explícita. Não existe desfazer.
+1. **Publicar não precisa de ordem — precisa do portão verde** (Rafael,
+   06/10/2026, permanente). Empurrar para a `main` é publicar na loja, na
+   hora; só se empurra com `node ferramentas/portao.js` verde inteiro. O
+   GitHub confere de novo: o `pages.yml` só publica se a bateria passar
+   (`npm test`, vistoria, trava dos guardiões, `conferir-nuvem`). Teste
+   vermelho = não publica: corrige e publica de novo. Não peça permissão.
+2. **Migration em produção não precisa de ordem — precisa de três provas**
+   (Rafael, 06/10/2026, permanente): (a) portão verde inteiro; (b) backup
+   do banco ANTES de cada migration; (c) a migration rodou antes num banco
+   de cópia e fez o que devia. Faltou uma das três, não aplica. SQL de
+   escrita avulso também vira migration, com as mesmas três provas. Não
+   existe desfazer — por isso as provas vêm antes.
 3. **`npm test` antes de qualquer publicação.** São 9 suítes; elas leem as
    funções de dentro do `index.html` e rodam as de verdade.
 4. **Nunca editar o `index.html` à mão.** Ele é gerado a partir do `src/`.
@@ -61,6 +69,29 @@ um bug seu para uma loja de vender.
    com aviso e "sim". Antes de publicar, confira o que cada loja via antes e
    o que vê depois. A lei inteira está em
    `JOIA_PROTOCOLO_PERMANENTE_DE_ENGENHARIA.md`.
+
+## Regras do pedido
+
+Valem sozinhas em TODO pedido do Rafael, em toda conversa, sem ele colar
+nada (ordem dele, 06/10/2026). O gancho `.claude/regras-do-pedido.js`
+(`UserPromptSubmit`, em `.claude/settings.json`) lê esta seção e a junta
+a cada mensagem dele; `testes/regras-do-pedido.js` reprova se o gancho ou
+esta seção sumirem.
+
+1. Assim que ele pedir, responda em uma ou duas linhas o que entendeu.
+   Depois siga, sem esperar resposta.
+2. Mexa só no que ele pediu. Não mexa em ficha técnica, ingredientes,
+   insumos, liberação das lojas, lançamentos pagos ou conciliados e caixas
+   fechados, a não ser que ele cite isso. Se for indispensável mexer em
+   outra coisa, mexa no mínimo e diga em uma linha o que foi.
+3. Nenhum dado das lojas muda com uma versão nova. Prove que contas pagas,
+   conciliações, fichas com ingredientes, insumos e liberação de cada loja
+   estão iguais antes e depois.
+4. Portão verde, e publique sozinho. No fim, as três linhas de sempre.
+
+Se ele pedir uma correção no meio de uma missão longa: faça a correção
+primeiro, publique, e volte para a missão de onde parou
+(`MISSAO_INTEGRIDADE.md` diz onde ela está).
 
 ## Por que este arquivo existe
 
@@ -180,10 +211,8 @@ de implementar. Só depende dele o que só ele pode fazer — autorização,
 pagamento, credencial, decisão comercial, ou configuração numa conta que
 o assistente não alcança.
 
-**Publicar continua sendo decisão dele** (regra 1). Com uma diferença que
-ele autorizou: corrigir defeito do que já está publicado, com a bateria
-completa verde, sobe direto; regra de negócio nova ou recurso novo espera
-ordem.
+**Publicar é com o portão, não com permissão** (regra 1, 06/10/2026):
+portão verde, publica sozinho e diz o resultado nas três linhas.
 
 **REGRA DURA (Rafael, 01/09/2026): resposta no chat de 2 a 3 linhas, no
 máximo. Ele não é programador — nada de explicação técnica, nada de "como"

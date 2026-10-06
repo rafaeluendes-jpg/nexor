@@ -95,5 +95,5 @@ const versao = (function () {
 })();
 console.log('\n✓ PODE PUBLICAR — ' + ETAPAS.length + ' etapas, todas passaram.');
 console.log('  Versão: ' + versao + '   ·   ' + Math.round((Date.now() - t0) / 1000) + 's\n');
-console.log('  Publicar continua sendo decisão do Rafael (regra 1 do CLAUDE.md).\n');
+console.log('  Portão verde: publique (regra 1 do CLAUDE.md, 06/10/2026).\n');
 process.exit(0);

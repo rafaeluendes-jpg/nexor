@@ -15,7 +15,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ==========================================================
+  # TESTE VERMELHO = NÃO PUBLICA (Rafael, 06/10/2026)
+  #
+  # Até aqui a publicação não dependia de teste nenhum: o testes.yml
+  # avisava com um X vermelho, mas a loja recebia a versão do mesmo
+  # jeito. Em 06/10/2026 a bateria estava vermelha na main (um guardião
+  # com data fixa) e a parada no primeiro erro escondia as suítes
+  # seguintes — e o sistema continuava sendo publicado.
+  #
+  # Agora `publicar` só começa se `bateria` passar inteira. Qualquer
+  # reprovação deixa a loja na versão que já está no ar.
+  # ==========================================================
+  bateria:
+    name: Bateria — npm test, vistoria, trava dos guardiões, nuvem
+    runs-on: ubuntu-latest
+    env:
+      # o npm test roda tudo no jsdom; navegador nenhum é necessário aqui
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - name: Baixar o repositorio
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ferramentas da bateria
+        run: npm ci --no-audit --no-fund
+
+      - name: Vistoria — o código chama só o que existe
+        run: node ferramentas/vistoriar.js
+
+      - name: Trava dos guardiões — nenhum apagado, desligado ou enfraquecido
+        run: node ferramentas/travar.js
+
+      - name: Nuvem — o que o código manda é o que o banco aceita
+        run: node ferramentas/conferir-nuvem.js
+
+      - name: Bateria de testes — as suítes todas
+        run: npm test
+
   publicar:
+    needs: bateria
     runs-on: ubuntu-latest
     environment:
       name: github-pages

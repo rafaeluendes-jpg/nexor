@@ -143,9 +143,14 @@ function nuvemFalsa(tabelas, registro) {
   t('ficou com a primeira leitura (1.000), sem estourar', Array.isArray(parcial) && parcial.length === 1000);
 
   grupo('6. Pedidos acima do próprio limite: os relatórios vão à nuvem');
+  /* as vendas terminam HOJE e começam 26 dias antes (06/10/2026): com
+     datas fixas em setembro, o dia coberto pelo download caiu para fora
+     da janela de 30 dias com a simples passagem do tempo, e este caso
+     passou a falhar sem nenhuma mudança no código */
   const muitos = [];
+  const hoje0 = new Date(); const ini0 = Date.UTC(hoje0.getUTCFullYear(), hoje0.getUTCMonth(), hoje0.getUTCDate() - 26);
   for (let i = 0; i < 3500; i++) {
-    const d = new Date(Date.UTC(2026, 8, 1 + Math.floor(i / 130), 15)).toISOString();
+    const d = new Date(ini0 + Math.floor(i / 130) * 86400000 + 15 * 3600000).toISOString();
     muitos.push({ id: 'v' + String(i).padStart(5, '0'), criado_em: d, data_venda: d, total: 1 });
   }
   reg = [];
