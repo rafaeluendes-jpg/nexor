@@ -15,6 +15,7 @@
     "package.json",
     "package-lock.json",
     "supabase/migrations/20261006_*",
+    "supabase/aplicar-missao-integridade.sql",
     "ferramentas/**"
   ],
   "tabelas": [

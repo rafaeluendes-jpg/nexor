@@ -233,6 +233,7 @@ create table if not exists public.fotografias_dados (
   foto    jsonb not null
 );
 alter table public.fotografias_dados enable row level security;
+drop policy if exists "a matriz vê as fotografias" on public.fotografias_dados;
 create policy "a matriz vê as fotografias" on public.fotografias_dados for select to authenticated
   using ((select vejo_todas_unidades()));
 revoke all on public.fotografias_dados from anon;
