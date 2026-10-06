@@ -15,7 +15,7 @@
 -- É leve: lê só os grupos protegidos, por índice de loja. Guarde a saída
 -- em ferramentas/fotografias/AAAA-MM-DD-HHMM-antes|depois.json.
 -- ==========================================================
-with s(x) as (select array['alterado_em','versao_vista','versao_aparelho','sucursais_vista']::text[]),
+with s(x) as (select array['alterado_em','versao_vista','versao_aparelho','sucursais_vista','desfazer_motivo']::text[]),
 lin as (
   select 'contas pagas' o, x.loja_id::text l, x.id::text k, (to_jsonb(x) - (select x from s))::text v
     from public.lancamentos_financeiros x where x.pago
