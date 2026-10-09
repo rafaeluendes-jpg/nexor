@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { moveStage, refreshScore } from '@jolo/crm-core';
 import { TIPOS_DE_AVISO } from '@jolo/shared';
-import { NotFoundError, formatPhoneBR, type StageKey } from '@jolo/shared';
+import { NotFoundError, formatPhoneBR, nomeDaCampanha, nomeDaOrigem, type StageKey } from '@jolo/shared';
 import type { Lead } from '@jolo/database';
 import { PrismaService } from '../../common/prisma.service.js';
 import { AvisosService } from '../../common/avisos.service.js';
@@ -108,8 +108,8 @@ export class LeadsService {
         score: l.score,
         temperatura: l.temperature,
         responsavel: l.owner,
-        origem: l.attribution?.firstTouchSource ?? 'direto',
-        campanha: l.attribution?.firstTouchCampaign ?? null,
+        origem: nomeDaOrigem(l.attribution?.firstTouchSource, l.attribution?.firstTouchCampaign),
+        campanha: nomeDaCampanha(l.attribution?.firstTouchCampaign),
         criadoEm: l.createdAt,
         ultimoContato: l.lastContactAt,
         proximaAcao: l.nextActionAt,
@@ -164,8 +164,8 @@ export class LeadsService {
         em: a.createdAt,
       })),
       origem: {
-        origem: lead.attribution?.firstTouchSource ?? 'direto',
-        campanha: lead.attribution?.firstTouchCampaign ?? null,
+        origem: nomeDaOrigem(lead.attribution?.firstTouchSource, lead.attribution?.firstTouchCampaign),
+        campanha: nomeDaCampanha(lead.attribution?.firstTouchCampaign),
         anuncio: lead.attribution?.firstTouchContent ?? null,
         primeiraVisita: lead.attribution?.createdAt ?? null,
       },

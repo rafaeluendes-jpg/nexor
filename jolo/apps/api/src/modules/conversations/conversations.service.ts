@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { releaseToAi, takeOver } from '@jolo/crm-core';
 import { TIPOS_DE_AVISO } from '@jolo/shared';
 import { DomainError, NotFoundError } from '@jolo/shared';
-import { formatPhoneBR } from '@jolo/shared';
+import { formatPhoneBR, lojaDoQrCode, nomeDaOrigem } from '@jolo/shared';
 import { PrismaService } from '../../common/prisma.service.js';
 import { AvisosService } from '../../common/avisos.service.js';
 import { QueueService } from '../queue/queue.service.js';
@@ -110,9 +110,12 @@ export class ConversationsService {
             nextActionAt: c.lead.nextActionAt,
             origem: c.lead.attribution
               ? {
-                  source: c.lead.attribution.firstTouchSource,
+                  // QR Code de loja: a cidade ja vai na origem, a campanha nao se repete
+                  source: nomeDaOrigem(c.lead.attribution.firstTouchSource, c.lead.attribution.firstTouchCampaign),
                   medium: c.lead.attribution.firstTouchMedium,
-                  campaign: c.lead.attribution.firstTouchCampaign,
+                  campaign: lojaDoQrCode(c.lead.attribution.firstTouchCampaign)
+                    ? null
+                    : c.lead.attribution.firstTouchCampaign,
                   content: c.lead.attribution.firstTouchContent,
                 }
               : null,

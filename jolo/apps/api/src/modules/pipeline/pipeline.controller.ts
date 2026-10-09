@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { formatPhoneBR } from '@jolo/shared';
+import { formatPhoneBR, nomeDaOrigem } from '@jolo/shared';
 import { CurrentUser, RequirePermission, type AuthenticatedUser } from '../../common/decorators/index.js';
 import { PrismaService } from '../../common/prisma.service.js';
 
@@ -50,7 +50,7 @@ export class PipelineController {
             cidade: l.desiredCity,
             score: l.score,
             temperatura: l.temperature,
-            origem: l.attribution?.firstTouchSource ?? 'direto',
+            origem: nomeDaOrigem(l.attribution?.firstTouchSource, l.attribution?.firstTouchCampaign),
             responsavel: l.owner?.name ?? null,
             diasNaEtapa: Math.floor((agora - desde.getTime()) / 86_400_000),
             proximaAcao: l.nextActionAt,

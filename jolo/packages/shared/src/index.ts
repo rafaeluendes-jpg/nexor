@@ -8,3 +8,4 @@ export * from './queues';
 export * from './realtime';
 export * from './termo';
 export * from './optout';
+export * from './origem';

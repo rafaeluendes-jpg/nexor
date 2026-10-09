@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { nomeDaOrigem } from '@jolo/shared';
 import { CurrentUser, RequirePermission, type AuthenticatedUser } from '../../common/decorators/index.js';
 import { PrismaService } from '../../common/prisma.service.js';
 
@@ -87,7 +88,7 @@ export class DashboardController {
       serie: [...porDia.entries()].map(([dia, leads]) => ({ dia, leads })),
       etapas: etapas.map((e) => ({ chave: e.key, nome: e.name, leads: e._count.leads })),
       origens: porOrigem.map((o) => ({
-        origem: o.firstTouchSource ?? 'direto',
+        origem: nomeDaOrigem(o.firstTouchSource),
         leads: o._count._all,
       })),
     };
