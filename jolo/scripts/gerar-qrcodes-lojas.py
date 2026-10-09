@@ -2,8 +2,8 @@
 """QR Code de cada loja para o quadro da vitrine.
 
 Cada QR leva para a landing com a loja marcada em utm_campaign
-(qrcode-<cidade>). O CRM le essa marca e mostra "QR Code · <cidade>"
-na conversa, no lead e nos relatorios (packages/attribution/src/lojas.ts).
+(qrcode-<cidade>). O CRM le essa marca e mostra "QR Code da loja de <cidade>"
+na conversa, no lead e nos relatorios (packages/shared/src/origem.ts).
 
 Uso: python3 jolo/scripts/gerar-qrcodes-lojas.py
 Saida: jolo/docs/qrcode/lojas/<cidade>.pdf|.svg|.png
@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 
-# Precisa bater com LOJAS_QRCODE em packages/attribution/src/lojas.ts
+# Precisa bater com LOJAS_QRCODE em packages/shared/src/origem.ts
 LOJAS = [
     ('santa-fe-do-sul', 'SFS', 'Santa Fé do Sul'),
     ('jales', 'JAL', 'Jales'),
